@@ -1,632 +1,333 @@
 ---
 name: Dictation Instructions
-description: Fix speech-to-text errors in dictated text using project-specific vocabulary from GitHub Agentic Workflows
+description: Fix speech-to-text errors in dictated content related to GitHub Agentic Workflows
+applyTo: "**/*"
 ---
 
 # Dictation Instructions
 
-Fix speech-to-text errors in dictated text for GitHub Agentic Workflows (gh-aw), a GitHub CLI extension that transforms natural language markdown files into GitHub Actions.
-
 ## Technical Context
 
-GitHub Agentic Workflows (gh-aw) is a Go-based GitHub CLI extension for writing agentic workflows in natural language using markdown files, running them as GitHub Actions.
+GitHub Agentic Workflows (gh-aw) is a CLI tool for writing agentic workflows in natural language using markdown files and running them as GitHub Actions. When fixing dictated text, use these project-specific terms and conventions.
 
 ## Project Glossary
 
-Correct ambiguous speech-to-text transcriptions using these project-specific terms:
-
-actionlint
+actions
 activation
 add-comment
 add-labels
 add-reviewer
-agent
-agent-finish
-agentic
+admin
+agent-task
+agentic-workflow
 agentic-workflows
 allowed-domains
 allowed-exts
-anthropic
-api-github-com
+allowed-labels
+allowed-repos
+api-key
 api-url
-approval-gates
+app-id
 args
-artifacts
+array
 assign-milestone
 assign-to-agent
 assign-to-user
 assignees
-async
+attestations
 audit
-authentication
-auto-expiration
-auto-merge-prs
+auto-close
+auto-merge
+auto-triage
+automation
+base-branch
 bash
-bash-tool
+body
 boolean
-bootstrap
 branch
+branch-name
+branch-protection-rule
+branches
+bug
 cache
-cache-id
 cache-memory
-campaign
 campaign-id
 campaigns
-changelog
+cancel-in-progress
 chatops
+check-run
+check-suite
 checkout
-ci-doctor
+checks
+choice-param
 claude
 claude-sonnet
-cli
 close-discussion
 close-issue
 close-pull-request
-codebase
-codex
-codemods
-code-scanning
+code-review
 code-scanning-alert
+codex
 command-line
+command-triggered
 command-triggers
+comment-triggered
+commit
 commit-sha
-CommonJS
 compile
-compiler
-completion
 concurrency
 config
-configuration
-context
+config-stdin
 container
-containerized
+containers
 contents
+context-aware
 copilot
 copilot-cli
-copilot-github-token
-copilot-model
 create-agent-task
 create-code-scanning-alert
 create-discussion
 create-issue
 create-pull-request
 create-pull-request-review-comment
+credentials
+cross-repo
 cross-repository
-cron
-cross-prompt-injection
-cursor-glob
+custom
 custom-agent
-custom-engine
-custom-mcp
+custom-agents
+custom-memory
 custom-safe-outputs
-cyclonedx
+custom-tool
 dailyops
-dashboard
-debian
-debugging
-default
-defaults
-dependabot
-deprecated
+debug-mode
+default-deny
+dependencies
+deployment
+deployment-status
 description
-deterministic
-dev-hawk
-development
-dictionary
-discussion
+disable
 discussion-comment
 discussions
 dispatchops
-docker
-docker-hub
-dockerfile
-domain
-dotnet
-draft
-ecosystem
+docker-container
+downstream-fork
+dry-run
 edit
-edit-tool
-emoji
-enabled
+enable
 endpoint
 engine
-enum
-environment
+engine-id
 environment-variables
 error-patterns
 event
+event-triggered
 event-type
-expires
-expressions
-extensions
-feature-flags
-features
-fetch
-file-path
-file-size
+expression
+fail-fast
+fail-on-cache-miss
+false-positive
+feature-flag
+fetch-depth
 filter
-fine-grained
-firewall
-fix
 fork
-forks
 format
 frontmatter
-fuzz-tests
-fuzzy
-gh
 gh-aw
-gh-aw-agent-token
-gh-aw-firewall
-gh-aw-github-token
-gh-aw-project-github-token
-gh-cli
-github
-github-actions
-github-actions-secret
-github-app
-github-cli
-github-copilot
-github-enterprise
-github-mcp
 github-script
-github-server-url
 github-token
-github-tokens
-githubnext
-gitignore
 glob
-glossary
-go
-golang
-gpt
-graphql
-handlebars
-hashicorp
-haskell
-header
-hide-comment
-hide-older-comments
-hosted
-hostname
-http
-https
-identifier
-if-no-changes
-imports
-init
+grep
+head-ref
+http-mcp
+id-token
+import
 inline
-inputs
-inspector
-install
-integration
-issue
+input
 issue-comment
-issue-tracking
+issue-number
+issue-tracker
 issueops
-java
-javascript
+issues
 job
-job-outputs
+job-name
 json
-json-schema
-jq
-kb
-kpi
+key
 label
 labelops
-labels
-language
-launcher
-legacy
-levenshtein
-lifecycle
-line-endings
-line-length
-link-sub-issue
+latest
+limit
 lint
-linter
-linux
-list
-lock-file
-lockfile
+local
 lock-yml
-log-level
+lockfile
+log
 logs
-maintainer
-maintenance
-makefile
-manual-approval
+main-branch
 markdown
-max
-max-discovery-items-per-run
-max-discovery-pages-per-run
-max-patch-size
-max-size
-mcp
+matrix
+max-parallel
 mcp-gateway
 mcp-server
 mcp-servers
-memory
-merge
+merge-commit
 metadata
+metrics
 milestone
-minimize-comment
+milestone-number
 missing-tool
-model
-model-context-protocol
-mode
-monitoring
-multi-edit
 multi-repo
 multirepoops
 network
+network-access
 network-permissions
-node
-nodejs
-noop
-normalization
-npm
-npm-registry
+no-cache
+npm-install
 npx
-number
-off-topic
-on
-operations
-optional
-orchestrator
-org
-organization
-orphaned
-outdated
+on-demand
+org-admin
+org-level
 output
-outputs
-owner
-package
-packaging
-pagination
-parallel
-parameter
-parent-issue
-parse
-pat
-patch
-path
-pattern
-payload
-perl
-permission
+output-dir
+packages
 permissions
-personal-access-token
-php
-pip
+pip-install
 playwright
-plugin
-post-steps
-poutine
-preview
-priority
+pr-number
+pre-commit
 private-key
-process
-project
-project-management
+private-repo
 projectops
-projects-v2
-prompt
-prompt-injection
-public
 pull-request
 pull-request-review-comment
 pull-requests
-purge
 push
-push-to-pull-request-branch
-py
-pypi
-python
-pythonhosted
-query
-quick-start
-raw-githubusercontent
-reaction
-read-all
-read-only
-readme
+read
 recompile
-redacted
-ref
-refactoring
-regex
-registry
-release
 remote
-removal
-remove
-repeat
-repo
-repo-memory
-repository
-request
-required
-research
+remote-repo
+repo-name
+repo-owner
+repository-dispatch
 researchplanassign
-resolved
-resource
-reviewers
-roadmap
-role
-roles
-run
-run-failure
+reviewer
 run-id
 run-name
-run-started
-run-success
-runbook
-runner
 runs-on
-runtime
-rust
-safe
+safe-input
 safe-inputs
 safe-output
-safe-output-messages
 safe-outputs
 sandbox
-sanitization
-sanitize
-sarif
-sbom
-scan
-scanner
-schema
-schedule
 scheduled
-scope
-script
-search
-secret
+secret-name
 secrets
-security
-self-hosted
-semantic
-separator
-service
-session
-session-id
-setup
+security-events
+server-url
+setup-node
+setup-python
 sha
-shell
-shorthand
 siderepoops
-single-select
-skillz
-skip-if-match
-slash
-slash-command
-slug
-spdx
-ssh
-sse
-staged
-staged-mode
-status
-step
-steps
-stop-after
-strict
+sse-server
+status-check
+step-id
 strict-mode
-string
-sub-issue
-subdomain
-submodule
-subprocess
-success
-summary
-swift
-sync
-syntax
-target
-target-repo
-task
+sub-task
+sync-repo
+tag
+team-members
 template
-templating
-temporary
-temporary-id
-terraform
-test
-test-unit
-testing
-threat-detection
-throttle
-timeout
 timeout-minutes
-title-prefix
-token
-tool
+token-permissions
+tool-name
 toolset
 toolsets
-trace
-tracker-id
-tracking
-trigger
-triggering
-triage
-trial
+tools
+triage-analysis
 trialops
-troubleshooting
-typescript
-ubuntu
+trigger-workflow
 ubuntu-latest
-ubuntu-slim
-ui
-update
+unix-timestamp
+update-discussion
 update-issue
-update-project
 update-pull-request
-update-release
-upload
-upload-asset
-url
-user
-username
-utf
-utc
-validate
-validation
-validator
-value
-variable
-verbose
-version
-vscode
-vulnerability
-watch
+upstream-repo
+use-cache
+user-agent
+view
 web-fetch
 web-search
 webhook
-whitespace
-wildcard
-workflow
+webhook-url
+windows-latest
 workflow-dispatch
+workflow-file
+workflow-id
+workflow-name
 workflow-run
-workflows
-workspace
+workflow-run-id
 write
-write-all
-xml
 yaml
-yarn
-zizmor
 
 ## Fix Speech-to-Text Errors
 
-### Common Misrecognitions
+Common speech-to-text misrecognitions and their corrections:
 
-Correct these frequent speech-to-text errors:
+### Safe Outputs/Inputs
+- "safe output" → safe-output
+- "safe outputs" → safe-outputs
+- "safe input" → safe-input
+- "safe inputs" → safe-inputs
+- "save outputs" → safe-outputs
+- "save output" → safe-output
 
-| Misrecognized | Correct |
-|--------------|---------|
-| G H | gh |
-| G H A W | gh-aw |
-| ghaw | gh-aw |
-| gee awe | gh-aw |
-| get hub | github |
-| get hub actions | GitHub Actions |
-| git hub | GitHub |
-| agent ick | agentic |
-| agent tick | agentic |
-| agentive | agentic |
-| M C P | MCP |
-| em see pee | MCP |
-| model context protocol | Model Context Protocol |
-| cop pilot | Copilot |
-| co-pilot | Copilot |
-| play right | Playwright |
-| play write | Playwright |
-| front matter | frontmatter |
-| lock file | lockfile |
-| lock dot Y M L | lock.yml |
-| dot lock dot Y M L | .lock.yml |
-| dot M D | .md |
-| Y A M L | YAML |
-| J S O N | JSON |
-| mark down | markdown |
-| git ignore | gitignore |
-| dot git ignore | .gitignore |
-| safe inputs | safe-inputs |
-| safe outputs | safe-outputs |
-| work flow | workflow |
-| work flows | workflows |
-| tool set | toolset |
-| tool sets | toolsets |
-| time out | timeout |
-| check out | checkout |
-| cache memory | cache-memory |
-| repo memory | repo-memory |
-| cross repo | cross-repository |
-| P R | PR |
-| pull request | pull request |
-| issue ops | issueops |
-| label ops | labelops |
-| chat ops | chatops |
-| daily ops | dailyops |
-| project ops | projectops |
-| multi repo | multi-repo |
-| campaign dot M D | .campaign.md |
-| dot campaign dot M D | .campaign.md |
-| slash command | slash_command |
-| work flow dispatch | workflow_dispatch |
-| workflow run | workflow_run |
-| issue comment | issue_comment |
-| on colon | on: |
-| permissions colon | permissions: |
-| tools colon | tools: |
-| SAR IF | SARIF |
-| es bom | SBOM |
-| NPM JS | npmjs |
-| NPX | npx |
-| pi pi | pypi |
+### Workflow Terms
+- "agent ic workflows" → agentic workflows
+- "agent tick workflows" → agentic workflows
+- "work flow" → workflow
+- "work flows" → workflows
+- "G H A W" → gh-aw
+- "G age A W" → gh-aw
 
-### Spacing and Hyphenation
+### Configuration
+- "front matter" → frontmatter
+- "tool set" → toolset
+- "tool sets" → toolsets
+- "M C P servers" → MCP servers
+- "M C P server" → MCP server
+- "lock file" → lockfile
 
-Fix common spacing and hyphenation errors:
+### Commands & Operations
+- "re compile" → recompile
+- "runs on" → runs-on
+- "time out minutes" → timeout-minutes
+- "work flow dispatch" → workflow-dispatch
+- "pull request" → pull-request (in YAML contexts)
 
-**Add hyphens:**
-- "safe inputs" → "safe-inputs"
-- "safe outputs" → "safe-outputs"
-- "cache memory" → "cache-memory"
-- "repo memory" → "repo-memory"
-- "time out minutes" → "timeout-minutes"
-- "runs on" → "runs-on"
-- "run name" → "run-name"
-- "add comment" → "add-comment"
-- "create issue" → "create-issue"
-- "close issue" → "close-issue"
-- "update project" → "update-project"
-- "title prefix" → "title-prefix"
-- "max size" → "max-size"
-- "allowed domains" → "allowed-domains"
-- "cross repository" → "cross-repository"
-- "pull request" → "pull-request" (when used as compound modifier)
-- "issue comment" → "issue-comment" (when used as compound modifier)
-- "read only" → "read-only"
-- "write all" → "write-all"
-- "fine grained" → "fine-grained"
-- "code scanning" → "code-scanning"
+### GitHub Actions
+- "add comment" → add-comment
+- "add labels" → add-labels
+- "close issue" → close-issue
+- "create issue" → create-issue
+- "pull request review" → pull-request-review
 
-**Remove spaces:**
-- "front matter" → "frontmatter"
-- "work flow" → "workflow"
-- "lock file" → "lockfile"
-- "tool set" → "toolset"
-- "check out" → "checkout"
-- "mark down" → "markdown"
-- "git ignore" → "gitignore"
+### AI Engines
+- "co-pilot" → copilot
+- "Co-Pilot" → Copilot
+- "code X" → codex
+- "Code X" → Codex
 
-**Preserve underscores:**
-- "workflow_dispatch" (not "workflow-dispatch")
-- "slash_command" (not "slash-command")
-- "pull_request" (not "pull-request" in YAML context)
-- "issue_comment" (not "issue-comment" in YAML context)
-- "workflow_run" (not "workflow-run" in YAML context)
-
-## General Instructions
-
-When fixing dictated text:
-
-1. **Preserve original intent**: Only fix clear speech-to-text errors
-2. **Use project glossary**: Prefer terms from the glossary above
-3. **Fix capitalization**: "github" → "GitHub", "copilot" → "Copilot"
-4. **Maintain YAML formatting**: Preserve colons, indentation, structure
-5. **Context matters**: "pull request" vs "pull-request" vs "pull_request" depends on usage
-6. **Keep code intact**: Don't modify working code examples unless clearly wrong
-
-Focus solely on correcting transcription errors - do not add explanations, examples, or planning steps.
+### Spacing/Hyphenation Ambiguity
+When context suggests a GitHub Actions key or CLI flag:
+- Use hyphens: `timeout-minutes`, `runs-on`, `cache-memory`
+- In YAML: prefer hyphenated form
+- In prose: either form acceptable, prefer hyphenated for consistency
 
 ## Guidelines
 
 You do not have enough background information to plan or provide code examples.
-- do NOT generate code examples
-- do NOT plan steps
-- focus on fixing speech-to-text errors only
+- Do NOT generate code examples
+- Do NOT plan steps or provide implementation guidance
+- Focus ONLY on fixing speech-to-text errors (misrecognized words, spacing, hyphenation)
+- When unsure, prefer the hyphenated form for technical terms
+- Preserve the user's intended meaning while correcting transcription errors
