@@ -61,17 +61,9 @@ func (s *SpinnerWrapper) Start() {
 
 // animate runs the spinner animation loop using Bubble Tea's Cmd pattern
 func (s *SpinnerWrapper) animate() {
-	// Get the initial tick message
 	msg := s.model.Tick()
 
 	for {
-		// Check if we should stop
-		select {
-		case <-s.stopCh:
-			return
-		default:
-		}
-
 		// Update the model and render
 		s.mu.Lock()
 		var cmd tea.Cmd
@@ -79,24 +71,21 @@ func (s *SpinnerWrapper) animate() {
 		fmt.Fprintf(os.Stderr, "\r%s %s", s.model.View(), s.message)
 		s.mu.Unlock()
 
-		// Execute the returned Cmd to get the next tick message
-		// The Cmd sleeps for the appropriate duration then returns the next TickMsg
-		if cmd != nil {
-			// Execute cmd in a select to allow for cancellation
-			done := make(chan tea.Msg, 1)
-			go func() {
-				done <- cmd()
-			}()
-
-			select {
-			case <-s.stopCh:
-				return
-			case msg = <-done:
-				// Continue with the next iteration
-			}
-		} else {
-			// No command returned, stop animating
+		// Execute the Cmd to get the next tick message (blocks for FPS duration)
+		if cmd == nil {
 			return
+		}
+
+		// Run cmd in goroutine to allow cancellation
+		done := make(chan tea.Msg, 1)
+		go func() {
+			done <- cmd()
+		}()
+
+		select {
+		case <-s.stopCh:
+			return
+		case msg = <-done:
 		}
 	}
 }
