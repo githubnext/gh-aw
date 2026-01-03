@@ -959,7 +959,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.Target != "" {
 			handlerConfig["target"] = cfg.Target
 		}
-		if cfg.RequiredLabels != nil && len(cfg.RequiredLabels) > 0 {
+		if len(cfg.RequiredLabels) > 0 {
 			handlerConfig["required_labels"] = cfg.RequiredLabels
 		}
 		if cfg.RequiredTitlePrefix != "" {
@@ -974,7 +974,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.Max > 0 {
 			handlerConfig["max"] = cfg.Max
 		}
-		if cfg.AllowedReasons != nil && len(cfg.AllowedReasons) > 0 {
+		if len(cfg.AllowedReasons) > 0 {
 			handlerConfig["allowed_reasons"] = cfg.AllowedReasons
 		}
 		config["hide_comment"] = handlerConfig
