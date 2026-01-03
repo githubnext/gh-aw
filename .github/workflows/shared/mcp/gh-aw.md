@@ -43,16 +43,28 @@ steps:
       ./gh-aw mcp-server --cmd ./gh-aw --port 8765 &
       MCP_PID=$!
       
-      # Wait a moment for server to start
-      sleep 2
+      # Robust health check with TCP connection test
+      echo "Waiting for MCP server to start (PID: $MCP_PID)..."
+      for i in {1..15}; do
+        # Check if process is still running
+        if ! kill -0 $MCP_PID 2>/dev/null; then
+          echo "Error: MCP server process died unexpectedly"
+          exit 1
+        fi
+        
+        # Try to connect to the server port
+        if timeout 1 bash -c "echo > /dev/tcp/localhost/8765" 2>/dev/null; then
+          echo "MCP server is accepting connections on port 8765"
+          echo "MCP server started successfully with PID $MCP_PID"
+          exit 0
+        fi
+        
+        echo "Waiting for server to accept connections... (attempt $i/15)"
+        sleep 1
+      done
       
-      # Check if server is still running
-      if ! kill -0 $MCP_PID 2>/dev/null; then
-        echo "MCP server failed to start"
-        exit 1
-      fi
-      
-      echo "MCP server started successfully with PID $MCP_PID"
+      echo "Error: MCP server failed to accept connections after 15 seconds"
+      exit 1
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ---
