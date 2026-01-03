@@ -78,6 +78,11 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
+	// Validate gitRoot is an absolute path (security: ensure trusted path from git)
+	if !filepath.IsAbs(gitRoot) {
+		return fmt.Errorf("git root is not an absolute path: %s", gitRoot)
+	}
+
 	// Ensure poutine config exists with custom runner configuration
 	if err := ensurePoutineConfig(gitRoot); err != nil {
 		return fmt.Errorf("failed to ensure poutine config: %w", err)
@@ -85,6 +90,8 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 
 	// Build the Docker command with JSON output for easier parsing
 	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json
+	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path
+	// exec.Command with separate args (not shell execution) prevents command injection
 	cmd := exec.Command(
 		"docker",
 		"run",
@@ -165,6 +172,11 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
+	// Validate gitRoot is an absolute path (security: ensure trusted path from git)
+	if !filepath.IsAbs(gitRoot) {
+		return fmt.Errorf("git root is not an absolute path: %s", gitRoot)
+	}
+
 	// Ensure poutine config exists with custom runner configuration
 	if err := ensurePoutineConfig(gitRoot); err != nil {
 		return fmt.Errorf("failed to ensure poutine config: %w", err)
@@ -178,6 +190,8 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 
 	// Build the Docker command with JSON output for easier parsing
 	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json
+	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path
+	// exec.Command with separate args (not shell execution) prevents command injection
 	cmd := exec.Command(
 		"docker",
 		"run",
