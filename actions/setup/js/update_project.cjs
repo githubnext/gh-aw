@@ -477,6 +477,7 @@ async function updateProject(output) {
         })(projectId, contentId);
       let itemId;
       let existingItemFields = {};
+      let fetchedExistingFields = false;
       if (existingItem) {
         itemId = existingItem.id;
         core.info("✓ Item already on board");
@@ -534,6 +535,7 @@ async function updateProject(output) {
               existingItemFields[fieldName] = fieldValue.date;
             }
           }
+          fetchedExistingFields = true;
           core.info(`Existing fields: ${JSON.stringify(existingItemFields)}`);
         } catch (fetchError) {
           core.warning(`Failed to fetch existing item fields: ${getErrorMessage(fetchError)}`);
@@ -556,7 +558,8 @@ async function updateProject(output) {
       const fieldsToUpdate = output.fields ? { ...output.fields } : {};
 
       // Backfill missing required fields for existing items
-      if (existingItem && Object.keys(existingItemFields).length > 0) {
+      // Only backfill if we successfully fetched existing fields
+      if (existingItem && fetchedExistingFields) {
         const requiredDefaults = {
           "Campaign Id": campaignId || output.campaign_id || "unknown",
           "Worker Workflow": "unknown",
