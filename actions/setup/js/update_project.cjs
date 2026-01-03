@@ -558,13 +558,15 @@ async function updateProject(output) {
       const fieldsToUpdate = output.fields ? { ...output.fields } : {};
 
       // Backfill missing required fields for existing items
-      // Only backfill if we successfully fetched existing fields
-      if (existingItem && fetchedExistingFields) {
+      // Only backfill if:
+      // 1. We successfully fetched existing fields
+      // 2. This is a campaign-related update (has campaignId)
+      if (existingItem && fetchedExistingFields && campaignId) {
         // Get current date in ISO format for date fields
         const today = new Date().toISOString().split("T")[0];
 
         const requiredDefaults = {
-          "Campaign Id": campaignId || output.campaign_id || "unknown",
+          "Campaign Id": campaignId,
           "Worker Workflow": "unknown",
           Repository: `${owner}/${repo}`,
           Priority: "Medium",
