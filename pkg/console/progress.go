@@ -27,6 +27,7 @@ type ProgressBar struct {
 	total         int64
 	current       int64
 	indeterminate bool
+	updateCount   int64 // Counter for pulsing animation in indeterminate mode
 }
 
 // NewProgressBar creates a new progress bar with the specified total size (determinate mode)
@@ -55,6 +56,7 @@ func NewProgressBar(total int64) *ProgressBar {
 		total:         total,
 		current:       0,
 		indeterminate: false,
+		updateCount:   0,
 	}
 }
 
@@ -78,6 +80,7 @@ func NewIndeterminateProgressBar() *ProgressBar {
 		total:         0,
 		current:       0,
 		indeterminate: true,
+		updateCount:   0,
 	}
 }
 
@@ -91,6 +94,7 @@ func NewIndeterminateProgressBar() *ProgressBar {
 //   - Non-TTY: Returns processing indicator with current value
 func (p *ProgressBar) Update(current int64) string {
 	p.current = current
+	p.updateCount++ // Increment counter for animation
 
 	// Handle indeterminate mode
 	if p.indeterminate {
@@ -101,10 +105,18 @@ func (p *ProgressBar) Update(current int64) string {
 			}
 			return fmt.Sprintf("Processing... (%s)", formatBytes(current))
 		}
-		// In TTY mode, show a pulsing indicator by cycling between 25% and 75%
-		// This creates a visual "breathing" effect
-		pulseStep := current % 4
-		pulsePercent := 0.5 + 0.25*float64(pulseStep-2)/2.0
+		// In TTY mode, show a pulsing indicator by cycling between 30% and 70%
+		// This creates a visual "breathing" effect that's more noticeable
+		// Using sine wave-like progression: 30% -> 50% -> 70% -> 50% -> 30%
+		pulseStep := p.updateCount % 8 // 8 steps for smoother animation
+		var pulsePercent float64
+		if pulseStep < 4 {
+			// Rising: 30% -> 70%
+			pulsePercent = 0.3 + 0.4*float64(pulseStep)/3.0
+		} else {
+			// Falling: 70% -> 30%
+			pulsePercent = 0.7 - 0.4*float64(pulseStep-4)/3.0
+		}
 		return p.progress.ViewAs(pulsePercent)
 	}
 
