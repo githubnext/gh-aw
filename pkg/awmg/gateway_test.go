@@ -423,7 +423,7 @@ func TestMergeConfigs_EmptyOverride(t *testing.T) {
 	}
 }
 
-func TestParseGatewayConfig_FiltersInternalServers(t *testing.T) {
+func TestParseGatewayConfig_IncludesSafeInputsAndSafeOutputs(t *testing.T) {
 	// Create a config with safeinputs, safeoutputs, and other servers
 	configJSON := `{
 		"mcpServers": {
@@ -454,13 +454,13 @@ func TestParseGatewayConfig_FiltersInternalServers(t *testing.T) {
 		t.Fatalf("Failed to parse config: %v", err)
 	}
 
-	// Verify that safeinputs and safeoutputs are filtered out
-	if _, exists := config.MCPServers["safeinputs"]; exists {
-		t.Error("safeinputs should be filtered out")
+	// Verify that safeinputs and safeoutputs are included (not filtered)
+	if _, exists := config.MCPServers["safeinputs"]; !exists {
+		t.Error("safeinputs should be included")
 	}
 
-	if _, exists := config.MCPServers["safeoutputs"]; exists {
-		t.Error("safeoutputs should be filtered out")
+	if _, exists := config.MCPServers["safeoutputs"]; !exists {
+		t.Error("safeoutputs should be included")
 	}
 
 	// Verify that other servers are kept
@@ -472,23 +472,29 @@ func TestParseGatewayConfig_FiltersInternalServers(t *testing.T) {
 		t.Error("custom-server should be kept")
 	}
 
-	// Verify server count
-	if len(config.MCPServers) != 2 {
-		t.Errorf("Expected 2 servers after filtering, got %d", len(config.MCPServers))
+	// Verify server count - all 4 servers should be present
+	if len(config.MCPServers) != 4 {
+		t.Errorf("Expected 4 servers, got %d", len(config.MCPServers))
 	}
 }
 
-func TestParseGatewayConfig_OnlyInternalServers(t *testing.T) {
-	// Create a config with only safeinputs and safeoutputs
+func TestParseGatewayConfig_TemplateSubstitution(t *testing.T) {
+	// Set environment variables for testing
+	t.Setenv("TEST_PORT", "3000")
+	t.Setenv("TEST_API_KEY", "test-secret-key")
+	t.Setenv("TEST_ENV_VALUE", "test-value")
+
 	configJSON := `{
 		"mcpServers": {
 			"safeinputs": {
-				"command": "node",
-				"args": ["/tmp/gh-aw/safeinputs/mcp-server.cjs"]
-			},
-			"safeoutputs": {
-				"command": "node",
-				"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]
+				"type": "http",
+				"url": "http://localhost:${TEST_PORT}",
+				"headers": {
+					"Authorization": "Bearer ${TEST_API_KEY}"
+				},
+				"env": {
+					"CUSTOM_VAR": "${TEST_ENV_VALUE}"
+				}
 			}
 		}
 	}`
@@ -498,9 +504,23 @@ func TestParseGatewayConfig_OnlyInternalServers(t *testing.T) {
 		t.Fatalf("Failed to parse config: %v", err)
 	}
 
-	// Verify that all internal servers are filtered out, resulting in 0 servers
-	if len(config.MCPServers) != 0 {
-		t.Errorf("Expected 0 servers after filtering internal servers, got %d", len(config.MCPServers))
+	// Verify URL expansion
+	safeinputs := config.MCPServers["safeinputs"]
+	expectedURL := "http://localhost:3000"
+	if safeinputs.URL != expectedURL {
+		t.Errorf("Expected URL %s, got %s", expectedURL, safeinputs.URL)
+	}
+
+	// Verify headers expansion
+	expectedAuth := "Bearer test-secret-key"
+	if safeinputs.Headers["Authorization"] != expectedAuth {
+		t.Errorf("Expected Authorization header %s, got %s", expectedAuth, safeinputs.Headers["Authorization"])
+	}
+
+	// Verify env expansion
+	expectedEnvValue := "test-value"
+	if safeinputs.Env["CUSTOM_VAR"] != expectedEnvValue {
+		t.Errorf("Expected env CUSTOM_VAR=%s, got %s", expectedEnvValue, safeinputs.Env["CUSTOM_VAR"])
 	}
 }
 

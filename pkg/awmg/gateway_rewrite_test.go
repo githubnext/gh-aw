@@ -11,9 +11,9 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-// TestRewriteMCPConfigForGateway_PreservesNonProxiedServers tests that
-// servers not being proxied (like safeinputs/safeoutputs) are preserved unchanged
-func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
+// TestRewriteMCPConfigForGateway_ProxiesSafeInputsAndSafeOutputs tests that
+// safeinputs and safeoutputs servers ARE proxied through the gateway (rewritten)
+func TestRewriteMCPConfigForGateway_ProxiesSafeInputsAndSafeOutputs(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "test-config.json")
@@ -44,9 +44,21 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
 
-	// Gateway config only includes external server (github), not internal servers
+	// Gateway config includes ALL servers (including safeinputs/safeoutputs)
 	gatewayConfig := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
+			"safeinputs": {
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "gh",
+					Args:    []string{"aw", "mcp-server", "--mode", "safe-inputs"},
+				},
+			},
+			"safeoutputs": {
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "gh",
+					Args:    []string{"aw", "mcp-server", "--mode", "safe-outputs"},
+				},
+			},
 			"github": {
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Command: "docker",
@@ -81,45 +93,61 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 		t.Fatal("mcpServers not found or wrong type")
 	}
 
-	// Should have all 3 servers: 2 preserved + 1 rewritten
+	// Should have all 3 servers, all rewritten
 	if len(mcpServers) != 3 {
 		t.Errorf("Expected 3 servers in rewritten config, got %d", len(mcpServers))
 	}
 
-	// Verify safeinputs is preserved with original command/args
+	// Verify safeinputs points to gateway (rewritten)
 	safeinputs, ok := mcpServers["safeinputs"].(map[string]any)
 	if !ok {
 		t.Fatal("safeinputs server not found")
 	}
 
-	safeinputsCommand, ok := safeinputs["command"].(string)
-	if !ok || safeinputsCommand != "gh" {
-		t.Errorf("Expected safeinputs to preserve original command 'gh', got '%v'", safeinputsCommand)
-	}
-
-	safeinputsArgs, ok := safeinputs["args"].([]any)
+	safeinputsURL, ok := safeinputs["url"].(string)
 	if !ok {
-		t.Error("Expected safeinputs to have args array")
-	} else if len(safeinputsArgs) < 3 {
-		t.Errorf("Expected safeinputs to have at least 3 args, got %d", len(safeinputsArgs))
+		t.Fatal("safeinputs server should have url (rewritten)")
 	}
 
-	// Verify safeoutputs is preserved with original command/args
+	expectedURL := "http://localhost:8080/mcp/safeinputs"
+	if safeinputsURL != expectedURL {
+		t.Errorf("Expected safeinputs URL %s, got %s", expectedURL, safeinputsURL)
+	}
+
+	safeinputsType, ok := safeinputs["type"].(string)
+	if !ok || safeinputsType != "http" {
+		t.Errorf("Expected safeinputs to have type 'http', got %v", safeinputsType)
+	}
+
+	// Verify safeinputs does NOT have command/args (was rewritten)
+	if _, hasCommand := safeinputs["command"]; hasCommand {
+		t.Error("Rewritten safeinputs server should not have 'command' field")
+	}
+
+	// Verify safeoutputs points to gateway (rewritten)
 	safeoutputs, ok := mcpServers["safeoutputs"].(map[string]any)
 	if !ok {
 		t.Fatal("safeoutputs server not found")
 	}
 
-	safeoutputsCommand, ok := safeoutputs["command"].(string)
-	if !ok || safeoutputsCommand != "gh" {
-		t.Errorf("Expected safeoutputs to preserve original command 'gh', got '%v'", safeoutputsCommand)
+	safeoutputsURL, ok := safeoutputs["url"].(string)
+	if !ok {
+		t.Fatal("safeoutputs server should have url (rewritten)")
 	}
 
-	safeoutputsArgs, ok := safeoutputs["args"].([]any)
-	if !ok {
-		t.Error("Expected safeoutputs to have args array")
-	} else if len(safeoutputsArgs) < 3 {
-		t.Errorf("Expected safeoutputs to have at least 3 args, got %d", len(safeoutputsArgs))
+	expectedURL = "http://localhost:8080/mcp/safeoutputs"
+	if safeoutputsURL != expectedURL {
+		t.Errorf("Expected safeoutputs URL %s, got %s", expectedURL, safeoutputsURL)
+	}
+
+	safeoutputsType, ok := safeoutputs["type"].(string)
+	if !ok || safeoutputsType != "http" {
+		t.Errorf("Expected safeoutputs to have type 'http', got %v", safeoutputsType)
+	}
+
+	// Verify safeoutputs does NOT have command/args (was rewritten)
+	if _, hasCommand := safeoutputs["command"]; hasCommand {
+		t.Error("Rewritten safeoutputs server should not have 'command' field")
 	}
 
 	// Verify github server points to gateway (was rewritten)
@@ -133,7 +161,7 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 		t.Fatal("github server should have url (rewritten)")
 	}
 
-	expectedURL := "http://localhost:8080/mcp/github"
+	expectedURL = "http://localhost:8080/mcp/github"
 	if githubURL != expectedURL {
 		t.Errorf("Expected github URL %s, got %s", expectedURL, githubURL)
 	}
