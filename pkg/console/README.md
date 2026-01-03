@@ -1,6 +1,52 @@
 # Console Rendering Package
 
-The `console` package provides utilities for rendering Go structs and data structures to formatted console output.
+The `console` package provides utilities for rendering Go structs and data structures to formatted console output, as well as progress bar components for long-running operations.
+
+## ProgressBar Component
+
+The `ProgressBar` component provides a reusable progress bar with TTY detection and graceful fallback for non-TTY environments.
+
+### Features
+
+- **Scaled gradient effect**: Smooth color transition from purple to cyan as progress advances
+- **TTY detection**: Automatically adapts to terminal environment
+- **Byte formatting**: Converts byte counts to human-readable sizes (KB, MB, GB)
+- **Thread-safe updates**: Safe for concurrent use with atomic operations
+
+### Visual Styling
+
+The progress bar uses bubbles v0.21.0+ gradient capabilities for enhanced visual appeal:
+- **Start (0%)**: #BD93F9 (purple) - vibrant, attention-grabbing
+- **End (100%)**: #8BE9FD (cyan) - cool, completion feeling
+- **Empty portion**: #6272A4 (muted purple-gray)
+- **Gradient scaling**: WithScaledGradient ensures gradient scales with filled portion
+
+### Usage
+
+```go
+import "github.com/githubnext/gh-aw/pkg/console"
+
+// Create a progress bar for 1GB total
+totalBytes := int64(1024 * 1024 * 1024)
+bar := console.NewProgressBar(totalBytes)
+
+// Update progress (returns formatted string)
+output := bar.Update(currentBytes)
+fmt.Fprintf(os.Stderr, "\r%s", output)
+```
+
+### Output Examples
+
+**TTY Mode** (with color support):
+```
+████████████████████░░░░░░░░░░░░░░░░░  50%
+```
+*(Displays with gradient from purple to cyan)*
+
+**Non-TTY Mode** (text fallback):
+```
+50% (512.0MB/1.00GB)
+```
 
 ## RenderStruct Function
 

@@ -4,11 +4,20 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/progress"
-	"github.com/githubnext/gh-aw/pkg/styles"
 )
 
 // ProgressBar provides a reusable progress bar component with TTY detection
-// and graceful fallback to text-based progress for non-TTY environments
+// and graceful fallback to text-based progress for non-TTY environments.
+//
+// Visual Features:
+//   - Scaled gradient effect from purple (#BD93F9) to cyan (#8BE9FD)
+//   - Smooth color transitions using bubbles v0.21.0+ gradient capabilities
+//   - Gradient scales with filled portion for enhanced visual feedback
+//   - Works well in both light and dark terminal themes
+//
+// The gradient provides visual appeal without affecting functionality:
+//   - TTY mode: Visual progress bar with smooth gradient transitions
+//   - Non-TTY mode: Text-based percentage with human-readable byte sizes
 type ProgressBar struct {
 	progress progress.Model
 	total    int64
@@ -18,14 +27,23 @@ type ProgressBar struct {
 // NewProgressBar creates a new progress bar with the specified total size
 // The progress bar automatically adapts to TTY/non-TTY environments
 func NewProgressBar(total int64) *ProgressBar {
+	// Use scaled gradient for improved visual effect
+	// The gradient blends from purple to cyan, creating a smooth
+	// color transition as progress advances. WithScaledGradient
+	// ensures the gradient scales with the filled portion for better
+	// visual feedback.
+	//
+	// Color choices:
+	// - Start (0%): #BD93F9 (purple) - vibrant, attention-grabbing
+	// - End (100%): #8BE9FD (cyan) - cool, completion feeling
+	// These colors work well in both light and dark terminal themes
 	prog := progress.New(
-		progress.WithDefaultGradient(),
+		progress.WithScaledGradient("#BD93F9", "#8BE9FD"),
 		progress.WithWidth(40),
 	)
 
-	// Use adaptive colors from theme system
-	prog.FullColor = styles.ColorSuccess.Dark
-	prog.EmptyColor = styles.ColorComment.Dark
+	// Use muted color for empty portion to maintain focus on progress
+	prog.EmptyColor = "#6272A4" // Muted purple-gray
 
 	return &ProgressBar{
 		progress: prog,
