@@ -476,8 +476,69 @@ async function updateProject(output) {
           return null;
         })(projectId, contentId);
       let itemId;
-      if (existingItem) ((itemId = existingItem.id), core.info("✓ Item already on board"));
-      else {
+      let existingItemFields = {};
+      if (existingItem) {
+        itemId = existingItem.id;
+        core.info("✓ Item already on board");
+
+        // Fetch existing field values for this item
+        try {
+          const itemDetails = await github.graphql(
+            `query($itemId: ID!) {
+              node(id: $itemId) {
+                ... on ProjectV2Item {
+                  fieldValues(first: 20) {
+                    nodes {
+                      ... on ProjectV2ItemFieldTextValue {
+                        text
+                        field {
+                          ... on ProjectV2Field {
+                            name
+                          }
+                        }
+                      }
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        name
+                        field {
+                          ... on ProjectV2SingleSelectField {
+                            name
+                          }
+                        }
+                      }
+                      ... on ProjectV2ItemFieldDateValue {
+                        date
+                        field {
+                          ... on ProjectV2Field {
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }`,
+            { itemId }
+          );
+
+          // Parse existing field values
+          const fieldValues = itemDetails.node?.fieldValues?.nodes || [];
+          for (const fieldValue of fieldValues) {
+            if (!fieldValue || !fieldValue.field) continue;
+            const fieldName = fieldValue.field.name;
+            if (fieldValue.text !== undefined) {
+              existingItemFields[fieldName] = fieldValue.text;
+            } else if (fieldValue.name !== undefined) {
+              existingItemFields[fieldName] = fieldValue.name;
+            } else if (fieldValue.date !== undefined) {
+              existingItemFields[fieldName] = fieldValue.date;
+            }
+          }
+          core.info(`Existing fields: ${JSON.stringify(existingItemFields)}`);
+        } catch (fetchError) {
+          core.warning(`Failed to fetch existing item fields: ${getErrorMessage(fetchError)}`);
+        }
+      } else {
         itemId = (
           await github.graphql(
             "mutation($projectId: ID!, $contentId: ID!) {\n            addProjectV2ItemById(input: {\n              projectId: $projectId,\n              contentId: $contentId\n            }) {\n              item {\n                id\n              }\n            }\n          }",
@@ -493,6 +554,40 @@ async function updateProject(output) {
         }
       }
       const fieldsToUpdate = output.fields ? { ...output.fields } : {};
+
+      // Backfill missing required fields for existing items
+      if (existingItem && Object.keys(existingItemFields).length > 0) {
+        const requiredDefaults = {
+          "Campaign Id": campaignId || output.campaign_id || "unknown",
+          "Worker Workflow": "unknown",
+          Repository: `${owner}/${repo}`,
+          Priority: "Medium",
+          Size: "Medium",
+        };
+
+        for (const [fieldName, defaultValue] of Object.entries(requiredDefaults)) {
+          // Check if field is missing or empty in existing item
+          const existingValue = existingItemFields[fieldName];
+          const hasExistingValue = existingValue && existingValue.trim() !== "";
+
+          // Check if field is being updated in this operation
+          const isBeingUpdated = Object.keys(fieldsToUpdate).some(key => {
+            const normalized = key
+              .split(/[\s_-]+/)
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(" ");
+            return normalized === fieldName;
+          });
+
+          // If field is missing and not being updated, add it to fieldsToUpdate
+          if (!hasExistingValue && !isBeingUpdated) {
+            // Convert field name to snake_case for fieldsToUpdate
+            const snakeCaseFieldName = fieldName.toLowerCase().replace(/\s+/g, "_");
+            fieldsToUpdate[snakeCaseFieldName] = defaultValue;
+            core.info(`Backfilling missing field "${fieldName}" with default value: ${defaultValue}`);
+          }
+        }
+      }
       if (Object.keys(fieldsToUpdate).length > 0) {
         const projectFields = (
           await github.graphql(
