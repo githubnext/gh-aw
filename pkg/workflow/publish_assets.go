@@ -162,7 +162,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		Outputs:       outputs,
 		Condition:     jobCondition,
 		PreSteps:      preSteps,
-		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 		Needs:         needs,
 	})
 }

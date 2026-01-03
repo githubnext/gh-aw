@@ -27,7 +27,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				BranchName:           "my-assets/${{ github.event.repository.name }}",
 				MaxSizeKB:            5120,
 				AllowedExts:          []string{".jpg", ".png", ".txt"},
-				BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.CUSTOM_TOKEN }}"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{},
 			},
 		},
 		{
@@ -75,9 +75,6 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				t.Errorf("MaxSizeKB: expected %d, got %d", tt.expected.MaxSizeKB, result.MaxSizeKB)
 			}
 
-			if result.GitHubToken != tt.expected.GitHubToken {
-				t.Errorf("GitHubToken: expected %s, got %s", tt.expected.GitHubToken, result.GitHubToken)
-			}
 
 			if result.Max != tt.expected.Max {
 				t.Errorf("Max: expected %d, got %d", tt.expected.Max, result.Max)

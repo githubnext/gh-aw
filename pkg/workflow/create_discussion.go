@@ -153,7 +153,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		Permissions:    NewPermissionsContentsReadDiscussionsWrite(),
 		Outputs:        outputs,
 		Needs:          needs,
-		Token:          data.SafeOutputs.CreateDiscussions.GitHubToken,
+		Token:          "", // Use global safe-outputs token
 		TargetRepoSlug: data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
 	})
 }

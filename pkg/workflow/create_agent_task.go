@@ -103,7 +103,7 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 		Outputs:         outputs,
 		Condition:       jobCondition,
 		PreSteps:        preSteps,
-		Token:           data.SafeOutputs.CreateAgentTasks.GitHubToken,
+		Token:           "", // Use global safe-outputs token
 		UseCopilotToken: true, // Use Copilot token preference for agent task creation
 		TargetRepoSlug:  data.SafeOutputs.CreateAgentTasks.TargetRepoSlug,
 	})

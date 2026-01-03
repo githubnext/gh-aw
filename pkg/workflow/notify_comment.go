@@ -99,7 +99,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomEnvVars: noopEnvVars,
 			Script:        getNoOpScript(),
 			ScriptFile:    "noop.cjs",
-			Token:         data.SafeOutputs.NoOp.GitHubToken,
+			Token:         "", // Use global safe-outputs token
 		})
 		steps = append(steps, noopSteps...)
 	}
@@ -123,7 +123,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomEnvVars: missingToolEnvVars,
 			Script:        "const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs'); await main();",
 			ScriptFile:    "missing_tool.cjs",
-			Token:         data.SafeOutputs.MissingTool.GitHubToken,
+			Token:         "", // Use global safe-outputs token
 		})
 		steps = append(steps, missingToolSteps...)
 	}
@@ -166,11 +166,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 	}
 
-	// Get token from config
+	// Get token from config - now uses global safe-outputs token only
 	var token string
-	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
-		token = data.SafeOutputs.AddComments.GitHubToken
-	}
+	// Individual safe output types no longer have github-token fields
 
 	// Build the conclusion GitHub Script step (without artifact downloads - already added above)
 	scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{

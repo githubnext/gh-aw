@@ -125,7 +125,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		Condition:      jobCondition,
 		Needs:          needs,
 		PreSteps:       preSteps,
-		Token:          data.SafeOutputs.AddComments.GitHubToken,
+		Token:          "", // Use global safe-outputs token
 		TargetRepoSlug: data.SafeOutputs.AddComments.TargetRepoSlug,
 	})
 }

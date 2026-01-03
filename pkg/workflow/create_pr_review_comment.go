@@ -74,7 +74,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		Permissions:    NewPermissionsContentsReadPRWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken,
+		Token:          "", // Use global safe-outputs token
 		TargetRepoSlug: data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug,
 	})
 }

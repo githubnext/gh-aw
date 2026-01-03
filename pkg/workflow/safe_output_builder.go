@@ -326,7 +326,7 @@ func (c *Compiler) BuildListSafeOutputJob(data *WorkflowData, mainJobName string
 		Permissions:    builderConfig.Permissions,
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          baseSafeOutputConfig.GitHubToken,
+		Token:          "", // Use global safe-outputs token
 		TargetRepoSlug: listJobConfig.TargetRepoSlug,
 	})
 }

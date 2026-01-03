@@ -115,7 +115,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
 			Participants:       data.SafeOutputs.CreatePullRequests.Reviewers,
 			ParticipantType:    "reviewer",
-			CustomToken:        data.SafeOutputs.CreatePullRequests.GitHubToken,
+			CustomToken:        "", // Use global safe-outputs token
 			SafeOutputsToken:   safeOutputsToken,
 			WorkflowToken:      data.GitHubToken,
 			ConditionStepID:    "create_pull_request",
@@ -145,7 +145,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		Outputs:        outputs,
 		PreSteps:       preSteps,
 		PostSteps:      postSteps,
-		Token:          data.SafeOutputs.CreatePullRequests.GitHubToken,
+		Token:          "", // Use global safe-outputs token
 		TargetRepoSlug: data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
 	})
 }

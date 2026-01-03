@@ -2,8 +2,6 @@ package workflow
 
 // buildMarkPullRequestAsReadyForReviewStepConfig builds the configuration for marking a PR as ready for review
 func (c *Compiler) buildMarkPullRequestAsReadyForReviewStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.MarkPullRequestAsReadyForReview
-
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -16,14 +14,12 @@ func (c *Compiler) buildMarkPullRequestAsReadyForReviewStepConfig(data *Workflow
 		Script:        getMarkPullRequestAsReadyForReviewScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
-		Token:         cfg.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 	}
 }
 
 // buildAddReviewerStepConfig builds the configuration for adding a reviewer
-func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.AddReviewer
-
+func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig{
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -36,6 +32,6 @@ func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName st
 		Script:        getAddReviewerScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
-		Token:         cfg.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 	}
 }

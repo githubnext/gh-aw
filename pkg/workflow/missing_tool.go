@@ -51,7 +51,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		Permissions:   NewPermissionsContentsRead(),
 		Outputs:       outputs,
 		Condition:     jobCondition,
-		Token:         data.SafeOutputs.MissingTool.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 	})
 }
 

@@ -173,7 +173,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
 			Participants:       nonCopilotAssignees,
 			ParticipantType:    "assignee",
-			CustomToken:        data.SafeOutputs.CreateIssues.GitHubToken,
+			CustomToken:        "", // Use global safe-outputs token
 			SafeOutputsToken:   safeOutputsToken,
 			WorkflowToken:      data.GitHubToken,
 			ConditionStepID:    "create_issue",
@@ -183,7 +183,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Add post-step for copilot assignment using agent token
 	if assignCopilot {
-		postSteps = append(postSteps, buildCopilotAssignmentStep(data.SafeOutputs.CreateIssues.GitHubToken)...)
+		postSteps = append(postSteps, buildCopilotAssignmentStep("")...) // Use global safe-outputs token
 	}
 
 	// Create outputs for the job
@@ -210,7 +210,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
 		PostSteps:      postSteps,
-		Token:          data.SafeOutputs.CreateIssues.GitHubToken,
+		Token:          "", // Use global safe-outputs token
 		TargetRepoSlug: data.SafeOutputs.CreateIssues.TargetRepoSlug,
 	})
 }

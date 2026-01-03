@@ -81,7 +81,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		Outputs:       outputs,
 		Condition:     jobCondition,
 		PostSteps:     postSteps,
-		Token:         data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 	})
 }
 

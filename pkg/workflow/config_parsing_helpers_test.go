@@ -970,7 +970,6 @@ func TestUnmarshalConfig(t *testing.T) {
 					"allowed-repos":  []any{"owner/repo1", "owner/repo2"},
 					"expires":        7,
 					"max":            5,
-					"github-token":   "${{ secrets.TOKEN }}",
 				},
 			},
 			key:         "create-issue",
@@ -999,9 +998,6 @@ func TestUnmarshalConfig(t *testing.T) {
 				}
 				if config.Max != 5 {
 					t.Errorf("expected max 5, got %d", config.Max)
-				}
-				if config.GitHubToken != "${{ secrets.TOKEN }}" {
-					t.Errorf("expected github-token, got %q", config.GitHubToken)
 				}
 			},
 		},

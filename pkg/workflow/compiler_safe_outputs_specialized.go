@@ -4,8 +4,6 @@ import "fmt"
 
 // buildCreateCodeScanningAlertStepConfig builds the configuration for creating a code scanning alert
 func (c *Compiler) buildCreateCodeScanningAlertStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool, workflowFilename string) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.CreateCodeScanningAlerts
-
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %q\n", workflowFilename))
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
@@ -19,14 +17,12 @@ func (c *Compiler) buildCreateCodeScanningAlertStepConfig(data *WorkflowData, ma
 		Script:        getCreateCodeScanningAlertScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
-		Token:         cfg.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 	}
 }
 
 // buildAssignMilestoneStepConfig builds the configuration for assigning a milestone
 func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.AssignMilestone
-
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -39,7 +35,7 @@ func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobNam
 		Script:        getAssignMilestoneScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
-		Token:         cfg.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 	}
 }
 
@@ -64,15 +60,13 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		Script:        getAssignToAgentScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
-		Token:         cfg.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 		UseAgentToken: true,
 	}
 }
 
 // buildAssignToUserStepConfig builds the configuration for assigning to a user
 func (c *Compiler) buildAssignToUserStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.AssignToUser
-
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -85,14 +79,12 @@ func (c *Compiler) buildAssignToUserStepConfig(data *WorkflowData, mainJobName s
 		Script:        getAssignToUserScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
-		Token:         cfg.GitHubToken,
+		Token:         "", // Use global safe-outputs token
 	}
 }
 
 // buildCreateAgentTaskStepConfig builds the configuration for creating an agent task
 func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.CreateAgentTasks
-
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -104,7 +96,7 @@ func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobNam
 		Script:          "const { main } = require('/tmp/gh-aw/actions/create_agent_task.cjs'); await main();",
 		CustomEnvVars:   customEnvVars,
 		Condition:       condition,
-		Token:           cfg.GitHubToken,
+		Token:           "", // Use global safe-outputs token
 		UseCopilotToken: true,
 	}
 }
