@@ -404,6 +404,13 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
 		}
+		// Still output JSON structure even with no runs (for --json flag)
+		if jsonOutput {
+			logsData := buildLogsData([]ProcessedRun{}, outputDir, nil)
+			if err := renderLogsJSON(logsData); err != nil {
+				return fmt.Errorf("failed to render JSON output: %w", err)
+			}
+		}
 		return nil
 	}
 
