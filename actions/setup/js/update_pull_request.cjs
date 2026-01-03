@@ -11,6 +11,7 @@ const HANDLER_TYPE = "update_pull_request";
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { isPRContext, getPRNumber } = require("./update_context_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTarget } = require("./safe_output_helpers.cjs");
 
 /**
  * Execute the pull request update API call
@@ -105,36 +106,25 @@ async function main(config = {}) {
 
     const item = message;
 
-    // Determine target PR number
-    let prNumber;
-    if (item.pull_request_number !== undefined) {
-      prNumber = parseInt(String(item.pull_request_number), 10);
-      if (isNaN(prNumber)) {
-        core.warning(`Invalid pull request number: ${item.pull_request_number}`);
-        return {
-          success: false,
-          error: `Invalid pull request number: ${item.pull_request_number}`,
-        };
-      }
-    } else {
-      // Use triggering context
-      if (updateTarget === "triggering" && isPRContext(context.eventName, context.payload)) {
-        prNumber = getPRNumber(context.payload);
-        if (!prNumber) {
-          core.warning("No PR number in triggering context");
-          return {
-            success: false,
-            error: "No PR number available",
-          };
-        }
-      } else {
-        core.warning("No pull_request_number provided");
-        return {
-          success: false,
-          error: "No pull request number provided",
-        };
-      }
+    // Determine target PR number using resolveTarget helper
+    const targetResult = resolveTarget({
+      targetConfig: updateTarget,
+      item: { ...item, item_number: item.pull_request_number },
+      context: context,
+      itemType: "update_pull_request",
+      supportsPR: false, // update_pull_request only supports PRs, not issues
+    });
+
+    if (!targetResult.success) {
+      core.warning(targetResult.error);
+      return {
+        success: false,
+        error: targetResult.error,
+      };
     }
+
+    const prNumber = targetResult.number;
+    core.info(`Resolved target PR #${prNumber} (target config: ${updateTarget})`);
 
     // Build update data
     const updateData = {};
