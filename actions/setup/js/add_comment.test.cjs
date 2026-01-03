@@ -1,8 +1,11 @@
 // @ts-check
-const { describe, it, beforeEach, afterEach } = require("node:test");
-const assert = require("node:assert");
-const fs = require("fs");
-const path = require("path");
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe("add_comment", () => {
   let mockCore;
@@ -109,9 +112,9 @@ describe("add_comment", () => {
 
       const result = await handler(message, {});
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(capturedIssueNumber, 8535, "Should comment on the triggering PR #8535");
-      assert.strictEqual(result.itemNumber, 8535);
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(8535);
+      expect(result.itemNumber).toBe(8535);
     });
 
     it("should use explicit PR number when target is a number", async () => {
@@ -138,9 +141,9 @@ describe("add_comment", () => {
 
       const result = await handler(message, {});
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(capturedIssueNumber, 21, "Should comment on the explicit PR #21");
-      assert.strictEqual(result.itemNumber, 21);
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(21);
+      expect(result.itemNumber).toBe(21);
     });
 
     it("should use item_number from message when target is '*'", async () => {
@@ -168,9 +171,9 @@ describe("add_comment", () => {
 
       const result = await handler(message, {});
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(capturedIssueNumber, 999, "Should comment on the item_number PR #999");
-      assert.strictEqual(result.itemNumber, 999);
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(999);
+      expect(result.itemNumber).toBe(999);
     });
 
     it("should fail when target is '*' but no item_number provided", async () => {
@@ -185,8 +188,8 @@ describe("add_comment", () => {
 
       const result = await handler(message, {});
 
-      assert.strictEqual(result.success, false);
-      assert.match(result.error, /no.*item_number/i);
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/no.*item_number/i);
     });
 
     it("should use issue context when triggered by an issue", async () => {
@@ -220,10 +223,10 @@ describe("add_comment", () => {
 
       const result = await handler(message, {});
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(capturedIssueNumber, 42, "Should comment on the triggering issue #42");
-      assert.strictEqual(result.itemNumber, 42);
-      assert.strictEqual(result.isDiscussion, false);
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(42);
+      expect(result.itemNumber).toBe(42);
+      expect(result.isDiscussion).toBe(false);
     });
   });
 
@@ -279,10 +282,10 @@ describe("add_comment", () => {
 
       const result = await handler(message, {});
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(capturedDiscussionNumber, 10, "Should comment on the triggering discussion #10");
-      assert.strictEqual(result.itemNumber, 10);
-      assert.strictEqual(result.isDiscussion, true);
+      expect(result.success).toBe(true);
+      expect(capturedDiscussionNumber).toBe(10);
+      expect(result.itemNumber).toBe(10);
+      expect(result.isDiscussion).toBe(true);
     });
   });
 
@@ -321,10 +324,10 @@ describe("add_comment", () => {
 
       const result = await handler(message, {});
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(capturedIssueNumber, 8535, "CRITICAL: Should comment on PR #8535, not PR #21");
-      assert.strictEqual(result.itemNumber, 8535);
-      assert.notStrictEqual(capturedIssueNumber, 21, "Should NOT comment on wrong PR #21");
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(8535);
+      expect(result.itemNumber).toBe(8535);
+      expect(capturedIssueNumber).not.toBe(21);
     });
   });
 });
