@@ -789,10 +789,21 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 
 	mcpServersLog.Print("Generating GitHub MCP lockdown auto-detection step")
 
+	// Resolve the latest version of actions/github-script
+	actionRepo := "actions/github-script"
+	actionVersion := string(constants.DefaultGitHubScriptVersion)
+	pinnedAction, err := GetActionPinWithData(actionRepo, actionVersion, data)
+	if err != nil {
+		mcpServersLog.Printf("Failed to resolve %s@%s: %v", actionRepo, actionVersion, err)
+		// In strict mode, this error would have been returned by GetActionPinWithData
+		// In normal mode, we fall back to using the version tag without pinning
+		pinnedAction = fmt.Sprintf("%s@%s", actionRepo, actionVersion)
+	}
+
 	// Generate the step using the detect_repo_visibility.cjs action
 	yaml.WriteString("      - name: Detect repository visibility for GitHub MCP lockdown\n")
 	yaml.WriteString("        id: detect-repo-visibility\n")
-	yaml.WriteString("        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", pinnedAction))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');\n")
