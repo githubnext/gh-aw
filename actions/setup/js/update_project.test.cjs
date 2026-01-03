@@ -156,38 +156,6 @@ const existingItemResponse = (contentId, itemId = "existing-item") => ({
 
 const fieldsResponse = nodes => ({ node: { fields: { nodes } } });
 
-const existingItemFieldsResponse = (fields = {}) => ({
-  node: {
-    fieldValues: {
-      nodes: Object.entries(fields).map(([fieldName, fieldValue]) => {
-        // Determine field type based on value
-        if (typeof fieldValue === "object" && fieldValue.type === "single-select") {
-          return {
-            name: fieldValue.value,
-            field: {
-              name: fieldName,
-            },
-          };
-        } else if (typeof fieldValue === "object" && fieldValue.type === "date") {
-          return {
-            date: fieldValue.value,
-            field: {
-              name: fieldName,
-            },
-          };
-        } else {
-          return {
-            text: String(fieldValue),
-            field: {
-              name: fieldName,
-            },
-          };
-        }
-      }),
-    },
-  },
-});
-
 const updateFieldValueResponse = () => ({
   updateProjectV2ItemFieldValue: {
     projectV2Item: {
@@ -403,7 +371,6 @@ describe("updateProject", () => {
       orgProjectV2Response(projectUrl, 60, "project-field"),
       issueResponse("issue-id-10"),
       existingItemResponse("issue-id-10", "item-field"),
-      existingItemFieldsResponse({ Status: "Todo" }), // Mock existing fields
       fieldsResponse([{ id: "field-status", name: "Status" }]),
       updateFieldValueResponse(),
     ]);
@@ -458,7 +425,6 @@ describe("updateProject", () => {
       orgProjectV2Response(projectUrl, 60, "project-priority"),
       issueResponse("issue-id-15"),
       existingItemResponse("issue-id-15", "item-priority"),
-      existingItemFieldsResponse({ Priority: { type: "single-select", value: "Low" } }), // Mock existing fields
       fieldsResponse([
         {
           id: "field-priority",
@@ -494,7 +460,6 @@ describe("updateProject", () => {
       orgProjectV2Response(projectUrl, 60, "project-status"),
       issueResponse("issue-id-16"),
       existingItemResponse("issue-id-16", "item-status"),
-      existingItemFieldsResponse({ Status: { type: "single-select", value: "Todo" } }), // Mock existing fields
       fieldsResponse([
         {
           id: "field-status",
@@ -555,15 +520,7 @@ describe("updateProject", () => {
       fields: { NonExistentField: "Some Value" },
     };
 
-    queueResponses([
-      repoResponse(),
-      viewerResponse(),
-      orgProjectV2Response(projectUrl, 60, "project-test"),
-      issueResponse("issue-id-20"),
-      existingItemResponse("issue-id-20", "item-test"),
-      existingItemFieldsResponse({}),
-      fieldsResponse([]),
-    ]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-20"), existingItemResponse("issue-id-20", "item-test"), fieldsResponse([])]);
 
     mockGithub.graphql.mockRejectedValueOnce(new Error("Failed to create field"));
 
@@ -623,7 +580,6 @@ describe("updateProject", () => {
       orgProjectV2Response(projectUrl, 60, "project-date-field"),
       issueResponse("issue-id-75"),
       existingItemResponse("issue-id-75", "item-date-field"),
-      existingItemFieldsResponse({ Deadline: { type: "date", value: "2025-01-01" } }), // Mock existing date field
       // DATE field with dataType explicitly set to "DATE"
       // This tests that the code checks dataType before checking for options
       fieldsResponse([{ id: "field-deadline", name: "Deadline", dataType: "DATE" }]),
