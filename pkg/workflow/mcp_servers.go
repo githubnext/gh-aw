@@ -793,10 +793,10 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// The step only applies when GH_AW_GITHUB_MCP_SERVER_TOKEN is explicitly configured
 	customGitHubToken := getGitHubToken(githubTool)
 	toplevelToken := data.GitHubToken
-	
+
 	// Determine if a custom token is being used (not the default fallback)
 	hasCustomToken := customGitHubToken != "" || toplevelToken != ""
-	
+
 	if !hasCustomToken {
 		mcpServersLog.Print("No custom GitHub MCP server token defined, skipping automatic lockdown determination")
 		return
