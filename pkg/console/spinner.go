@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/githubnext/gh-aw/pkg/tty"
 )
@@ -59,26 +59,44 @@ func (s *SpinnerWrapper) Start() {
 	go s.animate()
 }
 
-// animate runs the spinner animation loop
+// animate runs the spinner animation loop using Bubble Tea's Cmd pattern
 func (s *SpinnerWrapper) animate() {
-	// Create a ticker based on the spinner's FPS
-	ticker := time.NewTicker(s.model.Spinner.FPS)
-	defer ticker.Stop()
+	// Get the initial tick message
+	msg := s.model.Tick()
 
 	for {
+		// Check if we should stop
 		select {
 		case <-s.stopCh:
 			return
-		case <-ticker.C:
-			// Get the tick message and update the model
-			msg := s.model.Tick()
+		default:
+		}
 
-			s.mu.Lock()
-			s.model, _ = s.model.Update(msg)
+		// Update the model and render
+		s.mu.Lock()
+		var cmd tea.Cmd
+		s.model, cmd = s.model.Update(msg)
+		fmt.Fprintf(os.Stderr, "\r%s %s", s.model.View(), s.message)
+		s.mu.Unlock()
 
-			// Render the spinner with the message
-			fmt.Fprintf(os.Stderr, "\r%s %s", s.model.View(), s.message)
-			s.mu.Unlock()
+		// Execute the returned Cmd to get the next tick message
+		// The Cmd sleeps for the appropriate duration then returns the next TickMsg
+		if cmd != nil {
+			// Execute cmd in a select to allow for cancellation
+			done := make(chan tea.Msg, 1)
+			go func() {
+				done <- cmd()
+			}()
+
+			select {
+			case <-s.stopCh:
+				return
+			case msg = <-done:
+				// Continue with the next iteration
+			}
+		} else {
+			// No command returned, stop animating
+			return
 		}
 	}
 }
