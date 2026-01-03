@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.34.1 - 2026-01-03
+
+### Bug Fixes
+
+#### Auto-generated changeset for pull request #8700.
+
+This is a patch-level changeset (internal/tooling/documentation).
+
+#### Convert PR-related safe outputs and the `hide-comment` safe output to the
+
+handler-manager architecture used by other safe outputs (e.g. `create-issue`).
+
+This is an internal refactor: handlers now use the handler factory pattern,
+enforce max counts, return result objects, and are managed by the handler
+manager. TypeScript, linting, and Go formatting were applied.
+
+#### Converted PR-related safe outputs and `hide-comment` to the handler manager architecture. Internal refactor only; no user-facing API changes.
+
+Ahoy! This changeset was generated for PR #8683 by the Changeset Generator.
+
+#### Refactor the threat detection result parsing step by moving the inline JavaScript into a dedicated
+
+CommonJS module `actions/setup/js/parse_threat_detection_results.cjs` and update the compiler to require it.
+Updated tests to use the require-based pattern and recompiled workflow lock files.
+
+
 ## v0.34.0 - 2026-01-02
 
 ### Features
