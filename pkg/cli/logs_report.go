@@ -138,7 +138,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalMissingTools int
 
 	// Build runs data
-	var runs []RunData
+	// Initialize as empty slice to ensure JSON marshals to [] instead of null
+	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
 		run := pr.Run
 
