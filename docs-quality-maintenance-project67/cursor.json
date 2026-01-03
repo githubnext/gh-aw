@@ -1,7 +1,8 @@
 {
-  "last_updated": "2026-01-03T05:47:09Z",
+  "last_updated": "2026-01-03T11:48:16Z",
   "last_processed_date": "2026-01-03",
-  "items_discovered": 28,
+  "items_discovered": 29,
   "items_updated": 8,
-  "notes": "Campaign orchestration run 2026-01-03. Discovered 28 total items: 4 issues from daily-multi-device-docs-tester (all closed), 23 PRs from daily-doc-updater (all merged), 1 PR from unbloat-docs (#6974 closed draft), 1 PR from developer-docs-consolidator (#6974 same). Applied governance limit of 8 items per run. Synchronized 8 items to project board this run. KPIs show continued improvement: Coverage 92% (target 95%), Accessibility 96% (target 98%), User issues 4 (target 5). Workers docs-noob-tester and technical-doc-writer have not produced outputs yet. Campaign velocity: 1.3 tasks/day. Status: Active, healthy progression toward targets."
+  "items_remaining": 21,
+  "notes": "Campaign orchestration run 2026-01-03 11:48 UTC. Discovered 29 total items: 4 issues from daily-multi-device-docs-tester (all closed), 24 PRs from daily-doc-updater (23 merged, 1 recent #8600), 1 PR from unbloat-docs (#6974 closed draft), 1 PR from developer-docs-consolidator (#6974 same item). Applied governance limit of 8 items per run. Synchronized 8 oldest items to project board: issues #5733, #7122, #7230, #8275 and PRs #4413, #4451, #4583, #4722. Remaining 21 items will be processed in next run. KPIs improving: Coverage 92% (3% from target), Accessibility 96% (2% from target), User issues 4 (exceeding target of 5). Campaign velocity: 1.3 tasks/day. Status: Active, strong automation momentum."
 }
