@@ -16,12 +16,11 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 	campaignSpecPath := filepath.Join(tmpDir, "test-campaign.campaign.md")
 
 	spec := &campaign.CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		Description:  "A test campaign",
-		Workflows:    []string{"example-workflow"},
-		TrackerLabel: "campaign:test-campaign",
-		MemoryPaths:  []string{"memory/campaigns/test-campaign/**"},
+		ID:          "test-campaign",
+		Name:        "Test Campaign",
+		Description: "A test campaign",
+		Workflows:   []string{"example-workflow"},
+		MemoryPaths: []string{"memory/campaigns/test-campaign/**"},
 	}
 
 	compiler := workflow.NewCompiler(false, "", GetVersion())
@@ -127,12 +126,11 @@ func TestCampaignSourceCommentStability(t *testing.T) {
 	campaignSpecPath := filepath.Join(githubDir, "test-campaign.campaign.md")
 
 	spec := &campaign.CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		Description:  "A test campaign for path stability",
-		Workflows:    []string{"example-workflow"},
-		TrackerLabel: "campaign:test-campaign",
-		MemoryPaths:  []string{"memory/campaigns/test-campaign/**"},
+		ID:          "test-campaign",
+		Name:        "Test Campaign",
+		Description: "A test campaign for path stability",
+		Workflows:   []string{"example-workflow"},
+		MemoryPaths: []string{"memory/campaigns/test-campaign/**"},
 	}
 
 	compiler := workflow.NewCompiler(false, "", GetVersion())
@@ -250,7 +248,6 @@ func TestCampaignOrchestratorGitHubToken(t *testing.T) {
 			Name:               "Test Campaign With Token",
 			Description:        "A test campaign with custom GitHub token",
 			Workflows:          []string{"example-workflow"},
-			TrackerLabel:       "campaign:test-campaign-with-token",
 			MemoryPaths:        []string{"memory/campaigns/test-campaign-with-token/**"},
 			ProjectGitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		}
@@ -299,12 +296,11 @@ func TestCampaignOrchestratorGitHubToken(t *testing.T) {
 	// Test case 2: Campaign without custom GitHub token
 	t.Run("without custom token", func(t *testing.T) {
 		spec := &campaign.CampaignSpec{
-			ID:           "test-campaign-no-token",
-			Name:         "Test Campaign Without Token",
-			Description:  "A test campaign without custom GitHub token",
-			Workflows:    []string{"example-workflow"},
-			TrackerLabel: "campaign:test-campaign-no-token",
-			MemoryPaths:  []string{"memory/campaigns/test-campaign-no-token/**"},
+			ID:          "test-campaign-no-token",
+			Name:        "Test Campaign Without Token",
+			Description: "A test campaign without custom GitHub token",
+			Workflows:   []string{"example-workflow"},
+			MemoryPaths: []string{"memory/campaigns/test-campaign-no-token/**"},
 			// ProjectGitHubToken is intentionally omitted
 		}
 

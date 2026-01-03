@@ -38,7 +38,7 @@ workflows, repo-memory paths, and risk level). This command provides a
 single place to see all campaigns configured for the repo.
 
 Available subcommands:
-  • status   - Show live status for campaigns (compiled workflows, issues, PRs)
+	• status   - Show live status for campaigns (compiled workflows, repo-memory)
   • new      - Create a new campaign spec file
   • validate - Validate campaign spec files for common issues
 
@@ -66,10 +66,9 @@ Examples:
 	// Subcommand: campaign status
 	statusCmd := &cobra.Command{
 		Use:   "status [filter]",
-		Short: "Show live status for campaigns (compiled workflows, issues, PRs)",
+		Short: "Show live status for campaigns (compiled workflows, repo-memory)",
 		Long: `Show live status for campaigns, including whether referenced workflows
-are compiled and basic issue/PR counts derived from the campaign's
-tracker label.
+are compiled and best-effort campaign metrics derived from repo-memory.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign status              # Status for all campaigns
@@ -98,7 +97,7 @@ Examples:
 		Long: `Create a new campaign spec Markdown file under .github/workflows/.
 
 The file will be created as .github/workflows/<id>.campaign.md with YAML
-frontmatter (id, name, version, state, tracker-label) followed by a
+frontmatter (id, name, version, state, project-url) followed by a
 Markdown body. You can then
 update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
@@ -158,7 +157,7 @@ Examples:
 		Long: `Validate campaign spec files under .github/workflows/*.campaign.md.
 
 This command performs lightweight semantic validation of campaign
-definitions (IDs, tracker labels, workflows, lifecycle state, and
+definitions (IDs, workflows, lifecycle state, and
 other key fields). By default it exits with a non-zero status when
 problems are found.
 

@@ -7,14 +7,13 @@ import (
 
 func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "go-file-size-reduction-project64",
-		Name:         "Campaign: Go File Size Reduction (Project 64)",
-		Description:  "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors.",
-		ProjectURL:   "https://github.com/orgs/githubnext/projects/64",
-		Workflows:    []string{"daily-file-diet"},
-		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64/**"},
-		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64/metrics/*.json",
-		TrackerLabel: "campaign:go-file-size-reduction-project64",
+		ID:          "go-file-size-reduction-project64",
+		Name:        "Campaign: Go File Size Reduction (Project 64)",
+		Description: "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors.",
+		ProjectURL:  "https://github.com/orgs/githubnext/projects/64",
+		Workflows:   []string{"daily-file-diet"},
+		MemoryPaths: []string{"memory/campaigns/go-file-size-reduction-project64/**"},
+		MetricsGlob: "memory/campaigns/go-file-size-reduction-project64/metrics/*.json",
 	}
 
 	mdPath := ".github/workflows/go-file-size-reduction-project64.campaign.md"
@@ -51,10 +50,6 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		t.Fatalf("expected markdown content to mention campaign name, got: %q", data.MarkdownContent)
 	}
 
-	if !strings.Contains(data.MarkdownContent, spec.TrackerLabel) {
-		t.Fatalf("expected markdown content to mention tracker label %q, got: %q", spec.TrackerLabel, data.MarkdownContent)
-	}
-
 	// Campaign orchestrators intentionally omit permissions from the generated markdown.
 	// Job permissions are computed during compilation.
 	if strings.TrimSpace(data.Permissions) != "" {
@@ -64,12 +59,11 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 
 func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		Description:  "A test campaign",
-		ProjectURL:   "https://github.com/orgs/test/projects/1",
-		Workflows:    []string{"test-workflow"},
-		TrackerLabel: "campaign:test",
+		ID:          "test-campaign",
+		Name:        "Test Campaign",
+		Description: "A test campaign",
+		ProjectURL:  "https://github.com/orgs/test/projects/1",
+		Workflows:   []string{"test-workflow"},
 	}
 
 	mdPath := ".github/workflows/test-campaign.campaign.md"
@@ -110,7 +104,6 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 			"docs-noob-tester",
 			"daily-multi-device-docs-tester",
 		},
-		TrackerLabel: "campaign:test",
 	}
 
 	mdPath := ".github/workflows/test-campaign.campaign.md"
@@ -180,13 +173,12 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 
 func TestBuildOrchestrator_ObjectiveAndKPIsAreRendered(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		Description:  "A test campaign",
-		ProjectURL:   "https://github.com/orgs/test/projects/1",
-		Workflows:    []string{"daily-file-diet"},
-		TrackerLabel: "campaign:test",
-		Objective:    "Improve CI stability",
+		ID:          "test-campaign",
+		Name:        "Test Campaign",
+		Description: "A test campaign",
+		ProjectURL:  "https://github.com/orgs/test/projects/1",
+		Workflows:   []string{"daily-file-diet"},
+		Objective:   "Improve CI stability",
 		KPIs: []CampaignKPI{
 			{
 				Name:           "Build success rate",
@@ -223,12 +215,11 @@ func TestBuildOrchestrator_ObjectiveAndKPIsAreRendered(t *testing.T) {
 
 func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		Description:  "A test campaign",
-		ProjectURL:   "https://github.com/orgs/test/projects/1",
-		Workflows:    []string{"daily-file-diet"},
-		TrackerLabel: "campaign:test",
+		ID:          "test-campaign",
+		Name:        "Test Campaign",
+		Description: "A test campaign",
+		ProjectURL:  "https://github.com/orgs/test/projects/1",
+		Workflows:   []string{"daily-file-diet"},
 	}
 
 	mdPath := ".github/workflows/test-campaign.campaign.md"
@@ -298,7 +289,6 @@ func TestBuildOrchestrator_GitHubToken(t *testing.T) {
 			Description:        "A test campaign with custom GitHub token",
 			ProjectURL:         "https://github.com/orgs/test/projects/1",
 			Workflows:          []string{"test-workflow"},
-			TrackerLabel:       "campaign:test",
 			ProjectGitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		}
 
@@ -329,12 +319,11 @@ func TestBuildOrchestrator_GitHubToken(t *testing.T) {
 
 	t.Run("without custom github token", func(t *testing.T) {
 		spec := &CampaignSpec{
-			ID:           "test-campaign-no-token",
-			Name:         "Test Campaign",
-			Description:  "A test campaign without custom GitHub token",
-			ProjectURL:   "https://github.com/orgs/test/projects/1",
-			Workflows:    []string{"test-workflow"},
-			TrackerLabel: "campaign:test",
+			ID:          "test-campaign-no-token",
+			Name:        "Test Campaign",
+			Description: "A test campaign without custom GitHub token",
+			ProjectURL:  "https://github.com/orgs/test/projects/1",
+			Workflows:   []string{"test-workflow"},
 			// ProjectGitHubToken is intentionally omitted
 		}
 
@@ -365,11 +354,10 @@ func TestBuildOrchestrator_GitHubToken(t *testing.T) {
 
 func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/test/projects/1",
-		Workflows:    []string{"test-workflow"},
-		TrackerLabel: "campaign:test",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/test/projects/1",
+		Workflows:  []string{"test-workflow"},
 		Governance: &CampaignGovernancePolicy{
 			MaxCommentsPerRun:       3,
 			MaxProjectUpdatesPerRun: 4,
@@ -492,14 +480,13 @@ func TestBuildOrchestrator_FileGlobMatchesMemoryPaths(t *testing.T) {
 	// This test verifies that the file-glob pattern in repo-memory configuration
 	// matches the pattern defined in memory-paths, including wildcards
 	spec := &CampaignSpec{
-		ID:           "go-file-size-reduction-project64",
-		Name:         "Go File Size Reduction Campaign",
-		Description:  "Test campaign with dated memory paths",
-		ProjectURL:   "https://github.com/orgs/githubnext/projects/64",
-		Workflows:    []string{"daily-file-diet"},
-		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
-		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
-		TrackerLabel: "campaign:go-file-size-reduction-project64",
+		ID:          "go-file-size-reduction-project64",
+		Name:        "Go File Size Reduction Campaign",
+		Description: "Test campaign with dated memory paths",
+		ProjectURL:  "https://github.com/orgs/githubnext/projects/64",
+		Workflows:   []string{"daily-file-diet"},
+		MemoryPaths: []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
+		MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
 	}
 
 	mdPath := ".github/workflows/go-file-size-reduction-project64.campaign.md"

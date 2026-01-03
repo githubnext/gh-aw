@@ -121,11 +121,10 @@ func TestRunCampaignStatus_JSON(t *testing.T) {
 // (like version) is applied.
 func TestValidateCampaignSpec_Basic(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "go-file-size-reduction",
-		Name:         "Go File Size Reduction",
-		ProjectURL:   "https://github.com/orgs/githubnext/projects/1",
-		Workflows:    []string{"daily-file-diet"},
-		TrackerLabel: "campaign:go-file-size-reduction",
+		ID:         "go-file-size-reduction",
+		Name:       "Go File Size Reduction",
+		ProjectURL: "https://github.com/orgs/githubnext/projects/1",
+		Workflows:  []string{"daily-file-diet"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -142,12 +141,11 @@ func TestValidateCampaignSpec_Basic(t *testing.T) {
 // values are reported by validation.
 func TestValidateCampaignSpec_InvalidState(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "rollout-q1-2025",
-		Name:         "Rollout",
-		ProjectURL:   "https://github.com/orgs/githubnext/projects/1",
-		Workflows:    []string{"org-wide-rollout"},
-		TrackerLabel: "campaign:rollout-q1-2025",
-		State:        "launching", // invalid
+		ID:         "rollout-q1-2025",
+		Name:       "Rollout",
+		ProjectURL: "https://github.com/orgs/githubnext/projects/1",
+		Workflows:  []string{"org-wide-rollout"},
+		State:      "launching", // invalid
 	}
 
 	problems := ValidateSpec(spec)

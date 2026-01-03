@@ -4,9 +4,19 @@
 Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
 
 **Project URL**: {{.ProjectURL}}
-{{if .TrackerLabel}}
-**Campaign ID**: Extract from tracker label `{{.TrackerLabel}}` (format: `campaign:CAMPAIGN_ID`)
-{{end}}
+
+#### Required project fields (must exist)
+
+Your GitHub Project **must** have these fields configured. Do not attempt partial updates.
+
+- `status` (single-select)
+- `campaign_id` (text)
+- `worker_workflow` (text)
+- `repository` (text)
+- `priority` (single-select: "High", "Medium", "Low")
+- `size` (single-select: "Small", "Medium", "Large")
+
+**Campaign ID**: `{{.CampaignID}}` (this exact value must be written to `campaign_id` for every item)
 
 #### Adding New Issues/PRs
 
@@ -16,22 +26,28 @@ update-project:
   project: "{{.ProjectURL}}"
   content_type: "issue"  # or "pull_request"
   content_number: 123  # Extract number from URL like https://github.com/owner/repo/issues/123
-{{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
-{{end}}  fields:
+  campaign_id: "{{.CampaignID}}"  # Required
+  fields:
     status: "Todo"  # or "Done" if issue/PR is already closed/merged
+    worker_workflow: "unknown"  # Required: use worker workflow ID when known, else "unknown"
+    repository: "owner/repo"  # Required: extract from URL
+    priority: "Medium"  # Required default
+    size: "Medium"  # Required default
 ```
 
 **How to extract content_number from URLs**:
 - Issue URL: `https://github.com/owner/repo/issues/123` → `content_number: 123`, `content_type: "issue"`
 - PR URL: `https://github.com/owner/repo/pull/456` → `content_number: 456`, `content_type: "pull_request"`
 
-**Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
-- `Start Date` is set from the issue's `createdAt` timestamp
-- `End Date` is set from the issue's `closedAt` timestamp (if closed)
+#### Required fields for every item
 
-No additional configuration is needed. The dates are extracted in ISO format (YYYY-MM-DD) and only populate if the fields exist and aren't already set. This enables roadmap timeline visualization.
+When adding or updating an item, always provide ALL required fields.
 
-**Recommended Custom Fields**: To enable advanced project board features (swimlanes, "Slice by" filtering), populate these fields when available:
+Deterministic defaults:
+- `worker_workflow`: set to the worker workflow ID when the item is worker-created; otherwise set to `unknown`
+- `repository`: extract `owner/repo` from the issue/PR URL
+- `priority`: default to `Medium` unless explicitly known
+- `size`: default to `Medium` unless explicitly known
 
 ```
 update-project:
@@ -39,25 +55,23 @@ update-project:
   content_type: "issue"  # or "pull_request"
   content_number: 123  # Extract from URL
   fields:
-    status: "Todo"  # or "In Progress", "Blocked", "Done"
-{{if .TrackerLabel}}    campaign_id: "CAMPAIGN_ID"  # Extract from tracker label {{.TrackerLabel}}
-{{end}}    worker_workflow: "WORKFLOW_ID"  # Enables swimlane grouping and filtering
-    priority: "High"  # or "Medium", "Low" - enables priority-based views
-    effort: "Medium"  # or "Small", "Large" - enables capacity planning
-    team: "TEAM_NAME"  # Optional: for team-based grouping
-    repository: "REPO_NAME"  # Optional: for cross-repository campaigns
+    status: "Todo"  # or "In Progress", "Done"
+    campaign_id: "{{.CampaignID}}"  # Required
+    worker_workflow: "WORKFLOW_ID"  # Required (or "unknown" when not known)
+    repository: "owner/repo"  # Required
+    priority: "High"  # or "Medium", "Low"
+    size: "Medium"  # or "Small", "Large"
 ```
 
-**Custom Field Benefits**:
-- `worker_workflow`: Groups items by workflow in Roadmap swimlanes; enables "Slice by" filtering in Table views (orchestrator populates this by discovering which worker created the item via tracker-id)
+**Field semantics**:
+- `worker_workflow`: Enables swimlane grouping and filtering; use the worker workflow ID when known
+- `repository`: Enables cross-repo views and grouping
 - `priority`: Enables priority-based filtering and sorting
-- `effort`: Supports capacity planning and workload distribution
-- `team`: Enables team-based grouping for multi-team campaigns
-- `repository`: Enables repository-based grouping for cross-repository campaigns
+- `size`: Supports capacity planning and workload distribution
 
 **Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
 
-Only populate fields that exist on your project board. Field names are case-sensitive and should match exactly as configured in GitHub Projects.
+Field names are case-sensitive and must match exactly as configured in GitHub Projects.
 
 #### Updating Existing Items
 
@@ -67,9 +81,13 @@ update-project:
   project: "{{.ProjectURL}}"
   content_type: "issue"  # or "pull_request"
   content_number: 123  # Extract from URL
-{{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
-{{end}}  fields:
+  campaign_id: "{{.CampaignID}}"  # Required
+  fields:
     status: "Done"  # or "In Progress", "Todo"
+    worker_workflow: "WORKFLOW_ID"  # Required (or "unknown")
+    repository: "owner/repo"  # Required
+    priority: "Medium"  # Required
+    size: "Medium"  # Required
 ```
 
 #### Idempotency

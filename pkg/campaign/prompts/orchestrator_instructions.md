@@ -1,6 +1,6 @@
 ## Campaign Orchestrator Rules
 
-This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination. It also maintains the campaign dashboard by ensuring the GitHub Project stays in sync with the campaign's tracker label.
+This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination. It also maintains the campaign dashboard by ensuring the GitHub Project stays in sync with discovered worker outputs.
 
 ### Traffic and rate limits (required)
 
@@ -58,7 +58,7 @@ Guidance:
 - Use an ISO date (UTC) filename, for example: `metrics/2025-12-22.json`.
 - Keep snapshots append-only: write a new file per run; do not rewrite historical snapshots.
 - If a KPI is present, record its computed value and trend (Improving/Flat/Regressing) in the kpi_trends array.
-- Count tasks from all sources: tracker-labeled issues, worker-created issues, and project board items.
+- Count tasks from all sources: project board items and worker-created items.
 - Set tasks_total to the total number of unique tasks discovered in this run.
 - Set tasks_completed to the count of tasks with state "Done" or closed status.
 {{ end }}
@@ -83,7 +83,7 @@ Guidance:
 10. **Predefined fields only** - Only update explicitly defined project board fields
 11. **Explicit outcomes** - Record actual outcomes, never infer status
 12. **Idempotent operations** - Re-execution produces the same result without corruption
-13. **Dashboard synchronization** - Keep Project items in sync with tracker-labeled issues/PRs
+13. **Dashboard synchronization** - Keep the GitHub Project board in sync with discovered worker outputs
 
 ### Objective and KPIs (first-class)
 
@@ -118,11 +118,10 @@ Execute these steps in sequence each time this orchestrator runs:
 
 #### Phase 1: Read State (Discovery)
 
-1. **Query tracker-labeled items** - Search for issues and PRs matching the campaign's tracker label
-   - Search: `repo:OWNER/REPO label:TRACKER_LABEL` for all open and closed items
-   - If governance opt-out labels are configured, exclude items with those labels
-   - Collect all matching issue/PR URLs
-   - Record metadata: number, title, state (open/closed), created date, updated date
+1. **Query current project state** - Read the GitHub Project board
+   - Retrieve all items currently on the project board
+   - For each item, record: issue URL, status field value, other predefined field values
+   - Create a snapshot of current board state
 
 2. **Query worker-created content** (if workers are configured) - Search for issues, PRs, and discussions containing worker tracker-ids
 {{ if .Workflows }}   - Worker workflows: {{ range $i, $w := .Workflows }}{{ if $i }}, {{ end }}{{ $w }}{{ end }}
@@ -139,13 +138,8 @@ Execute these steps in sequence each time this orchestrator runs:
    - Combine results from all worker searches into a single list of discovered items
    - Note: Comments are discovered via their parent issue/PR - the issue/PR is what gets added to the board
 
-3. **Query current project state** - Read the GitHub Project board
-   - Retrieve all items currently on the project board
-   - For each item, record: issue URL, status field value, other predefined field values
-   - Create a snapshot of current board state
-
-4. **Compare and identify gaps** - Analyze current state (for reporting only - do NOT use this to filter items in Phase 3)
-   - Items from step 1 or 2 not on board = **new work discovered** (report count)
+3. **Compare and identify gaps** - Analyze current state (for reporting only - do NOT use this to filter items in Phase 3)
+   - Worker-created items from step 2 not on board = **new work discovered** (report count)
    - Items on board with state mismatch = **status updates needed** (report count)
    - Items on board with missing custom fields (e.g., worker_workflow) = **fields to populate** (report count)
    - Items on board but no longer found = **check if archived/deleted** (report count)
@@ -174,11 +168,10 @@ Plan format (keep under 2KB):
 ```
 
 5. **Decide processing order (with pacing)** - For items discovered in steps 1-2:
-   - **CRITICAL**: ALL discovered items (both tracker-labeled from step 1 AND worker-created from step 2) MUST be sent to update-project in Phase 3, regardless of whether they appear to already be on the board. The update-project tool handles idempotency automatically.
+    - **CRITICAL**: ALL worker-created items discovered in step 2 MUST be sent to update-project in Phase 3, regardless of whether they appear to already be on the board. The update-project tool handles idempotency automatically.
    - If `governance.max-new-items-per-run` is set, process at most that many items in this single run (remaining items will be processed in subsequent runs)
    - When applying the governance limit, prioritize in this order:
-     1. Tracker-labeled items (campaign tasks) - process oldest first
-     2. Worker-created items (worker outputs) - process oldest first
+       1. Worker-created items (worker outputs) - process oldest first
    - Determine appropriate status field value based on item state:
      - Open issue/PR/discussion → "Todo" status
      - Closed issue/discussion → "Done" status
@@ -210,7 +203,7 @@ Plan format (keep under 2KB):
 **CRITICAL RULE**: In this phase, you MUST send update-project requests for ALL discovered items from steps 1-2, regardless of whether they appear to already be on the board. The update-project tool handles duplicate detection and idempotency automatically. Do NOT pre-filter items based on board state.
 
 8. **Execute project updates** - Send update-project for ALL discovered items
-   - Process ALL items from steps 1-2 (both tracker-labeled and worker-created), up to the governance limit if set
+   - Process all worker-created items from step 2, up to the governance limit if set
    - Use `update-project` safe-output for EVERY discovered item
    - Include fields from steps 5-6.5: `status`, `worker_workflow`, `priority`, `size`, etc.
    - **The update-project tool will automatically**:
@@ -243,8 +236,11 @@ Plan format (keep under 2KB):
 Only these fields may be updated on the project board:
 
 - `status` (required) - Values: "Todo", "In Progress", "Done"
-- `priority` (optional) - Values: "High", "Medium", "Low"
-- `size` (optional) - Values: "Small", "Medium", "Large"
+- `campaign_id` (required) - Value: must equal the campaign ID `{{.CampaignID}}` for every item
+- `worker_workflow` (required) - Value: worker workflow ID when known; otherwise set to `tracker`
+- `repository` (required) - Value: `owner/repo` extracted from the item URL
+- `priority` (required) - Values: "High", "Medium", "Low" (default: "Medium")
+- `size` (required) - Values: "Small", "Medium", "Large" (default: "Medium")
 - `campaign_status` (metadata) - Values: "active", "completed"
 
 Do NOT update any other fields or create custom fields.
