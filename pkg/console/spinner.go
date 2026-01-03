@@ -1,3 +1,28 @@
+// Package console provides terminal UI components including spinners for
+// long-running operations.
+//
+// # Spinner Component
+//
+// The spinner provides visual feedback during long-running operations with a minimal
+// dot animation (⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷). It automatically adapts to the environment:
+//   - TTY Detection: Spinners only animate in terminal environments (disabled in pipes/redirects)
+//   - Accessibility: Respects ACCESSIBLE environment variable to disable animations
+//   - Color Adaptation: Uses lipgloss adaptive colors for light/dark terminal themes
+//
+// # Usage Example
+//
+//	spinner := console.NewSpinner("Loading...")
+//	spinner.Start()
+//	// Long-running operation
+//	spinner.Stop()
+//
+// # Accessibility
+//
+// Spinners respect the ACCESSIBLE environment variable. When ACCESSIBLE is set to any value,
+// spinner animations are disabled to support screen readers and accessibility tools.
+//
+//	export ACCESSIBLE=1
+//	gh aw compile workflow.md  # Spinners will be disabled
 package console
 
 import (
@@ -21,10 +46,13 @@ type SpinnerWrapper struct {
 	mu      sync.Mutex
 }
 
-// NewSpinner creates a new spinner with the given message
-// The spinner is automatically disabled when not running in a TTY
+// NewSpinner creates a new spinner with the given message using MiniDot style
+// The spinner is automatically disabled when not running in a TTY or in accessibility mode
 func NewSpinner(message string) *SpinnerWrapper {
-	enabled := tty.IsStderrTerminal() // Check if stderr is a terminal (spinner writes to stderr)
+	// Check if spinner should be enabled:
+	// 1. Must be running in a TTY
+	// 2. ACCESSIBLE environment variable must not be set
+	enabled := tty.IsStderrTerminal() && os.Getenv("ACCESSIBLE") == ""
 
 	s := &SpinnerWrapper{
 		message: message,
@@ -33,9 +61,9 @@ func NewSpinner(message string) *SpinnerWrapper {
 	}
 
 	if enabled {
-		// Create a new spinner model with Dot style and info color
+		// Create a new spinner model with MiniDot style and info color
 		s.model = spinner.New(
-			spinner.WithSpinner(spinner.Dot),
+			spinner.WithSpinner(spinner.MiniDot),
 			spinner.WithStyle(styles.Info),
 		)
 	}

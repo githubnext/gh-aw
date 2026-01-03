@@ -1,6 +1,61 @@
 # Console Rendering Package
 
-The `console` package provides utilities for rendering Go structs and data structures to formatted console output, as well as progress bar components for long-running operations.
+The `console` package provides utilities for rendering Go structs and data structures to formatted console output, as well as progress bar and spinner components for long-running operations.
+
+## Spinner Component
+
+The `Spinner` component provides animated visual feedback during long-running operations with automatic TTY detection and accessibility support.
+
+### Features
+
+- **MiniDot animation**: Minimal dot spinner (⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
+- **TTY detection**: Automatically disabled in pipes/redirects
+- **Accessibility support**: Respects `ACCESSIBLE` environment variable
+- **Color adaptation**: Uses adaptive colors for light/dark themes
+- **Thread-safe**: Safe for concurrent use with mutex protection
+
+### Usage
+
+```go
+import "github.com/githubnext/gh-aw/pkg/console"
+
+// Create and use a spinner
+spinner := console.NewSpinner("Loading...")
+spinner.Start()
+// Long-running operation
+spinner.Stop()
+
+// Stop with a message
+spinner := console.NewSpinner("Processing...")
+spinner.Start()
+// Long-running operation
+spinner.StopWithMessage("✓ Done!")
+
+// Update message while running
+spinner := console.NewSpinner("Starting...")
+spinner.Start()
+spinner.UpdateMessage("Still working...")
+// Long-running operation
+spinner.Stop()
+```
+
+### Accessibility
+
+The spinner respects the `ACCESSIBLE` environment variable. When set to any value, spinner animations are disabled to support screen readers and accessibility tools:
+
+```bash
+export ACCESSIBLE=1
+gh aw compile workflow.md  # Spinners will be disabled
+```
+
+### TTY Detection
+
+Spinners only animate in terminal environments. When output is piped or redirected, the spinner is automatically disabled:
+
+```bash
+gh aw compile workflow.md           # Spinner animates
+gh aw compile workflow.md > log.txt # Spinner disabled
+```
 
 ## ProgressBar Component
 
