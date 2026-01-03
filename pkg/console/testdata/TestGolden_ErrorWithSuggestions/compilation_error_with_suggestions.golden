@@ -1,0 +1,7 @@
+✗ invalid YAML syntax in frontmatter
+
+Suggestions:
+  • Ensure all keys have values
+  • Check for missing colons after keys
+  • Verify proper indentation (use spaces, not tabs)
+  • Run 'gh aw validate workflow.md' for detailed errors

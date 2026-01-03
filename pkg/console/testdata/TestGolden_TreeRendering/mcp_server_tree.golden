@@ -1,0 +1,12 @@
+MCP Servers
+github
+list_issues
+create_issue
+list_pull_requests
+create_pull_request
+filesystem
+read_file
+write_file
+list_directory
+bash
+execute

@@ -55,6 +55,12 @@ test:
 test-unit:
 	go test -v -timeout=3m -tags '!integration' -run='^Test' ./...
 
+# Update golden test files
+.PHONY: update-golden
+update-golden:
+	@echo "Updating golden test files..."
+	go test -v ./pkg/console -run='^TestGolden_' -update
+
 # Test specific integration test groups (matching CI workflow)
 .PHONY: test-integration-compile
 test-integration-compile:
