@@ -493,11 +493,11 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", totalRuns)))
 	}
 
-	// Create spinner for progress updates (only in non-verbose mode)
-	var spinner *console.SpinnerWrapper
+	// Create progress bar for tracking run processing (only in non-verbose mode)
+	var progressBar *console.ProgressBar
 	if !verbose {
-		spinner = console.NewSpinner(fmt.Sprintf("Downloading artifacts... (0/%d completed)", totalRuns))
-		spinner.Start()
+		progressBar = console.NewProgressBar(int64(totalRuns))
+		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(0))
 	}
 
 	// Use atomic counter for thread-safe progress tracking
@@ -555,8 +555,8 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				// Update progress counter
 				completed := atomic.AddInt64(&completedCount, 1)
-				if spinner != nil {
-					spinner.UpdateMessage(fmt.Sprintf("Downloading artifacts... (%d/%d completed)", completed, totalRuns))
+				if progressBar != nil {
+					fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
 				}
 				return result, nil
 			}
@@ -699,8 +699,8 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 
 			// Update progress counter for completed downloads
 			completed := atomic.AddInt64(&completedCount, 1)
-			if spinner != nil {
-				spinner.UpdateMessage(fmt.Sprintf("Downloading artifacts... (%d/%d completed)", completed, totalRuns))
+			if progressBar != nil {
+				fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
 			}
 
 			return result, nil
@@ -720,8 +720,9 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Download interrupted: %v", err)))
 	}
 
-	// Stop spinner with final success message
-	if spinner != nil {
+	// Clear progress bar and show final message
+	if progressBar != nil {
+		fmt.Fprint(os.Stderr, "\r\033[K") // Clear the line
 		successCount := 0
 		for _, result := range results {
 			// Count as successful if: no error AND not skipped
@@ -730,7 +731,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				successCount++
 			}
 		}
-		spinner.StopWithMessage(fmt.Sprintf("✓ Downloaded artifacts (%d/%d successful)", successCount, totalRuns))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Processed %d/%d runs successfully", successCount, totalRuns)))
 	}
 
 	if verbose {

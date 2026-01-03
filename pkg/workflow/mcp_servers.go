@@ -803,7 +803,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// Generate the step using the detect_repo_visibility.cjs action
 	yaml.WriteString("      - name: Detect repository visibility for GitHub MCP lockdown\n")
 	yaml.WriteString("        id: detect-repo-visibility\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", pinnedAction))
+	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');\n")
