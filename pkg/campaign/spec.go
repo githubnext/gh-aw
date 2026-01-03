@@ -63,8 +63,8 @@ type CampaignSpec struct {
 	RiskLevel string `yaml:"risk-level,omitempty" json:"risk_level,omitempty" console:"header:Risk Level,omitempty"`
 
 	// TrackerLabel is an optional label used as an ingestion hint to help
-	// discover and associate issues/PRs with this campaign (for example: 
-	// campaign:incident-response). The GitHub Project board is the canonical 
+	// discover and associate issues/PRs with this campaign (for example:
+	// campaign:incident-response). The GitHub Project board is the canonical
 	// source of campaign membership.
 	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty"`
 
