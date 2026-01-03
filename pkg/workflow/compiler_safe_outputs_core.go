@@ -260,7 +260,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// 20. Link Sub Issue step - now handled by handler manager
 	// 21. Hide Comment step - now handled by handler manager
 
-
 	// 22. Create Agent Task step
 	if data.SafeOutputs.CreateAgentTasks != nil {
 		stepConfig := c.buildCreateAgentTaskStepConfig(data, mainJobName, threatDetectionEnabled)
