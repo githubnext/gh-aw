@@ -303,18 +303,39 @@ func parseGatewayConfig(data []byte) (*MCPGatewayServiceConfig, error) {
 
 	gatewayLog.Printf("Successfully parsed JSON configuration")
 
-	// Filter out internal workflow MCP servers (safeinputs and safeoutputs)
-	// These are used internally by the workflow and should not be proxied by the gateway
-	filteredServers := make(map[string]parser.MCPServerConfig)
+	// Apply environment variable expansion to all server configurations
+	// This supports ${VAR} or $VAR patterns in URLs, headers, and env values
+	expandedServers := make(map[string]parser.MCPServerConfig)
 	for name, serverConfig := range config.MCPServers {
-		if name == "safeinputs" || name == "safeoutputs" {
-			gatewayLog.Printf("Filtering out internal workflow server: %s", name)
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Filtering out internal workflow server: %s", name)))
-			continue
+		// Expand URL field
+		if serverConfig.URL != "" {
+			serverConfig.URL = os.ExpandEnv(serverConfig.URL)
+			gatewayLog.Printf("Expanded URL for server %s: %s", name, serverConfig.URL)
 		}
-		filteredServers[name] = serverConfig
+
+		// Expand headers
+		if len(serverConfig.Headers) > 0 {
+			expandedHeaders := make(map[string]string)
+			for key, value := range serverConfig.Headers {
+				expandedHeaders[key] = os.ExpandEnv(value)
+			}
+			serverConfig.Headers = expandedHeaders
+			gatewayLog.Printf("Expanded %d headers for server %s", len(expandedHeaders), name)
+		}
+
+		// Expand environment variables
+		if len(serverConfig.Env) > 0 {
+			expandedEnv := make(map[string]string)
+			for key, value := range serverConfig.Env {
+				expandedEnv[key] = os.ExpandEnv(value)
+			}
+			serverConfig.Env = expandedEnv
+			gatewayLog.Printf("Expanded %d env vars for server %s", len(expandedEnv), name)
+		}
+
+		expandedServers[name] = serverConfig
 	}
-	config.MCPServers = filteredServers
+	config.MCPServers = expandedServers
 
 	return &config, nil
 }
