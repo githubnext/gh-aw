@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-describe("detect_repo_visibility", () => {
+describe("determine_automatic_lockdown", () => {
   let mockContext;
   let mockGithub;
   let mockCore;
-  let detectRepoVisibility;
+  let determineAutomaticLockdown;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -35,7 +35,7 @@ describe("detect_repo_visibility", () => {
     };
 
     // Import the module
-    detectRepoVisibility = (await import("./detect_repo_visibility.cjs")).default;
+    determineAutomaticLockdown = (await import("./determine_automatic_lockdown.cjs")).default;
   });
 
   it("should set lockdown to true for public repository", async () => {
@@ -46,7 +46,7 @@ describe("detect_repo_visibility", () => {
       },
     });
 
-    await detectRepoVisibility(mockGithub, mockContext, mockCore);
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
     expect(mockGithub.rest.repos.get).toHaveBeenCalledWith({
       owner: "test-owner",
@@ -65,7 +65,7 @@ describe("detect_repo_visibility", () => {
       },
     });
 
-    await detectRepoVisibility(mockGithub, mockContext, mockCore);
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
     expect(mockGithub.rest.repos.get).toHaveBeenCalledWith({
       owner: "test-owner",
@@ -84,7 +84,7 @@ describe("detect_repo_visibility", () => {
       },
     });
 
-    await detectRepoVisibility(mockGithub, mockContext, mockCore);
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "false");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "internal");
@@ -94,12 +94,12 @@ describe("detect_repo_visibility", () => {
     const error = new Error("API request failed");
     mockGithub.rest.repos.get.mockRejectedValue(error);
 
-    await detectRepoVisibility(mockGithub, mockContext, mockCore);
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.error).toHaveBeenCalledWith("Failed to detect repository visibility: API request failed");
+    expect(mockCore.error).toHaveBeenCalledWith("Failed to determine automatic lockdown mode: API request failed");
     expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "unknown");
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to detect repository visibility"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to determine repository visibility"));
   });
 
   it("should infer visibility from private field when visibility field is missing", async () => {
@@ -110,7 +110,7 @@ describe("detect_repo_visibility", () => {
       },
     });
 
-    await detectRepoVisibility(mockGithub, mockContext, mockCore);
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
@@ -124,12 +124,13 @@ describe("detect_repo_visibility", () => {
       },
     });
 
-    await detectRepoVisibility(mockGithub, mockContext, mockCore);
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.info).toHaveBeenCalledWith("Detecting repository visibility for GitHub MCP lockdown configuration");
-    expect(mockCore.info).toHaveBeenCalledWith("Checking visibility for repository: test-owner/test-repo");
+    expect(mockCore.info).toHaveBeenCalledWith("Determining automatic lockdown mode for GitHub MCP server");
+    expect(mockCore.info).toHaveBeenCalledWith("Checking repository: test-owner/test-repo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository visibility: public");
     expect(mockCore.info).toHaveBeenCalledWith("Repository is private: false");
-    expect(mockCore.info).toHaveBeenCalledWith("Setting GitHub MCP lockdown: true");
+    expect(mockCore.info).toHaveBeenCalledWith("Automatic lockdown mode determined: true");
+    expect(mockCore.info).toHaveBeenCalledWith("Automatic lockdown mode enabled for public repository");
   });
 });
