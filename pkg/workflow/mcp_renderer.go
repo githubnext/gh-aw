@@ -49,7 +49,10 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// Check if automatic lockdown determination step will be generated
 	// This requires: lockdown not explicitly set AND custom token configured
 	customGitHubToken := getGitHubToken(githubTool)
-	toplevelToken := workflowData.GitHubToken
+	var toplevelToken string
+	if workflowData != nil {
+		toplevelToken = workflowData.GitHubToken
+	}
 	hasCustomToken := customGitHubToken != "" || toplevelToken != ""
 	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool) && hasCustomToken
 	
