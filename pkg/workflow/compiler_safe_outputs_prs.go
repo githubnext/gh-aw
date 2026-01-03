@@ -134,52 +134,6 @@ func (c *Compiler) buildMarkPullRequestAsReadyForReviewStepConfig(data *Workflow
 	}
 }
 
-// buildPushToPullRequestBranchStepConfig builds the configuration for pushing to a pull request branch
-func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.PushToPullRequestBranch
-
-	var customEnvVars []string
-	// Add target config if set
-	if cfg.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_TARGET: %q\n", cfg.Target))
-	}
-	// Add if-no-changes config if set
-	if cfg.IfNoChanges != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_IF_NO_CHANGES: %q\n", cfg.IfNoChanges))
-	}
-	// Add title prefix if set (using same env var as create-pull-request)
-	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
-	// Add labels if set
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
-	// Add commit title suffix if set
-	if cfg.CommitTitleSuffix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", cfg.CommitTitleSuffix))
-	}
-	// Add max patch size setting
-	maxPatchSize := 1024 // default 1024 KB
-	if data.SafeOutputs.MaximumPatchSize > 0 {
-		maxPatchSize = data.SafeOutputs.MaximumPatchSize
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
-
-	condition := BuildSafeOutputType("push_to_pull_request_branch")
-
-	// Build pre-steps for checkout and git config
-	preSteps := c.buildPushToPullRequestBranchPreStepsConsolidated(data, cfg, condition)
-
-	return SafeOutputStepConfig{
-		StepName:      "Push To Pull Request Branch",
-		StepID:        "push_to_pull_request_branch",
-		ScriptName:    "push_to_pull_request_branch",
-		Script:        getPushToPullRequestBranchScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-		PreSteps:      preSteps,
-	}
-}
-
 // buildAddReviewerStepConfig builds the configuration for adding a reviewer
 func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AddReviewer
@@ -222,58 +176,6 @@ func (c *Compiler) buildCreatePullRequestPreStepsConsolidated(data *WorkflowData
 	// Step 1: Checkout repository with conditional execution
 	preSteps = append(preSteps, "      - name: Checkout repository\n")
 	// Add the condition to only checkout if create_pull_request will run
-	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
-	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, fmt.Sprintf("          token: %s\n", checkoutToken))
-	preSteps = append(preSteps, "          persist-credentials: false\n")
-	preSteps = append(preSteps, "          fetch-depth: 1\n")
-	if c.trialMode {
-		if c.trialLogicalRepoSlug != "" {
-			preSteps = append(preSteps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
-		}
-	}
-
-	// Step 2: Configure Git credentials with conditional execution
-	gitConfigSteps := []string{
-		"      - name: Configure Git credentials\n",
-		fmt.Sprintf("        if: %s\n", condition.Render()),
-		"        env:\n",
-		"          REPO_NAME: ${{ github.repository }}\n",
-		"          SERVER_URL: ${{ github.server_url }}\n",
-		"        run: |\n",
-		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
-		"          git config --global user.name \"github-actions[bot]\"\n",
-		"          # Re-authenticate git with GitHub token\n",
-		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
-		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", gitRemoteToken),
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
-	}
-	preSteps = append(preSteps, gitConfigSteps...)
-
-	return preSteps
-}
-
-// buildPushToPullRequestBranchPreStepsConsolidated builds the pre-steps for push-to-pull-request-branch
-// in the consolidated safe outputs job
-func (c *Compiler) buildPushToPullRequestBranchPreStepsConsolidated(data *WorkflowData, cfg *PushToPullRequestBranchConfig, condition ConditionNode) []string {
-	var preSteps []string
-
-	// Determine which token to use for checkout
-	// If an app is configured, use the app token; otherwise use the default github.token
-	var checkoutToken string
-	var gitRemoteToken string
-	if data.SafeOutputs.App != nil {
-		checkoutToken = "${{ steps.app-token.outputs.token }}"
-		gitRemoteToken = "${{ steps.app-token.outputs.token }}"
-	} else {
-		checkoutToken = "${{ github.token }}"
-		gitRemoteToken = "${{ github.token }}"
-	}
-
-	// Step 1: Checkout repository with conditional execution
-	preSteps = append(preSteps, "      - name: Checkout repository\n")
-	// Add the condition to only checkout if push_to_pull_request_branch will run
 	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	preSteps = append(preSteps, "        with:\n")

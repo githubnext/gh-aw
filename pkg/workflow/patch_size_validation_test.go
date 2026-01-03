@@ -102,8 +102,8 @@ This workflow tests custom 2MB patch size configuration.`,
 					t.Errorf("Expected safe_outputs job to be generated")
 				}
 				// For config JSON, check with flexible spacing (accounting for escaped quotes in YAML)
-				expectedFound := strings.Contains(lockContentStr, tt.expectedConfigValue) || 
-					strings.Contains(lockContentStr, strings.Replace(tt.expectedConfigValue, ":", ": ", -1))
+				expectedFound := strings.Contains(lockContentStr, tt.expectedConfigValue) ||
+					strings.Contains(lockContentStr, strings.ReplaceAll(tt.expectedConfigValue, ":", ": "))
 				if !expectedFound {
 					t.Errorf("Expected '%s' to be found in handler config, got:\n%s", tt.expectedConfigValue, lockContentStr)
 				}
@@ -122,10 +122,10 @@ func TestPatchSizeWithInvalidValues(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "patch-size-invalid-test")
 
 	tests := []struct {
-		name                string
-		frontmatterContent  string
-		expectedValue       string  // The value to look for (env var or config JSON)
-		isHandlerManagerConfig bool // If true, look in config JSON; if false, look for env var
+		name                   string
+		frontmatterContent     string
+		expectedValue          string // The value to look for (env var or config JSON)
+		isHandlerManagerConfig bool   // If true, look in config JSON; if false, look for env var
 	}{
 		{
 			name: "very small patch size should work",
@@ -139,7 +139,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests very small patch size configuration.`,
-			expectedValue:       `\"max_patch_size\":1`, // Config JSON for handler manager (escaped in YAML)
+			expectedValue:          `\"max_patch_size\":1`, // Config JSON for handler manager (escaped in YAML)
 			isHandlerManagerConfig: true,
 		},
 		{
@@ -154,7 +154,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests large valid patch size configuration.`,
-			expectedValue:       `\"max_patch_size\":10240`, // Config JSON for handler manager (escaped in YAML)
+			expectedValue:          `\"max_patch_size\":10240`, // Config JSON for handler manager (escaped in YAML)
 			isHandlerManagerConfig: true,
 		},
 	}
@@ -189,12 +189,12 @@ This workflow tests large valid patch size configuration.`,
 			expectedFound := false
 			if tt.isHandlerManagerConfig {
 				// Check both with and without spaces after colons
-				expectedFound = strings.Contains(lockContentStr, tt.expectedValue) || 
-					strings.Contains(lockContentStr, strings.Replace(tt.expectedValue, ":", ": ", -1))
+				expectedFound = strings.Contains(lockContentStr, tt.expectedValue) ||
+					strings.Contains(lockContentStr, strings.ReplaceAll(tt.expectedValue, ":", ": "))
 			} else {
 				expectedFound = strings.Contains(lockContentStr, tt.expectedValue)
 			}
-			
+
 			if !expectedFound {
 				context := "environment variable"
 				if tt.isHandlerManagerConfig {

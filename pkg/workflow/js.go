@@ -38,7 +38,6 @@ func getCreatePRReviewCommentScript() string           { return "" }
 func getCreatePullRequestScript() string               { return "" }
 func getNoOpScript() string                            { return "" }
 func getNotifyCommentErrorScript() string              { return "" }
-func getPushToPullRequestBranchScript() string         { return "" }
 func getUpdateProjectScript() string                   { return "" }
 func getUpdatePullRequestScript() string               { return "" }
 func getUploadAssetsScript() string                    { return "" }
