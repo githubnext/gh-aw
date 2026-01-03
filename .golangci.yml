@@ -1,6 +1,8 @@
 version: "2"
 run:
   tests: true
+  timeout: 5m  # Prevent linter from hanging indefinitely
+  modules-download-mode: readonly  # Use cached modules only, skip downloads
 
 linters:
   enable:
