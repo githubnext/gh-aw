@@ -41,9 +41,15 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Set up gotestfmt
+        uses: GoTestTools/gotestfmt-action@8b4478c7019be847373babde9300210e7de34bfb # v2.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run unit tests with coverage
         run: |
-          go test -v -parallel=8 -timeout=3m -tags '!integration' -run='^Test' -coverprofile=coverage.out -json ./... | tee test-result-unit.json
+          set -euo pipefail
+          go test -v -parallel=8 -timeout=3m -tags '!integration' -run='^Test' -coverprofile=coverage.out -json ./... 2>&1 | tee test-result-unit.json | gotestfmt
           go tool cover -html=coverage.out -o coverage.html
 
       # Coverage reports for recent builds only - 7 days is sufficient for debugging recent changes
@@ -195,20 +201,26 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Set up gotestfmt
+        uses: GoTestTools/gotestfmt-action@8b4478c7019be847373babde9300210e7de34bfb # v2.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run integration tests - ${{ matrix.test-group.name }}
         run: |
+          set -euo pipefail
           # Sanitize the test group name for use in filename
           SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
           
           if [ -z "${{ matrix.test-group.pattern }}" ]; then
             # Catch-all group: run with -skip to exclude tests matched by other groups
             if [ -n "${{ matrix.test-group.skip_pattern || '' }}" ]; then
-              go test -v -parallel=8 -timeout=5m -tags 'integration' -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+              go test -v -parallel=8 -timeout=5m -tags 'integration' -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} 2>&1 | tee "test-result-integration-${SAFE_NAME}.json" | gotestfmt
             else
-              go test -v -parallel=8 -timeout=5m -tags 'integration' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+              go test -v -parallel=8 -timeout=5m -tags 'integration' -json ${{ matrix.test-group.packages }} 2>&1 | tee "test-result-integration-${SAFE_NAME}.json" | gotestfmt
             fi
           else
-            go test -v -parallel=8 -timeout=5m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+            go test -v -parallel=8 -timeout=5m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} 2>&1 | tee "test-result-integration-${SAFE_NAME}.json" | gotestfmt
           fi
 
       - name: Upload integration test results
