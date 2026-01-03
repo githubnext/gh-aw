@@ -58,6 +58,11 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
+	// Validate gitRoot is an absolute path before use in Docker volume mount
+	if !filepath.IsAbs(gitRoot) {
+		return fmt.Errorf("git root must be an absolute path, got: %s", gitRoot)
+	}
+
 	// Get relative paths from git root for all files
 	var relPaths []string
 	for _, lockFile := range lockFiles {
@@ -80,6 +85,9 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	}
 	dockerArgs = append(dockerArgs, relPaths...)
 
+	// #nosec G204 -- exec.Command is used with separate args (not shell execution) to prevent shell injection.
+	// The gitRoot path is validated to be absolute, and relPaths are validated through filepath.Rel to be
+	// relative to gitRoot, preventing path traversal. The Docker container provides additional isolation.
 	cmd := exec.Command("docker", dockerArgs...)
 
 	// Always show that zizmor is running (regular verbosity)
