@@ -1,11 +1,5 @@
 package workflow
 
-import (
-	"github.com/githubnext/gh-aw/pkg/logger"
-)
-
-var prSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_prs")
-
 // buildMarkPullRequestAsReadyForReviewStepConfig builds the configuration for marking a PR as ready for review
 func (c *Compiler) buildMarkPullRequestAsReadyForReviewStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.MarkPullRequestAsReadyForReview

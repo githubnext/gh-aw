@@ -27,8 +27,6 @@ func getAddReviewerScript() string                     { return "" }
 func getAssignMilestoneScript() string                 { return "" }
 func getAssignToAgentScript() string                   { return "" }
 func getAssignToUserScript() string                    { return "" }
-func getCloseDiscussionScript() string                 { return "" }
-func getCloseIssueScript() string                      { return "" }
 func getMarkPullRequestAsReadyForReviewScript() string { return "" }
 func getCreateCodeScanningAlertScript() string         { return "" }
 func getCreateDiscussionScript() string                { return "" }
