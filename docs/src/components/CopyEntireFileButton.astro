@@ -81,10 +81,11 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
     border-bottom: 1px solid var(--sl-color-hairline);
   }
 
-  .error-modal-header h3 {
+  .error-modal-title {
     margin: 0;
     font-size: 1.2rem;
     color: var(--sl-color-text);
+    font-weight: 600;
   }
 
   .error-modal-close {
@@ -146,7 +147,7 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
     
     modal.innerHTML = `
       <div class="error-modal-header">
-        <h3 id="error-modal-title">Error Copying File</h3>
+        <div id="error-modal-title" class="error-modal-title" role="heading" aria-level="3">Error Copying File</div>
         <button class="error-modal-close" aria-label="Close error dialog">&times;</button>
       </div>
       <div class="error-modal-body">
