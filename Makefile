@@ -331,6 +331,9 @@ golint:
 
 # Run incremental linter (only changed files since BASE_REF)
 # This provides 50-75% faster linting on PRs by only checking changed files
+# Configuration optimizations in .golangci.yml:
+# - timeout: 5m prevents hanging
+# - modules-download-mode: readonly uses cached modules
 # Usage: make golint-incremental BASE_REF=origin/main
 .PHONY: golint-incremental
 golint-incremental:

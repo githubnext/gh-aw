@@ -439,6 +439,9 @@ jobs:
 
       # Run golangci-lint via Makefile for consistency
       # Uses incremental linting on PRs for faster CI (50-75% speedup)
+      # Performance optimizations in .golangci.yml:
+      # - timeout: 5m prevents hanging
+      # - modules-download-mode: readonly uses cached modules only
       - name: Run golangci-lint
         run: |
           export PATH="$PATH:$(go env GOPATH)/bin"
