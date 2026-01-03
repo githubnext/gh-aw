@@ -1,132 +1,128 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processSafeOutput, processItems } = require("./safe_output_processor.cjs");
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
-  // Use shared processor for common steps
-  const result = await processSafeOutput(
-    {
-      itemType: "assign_to_user",
-      configKey: "assign_to_user",
-      displayName: "Assignees",
-      itemTypeName: "user assignment",
-      supportsPR: false, // Issue-only: not relevant for PRs
-      supportsIssue: true,
-      envVars: {
-        allowed: "GH_AW_ASSIGNEES_ALLOWED",
-        maxCount: "GH_AW_ASSIGNEES_MAX_COUNT",
-        target: "GH_AW_ASSIGNEES_TARGET",
-      },
-    },
-    {
-      title: "Assign to User",
-      description: "The following user assignments would be made if staged mode was disabled:",
-      renderItem: item => {
-        let content = "";
-        if (item.issue_number) {
-          content += `**Target Issue:** #${item.issue_number}\n\n`;
-        } else {
-          content += `**Target:** Current issue\n\n`;
-        }
-        if (item.assignees && item.assignees.length > 0) {
-          content += `**Users to assign:** ${item.assignees.join(", ")}\n\n`;
-        } else if (item.assignee) {
-          content += `**User to assign:** ${item.assignee}\n\n`;
-        }
-        return content;
-      },
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "assign_to_user";
+
+/**
+ * Main handler factory for assign_to_user
+ * Returns a message handler function that processes individual assign_to_user messages
+ * @type {HandlerFactoryFunction}
+ */
+async function main(config = {}) {
+  // Extract configuration
+  const allowedAssignees = config.allowed || [];
+  const maxCount = config.max || 10;
+
+  core.info(`Assign to user configuration: max=${maxCount}`);
+  if (allowedAssignees.length > 0) {
+    core.info(`Allowed assignees: ${allowedAssignees.join(", ")}`);
+  }
+
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
+
+  /**
+   * Message handler function that processes a single assign_to_user message
+   * @param {Object} message - The assign_to_user message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleAssignToUser(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping assign_to_user: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
     }
-  );
 
-  if (!result.success) {
-    return;
-  }
+    processedCount++;
 
-  // @ts-ignore - TypeScript doesn't narrow properly after success check
-  const { item: assignItem, config, targetResult } = result;
-  if (!config || !targetResult || targetResult.number === undefined) {
-    core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
-    return;
-  }
-  const { allowed: allowedAssignees, maxCount = 1 } = config;
-  const issueNumber = targetResult.number;
+    const assignItem = message;
 
-  // Support both singular "assignee" and plural "assignees" for flexibility
-  let requestedAssignees = [];
-  if (assignItem.assignees && Array.isArray(assignItem.assignees)) {
-    requestedAssignees = assignItem.assignees;
-  } else if (assignItem.assignee) {
-    requestedAssignees = [assignItem.assignee];
-  }
-
-  core.info(`Requested assignees: ${JSON.stringify(requestedAssignees)}`);
-
-  // Use shared helper to filter, sanitize, dedupe, and limit
-  const uniqueAssignees = processItems(requestedAssignees, allowedAssignees, maxCount);
-
-  if (uniqueAssignees.length === 0) {
-    core.info("No assignees to add");
-    core.setOutput("assigned_users", "");
-    await core.summary
-      .addRaw(
-        `
-## User Assignment
-
-No users were assigned (no valid assignees found in agent output).
-`
-      )
-      .write();
-    return;
-  }
-
-  core.info(`Assigning ${uniqueAssignees.length} users to issue #${issueNumber}: ${JSON.stringify(uniqueAssignees)}`);
-
-  try {
-    // Get target repository from environment or use current
-    const targetRepoEnv = process.env.GH_AW_TARGET_REPO_SLUG?.trim();
-    let targetOwner = context.repo.owner;
-    let targetRepo = context.repo.repo;
-
-    if (targetRepoEnv) {
-      const parts = targetRepoEnv.split("/");
-      if (parts.length === 2) {
-        targetOwner = parts[0];
-        targetRepo = parts[1];
-        core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
+    // Determine issue number
+    let issueNumber;
+    if (assignItem.issue_number !== undefined) {
+      issueNumber = parseInt(String(assignItem.issue_number), 10);
+      if (isNaN(issueNumber)) {
+        core.warning(`Invalid issue_number: ${assignItem.issue_number}`);
+        return {
+          success: false,
+          error: `Invalid issue_number: ${assignItem.issue_number}`,
+        };
       }
+    } else {
+      // Use context issue if available
+      const contextIssue = context.payload?.issue?.number;
+      if (!contextIssue) {
+        core.warning("No issue_number provided and not in issue context");
+        return {
+          success: false,
+          error: "No issue number available",
+        };
+      }
+      issueNumber = contextIssue;
     }
 
-    // Add assignees to the issue
-    await github.rest.issues.addAssignees({
-      owner: targetOwner,
-      repo: targetRepo,
-      issue_number: issueNumber,
-      assignees: uniqueAssignees,
-    });
+    // Support both singular "assignee" and plural "assignees" for flexibility
+    let requestedAssignees = [];
+    if (assignItem.assignees && Array.isArray(assignItem.assignees)) {
+      requestedAssignees = assignItem.assignees;
+    } else if (assignItem.assignee) {
+      requestedAssignees = [assignItem.assignee];
+    }
 
-    core.info(`Successfully assigned ${uniqueAssignees.length} user(s) to issue #${issueNumber}`);
+    core.info(`Requested assignees: ${JSON.stringify(requestedAssignees)}`);
 
-    core.setOutput("assigned_users", uniqueAssignees.join("\n"));
+    // Use shared helper to filter, sanitize, dedupe, and limit
+    const uniqueAssignees = processItems(requestedAssignees, allowedAssignees, maxCount);
 
-    const assigneesListMarkdown = uniqueAssignees.map(assignee => `- \`${assignee}\``).join("\n");
-    await core.summary
-      .addRaw(
-        `
-## User Assignment
+    if (uniqueAssignees.length === 0) {
+      core.info("No assignees to add");
+      return {
+        success: true,
+        issueNumber: issueNumber,
+        assigneesAdded: [],
+        message: "No valid assignees found",
+      };
+    }
 
-Successfully assigned ${uniqueAssignees.length} user(s) to issue #${issueNumber}:
+    core.info(`Assigning ${uniqueAssignees.length} users to issue #${issueNumber}: ${JSON.stringify(uniqueAssignees)}`);
 
-${assigneesListMarkdown}
-`
-      )
-      .write();
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    core.error(`Failed to assign users: ${errorMessage}`);
-    core.setFailed(`Failed to assign users: ${errorMessage}`);
-  }
+    try {
+      // Add assignees to the issue
+      await github.rest.issues.addAssignees({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        issue_number: issueNumber,
+        assignees: uniqueAssignees,
+      });
+
+      core.info(`Successfully assigned ${uniqueAssignees.length} user(s) to issue #${issueNumber}`);
+
+      return {
+        success: true,
+        issueNumber: issueNumber,
+        assigneesAdded: uniqueAssignees,
+      };
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      core.error(`Failed to assign users: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  };
 }
 
 module.exports = { main };
