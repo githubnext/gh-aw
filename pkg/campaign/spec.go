@@ -62,12 +62,6 @@ type CampaignSpec struct {
 	// RiskLevel is an optional free-form field (e.g. low/medium/high).
 	RiskLevel string `yaml:"risk-level,omitempty" json:"risk_level,omitempty" console:"header:Risk Level,omitempty"`
 
-	// TrackerLabel is an optional label used as an ingestion hint to help
-	// discover and associate issues/PRs with this campaign (for example:
-	// campaign:incident-response). The GitHub Project board is the canonical
-	// source of campaign membership.
-	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty"`
-
 	// State describes the lifecycle stage of the campaign definition.
 	// Valid values are: planned, active, paused, completed, archived.
 	State string `yaml:"state,omitempty" json:"state,omitempty" console:"header:State,omitempty"`
@@ -181,19 +175,12 @@ type CampaignApprovalPolicy struct {
 }
 
 // CampaignRuntimeStatus represents the live status of a campaign, including
-// compiled workflow state and basic issue/PR counts derived from the tracker
-// label.
+// compiled workflow state and optional metrics/cursor info.
 type CampaignRuntimeStatus struct {
-	ID           string   `json:"id" console:"header:ID"`
-	Name         string   `json:"name" console:"header:Name"`
-	TrackerLabel string   `json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty"`
-	Workflows    []string `json:"workflows,omitempty" console:"header:Workflows,omitempty"`
-	Compiled     string   `json:"compiled" console:"header:Compiled"`
-
-	IssuesOpen   int `json:"issues_open,omitempty" console:"header:Issues Open,omitempty"`
-	IssuesClosed int `json:"issues_closed,omitempty" console:"header:Issues Closed,omitempty"`
-	PRsOpen      int `json:"prs_open,omitempty" console:"header:PRs Open,omitempty"`
-	PRsMerged    int `json:"prs_merged,omitempty" console:"header:PRs Merged,omitempty"`
+	ID        string   `json:"id" console:"header:ID"`
+	Name      string   `json:"name" console:"header:Name"`
+	Workflows []string `json:"workflows,omitempty" console:"header:Workflows,omitempty"`
+	Compiled  string   `json:"compiled" console:"header:Compiled"`
 
 	// Optional metrics from repo-memory (when MetricsGlob is set and a
 	// matching JSON snapshot is found on the memory/campaigns branch).

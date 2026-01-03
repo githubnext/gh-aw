@@ -93,7 +93,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	description := spec.Description
 	if strings.TrimSpace(description) == "" {
-		description = fmt.Sprintf("Orchestrator workflow for campaign '%s' (tracker: %s)", spec.ID, spec.TrackerLabel)
+		description = fmt.Sprintf("Orchestrator workflow for campaign '%s'", spec.ID)
 	}
 
 	// Default triggers: daily schedule plus manual workflow_dispatch.
@@ -111,10 +111,6 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Track whether we have any meaningful campaign details
 	hasDetails := false
 
-	if spec.TrackerLabel != "" {
-		fmt.Fprintf(markdownBuilder, "- Tracker label: `%s`\n", spec.TrackerLabel)
-		hasDetails = true
-	}
 	if strings.TrimSpace(spec.Objective) != "" {
 		fmt.Fprintf(markdownBuilder, "- Objective: %s\n", strings.TrimSpace(spec.Objective))
 		hasDetails = true
@@ -204,19 +200,18 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		return nil, ""
 	}
 
-	orchestratorLog.Printf("Campaign '%s' orchestrator includes: tracker_label=%s, workflows=%d, memory_paths=%d",
-		spec.ID, spec.TrackerLabel, len(spec.Workflows), len(spec.MemoryPaths))
+	orchestratorLog.Printf("Campaign '%s' orchestrator includes: workflows=%d, memory_paths=%d",
+		spec.ID, len(spec.Workflows), len(spec.MemoryPaths))
 
 	// Render orchestrator instructions using templates
 	// All orchestrators follow the same system-agnostic rules with no conditional logic
 	promptData := CampaignPromptData{
-		CampaignID:   spec.ID,
-		ProjectURL:   strings.TrimSpace(spec.ProjectURL),
-		Objective:    strings.TrimSpace(spec.Objective),
-		TrackerLabel: strings.TrimSpace(spec.TrackerLabel),
-		CursorGlob:   strings.TrimSpace(spec.CursorGlob),
-		MetricsGlob:  strings.TrimSpace(spec.MetricsGlob),
-		Workflows:    spec.Workflows,
+		CampaignID:  spec.ID,
+		ProjectURL:  strings.TrimSpace(spec.ProjectURL),
+		Objective:   strings.TrimSpace(spec.Objective),
+		CursorGlob:  strings.TrimSpace(spec.CursorGlob),
+		MetricsGlob: strings.TrimSpace(spec.MetricsGlob),
+		Workflows:   spec.Workflows,
 	}
 	if len(spec.KPIs) > 0 {
 		promptData.KPIs = spec.KPIs
@@ -252,7 +247,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	}
 
 	safeOutputs := &workflow.SafeOutputsConfig{}
-	// Always allow commenting on tracker issues (or other issues/PRs if needed).
+	// Allow commenting on related issues/PRs as part of campaign coordination.
 	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxComments}}
 	// Allow updating the campaign's GitHub Project dashboard.
 	updateProjectConfig := &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxProjectUpdates}}

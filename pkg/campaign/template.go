@@ -34,9 +34,6 @@ type CampaignPromptData struct {
 	// ProjectURL is the GitHub Project URL
 	ProjectURL string
 
-	// TrackerLabel is the label used to associate issues/PRs with this campaign.
-	TrackerLabel string
-
 	// CursorGlob is a glob for locating the durable cursor/checkpoint file in repo-memory.
 	CursorGlob string
 

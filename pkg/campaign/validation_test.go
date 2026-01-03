@@ -7,13 +7,12 @@ import (
 
 func TestValidateSpec_ValidSpec(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Version:      "v1",
-		State:        "active",
-		Workflows:    []string{"workflow1", "workflow2"},
-		TrackerLabel: "campaign:test",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Version:    "v1",
+		State:      "active",
+		Workflows:  []string{"workflow1", "workflow2"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -24,10 +23,9 @@ func TestValidateSpec_ValidSpec(t *testing.T) {
 
 func TestValidateSpec_MissingID(t *testing.T) {
 	spec := &CampaignSpec{
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -49,11 +47,10 @@ func TestValidateSpec_MissingID(t *testing.T) {
 
 func TestValidateSpec_InvalidIDCharacters(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "Test_Campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
+		ID:         "Test_Campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -75,10 +72,9 @@ func TestValidateSpec_InvalidIDCharacters(t *testing.T) {
 
 func TestValidateSpec_MissingName(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
+		ID:         "test-campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -100,10 +96,9 @@ func TestValidateSpec_MissingName(t *testing.T) {
 
 func TestValidateSpec_MissingWorkflows(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		TrackerLabel: "campaign:test",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
 	}
 
 	problems := ValidateSpec(spec)
@@ -123,56 +118,13 @@ func TestValidateSpec_MissingWorkflows(t *testing.T) {
 	}
 }
 
-func TestValidateSpec_MissingTrackerLabel(t *testing.T) {
-	// tracker-label is now optional - spec should pass validation without it
+func TestValidateSpec_InvalidState(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:         "test-campaign",
 		Name:       "Test Campaign",
 		ProjectURL: "https://github.com/orgs/org/projects/1",
 		Workflows:  []string{"workflow1"},
-	}
-
-	problems := ValidateSpec(spec)
-	// Should have no problems since tracker-label is optional
-	if len(problems) != 0 {
-		t.Errorf("Expected no validation problems for missing tracker label (it's optional), got: %v", problems)
-	}
-}
-
-func TestValidateSpec_InvalidTrackerLabelFormat(t *testing.T) {
-	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "no-colon-here",
-	}
-
-	problems := ValidateSpec(spec)
-	if len(problems) == 0 {
-		t.Fatal("Expected validation problems for invalid tracker label format")
-	}
-
-	found := false
-	for _, p := range problems {
-		if strings.Contains(p, "tracker-label should follow a namespaced pattern") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("Expected tracker label format validation problem, got: %v", problems)
-	}
-}
-
-func TestValidateSpec_InvalidState(t *testing.T) {
-	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
-		State:        "invalid-state",
+		State:      "invalid-state",
 	}
 
 	problems := ValidateSpec(spec)
@@ -197,12 +149,11 @@ func TestValidateSpec_ValidStates(t *testing.T) {
 
 	for _, state := range validStates {
 		spec := &CampaignSpec{
-			ID:           "test-campaign",
-			Name:         "Test Campaign",
-			ProjectURL:   "https://github.com/orgs/org/projects/1",
-			Workflows:    []string{"workflow1"},
-			TrackerLabel: "campaign:test",
-			State:        state,
+			ID:         "test-campaign",
+			Name:       "Test Campaign",
+			ProjectURL: "https://github.com/orgs/org/projects/1",
+			Workflows:  []string{"workflow1"},
+			State:      state,
 		}
 
 		problems := ValidateSpec(spec)
@@ -214,11 +165,10 @@ func TestValidateSpec_ValidStates(t *testing.T) {
 
 func TestValidateSpec_VersionDefault(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
 	}
 
 	_ = ValidateSpec(spec)
@@ -233,12 +183,11 @@ func TestValidateSpec_RiskLevel(t *testing.T) {
 
 	for _, riskLevel := range validRiskLevels {
 		spec := &CampaignSpec{
-			ID:           "test-campaign",
-			Name:         "Test Campaign",
-			ProjectURL:   "https://github.com/orgs/org/projects/1",
-			Workflows:    []string{"workflow1"},
-			TrackerLabel: "campaign:test",
-			RiskLevel:    riskLevel,
+			ID:         "test-campaign",
+			Name:       "Test Campaign",
+			ProjectURL: "https://github.com/orgs/org/projects/1",
+			Workflows:  []string{"workflow1"},
+			RiskLevel:  riskLevel,
 		}
 
 		problems := ValidateSpec(spec)
@@ -252,11 +201,10 @@ func TestValidateSpec_RiskLevel(t *testing.T) {
 
 func TestValidateSpec_WithApprovalPolicy(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
 		ApprovalPolicy: &CampaignApprovalPolicy{
 			RequiredApprovals: 2,
 			RequiredRoles:     []string{"admin", "security"},
@@ -283,7 +231,6 @@ func TestValidateSpec_CompleteSpec(t *testing.T) {
 		Owners:             []string{"owner1", "owner2"},
 		ExecutiveSponsors:  []string{"sponsor1"},
 		RiskLevel:          "medium",
-		TrackerLabel:       "campaign:complete",
 		State:              "active",
 		Tags:               []string{"security", "compliance"},
 		AllowedSafeOutputs: []string{"create-issue", "create-pull-request"},
@@ -302,12 +249,11 @@ func TestValidateSpec_CompleteSpec(t *testing.T) {
 
 func TestValidateSpec_ObjectiveWithoutKPIs(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
-		Objective:    "Improve CI stability",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
+		Objective:  "Improve CI stability",
 		// KPIs intentionally omitted
 	}
 
@@ -330,11 +276,10 @@ func TestValidateSpec_ObjectiveWithoutKPIs(t *testing.T) {
 
 func TestValidateSpec_KPIsWithoutObjective(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
 		KPIs: []CampaignKPI{
 			{
 				Name:           "Build success rate",
@@ -366,12 +311,11 @@ func TestValidateSpec_KPIsWithoutObjective(t *testing.T) {
 
 func TestValidateSpec_KPIsMultipleWithoutPrimary(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
-		Objective:    "Improve delivery",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
+		Objective:  "Improve delivery",
 		KPIs: []CampaignKPI{
 			{Name: "PR cycle time", Priority: "supporting", Baseline: 10, Target: 7, TimeWindowDays: 30},
 			{Name: "Open PRs", Priority: "supporting", Baseline: 20, Target: 10, TimeWindowDays: 30},
@@ -397,12 +341,11 @@ func TestValidateSpec_KPIsMultipleWithoutPrimary(t *testing.T) {
 
 func TestValidateSpec_KPIsMultipleWithMultiplePrimary(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
-		Objective:    "Improve delivery",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
+		Objective:  "Improve delivery",
 		KPIs: []CampaignKPI{
 			{Name: "Build success rate", Priority: "primary", Baseline: 0.8, Target: 0.95, TimeWindowDays: 7},
 			{Name: "PR cycle time", Priority: "primary", Baseline: 10, Target: 7, TimeWindowDays: 30},
@@ -428,12 +371,11 @@ func TestValidateSpec_KPIsMultipleWithMultiplePrimary(t *testing.T) {
 
 func TestValidateSpec_SingleKPIOmitsPriorityIsAllowed(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
-		Objective:    "Improve CI stability",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
+		Objective:  "Improve CI stability",
 		KPIs: []CampaignKPI{
 			{
 				Name: "Build success rate",
@@ -453,12 +395,11 @@ func TestValidateSpec_SingleKPIOmitsPriorityIsAllowed(t *testing.T) {
 
 func TestValidateSpec_KPIFieldConstraints(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		TrackerLabel: "campaign:test",
-		Objective:    "Improve CI stability",
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
+		Objective:  "Improve CI stability",
 		KPIs: []CampaignKPI{
 			{
 				Name:           "Build success rate",

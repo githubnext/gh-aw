@@ -149,15 +149,14 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	}
 
 	spec := CampaignSpec{
-		ID:           id,
-		Name:         name,
-		ProjectURL:   "https://github.com/orgs/ORG/projects/1",
-		Version:      "v1",
-		State:        "planned",
-		TrackerLabel: "campaign:" + id,
-		MemoryPaths:  []string{"memory/campaigns/" + id + "/**"},
-		MetricsGlob:  "memory/campaigns/" + id + "/metrics/*.json",
-		CursorGlob:   "memory/campaigns/" + id + "/cursor.json",
+		ID:          id,
+		Name:        name,
+		ProjectURL:  "https://github.com/orgs/ORG/projects/1",
+		Version:     "v1",
+		State:       "planned",
+		MemoryPaths: []string{"memory/campaigns/" + id + "/**"},
+		MetricsGlob: "memory/campaigns/" + id + "/metrics/*.json",
+		CursorGlob:  "memory/campaigns/" + id + "/cursor.json",
 		Governance: &CampaignGovernancePolicy{
 			MaxNewItemsPerRun:       25,
 			MaxDiscoveryItemsPerRun: 200,

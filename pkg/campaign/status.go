@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var statusLog = logger.New("campaign:status")
@@ -66,70 +65,6 @@ func ComputeCompiledState(spec CampaignSpec, workflowsDir string) string {
 		return "Yes"
 	}
 	return "No"
-}
-
-// ghIssueOrPRState is a tiny helper struct for decoding gh issue/pr list
-// output when using --json state.
-type ghIssueOrPRState struct {
-	State string `json:"state"`
-}
-
-// FetchItemCounts uses gh CLI (via workflow.ExecGH) to fetch basic
-// counts of issues and pull requests tagged with the given tracker label.
-//
-// If trackerLabel is empty or any errors occur, it falls back to zeros and
-// logs at debug level instead of failing the command.
-func FetchItemCounts(trackerLabel string) (issuesOpen, issuesClosed, prsOpen, prsMerged int) {
-	statusLog.Printf("Fetching item counts for tracker label: %s", trackerLabel)
-
-	if strings.TrimSpace(trackerLabel) == "" {
-		return 0, 0, 0, 0
-	}
-
-	// Issues
-	issueCmd := workflow.ExecGH("issue", "list", "--label", trackerLabel, "--state", "all", "--json", "state")
-	issueOutput, err := issueCmd.Output()
-	if err == nil && len(issueOutput) > 0 && json.Valid(issueOutput) {
-		var issues []ghIssueOrPRState
-		if err := json.Unmarshal(issueOutput, &issues); err == nil {
-			for _, it := range issues {
-				state := strings.ToLower(strings.TrimSpace(it.State))
-				if state == "open" {
-					issuesOpen++
-				} else {
-					issuesClosed++
-				}
-			}
-		} else if err != nil {
-			statusLog.Printf("Failed to decode issue list for tracker label '%s': %v", trackerLabel, err)
-		}
-	} else if err != nil {
-		statusLog.Printf("Failed to fetch issues for tracker label '%s': %v", trackerLabel, err)
-	}
-
-	// Pull requests
-	prCmd := workflow.ExecGH("pr", "list", "--label", trackerLabel, "--state", "all", "--json", "state")
-	prOutput, err := prCmd.Output()
-	if err == nil && len(prOutput) > 0 && json.Valid(prOutput) {
-		var prs []ghIssueOrPRState
-		if err := json.Unmarshal(prOutput, &prs); err == nil {
-			for _, it := range prs {
-				state := strings.ToLower(strings.TrimSpace(it.State))
-				switch state {
-				case "open":
-					prsOpen++
-				case "merged":
-					prsMerged++
-				}
-			}
-		} else if err != nil {
-			statusLog.Printf("Failed to decode PR list for tracker label '%s': %v", trackerLabel, err)
-		}
-	} else if err != nil {
-		statusLog.Printf("Failed to fetch PRs for tracker label '%s': %v", trackerLabel, err)
-	}
-
-	return issuesOpen, issuesClosed, prsOpen, prsMerged
 }
 
 // FetchMetricsFromRepoMemory attempts to load the latest JSON
@@ -259,7 +194,6 @@ func FetchCursorFreshnessFromRepoMemory(cursorGlob string) (cursorPath string, c
 // BuildRuntimeStatus builds a CampaignRuntimeStatus for a single campaign spec.
 func BuildRuntimeStatus(spec CampaignSpec, workflowsDir string) CampaignRuntimeStatus {
 	compiled := ComputeCompiledState(spec, workflowsDir)
-	issuesOpen, issuesClosed, prsOpen, prsMerged := FetchItemCounts(spec.TrackerLabel)
 
 	cursorPath, cursorUpdatedAt := FetchCursorFreshnessFromRepoMemory(spec.CursorGlob)
 
@@ -280,13 +214,8 @@ func BuildRuntimeStatus(spec CampaignSpec, workflowsDir string) CampaignRuntimeS
 	return CampaignRuntimeStatus{
 		ID:                         spec.ID,
 		Name:                       spec.Name,
-		TrackerLabel:               spec.TrackerLabel,
 		Workflows:                  spec.Workflows,
 		Compiled:                   compiled,
-		IssuesOpen:                 issuesOpen,
-		IssuesClosed:               issuesClosed,
-		PRsOpen:                    prsOpen,
-		PRsMerged:                  prsMerged,
 		MetricsTasksTotal:          metricsTasksTotal,
 		MetricsTasksCompleted:      metricsTasksCompleted,
 		MetricsVelocityPerDay:      metricsVelocity,

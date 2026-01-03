@@ -77,12 +77,6 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	// TrackerLabel is optional - only validate format when provided.
-	// The campaign project board is the canonical source of campaign membership.
-	if strings.TrimSpace(spec.TrackerLabel) != "" && !strings.Contains(spec.TrackerLabel, ":") {
-		problems = append(problems, "tracker-label should follow a namespaced pattern (for example: campaign:security-q1-2025)")
-	}
-
 	// Normalize and validate version/state when present.
 	if strings.TrimSpace(spec.Version) == "" {
 		// Default version for v1 specs when omitted.
@@ -279,7 +273,6 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		Owners             []string                               `json:"owners,omitempty"`
 		ExecutiveSponsors  []string                               `json:"executive-sponsors,omitempty"`
 		RiskLevel          string                                 `json:"risk-level,omitempty"`
-		TrackerLabel       string                                 `json:"tracker-label,omitempty"`
 		State              string                                 `json:"state,omitempty"`
 		Tags               []string                               `json:"tags,omitempty"`
 		AllowedSafeOutputs []string                               `json:"allowed-safe-outputs,omitempty"`
@@ -322,7 +315,6 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		Owners:             spec.Owners,
 		ExecutiveSponsors:  spec.ExecutiveSponsors,
 		RiskLevel:          spec.RiskLevel,
-		TrackerLabel:       spec.TrackerLabel,
 		State:              spec.State,
 		Tags:               spec.Tags,
 		AllowedSafeOutputs: spec.AllowedSafeOutputs,
@@ -423,7 +415,7 @@ func ValidateSpecFromFile(filePath string) (*CampaignSpec, []string, error) {
 	}
 
 	// Convert frontmatter map into YAML, then unmarshal into CampaignSpec using
-	// YAML tags so kebab-case keys (e.g. tracker-label) map correctly.
+	// YAML tags so kebab-case keys (e.g. project-url) map correctly.
 	yamlBytes, err := yaml.Marshal(data.Frontmatter)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal frontmatter to YAML: %w", err)

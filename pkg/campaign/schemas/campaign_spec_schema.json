@@ -148,12 +148,6 @@
       "description": "Risk level (e.g., low, medium, high)",
       "enum": ["low", "medium", "high"]
     },
-    "tracker-label": {
-      "type": "string",
-      "description": "Optional label used as an ingestion hint to associate issues/PRs with this campaign (e.g., campaign:incident-response). The project board is the canonical source of campaign membership.",
-      "pattern": "^[^:]+:.+$",
-      "minLength": 1
-    },
     "state": {
       "type": "string",
       "description": "Lifecycle stage of the campaign",
