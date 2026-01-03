@@ -41,7 +41,7 @@ func (c *Compiler) parseHideCommentConfig(outputMap map[string]any) *HideComment
 			}
 
 			// Parse common base fields with default max of 5
-			c.parseBaseSafeOutputConfig(configMap, &hideCommentConfig.BaseSafeOutputConfig, 5)
+			c.parseBaseSafeOutputConfig(configMap, &hideCommentConfig.BaseSafeOutputConfig, 5, false) // Runs in consolidated job
 
 			hideCommentLog.Printf("Parsed hide-comment config: max=%d, target_repo=%s",
 				hideCommentConfig.Max, hideCommentConfig.TargetRepoSlug)

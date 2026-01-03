@@ -104,7 +104,8 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		}
 
 		// Parse common base fields with default max of 0 (unlimited)
-		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig, 0)
+		// Pass false for parseGitHubToken because create-code-scanning-alert runs in the consolidated safe_outputs job
+		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig, 0, false)
 	} else {
 		// If configData is nil or not a map (e.g., "create-code-scanning-alert:" with no value),
 		// still set the default max (0 = unlimited)

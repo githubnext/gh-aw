@@ -128,7 +128,7 @@ func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params Upda
 			}
 
 			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
+			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1, false) // Runs in consolidated job
 		} else {
 			// If configData is nil or not a map, still set the default max
 			config.Max = 1

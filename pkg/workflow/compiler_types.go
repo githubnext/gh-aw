@@ -294,7 +294,15 @@ type WorkflowData struct {
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
 type BaseSafeOutputConfig struct {
-	Max int `yaml:"max,omitempty"` // Maximum number of items to create
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
+// SafeOutputJobType indicates whether a safe output runs in the consolidated safe_outputs job or as a separate job
+type SafeOutputJobType interface {
+	// RunsInConsolidatedJob returns true if this safe output runs as a step in the consolidated safe_outputs job,
+	// false if it runs as a separate individual job
+	RunsInConsolidatedJob() bool
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes

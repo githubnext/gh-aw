@@ -117,7 +117,8 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 		prReviewCommentsConfig.TargetRepoSlug = targetRepoSlug
 
 		// Parse common base fields with default max of 10
-		c.parseBaseSafeOutputConfig(configMap, &prReviewCommentsConfig.BaseSafeOutputConfig, 10)
+		// Pass false for parseGitHubToken because create-pull-request-review-comment runs in the consolidated safe_outputs job
+		c.parseBaseSafeOutputConfig(configMap, &prReviewCommentsConfig.BaseSafeOutputConfig, 10, false)
 	} else {
 		// If configData is nil or not a map (e.g., "create-pull-request-review-comment:" with no value),
 		// still set the default max

@@ -18,6 +18,11 @@ type UploadAssetsConfig struct {
 	AllowedExts          []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
 }
 
+// RunsInConsolidatedJob returns false because upload-asset runs as a separate job
+func (u *UploadAssetsConfig) RunsInConsolidatedJob() bool {
+	return false
+}
+
 // parseUploadAssetConfig handles upload-asset configuration
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
 	if configData, exists := outputMap["upload-asset"]; exists {
@@ -64,7 +69,7 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 			}
 
 			// Parse common base fields with default max of 0 (no limit)
-			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
+			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0, true) // Runs as separate job
 			publishAssetsLog.Printf("Parsed upload-asset config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
 		} else if configData == nil {
 			// Handle null case: create config with defaults

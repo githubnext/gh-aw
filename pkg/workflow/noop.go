@@ -24,7 +24,7 @@ func (c *Compiler) parseNoOpConfig(outputMap map[string]any) *NoOpConfig {
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &noopConfig.BaseSafeOutputConfig, 1)
+			c.parseBaseSafeOutputConfig(configMap, &noopConfig.BaseSafeOutputConfig, 1, false) // Runs in consolidated job
 		}
 
 		return noopConfig

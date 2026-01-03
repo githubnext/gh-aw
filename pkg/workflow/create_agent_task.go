@@ -37,7 +37,7 @@ func (c *Compiler) parseAgentTaskConfig(outputMap map[string]any) *CreateAgentTa
 			agentTaskConfig.TargetRepoSlug = targetRepoSlug
 
 			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &agentTaskConfig.BaseSafeOutputConfig, 1)
+			c.parseBaseSafeOutputConfig(configMap, &agentTaskConfig.BaseSafeOutputConfig, 1, false) // Runs in consolidated job
 		} else {
 			// If configData is nil or not a map (e.g., "create-agent-task:" with no value),
 			// still set the default max

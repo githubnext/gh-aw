@@ -33,7 +33,7 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 			linkSubIssueConfig.SafeOutputTargetConfig = targetConfig
 
 			// Parse common base fields with default max of 5
-			c.parseBaseSafeOutputConfig(configMap, &linkSubIssueConfig.BaseSafeOutputConfig, 5)
+			c.parseBaseSafeOutputConfig(configMap, &linkSubIssueConfig.BaseSafeOutputConfig, 5, false) // Runs in consolidated job
 
 			// Parse parent-required-labels
 			linkSubIssueConfig.ParentRequiredLabels = ParseStringArrayFromConfig(configMap, "parent-required-labels", linkSubIssueLog)
