@@ -57,8 +57,8 @@ async function main(config = {}) {
   /**
    * Message handler function - processes individual push_to_pull_request_branch messages
    * @param {any} message - The push_to_pull_request_branch message to process
-   * @param {Record<string, string>} resolvedTemporaryIds - Map of temporary IDs to resolved IDs
-   * @returns {Promise<{success: boolean, commit_url?: string, branch_name?: string, staged?: boolean, error?: string, skipped?: boolean}>}
+   * @param {import('./types/handler-factory').ResolvedTemporaryIds} resolvedTemporaryIds - Map of temporary IDs to resolved IDs
+   * @returns {Promise<import('./types/handler-factory').HandlerResult>}
    */
   return async function handlePushToPullRequestBranch(message, resolvedTemporaryIds) {
     // Check max count
