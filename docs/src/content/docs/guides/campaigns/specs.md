@@ -7,12 +7,12 @@ Campaigns are defined as Markdown files under `.github/workflows/` with a `.camp
 
 ## What a campaign is (in gh-aw)
 
-In GitHub Agentic Workflows, a campaign is not “a special kind of workflow.” The `.campaign.md` file is a specification: a reviewable contract that wires together agentic workflows around a shared initiative (a tracker label, a GitHub Project dashboard, and optional durable state).
+In GitHub Agentic Workflows, a campaign is not “a special kind of workflow.” The `.campaign.md` file is a specification: a reviewable contract that wires together agentic workflows around a shared initiative (a GitHub Project dashboard as the canonical source of membership, optional tracker label for ingestion, and optional durable state).
 
 In a typical setup:
 
 - Worker workflows do the work. They run an agent and use safe-outputs (for example `create_pull_request`, `add_comment`, or `update_issues`) for write operations.
-- A generated orchestrator workflow keeps the campaign coherent over time. It discovers items tagged with your tracker label, updates the Project board, and produces ongoing progress reporting.
+- A generated orchestrator workflow keeps the campaign coherent over time. It discovers items from the project board (optionally using tracker labels), updates the Project board, and produces ongoing progress reporting.
 - Repo-memory (optional) makes the campaign repeatable. It lets you store a cursor checkpoint and append-only metrics snapshots so each run can pick up where the last one left off.
 
 ### Mental model
@@ -23,7 +23,7 @@ flowchart TB
     compile["fa:fa-cogs gh aw compile"]
     debug["fa:fa-file .campaign.g.md<br/><small>debug artifact<br/>(not tracked)</small>"]
     lock["fa:fa-lock .campaign.lock.yml<br/><small>compiled workflow<br/>(tracked in git)</small>"]
-    orchestrator["fa:fa-sitemap Orchestrator workflow<br/><small>discovers items via tracker-label<br/>updates Project dashboard<br/>reads/writes repo-memory</small>"]
+    orchestrator["fa:fa-sitemap Orchestrator workflow<br/><small>discovers items from project<br/>updates Project dashboard<br/>reads/writes repo-memory</small>"]
     worker1["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
     worker2["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
     project["fa:fa-table GitHub Project board<br/><small>campaign dashboard</small>"]
@@ -35,8 +35,8 @@ flowchart TB
     lock --> orchestrator
     orchestrator -->|triggers/coordinates| worker1
     orchestrator -->|triggers/coordinates| worker2
-    worker1 -->|creates/updates<br/>Issues/PRs with<br/>tracker-label| project
-    worker2 -->|creates/updates<br/>Issues/PRs with<br/>tracker-label| project
+    worker1 -->|creates/updates<br/>Issues/PRs<br/>(optional tracker-label)| project
+    worker2 -->|creates/updates<br/>Issues/PRs<br/>(optional tracker-label)| project
     orchestrator -.->|reads/writes| memory
     project -.->|dashboard view| orchestrator
 
@@ -91,8 +91,8 @@ owners:
 ## Core fields (what they do)
 
 - `id`: stable identifier used for file naming, reporting, and (if used) repo-memory paths.
-- `project-url`: the GitHub Project that acts as the campaign dashboard.
-- `tracker-label`: the label applied to issues and pull requests that belong to the campaign (commonly `campaign:<id>`). This is the key that lets the orchestrator discover work across runs.
+- `project-url`: the GitHub Project that acts as the campaign dashboard and canonical source of campaign membership.
+- `tracker-label` (optional): an ingestion hint label that helps discover issues and pull requests created by workers (commonly `campaign:<id>`). When provided, the orchestrator can discover work across runs. The project board remains the canonical source of truth.
 - `objective`: a single sentence describing what “done” means.
 - `kpis`: the measures you use to report progress (exactly one should be marked `primary`).
 - `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`), and they can be scheduled, event-driven, or long-running.

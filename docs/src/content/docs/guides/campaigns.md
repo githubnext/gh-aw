@@ -23,13 +23,13 @@ Use a campaign when you need to manage an initiative—scope, progress, and outc
 
 A campaign gives you a dashboard (GitHub Project), a coordinating orchestrator workflow that keeps it in sync, and a spec file that captures the objective, KPIs, governance, and wiring. In the repo, the spec lives at `.github/workflows/<id>.campaign.md` and is the source of truth.
 
-When the spec includes orchestration, the tooling generates an orchestrator workflow and compiles it into a locked `.campaign.lock.yml` workflow. The spec defines what success means (objective), how progress is measured (KPIs, with exactly one marked primary), where progress is shown (GitHub Project URL), what participates (workflows), and what is tracked (the label applied to issues and pull requests, commonly `campaign:<id>`).
+When the spec includes orchestration, the tooling generates an orchestrator workflow and compiles it into a locked `.campaign.lock.yml` workflow. The spec defines what success means (objective), how progress is measured (KPIs, with exactly one marked primary), where progress is shown (GitHub Project URL), and what participates (workflows). Optionally, you can add a tracker label (commonly `campaign:<id>`) to help discover issues and PRs, but the project board remains the canonical source of campaign membership.
 
 **Note:** During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the source `.campaign.md` and compiled `.campaign.lock.yml` are tracked.
 
 ## How it works
 
-Most campaigns follow the same shape. The GitHub Project is the human-facing status view. The orchestrator workflow discovers tracked items from the workers and updates the Project. Worker workflows do the real work, such as opening pull requests or applying fixes but they stay campaign-agnostic. If you want cross-run discovery of worker-created assets, workers can include a `tracker-id` marker which the orchestrator can search for.
+Most campaigns follow the same shape. The GitHub Project is the human-facing status view and the canonical source of campaign membership. The orchestrator workflow discovers tracked items from the workers and updates the Project. Worker workflows do the real work, such as opening pull requests or applying fixes but they stay campaign-agnostic. If you want cross-run discovery of worker-created assets, workers can include a `tracker-id` marker which the orchestrator can search for. Optionally, you can configure a tracker label (e.g., `campaign:<id>`) as an ingestion hint to help discover issues and PRs created by workers.
 
 ## Memory
 

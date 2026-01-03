@@ -62,8 +62,10 @@ type CampaignSpec struct {
 	// RiskLevel is an optional free-form field (e.g. low/medium/high).
 	RiskLevel string `yaml:"risk-level,omitempty" json:"risk_level,omitempty" console:"header:Risk Level,omitempty"`
 
-	// TrackerLabel describes the label used to associate issues/PRs with
-	// this campaign (for example: campaign:incident-response).
+	// TrackerLabel is an optional label used as an ingestion hint to help
+	// discover and associate issues/PRs with this campaign (for example:
+	// campaign:incident-response). The GitHub Project board is the canonical
+	// source of campaign membership.
 	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty"`
 
 	// State describes the lifecycle stage of the campaign definition.
