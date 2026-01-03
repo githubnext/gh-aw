@@ -1,0 +1,5 @@
+test.md:3:5: error: missing colon in YAML mapping
+2 | tools:
+3 |   github
+        ^^^^
+4 |     allowed: [list_issues]
