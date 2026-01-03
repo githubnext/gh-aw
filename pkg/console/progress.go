@@ -9,6 +9,10 @@ import (
 // ProgressBar provides a reusable progress bar component with TTY detection
 // and graceful fallback to text-based progress for non-TTY environments.
 //
+// Modes:
+//   - Determinate: When total size is known (shows percentage and progress)
+//   - Indeterminate: When total size is unknown (shows activity indicator)
+//
 // Visual Features:
 //   - Scaled gradient effect from purple (#BD93F9) to cyan (#8BE9FD)
 //   - Smooth color transitions using bubbles v0.21.0+ gradient capabilities
@@ -19,12 +23,13 @@ import (
 //   - TTY mode: Visual progress bar with smooth gradient transitions
 //   - Non-TTY mode: Text-based percentage with human-readable byte sizes
 type ProgressBar struct {
-	progress progress.Model
-	total    int64
-	current  int64
+	progress      progress.Model
+	total         int64
+	current       int64
+	indeterminate bool
 }
 
-// NewProgressBar creates a new progress bar with the specified total size
+// NewProgressBar creates a new progress bar with the specified total size (determinate mode)
 // The progress bar automatically adapts to TTY/non-TTY environments
 func NewProgressBar(total int64) *ProgressBar {
 	// Use scaled gradient for improved visual effect
@@ -46,19 +51,64 @@ func NewProgressBar(total int64) *ProgressBar {
 	prog.EmptyColor = "#6272A4" // Muted purple-gray
 
 	return &ProgressBar{
-		progress: prog,
-		total:    total,
-		current:  0,
+		progress:      prog,
+		total:         total,
+		current:       0,
+		indeterminate: false,
+	}
+}
+
+// NewIndeterminateProgressBar creates a progress bar for when the total size is unknown
+// This mode shows activity without a specific completion percentage, useful for:
+//   - Streaming downloads with unknown size
+//   - Processing unknown number of items
+//   - Operations where duration cannot be predicted
+//
+// The progress bar automatically adapts to TTY/non-TTY environments
+func NewIndeterminateProgressBar() *ProgressBar {
+	prog := progress.New(
+		progress.WithScaledGradient("#BD93F9", "#8BE9FD"),
+		progress.WithWidth(40),
+	)
+
+	prog.EmptyColor = "#6272A4" // Muted purple-gray
+
+	return &ProgressBar{
+		progress:      prog,
+		total:         0,
+		current:       0,
+		indeterminate: true,
 	}
 }
 
 // Update updates the current progress and returns a formatted string
-// In TTY mode: Returns a visual progress bar with gradient
-// In non-TTY mode: Returns text percentage with human-readable sizes
+// In determinate mode:
+//   - TTY: Returns a visual progress bar with gradient and percentage
+//   - Non-TTY: Returns text percentage with human-readable sizes
+//
+// In indeterminate mode:
+//   - TTY: Returns a pulsing progress indicator
+//   - Non-TTY: Returns processing indicator with current value
 func (p *ProgressBar) Update(current int64) string {
 	p.current = current
 
-	// Handle edge case: avoid division by zero
+	// Handle indeterminate mode
+	if p.indeterminate {
+		if !isTTY() {
+			// Fallback for non-TTY: "Processing... (512MB)"
+			if current == 0 {
+				return "Processing..."
+			}
+			return fmt.Sprintf("Processing... (%s)", formatBytes(current))
+		}
+		// In TTY mode, show a pulsing indicator by cycling between 25% and 75%
+		// This creates a visual "breathing" effect
+		pulseStep := current % 4
+		pulsePercent := 0.5 + 0.25*float64(pulseStep-2)/2.0
+		return p.progress.ViewAs(pulsePercent)
+	}
+
+	// Handle determinate mode with edge case: avoid division by zero
 	if p.total == 0 {
 		if isTTY() {
 			return p.progress.ViewAs(1.0)
