@@ -1,7 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import fs from "fs";
-import path from "path";
-import os from "os";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -44,158 +41,41 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("add_reviewer", () => {
-  let tempDir;
-  let outputFile;
+describe("add_reviewer (Handler Factory Architecture)", () => {
+  let handler;
 
-  beforeEach(() => {
-    // Create a temporary directory for test files
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "add-reviewer-test-"));
-    outputFile = path.join(tempDir, "agent-output.json");
-
+  beforeEach(async () => {
     // Reset all mocks before each test
     vi.clearAllMocks();
-    vi.resetModules(); // Reset module cache to allow fresh imports
 
-    // Clear environment variables
-    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
-    delete process.env.GH_AW_REVIEWERS_ALLOWED;
-    delete process.env.GH_AW_REVIEWERS_MAX_COUNT;
-    delete process.env.GH_AW_REVIEWERS_TARGET;
+    // Reset context
+    global.context = mockContext;
 
-    // Reset context to default
-    global.context = {
-      eventName: "pull_request",
-      repo: {
-        owner: "testowner",
-        repo: "testrepo",
-      },
-      payload: {
-        pull_request: {
-          number: 123,
-        },
-      },
-    };
-  });
-
-  afterEach(() => {
-    // Clean up temporary files
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it("should handle missing GH_AW_AGENT_OUTPUT", async () => {
-    delete process.env.GH_AW_AGENT_OUTPUT;
-
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
-
-    expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
-  });
-
-  it("should handle missing add_reviewer item", async () => {
-    const agentOutput = {
-      items: [{ type: "create_issue", title: "Test", body: "Body" }],
-    };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
-
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
-
-    expect(mockCore.warning).toHaveBeenCalledWith("No add-reviewer item found in agent output");
-  });
-
-  it("should add reviewers to PR in non-staged mode", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["octocat", "github"],
-        },
-      ],
-    };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    process.env.GH_AW_REVIEWERS_MAX_COUNT = "3";
-    process.env.GH_AW_REVIEWERS_TARGET = "triggering";
-
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
-
-    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-      pull_number: 123,
-      reviewers: ["octocat", "github"],
-    });
-    expect(mockCore.setOutput).toHaveBeenCalledWith("reviewers_added", "octocat\ngithub");
-  });
-
-  it("should generate staged preview in staged mode", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["octocat", "github"],
-          pull_request_number: 123,
-        },
-      ],
-    };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
-
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
-
-    expect(mockCore.summary.addRaw).toHaveBeenCalled();
-    expect(mockCore.summary.write).toHaveBeenCalled();
-    expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
-  });
-
-  it("should filter by allowed reviewers", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["octocat", "github", "unauthorized"],
-        },
-      ],
-    };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    process.env.GH_AW_REVIEWERS_ALLOWED = "octocat,github";
-    process.env.GH_AW_REVIEWERS_MAX_COUNT = "3";
-
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
-
-    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-      pull_number: 123,
-      reviewers: ["octocat", "github"],
+    // Load the module and create handler
+    const { main } = require("./add_reviewer.cjs");
+    handler = await main({
+      max: 10,
+      allowed: ["user1", "user2", "copilot"],
     });
   });
 
-  it("should enforce max count limit", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["user1", "user2", "user3", "user4", "user5"],
-        },
-      ],
+  it("should return a function from main()", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const result = await main({});
+    expect(typeof result).toBe("function");
+  });
+
+  it("should add reviewers to PR", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "user2"],
     };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    process.env.GH_AW_REVIEWERS_MAX_COUNT = "2";
 
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
+    const result = await handler(message, {});
 
+    expect(result.success).toBe(true);
+    expect(result.prNumber).toBe(123);
+    expect(result.reviewersAdded).toEqual(["user1", "user2"]);
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
@@ -204,20 +84,101 @@ describe("add_reviewer", () => {
     });
   });
 
-  it("should handle non-PR context gracefully", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["octocat"],
-        },
-      ],
+  it("should add copilot reviewer separately", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "copilot"],
     };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1", "copilot"]);
+    // Should be called twice - once for regular reviewers, once for copilot
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1"],
+    });
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["copilot-pull-request-reviewer[bot]"],
+    });
+  });
+
+  it("should filter by allowed reviewers", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "user2", "unauthorized"],
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1", "user2"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1", "user2"],
+    });
+  });
+
+  it("should enforce max count limit", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const limitedHandler = await main({ max: 1, allowed: ["user1", "user2"] });
+
+    const message1 = {
+      type: "add_reviewer",
+      reviewers: ["user1"],
+    };
+
+    const message2 = {
+      type: "add_reviewer",
+      reviewers: ["user2"],
+    };
+
+    // First call should succeed
+    const result1 = await limitedHandler(message1, {});
+    expect(result1.success).toBe(true);
+
+    // Second call should fail
+    const result2 = await limitedHandler(message2, {});
+    expect(result2.success).toBe(false);
+    expect(result2.error).toContain("Max count");
+  });
+
+  it("should use explicit PR number from message", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1"],
+      pull_request_number: 456,
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.prNumber).toBe(456);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 456,
+      reviewers: ["user1"],
+    });
+  });
+
+  it("should handle missing PR context", async () => {
+    // Change context to remove PR
     global.context = {
-      ...mockContext,
-      eventName: "issues", // Not a PR context
+      eventName: "issues",
+      repo: {
+        owner: "testowner",
+        repo: "testrepo",
+      },
       payload: {
         issue: {
           number: 123,
@@ -225,79 +186,61 @@ describe("add_reviewer", () => {
       },
     };
 
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1"],
+    };
 
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Target is "triggering" but not running in pull request context'));
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("No PR number available");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
-  it("should handle explicit PR number with * target", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["octocat"],
-          pull_request_number: 456,
-        },
-      ],
-    };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    process.env.GH_AW_REVIEWERS_TARGET = "*";
-
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
-
-    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-      pull_number: 456,
-      reviewers: ["octocat"],
-    });
-  });
-
   it("should handle API errors gracefully", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["octocat"],
-        },
-      ],
-    };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
     mockGithub.rest.pulls.requestReviewers.mockRejectedValueOnce(new Error("API Error"));
 
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1"],
+    };
 
-    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reviewers"));
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reviewers"));
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("API Error");
   });
 
   it("should deduplicate reviewers", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "add_reviewer",
-          reviewers: ["octocat", "github", "octocat", "github"],
-        },
-      ],
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "user2", "user1", "user2"],
     };
-    fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
-    process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    process.env.GH_AW_REVIEWERS_MAX_COUNT = "10"; // Set high max to test deduplication
 
-    const { main } = await import("./add_reviewer.cjs");
-    await main();
+    const result = await handler(message, {});
 
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1", "user2"]);
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
       pull_number: 123,
-      reviewers: ["octocat", "github"],
+      reviewers: ["user1", "user2"],
     });
+  });
+
+  it("should return success with empty array when no valid reviewers", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: [],
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual([]);
+    expect(result.message).toContain("No valid reviewers found");
+    expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 });
