@@ -81,7 +81,6 @@ type CloseEntityJobParams struct {
 	OutputURLKey     string // e.g., "issue_url", "pull_request_url"
 	EventNumberPath1 string // e.g., "github.event.issue.number"
 	EventNumberPath2 string // e.g., "github.event.comment.issue.number"
-	ScriptGetter     func() string
 	PermissionsFunc  func() *Permissions
 }
 
@@ -130,7 +129,6 @@ type closeEntityDefinition struct {
 	OutputURLKey     string
 	EventNumberPath1 string
 	EventNumberPath2 string
-	ScriptGetter     func() string
 	PermissionsFunc  func() *Permissions
 	Logger           *logger.Logger
 }
@@ -147,7 +145,6 @@ var closeEntityRegistry = []closeEntityDefinition{
 		OutputURLKey:     "issue_url",
 		EventNumberPath1: "github.event.issue.number",
 		EventNumberPath2: "github.event.comment.issue.number",
-		ScriptGetter:     getCloseIssueScript,
 		PermissionsFunc:  NewPermissionsContentsReadIssuesWrite,
 		Logger:           logger.New("workflow:close_issue"),
 	},
@@ -161,7 +158,6 @@ var closeEntityRegistry = []closeEntityDefinition{
 		OutputURLKey:     "pull_request_url",
 		EventNumberPath1: "github.event.pull_request.number",
 		EventNumberPath2: "github.event.comment.pull_request.number",
-		ScriptGetter:     getClosePullRequestScript,
 		PermissionsFunc:  NewPermissionsContentsReadPRWrite,
 		Logger:           logger.New("workflow:close_pull_request"),
 	},
@@ -175,7 +171,6 @@ var closeEntityRegistry = []closeEntityDefinition{
 		OutputURLKey:     "discussion_url",
 		EventNumberPath1: "github.event.discussion.number",
 		EventNumberPath2: "github.event.comment.discussion.number",
-		ScriptGetter:     getCloseDiscussionScript,
 		PermissionsFunc:  NewPermissionsContentsReadDiscussionsWrite,
 		Logger:           logger.New("workflow:close_discussion"),
 	},

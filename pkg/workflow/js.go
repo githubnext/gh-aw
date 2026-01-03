@@ -29,13 +29,11 @@ func getAssignToAgentScript() string                   { return "" }
 func getAssignToUserScript() string                    { return "" }
 func getCloseDiscussionScript() string                 { return "" }
 func getCloseIssueScript() string                      { return "" }
-func getClosePullRequestScript() string                { return "" }
 func getMarkPullRequestAsReadyForReviewScript() string { return "" }
 func getCreateCodeScanningAlertScript() string         { return "" }
 func getCreateDiscussionScript() string                { return "" }
 func getCreateIssueScript() string                     { return "" }
 func getCreatePRReviewCommentScript() string           { return "" }
-func getCreatePullRequestScript() string               { return "" }
 func getNoOpScript() string                            { return "" }
 func getNotifyCommentErrorScript() string              { return "" }
 func getUpdateProjectScript() string                   { return "" }
