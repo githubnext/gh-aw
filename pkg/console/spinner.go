@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/githubnext/gh-aw/pkg/tty"
 )
@@ -59,26 +59,33 @@ func (s *SpinnerWrapper) Start() {
 	go s.animate()
 }
 
-// animate runs the spinner animation loop
+// animate runs the spinner animation loop using Bubble Tea's Cmd pattern
 func (s *SpinnerWrapper) animate() {
-	// Create a ticker based on the spinner's FPS
-	ticker := time.NewTicker(s.model.Spinner.FPS)
-	defer ticker.Stop()
+	msg := s.model.Tick()
 
 	for {
+		// Update the model and render
+		s.mu.Lock()
+		var cmd tea.Cmd
+		s.model, cmd = s.model.Update(msg)
+		fmt.Fprintf(os.Stderr, "\r%s %s", s.model.View(), s.message)
+		s.mu.Unlock()
+
+		// Execute the Cmd to get the next tick message (blocks for FPS duration)
+		if cmd == nil {
+			return
+		}
+
+		// Run cmd in goroutine to allow cancellation
+		done := make(chan tea.Msg, 1)
+		go func() {
+			done <- cmd()
+		}()
+
 		select {
 		case <-s.stopCh:
 			return
-		case <-ticker.C:
-			// Get the tick message and update the model
-			msg := s.model.Tick()
-
-			s.mu.Lock()
-			s.model, _ = s.model.Update(msg)
-
-			// Render the spinner with the message
-			fmt.Fprintf(os.Stderr, "\r%s %s", s.model.View(), s.message)
-			s.mu.Unlock()
+		case msg = <-done:
 		}
 	}
 }
