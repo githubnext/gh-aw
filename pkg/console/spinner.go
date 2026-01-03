@@ -1,3 +1,48 @@
+// Package console provides terminal UI components including spinners for
+// long-running operations.
+//
+// # Spinner Component
+//
+// The spinner provides visual feedback during long-running operations. It automatically
+// adapts to the environment:
+//   - TTY Detection: Spinners only animate in terminal environments (disabled in pipes/redirects)
+//   - Accessibility: Respects ACCESSIBLE environment variable to disable animations
+//   - Color Adaptation: Uses lipgloss adaptive colors for light/dark terminal themes
+//
+// # Multiple Spinner Styles
+//
+// The spinner supports multiple visual styles from the Bubbles library:
+//   - SpinnerDot: Default style with braille dots (⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+//   - SpinnerLine: Simple line spinner (| / - \)
+//   - SpinnerMiniDot: Minimal dot spinner (⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
+//   - SpinnerPoints: Points-based spinner (∙∙∙ ●∙∙ ∙●∙ ∙∙●)
+//   - SpinnerGlobe: Globe spinner (🌍 🌎 🌏)
+//   - SpinnerMoon: Moon phase spinner (🌑 🌒 🌓 🌔 🌕 🌖 🌗 🌘)
+//   - SpinnerJump: Jumping spinner (⢄ ⢂ ⢁ ⡁ ⡈ ⡐ ⡠)
+//   - SpinnerPulse: Pulsing spinner (█ ▓ ▒ ░)
+//   - SpinnerEllipsis: Ellipsis spinner (   . .. ...)
+//
+// # Usage Example
+//
+//	// Default spinner style
+//	spinner := console.NewSpinner("Loading...")
+//	spinner.Start()
+//	// Long-running operation
+//	spinner.Stop()
+//
+//	// Custom spinner style
+//	spinner := console.NewSpinnerWithStyle("Processing...", console.SpinnerLine)
+//	spinner.Start()
+//	// Long-running operation
+//	spinner.StopWithMessage("✓ Done!")
+//
+// # Accessibility
+//
+// Spinners respect the ACCESSIBLE environment variable. When ACCESSIBLE is set to any value,
+// spinner animations are disabled to support screen readers and accessibility tools.
+//
+//	export ACCESSIBLE=1
+//	gh aw compile workflow.md  # Spinners will be disabled
 package console
 
 import (
@@ -11,6 +56,30 @@ import (
 	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
+// SpinnerStyle represents the visual style of the spinner animation
+type SpinnerStyle int
+
+const (
+	// SpinnerDot is the default spinner style (⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+	SpinnerDot SpinnerStyle = iota
+	// SpinnerLine is a simple line spinner (| / - \)
+	SpinnerLine
+	// SpinnerMiniDot is a minimal dot spinner (⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
+	SpinnerMiniDot
+	// SpinnerPoints is a points-based spinner (∙∙∙ ●∙∙ ∙●∙ ∙∙●)
+	SpinnerPoints
+	// SpinnerGlobe is a globe spinner (🌍 🌎 🌏)
+	SpinnerGlobe
+	// SpinnerMoon is a moon phase spinner (🌑 🌒 🌓 🌔 🌕 🌖 🌗 🌘)
+	SpinnerMoon
+	// SpinnerJump is a jumping spinner (⢄ ⢂ ⢁ ⡁ ⡈ ⡐ ⡠)
+	SpinnerJump
+	// SpinnerPulse is a pulsing spinner (█ ▓ ▒ ░)
+	SpinnerPulse
+	// SpinnerEllipsis is an ellipsis spinner (   . .. ...)
+	SpinnerEllipsis
+)
+
 // SpinnerWrapper wraps the spinner functionality with TTY detection
 type SpinnerWrapper struct {
 	model   spinner.Model
@@ -21,10 +90,19 @@ type SpinnerWrapper struct {
 	mu      sync.Mutex
 }
 
-// NewSpinner creates a new spinner with the given message
-// The spinner is automatically disabled when not running in a TTY
+// NewSpinner creates a new spinner with the given message using the default Dot style
+// The spinner is automatically disabled when not running in a TTY or in accessibility mode
 func NewSpinner(message string) *SpinnerWrapper {
-	enabled := tty.IsStderrTerminal() // Check if stderr is a terminal (spinner writes to stderr)
+	return NewSpinnerWithStyle(message, SpinnerDot)
+}
+
+// NewSpinnerWithStyle creates a new spinner with the given message and style
+// The spinner is automatically disabled when not running in a TTY or in accessibility mode
+func NewSpinnerWithStyle(message string, style SpinnerStyle) *SpinnerWrapper {
+	// Check if spinner should be enabled:
+	// 1. Must be running in a TTY
+	// 2. ACCESSIBLE environment variable must not be set
+	enabled := tty.IsStderrTerminal() && os.Getenv("ACCESSIBLE") == ""
 
 	s := &SpinnerWrapper{
 		message: message,
@@ -33,9 +111,34 @@ func NewSpinner(message string) *SpinnerWrapper {
 	}
 
 	if enabled {
-		// Create a new spinner model with Dot style and info color
+		// Select the spinner type based on style
+		var spinnerType spinner.Spinner
+		switch style {
+		case SpinnerLine:
+			spinnerType = spinner.Line
+		case SpinnerMiniDot:
+			spinnerType = spinner.MiniDot
+		case SpinnerPoints:
+			spinnerType = spinner.Points
+		case SpinnerGlobe:
+			spinnerType = spinner.Globe
+		case SpinnerMoon:
+			spinnerType = spinner.Moon
+		case SpinnerJump:
+			spinnerType = spinner.Jump
+		case SpinnerPulse:
+			spinnerType = spinner.Pulse
+		case SpinnerEllipsis:
+			spinnerType = spinner.Ellipsis
+		case SpinnerDot:
+			fallthrough
+		default:
+			spinnerType = spinner.Dot
+		}
+
+		// Create a new spinner model with the selected style and info color
 		s.model = spinner.New(
-			spinner.WithSpinner(spinner.Dot),
+			spinner.WithSpinner(spinnerType),
 			spinner.WithStyle(styles.Info),
 		)
 	}
