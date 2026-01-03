@@ -186,38 +186,23 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Note: Mark Pull Request as Ready for Review is now handled by the handler manager
 	// The permissions are configured in the handler manager section above
 
-	// 9. Create Code Scanning Alert step
+	// Note: Create Code Scanning Alert is now handled by the handler manager
+	// The permissions are configured in the handler manager section above
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		workflowFilename := GetWorkflowIDFromPath(markdownPath)
-		stepConfig := c.buildCreateCodeScanningAlertStepConfig(data, mainJobName, threatDetectionEnabled, workflowFilename)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
 		permissions.Merge(NewPermissionsContentsReadSecurityEventsWrite())
 	}
 
-	// 11. Add Reviewer step
+	// Note: Add Reviewer is now handled by the handler manager
+	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AddReviewer != nil {
-		stepConfig := c.buildAddReviewerStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
 		outputs["add_reviewer_reviewers_added"] = "${{ steps.add_reviewer.outputs.reviewers_added }}"
-
 		permissions.Merge(NewPermissionsContentsReadPRWrite())
 	}
 
-	// 12. Assign Milestone step
+	// Note: Assign Milestone is now handled by the handler manager
+	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignMilestone != nil {
-		stepConfig := c.buildAssignMilestoneStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
 		outputs["assign_milestone_milestone_assigned"] = "${{ steps.assign_milestone.outputs.milestone_assigned }}"
-
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
@@ -233,15 +218,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
 
-	// 14. Assign To User step
+	// Note: Assign To User is now handled by the handler manager
+	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignToUser != nil {
-		stepConfig := c.buildAssignToUserStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
 		outputs["assign_to_user_assigned"] = "${{ steps.assign_to_user.outputs.assigned }}"
-
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
