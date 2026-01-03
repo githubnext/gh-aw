@@ -74,7 +74,7 @@ func TestGolden_TableRendering(t *testing.T) {
 			// Force non-TTY mode for consistent output
 			origStdout := os.Stdout
 			defer func() { os.Stdout = origStdout }()
-			
+
 			output := RenderTable(tt.config)
 			golden.RequireEqual(t, []byte(output))
 		})
