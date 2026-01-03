@@ -6,8 +6,7 @@
  */
 
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
-const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
 
 /**
  * Execute the discussion update API call using GraphQL
@@ -68,124 +67,102 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
 }
 
 /**
+ * Resolve discussion number from message and configuration
+ * Discussions have special handling - they don't use the standard resolveTarget helper
+ * @param {Object} item - The message item
+ * @param {string} updateTarget - Target configuration
+ * @param {Object} context - GitHub Actions context
+ * @returns {{success: true, number: number} | {success: false, error: string}} Resolution result
+ */
+function resolveDiscussionNumber(item, updateTarget, context) {
+  // Discussions are special - they have their own context type separate from issues/PRs
+  // We need to handle them differently
+  if (item.discussion_number !== undefined) {
+    const discussionNumber = parseInt(String(item.discussion_number), 10);
+    if (isNaN(discussionNumber)) {
+      return {
+        success: false,
+        error: `Invalid discussion number: ${item.discussion_number}`,
+      };
+    }
+    return { success: true, number: discussionNumber };
+  } else if (updateTarget !== "triggering") {
+    // Explicit number target
+    const discussionNumber = parseInt(updateTarget, 10);
+    if (isNaN(discussionNumber) || discussionNumber <= 0) {
+      return {
+        success: false,
+        error: `Invalid discussion number in target: ${updateTarget}`,
+      };
+    }
+    return { success: true, number: discussionNumber };
+  } else {
+    // Use triggering context (default)
+    if (isDiscussionContext(context.eventName, context.payload)) {
+      const discussionNumber = getDiscussionNumber(context.payload);
+      if (!discussionNumber) {
+        return {
+          success: false,
+          error: "No discussion number available",
+        };
+      }
+      return { success: true, number: discussionNumber };
+    } else {
+      return {
+        success: false,
+        error: "Not in discussion context",
+      };
+    }
+  }
+}
+
+/**
+ * Build update data from message
+ * @param {Object} item - The message item
+ * @param {Object} config - Configuration object
+ * @returns {{success: true, data: Object} | {success: false, error: string}} Update data result
+ */
+function buildDiscussionUpdateData(item, config) {
+  const updateData = {};
+
+  if (item.title !== undefined) {
+    updateData.title = item.title;
+  }
+  if (item.body !== undefined) {
+    updateData.body = item.body;
+  }
+
+  return { success: true, data: updateData };
+}
+
+/**
+ * Format success result for discussion update
+ * @param {number} discussionNumber - Discussion number
+ * @param {Object} updatedDiscussion - Updated discussion object
+ * @returns {Object} Formatted success result
+ */
+function formatDiscussionSuccessResult(discussionNumber, updatedDiscussion) {
+  return {
+    success: true,
+    number: discussionNumber,
+    url: updatedDiscussion.url,
+    title: updatedDiscussion.title,
+  };
+}
+
+/**
  * Main handler factory for update_discussion
  * Returns a message handler function that processes individual update_discussion messages
  * @type {HandlerFactoryFunction}
  */
-async function main(config = {}) {
-  // Extract configuration
-  const updateTarget = config.target || "triggering";
-  const maxCount = config.max || 10;
-
-  core.info(`Update discussion configuration: max=${maxCount}, target=${updateTarget}`);
-
-  // Track state
-  let processedCount = 0;
-
-  /**
-   * Message handler function
-   * @param {Object} message - The update_discussion message
-   * @param {Object} resolvedTemporaryIds - Resolved temporary IDs
-   * @returns {Promise<Object>} Result
-   */
-  return async function handleUpdateDiscussion(message, resolvedTemporaryIds) {
-    // Check max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping update_discussion: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
-    }
-
-    processedCount++;
-
-    const item = message;
-
-    // Determine target discussion number
-    let discussionNumber;
-
-    // Discussions are special - they have their own context type separate from issues/PRs
-    // We need to handle them differently
-    if (item.discussion_number !== undefined) {
-      discussionNumber = parseInt(String(item.discussion_number), 10);
-      if (isNaN(discussionNumber)) {
-        core.warning(`Invalid discussion number: ${item.discussion_number}`);
-        return {
-          success: false,
-          error: `Invalid discussion number: ${item.discussion_number}`,
-        };
-      }
-    } else if (updateTarget !== "triggering") {
-      // Explicit number target
-      discussionNumber = parseInt(updateTarget, 10);
-      if (isNaN(discussionNumber) || discussionNumber <= 0) {
-        core.warning(`Invalid discussion number in target configuration: ${updateTarget}`);
-        return {
-          success: false,
-          error: `Invalid discussion number in target: ${updateTarget}`,
-        };
-      }
-    } else {
-      // Use triggering context (default)
-      if (isDiscussionContext(context.eventName, context.payload)) {
-        discussionNumber = getDiscussionNumber(context.payload);
-        if (!discussionNumber) {
-          core.warning("No discussion number in triggering context");
-          return {
-            success: false,
-            error: "No discussion number available",
-          };
-        }
-      } else {
-        core.warning('Target is "triggering" but not in discussion context');
-        return {
-          success: false,
-          error: "Not in discussion context",
-        };
-      }
-    }
-
-    core.info(`Resolved target discussion #${discussionNumber} (target config: ${updateTarget})`);
-
-    // Build update data
-    const updateData = {};
-    if (item.title !== undefined) {
-      updateData.title = item.title;
-    }
-    if (item.body !== undefined) {
-      updateData.body = item.body;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      core.warning("No update fields provided");
-      return {
-        success: false,
-        error: "No update fields provided",
-      };
-    }
-
-    core.info(`Updating discussion #${discussionNumber} with: ${JSON.stringify(Object.keys(updateData))}`);
-
-    try {
-      const updatedDiscussion = await executeDiscussionUpdate(github, context, discussionNumber, updateData);
-      core.info(`Successfully updated discussion #${discussionNumber}: ${updatedDiscussion.url}`);
-
-      return {
-        success: true,
-        number: discussionNumber,
-        url: updatedDiscussion.url,
-        title: updatedDiscussion.title,
-      };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to update discussion #${discussionNumber}: ${errorMessage}`);
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-  };
-}
+const main = createUpdateHandlerFactory({
+  itemType: "update_discussion",
+  itemTypeName: "discussion",
+  supportsPR: false,
+  resolveItemNumber: resolveDiscussionNumber,
+  buildUpdateData: buildDiscussionUpdateData,
+  executeUpdate: executeDiscussionUpdate,
+  formatSuccessResult: formatDiscussionSuccessResult,
+});
 
 module.exports = { main };

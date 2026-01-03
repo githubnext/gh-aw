@@ -9,9 +9,8 @@
 const HANDLER_TYPE = "update_pull_request";
 
 const { updateBody } = require("./update_pr_description_helpers.cjs");
-const { isPRContext, getPRNumber } = require("./update_context_helpers.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
 
 /**
  * Execute the pull request update API call
@@ -70,120 +69,108 @@ async function executePRUpdate(github, context, prNumber, updateData) {
 }
 
 /**
+ * Resolve PR number from message and configuration
+ * @param {Object} item - The message item
+ * @param {string} updateTarget - Target configuration
+ * @param {Object} context - GitHub Actions context
+ * @returns {{success: true, number: number} | {success: false, error: string}} Resolution result
+ */
+function resolvePRNumber(item, updateTarget, context) {
+  const targetResult = resolveTarget({
+    targetConfig: updateTarget,
+    item: { ...item, item_number: item.pull_request_number },
+    context: context,
+    itemType: "update_pull_request",
+    supportsPR: false, // update_pull_request only supports PRs, not issues
+  });
+
+  if (!targetResult.success) {
+    return { success: false, error: targetResult.error };
+  }
+
+  return { success: true, number: targetResult.number };
+}
+
+/**
+ * Build update data from message
+ * @param {Object} item - The message item
+ * @param {Object} config - Configuration object
+ * @returns {{success: true, data: Object} | {success: false, error: string}} Update data result
+ */
+function buildPRUpdateData(item, config) {
+  const canUpdateTitle = config.allow_title !== false; // Default true
+  const canUpdateBody = config.allow_body !== false; // Default true
+
+  const updateData = {};
+  let hasUpdates = false;
+
+  if (canUpdateTitle && item.title !== undefined) {
+    updateData.title = item.title;
+    hasUpdates = true;
+  }
+
+  if (canUpdateBody && item.body !== undefined) {
+    // Store operation information
+    if (item.operation !== undefined) {
+      updateData._operation = item.operation;
+      updateData._rawBody = item.body;
+    }
+    updateData.body = item.body;
+    hasUpdates = true;
+  }
+
+  // Other fields (always allowed)
+  if (item.state !== undefined) {
+    updateData.state = item.state;
+    hasUpdates = true;
+  }
+  if (item.base !== undefined) {
+    updateData.base = item.base;
+    hasUpdates = true;
+  }
+
+  if (!hasUpdates) {
+    return {
+      success: false,
+      error: "No update fields provided or all fields are disabled",
+    };
+  }
+
+  return { success: true, data: updateData };
+}
+
+/**
+ * Format success result for PR update
+ * @param {number} prNumber - PR number
+ * @param {Object} updatedPR - Updated PR object
+ * @returns {Object} Formatted success result
+ */
+function formatPRSuccessResult(prNumber, updatedPR) {
+  return {
+    success: true,
+    pull_request_number: prNumber,
+    pull_request_url: updatedPR.html_url,
+    title: updatedPR.title,
+  };
+}
+
+/**
  * Main handler factory for update_pull_request
  * Returns a message handler function that processes individual update_pull_request messages
  * @type {HandlerFactoryFunction}
  */
-async function main(config = {}) {
-  // Extract configuration
-  const updateTarget = config.target || "triggering";
-  const maxCount = config.max || 10;
-  const canUpdateTitle = config.allow_title !== false; // Default true
-  const canUpdateBody = config.allow_body !== false; // Default true
-
-  core.info(`Update pull request configuration: max=${maxCount}, target=${updateTarget}, allow_title=${canUpdateTitle}, allow_body=${canUpdateBody}`);
-
-  // Track state
-  let processedCount = 0;
-
-  /**
-   * Message handler function
-   * @param {Object} message - The update_pull_request message
-   * @param {Object} resolvedTemporaryIds - Resolved temporary IDs
-   * @returns {Promise<Object>} Result
-   */
-  return async function handleUpdatePullRequest(message, resolvedTemporaryIds) {
-    // Check max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping update_pull_request: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
-    }
-
-    processedCount++;
-
-    const item = message;
-
-    // Determine target PR number using resolveTarget helper
-    const targetResult = resolveTarget({
-      targetConfig: updateTarget,
-      item: { ...item, item_number: item.pull_request_number },
-      context: context,
-      itemType: "update_pull_request",
-      supportsPR: false, // update_pull_request only supports PRs, not issues
-    });
-
-    if (!targetResult.success) {
-      core.warning(targetResult.error);
-      return {
-        success: false,
-        error: targetResult.error,
-      };
-    }
-
-    const prNumber = targetResult.number;
-    core.info(`Resolved target PR #${prNumber} (target config: ${updateTarget})`);
-
-    // Build update data
-    const updateData = {};
-    let hasUpdates = false;
-
-    if (canUpdateTitle && item.title !== undefined) {
-      updateData.title = item.title;
-      hasUpdates = true;
-    }
-
-    if (canUpdateBody && item.body !== undefined) {
-      // Store operation information
-      if (item.operation !== undefined) {
-        updateData._operation = item.operation;
-        updateData._rawBody = item.body;
-      }
-      updateData.body = item.body;
-      hasUpdates = true;
-    }
-
-    // Other fields (always allowed)
-    if (item.state !== undefined) {
-      updateData.state = item.state;
-      hasUpdates = true;
-    }
-    if (item.base !== undefined) {
-      updateData.base = item.base;
-      hasUpdates = true;
-    }
-
-    if (!hasUpdates) {
-      core.warning("No update fields provided or all fields are disabled");
-      return {
-        success: false,
-        error: "No update fields provided",
-      };
-    }
-
-    core.info(`Updating pull request #${prNumber} with: ${JSON.stringify(Object.keys(updateData).filter(k => !k.startsWith("_")))}`);
-
-    try {
-      const updatedPR = await executePRUpdate(github, context, prNumber, updateData);
-      core.info(`Successfully updated pull request #${prNumber}: ${updatedPR.html_url}`);
-
-      return {
-        success: true,
-        pull_request_number: prNumber,
-        pull_request_url: updatedPR.html_url,
-        title: updatedPR.title,
-      };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to update pull request #${prNumber}: ${errorMessage}`);
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-  };
-}
+const main = createUpdateHandlerFactory({
+  itemType: "update_pull_request",
+  itemTypeName: "pull request",
+  supportsPR: false,
+  resolveItemNumber: resolvePRNumber,
+  buildUpdateData: buildPRUpdateData,
+  executeUpdate: executePRUpdate,
+  formatSuccessResult: formatPRSuccessResult,
+  additionalConfig: {
+    allow_title: true,
+    allow_body: true,
+  },
+});
 
 module.exports = { main };
