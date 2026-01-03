@@ -123,7 +123,9 @@ jobs:
 `)
 
 	// Get the setup action reference (local or remote based on mode)
-	setupActionRef := ResolveSetupActionReference(actionMode, version, "")
+	// Pass nil for data since maintenance workflow doesn't have WorkflowData
+	// In release mode without data, it will return tag-based reference
+	setupActionRef := ResolveSetupActionReference(actionMode, version, "", nil)
 
 	// Add checkout step only in dev mode (for local action paths)
 	if actionMode == ActionModeDev {

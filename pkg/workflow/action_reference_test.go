@@ -329,10 +329,43 @@ func TestResolveSetupActionReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ref := ResolveSetupActionReference(tt.actionMode, tt.version, tt.actionTag)
+			// Pass nil for data to test backward compatibility with standalone usage
+			ref := ResolveSetupActionReference(tt.actionMode, tt.version, tt.actionTag, nil)
 			if ref != tt.expectedRef {
 				t.Errorf("%s: expected %q, got %q", tt.description, tt.expectedRef, ref)
 			}
 		})
 	}
+}
+
+func TestResolveSetupActionReferenceWithData(t *testing.T) {
+	t.Run("release mode with WorkflowData resolves SHA", func(t *testing.T) {
+		// Create mock action resolver and cache
+		cache := NewActionCache("")
+		resolver := NewActionResolver(cache)
+
+		data := &WorkflowData{
+			ActionResolver: resolver,
+			ActionCache:    cache,
+			StrictMode:     false,
+		}
+
+		// The resolver will fail to resolve githubnext/gh-aw/actions/setup@v1.0.0
+		// since it's not a real tag, but it should fall back gracefully
+		ref := ResolveSetupActionReference(ActionModeRelease, "v1.0.0", "", data)
+
+		// Without a valid pin or successful resolution, should return tag-based reference
+		expectedRef := "githubnext/gh-aw/actions/setup@v1.0.0"
+		if ref != expectedRef {
+			t.Errorf("Expected %q, got %q", expectedRef, ref)
+		}
+	})
+
+	t.Run("release mode with nil data returns tag-based reference", func(t *testing.T) {
+		ref := ResolveSetupActionReference(ActionModeRelease, "v1.0.0", "", nil)
+		expectedRef := "githubnext/gh-aw/actions/setup@v1.0.0"
+		if ref != expectedRef {
+			t.Errorf("Expected %q, got %q", expectedRef, ref)
+		}
+	})
 }
