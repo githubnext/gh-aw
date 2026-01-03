@@ -1,0 +1,14 @@
+{
+  "campaign_id": "go-file-size-reduction-project64",
+  "date": "2026-01-03",
+  "tasks_total": 21,
+  "tasks_completed": 16,
+  "tasks_in_progress": 0,
+  "tasks_blocked": 0,
+  "velocity_per_day": 0.8,
+  "estimated_completion": "2026-01-10",
+  "kpi_trends": [
+    {"name": "Files reduced to target size", "trend": "Improving", "value": 16.0},
+    {"name": "Test coverage maintained", "trend": "Flat", "value": 80.0}
+  ]
+}
