@@ -111,7 +111,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreatePullRequests != nil ||
 		data.SafeOutputs.PushToPullRequestBranch != nil ||
 		data.SafeOutputs.UpdatePullRequests != nil ||
-		data.SafeOutputs.ClosePullRequests != nil
+		data.SafeOutputs.ClosePullRequests != nil ||
+		data.SafeOutputs.HideComment != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -169,6 +170,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.ClosePullRequests != nil {
 			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
+		if data.SafeOutputs.HideComment != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
 		}
 	}
 
@@ -254,16 +258,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// 19. Update Release step - now handled by handler manager
 	// 20. Link Sub Issue step - now handled by handler manager
+	// 21. Hide Comment step - now handled by handler manager
 
-	// 21. Hide Comment step
-	if data.SafeOutputs.HideComment != nil {
-		stepConfig := c.buildHideCommentStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
-	}
 
 	// 22. Create Agent Task step
 	if data.SafeOutputs.CreateAgentTasks != nil {
@@ -971,6 +967,18 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
 		}
 		config["close_pull_request"] = handlerConfig
+	}
+
+	if data.SafeOutputs.HideComment != nil {
+		cfg := data.SafeOutputs.HideComment
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.AllowedReasons != nil && len(cfg.AllowedReasons) > 0 {
+			handlerConfig["allowed_reasons"] = cfg.AllowedReasons
+		}
+		config["hide_comment"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure

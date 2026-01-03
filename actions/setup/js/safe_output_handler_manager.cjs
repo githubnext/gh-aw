@@ -33,13 +33,14 @@ const HANDLER_MAP = {
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
   update_pull_request: "./update_pull_request.cjs",
   close_pull_request: "./close_pull_request.cjs",
+  hide_comment: "./hide_comment.cjs",
 };
 
 /**
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  */
-const STANDALONE_STEP_TYPES = new Set(["create_code_scanning_alert", "add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user", "hide_comment", "create_agent_task", "update_project", "upload_asset", "noop", "missing_tool"]);
+const STANDALONE_STEP_TYPES = new Set(["create_code_scanning_alert", "add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user", "create_agent_task", "update_project", "upload_asset", "noop", "missing_tool"]);
 
 /**
  * Load configuration for safe outputs

@@ -55,8 +55,3 @@ func (c *Compiler) parseHideCommentConfig(outputMap map[string]any) *HideComment
 
 	return nil
 }
-
-// getHideCommentScript returns the JavaScript implementation
-func getHideCommentScript() string {
-	return DefaultScriptRegistry.GetWithMode("hide_comment", RuntimeModeGitHubScript)
-}
