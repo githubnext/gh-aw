@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewListItem(t *testing.T) {
@@ -43,7 +44,7 @@ func TestItemDelegate_Spacing(t *testing.T) {
 func TestShowInteractiveList_EmptyItems(t *testing.T) {
 	items := []ListItem{}
 	_, err := ShowInteractiveList("Test", items)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no items to display")
 }
 
