@@ -291,7 +291,7 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 
 	// If interactive selection failed or was cancelled, fall back to table display
 	addLog.Printf("Interactive selection failed or cancelled, showing table: %v", err)
-	
+
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", spec.RepoSlug)))
 	fmt.Fprintln(os.Stderr, "")
