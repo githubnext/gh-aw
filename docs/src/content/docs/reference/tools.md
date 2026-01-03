@@ -38,6 +38,61 @@ tools:
 
 Use wildcards like `git:*` for command families or `:*` for unrestricted access.
 
+## Beads Tool (`beads:`)
+
+:::caution[Experimental Feature]
+Beads integration is currently in development. Use `bash:` with custom installation steps until native support is complete.
+:::
+
+Enables [Beads](https://github.com/steveyegge/beads) - a Git-backed issue tracker that provides persistent memory for AI coding agents.
+
+```yaml wrap
+tools:
+  beads:                    # Default: all commands, latest version
+  beads: "v1.0.0"          # Specific version
+  beads:
+    version: "latest"       # Beads version (default: latest)
+    commands:               # Allowed commands (default: all)
+      - "bd init"
+      - "bd ready"
+      - "bd create *"
+      - "bd status *"
+      - "bd close *"
+      - "bd list *"
+      - "bd sync"
+    read-only: false        # If true, only read operations
+```
+
+**Key Features:**
+- **Persistent Memory**: Tasks stored in `.beads/` directory, versioned with Git
+- **Task Dependencies**: Graph-based dependency tracking (blocks, parent-child, related)
+- **Conflict-Free**: Hash-based IDs avoid merge collisions
+- **Agent-Optimized**: CLI-first with JSON output for AI agent consumption
+
+**Common Commands:**
+- `bd init` - Initialize Beads in repository
+- `bd ready` - List unblocked, ready-to-work tasks
+- `bd create "task"` - Create new task
+- `bd status <id>` - Check task status
+- `bd close <id>` - Mark task as complete
+- `bd sync` - Sync changes with Git
+
+**Temporary Usage** (until native support is complete):
+```yaml wrap
+tools:
+  bash:
+    - "bd init"
+    - "bd ready"
+    - "bd create *"
+    # ... other bd commands
+
+custom-steps:
+  - name: Install Beads
+    run: |
+      curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+      echo "$HOME/.beads/bin" >> $GITHUB_PATH
+```
+
 ## Web Tools
 
 Enable web content fetching and search capabilities:

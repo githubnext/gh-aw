@@ -130,12 +130,12 @@ func TestBeadsToolToMap(t *testing.T) {
 		beads, ok := resultMap["beads"]
 		require.True(t, ok, "Result map should contain beads")
 		require.NotNil(t, beads, "Beads should not be nil")
-		
+
 		// The ToMap function returns the raw map since it was preserved
 		beadsMap, ok := beads.(map[string]any)
 		require.True(t, ok, "Beads should be map[string]any from raw map")
 		assert.Equal(t, "v1.0.0", beadsMap["version"])
-		
+
 		commands, ok := beadsMap["commands"].([]any)
 		require.True(t, ok, "Commands should be []any")
 		assert.Len(t, commands, 2)
@@ -162,7 +162,7 @@ func TestBeadsToolWithOtherTools(t *testing.T) {
 		require.NotNil(t, tools.Beads, "Should have beads tool")
 		require.NotNil(t, tools.Bash, "Should have bash tool")
 		require.NotNil(t, tools.GitHub, "Should have github tool")
-		
+
 		assert.Equal(t, "latest", tools.Beads.Version)
 		assert.Len(t, tools.Bash.AllowedCommands, 2)
 		assert.Len(t, tools.GitHub.Allowed, 2)

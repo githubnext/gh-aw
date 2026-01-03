@@ -637,52 +637,52 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 // - nil or empty object: all commands allowed with latest version
 // - object with version, commands, read-only fields
 func parseBeadsTool(val any) *BeadsToolConfig {
-toolsParserLog.Printf("Parsing beads tool configuration")
+	toolsParserLog.Printf("Parsing beads tool configuration")
 
-// If val is nil, return default config (all commands, latest version)
-if val == nil {
-toolsParserLog.Printf("Beads tool enabled with defaults (all commands, latest version)")
-return &BeadsToolConfig{}
-}
+	// If val is nil, return default config (all commands, latest version)
+	if val == nil {
+		toolsParserLog.Printf("Beads tool enabled with defaults (all commands, latest version)")
+		return &BeadsToolConfig{}
+	}
 
-// If val is a map, parse individual fields
-if configMap, ok := val.(map[string]any); ok {
-config := &BeadsToolConfig{}
+	// If val is a map, parse individual fields
+	if configMap, ok := val.(map[string]any); ok {
+		config := &BeadsToolConfig{}
 
-// Parse version
-if version, ok := configMap["version"].(string); ok {
-config.Version = version
-toolsParserLog.Printf("Beads version: %s", version)
-}
+		// Parse version
+		if version, ok := configMap["version"].(string); ok {
+			config.Version = version
+			toolsParserLog.Printf("Beads version: %s", version)
+		}
 
-// Parse commands (allowlist)
-if commands, ok := configMap["commands"].([]any); ok {
-config.Commands = make([]string, 0, len(commands))
-for _, cmd := range commands {
-if cmdStr, ok := cmd.(string); ok {
-config.Commands = append(config.Commands, cmdStr)
-}
-}
-toolsParserLog.Printf("Beads commands: %v", config.Commands)
-}
+		// Parse commands (allowlist)
+		if commands, ok := configMap["commands"].([]any); ok {
+			config.Commands = make([]string, 0, len(commands))
+			for _, cmd := range commands {
+				if cmdStr, ok := cmd.(string); ok {
+					config.Commands = append(config.Commands, cmdStr)
+				}
+			}
+			toolsParserLog.Printf("Beads commands: %v", config.Commands)
+		}
 
-// Parse read-only flag
-if readOnly, ok := configMap["read-only"].(bool); ok {
-config.ReadOnly = readOnly
-toolsParserLog.Printf("Beads read-only: %v", readOnly)
-}
+		// Parse read-only flag
+		if readOnly, ok := configMap["read-only"].(bool); ok {
+			config.ReadOnly = readOnly
+			toolsParserLog.Printf("Beads read-only: %v", readOnly)
+		}
 
-return config
-}
+		return config
+	}
 
-// If val is a string, treat it as version
-if version, ok := val.(string); ok {
-toolsParserLog.Printf("Beads tool enabled with version: %s", version)
-return &BeadsToolConfig{
-Version: version,
-}
-}
+	// If val is a string, treat it as version
+	if version, ok := val.(string); ok {
+		toolsParserLog.Printf("Beads tool enabled with version: %s", version)
+		return &BeadsToolConfig{
+			Version: version,
+		}
+	}
 
-toolsParserLog.Printf("Invalid beads configuration: %T", val)
-return nil
+	toolsParserLog.Printf("Invalid beads configuration: %T", val)
+	return nil
 }
