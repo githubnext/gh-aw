@@ -29,25 +29,25 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 	err := DownloadWorkflowLogs(
 		ctx,
 		"nonexistent-workflow-12345", // Workflow that doesn't exist
-		2,                             // count
-		"",                            // startDate
-		"",                            // endDate
-		tmpDir,                        // outputDir
-		"copilot",                     // engine
-		"",                            // ref
-		0,                             // beforeRunID
-		0,                             // afterRunID
-		"",                            // repoOverride
-		false,                         // verbose
-		false,                         // toolGraph
-		false,                         // noStaged
-		false,                         // firewallOnly
-		false,                         // noFirewall
-		false,                         // parse
-		true,                          // jsonOutput - THIS IS KEY
-		10,                            // timeout
-		false,                         // campaignOnly
-		"summary.json",                // summaryFile
+		2,                            // count
+		"",                           // startDate
+		"",                           // endDate
+		tmpDir,                       // outputDir
+		"copilot",                    // engine
+		"",                           // ref
+		0,                            // beforeRunID
+		0,                            // afterRunID
+		"",                           // repoOverride
+		false,                        // verbose
+		false,                        // toolGraph
+		false,                        // noStaged
+		false,                        // firewallOnly
+		false,                        // noFirewall
+		false,                        // parse
+		true,                         // jsonOutput - THIS IS KEY
+		10,                           // timeout
+		false,                        // campaignOnly
+		"summary.json",               // summaryFile
 	)
 
 	// Restore stdout and read output
