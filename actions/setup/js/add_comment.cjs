@@ -10,6 +10,7 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTarget } = require("./safe_output_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -319,35 +320,43 @@ async function main(config = {}) {
     let itemNumber;
     let isDiscussion = false;
 
-    if (item.item_number !== undefined) {
-      itemNumber = parseInt(String(item.item_number), 10);
-      if (isNaN(itemNumber)) {
-        core.warning(`Invalid item number: ${item.item_number}`);
-        return {
-          success: false,
-          error: `Invalid item number: ${item.item_number}`,
-        };
-      }
-    } else {
-      // Use context
-      const contextIssue = context.payload?.issue?.number;
-      const contextPR = context.payload?.pull_request?.number;
-      const contextDiscussion = context.payload?.discussion?.number;
+    // Check if this is a discussion context
+    const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
 
-      if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
-        isDiscussion = true;
-        itemNumber = contextDiscussion;
-      } else {
-        itemNumber = contextIssue || contextPR;
-      }
+    if (isDiscussionContext) {
+      // For discussions, always use the discussion context
+      isDiscussion = true;
+      itemNumber = context.payload?.discussion?.number;
 
       if (!itemNumber) {
-        core.warning("No item_number provided and not in issue/PR/discussion context");
+        core.warning("Discussion context detected but no discussion number found");
         return {
           success: false,
-          error: "No target number available",
+          error: "No discussion number available",
         };
       }
+
+      core.info(`Using discussion context: #${itemNumber}`);
+    } else {
+      // For issues/PRs, use the resolveTarget helper which respects target configuration
+      const targetResult = resolveTarget({
+        targetConfig: commentTarget,
+        item: item,
+        context: context,
+        itemType: "add_comment",
+        supportsPR: true, // add_comment supports both issues and PRs
+      });
+
+      if (!targetResult.success) {
+        core.warning(targetResult.error);
+        return {
+          success: false,
+          error: targetResult.error,
+        };
+      }
+
+      itemNumber = targetResult.number;
+      core.info(`Resolved target ${targetResult.contextType} #${itemNumber} (target config: ${commentTarget})`);
     }
 
     // Replace temporary ID references in body
