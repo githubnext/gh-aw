@@ -150,7 +150,7 @@
     },
     "tracker-label": {
       "type": "string",
-      "description": "Label used to associate issues/PRs with this campaign (e.g., campaign:incident-response)",
+      "description": "Optional label used as an ingestion hint to associate issues/PRs with this campaign (e.g., campaign:incident-response). The project board is the canonical source of campaign membership.",
       "pattern": "^[^:]+:.+$",
       "minLength": 1
     },

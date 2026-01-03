@@ -124,6 +124,7 @@ func TestValidateSpec_MissingWorkflows(t *testing.T) {
 }
 
 func TestValidateSpec_MissingTrackerLabel(t *testing.T) {
+	// tracker-label is now optional - spec should pass validation without it
 	spec := &CampaignSpec{
 		ID:         "test-campaign",
 		Name:       "Test Campaign",
@@ -132,19 +133,9 @@ func TestValidateSpec_MissingTrackerLabel(t *testing.T) {
 	}
 
 	problems := ValidateSpec(spec)
-	if len(problems) == 0 {
-		t.Fatal("Expected validation problems for missing tracker label")
-	}
-
-	found := false
-	for _, p := range problems {
-		if strings.Contains(p, "tracker-label should be set") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("Expected tracker label validation problem, got: %v", problems)
+	// Should have no problems since tracker-label is optional
+	if len(problems) != 0 {
+		t.Errorf("Expected no validation problems for missing tracker label (it's optional), got: %v", problems)
 	}
 }
 
