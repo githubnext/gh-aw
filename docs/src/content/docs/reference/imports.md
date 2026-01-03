@@ -41,30 +41,7 @@ Workflow instructions here...
 
 ## Shared Workflow Components
 
-Workflows without an `on` field are automatically detected as shared workflow components. These files are validated but not compiled into GitHub Actions, as they are meant to be imported by other workflows. When you attempt to compile a shared workflow directly, the compiler displays an informative message and skips compilation:
-
-```bash wrap
-$ gh aw compile shared/mcp/deepwiki.md
-ℹ️  Shared agentic workflow detected: deepwiki.md
-
-This workflow is missing the 'on' field and will be treated as a shared workflow component.
-Shared workflows are reusable components meant to be imported by other workflows.
-
-To use this shared workflow:
-  1. Import it in another workflow's frontmatter:
-     ---
-     on: issues
-     imports:
-       - shared/mcp/deepwiki.md
-     ---
-
-  2. Compile the workflow that imports it
-
-Skipping compilation.
-✓ Compiled 1 workflow(s): 0 error(s), 0 warning(s)
-```
-
-This allows you to organize reusable components in your repository without generating unnecessary lock files.
+Workflows without an `on` field are shared workflow components. These files are validated but not compiled into GitHub Actions - they're meant to be imported by other workflows. The compiler skips them with an informative message, allowing you to organize reusable components without generating unnecessary lock files.
 
 ## Path Formats
 
@@ -94,15 +71,7 @@ Version references support semantic tags (`@v1.0.0`), branch names (`@main`, `@d
 
 ## Import Cache
 
-Remote imports are automatically cached in `.github/aw/imports/` to enable offline compilation. The cache stores imports by commit SHA, allowing different refs (branches, tags) pointing to the same commit to share cached files.
-
-When compiling workflows with remote imports:
-- First compilation downloads the import and stores it in the cache
-- Subsequent compilations use the cached file, eliminating network calls
-- Cache is organized by owner/repo/sha/path for efficient lookups
-- Local imports are never cached and are always read from the filesystem
-
-The cache directory is git-tracked and automatically configured with `.gitattributes` to mark cached files as generated content with conflict-free merge behavior.
+Remote imports are cached in `.github/aw/imports/` to enable offline compilation. First compilation downloads and caches the import by commit SHA; subsequent compilations use the cached file. The cache is git-tracked with `.gitattributes` configured for conflict-free merges. Local imports are never cached.
 
 ## Agent Files
 
@@ -121,12 +90,12 @@ Only one agent file can be imported per workflow. See [Custom Agent Files](/gh-a
 
 ## Frontmatter Merging
 
-Imported files can define `tools:`, `mcp-servers:`, `services:`, and `safe-outputs:` frontmatter (other fields trigger warnings). Agent files can also define `name` and `description`. These fields are merged with the main workflow's configuration.
+Imported files can define `tools:`, `mcp-servers:`, `services:`, and `safe-outputs:` frontmatter (other fields trigger warnings). Agent files can also define `name` and `description`. These fields merge with the main workflow's configuration.
 
-### Tools and Model Context Protocol (MCP) Servers
+**MCP Servers:** Import MCP server configurations that merge into the final workflow:
 
 ```aw wrap
-# Base workflow
+# Base workflow imports shared/mcp/tavily.md
 ---
 on: issues
 engine: copilot
@@ -135,50 +104,16 @@ imports:
 ---
 ```
 
-```aw wrap
-# shared/mcp/tavily.md
----
-mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
-    allowed: ["*"]
----
-```
-
-The imported MCP server configuration is merged into the final workflow, making it available to the AI engine.
-
-### Safe Outputs
-
-Safe output configurations (like `create-issue`, `add-comment`, etc.) and safe output jobs can be imported from shared workflows. If the same safe output type is defined in both the main workflow and an imported workflow, compilation fails with a conflict error.
+**Safe Outputs:** Import safe output configurations and jobs. Conflicts between main and imported safe outputs fail compilation. Meta fields from the main workflow take precedence:
 
 ```aw wrap
-# shared-config.md
----
-safe-outputs:
-  create-issue:
-    title-prefix: "[bot] "
-    labels: [automated]
-  allowed-domains:
-    - "api.example.com"
-  staged: true
-  jobs:
-    notify:
-      runs-on: ubuntu-latest
-      steps:
-        - run: echo "Notification sent"
----
-```
-
-```aw wrap
-# main-workflow.md
+# Main workflow inherits create-issue config and notify job
 ---
 on: issues
 imports:
-  - shared-config.md
+  - shared-config.md  # defines create-issue, allowed-domains, jobs.notify
 ---
 ```
-
-The main workflow inherits the `create-issue` configuration, allowed domains, staged setting, and the `notify` job from the imported file. Safe output meta fields (like `allowed-domains`, `staged`, `env`, `github-token`, `max-patch-size`, `runs-on`) from the main workflow take precedence over imported values.
 
 ## Related Documentation
 
