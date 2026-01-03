@@ -109,7 +109,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.UpdateRelease != nil ||
 		data.SafeOutputs.CreatePullRequestReviewComments != nil ||
 		data.SafeOutputs.CreatePullRequests != nil ||
-		data.SafeOutputs.PushToPullRequestBranch != nil
+		data.SafeOutputs.PushToPullRequestBranch != nil ||
+		data.SafeOutputs.UpdatePullRequests != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -161,6 +162,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
+		}
+		if data.SafeOutputs.UpdatePullRequests != nil {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
 		}
 	}
 
@@ -246,15 +250,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
-	// 16. Update Pull Request step
-	if data.SafeOutputs.UpdatePullRequests != nil {
-		stepConfig := c.buildUpdatePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
+	// 16. Update Pull Request step - now handled by handler manager
 
 	// 17. Push To Pull Request Branch step - now handled by handler manager
 
@@ -939,6 +935,30 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		handlerConfig["max_patch_size"] = maxPatchSize
 		config["push_to_pull_request_branch"] = handlerConfig
+	}
+
+	if data.SafeOutputs.UpdatePullRequests != nil {
+		cfg := data.SafeOutputs.UpdatePullRequests
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		// Boolean pointer fields indicate which fields can be updated
+		// Default to true if not specified (backward compatibility)
+		if cfg.Title != nil {
+			handlerConfig["allow_title"] = *cfg.Title
+		} else {
+			handlerConfig["allow_title"] = true
+		}
+		if cfg.Body != nil {
+			handlerConfig["allow_body"] = *cfg.Body
+		} else {
+			handlerConfig["allow_body"] = true
+		}
+		config["update_pull_request"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure

@@ -6,27 +6,6 @@ import (
 
 var prSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_prs")
 
-// buildUpdatePullRequestStepConfig builds the configuration for updating a pull request
-func (c *Compiler) buildUpdatePullRequestStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.UpdatePullRequests
-	prSafeOutputsLog.Print("Building update pull request step config")
-
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
-	condition := BuildSafeOutputType("update_pull_request")
-
-	return SafeOutputStepConfig{
-		StepName:      "Update Pull Request",
-		StepID:        "update_pull_request",
-		ScriptName:    "update_pull_request",
-		Script:        getUpdatePullRequestScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-	}
-}
-
 // buildClosePullRequestStepConfig builds the configuration for closing a pull request
 func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.ClosePullRequests
