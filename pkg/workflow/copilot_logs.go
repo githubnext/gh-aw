@@ -9,7 +9,18 @@ import (
 
 var copilotLogsLog = logger.New("workflow:copilot_logs")
 
-// ParseLogMetrics implements engine-specific log parsing for Copilot CLI
+// ParseLogMetrics implements engine-specific log parsing for Copilot CLI.
+//
+// Token Counting Behavior:
+// Copilot CLI makes multiple API calls during a workflow run (one per turn).
+// Each API call returns a response with usage statistics including token counts.
+// This function accumulates token counts from ALL API responses to get the total
+// token usage for the entire workflow run.
+//
+// Example: If a run has 3 turns with token counts [1000, 1500, 800],
+// the total token usage will be 3300 (sum of all turns).
+//
+// This matches the behavior of the JavaScript parser in parse_copilot_log.cjs.
 func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	var metrics LogMetrics
 	var totalTokenUsage int
