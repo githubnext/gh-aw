@@ -126,6 +126,7 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 }
 
 // listWorkflowsWithMCPServers shows available workflow files that contain MCP configurations
+// with optional interactive selection
 func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 	// Scan workflows for MCP configurations
 	results, err := ScanWorkflowsForMCP(workflowsDir, "", verbose)
@@ -162,6 +163,17 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows with MCP servers found"))
 		return nil
 	}
+
+	// Try interactive selection first in TTY mode
+	selectedWorkflow, err := showInteractiveMCPWorkflowSelection(workflowData, verbose)
+	if err == nil && selectedWorkflow != "" {
+		// User selected a workflow, show its details
+		mcpListLog.Printf("User selected workflow: %s", selectedWorkflow)
+		return ListWorkflowMCP(selectedWorkflow, verbose)
+	}
+
+	// If interactive selection failed or was cancelled, fall back to table display
+	mcpListLog.Printf("Interactive selection failed or cancelled, showing table: %v", err)
 
 	// Display results in table format
 	if verbose {
@@ -213,6 +225,36 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 	fmt.Fprintf(os.Stderr, "Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow\n")
 
 	return nil
+}
+
+// showInteractiveMCPWorkflowSelection displays an interactive list of workflows with MCP servers
+func showInteractiveMCPWorkflowSelection(workflows []struct {
+	name        string
+	serverCount int
+	serverNames []string
+}, verbose bool) (string, error) {
+	mcpListLog.Printf("Showing interactive MCP workflow selection: workflows=%d", len(workflows))
+
+	// Convert workflow data to ListItems
+	items := make([]console.ListItem, len(workflows))
+	for i, wf := range workflows {
+		description := fmt.Sprintf("%d server(s): %s", wf.serverCount, strings.Join(wf.serverNames, ", "))
+		// Truncate description if too long
+		if len(description) > 80 {
+			description = description[:77] + "..."
+		}
+		items[i] = console.NewListItem(wf.name, description, wf.name)
+	}
+
+	// Show interactive list
+	title := "Select a workflow to view its MCP servers:"
+	selectedWorkflow, err := console.ShowInteractiveList(title, items)
+	if err != nil {
+		return "", err
+	}
+
+	mcpListLog.Printf("Selected workflow: %s", selectedWorkflow)
+	return selectedWorkflow, nil
 }
 
 // determineConfigStatus checks if an MCP server configuration is valid and ready
