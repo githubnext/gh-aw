@@ -165,6 +165,7 @@ Examples:
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			campaignOnly, _ := cmd.Flags().GetBool("campaign")
 			summaryFile, _ := cmd.Flags().GetString("summary-file")
+			pagerMode, _ := cmd.Flags().GetString("pager")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -197,9 +198,9 @@ Examples:
 				}
 			}
 
-			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s", workflowName, count, engine)
+			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, pager=%s", workflowName, count, engine, pagerMode)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile)
+			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile, pagerMode)
 		},
 	}
 
@@ -222,6 +223,7 @@ Examples:
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
+	logsCmd.Flags().String("pager", "auto", "Enable interactive pager for viewing logs (auto, always, never)")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

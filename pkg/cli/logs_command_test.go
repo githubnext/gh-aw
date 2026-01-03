@@ -68,6 +68,10 @@ func TestNewLogsCommand(t *testing.T) {
 	jsonFlag := flags.Lookup("json")
 	assert.NotNil(t, jsonFlag, "Should have 'json' flag")
 
+	// Check pager flag
+	pagerFlag := flags.Lookup("pager")
+	assert.NotNil(t, pagerFlag, "Should have 'pager' flag")
+
 	// Check repo flag
 	repoFlag := flags.Lookup("repo")
 	assert.NotNil(t, repoFlag, "Should have 'repo' flag")
@@ -89,6 +93,7 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 		{"after-run-id", "0"},
 		{"before-run-id", "0"},
 		{"repo", ""},
+		{"pager", "auto"},
 	}
 
 	for _, tt := range tests {

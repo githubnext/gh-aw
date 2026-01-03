@@ -38,8 +38,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string, pagerMode string) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s, pagerMode=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile, pagerMode)
 
 	// Check context cancellation at the start
 	select {
@@ -458,7 +458,26 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			return fmt.Errorf("failed to render JSON output: %w", err)
 		}
 	} else {
-		renderLogsConsole(logsData)
+		// Determine pager mode
+		var mode PagerMode
+		switch pagerMode {
+		case "always":
+			mode = PagerModeAlways
+		case "never":
+			mode = PagerModeNever
+		case "auto":
+			fallthrough
+		default:
+			mode = PagerModeAuto
+			// Auto-enable pager for large outputs
+			if shouldAutoEnablePager(logsData) {
+				logsOrchestratorLog.Printf("Auto-enabling pager for large output (%d runs)", len(processedRuns))
+			}
+		}
+
+		if err := renderLogsConsoleWithPager(logsData, mode); err != nil {
+			return fmt.Errorf("failed to render console output: %w", err)
+		}
 
 		// Generate tool sequence graph if requested (console output only)
 		if toolGraph {

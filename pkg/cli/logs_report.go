@@ -777,12 +777,32 @@ func writeSummaryFile(path string, data LogsData, verbose bool) error {
 
 // renderLogsConsole outputs the logs data as formatted console output
 func renderLogsConsole(data LogsData) {
+	output := formatLogsConsoleOutput(data)
+	fmt.Print(output)
+}
+
+// renderLogsConsoleWithPager outputs the logs data using an interactive pager if appropriate
+func renderLogsConsoleWithPager(data LogsData, mode PagerMode) error {
+	output := formatLogsConsoleOutput(data)
+	return showInPager(output, mode)
+}
+
+// formatLogsConsoleOutput formats the logs data as a string for console output
+func formatLogsConsoleOutput(data LogsData) string {
+	var output strings.Builder
 	reportLog.Printf("Rendering logs data to console: %d runs, %d errors, %d warnings",
 		data.Summary.TotalRuns, data.Summary.TotalErrors, data.Summary.TotalWarnings)
 
-	// Use unified console rendering for the entire logs data structure
-	fmt.Print(console.RenderStruct(data))
+	// Render all sections using console.RenderStruct
+	rendered := console.RenderStruct(data)
+	output.WriteString(rendered)
 
-	// Display logs location
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", data.Summary.TotalRuns, data.LogsLocation)))
+	// Add logs location message
+	if data.LogsLocation != "" {
+		output.WriteString("\n")
+		output.WriteString(console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", data.Summary.TotalRuns, data.LogsLocation)))
+		output.WriteString("\n")
+	}
+
+	return output.String()
 }
