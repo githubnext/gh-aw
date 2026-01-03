@@ -10,6 +10,7 @@ const HANDLER_TYPE = "update_issue";
 
 const { isIssueContext, getIssueNumber } = require("./update_context_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTarget } = require("./safe_output_helpers.cjs");
 
 /**
  * Execute the issue update API call
@@ -68,36 +69,25 @@ async function main(config = {}) {
 
     const item = message;
 
-    // Determine target issue number
-    let issueNumber;
-    if (item.issue_number !== undefined) {
-      issueNumber = parseInt(String(item.issue_number), 10);
-      if (isNaN(issueNumber)) {
-        core.warning(`Invalid issue number: ${item.issue_number}`);
-        return {
-          success: false,
-          error: `Invalid issue number: ${item.issue_number}`,
-        };
-      }
-    } else {
-      // Use triggering context
-      if (updateTarget === "triggering" && isIssueContext(context.eventName, context.payload)) {
-        issueNumber = getIssueNumber(context.payload);
-        if (!issueNumber) {
-          core.warning("No issue number in triggering context");
-          return {
-            success: false,
-            error: "No issue number available",
-          };
-        }
-      } else {
-        core.warning("No issue_number provided");
-        return {
-          success: false,
-          error: "No issue number provided",
-        };
-      }
+    // Determine target issue number using resolveTarget helper
+    const targetResult = resolveTarget({
+      targetConfig: updateTarget,
+      item: { ...item, item_number: item.issue_number },
+      context: context,
+      itemType: "update_issue",
+      supportsPR: false, // update_issue only supports issues, not PRs
+    });
+
+    if (!targetResult.success) {
+      core.warning(targetResult.error);
+      return {
+        success: false,
+        error: targetResult.error,
+      };
     }
+
+    const issueNumber = targetResult.number;
+    core.info(`Resolved target issue #${issueNumber} (target config: ${updateTarget})`);
 
     // Build update data
     const updateData = {};

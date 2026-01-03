@@ -7,6 +7,7 @@
 
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTarget } = require("./safe_output_helpers.cjs");
 
 /**
  * Execute the discussion update API call using GraphQL
@@ -103,6 +104,9 @@ async function main(config = {}) {
 
     // Determine target discussion number
     let discussionNumber;
+
+    // Discussions are special - they have their own context type separate from issues/PRs
+    // We need to handle them differently
     if (item.discussion_number !== undefined) {
       discussionNumber = parseInt(String(item.discussion_number), 10);
       if (isNaN(discussionNumber)) {
@@ -112,9 +116,19 @@ async function main(config = {}) {
           error: `Invalid discussion number: ${item.discussion_number}`,
         };
       }
+    } else if (updateTarget !== "triggering") {
+      // Explicit number target
+      discussionNumber = parseInt(updateTarget, 10);
+      if (isNaN(discussionNumber) || discussionNumber <= 0) {
+        core.warning(`Invalid discussion number in target configuration: ${updateTarget}`);
+        return {
+          success: false,
+          error: `Invalid discussion number in target: ${updateTarget}`,
+        };
+      }
     } else {
-      // Use triggering context
-      if (updateTarget === "triggering" && isDiscussionContext(context.eventName, context.payload)) {
+      // Use triggering context (default)
+      if (isDiscussionContext(context.eventName, context.payload)) {
         discussionNumber = getDiscussionNumber(context.payload);
         if (!discussionNumber) {
           core.warning("No discussion number in triggering context");
@@ -124,13 +138,15 @@ async function main(config = {}) {
           };
         }
       } else {
-        core.warning("No discussion_number provided");
+        core.warning('Target is "triggering" but not in discussion context');
         return {
           success: false,
-          error: "No discussion number provided",
+          error: "Not in discussion context",
         };
       }
     }
+
+    core.info(`Resolved target discussion #${discussionNumber} (target config: ${updateTarget})`);
 
     // Build update data
     const updateData = {};
