@@ -88,12 +88,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add shared checkout and git config steps for PR operations
 	// Both create-pull-request and push-to-pull-request-branch need these steps,
 	// so we add them once with a combined condition to avoid duplication
-	var prCheckoutStepsAdded bool
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
 		consolidatedSafeOutputsLog.Print("Adding shared checkout step for PR operations")
 		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
 		steps = append(steps, checkoutSteps...)
-		prCheckoutStepsAdded = true
 	}
 
 	// === Build safe output steps ===
@@ -110,7 +108,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.LinkSubIssue != nil ||
 		data.SafeOutputs.UpdateRelease != nil ||
 		data.SafeOutputs.CreatePullRequestReviewComments != nil ||
-		data.SafeOutputs.CreatePullRequests != nil
+		data.SafeOutputs.CreatePullRequests != nil ||
+		data.SafeOutputs.PushToPullRequestBranch != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -158,6 +157,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			permissions.Merge(NewPermissionsContentsReadPRWrite())
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
+			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
+		}
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
 		}
 	}
@@ -254,21 +256,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadPRWrite())
 	}
 
-	// 17. Push To Pull Request Branch step
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		stepConfig := c.buildPushToPullRequestBranchStepConfig(data, mainJobName, threatDetectionEnabled)
-		// Skip pre-steps if we've already added the shared checkout steps
-		if !prCheckoutStepsAdded {
-			steps = append(steps, stepConfig.PreSteps...)
-		}
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["push_to_pull_request_branch_commit_url"] = "${{ steps.push_to_pull_request_branch.outputs.commit_url }}"
-
-		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
-	}
+	// 17. Push To Pull Request Branch step - now handled by handler manager
 
 	// 18. Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
 	// This was moved out of the consolidated job to allow proper git configuration
@@ -919,6 +907,38 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		handlerConfig["max_patch_size"] = maxPatchSize
 		config["create_pull_request"] = handlerConfig
+	}
+
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		cfg := data.SafeOutputs.PushToPullRequestBranch
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
+		if len(cfg.Labels) > 0 {
+			handlerConfig["labels"] = cfg.Labels
+		}
+		if cfg.IfNoChanges != "" {
+			handlerConfig["if_no_changes"] = cfg.IfNoChanges
+		}
+		if cfg.CommitTitleSuffix != "" {
+			handlerConfig["commit_title_suffix"] = cfg.CommitTitleSuffix
+		}
+		// Add base branch (required for git operations)
+		handlerConfig["base_branch"] = "${{ github.ref_name }}"
+		// Add max patch size
+		maxPatchSize := 1024 // default 1024 KB
+		if data.SafeOutputs.MaximumPatchSize > 0 {
+			maxPatchSize = data.SafeOutputs.MaximumPatchSize
+		}
+		handlerConfig["max_patch_size"] = maxPatchSize
+		config["push_to_pull_request_branch"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure

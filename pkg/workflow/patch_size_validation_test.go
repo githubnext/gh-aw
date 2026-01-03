@@ -139,8 +139,8 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests very small patch size configuration.`,
-			expectedValue:       "GH_AW_MAX_PATCH_SIZE: 1", // Env var for standalone push-to-pull-request-branch
-			isHandlerManagerConfig: false,
+			expectedValue:       `\"max_patch_size\":1`, // Config JSON for handler manager (escaped in YAML)
+			isHandlerManagerConfig: true,
 		},
 		{
 			name: "large valid patch size should work",

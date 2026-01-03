@@ -30,6 +30,7 @@ const HANDLER_MAP = {
   update_release: "./update_release.cjs",
   create_pull_request_review_comment: "./create_pr_review_comment.cjs",
   create_pull_request: "./create_pull_request.cjs",
+  push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
 };
 
 /**
@@ -44,7 +45,6 @@ const STANDALONE_STEP_TYPES = new Set([
   "assign_to_agent",
   "assign_to_user",
   "update_pull_request",
-  "push_to_pull_request_branch",
   "hide_comment",
   "create_agent_task",
   "update_project",
