@@ -15,13 +15,13 @@ tools:
       - default
       - actions
   cache-memory: true
-  timeout: 300
+  timeout: 600
 safe-outputs:
   create-discussion:
     category: "security"
     max: 1
     close-older-discussions: true
-timeout-minutes: 30
+timeout-minutes: 45
 strict: true
 imports:
   - shared/mcp/gh-aw.md
@@ -105,6 +105,13 @@ The gh-aw binary has been built and configured as an MCP server. You can now use
    - Check that workflows were compiled successfully
    - Note which workflows have findings from each tool
    - Identify total number of issues by tool and severity
+
+**Error Handling**: If you receive an MCP error (such as -32603):
+- Wait 10 seconds and retry the compile operation once
+- If the second attempt fails, provide summary based on:
+  * Historical data from cache-memory
+  * Partial results if any workflows were successfully compiled
+  * Recommendations for manual investigation
 
 ### Phase 2: Analyze and Cluster Findings
 
