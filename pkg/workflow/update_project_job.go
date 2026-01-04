@@ -37,6 +37,10 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", effectiveToken))
 
+	// Also set GITHUB_TOKEN for the GitHub Actions context
+	// This provides authentication for GitHub API operations in the actions/github-script context
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_TOKEN: %s\n", effectiveToken))
+
 	jobCondition := BuildSafeOutputType("update_project")
 	permissions := NewPermissionsContentsReadProjectsWrite()
 

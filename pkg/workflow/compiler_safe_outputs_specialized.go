@@ -55,6 +55,17 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
+	// Get the effective token using the Projects-specific precedence chain
+	effectiveToken := getEffectiveProjectGitHubToken(cfg.GitHubToken, data.GitHubToken)
+
+	// Add GH_AW_PROJECT_GITHUB_TOKEN environment variable
+	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", effectiveToken))
+
+	// Also set GITHUB_TOKEN for the GitHub Actions context
+	// This provides authentication for GitHub API operations in the actions/github-script context
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_TOKEN: %s\n", effectiveToken))
+
 	condition := BuildSafeOutputType("update_project")
 
 	return SafeOutputStepConfig{
