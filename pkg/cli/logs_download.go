@@ -29,6 +29,7 @@ var logsDownloadLog = logger.New("cli:logs_download")
 // flattenSingleFileArtifacts checks artifact directories and flattens any that contain a single file
 // This handles the case where gh CLI creates a directory for each artifact, even if it's just one file
 func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
+	logsDownloadLog.Printf("Flattening single-file artifacts in: %s", outputDir)
 	entries, err := os.ReadDir(outputDir)
 	if err != nil {
 		return fmt.Errorf("failed to read output directory: %w", err)
@@ -44,19 +45,31 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 		// Read contents of artifact directory
 		artifactEntries, err := os.ReadDir(artifactDir)
 		if err != nil {
+			logsDownloadLog.Printf("Failed to read artifact directory %s: %v", artifactDir, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read artifact directory %s: %v", artifactDir, err)))
 			}
 			continue
 		}
 
+		logsDownloadLog.Printf("Artifact directory %s contains %d entries", entry.Name(), len(artifactEntries))
+
 		// Apply unfold rule: Check if directory contains exactly one entry and it's a file
 		if len(artifactEntries) != 1 {
+			if verbose && len(artifactEntries) > 1 {
+				// Log what's in multi-file artifacts for debugging
+				var fileNames []string
+				for _, e := range artifactEntries {
+					fileNames = append(fileNames, e.Name())
+				}
+				logsDownloadLog.Printf("Artifact directory %s has %d files, not flattening: %v", entry.Name(), len(artifactEntries), fileNames)
+			}
 			continue
 		}
 
 		singleEntry := artifactEntries[0]
 		if singleEntry.IsDir() {
+			logsDownloadLog.Printf("Artifact directory %s contains a subdirectory, not flattening", entry.Name())
 			continue
 		}
 
@@ -64,8 +77,11 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 		sourcePath := filepath.Join(artifactDir, singleEntry.Name())
 		destPath := filepath.Join(outputDir, singleEntry.Name())
 
+		logsDownloadLog.Printf("Flattening: %s → %s", sourcePath, destPath)
+
 		// Move the file to root (parent directory)
 		if err := os.Rename(sourcePath, destPath); err != nil {
+			logsDownloadLog.Printf("Failed to move file %s to %s: %v", sourcePath, destPath, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to move file %s to %s: %v", sourcePath, destPath, err)))
 			}
@@ -74,12 +90,14 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 
 		// Delete the now-empty artifact folder
 		if err := os.Remove(artifactDir); err != nil {
+			logsDownloadLog.Printf("Failed to remove empty directory %s: %v", artifactDir, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove empty directory %s: %v", artifactDir, err)))
 			}
 			continue
 		}
 
+		logsDownloadLog.Printf("Successfully flattened: %s/%s → %s", entry.Name(), singleEntry.Name(), singleEntry.Name())
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Unfolded single-file artifact: %s → %s", filepath.Join(entry.Name(), singleEntry.Name()), singleEntry.Name())))
 		}

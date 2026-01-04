@@ -184,9 +184,9 @@
       "examples": [["*"], ["store_memory", "retrieve_memory", "list_memories"], ["brave_web_search", "brave_local_search"]]
     },
     "version": {
-      "type": "string",
+      "type": ["string", "number"],
       "description": "Version or tag for container images",
-      "examples": ["latest", "v1.0.0", "stable"]
+      "examples": ["latest", "v1.0.0", "stable", 20, 3.11]
     }
   },
   "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],

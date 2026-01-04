@@ -677,7 +677,8 @@
       }
     },
     "engine": {
-      "description": "AI engine configuration for included files",
+      "description": "AI engine configuration for included files. Defaults to 'copilot'.",
+      "default": "copilot",
       "$ref": "#/$defs/engine_config"
     },
     "safe-outputs": {
@@ -994,12 +995,14 @@
         "command": {
           "type": "string",
           "minLength": 1,
+          "$comment": "Mutually exclusive with 'container' - only one execution mode can be specified. Validated by 'not.allOf' constraint below.",
           "description": "Command for stdio MCP connections"
         },
         "container": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-          "description": "Container image for stdio MCP connections (alternative to command)"
+          "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified. Validated by 'not.allOf' constraint below.",
+          "description": "Container image for stdio MCP connections"
         },
         "version": {
           "type": ["string", "number"],
@@ -1032,6 +1035,7 @@
         },
         "network": {
           "type": "object",
+          "$comment": "Requires 'container' to be specified - network configuration only applies to container-based MCP servers. Validated by 'if/then' constraint in 'allOf' below.",
           "properties": {
             "allowed": {
               "type": "array",
@@ -1064,6 +1068,7 @@
         }
       },
       "additionalProperties": false,
+      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Dependency: 'network' requires 'container' (validated in 'allOf'). (4) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required.",
       "anyOf": [
         {
           "required": ["type"]

@@ -115,6 +115,110 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 	}
 }
 
+// TestLogsJSONRunDataFields verifies that run data includes key fields like
+// agent (engine_id), workflow_path, and workflow_name that should be resolved
+func TestLogsJSONRunDataFields(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-logs-run-fields-*")
+
+	// Create a mock processed run with all fields populated
+	mockRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:       12345,
+			Number:           1,
+			WorkflowName:     "Test Workflow",
+			WorkflowPath:     ".github/workflows/test.yml",
+			Status:           "completed",
+			Conclusion:       "success",
+			TokenUsage:       1000,
+			EstimatedCost:    0.01,
+			Turns:            5,
+			ErrorCount:       0,
+			WarningCount:     0,
+			MissingToolCount: 0,
+			LogsPath:         tmpDir,
+		},
+	}
+
+	// Create a mock aw_info.json with engine_id
+	awInfoPath := filepath.Join(tmpDir, "aw_info.json")
+	awInfo := map[string]any{
+		"engine_id":     "copilot-claude-3.5-sonnet",
+		"engine_name":   "copilot",
+		"workflow_name": "Test Workflow",
+	}
+	awInfoBytes, _ := json.Marshal(awInfo)
+	if err := os.WriteFile(awInfoPath, awInfoBytes, 0644); err != nil {
+		t.Fatalf("Failed to write mock aw_info.json: %v", err)
+	}
+
+	// Build logs data
+	logsData := buildLogsData([]ProcessedRun{mockRun}, tmpDir, nil)
+
+	// Marshal to JSON
+	jsonBytes, err := json.MarshalIndent(logsData, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	// Parse as map to check field existence
+	var parsed map[string]any
+	if err := json.Unmarshal(jsonBytes, &parsed); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	// Verify runs array exists
+	runs, ok := parsed["runs"].([]any)
+	if !ok {
+		t.Fatalf("Expected 'runs' to be an array, got %T", parsed["runs"])
+	}
+	if len(runs) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(runs))
+	}
+
+	// Check first run has required fields
+	run := runs[0].(map[string]any)
+
+	// This is what the updated CI test checks
+	requiredFields := []string{
+		"database_id",
+		"workflow_name",
+		"workflow_path", // New field - workflow ID
+		"agent",         // Engine ID
+		"status",
+	}
+
+	for _, field := range requiredFields {
+		if _, exists := run[field]; !exists {
+			t.Errorf("Expected field '%s' to exist in run data (CI test would fail). Run: %+v", field, run)
+		}
+	}
+
+	// Verify specific values
+	if agent, ok := run["agent"].(string); ok {
+		if agent != "copilot-claude-3.5-sonnet" {
+			t.Errorf("Expected agent to be 'copilot-claude-3.5-sonnet', got '%s'", agent)
+		}
+	} else {
+		t.Error("Agent field should be a string")
+	}
+
+	if workflowPath, ok := run["workflow_path"].(string); ok {
+		if workflowPath != ".github/workflows/test.yml" {
+			t.Errorf("Expected workflow_path to be '.github/workflows/test.yml', got '%s'", workflowPath)
+		}
+	} else {
+		t.Error("Workflow path field should be a string")
+	}
+
+	if workflowName, ok := run["workflow_name"].(string); ok {
+		if workflowName != "Test Workflow" {
+			t.Errorf("Expected workflow_name to be 'Test Workflow', got '%s'", workflowName)
+		}
+	} else {
+		t.Error("Workflow name field should be a string")
+	}
+}
+
 // TestLogsJSONOutputStructure verifies the complete JSON structure when there are no runs
 func TestLogsJSONOutputStructure(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-logs-structure-*")

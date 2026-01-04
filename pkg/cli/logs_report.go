@@ -64,6 +64,7 @@ type RunData struct {
 	Number           int       `json:"number" console:"-"`
 	WorkflowName     string    `json:"workflow_name" console:"header:Workflow Name"`
 	WorkflowID       string    `json:"workflow_id" console:"header:Workflow"`
+	WorkflowPath     string    `json:"workflow_path,omitempty" console:"-"`
 	Agent            string    `json:"agent,omitempty" console:"header:Agent,omitempty"`
 	Status           string    `json:"status" console:"header:Status"`
 	Conclusion       string    `json:"conclusion,omitempty" console:"-"`
@@ -170,6 +171,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Number:           run.Number,
 			WorkflowName:     run.WorkflowName,
 			WorkflowID:       workflowID,
+			WorkflowPath:     run.WorkflowPath,
 			Agent:            agentID,
 			Status:           run.Status,
 			Conclusion:       run.Conclusion,
