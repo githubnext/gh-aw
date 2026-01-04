@@ -117,7 +117,7 @@ ERROR: Generic error
 func TestParseLogFileWithEngine_NoAwInfoJson(t *testing.T) {
 	// Simulate a scenario where aw_info.json is missing
 	// This should trigger the fallback parser
-	
+
 	logContent := `Starting workflow
 ::error::Configuration file not found
 ::warning::Using default configuration

@@ -138,13 +138,13 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgent
 	if verbose {
 		fmt.Println(console.FormatWarningMessage("No aw_info.json found, using fallback parser with common error patterns"))
 	}
-	
+
 	// Apply common error patterns that work across all engines
 	var metrics LogMetrics
 	commonPatterns := workflow.GetCommonErrorPatterns()
 	metrics.Errors = workflow.CountErrorsAndWarningsWithPatterns(logContent, commonPatterns)
 	logsParsingLog.Printf("Fallback parser found %d errors/warnings", len(metrics.Errors))
-	
+
 	return metrics, nil
 }
 
