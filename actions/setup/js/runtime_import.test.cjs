@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-const { processRuntimeImports, processRuntimeImport, processFileInline, processFileInlines, processUrlInline, processUrlInlines, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
+const { processRuntimeImports, processRuntimeImport, convertFileInlinesToMacros, processUrlInline, processUrlInlines, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
   (beforeEach(() => {
@@ -252,65 +252,41 @@ describe("runtime_import", () => {
           expect(() => processRuntimeImports("{{#runtime-import nonexistent.md}}", tempDir)).toThrow("Failed to process runtime import for nonexistent.md");
         }));
     }),
-    describe("processFileInline", () => {
-      (it("should read and return file content", () => {
+    describe("processRuntimeImport with line ranges", () => {
+      (it("should extract specific line range", () => {
         const content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
         fs.writeFileSync(path.join(tempDir, "test.txt"), content);
-        const result = processFileInline("test.txt", tempDir);
-        expect(result).toBe(content);
+        const result = processRuntimeImport("test.txt", !1, tempDir, 2, 4);
+        expect(result).toBe("Line 2\nLine 3\nLine 4");
       }),
-        it("should throw error for missing file", () => {
-          expect(() => processFileInline("missing.txt", tempDir)).toThrow("File not found for inline: missing.txt");
-        }),
-        it("should extract specific line range", () => {
-          const content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
-          fs.writeFileSync(path.join(tempDir, "test.txt"), content);
-          const result = processFileInline("test.txt", tempDir, 2, 4);
-          expect(result).toBe("Line 2\nLine 3\nLine 4");
-        }),
         it("should extract single line", () => {
           const content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
           fs.writeFileSync(path.join(tempDir, "test.txt"), content);
-          const result = processFileInline("test.txt", tempDir, 3, 3);
+          const result = processRuntimeImport("test.txt", !1, tempDir, 3, 3);
           expect(result).toBe("Line 3");
         }),
         it("should extract from start line to end of file", () => {
           const content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
           fs.writeFileSync(path.join(tempDir, "test.txt"), content);
-          const result = processFileInline("test.txt", tempDir, 3, 5);
+          const result = processRuntimeImport("test.txt", !1, tempDir, 3, 5);
           expect(result).toBe("Line 3\nLine 4\nLine 5");
         }),
         it("should throw error for invalid start line", () => {
           const content = "Line 1\nLine 2\nLine 3";
           fs.writeFileSync(path.join(tempDir, "test.txt"), content);
-          expect(() => processFileInline("test.txt", tempDir, 0, 2)).toThrow("Invalid start line 0");
-          expect(() => processFileInline("test.txt", tempDir, 10, 12)).toThrow("Invalid start line 10");
+          expect(() => processRuntimeImport("test.txt", !1, tempDir, 0, 2)).toThrow("Invalid start line 0");
+          expect(() => processRuntimeImport("test.txt", !1, tempDir, 10, 12)).toThrow("Invalid start line 10");
         }),
         it("should throw error for invalid end line", () => {
           const content = "Line 1\nLine 2\nLine 3";
           fs.writeFileSync(path.join(tempDir, "test.txt"), content);
-          expect(() => processFileInline("test.txt", tempDir, 1, 0)).toThrow("Invalid end line 0");
-          expect(() => processFileInline("test.txt", tempDir, 1, 10)).toThrow("Invalid end line 10");
+          expect(() => processRuntimeImport("test.txt", !1, tempDir, 1, 0)).toThrow("Invalid end line 0");
+          expect(() => processRuntimeImport("test.txt", !1, tempDir, 1, 10)).toThrow("Invalid end line 10");
         }),
         it("should throw error when start line > end line", () => {
           const content = "Line 1\nLine 2\nLine 3";
           fs.writeFileSync(path.join(tempDir, "test.txt"), content);
-          expect(() => processFileInline("test.txt", tempDir, 3, 1)).toThrow("Start line 3 cannot be greater than end line 1");
-        }),
-        it("should remove front matter and warn", () => {
-          const filepath = "with-frontmatter.md";
-          fs.writeFileSync(path.join(tempDir, filepath), "---\ntitle: Test\n---\n\nLine 1\nLine 2\nLine 3");
-          const result = processFileInline(filepath, tempDir);
-          (expect(result).toContain("Line 1"), expect(result).not.toContain("title: Test"), expect(core.warning).toHaveBeenCalledWith(`File ${filepath} contains front matter which will be ignored in inline`));
-        }),
-        it("should remove XML comments", () => {
-          fs.writeFileSync(path.join(tempDir, "with-comments.txt"), "Line 1\n\x3c!-- comment --\x3e\nLine 2");
-          const result = processFileInline("with-comments.txt", tempDir);
-          (expect(result).toContain("Line 1"), expect(result).toContain("Line 2"), expect(result).not.toContain("\x3c!-- comment --\x3e"));
-        }),
-        it("should throw error for GitHub Actions macros", () => {
-          fs.writeFileSync(path.join(tempDir, "with-macros.txt"), "Text ${{ github.actor }}");
-          expect(() => processFileInline("with-macros.txt", tempDir)).toThrow("File with-macros.txt contains GitHub Actions macros (${{ ... }}) which are not allowed in inline content");
+          expect(() => processRuntimeImport("test.txt", !1, tempDir, 3, 1)).toThrow("Start line 3 cannot be greater than end line 1");
         }),
         it("should handle line range with front matter", () => {
           const filepath = "frontmatter-lines.md";
@@ -320,79 +296,65 @@ describe("runtime_import", () => {
           // Line 4: (empty)
           // Line 5: Line 1
           fs.writeFileSync(path.join(tempDir, filepath), "---\ntitle: Test\n---\n\nLine 1\nLine 2\nLine 3\nLine 4\nLine 5");
-          const result = processFileInline(filepath, tempDir, 2, 4);
+          const result = processRuntimeImport(filepath, !1, tempDir, 2, 4);
           // Lines 2-4 of raw file are: "title: Test", "---", ""
           // After front matter removal, these lines are part of front matter so they get removed
           // The result should be empty or minimal content
           expect(result).toBeTruthy(); // At minimum, it should not fail
         }));
     }),
-    describe("processFileInlines", () => {
-      (it("should process single @path reference", () => {
-        fs.writeFileSync(path.join(tempDir, "test.txt"), "File content here");
-        const result = processFileInlines("Before @test.txt after", tempDir);
-        expect(result).toBe("Before File content here after");
+    describe("convertFileInlinesToMacros", () => {
+      (it("should convert @path to {{#runtime-import path}}", () => {
+        const result = convertFileInlinesToMacros("Before @test.txt after");
+        expect(result).toBe("Before {{#runtime-import test.txt}} after");
       }),
-        it("should process @path:line-line reference", () => {
-          fs.writeFileSync(path.join(tempDir, "test.txt"), "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
-          const result = processFileInlines("Content: @test.txt:2-4 end", tempDir);
-          expect(result).toBe("Content: Line 2\nLine 3\nLine 4 end");
+        it("should convert @path:line-line to {{#runtime-import path:line-line}}", () => {
+          const result = convertFileInlinesToMacros("Content: @test.txt:2-4 end");
+          expect(result).toBe("Content: {{#runtime-import test.txt:2-4}} end");
         }),
-        it("should process multiple @path references", () => {
-          (fs.writeFileSync(path.join(tempDir, "file1.txt"), "Content 1"), fs.writeFileSync(path.join(tempDir, "file2.txt"), "Content 2"));
-          const result = processFileInlines("Start @file1.txt middle @file2.txt end", tempDir);
-          expect(result).toBe("Start Content 1 middle Content 2 end");
+        it("should convert multiple @path references", () => {
+          const result = convertFileInlinesToMacros("Start @file1.txt middle @file2.txt end");
+          expect(result).toBe("Start {{#runtime-import file1.txt}} middle {{#runtime-import file2.txt}} end");
         }),
-        it("should process @path with subdirectories", () => {
-          const subdir = path.join(tempDir, "docs");
-          (fs.mkdirSync(subdir), fs.writeFileSync(path.join(tempDir, "docs/readme.md"), "# Documentation"));
-          const result = processFileInlines("See @docs/readme.md for details", tempDir);
-          expect(result).toBe("See # Documentation for details");
+        it("should handle @path with subdirectories", () => {
+          const result = convertFileInlinesToMacros("See @docs/readme.md for details");
+          expect(result).toBe("See {{#runtime-import docs/readme.md}} for details");
+        }),
+        it("should not convert email addresses", () => {
+          const result = convertFileInlinesToMacros("Email: user@example.com is valid");
+          expect(result).toBe("Email: user@example.com is valid");
         }),
         it("should handle content without @path references", () => {
-          const result = processFileInlines("No inline references here", tempDir);
+          const result = convertFileInlinesToMacros("No inline references here");
           expect(result).toBe("No inline references here");
         }),
         it("should handle @path at start of content", () => {
-          fs.writeFileSync(path.join(tempDir, "start.txt"), "Start content");
-          const result = processFileInlines("@start.txt following text", tempDir);
-          expect(result).toBe("Start content following text");
+          const result = convertFileInlinesToMacros("@start.txt following text");
+          expect(result).toBe("{{#runtime-import start.txt}} following text");
         }),
         it("should handle @path at end of content", () => {
-          fs.writeFileSync(path.join(tempDir, "end.txt"), "End content");
-          const result = processFileInlines("Preceding text @end.txt", tempDir);
-          expect(result).toBe("Preceding text End content");
+          const result = convertFileInlinesToMacros("Preceding text @end.txt");
+          expect(result).toBe("Preceding text {{#runtime-import end.txt}}");
         }),
         it("should handle @path on its own line", () => {
-          fs.writeFileSync(path.join(tempDir, "content.txt"), "Middle content");
-          const result = processFileInlines("Before\n@content.txt\nAfter", tempDir);
-          expect(result).toBe("Before\nMiddle content\nAfter");
-        }),
-        it("should throw error for missing file", () => {
-          expect(() => processFileInlines("Text @missing.txt more", tempDir)).toThrow("Failed to process inline for @missing.txt");
-        }),
-        it("should throw error for invalid line range", () => {
-          fs.writeFileSync(path.join(tempDir, "test.txt"), "Line 1\nLine 2");
-          expect(() => processFileInlines("Text @test.txt:10-20 more", tempDir)).toThrow("Failed to process inline for @test.txt:10-20");
-        }),
-        it("should handle files with special characters in content", () => {
-          fs.writeFileSync(path.join(tempDir, "special.txt"), "Content with $pecial ch@racters!");
-          const result = processFileInlines("Text @special.txt end", tempDir);
-          expect(result).toBe("Text Content with $pecial ch@racters! end");
-        }),
-        it("should handle files with unicode", () => {
-          fs.writeFileSync(path.join(tempDir, "unicode.txt"), "Hello 世界 🌍");
-          const result = processFileInlines("@unicode.txt", tempDir);
-          expect(result).toBe("Hello 世界 🌍");
+          const result = convertFileInlinesToMacros("Before\n@content.txt\nAfter");
+          expect(result).toBe("Before\n{{#runtime-import content.txt}}\nAfter");
         }),
         it("should handle multiple line ranges", () => {
+          const result = convertFileInlinesToMacros("First: @test.txt:1-2 Second: @test.txt:4-5");
+          expect(result).toBe("First: {{#runtime-import test.txt:1-2}} Second: {{#runtime-import test.txt:4-5}}");
+        }));
+    }),
+    describe("processRuntimeImports with line ranges from macros", () => {
+      (it("should process {{#runtime-import path:line-line}} macro", () => {
+        fs.writeFileSync(path.join(tempDir, "test.txt"), "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
+        const result = processRuntimeImports("Content: {{#runtime-import test.txt:2-4}} end", tempDir);
+        expect(result).toBe("Content: Line 2\nLine 3\nLine 4 end");
+      }),
+        it("should process multiple {{#runtime-import path:line-line}} macros", () => {
           fs.writeFileSync(path.join(tempDir, "test.txt"), "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
-          const result = processFileInlines("First: @test.txt:1-2 Second: @test.txt:4-5", tempDir);
+          const result = processRuntimeImports("First: {{#runtime-import test.txt:1-2}} Second: {{#runtime-import test.txt:4-5}}", tempDir);
           expect(result).toBe("First: Line 1\nLine 2 Second: Line 4\nLine 5");
-        }),
-        it("should not process @ as part of email addresses", () => {
-          const result = processFileInlines("Email: user@example.com is valid", tempDir);
-          expect(result).toBe("Email: user@example.com is valid");
         }));
     }),
     describe("processUrlInlines", () => {
