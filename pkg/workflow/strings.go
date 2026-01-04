@@ -39,6 +39,26 @@
 //	result := normalizeWorkflowName(input)
 //	// Returns: "weekly-research"
 //
+// ## String Truncation
+//
+// Two truncation functions exist for different purposes:
+//
+// ShortenCommand (this package):
+//   - Domain-specific for workflow log parsing
+//   - Fixed 20-character length
+//   - Replaces newlines with spaces (bash commands can be multi-line)
+//   - Creates identifiers like "bash_echo hello world..."
+//
+// stringutil.Truncate:
+//   - General-purpose string truncation
+//   - Configurable maximum length
+//   - No special character handling
+//   - Used for display formatting in CLI output
+//
+// Choose based on your use case:
+//   - Use ShortenCommand for bash command identifiers in workflow logs
+//   - Use stringutil.Truncate for general string display truncation
+//
 // ## When to Use Each Pattern
 //
 // Use SANITIZE when:
@@ -230,8 +250,17 @@ func SanitizeWorkflowName(name string) string {
 	})
 }
 
-// ShortenCommand creates a short identifier for bash commands.
+// ShortenCommand creates a short identifier for bash commands in workflow logs.
 // It replaces newlines with spaces and truncates to 20 characters if needed.
+//
+// This is a domain-specific function for workflow log parsing. It creates
+// unique identifiers for bash commands by:
+//   - Replacing newlines with spaces (bash commands can be multi-line)
+//   - Truncating to a fixed 20 characters with "..." suffix
+//   - Producing identifiers like "bash_echo hello world..."
+//
+// For general-purpose string truncation with configurable length,
+// use stringutil.Truncate instead.
 func ShortenCommand(command string) string {
 	// Take first 20 characters and remove newlines
 	shortened := strings.ReplaceAll(command, "\n", " ")
