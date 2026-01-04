@@ -123,7 +123,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 
 	// Clear command field if no command trigger was found
 	if !hasCommand {
-		workflowData.Command = ""
+		workflowData.Command = nil
 	}
 
 	// Auto-enable "eyes" reaction for command triggers if no explicit reaction was specified
