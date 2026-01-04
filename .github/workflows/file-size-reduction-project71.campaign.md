@@ -61,10 +61,10 @@ Large files (>800 LOC) are harder to understand, test, and maintain. This campai
 
 ## Success Criteria
 
-- ✅ All Go files are ≤800 lines of code
-- ✅ Test coverage remains at or above baseline (80%)
-- ✅ No functionality regressions introduced
-- ✅ Code follows established patterns and conventions
+- All Go files are ≤800 lines of code
+- Test coverage remains at or above baseline (80%)
+- No functionality regressions introduced
+- Code follows established patterns and conventions
 
 ## Key Performance Indicators
 
@@ -93,7 +93,7 @@ Primary worker workflow that:
 
 ## Project Board
 
-**URL**: https://github.com/orgs/githubnext/projects/68
+**URL**: https://github.com/orgs/githubnext/projects/71
 
 The project board serves as the primary campaign dashboard, tracking:
 - Open refactoring tasks
@@ -103,14 +103,14 @@ The project board serves as the primary campaign dashboard, tracking:
 
 ## Tracker Label
 
-All campaign-related issues and PRs are tagged with: `campaign:file-size-reduction-project68`
+All campaign-related issues and PRs are tagged with: `campaign:file-size-reduction-project71`
 
 ## Memory Paths
 
 Campaign state and metrics are stored in:
-- `memory/campaigns/file-size-reduction-project68-*/**`
+- `memory/campaigns/file-size-reduction-project71-*/**`
 
-Metrics snapshots: `memory/campaigns/file-size-reduction-project68-*/metrics/*.json`
+Metrics snapshots: `memory/campaigns/file-size-reduction-project71-*/metrics/*.json`
 
 ## Governance Policies
 
@@ -145,7 +145,7 @@ This campaign:
 ## Orchestrator
 
 This campaign uses an automatically generated orchestrator workflow:
-- **File**: `.github/workflows/file-size-reduction-project68.campaign.g.md`
+- **File**: `.github/workflows/file-size-reduction-project71.campaign.g.md`
 - **Schedule**: Daily at 18:00 UTC (cron: `0 18 * * *`)
 - **Purpose**: Coordinate worker outputs and update project board
 
