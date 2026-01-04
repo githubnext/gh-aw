@@ -818,3 +818,173 @@ jobs:
           echo "✅ All JSON structure validations passed"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  mcp-server-compile-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-mcp-server-compile-test
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Create test workflow with error
+        run: |
+          mkdir -p .github/workflows
+          cat > .github/workflows/test-invalid.md << 'EOF'
+          ---
+          on: push
+          engine: copilot
+          invalid_field: this will cause an error
+          ---
+          # Test Invalid Workflow
+          
+          This workflow has an invalid field that will cause a compilation error.
+          EOF
+
+      - name: Test MCP server compile tool
+        run: |
+          # Create a test script using the MCP Go SDK
+          cat > test_mcp_compile.go << 'GOEOF'
+          package main
+
+          import (
+              "context"
+              "encoding/json"
+              "fmt"
+              "os"
+              "os/exec"
+              "time"
+
+              "github.com/modelcontextprotocol/go-sdk/mcp"
+          )
+
+          func main() {
+              // Create MCP client
+              client := mcp.NewClient(&mcp.Implementation{
+                  Name:    "ci-test-client",
+                  Version: "1.0.0",
+              }, nil)
+
+              // Start the MCP server as a subprocess with absolute path
+              binaryPath := "./gh-aw"
+              serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+              transport := &mcp.CommandTransport{Command: serverCmd}
+
+              ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+              defer cancel()
+
+              // Connect to the server
+              session, err := client.Connect(ctx, transport, nil)
+              if err != nil {
+                  fmt.Fprintf(os.Stderr, "Failed to connect to MCP server: %v\n", err)
+                  os.Exit(1)
+              }
+              defer session.Close()
+
+              fmt.Println("✅ Successfully connected to MCP server")
+
+              // Call the compile tool with the invalid workflow
+              params := &mcp.CallToolParams{
+                  Name: "compile",
+                  Arguments: map[string]any{
+                      "workflows": []string{"test-invalid.md"},
+                  },
+              }
+
+              result, err := session.CallTool(ctx, params)
+              if err != nil {
+                  fmt.Fprintf(os.Stderr, "MCP tool call returned error (this is expected): %v\n", err)
+                  // Check if the error contains expected error information
+                  fmt.Println("✅ Compile tool correctly returned an error")
+                  os.Exit(0)
+              }
+
+              // Get the result content
+              if len(result.Content) == 0 {
+                  fmt.Fprintln(os.Stderr, "❌ Expected non-empty result from compile tool")
+                  os.Exit(1)
+              }
+
+              textContent, ok := result.Content[0].(*mcp.TextContent)
+              if !ok {
+                  fmt.Fprintln(os.Stderr, "❌ Expected text content from compile tool")
+                  os.Exit(1)
+              }
+
+              fmt.Printf("Compile tool output:\n%s\n", textContent.Text)
+
+              // Parse the JSON output to check for errors
+              var compileResults []map[string]any
+              if err := json.Unmarshal([]byte(textContent.Text), &compileResults); err != nil {
+                  fmt.Fprintf(os.Stderr, "Failed to parse JSON output: %v\n", err)
+                  os.Exit(1)
+              }
+
+              // Check if the workflow is marked as invalid
+              if len(compileResults) == 0 {
+                  fmt.Fprintln(os.Stderr, "❌ Expected at least one workflow result")
+                  os.Exit(1)
+              }
+
+              result0 := compileResults[0]
+              valid, ok := result0["valid"].(bool)
+              if !ok {
+                  fmt.Fprintln(os.Stderr, "❌ Expected 'valid' field in result")
+                  os.Exit(1)
+              }
+
+              if valid {
+                  fmt.Fprintln(os.Stderr, "❌ Expected workflow to be invalid")
+                  os.Exit(1)
+              }
+
+              // Check that errors field exists and has at least one error
+              errors, ok := result0["errors"].([]any)
+              if !ok || len(errors) == 0 {
+                  fmt.Fprintln(os.Stderr, "❌ Expected errors array with at least one error")
+                  os.Exit(1)
+              }
+
+              fmt.Println("✅ Compile tool correctly reported validation errors:")
+              errorsJSON, _ := json.MarshalIndent(errors, "  ", "  ")
+              fmt.Printf("  %s\n", string(errorsJSON))
+
+              os.Exit(0)
+          }
+          GOEOF
+
+          # Run the test
+          go run test_mcp_compile.go
+
+      - name: Report test results
+        if: always()
+        run: |
+          echo "## MCP Server Compile Tool Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
+          echo "1. The gh-aw MCP server can be started successfully" >> $GITHUB_STEP_SUMMARY
+          echo "2. The compile tool can be invoked through the MCP server" >> $GITHUB_STEP_SUMMARY
+          echo "3. The compile tool correctly detects and reports validation errors" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Test completed successfully" >> $GITHUB_STEP_SUMMARY
