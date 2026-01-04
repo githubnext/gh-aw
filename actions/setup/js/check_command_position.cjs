@@ -8,28 +8,24 @@
  */
 async function main() {
   const commandsJSON = process.env.GH_AW_COMMANDS;
-  // Legacy support for single command
-  const legacyCommand = process.env.GH_AW_COMMAND;
 
   const { getErrorMessage } = require("./error_helpers.cjs");
 
-  // Parse commands from JSON array or use legacy single command
+  if (!commandsJSON) {
+    core.setFailed("Configuration error: GH_AW_COMMANDS not specified.");
+    return;
+  }
+
+  // Parse commands from JSON array
   let commands = [];
-  if (commandsJSON) {
-    try {
-      commands = JSON.parse(commandsJSON);
-      if (!Array.isArray(commands)) {
-        core.setFailed("Configuration error: GH_AW_COMMANDS must be an array.");
-        return;
-      }
-    } catch (error) {
-      core.setFailed(`Configuration error: Failed to parse GH_AW_COMMANDS: ${getErrorMessage(error)}`);
+  try {
+    commands = JSON.parse(commandsJSON);
+    if (!Array.isArray(commands)) {
+      core.setFailed("Configuration error: GH_AW_COMMANDS must be an array.");
       return;
     }
-  } else if (legacyCommand) {
-    commands = [legacyCommand];
-  } else {
-    core.setFailed("Configuration error: GH_AW_COMMANDS or GH_AW_COMMAND not specified.");
+  } catch (error) {
+    core.setFailed(`Configuration error: Failed to parse GH_AW_COMMANDS: ${getErrorMessage(error)}`);
     return;
   }
 
