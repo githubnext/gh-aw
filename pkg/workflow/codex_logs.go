@@ -191,13 +191,22 @@ func (e *CodexEngine) updateMostRecentToolWithDuration(toolCallMap map[string]*T
 
 // extractCodexTokenUsage extracts token usage from Codex-specific log lines
 func (e *CodexEngine) extractCodexTokenUsage(line string) int {
-	// Codex format: "tokens used: 13934"
+	// Codex format 1: "tokens used: 13934"
 	// Use pre-compiled pattern for performance
 	if match := codexTokenUsagePattern.FindStringSubmatch(line); len(match) > 1 {
 		if count, err := strconv.Atoi(match[1]); err == nil {
 			return count
 		}
 	}
+	
+	// Codex format 2: "TokenCount(TokenCountEvent { ... total_tokens: 13281 ..."
+	// This pattern appears in newer Codex logs
+	if match := codexTotalTokensPattern.FindStringSubmatch(line); len(match) > 1 {
+		if count, err := strconv.Atoi(match[1]); err == nil {
+			return count
+		}
+	}
+	
 	return 0
 }
 

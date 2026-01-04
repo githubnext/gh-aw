@@ -20,6 +20,7 @@ var (
 	codexExecCommandNewFormat = regexp.MustCompile(`^exec (.+?) in`)
 	codexDurationPattern      = regexp.MustCompile(`in\s+(\d+(?:\.\d+)?)\s*s`)
 	codexTokenUsagePattern    = regexp.MustCompile(`(?i)tokens\s+used[:\s]+(\d+)`)
+	codexTotalTokensPattern   = regexp.MustCompile(`total_tokens:\s*(\d+)`)
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
