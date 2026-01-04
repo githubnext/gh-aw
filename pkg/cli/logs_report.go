@@ -19,8 +19,8 @@ var reportLog = logger.New("cli:logs_report")
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary           LogsSummary                `json:"summary" console:"title:Workflow Logs Summary"`
-	Runs              []RunData                  `json:"runs" console:"title:Workflow Logs Overview"`
+	Summary           LogsSummary                `json:"summary" console:"-"`
+	Runs              []RunData                  `json:"runs"`
 	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
 	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
@@ -781,9 +781,123 @@ func renderLogsConsole(data LogsData) {
 	reportLog.Printf("Rendering logs data to console: %d runs, %d errors, %d warnings",
 		data.Summary.TotalRuns, data.Summary.TotalErrors, data.Summary.TotalWarnings)
 
-	// Use unified console rendering for the entire logs data structure
-	fmt.Print(console.RenderStruct(data))
+	// Manually render the runs table with totals as footer
+	renderRunsTable(data)
+
+	// Render other sections using RenderStruct
+	// Create a struct with only the sections we want to render
+	otherSections := struct {
+		ToolUsage         []ToolUsageSummary         `console:"title:🛠️  Tool Usage Summary,omitempty"`
+		ErrorsAndWarnings []ErrorSummary             `console:"title:Errors and Warnings,omitempty"`
+		MissingTools      []MissingToolSummary       `console:"title:🛠️  Missing Tools Summary,omitempty"`
+		MCPFailures       []MCPFailureSummary        `console:"title:⚠️  MCP Server Failures,omitempty"`
+		AccessLog         *AccessLogSummary          `console:"title:Access Log Analysis,omitempty"`
+		FirewallLog       *FirewallLogSummary        `console:"title:🔥 Firewall Log Analysis,omitempty"`
+		RedactedDomains   *RedactedDomainsLogSummary `console:"title:🔒 Redacted URL Domains,omitempty"`
+	}{
+		ToolUsage:         data.ToolUsage,
+		ErrorsAndWarnings: data.ErrorsAndWarnings,
+		MissingTools:      data.MissingTools,
+		MCPFailures:       data.MCPFailures,
+		AccessLog:         data.AccessLog,
+		FirewallLog:       data.FirewallLog,
+		RedactedDomains:   data.RedactedDomains,
+	}
+	fmt.Print(console.RenderStruct(otherSections))
 
 	// Display logs location
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", data.Summary.TotalRuns, data.LogsLocation)))
+}
+
+// renderRunsTable renders the runs table with totals footer
+func renderRunsTable(data LogsData) {
+	if len(data.Runs) == 0 {
+		return
+	}
+
+	// Build table headers from RunData struct tags
+	headers := []string{"Run ID", "Workflow", "Agent", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Created", "Logs Path"}
+
+	// Build table rows
+	var rows [][]string
+	for _, run := range data.Runs {
+		row := []string{
+			fmt.Sprintf("%d", run.DatabaseID),
+			truncateString(run.WorkflowName, 40),
+			run.Agent,
+			run.Status,
+			run.Duration,
+			formatNumberOrEmpty(run.TokenUsage),
+			formatCostOrEmpty(run.EstimatedCost),
+			formatIntOrEmpty(run.Turns),
+			fmt.Sprintf("%d", run.ErrorCount),
+			fmt.Sprintf("%d", run.WarningCount),
+			fmt.Sprintf("%d", run.MissingToolCount),
+			run.CreatedAt.Format("2006-01-02 15:04:05"),
+			run.LogsPath,
+		}
+		rows = append(rows, row)
+	}
+
+	// Build total row
+	totalRow := []string{
+		fmt.Sprintf("TOTAL (%d)", data.Summary.TotalRuns),
+		"", // Workflow
+		"", // Agent
+		"", // Status
+		data.Summary.TotalDuration,
+		formatNumberOrEmpty(data.Summary.TotalTokens),
+		formatCostOrEmpty(data.Summary.TotalCost),
+		formatIntOrEmpty(data.Summary.TotalTurns),
+		fmt.Sprintf("%d", data.Summary.TotalErrors),
+		fmt.Sprintf("%d", data.Summary.TotalWarnings),
+		fmt.Sprintf("%d", data.Summary.TotalMissingTools),
+		"", // Created
+		"", // Logs Path
+	}
+
+	// Render table with totals
+	config := console.TableConfig{
+		Headers:   headers,
+		Rows:      rows,
+		ShowTotal: true,
+		TotalRow:  totalRow,
+	}
+
+	fmt.Print(console.RenderTable(config))
+}
+
+// formatNumberOrEmpty formats a number or returns empty string if zero
+func formatNumberOrEmpty(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return console.FormatNumber(n)
+}
+
+// formatCostOrEmpty formats cost or returns empty string if zero
+func formatCostOrEmpty(cost float64) string {
+	if cost == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%.3f", cost)
+}
+
+// formatIntOrEmpty formats an int or returns empty string if zero
+func formatIntOrEmpty(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d", n)
+}
+
+// truncateString truncates a string to maxLen with ellipsis
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen > 3 {
+		return s[:maxLen-3] + "..."
+	}
+	return s[:maxLen]
 }
