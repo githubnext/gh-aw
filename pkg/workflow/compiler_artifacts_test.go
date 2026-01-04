@@ -241,7 +241,7 @@ strict: false
 
 # Test Prompt Upload
 
-This workflow should generate a step to upload the prompt as an artifact.
+This workflow should generate a unified artifact upload step that includes the prompt.
 `
 
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -263,9 +263,9 @@ This workflow should generate a step to upload the prompt as an artifact.
 
 	lockYAML := string(lockContent)
 
-	// Verify that the prompt upload step is present
-	if !strings.Contains(lockYAML, "- name: Upload prompt") {
-		t.Error("Expected 'Upload prompt' step to be in generated workflow")
+	// Verify that the unified artifact upload step is present
+	if !strings.Contains(lockYAML, "- name: Upload agent artifacts") {
+		t.Error("Expected 'Upload agent artifacts' step to be in generated workflow")
 	}
 
 	// Verify the upload step uses the correct action
@@ -273,28 +273,28 @@ This workflow should generate a step to upload the prompt as an artifact.
 		t.Error("Expected 'actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4' action to be used")
 	}
 
-	// Verify the upload step has the correct artifact name
-	if !strings.Contains(lockYAML, "name: prompt") {
-		t.Error("Expected artifact name to be 'prompt'")
+	// Verify the unified artifact name
+	if !strings.Contains(lockYAML, "name: agent-artifacts") {
+		t.Error("Expected artifact name to be 'agent-artifacts'")
 	}
 
-	// Verify the upload step has the correct path
-	if !strings.Contains(lockYAML, "path: /tmp/gh-aw/aw-prompts/prompt.txt") {
-		t.Error("Expected artifact path to be '/tmp/gh-aw/aw-prompts/prompt.txt'")
+	// Verify the prompt path is included in the unified upload
+	if !strings.Contains(lockYAML, "/tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Error("Expected prompt path '/tmp/gh-aw/aw-prompts/prompt.txt' to be in unified upload")
 	}
 
-	// Verify the upload step has the if-no-files-found configuration
-	if !strings.Contains(lockYAML, "if-no-files-found: warn") {
-		t.Error("Expected 'if-no-files-found: warn' in upload step")
+	// Verify the upload step has the if-no-files-found configuration set to ignore
+	if !strings.Contains(lockYAML, "if-no-files-found: ignore") {
+		t.Error("Expected 'if-no-files-found: ignore' in upload step")
 	}
 
 	// Verify the upload step runs always (with if: always())
-	uploadStepIndex := strings.Index(lockYAML, "- name: Upload prompt")
+	uploadStepIndex := strings.Index(lockYAML, "- name: Upload agent artifacts")
 	if uploadStepIndex == -1 {
-		t.Fatal("Upload prompt step not found")
+		t.Fatal("Upload agent artifacts step not found")
 	}
 
-	// Check for "if: always()" in the section after the upload prompt step name
+	// Check for "if: always()" in the section after the upload step name
 	afterUploadStep := lockYAML[uploadStepIndex:]
 	nextStepIndex := strings.Index(afterUploadStep[20:], "- name:")
 	if nextStepIndex == -1 {
@@ -303,8 +303,13 @@ This workflow should generate a step to upload the prompt as an artifact.
 	uploadStepSection := afterUploadStep[:20+nextStepIndex]
 
 	if !strings.Contains(uploadStepSection, "if: always()") {
-		t.Error("Expected 'if: always()' in upload prompt step")
+		t.Error("Expected 'if: always()' in upload agent artifacts step")
 	}
 
-	t.Log("Prompt upload artifact step verified successfully")
+	// Verify continue-on-error is set
+	if !strings.Contains(uploadStepSection, "continue-on-error: true") {
+		t.Error("Expected 'continue-on-error: true' in upload agent artifacts step")
+	}
+
+	t.Log("Unified artifact upload step verified successfully (includes prompt)")
 }

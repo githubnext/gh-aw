@@ -161,18 +161,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
 
-	// Upload prompt to artifact
-	if err := c.generateUploadPrompt(yaml); err != nil {
-		return err
-	}
+	// Collect artifact paths for unified upload at the end
+	var artifactPaths []string
+	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-prompts/prompt.txt")
+	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw_info.json")
 
-	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
-
-	// Upload info to artifact
-	if err := c.generateUploadAwInfo(yaml); err != nil {
-		return err
-	}
 
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
@@ -232,16 +226,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateExtractAccessLogs(yaml, data.Tools)
 	c.generateUploadAccessLogs(yaml, data.Tools)
 
-	// upload MCP logs (if any MCP tools were used)
-	if err := c.generateUploadMCPLogs(yaml); err != nil {
-		return err
-	}
+	// Collect MCP logs path if any MCP tools were used
+	artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-logs/")
 
-	// upload SafeInputs logs (if safe-inputs is enabled)
+	// Collect SafeInputs logs path if safe-inputs is enabled
 	if IsSafeInputsEnabled(data.SafeInputs, data) {
-		if err := c.generateUploadSafeInputsLogs(yaml); err != nil {
-			return err
-		}
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/safe-inputs/logs/")
 	}
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
@@ -252,38 +242,41 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateSafeInputsLogParsing(yaml)
 	}
 
-	// Add Squid logs upload and parsing steps for Copilot and Codex engines (collection happens before secret redaction)
-	if copilotEngine, ok := engine.(*CopilotEngine); ok {
-		squidSteps := copilotEngine.GetSquidLogsSteps(data)
-		for _, step := range squidSteps {
-			for _, line := range step {
+	// Add firewall log parsing steps (but not upload - collected for unified upload)
+	// For Copilot, Codex, and Claude engines
+	if _, ok := engine.(*CopilotEngine); ok {
+		if isFirewallEnabled(data) {
+			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
+			for _, line := range firewallLogParsing {
 				yaml.WriteString(line + "\n")
 			}
+			// Collect firewall logs path for unified upload
+			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
 		}
 	}
-	if codexEngine, ok := engine.(*CodexEngine); ok {
-		squidSteps := codexEngine.GetSquidLogsSteps(data)
-		for _, step := range squidSteps {
-			for _, line := range step {
+	if _, ok := engine.(*CodexEngine); ok {
+		if isFirewallEnabled(data) {
+			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
+			for _, line := range firewallLogParsing {
 				yaml.WriteString(line + "\n")
 			}
+			// Collect firewall logs path for unified upload
+			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
 		}
 	}
-	// Add Squid logs upload and parsing steps for Claude engine (collection happens before secret redaction)
-	if claudeEngine, ok := engine.(*ClaudeEngine); ok {
-		squidSteps := claudeEngine.GetSquidLogsSteps(data)
-		for _, step := range squidSteps {
-			for _, line := range step {
+	if _, ok := engine.(*ClaudeEngine); ok {
+		if isFirewallEnabled(data) {
+			firewallLogParsing := generateFirewallLogParsingStep(data.Name)
+			for _, line := range firewallLogParsing {
 				yaml.WriteString(line + "\n")
 			}
+			// Collect firewall logs path for unified upload
+			artifactPaths = append(artifactPaths, "/tmp/gh-aw/sandbox/firewall/logs/")
 		}
 	}
 
-	// upload agent logs
-	var _ = logFile
-	if err := c.generateUploadAgentLogs(yaml, logFileFull); err != nil {
-		return err
-	}
+	// Collect agent stdio logs path for unified upload
+	artifactPaths = append(artifactPaths, logFileFull)
 
 	// Add post-execution cleanup step for Copilot engine
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
@@ -300,26 +293,27 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This ensures artifacts are uploaded after the agent has finished modifying the cache
 	generateCacheMemoryArtifactUpload(yaml, data)
 
-	// upload assets if upload-asset is configured
+	// Collect safe-outputs assets path if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
-		if err := c.generateUploadAssets(yaml); err != nil {
-			return err
-		}
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/safeoutputs/assets/")
 	}
 
 	// Add error validation for AI execution logs
 	c.generateErrorValidation(yaml, engine, data)
 
+	// Collect git patch path if safe-outputs with PR operations is configured
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch
 	// tools are called, providing immediate error feedback if no changes are present.
-	// We still upload the patch artifact for processing jobs to download.
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
-		c.generateGitPatchUploadStep(yaml)
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw.patch")
 	}
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
+
+	// Generate single unified artifact upload with all collected paths
+	c.generateUnifiedArtifactUpload(yaml, artifactPaths)
 
 	// Validate step ordering - this is a compiler check to ensure security
 	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {
