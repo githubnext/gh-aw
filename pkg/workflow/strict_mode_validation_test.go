@@ -173,10 +173,10 @@ func TestValidateStrictNetwork(t *testing.T) {
 		errorMsg           string
 	}{
 		{
-			name:               "nil network permissions is refused",
+			name:               "nil network permissions triggers internal error",
 			networkPermissions: nil,
 			expectError:        true,
-			errorMsg:           "strict mode: 'network' configuration is required to prevent unrestricted network access",
+			errorMsg:           "internal error: network permissions not initialized",
 		},
 		{
 			name: "defaults mode is allowed",
@@ -309,7 +309,7 @@ func TestValidateStrictMode(t *testing.T) {
 			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons",
 		},
 		{
-			name:       "strict mode fails on missing network config",
+			name:       "strict mode with nil network triggers internal error (should not happen in production)",
 			strictMode: true,
 			frontmatter: map[string]any{
 				"on": "push",
@@ -319,7 +319,7 @@ func TestValidateStrictMode(t *testing.T) {
 			},
 			networkPermissions: nil,
 			expectError:        true,
-			errorMsg:           "strict mode: 'network' configuration is required to prevent unrestricted network access",
+			errorMsg:           "internal error: network permissions not initialized",
 		},
 		{
 			name:       "strict mode fails on wildcard network",
@@ -392,6 +392,20 @@ func TestValidateStrictMode(t *testing.T) {
 			},
 			networkPermissions: &NetworkPermissions{
 				Mode: "defaults",
+			},
+			expectError: false,
+		},
+		{
+			name:       "strict mode without explicit network declaration (defaults auto-applied)",
+			strictMode: true,
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"contents": "read",
+				},
+			},
+			networkPermissions: &NetworkPermissions{
+				Mode: "defaults", // This is what the compiler orchestrator sets when network is not in frontmatter
 			},
 			expectError: false,
 		},

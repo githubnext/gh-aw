@@ -122,11 +122,11 @@ strict: true
 permissions:
   contents: read
 timeout-minutes: 10
-network:
-  allowed: ["api.example.com"]
+# Network automatically uses secure defaults
+# Optionally customize: network: { allowed: ["api.example.com"] }
 ```
 
-Strict mode blocks write permissions and requires explicit network configuration. Use `safe-outputs` for GitHub API interactions. See [Strict Mode Validation](#strict-mode-validation).
+Strict mode blocks write permissions and applies secure network defaults automatically (or you can specify custom domains). Use `safe-outputs` for GitHub API interactions. See [Strict Mode Validation](#strict-mode-validation).
 
 ### Human in the Loop
 
@@ -144,13 +144,14 @@ Enable strict mode for production workflows via frontmatter or CLI (`gh aw compi
 strict: true
 permissions:
   contents: read
+# Network defaults to secure defaults if not specified
 network:
-  allowed: ["api.example.com"]
+  allowed: ["api.example.com"]  # Optional: customize allowed domains
 ```
 
 Strict mode enforces:
 1. Blocks write permissions (`contents:write`, `issues:write`, `pull-requests:write`)—use `safe-outputs` instead
-2. Requires explicit network configuration (no defaults)
+2. Applies secure network defaults when not explicitly configured (use `network: defaults` or `network: { allowed: [...] }` to customize)
 3. Refuses wildcard `*` in network domains
 4. Requires network config for custom MCP containers
 5. Enforces Action pinning to commit SHAs
