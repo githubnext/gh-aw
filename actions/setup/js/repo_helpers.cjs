@@ -83,6 +83,21 @@ function parseRepoSlug(repoSlug) {
 }
 
 /**
+ * Resolve target repository configuration from handler config
+ * Combines parsing of allowed-repos and resolution of default target repo
+ * @param {Object} config - Handler configuration object
+ * @returns {{defaultTargetRepo: string, allowedRepos: Set<string>}}
+ */
+function resolveTargetRepoConfig(config) {
+  const defaultTargetRepo = getDefaultTargetRepo(config);
+  const allowedRepos = parseAllowedRepos(config.allowed_repos);
+  return {
+    defaultTargetRepo,
+    allowedRepos,
+  };
+}
+
+/**
  * Resolve and validate target repository from a message item
  * Combines repo resolution, validation, and parsing into a single function
  * @param {Object} item - Message item that may contain a repo field
@@ -125,5 +140,6 @@ module.exports = {
   getDefaultTargetRepo,
   validateRepo,
   parseRepoSlug,
+  resolveTargetRepoConfig,
   resolveAndValidateRepo,
 };

@@ -11,7 +11,7 @@ const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -274,8 +274,7 @@ async function main(config = {}) {
   const hideOlderCommentsEnabled = config.hide_older_comments === true;
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
-  const allowedRepos = parseAllowedRepos(config.allowed_repos);
-  const defaultTargetRepo = getDefaultTargetRepo(config);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   core.info(`Add comment configuration: max=${maxCount}, target=${commentTarget}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);

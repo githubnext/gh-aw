@@ -8,7 +8,7 @@
 const { generateFooter } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -23,8 +23,7 @@ async function main(config = {}) {
   const defaultSide = config.side || "RIGHT";
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 10;
-  const allowedRepos = parseAllowedRepos(config.allowed_repos);
-  const defaultTargetRepo = getDefaultTargetRepo(config);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   core.info(`PR review comment target configuration: ${commentTarget}`);
   core.info(`Default comment side configuration: ${defaultSide}`);
