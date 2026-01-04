@@ -20,6 +20,7 @@ type CreatePullRequestsConfig struct {
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`  // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty           bool     `yaml:"allow-empty,omitempty"`    // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository pull requests
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that pull requests can be created in (additionally to the target-repo)
 	Expires              int      `yaml:"expires,omitempty"`        // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
 }
 

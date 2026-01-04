@@ -11,8 +11,9 @@ var createAgentTaskLog = logger.New("workflow:create_agent_task")
 // CreateAgentTaskConfig holds configuration for creating GitHub Copilot agent tasks from agent output
 type CreateAgentTaskConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Base                 string `yaml:"base,omitempty"`        // Base branch for the pull request
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository agent tasks
+	Base                 string   `yaml:"base,omitempty"`          // Base branch for the pull request
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository agent tasks
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that agent tasks can be created in (additionally to the target-repo)
 }
 
 // parseAgentTaskConfig handles create-agent-task configuration
