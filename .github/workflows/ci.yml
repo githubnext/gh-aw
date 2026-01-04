@@ -731,6 +731,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
     concurrency:
       group: ci-${{ github.ref }}-logs-token-check
       cancel-in-progress: true
@@ -744,14 +745,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-
-      - name: Report Go cache status
-        run: |
-          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
-            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
-          fi
 
       - name: Build gh-aw
         run: make build
