@@ -60,9 +60,9 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 		t.Error("Expected writeFileSync to use tmpPath variable in generated workflow")
 	}
 
-	// Test 2: Verify upload artifact path points to /tmp/gh-aw/aw_info.json
-	if !strings.Contains(lockStr, "path: /tmp/gh-aw/aw_info.json") {
-		t.Error("Expected upload artifact path to be '/tmp/gh-aw/aw_info.json' in generated workflow")
+	// Test 2: Verify upload artifact includes /tmp/gh-aw/aw_info.json path
+	if !strings.Contains(lockStr, "/tmp/gh-aw/aw_info.json") {
+		t.Error("Expected unified artifact upload to include '/tmp/gh-aw/aw_info.json' path in generated workflow")
 	}
 
 	// Test 3: Verify the old hardcoded path is not present

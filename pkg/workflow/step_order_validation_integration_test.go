@@ -55,7 +55,7 @@ This workflow has a secret reference and safe-outputs.
 	// Find the positions of key steps
 	redactPos := strings.Index(contentStr, "name: Redact secrets in logs")
 	uploadSafeOutputsPos := strings.Index(contentStr, "name: Upload Safe Outputs")
-	uploadAgentLogsPos := strings.Index(contentStr, "name: Upload Agent Stdio")
+	uploadAgentArtifactsPos := strings.Index(contentStr, "name: Upload agent artifacts")
 
 	// Verify that redact step comes before upload steps
 	if redactPos < 0 {
@@ -66,11 +66,11 @@ This workflow has a secret reference and safe-outputs.
 		t.Error("Secret redaction step should come BEFORE Upload Safe Outputs")
 	}
 
-	if uploadAgentLogsPos > 0 && redactPos > uploadAgentLogsPos {
-		t.Error("Secret redaction step should come BEFORE Upload Agent Stdio")
+	if uploadAgentArtifactsPos > 0 && redactPos > uploadAgentArtifactsPos {
+		t.Error("Secret redaction step should come BEFORE Upload agent artifacts")
 	}
 
-	if redactPos > uploadSafeOutputsPos || redactPos > uploadAgentLogsPos {
+	if redactPos > uploadSafeOutputsPos || redactPos > uploadAgentArtifactsPos {
 		t.Error("Secret redaction must happen before artifact uploads")
 	}
 }

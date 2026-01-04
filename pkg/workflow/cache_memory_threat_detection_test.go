@@ -42,11 +42,12 @@ Test workflow with cache-memory and threat detection enabled.`,
 				"- name: Restore cache memory file share data",
 				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
-				// Should upload artifact with if: always()
-				"- name: Upload cache-memory data as artifact",
+				// Should upload artifact with unified upload that includes cache-memory
+				"- name: Upload agent artifacts",
 				"uses: actions/upload-artifact@",
 				"if: always()",
-				"name: cache-memory",
+				"name: agent-artifacts",
+				"/tmp/gh-aw/cache-memory",
 				// Should have update_cache_memory job
 				"update_cache_memory:",
 				"- agent",
@@ -59,6 +60,8 @@ Test workflow with cache-memory and threat detection enabled.`,
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache in agent job
 				"- name: Cache memory file share data\n      uses: actions/cache@",
+				// Should NOT have individual cache-memory upload step
+				"- name: Upload cache-memory data as artifact",
 			},
 		},
 		{
@@ -124,12 +127,12 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 				"key: memory-default-${{ github.run_id }}",
 				"- name: Restore cache memory file share data (session)",
 				"key: memory-session-${{ github.run_id }}",
-				// Should upload both artifacts with if: always()
-				"- name: Upload cache-memory data as artifact (default)",
+				// Should upload both paths in unified artifact upload
+				"- name: Upload agent artifacts",
 				"if: always()",
-				"name: cache-memory-default",
-				"- name: Upload cache-memory data as artifact (session)",
-				"name: cache-memory-session",
+				"name: agent-artifacts",
+				"/tmp/gh-aw/cache-memory",
+				"/tmp/gh-aw/cache-memory-session",
 				// Should have update_cache_memory job with both caches
 				"update_cache_memory:",
 				"- name: Download cache-memory artifact (default)",
@@ -140,7 +143,9 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache
 				"- name: Cache memory file share data (default)",
-				"- name: Cache memory file share data (session)",
+				// Should NOT have individual cache-memory upload steps
+				"- name: Upload cache-memory data as artifact (default)",
+				"- name: Upload cache-memory data as artifact (session)",
 			},
 		},
 		{

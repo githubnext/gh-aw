@@ -114,14 +114,14 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent-artifacts\n")
-	
+
 	// Write paths as multi-line YAML string
 	yaml.WriteString("          path: |\n")
 	for _, path := range paths {
 		fmt.Fprintf(yaml, "            %s\n", path)
 	}
-	
+
 	yaml.WriteString("          if-no-files-found: ignore\n")
-	
+
 	compilerYamlArtifactsLog.Printf("Generated unified artifact upload step with %d paths", len(paths))
 }
