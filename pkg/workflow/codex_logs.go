@@ -198,7 +198,7 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 			return count
 		}
 	}
-	
+
 	// Codex format 2: "TokenCount(TokenCountEvent { ... total_tokens: 13281 ..."
 	// This pattern appears in newer Codex logs
 	if match := codexTotalTokensPattern.FindStringSubmatch(line); len(match) > 1 {
@@ -206,7 +206,7 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 			return count
 		}
 	}
-	
+
 	return 0
 }
 
