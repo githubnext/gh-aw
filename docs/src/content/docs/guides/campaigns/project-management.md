@@ -18,16 +18,16 @@ Before configuring views, set up custom fields in the GitHub Projects UI for fil
 | **End Date** | Date | Auto-populated from `closedAt` | Timeline visualization (required for Roadmap) |
 | **Effort** (optional) | Single select | Small (1-3d), Medium (1w), Large (2w+) | Capacity planning |
 | **Team** (optional) | Single select | Frontend, Backend, DevOps, Documentation | Team ownership |
-| **Repository** (optional) | Single select | Repository names | Cross-repo campaign tracking |
+| **Repo** (optional) | Single select | Repository names | Cross-repo campaign tracking (Note: Do not use "Repository" - it conflicts with GitHub's built-in REPOSITORY type) |
 
 ### Cross-Repository and Cross-Organization Campaigns
 
 For campaigns spanning multiple repositories:
 
 1. Create the GitHub Project at the organization level
-2. Add a "Repository" single-select field with repository names
+2. Add a "Repo" single-select field with repository names (do not use "Repository" as the field name)
 3. Configure the orchestrator to discover items using the campaign tracker label
-4. Use "Slice by Repository" or group by Repository in Roadmap views
+4. Use "Slice by Repo" or group by Repo in Roadmap views
 
 Example orchestrator configuration:
 ```yaml
@@ -36,7 +36,7 @@ update-project:
   item_url: "https://github.com/myorg/repo-a/issues/123"
   fields:
     status: "In Progress"
-    repository: "repo-a"
+    repo: "repo-a"
     worker_workflow: "migration-worker"
     priority: "High"
 ```

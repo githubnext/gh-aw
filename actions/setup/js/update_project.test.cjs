@@ -867,4 +867,110 @@ describe("updateProject", () => {
     // Verify a warning was logged about the invalid date format
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Field "start_date" looks like a date field but value "January 15, 2026" is not in YYYY-MM-DD format'));
   });
+
+  it("warns and skips when field name conflicts with unsupported built-in type (REPOSITORY)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 95,
+      fields: {
+        repository: "githubnext/gh-aw",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-repository-conflict"),
+      issueResponse("issue-id-95"),
+      existingItemResponse("issue-id-95", "item-repository-conflict"),
+      // No existing fields - would try to create if not blocked
+      fieldsResponse([]),
+    ]);
+
+    await updateProject(output);
+
+    // Verify a warning was logged about the unsupported built-in type
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Field "repository" conflicts with unsupported GitHub built-in field type REPOSITORY'));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Please use a different field name (e.g., "repo", "source_repository", "linked_repo")'));
+
+    // Verify that no attempt was made to create the field
+    const createFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2Field"));
+    expect(createFieldCall).toBeUndefined();
+
+    // Verify that no attempt was made to update the field value
+    const updateFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateFieldCall).toBeUndefined();
+  });
+
+  it("warns and skips when existing field has unsupported built-in type (REPOSITORY)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 96,
+      fields: {
+        repository: "githubnext/gh-aw",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-repository-existing"),
+      issueResponse("issue-id-96"),
+      existingItemResponse("issue-id-96", "item-repository-existing"),
+      // Field already exists with REPOSITORY type
+      fieldsResponse([{ id: "field-repository", name: "Repository", dataType: "REPOSITORY" }]),
+    ]);
+
+    await updateProject(output);
+
+    // When the field NAME "repository" is used, it's caught by the name check before type checking
+    // This is correct because "repository" normalizes to "Repository" which uppercases to "REPOSITORY"
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Field "repository" conflicts with unsupported GitHub built-in field type REPOSITORY'));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Please use a different field name"));
+
+    // Verify that no attempt was made to update the field value
+    const updateFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateFieldCall).toBeUndefined();
+  });
+
+  it("warns and skips when existing field has REPOSITORY dataType with different name", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 97,
+      fields: {
+        // Using "repo" as field name, but it's actually a REPOSITORY type field in the project
+        repo: "githubnext/gh-aw",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-repo-datatype"),
+      issueResponse("issue-id-97"),
+      existingItemResponse("issue-id-97", "item-repo-datatype"),
+      // Field exists as "Repo" with REPOSITORY dataType (GitHub auto-created it as REPOSITORY type)
+      fieldsResponse([{ id: "field-repo", name: "Repo", dataType: "REPOSITORY" }]),
+    ]);
+
+    await updateProject(output);
+
+    // When a field EXISTS with REPOSITORY dataType (but name doesn't match "repository"),
+    // the type mismatch check should catch it and show the special REPOSITORY warning
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Field type mismatch for "repo": Expected SINGLE_SELECT but found REPOSITORY'));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('The field "REPOSITORY" is a GitHub built-in type that is not supported for updates via the API'));
+
+    // Verify that no attempt was made to update the field value
+    const updateFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateFieldCall).toBeUndefined();
+  });
 });

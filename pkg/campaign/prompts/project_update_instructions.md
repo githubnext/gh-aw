@@ -29,7 +29,7 @@ All campaign tracking MUST key off `campaign_id: "{{.CampaignID}}"`.
 | `status` | single-select | `Todo` / `In Progress` / `Done` |
 | `campaign_id` | text | Must equal `{{.CampaignID}}` |
 | `worker_workflow` | text | workflow ID or `"unknown"` |
-| `repository` | text | `owner/repo` |
+| `repo` | text | `owner/repo` (Note: Do not use field name "repository" - it conflicts with GitHub's built-in REPOSITORY type) |
 | `priority` | single-select | `High` / `Medium` / `Low` |
 | `size` | single-select | `Small` / `Medium` / `Large` |
 | `start_date` | date | `YYYY-MM-DD` |
@@ -91,7 +91,7 @@ update-project:
     status: "Todo"                   # "Done" if already closed/merged
     campaign_id: "{{.CampaignID}}"
     worker_workflow: "unknown"
-    repository: "owner/repo"
+    repo: "owner/repo"
     priority: "Medium"
     size: "Medium"
     start_date: "2025-12-15"
@@ -134,7 +134,7 @@ update-project:
     status: "Done"
     campaign_id: "{{.CampaignID}}"
     worker_workflow: "WORKFLOW_ID"
-    repository: "owner/repo"
+    repo: "owner/repo"
     priority: "Medium"
     size: "Medium"
     start_date: "2025-12-15"
