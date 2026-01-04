@@ -159,3 +159,8 @@ trivy-results.sarif
 licenses.csv
 *.bck.yml
 actions/setup/js/test-*/
+
+# Test inline feature files
+test-inline-*.txt
+test-inline-*.md
+test-inline-*.lock.yml
