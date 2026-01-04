@@ -24,12 +24,10 @@ network:
 tools:
   web-fetch:
   github:
-    toolsets: [default]
+    toolsets: [default, actions]
   edit:
   bash:
     - "find .github/workflows -name '*.lock.yml' -type f"
-    - "gh run list --limit 1 --json conclusion,displayTitle,databaseId,url"
-    - "gh run view * --log"
     - "cat specs/ubuntulatest.md"
 
 safe-outputs:
@@ -62,16 +60,15 @@ Analyze the software, tools, and configurations available in the default GitHub 
 
 GitHub Actions runner logs include a reference to the "Included Software" documentation. Find this URL:
 
-1. **List recent workflow runs** to find a successful run:
-   ```bash
-   gh run list --repo ${{ github.repository }} --limit 10 --json conclusion,databaseId,displayTitle,url
-   ```
+1. **List recent workflow runs** to find a successful run using the GitHub MCP server:
+   - Use the `list_workflow_runs` tool from the `actions` toolset
+   - Filter for successful runs (conclusion: "success")
+   - Get the most recent run ID
 
 2. **Get the logs from a recent successful run**:
-   ```bash
-   # Use the databaseId from the first successful run
-   gh run view <run-id> --repo ${{ github.repository }} --log
-   ```
+   - Use the `get_job_logs` tool with the workflow run ID from step 1
+   - Set `failed_only: false` to get all job logs
+   - Request log content with `return_content: true`
 
 3. **Search the logs for "Included Software"**:
    - Look for a line like: `Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251215.174/images/ubuntu/Ubuntu2404-Readme.md`
@@ -85,6 +82,17 @@ https://github.com/actions/runner-images/blob/<branch>/<version>/images/ubuntu/U
 Example URLs:
 - Ubuntu 24.04: `https://github.com/actions/runner-images/blob/ubuntu24/20251215.174/images/ubuntu/Ubuntu2404-Readme.md`
 - Ubuntu 22.04: `https://github.com/actions/runner-images/blob/ubuntu22/20251215.174/images/ubuntu/Ubuntu2204-Readme.md`
+
+**Example MCP Tool Usage**:
+```
+# Step 1: List recent workflow runs
+list_workflow_runs(owner="githubnext", repo="gh-aw", workflow="ci.yml", per_page=10)
+
+# Step 2: Get logs for a specific run
+get_job_logs(owner="githubnext", repo="gh-aw", run_id=<run_id>, return_content=true, tail_lines=1000)
+
+# Step 3: Search the returned log content for "Included Software"
+```
 
 ### 2. Download Runner Image Documentation
 
