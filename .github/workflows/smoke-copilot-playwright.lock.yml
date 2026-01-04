@@ -944,7 +944,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -965,13 +965,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent_outputs
           path: |
@@ -1008,7 +1008,7 @@ jobs:
             const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');
             await main();
       - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: cache-memory
@@ -1030,7 +1030,7 @@ jobs:
         run: "echo \"📋 Collecting Playwright MCP logs...\"\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/playwright-debug-logs\n\n# Copy any playwright logs from the MCP logs directory\nif [ -d \"/tmp/gh-aw/mcp-logs/playwright\" ]; then\n  echo \"Found Playwright MCP logs directory\"\n  cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true\n  find /tmp/gh-aw/playwright-debug-logs/ -maxdepth 1 -ls\nelse\n  echo \"No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright\"\nfi\n\n# List all trace files if any\necho \"Looking for trace files...\"\nfind /tmp -name \"*.zip\" -o -name \"trace*\" 2>/dev/null | head -20 || true\n\n# Show docker container logs if any containers are still running\necho \"Checking for running Docker containers...\"\ndocker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\" 2>/dev/null || true\n"
       - if: always()
         name: Upload Playwright Debug Logs
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           if-no-files-found: ignore
           name: playwright-debug-logs-${{ github.run_id }}
@@ -1040,7 +1040,7 @@ jobs:
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent-artifacts
           path: |
@@ -1302,7 +1302,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log

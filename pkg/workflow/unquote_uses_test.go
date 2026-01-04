@@ -12,8 +12,8 @@ func TestUnquoteUsesWithComments(t *testing.T) {
 	}{
 		{
 			name:     "basic quoted uses with version comment",
-			input:    `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"`,
-			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5`,
+			input:    `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6"`,
+			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6`,
 		},
 		{
 			name:     "quoted uses with version comment and indentation",
@@ -22,19 +22,19 @@ func TestUnquoteUsesWithComments(t *testing.T) {
 		},
 		{
 			name: "multiple quoted uses on different lines",
-			input: `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
+			input: `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6"
   with:
     ref: main
   uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"`,
-			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6
   with:
     ref: main
   uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6`,
 		},
 		{
 			name:     "unquoted uses should not be modified",
-			input:    `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5`,
-			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5`,
+			input:    `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6`,
+			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6`,
 		},
 		{
 			name:     "quoted uses without version comment should not be modified",
@@ -60,29 +60,29 @@ with:
 		{
 			name: "complete step with quoted uses",
 			input: `- name: Checkout repository
-  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
+  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6"
   with:
     persist-credentials: false`,
 			expected: `- name: Checkout repository
-  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6
   with:
     persist-credentials: false`,
 		},
 		{
 			name:     "step with content after closing quote",
-			input:    `  uses: "actions/checkout@sha # v5"  # trailing comment`,
-			expected: `  uses: actions/checkout@sha # v5  # trailing comment`,
+			input:    `  uses: "actions/checkout@sha # v6"  # trailing comment`,
+			expected: `  uses: actions/checkout@sha # v6  # trailing comment`,
 		},
 		{
 			name: "multiple steps in YAML array format",
 			input: `steps:
 - name: Checkout
-  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
+  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6"
 - name: Setup Node
   uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"`,
 			expected: `steps:
 - name: Checkout
-  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6
 - name: Setup Node
   uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6`,
 		},
@@ -93,10 +93,10 @@ with:
 		},
 		{
 			name: "preserves empty lines",
-			input: `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
+			input: `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6"
 
   uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"`,
-			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6
 
   uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6`,
 		},
@@ -126,8 +126,8 @@ func TestUnquoteUsesWithCommentsEdgeCases(t *testing.T) {
 		},
 		{
 			name:     "line with hash but no closing quote (malformed)",
-			input:    `  uses: "actions/checkout@sha # v5`,
-			expected: `  uses: "actions/checkout@sha # v5`,
+			input:    `  uses: "actions/checkout@sha # v6`,
+			expected: `  uses: "actions/checkout@sha # v6`,
 		},
 		{
 			name:     "hash in action name not version comment",
@@ -136,8 +136,8 @@ func TestUnquoteUsesWithCommentsEdgeCases(t *testing.T) {
 		},
 		{
 			name:     "multiple quotes on same line (should handle first occurrence)",
-			input:    `  uses: "actions/checkout@sha # v5" and uses: "other/action@sha # v1"`,
-			expected: `  uses: actions/checkout@sha # v5 and uses: "other/action@sha # v1"`,
+			input:    `  uses: "actions/checkout@sha # v6" and uses: "other/action@sha # v1"`,
+			expected: `  uses: actions/checkout@sha # v6 and uses: "other/action@sha # v1"`,
 		},
 		{
 			name:     "no space before hash",
@@ -146,8 +146,8 @@ func TestUnquoteUsesWithCommentsEdgeCases(t *testing.T) {
 		},
 		{
 			name:     "hash in the middle without space (not a comment)",
-			input:    `  uses: "actions/checkout@sha#abc # v5"`,
-			expected: `  uses: actions/checkout@sha#abc # v5`,
+			input:    `  uses: "actions/checkout@sha#abc # v6"`,
+			expected: `  uses: actions/checkout@sha#abc # v6`,
 		},
 	}
 
@@ -172,7 +172,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
 			name: "real workflow from unbloat-docs",
 			input: `steps:
   - name: Checkout repository
-    uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
+    uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6"
     with:
       persist-credentials: false
   - name: Setup Node.js
@@ -183,7 +183,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
       node-version: "24"`,
 			expected: `steps:
   - name: Checkout repository
-    uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+    uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v6
     with:
       persist-credentials: false
   - name: Setup Node.js
@@ -198,7 +198,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
 			input: `post-steps:
   - if: always()
     name: Upload Test Results
-    uses: "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5"
+    uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6"
     with:
       if-no-files-found: ignore
       name: post-steps-test-results
@@ -207,7 +207,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
 			expected: `post-steps:
   - if: always()
     name: Upload Test Results
-    uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+    uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
     with:
       if-no-files-found: ignore
       name: post-steps-test-results
