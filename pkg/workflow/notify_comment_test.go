@@ -12,7 +12,7 @@ func TestConclusionJob(t *testing.T) {
 		name               string
 		addCommentConfig   bool
 		aiReaction         string
-		command            string
+		command            []string
 		safeOutputJobNames []string
 		expectJob          bool
 		expectConditions   []string
@@ -22,7 +22,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job created when add-comment and ai-reaction are configured",
 			addCommentConfig:   true,
 			aiReaction:         "eyes",
-			command:            "",
+			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -36,7 +36,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job depends on all safe output jobs",
 			addCommentConfig:   true,
 			aiReaction:         "eyes",
-			command:            "",
+			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -50,7 +50,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job not created when add-comment is not configured",
 			addCommentConfig:   false,
 			aiReaction:         "",
-			command:            "",
+			command:            nil,
 			safeOutputJobNames: []string{},
 			expectJob:          false,
 		},
@@ -58,7 +58,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job created when add-comment is configured but ai-reaction is not",
 			addCommentConfig:   true,
 			aiReaction:         "",
-			command:            "",
+			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -72,7 +72,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job created when reaction is explicitly set to none",
 			addCommentConfig:   true,
 			aiReaction:         "none",
-			command:            "",
+			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -86,7 +86,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job created when command and reaction are configured (no add-comment)",
 			addCommentConfig:   false,
 			aiReaction:         "eyes",
-			command:            "test-command",
+			command:            []string{"test-command"},
 			safeOutputJobNames: []string{"missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -99,7 +99,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job created when command is configured with push-to-pull-request-branch",
 			addCommentConfig:   false,
 			aiReaction:         "eyes",
-			command:            "mergefest",
+			command:            []string{"mergefest"},
 			safeOutputJobNames: []string{"push_to_pull_request_branch", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -112,7 +112,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job created when command is configured but reaction is none",
 			addCommentConfig:   false,
 			aiReaction:         "none",
-			command:            "test-command",
+			command:            []string{"test-command"},
 			safeOutputJobNames: []string{"missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -125,7 +125,7 @@ func TestConclusionJob(t *testing.T) {
 			name:               "conclusion job depends on custom safe-jobs",
 			addCommentConfig:   true,
 			aiReaction:         "eyes",
-			command:            "",
+			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "my_custom_job", "another_custom_safe_job"},
 			expectJob:          true,
 			expectConditions: []string{

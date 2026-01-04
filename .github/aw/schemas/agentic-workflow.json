@@ -165,10 +165,25 @@
                   "description": "Command configuration object with custom command name",
                   "properties": {
                     "name": {
-                      "type": "string",
-                      "minLength": 1,
-                      "pattern": "^[^/]",
-                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "pattern": "^[^/]",
+                          "description": "Single command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of command names that trigger this workflow (e.g., ['cmd.add', 'cmd.remove'] for '/cmd.add' and '/cmd.remove' triggers). Each command name must not start with '/'.",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[^/]",
+                            "description": "Command name without leading slash"
+                          }
+                        }
+                      ]
                     },
                     "events": {
                       "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
@@ -213,10 +228,25 @@
                   "description": "Command configuration object with custom command name",
                   "properties": {
                     "name": {
-                      "type": "string",
-                      "minLength": 1,
-                      "pattern": "^[^/]",
-                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "pattern": "^[^/]",
+                          "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of command names that trigger this workflow (e.g., ['cmd.add', 'cmd.remove'] for '/cmd.add' and '/cmd.remove' triggers). Each command name must not start with '/'.",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[^/]",
+                            "description": "Command name without leading slash"
+                          }
+                        }
+                      ]
                     },
                     "events": {
                       "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
@@ -5193,15 +5223,19 @@
             },
             "script": {
               "type": "string",
-              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run' or 'py'."
+              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run', 'py', or 'go'."
             },
             "run": {
               "type": "string",
-              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script' or 'py'."
+              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script', 'py', or 'go'."
             },
             "py": {
               "type": "string",
-              "description": "Python script implementation. The script receives input parameters as environment variables (INPUT_* prefix, uppercased). Cannot be used together with 'script' or 'run'."
+              "description": "Python script implementation. The script receives input parameters as environment variables (INPUT_* prefix, uppercased). Cannot be used together with 'script', 'run', or 'go'."
+            },
+            "go": {
+              "type": "string",
+              "description": "Go script implementation. The script is executed using 'go run' and receives input parameters as JSON via stdin. Cannot be used together with 'script', 'run', or 'py'."
             },
             "env": {
               "type": "object",
@@ -5235,6 +5269,9 @@
                   },
                   {
                     "required": ["py"]
+                  },
+                  {
+                    "required": ["go"]
                   }
                 ]
               }
@@ -5248,6 +5285,9 @@
                   },
                   {
                     "required": ["py"]
+                  },
+                  {
+                    "required": ["go"]
                   }
                 ]
               }
@@ -5261,6 +5301,25 @@
                   },
                   {
                     "required": ["run"]
+                  },
+                  {
+                    "required": ["go"]
+                  }
+                ]
+              }
+            },
+            {
+              "required": ["go"],
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["script"]
+                  },
+                  {
+                    "required": ["run"]
+                  },
+                  {
+                    "required": ["py"]
                   }
                 ]
               }

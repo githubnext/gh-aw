@@ -74,7 +74,7 @@ func TestBuildPreActivationJobWithPermissionCheck(t *testing.T) {
 
 	workflowData := &WorkflowData{
 		Name:    "Test Workflow",
-		Command: "/test",
+		Command: []string{"test"},
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{},
 		},
