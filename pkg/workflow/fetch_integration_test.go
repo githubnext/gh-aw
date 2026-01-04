@@ -137,6 +137,68 @@ Fetch content from the web.
 	}
 }
 
+// TestWebFetchNotAddedForCopilotEngine tests that when a Copilot workflow uses web-fetch,
+// the web-fetch MCP server is NOT added (because Copilot has native support)
+func TestWebFetchNotAddedForCopilotEngine(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Create a test workflow that uses web-fetch with Copilot engine (which supports web-fetch natively)
+	workflowContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+tools:
+  web-fetch:
+---
+
+# Test Workflow
+
+Fetch content from the web.
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	// Create a compiler
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	err := compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockData, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	// Verify that the compiled workflow does NOT contain the web-fetch MCP server configuration
+	lockContent := string(lockData)
+
+	// Check that web-fetch is NOT configured as an MCP server (no mcp_servers configuration)
+	if strings.Contains(lockContent, `[mcp_servers."web-fetch"]`) {
+		t.Errorf("Expected Copilot workflow NOT to contain web-fetch MCP server (since Copilot has native web-fetch support), but it did")
+	}
+
+	// Also check for JSON format MCP server config (though Copilot doesn't use JSON for MCP config)
+	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"command": "docker"`) {
+		dockerIdx := strings.Index(lockContent, `"command": "docker"`)
+		webFetchIdx := strings.Index(lockContent, `"web-fetch": {`)
+		if dockerIdx > 0 && webFetchIdx > 0 && dockerIdx-webFetchIdx < 200 {
+			t.Errorf("Expected Copilot workflow NOT to contain web-fetch MCP server, but it did")
+		}
+	}
+}
+
 // TestNoWebFetchNoMCPFetchServer tests that when a workflow doesn't use web-fetch,
 // the web-fetch MCP server is not added
 func TestNoWebFetchNoMCPFetchServer(t *testing.T) {

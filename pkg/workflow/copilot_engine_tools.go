@@ -87,10 +87,10 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	// Built-in tool names that should be skipped when processing MCP servers
 	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
-	// Note: web-fetch is NOT included here because it may be an MCP server for engines without native support
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
+		"web-fetch":  true, // Copilot CLI has built-in web-fetch support
 		"web-search": true,
 		"playwright": true,
 	}

@@ -214,7 +214,7 @@ func TestEngineSupportsWebFetch(t *testing.T) {
 	}{
 		{"claude", true},
 		{"codex", false},
-		{"copilot", false},
+		{"copilot", true}, // Copilot now supports web-fetch
 		{"custom", false},
 	}
 
