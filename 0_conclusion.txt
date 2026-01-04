@@ -1,0 +1,321 @@
+﻿2026-01-04T16:43:38.8180040Z Current runner version: '2.330.0'
+2026-01-04T16:43:38.8223622Z ##[group]Runner Image Provisioner
+2026-01-04T16:43:38.8224385Z Hosted Compute Agent
+2026-01-04T16:43:38.8224867Z Version: 20251211.462
+2026-01-04T16:43:38.8225459Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-04T16:43:38.8226137Z Build Date: 2025-12-11T16:28:49Z
+2026-01-04T16:43:38.8226734Z Worker ID: {a187278b-6b78-48e9-a9d9-eb40d51c6b40}
+2026-01-04T16:43:38.8227599Z ##[endgroup]
+2026-01-04T16:43:38.8240024Z ##[group]VM Image
+2026-01-04T16:43:38.8240579Z - OS: Linux (x64)
+2026-01-04T16:43:38.8241140Z - Source: Docker
+2026-01-04T16:43:38.8241630Z - Name: ubuntu:24.04
+2026-01-04T16:43:38.8242090Z - Version: 20251212.32.1
+2026-01-04T16:43:38.8242632Z ##[endgroup]
+2026-01-04T16:43:38.8243859Z ##[group]GITHUB_TOKEN Permissions
+2026-01-04T16:43:38.8246022Z Contents: read
+2026-01-04T16:43:38.8246541Z Discussions: write
+2026-01-04T16:43:38.8247026Z Issues: write
+2026-01-04T16:43:38.8247506Z Metadata: read
+2026-01-04T16:43:38.8248104Z PullRequests: write
+2026-01-04T16:43:38.8248656Z ##[endgroup]
+2026-01-04T16:43:38.8261374Z Secret source: Actions
+2026-01-04T16:43:38.8262147Z Prepare workflow directory
+2026-01-04T16:43:38.8985582Z Prepare all required actions
+2026-01-04T16:43:38.9063908Z Getting action download info
+2026-01-04T16:43:39.3010591Z Download action repository 'actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd' (SHA:93cb6efe18208431cddfb8368fd83d5badbf9bfd)
+2026-01-04T16:43:39.4837522Z Download action repository 'actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53' (SHA:018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+2026-01-04T16:43:39.7912413Z Download action repository 'actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd' (SHA:ed597411d8f924073f98dfc5c65a23a2325f34cd)
+2026-01-04T16:43:40.0731089Z Complete job name: conclusion
+2026-01-04T16:43:40.1445200Z ##[group]Run actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+2026-01-04T16:43:40.1447499Z with:
+2026-01-04T16:43:40.1448341Z   sparse-checkout: actions
+
+2026-01-04T16:43:40.1451910Z   persist-credentials: false
+2026-01-04T16:43:40.1456224Z   repository: githubnext/gh-aw
+2026-01-04T16:43:40.1456930Z   token: ***
+2026-01-04T16:43:40.1457305Z   ssh-strict: true
+2026-01-04T16:43:40.1457680Z   ssh-user: git
+2026-01-04T16:43:40.1458039Z   clean: true
+2026-01-04T16:43:40.1458413Z   sparse-checkout-cone-mode: true
+2026-01-04T16:43:40.1458880Z   fetch-depth: 1
+2026-01-04T16:43:40.1460162Z   fetch-tags: false
+2026-01-04T16:43:40.1460569Z   show-progress: true
+2026-01-04T16:43:40.1460968Z   lfs: false
+2026-01-04T16:43:40.1462591Z   submodules: false
+2026-01-04T16:43:40.1463055Z   set-safe-directory: true
+2026-01-04T16:43:40.1467334Z ##[endgroup]
+2026-01-04T16:43:40.5786579Z Syncing repository: githubnext/gh-aw
+2026-01-04T16:43:40.5788205Z ##[group]Getting Git version info
+2026-01-04T16:43:40.5815155Z Working directory is '/home/runner/work/gh-aw/gh-aw'
+2026-01-04T16:43:40.5816192Z [command]/usr/bin/git version
+2026-01-04T16:43:41.2384322Z git version 2.52.0
+2026-01-04T16:43:41.5316372Z ##[endgroup]
+2026-01-04T16:43:41.5321321Z Temporarily overriding HOME='/home/runner/work/_temp/b3a73720-b87d-4b7a-b241-f331df5b87de' before making global git config changes
+2026-01-04T16:43:41.5322614Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-04T16:43:41.5323613Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/gh-aw/gh-aw
+2026-01-04T16:43:41.5325125Z Deleting the contents of '/home/runner/work/gh-aw/gh-aw'
+2026-01-04T16:43:41.5326017Z ##[group]Initializing the repository
+2026-01-04T16:43:41.5326585Z [command]/usr/bin/git init /home/runner/work/gh-aw/gh-aw
+2026-01-04T16:43:41.5327344Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-01-04T16:43:41.5328205Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-01-04T16:43:41.5329046Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-01-04T16:43:41.5330134Z hint: call:
+2026-01-04T16:43:41.5330724Z hint:
+2026-01-04T16:43:41.5331167Z hint: 	git config --global init.defaultBranch <name>
+2026-01-04T16:43:41.5331705Z hint:
+2026-01-04T16:43:41.5332250Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-01-04T16:43:41.5333100Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-01-04T16:43:41.5333766Z hint:
+2026-01-04T16:43:41.5334438Z hint: 	git branch -m <name>
+2026-01-04T16:43:41.5334872Z hint:
+2026-01-04T16:43:41.5335672Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-01-04T16:43:41.5337001Z Initialized empty Git repository in /home/runner/work/gh-aw/gh-aw/.git/
+2026-01-04T16:43:41.5338815Z [command]/usr/bin/git remote add origin https://github.com/githubnext/gh-aw
+2026-01-04T16:43:41.5342741Z ##[endgroup]
+2026-01-04T16:43:41.5343449Z ##[group]Disabling automatic garbage collection
+2026-01-04T16:43:41.5344061Z [command]/usr/bin/git config --local gc.auto 0
+2026-01-04T16:43:41.5345258Z ##[endgroup]
+2026-01-04T16:43:41.5345850Z ##[group]Setting up auth
+2026-01-04T16:43:41.5346482Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-04T16:43:41.5348338Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-04T16:43:41.5350949Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-04T16:43:41.5353169Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-04T16:43:41.5356517Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-04T16:43:41.5359048Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-04T16:43:41.5361549Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-01-04T16:43:41.5363043Z ##[endgroup]
+2026-01-04T16:43:41.5363651Z ##[group]Fetching the repository
+2026-01-04T16:43:41.5364964Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +24292594efd7f320d9db080d85ce23cf584008f4:refs/remotes/origin/main
+2026-01-04T16:43:41.5366315Z From https://github.com/githubnext/gh-aw
+2026-01-04T16:43:41.5366967Z  * [new ref]         24292594efd7f320d9db080d85ce23cf584008f4 -> origin/main
+2026-01-04T16:43:41.5368258Z ##[endgroup]
+2026-01-04T16:43:41.5368863Z ##[group]Determining the checkout info
+2026-01-04T16:43:41.5369787Z ##[endgroup]
+2026-01-04T16:43:41.5370412Z ##[group]Setting up sparse checkout
+2026-01-04T16:43:41.5370957Z [command]/usr/bin/git sparse-checkout set actions
+2026-01-04T16:43:41.5372160Z ##[endgroup]
+2026-01-04T16:43:41.5372751Z ##[group]Checking out the ref
+2026-01-04T16:43:41.5373434Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-01-04T16:43:41.5374156Z Switched to a new branch 'main'
+2026-01-04T16:43:41.5374647Z branch 'main' set up to track 'origin/main'.
+2026-01-04T16:43:41.5375826Z ##[endgroup]
+2026-01-04T16:43:41.5376672Z [command]/usr/bin/git log -1 --format=%H
+2026-01-04T16:43:41.5377180Z 24292594efd7f320d9db080d85ce23cf584008f4
+2026-01-04T16:43:41.5379559Z ##[group]Removing auth
+2026-01-04T16:43:41.5380249Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-04T16:43:41.5382149Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-04T16:43:41.5384411Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-04T16:43:41.5385268Z http.https://github.com/.extraheader
+2026-01-04T16:43:41.5386648Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-01-04T16:43:41.5388731Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-04T16:43:41.5391022Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-04T16:43:41.5392778Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-04T16:43:41.5394386Z ##[endgroup]
+2026-01-04T16:43:41.5573286Z Prepare all required actions
+2026-01-04T16:43:41.5621302Z ##[group]Run ./actions/setup
+2026-01-04T16:43:41.5621746Z with:
+2026-01-04T16:43:41.5622101Z   destination: /tmp/gh-aw/actions
+2026-01-04T16:43:41.5622557Z ##[endgroup]
+2026-01-04T16:43:41.5798267Z ##[group]Run /home/runner/work/gh-aw/gh-aw/./actions/setup/setup.sh
+2026-01-04T16:43:41.5799128Z [36;1m/home/runner/work/gh-aw/gh-aw/./actions/setup/setup.sh[0m
+2026-01-04T16:43:41.5807735Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-01-04T16:43:41.5808553Z env:
+2026-01-04T16:43:41.5808919Z   INPUT_DESTINATION: /tmp/gh-aw/actions
+2026-01-04T16:43:41.5809718Z ##[endgroup]
+2026-01-04T16:43:42.1113986Z ##[notice]Copying activation files to /tmp/gh-aw/actions
+2026-01-04T16:43:42.1117750Z ##[notice]Created directory: /tmp/gh-aw/actions
+2026-01-04T16:43:42.1119087Z total 60
+2026-01-04T16:43:42.1119858Z drwxr-xr-x 6 runner runner  4096 Jan  4 16:43 .
+2026-01-04T16:43:42.1120474Z drwxr-xr-x 3 runner runner  4096 Jan  4 16:43 ..
+2026-01-04T16:43:42.1121059Z -rw-r--r-- 1 runner runner  3435 Jan  4 16:43 README.md
+2026-01-04T16:43:42.1121674Z -rw-r--r-- 1 runner runner   597 Jan  4 16:43 action.yml
+2026-01-04T16:43:42.1122268Z drwxr-xr-x 3 runner runner 20480 Jan  4 16:43 js
+2026-01-04T16:43:42.1122833Z drwxr-xr-x 2 runner runner  4096 Jan  4 16:43 md
+2026-01-04T16:43:42.1123423Z -rwxr-xr-x 1 runner runner  8841 Jan  4 16:43 setup.sh
+2026-01-04T16:43:42.1123993Z drwxr-xr-x 2 runner runner  4096 Jan  4 16:43 sh
+2026-01-04T16:43:42.1124556Z drwxr-xr-x 2 runner runner  4096 Jan  4 16:43 src
+2026-01-04T16:43:42.1125336Z add_comment.cjs
+2026-01-04T16:43:42.1125702Z add_comment.test.cjs
+2026-01-04T16:43:42.1126094Z add_copilot_reviewer.cjs
+2026-01-04T16:43:42.1126532Z add_copilot_reviewer.test.cjs
+2026-01-04T16:43:42.1126962Z add_labels.cjs
+2026-01-04T16:43:42.1127339Z add_reaction_and_edit_comment.cjs
+2026-01-04T16:43:42.1127828Z add_reaction_and_edit_comment.test.cjs
+2026-01-04T16:43:42.1128303Z add_reviewer.cjs
+2026-01-04T16:43:42.1128684Z add_reviewer.test.cjs
+2026-01-04T16:43:42.1129078Z assign_agent_helpers.cjs
+2026-01-04T16:43:42.1130703Z ##[notice]Found 266 files in /home/runner/work/gh-aw/gh-aw/actions/setup/js
+2026-01-04T16:43:42.1388891Z ##[notice]Successfully copied 276 files to /tmp/gh-aw/actions
+2026-01-04T16:43:42.1390564Z ##[notice]Copying prompt markdown files to /tmp/gh-aw/prompts
+2026-01-04T16:43:42.1394949Z ##[notice]Successfully copied 5 prompt files to /tmp/gh-aw/prompts
+2026-01-04T16:43:42.1396402Z ##[notice]Copying safe-inputs files to /tmp/gh-aw/safe-inputs
+2026-01-04T16:43:42.1401794Z ##[notice]Successfully copied 16 safe-inputs files to /tmp/gh-aw/safe-inputs
+2026-01-04T16:43:42.1403288Z ##[notice]Copying safe-outputs files to /tmp/gh-aw/safeoutputs
+2026-01-04T16:43:42.1411464Z ##[notice]Successfully copied 29 safe-outputs files to /tmp/gh-aw/safeoutputs
+2026-01-04T16:43:42.1625198Z ##[group]Run echo "Comment ID: $COMMENT_ID"
+2026-01-04T16:43:42.1625781Z [36;1mecho "Comment ID: $COMMENT_ID"[0m
+2026-01-04T16:43:42.1626288Z [36;1mecho "Comment Repo: $COMMENT_REPO"[0m
+2026-01-04T16:43:42.1626867Z [36;1mecho "Agent Output Types: $AGENT_OUTPUT_TYPES"[0m
+2026-01-04T16:43:42.1627471Z [36;1mecho "Agent Conclusion: $AGENT_CONCLUSION"[0m
+2026-01-04T16:43:42.1633004Z shell: /usr/bin/bash -e {0}
+2026-01-04T16:43:42.1633437Z env:
+2026-01-04T16:43:42.1633917Z   COMMENT_ID: 
+2026-01-04T16:43:42.1634266Z   COMMENT_REPO: 
+2026-01-04T16:43:42.1634662Z   AGENT_OUTPUT_TYPES: update_project,noop
+2026-01-04T16:43:42.1635160Z   AGENT_CONCLUSION: success
+2026-01-04T16:43:42.1635560Z ##[endgroup]
+2026-01-04T16:43:42.1661545Z Comment ID: 
+2026-01-04T16:43:42.1664173Z Comment Repo: 
+2026-01-04T16:43:42.1666680Z Agent Output Types: update_project,noop
+2026-01-04T16:43:42.1669796Z Agent Conclusion: success
+2026-01-04T16:43:42.1743561Z ##[group]Run actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+2026-01-04T16:43:42.1744289Z with:
+2026-01-04T16:43:42.1744626Z   name: agent-output
+2026-01-04T16:43:42.1745038Z   path: /tmp/gh-aw/safeoutputs/
+2026-01-04T16:43:42.1745488Z   merge-multiple: false
+2026-01-04T16:43:42.1745905Z   repository: githubnext/gh-aw
+2026-01-04T16:43:42.1746333Z   run-id: 20695862933
+2026-01-04T16:43:42.1746710Z ##[endgroup]
+2026-01-04T16:43:42.5386199Z Downloading single artifact
+2026-01-04T16:43:42.6505976Z Preparing to download the following artifacts:
+2026-01-04T16:43:42.6510040Z - agent-output (ID: 5018293537, Size: 598, Expected Digest: sha256:aa0ba775af1f35aae6dba9808ae926273ff6519a2c70299626d10a7dea81c07b)
+2026-01-04T16:43:42.7306488Z Redirecting to blob download url: https://productionresultssa17.blob.core.windows.net/actions-results/4b4882e1-18c3-4f85-a46d-649c0dce963e/workflow-job-run-088297ec-7ca8-5f58-b1d0-c72edfe3d33a/artifacts/5feb6d3ffed3baf4352cf0f03dcabdcad81892c86a67977bf8e6087a64894dee.zip
+2026-01-04T16:43:42.7311281Z Starting download of artifact to: /tmp/gh-aw/safeoutputs
+2026-01-04T16:43:42.7763921Z (node:971) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-01-04T16:43:42.7765668Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-01-04T16:43:42.7816398Z SHA256 digest of downloaded artifact is aa0ba775af1f35aae6dba9808ae926273ff6519a2c70299626d10a7dea81c07b
+2026-01-04T16:43:42.7820797Z Artifact download completed successfully.
+2026-01-04T16:43:42.7824093Z Total of 1 artifact(s) downloaded
+2026-01-04T16:43:42.7833206Z Download artifact has finished successfully
+2026-01-04T16:43:42.7931397Z ##[group]Run mkdir -p /tmp/gh-aw/safeoutputs/
+2026-01-04T16:43:42.7932029Z [36;1mmkdir -p /tmp/gh-aw/safeoutputs/[0m
+2026-01-04T16:43:42.7932625Z [36;1mfind "/tmp/gh-aw/safeoutputs/" -type f -print[0m
+2026-01-04T16:43:42.7933471Z [36;1mecho "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"[0m
+2026-01-04T16:43:42.7938107Z shell: /usr/bin/bash -e {0}
+2026-01-04T16:43:42.7938557Z ##[endgroup]
+2026-01-04T16:43:42.7992871Z /tmp/gh-aw/safeoutputs/mcp_handler_python.cjs
+2026-01-04T16:43:42.7993717Z /tmp/gh-aw/safeoutputs/agent_output.json
+2026-01-04T16:43:42.8023551Z /tmp/gh-aw/safeoutputs/setup_globals.cjs
+2026-01-04T16:43:42.8024171Z /tmp/gh-aw/safeoutputs/normalize_branch_name.cjs
+2026-01-04T16:43:42.8024963Z /tmp/gh-aw/safeoutputs/estimate_tokens.cjs
+2026-01-04T16:43:42.8025553Z /tmp/gh-aw/safeoutputs/safe_outputs_handlers.cjs
+2026-01-04T16:43:42.8026151Z /tmp/gh-aw/safeoutputs/safe_outputs_append.cjs
+2026-01-04T16:43:42.8026761Z /tmp/gh-aw/safeoutputs/generate_compact_schema.cjs
+2026-01-04T16:43:42.8027342Z /tmp/gh-aw/safeoutputs/get_current_branch.cjs
+2026-01-04T16:43:42.8027906Z /tmp/gh-aw/safeoutputs/messages_run_status.cjs
+2026-01-04T16:43:42.8028473Z /tmp/gh-aw/safeoutputs/generate_git_patch.cjs
+2026-01-04T16:43:42.8029044Z /tmp/gh-aw/safeoutputs/safe_inputs_validation.cjs
+2026-01-04T16:43:42.8031825Z /tmp/gh-aw/safeoutputs/mcp_logger.cjs
+2026-01-04T16:43:42.8032400Z /tmp/gh-aw/safeoutputs/write_large_content_to_file.cjs
+2026-01-04T16:43:42.8032978Z /tmp/gh-aw/safeoutputs/get_base_branch.cjs
+2026-01-04T16:43:42.8033506Z /tmp/gh-aw/safeoutputs/messages_footer.cjs
+2026-01-04T16:43:42.8034037Z /tmp/gh-aw/safeoutputs/read_buffer.cjs
+2026-01-04T16:43:42.8034541Z /tmp/gh-aw/safeoutputs/mcp_server_core.cjs
+2026-01-04T16:43:42.8035106Z /tmp/gh-aw/safeoutputs/safe_outputs_bootstrap.cjs
+2026-01-04T16:43:42.8035837Z /tmp/gh-aw/safeoutputs/error_helpers.cjs
+2026-01-04T16:43:42.8036409Z /tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs
+2026-01-04T16:43:42.8036991Z /tmp/gh-aw/safeoutputs/mcp_handler_shell.cjs
+2026-01-04T16:43:42.8037534Z /tmp/gh-aw/safeoutputs/mcp-server.cjs
+2026-01-04T16:43:42.8038050Z /tmp/gh-aw/safeoutputs/messages_core.cjs
+2026-01-04T16:43:42.8038577Z /tmp/gh-aw/safeoutputs/messages_staged.cjs
+2026-01-04T16:43:42.8039129Z /tmp/gh-aw/safeoutputs/mcp_enhanced_errors.cjs
+2026-01-04T16:43:42.8039992Z /tmp/gh-aw/safeoutputs/messages.cjs
+2026-01-04T16:43:42.8040534Z /tmp/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs
+2026-01-04T16:43:42.8041168Z /tmp/gh-aw/safeoutputs/messages_close_discussion.cjs
+2026-01-04T16:43:42.8041783Z /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs
+2026-01-04T16:43:42.8131976Z ##[group]Run actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+2026-01-04T16:43:42.8132694Z with:
+2026-01-04T16:43:42.8133284Z   github-token: ***
+2026-01-04T16:43:42.8134515Z   script: const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io);
+const { main } = require('/tmp/gh-aw/actions/noop.cjs');
+await main();
+
+2026-01-04T16:43:42.8135828Z   debug: false
+2026-01-04T16:43:42.8136221Z   user-agent: actions/github-script
+2026-01-04T16:43:42.8136696Z   result-encoding: json
+2026-01-04T16:43:42.8137093Z   retries: 0
+2026-01-04T16:43:42.8137507Z   retry-exempt-status-codes: 400,401,403,404,422
+2026-01-04T16:43:42.8138021Z env:
+2026-01-04T16:43:42.8138472Z   GH_AW_AGENT_OUTPUT: /tmp/gh-aw/safeoutputs/agent_output.json
+2026-01-04T16:43:42.8139063Z   GH_AW_NOOP_MAX: 1
+2026-01-04T16:43:42.8139921Z   GH_AW_WORKFLOW_NAME: Campaign: File Size Reduction (Project 71)
+2026-01-04T16:43:42.8140529Z ##[endgroup]
+2026-01-04T16:43:42.8934356Z Agent output content length: 4150
+2026-01-04T16:43:42.8935007Z Found 1 noop item(s)
+2026-01-04T16:43:42.8935984Z No-op message 1: Campaign orchestration complete - processed 10 items, deferred 13 for next run
+2026-01-04T16:43:42.8937141Z Successfully processed 1 noop message(s)
+2026-01-04T16:43:42.9041699Z ##[group]Run actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+2026-01-04T16:43:42.9042397Z with:
+2026-01-04T16:43:42.9042976Z   github-token: ***
+2026-01-04T16:43:42.9044243Z   script: const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io);
+const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
+await main();
+
+2026-01-04T16:43:42.9045576Z   debug: false
+2026-01-04T16:43:42.9045966Z   user-agent: actions/github-script
+2026-01-04T16:43:42.9046451Z   result-encoding: json
+2026-01-04T16:43:42.9048127Z   retries: 0
+2026-01-04T16:43:42.9048623Z   retry-exempt-status-codes: 400,401,403,404,422
+2026-01-04T16:43:42.9049144Z env:
+2026-01-04T16:43:42.9049965Z   GH_AW_AGENT_OUTPUT: /tmp/gh-aw/safeoutputs/agent_output.json
+2026-01-04T16:43:42.9050904Z   GH_AW_NOOP_MESSAGE: Campaign orchestration complete - processed 10 items, deferred 13 for next run
+2026-01-04T16:43:42.9051886Z   GH_AW_WORKFLOW_NAME: Campaign: File Size Reduction (Project 71)
+2026-01-04T16:43:42.9052490Z ##[endgroup]
+2026-01-04T16:43:42.9896327Z Processing missing-tool reports...
+2026-01-04T16:43:42.9898123Z Agent output length: 4150
+2026-01-04T16:43:42.9898716Z Parsed agent output with 11 entries
+2026-01-04T16:43:42.9899800Z Total missing tools reported: 0
+2026-01-04T16:43:42.9900478Z No missing tools reported in this workflow execution.
+2026-01-04T16:43:43.0004260Z ##[group]Run actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+2026-01-04T16:43:43.0005014Z with:
+2026-01-04T16:43:43.0005611Z   github-token: ***
+2026-01-04T16:43:43.0006924Z   script: const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io);
+const { main } = require('/tmp/gh-aw/actions/notify_comment_error.cjs');
+await main();
+
+2026-01-04T16:43:43.0008313Z   debug: false
+2026-01-04T16:43:43.0008870Z   user-agent: actions/github-script
+2026-01-04T16:43:43.0009665Z   result-encoding: json
+2026-01-04T16:43:43.0010090Z   retries: 0
+2026-01-04T16:43:43.0010515Z   retry-exempt-status-codes: 400,401,403,404,422
+2026-01-04T16:43:43.0011034Z env:
+2026-01-04T16:43:43.0011502Z   GH_AW_AGENT_OUTPUT: /tmp/gh-aw/safeoutputs/agent_output.json
+2026-01-04T16:43:43.0012432Z   GH_AW_NOOP_MESSAGE: Campaign orchestration complete - processed 10 items, deferred 13 for next run
+2026-01-04T16:43:43.0013262Z   GH_AW_COMMENT_ID: 
+2026-01-04T16:43:43.0013651Z   GH_AW_COMMENT_REPO: 
+2026-01-04T16:43:43.0014248Z   GH_AW_RUN_URL: https://github.com/githubnext/gh-aw/actions/runs/20695862933
+2026-01-04T16:43:43.0015047Z   GH_AW_WORKFLOW_NAME: Campaign: File Size Reduction (Project 71)
+2026-01-04T16:43:43.0015670Z   GH_AW_AGENT_CONCLUSION: success
+2026-01-04T16:43:43.0016143Z   GH_AW_DETECTION_CONCLUSION: failure
+2026-01-04T16:43:43.0016608Z ##[endgroup]
+2026-01-04T16:43:43.0898552Z Comment ID: 
+2026-01-04T16:43:43.0901365Z Comment Repo: 
+2026-01-04T16:43:43.0902063Z Run URL: https://github.com/githubnext/gh-aw/actions/runs/20695862933
+2026-01-04T16:43:43.0902884Z Workflow Name: Campaign: File Size Reduction (Project 71)
+2026-01-04T16:43:43.0903536Z Agent Conclusion: success
+2026-01-04T16:43:43.0904036Z Detection Conclusion: failure
+2026-01-04T16:43:43.0904576Z Agent output content length: 4150
+2026-01-04T16:43:43.0905093Z Found 1 noop message(s)
+2026-01-04T16:43:43.0905666Z No comment ID found, writing noop messages to step summary
+2026-01-04T16:43:43.0906395Z Successfully wrote 1 noop message(s) to step summary
+2026-01-04T16:43:43.1018795Z Post job cleanup.
+2026-01-04T16:43:43.2829959Z [command]/usr/bin/git version
+2026-01-04T16:43:43.2830484Z git version 2.52.0
+2026-01-04T16:43:43.2832987Z Temporarily overriding HOME='/home/runner/work/_temp/05838a7e-6a16-48da-9f1b-fb3f434f3df7' before making global git config changes
+2026-01-04T16:43:43.2834260Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-04T16:43:43.2835260Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/gh-aw/gh-aw
+2026-01-04T16:43:43.2836727Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-04T16:43:43.2838611Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-04T16:43:43.2843269Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-04T16:43:43.2845627Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-04T16:43:43.2847713Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-04T16:43:43.2849635Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-04T16:43:43.2899911Z Evaluate and set job outputs
+2026-01-04T16:43:43.2906786Z Set output 'noop_message'
+2026-01-04T16:43:43.2908689Z Set output 'tools_reported'
+2026-01-04T16:43:43.2909921Z Set output 'total_count'
+2026-01-04T16:43:43.2910939Z Cleaning up orphan processes

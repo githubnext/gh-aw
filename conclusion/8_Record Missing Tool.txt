@@ -1,0 +1,23 @@
+﻿2026-01-04T16:43:42.9041682Z ##[group]Run actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+2026-01-04T16:43:42.9042393Z with:
+2026-01-04T16:43:42.9042961Z   github-token: ***
+2026-01-04T16:43:42.9044228Z   script: const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io);
+const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
+await main();
+
+2026-01-04T16:43:42.9045573Z   debug: false
+2026-01-04T16:43:42.9045963Z   user-agent: actions/github-script
+2026-01-04T16:43:42.9046448Z   result-encoding: json
+2026-01-04T16:43:42.9048107Z   retries: 0
+2026-01-04T16:43:42.9048620Z   retry-exempt-status-codes: 400,401,403,404,422
+2026-01-04T16:43:42.9049141Z env:
+2026-01-04T16:43:42.9049959Z   GH_AW_AGENT_OUTPUT: /tmp/gh-aw/safeoutputs/agent_output.json
+2026-01-04T16:43:42.9050901Z   GH_AW_NOOP_MESSAGE: Campaign orchestration complete - processed 10 items, deferred 13 for next run
+2026-01-04T16:43:42.9051862Z   GH_AW_WORKFLOW_NAME: Campaign: File Size Reduction (Project 71)
+2026-01-04T16:43:42.9052487Z ##[endgroup]
+2026-01-04T16:43:42.9896291Z Processing missing-tool reports...
+2026-01-04T16:43:42.9898110Z Agent output length: 4150
+2026-01-04T16:43:42.9898712Z Parsed agent output with 11 entries
+2026-01-04T16:43:42.9899787Z Total missing tools reported: 0
+2026-01-04T16:43:42.9900473Z No missing tools reported in this workflow execution.

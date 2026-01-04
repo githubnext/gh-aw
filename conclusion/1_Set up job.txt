@@ -1,0 +1,29 @@
+﻿2026-01-04T16:43:38.8168773Z Current runner version: '2.330.0'
+2026-01-04T16:43:38.8223595Z ##[group]Runner Image Provisioner
+2026-01-04T16:43:38.8224380Z Hosted Compute Agent
+2026-01-04T16:43:38.8224864Z Version: 20251211.462
+2026-01-04T16:43:38.8225456Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-04T16:43:38.8226133Z Build Date: 2025-12-11T16:28:49Z
+2026-01-04T16:43:38.8226731Z Worker ID: {a187278b-6b78-48e9-a9d9-eb40d51c6b40}
+2026-01-04T16:43:38.8227595Z ##[endgroup]
+2026-01-04T16:43:38.8240001Z ##[group]VM Image
+2026-01-04T16:43:38.8240575Z - OS: Linux (x64)
+2026-01-04T16:43:38.8241137Z - Source: Docker
+2026-01-04T16:43:38.8241626Z - Name: ubuntu:24.04
+2026-01-04T16:43:38.8242088Z - Version: 20251212.32.1
+2026-01-04T16:43:38.8242629Z ##[endgroup]
+2026-01-04T16:43:38.8243855Z ##[group]GITHUB_TOKEN Permissions
+2026-01-04T16:43:38.8246002Z Contents: read
+2026-01-04T16:43:38.8246537Z Discussions: write
+2026-01-04T16:43:38.8247023Z Issues: write
+2026-01-04T16:43:38.8247444Z Metadata: read
+2026-01-04T16:43:38.8247951Z PullRequests: write
+2026-01-04T16:43:38.8248651Z ##[endgroup]
+2026-01-04T16:43:38.8261349Z Secret source: Actions
+2026-01-04T16:43:38.8262141Z Prepare workflow directory
+2026-01-04T16:43:38.8985550Z Prepare all required actions
+2026-01-04T16:43:38.9063881Z Getting action download info
+2026-01-04T16:43:39.3010557Z Download action repository 'actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd' (SHA:93cb6efe18208431cddfb8368fd83d5badbf9bfd)
+2026-01-04T16:43:39.4837490Z Download action repository 'actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53' (SHA:018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+2026-01-04T16:43:39.7912387Z Download action repository 'actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd' (SHA:ed597411d8f924073f98dfc5c65a23a2325f34cd)
+2026-01-04T16:43:40.0731067Z Complete job name: conclusion

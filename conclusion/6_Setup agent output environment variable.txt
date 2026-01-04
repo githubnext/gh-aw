@@ -1,0 +1,36 @@
+﻿2026-01-04T16:43:42.7931380Z ##[group]Run mkdir -p /tmp/gh-aw/safeoutputs/
+2026-01-04T16:43:42.7932025Z [36;1mmkdir -p /tmp/gh-aw/safeoutputs/[0m
+2026-01-04T16:43:42.7932622Z [36;1mfind "/tmp/gh-aw/safeoutputs/" -type f -print[0m
+2026-01-04T16:43:42.7933467Z [36;1mecho "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"[0m
+2026-01-04T16:43:42.7938100Z shell: /usr/bin/bash -e {0}
+2026-01-04T16:43:42.7938553Z ##[endgroup]
+2026-01-04T16:43:42.7992847Z /tmp/gh-aw/safeoutputs/mcp_handler_python.cjs
+2026-01-04T16:43:42.7993711Z /tmp/gh-aw/safeoutputs/agent_output.json
+2026-01-04T16:43:42.8023537Z /tmp/gh-aw/safeoutputs/setup_globals.cjs
+2026-01-04T16:43:42.8024167Z /tmp/gh-aw/safeoutputs/normalize_branch_name.cjs
+2026-01-04T16:43:42.8024958Z /tmp/gh-aw/safeoutputs/estimate_tokens.cjs
+2026-01-04T16:43:42.8025550Z /tmp/gh-aw/safeoutputs/safe_outputs_handlers.cjs
+2026-01-04T16:43:42.8026148Z /tmp/gh-aw/safeoutputs/safe_outputs_append.cjs
+2026-01-04T16:43:42.8026738Z /tmp/gh-aw/safeoutputs/generate_compact_schema.cjs
+2026-01-04T16:43:42.8027339Z /tmp/gh-aw/safeoutputs/get_current_branch.cjs
+2026-01-04T16:43:42.8027903Z /tmp/gh-aw/safeoutputs/messages_run_status.cjs
+2026-01-04T16:43:42.8028470Z /tmp/gh-aw/safeoutputs/generate_git_patch.cjs
+2026-01-04T16:43:42.8029041Z /tmp/gh-aw/safeoutputs/safe_inputs_validation.cjs
+2026-01-04T16:43:42.8031816Z /tmp/gh-aw/safeoutputs/mcp_logger.cjs
+2026-01-04T16:43:42.8032396Z /tmp/gh-aw/safeoutputs/write_large_content_to_file.cjs
+2026-01-04T16:43:42.8032975Z /tmp/gh-aw/safeoutputs/get_base_branch.cjs
+2026-01-04T16:43:42.8033504Z /tmp/gh-aw/safeoutputs/messages_footer.cjs
+2026-01-04T16:43:42.8034034Z /tmp/gh-aw/safeoutputs/read_buffer.cjs
+2026-01-04T16:43:42.8034538Z /tmp/gh-aw/safeoutputs/mcp_server_core.cjs
+2026-01-04T16:43:42.8035103Z /tmp/gh-aw/safeoutputs/safe_outputs_bootstrap.cjs
+2026-01-04T16:43:42.8035834Z /tmp/gh-aw/safeoutputs/error_helpers.cjs
+2026-01-04T16:43:42.8036398Z /tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs
+2026-01-04T16:43:42.8036984Z /tmp/gh-aw/safeoutputs/mcp_handler_shell.cjs
+2026-01-04T16:43:42.8037531Z /tmp/gh-aw/safeoutputs/mcp-server.cjs
+2026-01-04T16:43:42.8038047Z /tmp/gh-aw/safeoutputs/messages_core.cjs
+2026-01-04T16:43:42.8038574Z /tmp/gh-aw/safeoutputs/messages_staged.cjs
+2026-01-04T16:43:42.8039126Z /tmp/gh-aw/safeoutputs/mcp_enhanced_errors.cjs
+2026-01-04T16:43:42.8039985Z /tmp/gh-aw/safeoutputs/messages.cjs
+2026-01-04T16:43:42.8040531Z /tmp/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs
+2026-01-04T16:43:42.8041165Z /tmp/gh-aw/safeoutputs/messages_close_discussion.cjs
+2026-01-04T16:43:42.8041781Z /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs

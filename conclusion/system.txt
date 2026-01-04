@@ -1,0 +1,5 @@
+2026-01-04T16:43:35.8580000Z Requested labels: ubuntu-slim
+2026-01-04T16:43:35.8580000Z Job defined at: githubnext/gh-aw/.github/workflows/file-size-reduction-project71.campaign.lock.yml@refs/heads/main
+2026-01-04T16:43:35.8580000Z Waiting for a runner to pick up this job...
+2026-01-04T16:43:36.3600000Z Job is about to start running on the hosted runner: GitHub Actions 1007898935
+2026-01-04T16:43:36.3600000Z Job is waiting for a hosted runner to come online.

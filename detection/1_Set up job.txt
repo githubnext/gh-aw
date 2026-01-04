@@ -1,0 +1,31 @@
+﻿2026-01-04T16:43:27.2712541Z Current runner version: '2.330.0'
+2026-01-04T16:43:27.2738490Z ##[group]Runner Image Provisioner
+2026-01-04T16:43:27.2739337Z Hosted Compute Agent
+2026-01-04T16:43:27.2739902Z Version: 20251211.462
+2026-01-04T16:43:27.2740557Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-04T16:43:27.2741242Z Build Date: 2025-12-11T16:28:49Z
+2026-01-04T16:43:27.2741897Z Worker ID: {8db4d5b1-1c0a-4c8a-8bdc-4ac40b5a4ad6}
+2026-01-04T16:43:27.2742597Z ##[endgroup]
+2026-01-04T16:43:27.2743208Z ##[group]Operating System
+2026-01-04T16:43:27.2743761Z Ubuntu
+2026-01-04T16:43:27.2744169Z 24.04.3
+2026-01-04T16:43:27.2744694Z LTS
+2026-01-04T16:43:27.2745376Z ##[endgroup]
+2026-01-04T16:43:27.2746004Z ##[group]Runner Image
+2026-01-04T16:43:27.2746653Z Image: ubuntu-24.04
+2026-01-04T16:43:27.2747129Z Version: 20251215.174.1
+2026-01-04T16:43:27.2748160Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251215.174/images/ubuntu/Ubuntu2404-Readme.md
+2026-01-04T16:43:27.2749715Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20251215.174
+2026-01-04T16:43:27.2750934Z ##[endgroup]
+2026-01-04T16:43:27.2751831Z ##[group]GITHUB_TOKEN Permissions
+2026-01-04T16:43:27.2753897Z Metadata: read
+2026-01-04T16:43:27.2754529Z ##[endgroup]
+2026-01-04T16:43:27.2757252Z Secret source: Actions
+2026-01-04T16:43:27.2758248Z Prepare workflow directory
+2026-01-04T16:43:27.3095975Z Prepare all required actions
+2026-01-04T16:43:27.3135294Z Getting action download info
+2026-01-04T16:43:27.6989288Z Download action repository 'actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd' (SHA:93cb6efe18208431cddfb8368fd83d5badbf9bfd)
+2026-01-04T16:43:27.7973267Z Download action repository 'actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53' (SHA:018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+2026-01-04T16:43:28.3348455Z Download action repository 'actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd' (SHA:ed597411d8f924073f98dfc5c65a23a2325f34cd)
+2026-01-04T16:43:28.7585960Z Download action repository 'actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f' (SHA:b7c566a772e6b6bfb58ed0dc250532a479d7789f)
+2026-01-04T16:43:29.4769488Z Complete job name: detection
