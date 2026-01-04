@@ -204,9 +204,9 @@ func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 		StepName:     "Download agent output artifact",
 	})...)
 
-	// Download patch artifact - only when patch exists
+	// Download patch artifact from unified agent-artifacts - only when patch exists
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: "aw.patch",
+		ArtifactName: "agent-artifacts",
 		DownloadPath: "/tmp/gh-aw/threat-detection/",
 		SetupEnvStep: false,
 		StepName:     "Download patch artifact",
