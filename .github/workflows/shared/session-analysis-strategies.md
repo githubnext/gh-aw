@@ -60,7 +60,8 @@ These strategies should be applied to every session analysis:
 
 **Determine if this is an experimental run**:
 ```bash
-# Generate random number between 0-100
+# Generate random number between 0-100 using shell's RANDOM variable
+# Note: Requires bash shell. On systems without bash, use: $(od -An -N1 -tu1 /dev/urandom | awk '{print $1}')
 RANDOM_VALUE=$((RANDOM % 100))
 # If value < 30, this is an experimental run
 ```

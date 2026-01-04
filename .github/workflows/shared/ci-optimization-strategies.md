@@ -94,8 +94,9 @@ If any tests are not covered by the CI matrix, propose adding:
 1. **Catch-all matrix groups** for packages with specific patterns but no catch-all
 2. **New matrix entries** for packages not in the matrix at all
 
-Example fix:
+Example fix for missing catch-all (add to `.github/workflows/ci.yml`):
 ```yaml
+# Add to the integration job's matrix.include section:
 - name: "CLI Other"  # Catch-all for tests not matched by specific patterns
   packages: "./pkg/cli"
   pattern: ""  # Empty pattern runs all remaining tests

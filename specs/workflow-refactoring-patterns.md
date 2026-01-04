@@ -284,12 +284,20 @@ Main Workflow (280 lines)
 ## Anti-Patterns to Avoid
 
 ❌ **Don't over-extract**: Keep related logic together. Not every 50-line section needs to be a separate module.
+   - **Bad example**: Extracting a 30-line section just because it's slightly different
+   - **Good example**: Extracting a 150-line section that's used by 3+ workflows
 
 ❌ **Don't create circular dependencies**: Shared modules should not import each other in circular ways.
+   - **Bad example**: Module A imports Module B, which imports Module C, which imports Module A
+   - **Good example**: Linear dependency chain: Main → Module A → Module B
 
 ❌ **Don't duplicate shared logic**: If two modules need the same setup, extract it to a common base module.
+   - **Bad example**: Both `data-analysis-a.md` and `data-analysis-b.md` have identical data fetch code
+   - **Good example**: Extract common data fetch to `data-fetch.md`, both modules import it
 
 ❌ **Don't make modules too generic**: Modules should be focused and purposeful, not catch-all utilities.
+   - **Bad example**: `shared/utilities.md` with 500 lines of unrelated functions
+   - **Good example**: `shared/python-dataviz.md` focused on data visualization setup
 
 ## Success Metrics
 
