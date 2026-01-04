@@ -27,6 +27,43 @@ When the spec includes orchestration, the tooling generates an orchestrator work
 
 **Note:** During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the source `.campaign.md` and compiled `.campaign.lock.yml` are tracked.
 
+### Mental model
+
+```mermaid
+flowchart TB
+    spec["fa:fa-file-code .github/workflows/<id>.campaign.md<br/><small>specification / contract<br/>(tracked in git)</small>"]
+    compile["fa:fa-cogs gh aw compile"]
+    debug["fa:fa-file .campaign.g.md<br/><small>debug artifact<br/>(not tracked)</small>"]
+    lock["fa:fa-lock .campaign.lock.yml<br/><small>compiled workflow<br/>(tracked in git)</small>"]
+    orchestrator["fa:fa-sitemap Orchestrator workflow<br/><small>discovers items from project<br/>updates Project dashboard<br/>reads/writes repo-memory</small>"]
+    worker1["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
+    worker2["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
+    project["fa:fa-table GitHub Project board<br/><small>campaign dashboard</small>"]
+    memory["fa:fa-code-branch repo-memory branch<br/><small>memory/campaigns/<id>/cursor.json<br/>memory/campaigns/<id>/metrics/<date>.json</small>"]
+
+    spec --> compile
+    compile --> debug
+    compile --> lock
+    lock --> orchestrator
+    orchestrator -->|triggers/coordinates| worker1
+    orchestrator -->|triggers/coordinates| worker2
+    worker1 -->|"creates/updates<br/>Issues/PRs<br/>(optional tracker-label)"| project
+    worker2 -->|"creates/updates<br/>Issues/PRs<br/>(optional tracker-label)"| project
+    orchestrator -.->|reads/writes| memory
+    project -.->|dashboard view| orchestrator
+
+    %% Colors are applied via CSS for light/dark themes; keep only stroke width here.
+    classDef tracked stroke-width:2px
+    classDef notTracked stroke-width:2px
+    classDef workflow stroke-width:2px
+    classDef external stroke-width:2px
+
+    class spec,lock tracked
+    class debug notTracked
+    class orchestrator,worker1,worker2 workflow
+    class project,memory external
+```
+
 ## How it works
 
 Most campaigns follow the same shape. The GitHub Project is the human-facing status view and the canonical source of campaign membership. The orchestrator workflow discovers tracked items from the workers and updates the Project. Worker workflows do the real work, such as opening pull requests or applying fixes but they stay campaign-agnostic. If you want cross-run discovery of worker-created assets, workers can include a `tracker-id` marker which the orchestrator can search for. Optionally, you can configure a tracker label (e.g., `campaign:<id>`) as an ingestion hint to help discover issues and PRs created by workers.
