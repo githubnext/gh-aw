@@ -44,6 +44,18 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 					},
 				},
 			},
+			"process-data": {
+				Name:        "process-data",
+				Description: "Process data with Go",
+				Go:          "result := map[string]any{\"count\": len(inputs)}\njson.NewEncoder(os.Stdout).Encode(result)",
+				Inputs: map[string]*SafeInputParam{
+					"data": {
+						Type:        "string",
+						Description: "Data to process",
+						Required:    true,
+					},
+				},
+			},
 		},
 	}
 
@@ -94,6 +106,10 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 		t.Error("Tools config should contain analyze-data tool")
 	}
 
+	if !strings.Contains(toolsJSON, `"name": "process-data"`) {
+		t.Error("Tools config should contain process-data tool")
+	}
+
 	// Check for JavaScript tool handler
 	if !strings.Contains(toolsJSON, `"handler": "search-issues.cjs"`) {
 		t.Error("Tools config should reference JavaScript tool handler file")
@@ -107,6 +123,11 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	// Check for Python tool handler
 	if !strings.Contains(toolsJSON, `"handler": "analyze-data.py"`) {
 		t.Error("Tools config should reference Python script handler file")
+	}
+
+	// Check for Go tool handler
+	if !strings.Contains(toolsJSON, `"handler": "process-data.go"`) {
+		t.Error("Tools config should reference Go script handler file")
 	}
 
 	// Check for input schema
@@ -402,5 +423,66 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 
 	if alphaParamPos >= charlieParamPos {
 		t.Errorf("Input parameters should be sorted alphabetically in JSDoc: alpha(%d) < charlie(%d)", alphaParamPos, charlieParamPos)
+	}
+}
+
+func TestGenerateSafeInputGoToolScript(t *testing.T) {
+	config := &SafeInputToolConfig{
+		Name:        "test-go",
+		Description: "A Go test tool",
+		Go:          "result := map[string]any{\"message\": \"Hello from Go\"}\njson.NewEncoder(os.Stdout).Encode(result)",
+		Inputs: map[string]*SafeInputParam{
+			"message": {
+				Type:        "string",
+				Description: "Message to process",
+			},
+			"count": {
+				Type:        "number",
+				Description: "Number of times",
+			},
+		},
+	}
+
+	script := generateSafeInputGoToolScript(config)
+
+	if !strings.Contains(script, "package main") {
+		t.Error("Script should have package main declaration")
+	}
+
+	if !strings.Contains(script, "test-go") {
+		t.Error("Script should contain tool name")
+	}
+
+	if !strings.Contains(script, "import (") {
+		t.Error("Script should have import section")
+	}
+
+	if !strings.Contains(script, "\"encoding/json\"") {
+		t.Error("Script should import encoding/json")
+	}
+
+	if !strings.Contains(script, "\"os\"") {
+		t.Error("Script should import os package")
+	}
+
+	if !strings.Contains(script, "var inputs map[string]any") {
+		t.Error("Script should declare inputs variable")
+	}
+
+	if !strings.Contains(script, "io.ReadAll(os.Stdin)") {
+		t.Error("Script should read inputs from stdin")
+	}
+
+	if !strings.Contains(script, "result := map[string]any{\"message\": \"Hello from Go\"}") {
+		t.Error("Script should contain the Go code")
+	}
+
+	// Check for input parameter documentation
+	if !strings.Contains(script, "// message := inputs[\"message\"]") {
+		t.Error("Script should document message parameter access")
+	}
+
+	if !strings.Contains(script, "// count := inputs[\"count\"]") {
+		t.Error("Script should document count parameter access")
 	}
 }
