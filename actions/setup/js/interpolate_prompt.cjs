@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
-const { processRuntimeImports, convertFileInlinesToMacros, processUrlInlines } = require("./runtime_import.cjs");
+const { processRuntimeImports, convertInlinesToMacros } = require("./runtime_import.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -79,38 +79,27 @@ async function main() {
     // Read the prompt file
     let content = fs.readFileSync(promptPath, "utf8");
 
-    // Step 1: Convert @path inline syntax to {{#runtime-import}} macros
-    const hasFileInlines = /@[^\s:]+(?::\d+-\d+)?/.test(content);
-    if (hasFileInlines) {
-      core.info("Converting inline file references to runtime-import macros");
-      content = convertFileInlinesToMacros(content);
-      core.info("Inline file references converted successfully");
+    // Step 1: Convert @path and @url inline syntax to {{#runtime-import}} macros
+    const hasInlines = /@[^\s]+/.test(content);
+    if (hasInlines) {
+      core.info("Converting inline references (@path and @url) to runtime-import macros");
+      content = convertInlinesToMacros(content);
+      core.info("Inline references converted successfully");
     } else {
-      core.info("No inline file references found, skipping conversion");
+      core.info("No inline references found, skipping conversion");
     }
 
-    // Step 2: Process runtime imports (including converted @path macros)
+    // Step 2: Process runtime imports (including converted @path and @url macros)
     const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
     if (hasRuntimeImports) {
-      core.info("Processing runtime import macros");
-      content = processRuntimeImports(content, workspaceDir);
+      core.info("Processing runtime import macros (files and URLs)");
+      content = await processRuntimeImports(content, workspaceDir);
       core.info("Runtime imports processed successfully");
     } else {
       core.info("No runtime import macros found, skipping runtime import processing");
     }
 
-    // Step 3: Process inline URL references (@https://... and @http://...)
-    const hasUrlInlines = /@https?:\/\//.test(content);
-    if (hasUrlInlines) {
-      core.info("Processing inline URL references");
-      const cacheDir = "/tmp/gh-aw/url-cache";
-      content = await processUrlInlines(content, cacheDir);
-      core.info("Inline URL references processed successfully");
-    } else {
-      core.info("No inline URL references found, skipping URL processing");
-    }
-
-    // Step 4: Interpolate variables
+    // Step 3: Interpolate variables
     /** @type {Record<string, string>} */
     const variables = {};
     for (const [key, value] of Object.entries(process.env)) {
@@ -128,7 +117,7 @@ async function main() {
       core.info("No expression variables found, skipping interpolation");
     }
 
-    // Step 5: Render template conditionals
+    // Step 4: Render template conditionals
     const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
     if (hasConditionals) {
       core.info("Processing conditional template blocks");
