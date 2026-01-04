@@ -324,6 +324,9 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	if workflowData.GitHubToken != "" {
 		copilotGitHubToken = workflowData.GitHubToken
 	} else {
+		// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
+		// that GitHub Actions runtime replaces with the actual secret value. The string "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+		// is a placeholder, not an actual credential.
 		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	}
 
