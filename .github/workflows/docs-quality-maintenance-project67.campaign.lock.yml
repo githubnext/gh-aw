@@ -21,7 +21,7 @@
 #
 # Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks.
 
-name: "Documentation Quality & Maintenance Campaign (Project 69)"
+name: "Documentation Quality & Maintenance Campaign (Project 73)"
 "on":
   schedule:
   - cron: "0 18 * * *"
@@ -36,9 +36,9 @@ permissions:
 
 concurrency:
   cancel-in-progress: false
-  group: campaign-docs-quality-maintenance-project69-orchestrator-${{ github.ref }}
+  group: campaign-docs-quality-maintenance-project73-orchestrator-${{ github.ref }}
 
-run-name: "Documentation Quality & Maintenance Campaign (Project 69)"
+run-name: "Documentation Quality & Maintenance Campaign (Project 73)"
 
 jobs:
   activation:
@@ -540,7 +540,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.374",
-              workflow_name: "Documentation Quality & Maintenance Campaign (Project 69)",
+              workflow_name: "Documentation Quality & Maintenance Campaign (Project 73)",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -589,7 +589,7 @@ jobs:
           
           # Campaign Orchestrator
           
-          This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Project 69)' campaign.
+          This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Project 73)' campaign.
           
           - Objective: Maintain high-quality, accessible, and consistent documentation following the Diátaxis framework while ensuring all docs are accurate, complete, and user-friendly
           - KPIs:
@@ -597,10 +597,10 @@ jobs:
             - Documentation accessibility score (supporting): baseline 90 → target 98 over 30 days percent
             - User-reported documentation issues (supporting): baseline 15 → target 5 over 30 days count
           - Associated workflows: daily-doc-updater, docs-noob-tester, daily-multi-device-docs-tester, unbloat-docs, developer-docs-consolidator, technical-doc-writer
-          - Memory paths: memory/campaigns/docs-quality-maintenance-project69/**
-          - Metrics glob: `memory/campaigns/docs-quality-maintenance-project69/metrics/*.json`
-          - Cursor glob: `memory/campaigns/docs-quality-maintenance-project69/cursor.json`
-          - Project URL: https://github.com/orgs/githubnext/projects/69
+          - Memory paths: memory/campaigns/docs-quality-maintenance-project73/**
+          - Metrics glob: `memory/campaigns/docs-quality-maintenance-project73/metrics/*.json`
+          - Cursor glob: `memory/campaigns/docs-quality-maintenance-project73/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/73
           - Governance: max new items per run: 8
           - Governance: max discovery items per run: 100
           - Governance: max discovery pages per run: 10
@@ -629,14 +629,14 @@ jobs:
           - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
           
           
-          **Cursor file (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project69/cursor.json`  
+          **Cursor file (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project73/cursor.json`  
           - If it exists: read first and continue from its boundary.  
           - If it does not exist: create it by end of run.  
           - Always write the updated cursor back to the same path.
           
           
           
-          **Metrics snapshots (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project69/metrics/*.json`  
+          **Metrics snapshots (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project73/metrics/*.json`  
           - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
           - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
           - Each snapshot MUST include `campaign_id` and `date` (UTC).
@@ -684,12 +684,12 @@ jobs:
           
           1) **Check for existing Epic issue** by searching the repository for:
              - An open issue with label `epic` or `type:epic`
-             - Body text containing: `campaign_id: docs-quality-maintenance-project69`
+             - Body text containing: `campaign_id: docs-quality-maintenance-project73`
           
           2) **If no Epic issue exists**, create it using `create-issue`:
              ```yaml
              create-issue:
-               title: "Documentation Quality & Maintenance Campaign (Project 69)"
+               title: "Documentation Quality & Maintenance Campaign (Project 73)"
                body: |
                  ## Campaign Overview
                  
@@ -698,12 +698,12 @@ jobs:
                  This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
                  
                  **Campaign Details:**
-                 - Campaign ID: `docs-quality-maintenance-project69`
-                 - Project Board: https://github.com/orgs/githubnext/projects/69
+                 - Campaign ID: `docs-quality-maintenance-project73`
+                 - Project Board: https://github.com/orgs/githubnext/projects/73
                  - Worker Workflows: `daily-doc-updater`, `docs-noob-tester`, `daily-multi-device-docs-tester`, `unbloat-docs`, `developer-docs-consolidator`, `technical-doc-writer`
                  
                  ---
-                 `campaign_id: docs-quality-maintenance-project69`
+                 `campaign_id: docs-quality-maintenance-project73`
                labels:
                  - epic
                  - type:epic
@@ -712,15 +712,15 @@ jobs:
           3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
              ```yaml
              update-project:
-               project: "https://github.com/orgs/githubnext/projects/69"
-               campaign_id: "docs-quality-maintenance-project69"
+               project: "https://github.com/orgs/githubnext/projects/73"
+               campaign_id: "docs-quality-maintenance-project73"
                content_type: "issue"
                content_number: <EPIC_ISSUE_NUMBER>
                fields:
                  status: "In Progress"
-                 campaign_id: "docs-quality-maintenance-project69"
+                 campaign_id: "docs-quality-maintenance-project73"
                  worker_workflow: "unknown"
-                 repository: "<OWNER/REPO>"
+                 repo: "<OWNER/REPO>"
                  priority: "High"
                  size: "Large"
                  start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
@@ -757,7 +757,7 @@ jobs:
           
           3) Normalize discovered items into a single list with:
           - URL, `content_type` (issue/pull_request/discussion), `content_number`
-          - `repository` (owner/repo), `created_at`, `updated_at`
+          - `repo` (owner/repo), `created_at`, `updated_at`
           - `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
           
           4) Respect read budgets and cursor; stop early if needed and persist cursor.
@@ -788,7 +788,7 @@ jobs:
           - Do NOT interleave reads.
           - Do NOT pre-check whether the item is on the board.
           - **All write semantics MUST follow Project Update Instructions**, including:
-            - first add → full required fields (status, campaign_id, worker_workflow, repository, priority, size, start_date, end_date)
+            - first add → full required fields (status, campaign_id, worker_workflow, repo, priority, size, start_date, end_date)
             - existing item → status-only update unless explicit backfill is required
           
           10) Record per-item outcome: success/failure + error details.
@@ -824,13 +824,13 @@ jobs:
           
           - Writes MUST use only the `update-project` safe-output.
           - All writes MUST target exactly:
-            - **Project URL**: `https://github.com/orgs/githubnext/projects/69`
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/73`
           - Every item MUST include:
-            - `campaign_id: "docs-quality-maintenance-project69"`
+            - `campaign_id: "docs-quality-maintenance-project73"`
           
           ## Campaign ID
           
-          All campaign tracking MUST key off `campaign_id: "docs-quality-maintenance-project69"`.
+          All campaign tracking MUST key off `campaign_id: "docs-quality-maintenance-project73"`.
           
           ---
           
@@ -839,9 +839,9 @@ jobs:
           | Field | Type | Allowed / Notes |
           |---|---|---|
           | `status` | single-select | `Todo` / `In Progress` / `Done` |
-          | `campaign_id` | text | Must equal `docs-quality-maintenance-project69` |
+          | `campaign_id` | text | Must equal `docs-quality-maintenance-project73` |
           | `worker_workflow` | text | workflow ID or `"unknown"` |
-          | `repository` | text | `owner/repo` |
+          | `repo` | text | `owner/repo` (Note: Do not use field name "repository" - it conflicts with GitHub's built-in REPOSITORY type) |
           | `priority` | single-select | `High` / `Medium` / `Low` |
           | `size` | single-select | `Small` / `Medium` / `Large` |
           | `start_date` | date | `YYYY-MM-DD` |
@@ -864,7 +864,7 @@ jobs:
           
           These rules apply to any time you write fields:
           
-          - `campaign_id`: always `docs-quality-maintenance-project69`
+          - `campaign_id`: always `docs-quality-maintenance-project73`
           - `worker_workflow`: workflow ID if known, else `"unknown"`
           - `repository`: extract `owner/repo` from the issue/PR URL
           - `priority`: default `Medium` unless explicitly known
@@ -895,15 +895,15 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/69"
-            campaign_id: "docs-quality-maintenance-project69"
+            project: "https://github.com/orgs/githubnext/projects/73"
+            campaign_id: "docs-quality-maintenance-project73"
             content_type: "issue"              # or "pull_request"
             content_number: 123
             fields:
               status: "Todo"                   # "Done" if already closed/merged
-              campaign_id: "docs-quality-maintenance-project69"
+              campaign_id: "docs-quality-maintenance-project73"
               worker_workflow: "unknown"
-              repository: "owner/repo"
+              repo: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
@@ -926,8 +926,8 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/69"
-            campaign_id: "docs-quality-maintenance-project69"
+            project: "https://github.com/orgs/githubnext/projects/73"
+            campaign_id: "docs-quality-maintenance-project73"
             content_type: "issue"              # or "pull_request"
             content_number: 123
             fields:
@@ -938,15 +938,15 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/69"
-            campaign_id: "docs-quality-maintenance-project69"
+            project: "https://github.com/orgs/githubnext/projects/73"
+            campaign_id: "docs-quality-maintenance-project73"
             content_type: "issue"              # or "pull_request"
             content_number: 123
             fields:
               status: "Done"
-              campaign_id: "docs-quality-maintenance-project69"
+              campaign_id: "docs-quality-maintenance-project73"
               worker_workflow: "WORKFLOW_ID"
-              repository: "owner/repo"
+              repo: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
@@ -1362,7 +1362,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 69)"
+          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1375,7 +1375,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 69)"
+          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1391,7 +1391,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 69)"
+          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1443,7 +1443,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 69)"
+          WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
           WORKFLOW_DESCRIPTION: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
@@ -1614,8 +1614,8 @@ jobs:
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "docs-quality-maintenance-project69/**"
-          GH_AW_CAMPAIGN_ID: docs-quality-maintenance-project69
+          FILE_GLOB_FILTER: "docs-quality-maintenance-project73/**"
+          GH_AW_CAMPAIGN_ID: docs-quality-maintenance-project73
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1638,7 +1638,7 @@ jobs:
     env:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "docs-quality-maintenance-project67.campaign.g"
-      GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 69)"
+      GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}

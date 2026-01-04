@@ -1,9 +1,9 @@
 ---
-id: docs-quality-maintenance-project69
-name: "Documentation Quality & Maintenance Campaign (Project 69)"
+id: docs-quality-maintenance-project73
+name: "Documentation Quality & Maintenance Campaign (Project 73)"
 description: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
 version: v1
-project-url: "https://github.com/orgs/githubnext/projects/69"
+project-url: "https://github.com/orgs/githubnext/projects/73"
 project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 workflows:
   - daily-doc-updater
@@ -12,11 +12,11 @@ workflows:
   - unbloat-docs
   - developer-docs-consolidator
   - technical-doc-writer
-tracker-label: "campaign:docs-quality-maintenance-project69"
+tracker-label: "campaign:docs-quality-maintenance-project73"
 memory-paths:
-  - "memory/campaigns/docs-quality-maintenance-project69/**"
-metrics-glob: "memory/campaigns/docs-quality-maintenance-project69/metrics/*.json"
-cursor-glob: "memory/campaigns/docs-quality-maintenance-project69/cursor.json"
+  - "memory/campaigns/docs-quality-maintenance-project73/**"
+metrics-glob: "memory/campaigns/docs-quality-maintenance-project73/metrics/*.json"
+cursor-glob: "memory/campaigns/docs-quality-maintenance-project73/cursor.json"
 state: active
 tags:
   - documentation
@@ -65,7 +65,7 @@ governance:
   max-discovery-pages-per-run: 10
 ---
 
-# Documentation Quality & Maintenance Campaign (Project 69)
+# Documentation Quality & Maintenance Campaign (Project 73)
 
 ## Overview
 
@@ -79,12 +79,12 @@ High-quality documentation is critical for user adoption and success. This campa
 
 ## Success Criteria
 
-- ✅ All documentation follows the Diátaxis framework (Tutorial, How-to, Reference, Explanation)
-- ✅ Documentation coverage reaches 95% of user-facing features
-- ✅ Accessibility score maintains 98% or higher
-- ✅ User-reported documentation issues decrease to ≤5 per month
-- ✅ All documentation passes automated quality checks
-- ✅ Documentation site performs well across mobile, tablet, and desktop devices
+- All documentation follows the Diátaxis framework (Tutorial, How-to, Reference, Explanation)
+- Documentation coverage reaches 95% of user-facing features
+- Accessibility score maintains 98% or higher
+- User-reported documentation issues decrease to ≤5 per month
+- All documentation passes automated quality checks
+- Documentation site performs well across mobile, tablet, and desktop devices
 
 ## Key Performance Indicators
 
@@ -137,7 +137,7 @@ Creates or enhances technical documentation for complex features. On-demand or s
 
 ## Project Board
 
-**URL**: https://github.com/orgs/githubnext/projects/69
+**URL**: https://github.com/orgs/githubnext/projects/73
 
 The project board serves as the campaign dashboard, tracking:
 - Documentation gaps and coverage
@@ -150,14 +150,14 @@ The project board serves as the campaign dashboard, tracking:
 
 ## Tracker Label
 
-All campaign-related issues and PRs are tagged with: `campaign:docs-quality-maintenance-project69`
+All campaign-related issues and PRs are tagged with: `campaign:docs-quality-maintenance-project73`
 
 ## Memory Paths
 
 Campaign state and metrics are stored in:
-- `memory/campaigns/docs-quality-maintenance-project69/**`
+- `memory/campaigns/docs-quality-maintenance-project73/**`
 
-Metrics snapshots: `memory/campaigns/docs-quality-maintenance-project69/metrics/*.json`
+Metrics snapshots: `memory/campaigns/docs-quality-maintenance-project73/metrics/*.json`
 
 ## Governance Policies
 
@@ -195,7 +195,7 @@ This campaign does not modify production code and requires human review for all 
 ## Orchestrator
 
 This campaign uses an automatically generated orchestrator workflow:
-- **File**: `.github/workflows/docs-quality-maintenance-project69.campaign.g.md`
+- **File**: `.github/workflows/docs-quality-maintenance-project73.campaign.g.md`
 - **Schedule**: Daily at 18:00 UTC (cron: `0 18 * * *`)
 - **Purpose**: Coordinate worker outputs and update project board
 
