@@ -882,3 +882,107 @@ func TestMCPServer_ToolIcons(t *testing.T) {
 		t.Errorf("Expected %d tools with icons, got %d tools", len(expectedIcons), len(result.Tools))
 	}
 }
+
+// TestMCPServer_CompileToolWithErrors tests that compile tool returns output even when compilation fails
+func TestMCPServer_CompileToolWithErrors(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create a temporary directory with an invalid workflow file
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create a workflow file with syntax errors
+	workflowContent := `---
+on: push
+engine: copilot
+toolz:
+  - invalid-tool
+---
+# Invalid Workflow
+
+This workflow has a syntax error in the frontmatter.
+`
+	workflowPath := filepath.Join(workflowsDir, "invalid.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Change to the temporary directory
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	os.Chdir(tmpDir)
+
+	// Initialize git repository in the temp directory
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tmpDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repository: %v", err)
+	}
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	serverCmd.Dir = tmpDir
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// Call compile tool with the invalid workflow
+	params := &mcp.CallToolParams{
+		Name:      "compile",
+		Arguments: map[string]any{},
+	}
+	result, err := session.CallTool(ctx, params)
+
+	// The key test: compile tool should NOT return an MCP error
+	// even though the workflow has compilation errors
+	if err != nil {
+		t.Errorf("Compile tool should not return MCP error for compilation failures, got: %v", err)
+	}
+
+	// Verify we got a result with content
+	if result == nil {
+		t.Fatal("Expected result from compile tool, got nil")
+	}
+
+	if len(result.Content) == 0 {
+		t.Fatal("Expected non-empty result content from compile tool")
+	}
+
+	// Verify result contains text content
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("Expected text content from compile tool")
+	}
+
+	if textContent.Text == "" {
+		t.Error("Expected non-empty text content from compile tool")
+	}
+
+	// Verify the output contains validation error information
+	// The JSON output should include error details even though compilation failed
+	if !strings.Contains(textContent.Text, "\"valid\"") || !strings.Contains(textContent.Text, "\"errors\"") {
+		t.Errorf("Expected JSON output with validation results, got: %s", textContent.Text)
+	}
+
+	t.Logf("Compile tool correctly returned validation errors in output: %s", textContent.Text)
+}

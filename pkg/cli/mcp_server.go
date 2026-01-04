@@ -311,20 +311,41 @@ Note: Output can be filtered using the jq parameter.`,
 
 		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v",
 			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint)
+		
 		// Execute the CLI command
+		// Use separate stdout/stderr capture instead of CombinedOutput because:
+		// - Stdout contains JSON output (--json flag)
+		// - Stderr contains console messages that shouldn't be mixed with JSON
 		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		stdout, err := cmd.Output()
 
+		// The compile command always outputs JSON to stdout when --json flag is used, even on error.
+		// We should return the JSON output to the LLM so it can see validation errors.
+		// Only return an MCP error if we cannot get any output at all.
+		outputStr := string(stdout)
+		
+		// If the command failed but we have output, it's likely compilation errors
+		// which are included in the JSON output. Return the output, not an MCP error.
 		if err != nil {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to compile workflows",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			mcpLog.Printf("Compile command exited with error: %v (output length: %d)", err, len(outputStr))
+			// If we have no output, this is a real execution failure
+			if len(outputStr) == 0 {
+				// Try to get stderr for error details
+				var stderr string
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					stderr = string(exitErr.Stderr)
+				}
+				return nil, nil, &jsonrpc.Error{
+					Code:    jsonrpc.CodeInternalError,
+					Message: "failed to compile workflows",
+					Data:    mcpErrorData(map[string]any{"error": err.Error(), "stderr": stderr}),
+				}
 			}
+			// Otherwise, we have output (likely validation errors in JSON), so continue
+			// and return it to the LLM
 		}
 
 		// Apply jq filter if provided
-		outputStr := string(output)
 		if args.JqFilter != "" {
 			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
 			if jqErr != nil {
