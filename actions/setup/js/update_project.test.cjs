@@ -746,9 +746,7 @@ describe("updateProject", () => {
           name: "Sprint",
           dataType: "ITERATION",
           configuration: {
-            iterations: [
-              { id: "iter-42", title: "Sprint 42", startDate: "2026-01-15", duration: 2 },
-            ],
+            iterations: [{ id: "iter-42", title: "Sprint 42", startDate: "2026-01-15", duration: 2 }],
           },
         },
       ]),
