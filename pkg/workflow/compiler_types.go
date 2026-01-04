@@ -39,6 +39,7 @@ type Compiler struct {
 	workflowIdentifier   string              // Identifier for the current workflow being compiled (for schedule scattering)
 	scheduleWarnings     []string            // Accumulated schedule warnings for this compiler instance
 	repositorySlug       string              // Repository slug (owner/repo) used as seed for scattering
+	artifactManager      *ArtifactManager    // Tracks artifact uploads/downloads for validation
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -52,6 +53,7 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
+		artifactManager:  NewArtifactManager(),
 	}
 
 	return c
@@ -69,6 +71,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
+		artifactManager:  NewArtifactManager(),
 	}
 
 	return c
@@ -213,6 +216,14 @@ func (c *Compiler) getSharedImportCache() *parser.ImportCache {
 func (c *Compiler) GetSharedActionCache() *ActionCache {
 	cache, _ := c.getSharedActionResolver()
 	return cache
+}
+
+// GetArtifactManager returns the artifact manager for tracking uploads/downloads
+func (c *Compiler) GetArtifactManager() *ArtifactManager {
+	if c.artifactManager == nil {
+		c.artifactManager = NewArtifactManager()
+	}
+	return c.artifactManager
 }
 
 // SkipIfMatchConfig holds the configuration for skip-if-match conditions
