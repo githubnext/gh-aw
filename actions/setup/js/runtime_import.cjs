@@ -48,16 +48,169 @@ function hasGitHubActionsMacros(content) {
 }
 
 /**
- * Reads and processes a file for runtime import
- * @param {string} filepath - The path to the file to import (relative to GITHUB_WORKSPACE)
+ * Fetches content from a URL with caching
+ * @param {string} url - The URL to fetch
+ * @param {string} cacheDir - Directory to store cached URL content
+ * @returns {Promise<string>} - The fetched content
+ * @throws {Error} - If URL fetch fails
+ */
+async function fetchUrlContent(url, cacheDir) {
+  // Create cache directory if it doesn't exist
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+
+  // Generate cache filename from URL (hash it for safety)
+  const crypto = require("crypto");
+  const urlHash = crypto.createHash("sha256").update(url).digest("hex");
+  const cacheFile = path.join(cacheDir, `url-${urlHash}.cache`);
+
+  // Check if cached version exists and is recent (less than 1 hour old)
+  if (fs.existsSync(cacheFile)) {
+    const stats = fs.statSync(cacheFile);
+    const ageInMs = Date.now() - stats.mtimeMs;
+    const oneHourInMs = 60 * 60 * 1000;
+
+    if (ageInMs < oneHourInMs) {
+      core.info(`Using cached content for URL: ${url}`);
+      return fs.readFileSync(cacheFile, "utf8");
+    }
+  }
+
+  // Fetch URL content
+  core.info(`Fetching content from URL: ${url}`);
+
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith("https") ? https : http;
+
+    protocol
+      .get(url, res => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`Failed to fetch URL ${url}: HTTP ${res.statusCode}`));
+          return;
+        }
+
+        let data = "";
+        res.on("data", chunk => {
+          data += chunk;
+        });
+
+        res.on("end", () => {
+          // Cache the content
+          fs.writeFileSync(cacheFile, data, "utf8");
+          resolve(data);
+        });
+      })
+      .on("error", err => {
+        reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
+      });
+  });
+}
+
+/**
+ * Processes a URL import and returns content with sanitization
+ * @param {string} url - The URL to fetch
+ * @param {boolean} optional - Whether the import is optional
+ * @param {number} [startLine] - Optional start line (1-indexed, inclusive)
+ * @param {number} [endLine] - Optional end line (1-indexed, inclusive)
+ * @returns {Promise<string>} - The processed URL content
+ * @throws {Error} - If URL fetch fails or content is invalid
+ */
+async function processUrlImport(url, optional, startLine, endLine) {
+  const cacheDir = "/tmp/gh-aw/url-cache";
+
+  // Fetch URL content (with caching)
+  let content;
+  try {
+    content = await fetchUrlContent(url, cacheDir);
+  } catch (error) {
+    if (optional) {
+      const errorMessage = getErrorMessage(error);
+      core.warning(`Optional runtime import URL failed: ${url}: ${errorMessage}`);
+      return "";
+    }
+    throw error;
+  }
+
+  // If line range is specified, extract those lines first (before other processing)
+  if (startLine !== undefined || endLine !== undefined) {
+    const lines = content.split("\n");
+    const totalLines = lines.length;
+
+    // Validate line numbers (1-indexed)
+    const start = startLine !== undefined ? startLine : 1;
+    const end = endLine !== undefined ? endLine : totalLines;
+
+    if (start < 1 || start > totalLines) {
+      throw new Error(`Invalid start line ${start} for URL ${url} (total lines: ${totalLines})`);
+    }
+    if (end < 1 || end > totalLines) {
+      throw new Error(`Invalid end line ${end} for URL ${url} (total lines: ${totalLines})`);
+    }
+    if (start > end) {
+      throw new Error(`Start line ${start} cannot be greater than end line ${end} for URL ${url}`);
+    }
+
+    // Extract lines (convert to 0-indexed)
+    content = lines.slice(start - 1, end).join("\n");
+  }
+
+  // Check for front matter and warn
+  if (hasFrontMatter(content)) {
+    core.warning(`URL ${url} contains front matter which will be ignored in runtime import`);
+    // Remove front matter (everything between first --- and second ---)
+    const lines = content.split("\n");
+    let inFrontMatter = false;
+    let frontMatterCount = 0;
+    const processedLines = [];
+
+    for (const line of lines) {
+      if (line.trim() === "---" || line.trim() === "---\r") {
+        frontMatterCount++;
+        if (frontMatterCount === 1) {
+          inFrontMatter = true;
+          continue;
+        } else if (frontMatterCount === 2) {
+          inFrontMatter = false;
+          continue;
+        }
+      }
+      if (!inFrontMatter && frontMatterCount >= 2) {
+        processedLines.push(line);
+      }
+    }
+    content = processedLines.join("\n");
+  }
+
+  // Remove XML comments
+  content = removeXMLComments(content);
+
+  // Check for GitHub Actions macros and error if found
+  if (hasGitHubActionsMacros(content)) {
+    throw new Error(`URL ${url} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
+  }
+
+  return content;
+}
+
+/**
+ * Reads and processes a file or URL for runtime import
+ * @param {string} filepathOrUrl - The path to the file (relative to GITHUB_WORKSPACE) or URL to import
  * @param {boolean} optional - Whether the import is optional (true for {{#runtime-import? filepath}})
  * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
  * @param {number} [startLine] - Optional start line (1-indexed, inclusive)
  * @param {number} [endLine] - Optional end line (1-indexed, inclusive)
- * @returns {string} - The processed file content, or empty string if optional and file not found
- * @throws {Error} - If file is not found and import is not optional, or if GitHub Actions macros are detected
+ * @returns {Promise<string>} - The processed file or URL content, or empty string if optional and file not found
+ * @throws {Error} - If file/URL is not found and import is not optional, or if GitHub Actions macros are detected
  */
-function processRuntimeImport(filepath, optional, workspaceDir, startLine, endLine) {
+async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, startLine, endLine) {
+  // Check if this is a URL
+  if (/^https?:\/\//i.test(filepathOrUrl)) {
+    return await processUrlImport(filepathOrUrl, optional, startLine, endLine);
+  }
+
+  // Otherwise, process as a file
+  const filepath = filepathOrUrl;
   // Resolve the absolute path
   const absolutePath = path.resolve(workspaceDir, filepath);
 
@@ -138,18 +291,18 @@ function processRuntimeImport(filepath, optional, workspaceDir, startLine, endLi
  * Processes all runtime-import macros in the content
  * @param {string} content - The markdown content containing runtime-import macros
  * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
- * @returns {string} - Content with runtime-import macros replaced by file contents
+ * @returns {Promise<string>} - Content with runtime-import macros replaced by file/URL contents
  */
-function processRuntimeImports(content, workspaceDir) {
+async function processRuntimeImports(content, workspaceDir) {
   // Pattern to match {{#runtime-import filepath}} or {{#runtime-import? filepath}}
-  // Captures: optional flag (?), whitespace, filepath (which may include :startline-endline)
+  // Captures: optional flag (?), whitespace, filepath/URL (which may include :startline-endline)
   const pattern = /\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}/g;
 
   let processedContent = content;
+  const matches = [];
   let match;
-  const importedFiles = new Set();
 
-  // Reset regex state
+  // Reset regex state and collect all matches
   pattern.lastIndex = 0;
 
   while ((match = pattern.exec(content)) !== null) {
@@ -157,28 +310,44 @@ function processRuntimeImports(content, workspaceDir) {
     const filepathWithRange = match[2].trim();
     const fullMatch = match[0];
 
-    // Parse filepath and optional line range (filepath:startline-endline)
+    // Parse filepath/URL and optional line range (filepath:startline-endline)
     const rangeMatch = filepathWithRange.match(/^(.+?):(\d+)-(\d+)$/);
-    let filepath, startLine, endLine;
+    let filepathOrUrl, startLine, endLine;
 
     if (rangeMatch) {
-      filepath = rangeMatch[1];
+      filepathOrUrl = rangeMatch[1];
       startLine = parseInt(rangeMatch[2], 10);
       endLine = parseInt(rangeMatch[3], 10);
     } else {
-      filepath = filepathWithRange;
+      filepathOrUrl = filepathWithRange;
       startLine = undefined;
       endLine = undefined;
     }
 
+    matches.push({
+      fullMatch,
+      filepathOrUrl,
+      optional,
+      startLine,
+      endLine,
+      filepathWithRange,
+    });
+  }
+
+  // Process all imports sequentially (to handle async URLs)
+  const importedFiles = new Set();
+
+  for (const matchData of matches) {
+    const { fullMatch, filepathOrUrl, optional, startLine, endLine, filepathWithRange } = matchData;
+
     // Check for circular/duplicate imports
     if (importedFiles.has(filepathWithRange)) {
-      core.warning(`File ${filepathWithRange} is imported multiple times, which may indicate a circular reference`);
+      core.warning(`File/URL ${filepathWithRange} is imported multiple times, which may indicate a circular reference`);
     }
     importedFiles.add(filepathWithRange);
 
     try {
-      const importedContent = processRuntimeImport(filepath, optional, workspaceDir, startLine, endLine);
+      const importedContent = await processRuntimeImport(filepathOrUrl, optional, workspaceDir, startLine, endLine);
       // Replace the macro with the imported content
       processedContent = processedContent.replace(fullMatch, importedContent);
     } catch (error) {
@@ -191,40 +360,69 @@ function processRuntimeImports(content, workspaceDir) {
 }
 
 /**
- * Converts @path and @path:line-line inline syntax to {{#runtime-import}} macros
- * @param {string} content - The markdown content containing @path references
- * @returns {string} - Content with @path references converted to {{#runtime-import}} macros
+ * Converts @path, @path:line-line, and @url inline syntax to {{#runtime-import}} macros
+ * @param {string} content - The markdown content containing @path and @url references
+ * @returns {string} - Content with inline references converted to {{#runtime-import}} macros
  */
-function convertFileInlinesToMacros(content) {
-  // Pattern to match @filepath or @filepath:startline-endline
-  // This pattern matches:
-  // - @path/to/file.ext
-  // - @file.ext
-  // - @path/to/file.ext:10-20
-  // But NOT email addresses like user@example.com
-  // We require the path to contain at least one of: /, ., - or alphanumeric followed by /, ., -
-  // This ensures we match file paths but not bare domain names in emails
-  const pattern = /@([a-zA-Z0-9_\-./]+[a-zA-Z0-9_])(?::(\d+)-(\d+))?/g;
-
+function convertInlinesToMacros(content) {
   let processedContent = content;
+
+  // First, process URL patterns (@https://... or @http://...)
+  const urlPattern = /@(https?:\/\/[^\s]+?)(?::(\d+)-(\d+))?(?=[\s\n]|$)/g;
   let match;
 
-  // Reset regex state
-  pattern.lastIndex = 0;
-
-  while ((match = pattern.exec(content)) !== null) {
-    const filepath = match[1];
+  urlPattern.lastIndex = 0;
+  while ((match = urlPattern.exec(content)) !== null) {
+    const url = match[1];
     const startLine = match[2];
     const endLine = match[3];
     const fullMatch = match[0];
 
     // Skip if this looks like part of an email address
-    // Check if there's an alphanumeric character immediately before the @
     const matchIndex = match.index;
     if (matchIndex > 0) {
       const charBefore = content[matchIndex - 1];
       if (/[a-zA-Z0-9_]/.test(charBefore)) {
-        // This is likely an email address, skip it
+        continue;
+      }
+    }
+
+    // Convert to {{#runtime-import URL}} or {{#runtime-import URL:start-end}}
+    let macro;
+    if (startLine && endLine) {
+      macro = `{{#runtime-import ${url}:${startLine}-${endLine}}}`;
+    } else {
+      macro = `{{#runtime-import ${url}}}`;
+    }
+
+    processedContent = processedContent.replace(fullMatch, macro);
+  }
+
+  // Then, process file path patterns (@path or @path:line-line)
+  // This pattern matches:
+  // - @path/to/file.ext
+  // - @file.ext
+  // - @path/to/file.ext:10-20
+  // But NOT email addresses like user@example.com or URLs (already processed)
+  const filePattern = /@([a-zA-Z0-9_\-./]+[a-zA-Z0-9_])(?::(\d+)-(\d+))?/g;
+
+  filePattern.lastIndex = 0;
+  while ((match = filePattern.exec(processedContent)) !== null) {
+    const filepath = match[1];
+    const startLine = match[2];
+    const endLine = match[3];
+    const fullMatch = match[0];
+
+    // Skip URLs (they were already processed)
+    if (/^https?:\/\//i.test(filepath)) {
+      continue;
+    }
+
+    // Skip if this looks like part of an email address
+    const matchIndex = match.index;
+    if (matchIndex > 0) {
+      const charBefore = processedContent[matchIndex - 1];
+      if (/[a-zA-Z0-9_]/.test(charBefore)) {
         continue;
       }
     }
@@ -237,155 +435,7 @@ function convertFileInlinesToMacros(content) {
       macro = `{{#runtime-import ${filepath}}}`;
     }
 
-    // Replace the @path reference with the macro
     processedContent = processedContent.replace(fullMatch, macro);
-  }
-
-  return processedContent;
-}
-
-/**
- * Fetches content from a URL with caching
- * @param {string} url - The URL to fetch
- * @param {string} cacheDir - Directory to store cached URL content
- * @returns {Promise<string>} - The fetched content
- * @throws {Error} - If URL fetch fails
- */
-async function fetchUrlContent(url, cacheDir) {
-  // Create cache directory if it doesn't exist
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
-  }
-
-  // Generate cache filename from URL (hash it for safety)
-  const crypto = require("crypto");
-  const urlHash = crypto.createHash("sha256").update(url).digest("hex");
-  const cacheFile = path.join(cacheDir, `url-${urlHash}.cache`);
-
-  // Check if cached version exists and is recent (less than 1 hour old)
-  if (fs.existsSync(cacheFile)) {
-    const stats = fs.statSync(cacheFile);
-    const ageInMs = Date.now() - stats.mtimeMs;
-    const oneHourInMs = 60 * 60 * 1000;
-
-    if (ageInMs < oneHourInMs) {
-      core.info(`Using cached content for URL: ${url}`);
-      return fs.readFileSync(cacheFile, "utf8");
-    }
-  }
-
-  // Fetch URL content
-  core.info(`Fetching content from URL: ${url}`);
-
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith("https") ? https : http;
-
-    protocol
-      .get(url, res => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Failed to fetch URL ${url}: HTTP ${res.statusCode}`));
-          return;
-        }
-
-        let data = "";
-        res.on("data", chunk => {
-          data += chunk;
-        });
-
-        res.on("end", () => {
-          // Cache the content
-          fs.writeFileSync(cacheFile, data, "utf8");
-          resolve(data);
-        });
-      })
-      .on("error", err => {
-        reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
-      });
-  });
-}
-
-/**
- * Processes a URL inline and returns content with sanitization
- * @param {string} url - The URL to fetch
- * @param {string} cacheDir - Directory to store cached URL content
- * @returns {Promise<string>} - The processed URL content
- * @throws {Error} - If URL fetch fails or content is invalid
- */
-async function processUrlInline(url, cacheDir) {
-  // Fetch URL content (with caching)
-  let content = await fetchUrlContent(url, cacheDir);
-
-  // Check for front matter and warn
-  if (hasFrontMatter(content)) {
-    core.warning(`URL ${url} contains front matter which will be ignored in inline`);
-    // Remove front matter (everything between first --- and second ---)
-    const lines = content.split("\n");
-    let inFrontMatter = false;
-    let frontMatterCount = 0;
-    const processedLines = [];
-
-    for (const line of lines) {
-      if (line.trim() === "---" || line.trim() === "---\r") {
-        frontMatterCount++;
-        if (frontMatterCount === 1) {
-          inFrontMatter = true;
-          continue;
-        } else if (frontMatterCount === 2) {
-          inFrontMatter = false;
-          continue;
-        }
-      }
-      if (!inFrontMatter && frontMatterCount >= 2) {
-        processedLines.push(line);
-      }
-    }
-    content = processedLines.join("\n");
-  }
-
-  // Remove XML comments
-  content = removeXMLComments(content);
-
-  // Check for GitHub Actions macros and error if found
-  if (hasGitHubActionsMacros(content)) {
-    throw new Error(`URL ${url} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in inline content`);
-  }
-
-  return content;
-}
-
-/**
- * Processes all @url inline references in the content
- * @param {string} content - The markdown content containing @url references
- * @param {string} cacheDir - Directory to store cached URL content
- * @returns {Promise<string>} - Content with @url references replaced by URL contents
- */
-async function processUrlInlines(content, cacheDir) {
-  // Pattern to match @https://... or @http://...
-  const pattern = /@(https?:\/\/[^\s]+)/g;
-
-  let processedContent = content;
-  const matches = [];
-
-  // Collect all matches first
-  let match;
-  pattern.lastIndex = 0;
-  while ((match = pattern.exec(content)) !== null) {
-    matches.push({
-      fullMatch: match[0],
-      url: match[1],
-    });
-  }
-
-  // Process each match sequentially (to handle async)
-  for (const { fullMatch, url } of matches) {
-    try {
-      const inlinedContent = await processUrlInline(url, cacheDir);
-      // Replace the @url reference with the inlined content
-      processedContent = processedContent.replace(fullMatch, inlinedContent);
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      throw new Error(`Failed to process URL inline for ${fullMatch}: ${errorMessage}`);
-    }
   }
 
   return processedContent;
@@ -394,9 +444,7 @@ async function processUrlInlines(content, cacheDir) {
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
-  convertFileInlinesToMacros,
-  processUrlInline,
-  processUrlInlines,
+  convertInlinesToMacros,
   hasFrontMatter,
   removeXMLComments,
   hasGitHubActionsMacros,
