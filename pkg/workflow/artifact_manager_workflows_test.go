@@ -369,7 +369,7 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 	for _, jobName := range jobNames {
 		summary := artifactsByJob[jobName]
 
-		sb.WriteString(fmt.Sprintf("### Job: `%s`\n\n", jobName))
+		fmt.Fprintf(&sb, "### Job: `%s`\n\n", jobName)
 
 		// Uploads summary
 		if len(summary.Uploads) > 0 {
@@ -384,7 +384,7 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 
 			for _, name := range uploadNames {
 				info := summary.Uploads[name]
-				sb.WriteString(fmt.Sprintf("- `%s`\n", info.ArtifactName))
+				fmt.Fprintf(&sb, "- `%s`\n", info.ArtifactName)
 
 				// Sort and list paths
 				paths := make([]string, 0, len(info.Paths))
@@ -398,13 +398,13 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 					if i > 0 {
 						sb.WriteString(", ")
 					}
-					sb.WriteString(fmt.Sprintf("`%s`", path))
+					fmt.Fprintf(&sb, "`%s`", path)
 				}
 				sb.WriteString("\n")
 
 				// Sort and list workflows
 				sort.Strings(info.Workflows)
-				sb.WriteString(fmt.Sprintf("  - **Used in**: %d workflow(s) - %s\n", len(info.Workflows), strings.Join(info.Workflows, ", ")))
+				fmt.Fprintf(&sb, "  - **Used in**: %d workflow(s) - %s\n", len(info.Workflows), strings.Join(info.Workflows, ", "))
 			}
 			sb.WriteString("\n")
 		}
@@ -422,7 +422,7 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 
 			for _, id := range downloadIds {
 				info := summary.Downloads[id]
-				sb.WriteString(fmt.Sprintf("- `%s`\n", info.Identifier))
+				fmt.Fprintf(&sb, "- `%s`\n", info.Identifier)
 
 				// Sort and list download paths
 				paths := make([]string, 0, len(info.DownloadPaths))
@@ -436,13 +436,13 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 					if i > 0 {
 						sb.WriteString(", ")
 					}
-					sb.WriteString(fmt.Sprintf("`%s`", path))
+					fmt.Fprintf(&sb, "`%s`", path)
 				}
 				sb.WriteString("\n")
 
 				// Sort and list workflows
 				sort.Strings(info.Workflows)
-				sb.WriteString(fmt.Sprintf("  - **Used in**: %d workflow(s) - %s\n", len(info.Workflows), strings.Join(info.Workflows, ", ")))
+				fmt.Fprintf(&sb, "  - **Used in**: %d workflow(s) - %s\n", len(info.Workflows), strings.Join(info.Workflows, ", "))
 			}
 			sb.WriteString("\n")
 		}
@@ -460,7 +460,7 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 	for _, workflowName := range workflowNames {
 		jobs := workflowArtifacts[workflowName]
 
-		sb.WriteString(fmt.Sprintf("### %s\n\n", workflowName))
+		fmt.Fprintf(&sb, "### %s\n\n", workflowName)
 
 		// Sort job names
 		jobNames := make([]string, 0, len(jobs))
@@ -472,19 +472,19 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 		for _, jobName := range jobNames {
 			artifacts := jobs[jobName]
 
-			sb.WriteString(fmt.Sprintf("#### Job: `%s`\n\n", jobName))
+			fmt.Fprintf(&sb, "#### Job: `%s`\n\n", jobName)
 
 			// Uploads
 			if len(artifacts.Uploads) > 0 {
 				sb.WriteString("**Uploads:**\n\n")
 				for _, upload := range artifacts.Uploads {
-					sb.WriteString(fmt.Sprintf("- **Artifact**: `%s`\n", upload.Name))
+					fmt.Fprintf(&sb, "- **Artifact**: `%s`\n", upload.Name)
 					sb.WriteString("  - **Upload paths**:\n")
 					for _, path := range upload.Paths {
-						sb.WriteString(fmt.Sprintf("    - `%s`\n", path))
+						fmt.Fprintf(&sb, "    - `%s`\n", path)
 					}
 
-					if upload.NormalizedPaths != nil && len(upload.NormalizedPaths) > 0 {
+					if len(upload.NormalizedPaths) > 0 {
 						sb.WriteString("  - **Paths in artifact** (after common parent stripping):\n")
 
 						// Sort normalized paths for consistent output
@@ -496,7 +496,7 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 
 						for _, key := range normalizedKeys {
 							normalizedPath := upload.NormalizedPaths[key]
-							sb.WriteString(fmt.Sprintf("    - `%s` → `%s`\n", key, normalizedPath))
+							fmt.Fprintf(&sb, "    - `%s` → `%s`\n", key, normalizedPath)
 						}
 					}
 					sb.WriteString("\n")
@@ -508,18 +508,18 @@ func generateArtifactsMarkdown(workflowArtifacts map[string]map[string]*JobArtif
 				sb.WriteString("**Downloads:**\n\n")
 				for _, download := range artifacts.Downloads {
 					if download.Name != "" {
-						sb.WriteString(fmt.Sprintf("- **Artifact**: `%s` (by name)\n", download.Name))
+						fmt.Fprintf(&sb, "- **Artifact**: `%s` (by name)\n", download.Name)
 					} else if download.Pattern != "" {
-						sb.WriteString(fmt.Sprintf("- **Pattern**: `%s`", download.Pattern))
+						fmt.Fprintf(&sb, "- **Pattern**: `%s`", download.Pattern)
 						if download.MergeMultiple {
 							sb.WriteString(" (merge-multiple: true)\n")
 						} else {
 							sb.WriteString(" (merge-multiple: false)\n")
 						}
 					}
-					sb.WriteString(fmt.Sprintf("  - **Download path**: `%s`\n", download.Path))
+					fmt.Fprintf(&sb, "  - **Download path**: `%s`\n", download.Path)
 					if len(download.DependsOn) > 0 {
-						sb.WriteString(fmt.Sprintf("  - **Depends on jobs**: %v\n", download.DependsOn))
+						fmt.Fprintf(&sb, "  - **Depends on jobs**: %v\n", download.DependsOn)
 					}
 					sb.WriteString("\n")
 				}
