@@ -22,7 +22,6 @@ network:
     - github
 
 tools:
-  web-fetch:
   github:
     toolsets: [default, actions]
   edit:
@@ -96,10 +95,29 @@ get_job_logs(owner="githubnext", repo="gh-aw", run_id=<run_id>, return_content=t
 
 ### 2. Download Runner Image Documentation
 
-Use the web-fetch tool to download the runner image documentation:
+Use the GitHub MCP server's `get_file_contents` tool to download the runner image documentation:
 
-```bash
-# The URL discovered in step 1 should be used with web-fetch
+**IMPORTANT**: The URL format from step 1 is:
+```
+https://github.com/actions/runner-images/blob/<branch>/<version>/images/ubuntu/Ubuntu<version>-Readme.md
+```
+
+Parse this URL to extract:
+- **owner**: `actions`
+- **repo**: `runner-images`
+- **ref**: `<branch>` (e.g., `ubuntu24`)
+- **path**: `images/ubuntu/Ubuntu<version>-Readme.md` (e.g., `images/ubuntu/Ubuntu2404-Readme.md`)
+
+Then use the `get_file_contents` tool:
+
+```
+# Example MCP tool usage
+get_file_contents(
+  owner="actions",
+  repo="runner-images", 
+  ref="ubuntu24",
+  path="images/ubuntu/Ubuntu2404-Readme.md"
+)
 ```
 
 The documentation is a comprehensive markdown file that includes:
