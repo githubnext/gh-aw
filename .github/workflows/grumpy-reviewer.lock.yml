@@ -1092,7 +1092,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: aw.patch
+          name: agent-artifacts
           path: /tmp/gh-aw/threat-detection/
       - name: Echo agent output types
         env:

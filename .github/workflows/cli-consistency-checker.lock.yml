@@ -163,7 +163,7 @@ jobs:
             const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3 mcp/fetch
+        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -379,16 +379,6 @@ jobs:
                   "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }
@@ -1023,7 +1013,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: aw.patch
+          name: agent-artifacts
           path: /tmp/gh-aw/threat-detection/
       - name: Echo agent output types
         env:

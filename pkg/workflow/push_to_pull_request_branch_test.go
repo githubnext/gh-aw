@@ -866,9 +866,9 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 		t.Errorf("Expected 'Download patch artifact' step in safe_outputs job when push-to-pull-request-branch is enabled")
 	}
 
-	// Verify that patch is downloaded to correct path
-	if !strings.Contains(lockContentStr, "name: aw.patch") {
-		t.Errorf("Expected patch artifact to be named 'aw.patch'")
+	// Verify that patch is downloaded from unified agent-artifacts
+	if !strings.Contains(lockContentStr, "name: agent-artifacts") {
+		t.Errorf("Expected patch to be downloaded from 'agent-artifacts' unified artifact")
 	}
 
 	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/") {
