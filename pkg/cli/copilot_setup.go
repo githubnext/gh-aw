@@ -115,7 +115,7 @@ func ensureCopilotSetupSteps(verbose bool) error {
 			return fmt.Errorf("failed to marshal updated workflow: %w", err)
 		}
 
-		if err := os.WriteFile(setupStepsPath, updatedContent, 0644); err != nil {
+		if err := os.WriteFile(setupStepsPath, updatedContent, 0600); err != nil {
 			return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
 		}
 		copilotSetupLog.Printf("Updated file with extension install step: %s", setupStepsPath)
@@ -126,7 +126,7 @@ func ensureCopilotSetupSteps(verbose bool) error {
 		return nil
 	}
 
-	if err := os.WriteFile(setupStepsPath, []byte(copilotSetupStepsYAML), 0644); err != nil {
+	if err := os.WriteFile(setupStepsPath, []byte(copilotSetupStepsYAML), 0600); err != nil {
 		return fmt.Errorf("failed to write copilot-setup-steps.yml: %w", err)
 	}
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
