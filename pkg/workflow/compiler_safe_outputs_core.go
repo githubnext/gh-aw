@@ -632,6 +632,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.TitlePrefix != "" {
 			handlerConfig["title_prefix"] = cfg.TitlePrefix
 		}
+		// Add assignees to config
+		if len(cfg.Assignees) > 0 {
+			handlerConfig["assignees"] = cfg.Assignees
+		}
 		// Add target-repo to config
 		if cfg.TargetRepoSlug != "" {
 			handlerConfig["target-repo"] = cfg.TargetRepoSlug
