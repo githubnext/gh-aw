@@ -518,3 +518,125 @@ func TestGenerateFilteredToolsJSONWithEnhancedDescriptions(t *testing.T) {
 	assert.Contains(t, labelsDescription, "CONSTRAINTS:", "Description should contain constraints")
 	assert.Contains(t, labelsDescription, "Only these labels are allowed: [bug enhancement]", "Description should include allowed labels")
 }
+
+func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		toolName       string
+		expectRepo     bool
+		expectRepoDesc string
+	}{
+		{
+			name: "create_issue without allowed-repos should not have repo parameter",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					TargetRepoSlug:       "org/target-repo",
+				},
+			},
+			toolName:   "create_issue",
+			expectRepo: false,
+		},
+		{
+			name: "create_issue with allowed-repos should have repo parameter",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					TargetRepoSlug:       "org/target-repo",
+					AllowedRepos:         []string{"org/other-repo"},
+				},
+			},
+			toolName:       "create_issue",
+			expectRepo:     true,
+			expectRepoDesc: "org/target-repo",
+		},
+		{
+			name: "add_comment with allowed-repos should have repo parameter",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					AllowedRepos:         []string{"org/repo-a", "org/repo-b"},
+				},
+			},
+			toolName:   "add_comment",
+			expectRepo: true,
+		},
+		{
+			name: "create_pull_request without allowed-repos should not have repo parameter",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				},
+			},
+			toolName:   "create_pull_request",
+			expectRepo: false,
+		},
+		{
+			name: "create_pull_request with allowed-repos should have repo parameter",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					AllowedRepos:         []string{"org/repo-c"},
+				},
+			},
+			toolName:   "create_pull_request",
+			expectRepo: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			result, err := generateFilteredToolsJSON(workflowData)
+			require.NoError(t, err)
+
+			// Parse the JSON result
+			var tools []map[string]any
+			err = json.Unmarshal([]byte(result), &tools)
+			require.NoError(t, err)
+
+			// Find the tool
+			var targetTool map[string]any
+			for _, tool := range tools {
+				if tool["name"] == tt.toolName {
+					targetTool = tool
+					break
+				}
+			}
+			require.NotNil(t, targetTool, "%s tool should be present", tt.toolName)
+
+			// Check inputSchema
+			inputSchema, ok := targetTool["inputSchema"].(map[string]any)
+			require.True(t, ok, "inputSchema should exist")
+
+			properties, ok := inputSchema["properties"].(map[string]any)
+			require.True(t, ok, "properties should exist")
+
+			// Check if repo parameter exists
+			repoParam, hasRepo := properties["repo"]
+			if tt.expectRepo {
+				assert.True(t, hasRepo, "Tool %s should have repo parameter when allowed-repos is configured", tt.toolName)
+				if hasRepo {
+					repoMap, ok := repoParam.(map[string]any)
+					require.True(t, ok, "repo parameter should be a map")
+					assert.Equal(t, "string", repoMap["type"], "repo type should be string")
+
+					description, ok := repoMap["description"].(string)
+					require.True(t, ok, "repo description should be a string")
+					assert.Contains(t, description, "Target repository", "repo description should mention target repository")
+					assert.Contains(t, description, "allowed-repos", "repo description should mention allowed-repos")
+
+					if tt.expectRepoDesc != "" {
+						assert.Contains(t, description, tt.expectRepoDesc, "repo description should include target-repo value")
+					}
+				}
+			} else {
+				assert.False(t, hasRepo, "Tool %s should not have repo parameter when allowed-repos is not configured", tt.toolName)
+			}
+		})
+	}
+}

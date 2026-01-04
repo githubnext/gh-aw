@@ -82,9 +82,64 @@ function parseRepoSlug(repoSlug) {
   return { owner: parts[0], repo: parts[1] };
 }
 
+/**
+ * Resolve target repository configuration from handler config
+ * Combines parsing of allowed-repos and resolution of default target repo
+ * @param {Object} config - Handler configuration object
+ * @returns {{defaultTargetRepo: string, allowedRepos: Set<string>}}
+ */
+function resolveTargetRepoConfig(config) {
+  const defaultTargetRepo = getDefaultTargetRepo(config);
+  const allowedRepos = parseAllowedRepos(config.allowed_repos);
+  return {
+    defaultTargetRepo,
+    allowedRepos,
+  };
+}
+
+/**
+ * Resolve and validate target repository from a message item
+ * Combines repo resolution, validation, and parsing into a single function
+ * @param {Object} item - Message item that may contain a repo field
+ * @param {string} defaultTargetRepo - Default target repository slug
+ * @param {Set<string>} allowedRepos - Set of allowed repository slugs
+ * @param {string} operationType - Type of operation (e.g., "comment", "pull request", "issue") for error messages
+ * @returns {{success: true, repo: string, repoParts: {owner: string, repo: string}}|{success: false, error: string}}
+ */
+function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operationType) {
+  // Determine target repository for this operation
+  const itemRepo = item.repo ? String(item.repo).trim() : defaultTargetRepo;
+
+  // Validate the repository is allowed
+  const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+  if (!repoValidation.valid) {
+    return {
+      success: false,
+      error: repoValidation.error,
+    };
+  }
+
+  // Parse the repository slug
+  const repoParts = parseRepoSlug(itemRepo);
+  if (!repoParts) {
+    return {
+      success: false,
+      error: `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`,
+    };
+  }
+
+  return {
+    success: true,
+    repo: itemRepo,
+    repoParts: repoParts,
+  };
+}
+
 module.exports = {
   parseAllowedRepos,
   getDefaultTargetRepo,
   validateRepo,
   parseRepoSlug,
+  resolveTargetRepoConfig,
+  resolveAndValidateRepo,
 };

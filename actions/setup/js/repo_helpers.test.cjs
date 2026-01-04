@@ -70,6 +70,21 @@ describe("repo_helpers", () => {
   });
 
   describe("getDefaultTargetRepo", () => {
+    it("should return target-repo from config when provided", async () => {
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const config = { "target-repo": "config-org/config-repo" };
+      const result = getDefaultTargetRepo(config);
+      expect(result).toBe("config-org/config-repo");
+    });
+
+    it("should prefer config target-repo over env variable", async () => {
+      process.env.GH_AW_TARGET_REPO_SLUG = "env-org/env-repo";
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const config = { "target-repo": "config-org/config-repo" };
+      const result = getDefaultTargetRepo(config);
+      expect(result).toBe("config-org/config-repo");
+    });
+
     it("should return target-repo override when set", async () => {
       process.env.GH_AW_TARGET_REPO_SLUG = "override-org/override-repo";
       const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
@@ -147,6 +162,126 @@ describe("repo_helpers", () => {
       const { parseRepoSlug } = await import("./repo_helpers.cjs");
       const result = parseRepoSlug("owner/");
       expect(result).toBeNull();
+    });
+  });
+
+  describe("resolveAndValidateRepo", () => {
+    it("should successfully resolve and validate default repo", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = {}; // No repo field
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set();
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("default/repo");
+      expect(result.repoParts).toEqual({ owner: "default", repo: "repo" });
+    });
+
+    it("should successfully resolve and validate repo from item", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "org/other-repo" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/other-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/other-repo");
+      expect(result.repoParts).toEqual({ owner: "org", repo: "other-repo" });
+    });
+
+    it("should fail when repo not in allowed list", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "org/unauthorized-repo" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/allowed-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+
+    it("should fail with invalid repo format", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "invalid-format" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["invalid-format"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid repository format");
+      expect(result.error).toContain("owner/repo");
+    });
+
+    it("should trim whitespace from repo field", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "  org/trimmed-repo  " };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/trimmed-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/trimmed-repo");
+    });
+  });
+
+  describe("resolveTargetRepoConfig", () => {
+    it("should resolve config with target-repo and allowed-repos", async () => {
+      const { resolveTargetRepoConfig } = await import("./repo_helpers.cjs");
+      const config = {
+        "target-repo": "org/target-repo",
+        allowed_repos: ["org/allowed-a", "org/allowed-b"],
+      };
+
+      const result = resolveTargetRepoConfig(config);
+
+      expect(result.defaultTargetRepo).toBe("org/target-repo");
+      expect(result.allowedRepos.size).toBe(2);
+      expect(result.allowedRepos.has("org/allowed-a")).toBe(true);
+      expect(result.allowedRepos.has("org/allowed-b")).toBe(true);
+    });
+
+    it("should resolve config with env var and no allowed-repos", async () => {
+      process.env.GH_AW_TARGET_REPO_SLUG = "env/target-repo";
+      const { resolveTargetRepoConfig } = await import("./repo_helpers.cjs");
+      const config = {};
+
+      const result = resolveTargetRepoConfig(config);
+
+      expect(result.defaultTargetRepo).toBe("env/target-repo");
+      expect(result.allowedRepos.size).toBe(0);
+    });
+
+    it("should resolve config with context fallback", async () => {
+      delete process.env.GH_AW_TARGET_REPO_SLUG;
+      const { resolveTargetRepoConfig } = await import("./repo_helpers.cjs");
+      const config = {};
+
+      const result = resolveTargetRepoConfig(config);
+
+      expect(result.defaultTargetRepo).toBe("test-owner/test-repo");
+      expect(result.allowedRepos.size).toBe(0);
+    });
+
+    it("should handle comma-separated allowed-repos string", async () => {
+      const { resolveTargetRepoConfig } = await import("./repo_helpers.cjs");
+      const config = {
+        "target-repo": "org/main",
+        allowed_repos: "org/repo-1, org/repo-2, org/repo-3",
+      };
+
+      const result = resolveTargetRepoConfig(config);
+
+      expect(result.defaultTargetRepo).toBe("org/main");
+      expect(result.allowedRepos.size).toBe(3);
+      expect(result.allowedRepos.has("org/repo-1")).toBe(true);
+      expect(result.allowedRepos.has("org/repo-2")).toBe(true);
+      expect(result.allowedRepos.has("org/repo-3")).toBe(true);
     });
   });
 });

@@ -12,8 +12,9 @@ var safeOutputBuilderLog = logger.New("workflow:safe_output_builder")
 // SafeOutputTargetConfig contains common target-related fields for safe output configurations.
 // Embed this in safe output config structs that support targeting specific items.
 type SafeOutputTargetConfig struct {
-	Target         string `yaml:"target,omitempty"`      // Target for the operation: "triggering" (default), "*" (any item), or explicit number
-	TargetRepoSlug string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository operations
+	Target         string   `yaml:"target,omitempty"`        // Target for the operation: "triggering" (default), "*" (any item), or explicit number
+	TargetRepoSlug string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository operations
+	AllowedRepos   []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that operations can target (additionally to the target-repo)
 }
 
 // SafeOutputFilterConfig contains common filtering fields for safe output configurations.

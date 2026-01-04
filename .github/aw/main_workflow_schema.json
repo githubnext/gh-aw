@@ -3137,6 +3137,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository agent task creation. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that agent tasks can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the agent task in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -3525,6 +3532,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository comments. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the comment in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -3621,6 +3635,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -3686,6 +3707,13 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository PR review comments. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that PR review comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the review comment in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
