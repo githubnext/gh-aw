@@ -754,7 +754,7 @@ jobs:
         run: |
           # Run the logs command and capture only stdout (JSON output)
           # stderr is not redirected, so warning messages go to console
-          ./gh-aw logs -c 2 --engine copilot --json > logs_output.json || true
+          ./gh-aw logs -c 2 --verbose --engine copilot --json > logs_output.json || true
           
           # Display the output for debugging
           echo "Logs command output:"
