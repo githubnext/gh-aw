@@ -385,11 +385,37 @@ async function updateProject(output) {
             .join(" ");
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+
+          // Detect expected field type based on field name and value heuristics
+          const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+          const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
+          const isTextField = "classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          let expectedDataType;
+          if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+            expectedDataType = "DATE";
+          } else if (isTextField) {
+            expectedDataType = "TEXT";
+          } else {
+            expectedDataType = "SINGLE_SELECT";
+          }
+
+          // Check for type mismatch if field already exists
+          if (field && field.dataType && expectedDataType) {
+            const actualType = field.dataType;
+            if (actualType !== expectedDataType) {
+              core.warning(
+                `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
+                  `The field was likely created with the wrong type. To fix this, delete the field in the GitHub Projects UI and let it be recreated, ` +
+                  `or manually change the field type if supported.`
+              );
+              // Continue anyway - we'll use the existing field type
+            }
+          }
+
           if (!field)
             if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
               // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
               // Date field values must match ISO 8601 format (YYYY-MM-DD)
-              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
               if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
                 try {
                   field = (
@@ -541,11 +567,37 @@ async function updateProject(output) {
             .join(" ");
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+
+          // Detect expected field type based on field name and value heuristics
+          const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+          const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
+          const isTextField = "classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          let expectedDataType;
+          if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+            expectedDataType = "DATE";
+          } else if (isTextField) {
+            expectedDataType = "TEXT";
+          } else {
+            expectedDataType = "SINGLE_SELECT";
+          }
+
+          // Check for type mismatch if field already exists
+          if (field && field.dataType && expectedDataType) {
+            const actualType = field.dataType;
+            if (actualType !== expectedDataType) {
+              core.warning(
+                `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
+                  `The field was likely created with the wrong type. To fix this, delete the field in the GitHub Projects UI and let it be recreated, ` +
+                  `or manually change the field type if supported.`
+              );
+              // Continue anyway - we'll use the existing field type
+            }
+          }
+
           if (!field)
             if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
               // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
               // Date field values must match ISO 8601 format (YYYY-MM-DD)
-              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
               if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
                 try {
                   field = (
