@@ -62,7 +62,7 @@ steps:
       
       # Run compile with all security scanner flags to download Docker images
       # Store the output in a file for inspection
-      ./gh-aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt || true
+      ./gh-aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"
@@ -84,34 +84,35 @@ Daily scan all agentic workflow files with static analysis tools to identify sec
 
 ### Phase 0: Setup
 
-- DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
-- Do not attempt to download the `gh aw` extension or build it. If the MCP fails, give up.
-- Run the `status` tool of `gh-aw` MCP server to verify configuration.
+- All workflows have already been compiled with static analysis tools in previous steps
+- The compilation output is available at `/tmp/gh-aw/compile-output.txt`
+- You should read and analyze this file directly instead of running additional compilations
 
-### Phase 1: Compile Workflows with Static Analysis Tools
+### Phase 1: Analyze Static Analysis Output
 
-The gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.
+The workflow has already compiled all workflows with static analysis tools (zizmor, poutine, actionlint) and saved the output to `/tmp/gh-aw/compile-output.txt`.
 
-1. **Compile All Workflows with Static Analysis**:
-   Use the `compile` tool from the gh-aw MCP server with all static analysis flags:
-   - Workflow name: (leave empty to compile all workflows)
-   - Set `zizmor: true` to run zizmor security scanner
-   - Set `poutine: true` to run poutine security scanner  
-   - Set `actionlint: true` to run actionlint linter
+1. **Read Compilation Output**:
+   Read and parse the file `/tmp/gh-aw/compile-output.txt` which contains the JSON output from the compilation with all three static analysis tools.
    
-   This will compile all workflow files and run all three static analysis tools on each generated `.lock.yml` file.
+   The output is JSON format with validation results for each workflow:
+   - workflow: Name of the workflow file
+   - valid: Boolean indicating if compilation was successful
+   - errors: Array of error objects with type, message, and optional line number
+   - warnings: Array of warning objects
+   - compiled_file: Path to the generated .lock.yml file
+   - security findings from zizmor, poutine, and actionlint (if any)
 
-2. **Verify Compilation**:
-   - Check that workflows were compiled successfully
+2. **Parse and Extract Findings**:
+   - Parse the JSON output to extract findings from all three tools
    - Note which workflows have findings from each tool
    - Identify total number of issues by tool and severity
+   - Extract specific error messages, locations, and recommendations
 
-**Error Handling**: If you receive an MCP error (such as -32603):
-- Wait 10 seconds and retry the compile operation once
-- If the second attempt fails, provide summary based on:
-  * Historical data from cache-memory
-  * Partial results if any workflows were successfully compiled
-  * Recommendations for manual investigation
+**Error Handling**: If the compilation output indicates failures:
+- Review the error messages to understand what went wrong
+- Check if any workflows were successfully compiled
+- Provide summary based on available data and recommendations for fixing issues
 
 ### Phase 2: Analyze and Cluster Findings
 
@@ -415,4 +416,4 @@ A successful static analysis scan:
 - ✅ Provides actionable recommendations
 - ✅ Maintains historical context for trend analysis
 
-Begin your static analysis scan now. Use the MCP server to compile workflows with all three tools (zizmor, poutine, actionlint), analyze the findings, cluster them, generate fix suggestions, and create a discussion with your complete analysis.
+Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/compile-output.txt`, analyze the findings from all three tools (zizmor, poutine, actionlint), cluster them, generate fix suggestions, and create a discussion with your complete analysis.
