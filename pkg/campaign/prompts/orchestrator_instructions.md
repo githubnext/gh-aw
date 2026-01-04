@@ -108,7 +108,7 @@ and synchronizing campaign state into a GitHub Project board.
        status: "In Progress"
        campaign_id: "{{.CampaignID}}"
        worker_workflow: "unknown"
-       repository: "<OWNER/REPO>"
+       repo: "<OWNER/REPO>"
        priority: "High"
        size: "Large"
        start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
@@ -135,7 +135,7 @@ and synchronizing campaign state into a GitHub Project board.
 
 3) Normalize discovered items into a single list with:
 - URL, `content_type` (issue/pull_request/discussion), `content_number`
-- `repository` (owner/repo), `created_at`, `updated_at`
+- `repo` (owner/repo), `created_at`, `updated_at`
 - `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
 
 4) Respect read budgets and cursor; stop early if needed and persist cursor.
@@ -166,7 +166,7 @@ and synchronizing campaign state into a GitHub Project board.
 - Do NOT interleave reads.
 - Do NOT pre-check whether the item is on the board.
 - **All write semantics MUST follow Project Update Instructions**, including:
-  - first add → full required fields (status, campaign_id, worker_workflow, repository, priority, size, start_date, end_date)
+  - first add → full required fields (status, campaign_id, worker_workflow, repo, priority, size, start_date, end_date)
   - existing item → status-only update unless explicit backfill is required
 
 10) Record per-item outcome: success/failure + error details.

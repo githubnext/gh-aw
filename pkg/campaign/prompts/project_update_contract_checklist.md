@@ -17,7 +17,7 @@ This checklist is designed to validate LLM outputs before executing project writ
 - [ ] `fields.status` ∈ {`Todo`, `In Progress`, `Done`}
 - [ ] `fields.campaign_id` is present on first-add/backfill and equals `{{.CampaignID}}`
 - [ ] `fields.worker_workflow` is present on first-add/backfill and is either a known workflow ID or `"unknown"`
-- [ ] `fields.repository` matches `owner/repo`
+- [ ] `fields.repo` matches `owner/repo` (Note: Do not use "repository" - it conflicts with GitHub's built-in REPOSITORY type)
 - [ ] `fields.priority` ∈ {`High`, `Medium`, `Low`}
 - [ ] `fields.size` ∈ {`Small`, `Medium`, `Large`}
 - [ ] `fields.start_date` matches `YYYY-MM-DD`
