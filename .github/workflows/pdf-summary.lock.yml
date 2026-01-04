@@ -1066,24 +1066,17 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
-      - name: Download prompt artifact
+      - name: Download agent artifacts
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: prompt
+          name: agent-artifacts
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/threat-detection/
-      - name: Download patch artifact
-        if: needs.agent.outputs.has_patch == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: agent-artifacts
           path: /tmp/gh-aw/threat-detection/
       - name: Echo agent output types
         env:

@@ -185,32 +185,24 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 }
 
 // buildDownloadArtifactStep creates the artifact download step
+// Downloads from unified agent-artifacts (contains prompt, patch, etc.) and separate agent-output
 func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 	var steps []string
 
-	// Download prompt artifact
+	// Download unified agent-artifacts (contains prompt, patch, logs, etc.)
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: "prompt",
+		ArtifactName: "agent-artifacts",
 		DownloadPath: "/tmp/gh-aw/threat-detection/",
 		SetupEnvStep: false,
-		StepName:     "Download prompt artifact",
+		StepName:     "Download agent artifacts",
 	})...)
 
-	// Download agent output artifact
+	// Download agent output artifact (still separate)
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: constants.AgentOutputArtifactName,
 		DownloadPath: "/tmp/gh-aw/threat-detection/",
 		SetupEnvStep: false,
 		StepName:     "Download agent output artifact",
-	})...)
-
-	// Download patch artifact from unified agent-artifacts - only when patch exists
-	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: "agent-artifacts",
-		DownloadPath: "/tmp/gh-aw/threat-detection/",
-		SetupEnvStep: false,
-		StepName:     "Download patch artifact",
-		IfCondition:  fmt.Sprintf("needs.%s.outputs.has_patch == 'true'", mainJobName),
 	})...)
 
 	return steps
