@@ -1,0 +1,83 @@
+{
+  "date": "2026-01-04",
+  "timestamp": 1735751809,
+  "metrics": {
+    "size": {
+      "total_loc": 682696,
+      "total_files": 2267,
+      "by_language": {
+        "Go": 324718,
+        "YAML": 182890,
+        "Markdown": 110793,
+        "JavaScript": 61848,
+        "TypeScript": 2447
+      },
+      "by_directory": {
+        ".github/workflows": {"loc": 219573, "files": 323},
+        "pkg": {"loc": 331337, "files": 1333},
+        "cmd": {"loc": 2065, "files": 8},
+        "docs": {"loc": 18642, "files": 125},
+        "internal": {"loc": 74, "files": 2}
+      },
+      "file_counts": {
+        "total": 2267,
+        "go": 1144,
+        "js": 266,
+        "test": 749
+      }
+    },
+    "quality": {
+      "avg_file_size": 332,
+      "large_files_count": 14,
+      "comment_lines": 0,
+      "comment_ratio": 0,
+      "large_files": [
+        {"file": "./actions/setup/js/log_parser_shared.test.cjs", "loc": 2087},
+        {"file": "./pkg/parser/schema_test.go", "loc": 1829},
+        {"file": "./pkg/cli/logs_test.go", "loc": 1647},
+        {"file": "./actions/setup/js/collect_ndjson_output.test.cjs", "loc": 1638},
+        {"file": "./actions/setup/js/log_parser_shared.cjs", "loc": 1559},
+        {"file": "./pkg/workflow/permissions_test.go", "loc": 1553},
+        {"file": "./pkg/workflow/expressions_test.go", "loc": 1523},
+        {"file": "./pkg/workflow/safe_outputs_import_test.go", "loc": 1481},
+        {"file": "./pkg/parser/schedule_parser_test.go", "loc": 1450},
+        {"file": "./pkg/cli/audit_report_test.go", "loc": 1425}
+      ]
+    },
+    "tests": {
+      "test_files": 746,
+      "test_loc": 223817,
+      "source_loc": 100901,
+      "test_to_source_ratio": 2.21
+    },
+    "churn": {
+      "commits": 395,
+      "files_modified": 917,
+      "lines_added": 104723,
+      "lines_deleted": 99551,
+      "net_change": 5172,
+      "most_active_files": [
+        {"file": "specs/artifacts.md", "added": 5743, "deleted": 28},
+        {"file": ".github/workflows/docs-quality-maintenance-project67.campaign.g.lock.yml", "added": 3255, "deleted": 3255},
+        {"file": ".github/workflows/docs-quality-maintenance-project67.campaign.lock.yml", "added": 2333, "deleted": 640},
+        {"file": ".github/workflows/daily-cli-performance.lock.yml", "added": 2039, "deleted": 304},
+        {"file": ".github/workflows/go-file-size-reduction-project64.campaign.g.lock.yml", "added": 1997, "deleted": 3505},
+        {"file": ".github/workflows/go-file-size-reduction-project64.campaign.lock.yml", "added": 1837, "deleted": 239},
+        {"file": ".github/aw/schemas/agentic-workflow.json", "added": 1681, "deleted": 1508},
+        {"file": "pkg/parser/schemas/main_workflow_schema.json", "added": 1680, "deleted": 1507},
+        {"file": ".github/workflows/ubuntu-image-analyzer.lock.yml", "added": 1513, "deleted": 1513},
+        {"file": "specs/mdflow.md", "added": 1495, "deleted": 0}
+      ]
+    },
+    "workflows": {
+      "workflow_md_files": 177,
+      "workflow_lock_files": 125,
+      "avg_workflow_size": 212
+    },
+    "docs": {
+      "docs_files": 71,
+      "docs_loc": 17044,
+      "code_to_docs_ratio": 40.05
+    }
+  }
+}
