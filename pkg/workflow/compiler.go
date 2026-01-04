@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -85,6 +86,9 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		baseName := strings.TrimSuffix(markdownPath, ".campaign.g.md")
 		lockFile = baseName + ".campaign.lock.yml"
 	}
+
+	// Sanitize the lock file path to prevent path traversal attacks
+	lockFile = filepath.Clean(lockFile)
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
