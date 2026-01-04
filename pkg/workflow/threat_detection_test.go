@@ -743,7 +743,7 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 		"continue-on-error: true",
 		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
 		"name: agent-artifacts",
-		"path: /tmp/gh-aw/threat-detection/agent-artifacts",
+		"path: /tmp/gh-aw/threat-detection/",
 	}
 
 	for _, expected := range expectedComponents {
@@ -757,9 +757,9 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 		t.Error("Expected download steps to include agent output artifact")
 	}
 
-	// Verify agent output uses separate subdirectory to avoid conflicts
-	if !strings.Contains(stepsString, "path: /tmp/gh-aw/threat-detection/agent-output") {
-		t.Error("Expected agent output to use separate subdirectory path")
+	// Verify agent output is downloaded to the same threat-detection directory
+	if !strings.Contains(stepsString, "path: /tmp/gh-aw/threat-detection/") {
+		t.Error("Expected agent output to be downloaded to threat-detection directory")
 	}
 }
 

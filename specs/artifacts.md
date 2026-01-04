@@ -82,10 +82,10 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Artifacts Downloaded:**
 
 - `agent-artifacts`
-  - **Download paths**: `/tmp/gh-aw/threat-detection/`, `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download paths**: `/tmp/gh-aw/threat-detection/`
   - **Used in**: 74 workflow(s) - agent-performance-analyzer.md, archie.md, artifacts-summary.md, blog-auditor.md, brave.md, breaking-change-checker.md, campaign-generator.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, dependabot-go-checker.md, dev-hawk.md, dev.md, dictation-prompt.md, example-workflow-analyzer.md, github-mcp-structural-analysis.md, github-mcp-tools-report.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-template-optimizer.md, issue-triage-agent.md, layout-spec-maintainer.md, mcp-inspector.md, mergefest.md, notion-issue-summary.md, org-health-report.md, pdf-summary.md, plan.md, playground-org-project-update-issue.md, playground-snapshots-refresh.md, poem-bot.md, portfolio-analyst.md, pr-nitpick-reviewer.md, python-data-charts.md, q.md, release.md, repo-tree-map.md, repository-quality-improver.md, research.md, scout.md, security-compliance.md, slide-deck-maintainer.md, smoke-copilot-playwright.md, smoke-detector.md, smoke-srt.md, spec-kit-execute.md, speckit-dispatcher.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 - `agent-output`
-  - **Download paths**: `/tmp/gh-aw/threat-detection/`, `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download paths**: `/tmp/gh-aw/threat-detection/`
   - **Used in**: 74 workflow(s) - agent-performance-analyzer.md, archie.md, artifacts-summary.md, blog-auditor.md, brave.md, breaking-change-checker.md, campaign-generator.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, dependabot-go-checker.md, dev-hawk.md, dev.md, dictation-prompt.md, example-workflow-analyzer.md, github-mcp-structural-analysis.md, github-mcp-tools-report.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-template-optimizer.md, issue-triage-agent.md, layout-spec-maintainer.md, mcp-inspector.md, mergefest.md, notion-issue-summary.md, org-health-report.md, pdf-summary.md, plan.md, playground-org-project-update-issue.md, playground-snapshots-refresh.md, poem-bot.md, portfolio-analyst.md, pr-nitpick-reviewer.md, python-data-charts.md, q.md, release.md, repo-tree-map.md, repository-quality-improver.md, research.md, scout.md, security-compliance.md, slide-deck-maintainer.md, smoke-copilot-playwright.md, smoke-detector.md, smoke-srt.md, spec-kit-execute.md, speckit-dispatcher.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 
 ### Job: `generate-sbom`
@@ -1102,11 +1102,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1181,11 +1181,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -1271,11 +1271,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1331,11 +1331,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `test_environment`
@@ -1410,11 +1410,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -1499,11 +1499,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1560,11 +1560,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1635,11 +1635,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1734,11 +1734,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -1837,11 +1837,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1927,11 +1927,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -2016,11 +2016,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2077,11 +2077,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2138,11 +2138,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2200,11 +2200,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2298,11 +2298,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2387,11 +2387,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2468,11 +2468,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2546,11 +2546,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2618,11 +2618,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2682,11 +2682,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2747,11 +2747,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2817,11 +2817,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2876,11 +2876,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2942,11 +2942,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3015,11 +3015,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3077,11 +3077,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3146,11 +3146,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `notion_add_comment`
@@ -3232,11 +3232,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3328,11 +3328,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `notion_add_comment`
@@ -3403,11 +3403,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3488,11 +3488,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3557,11 +3557,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3618,11 +3618,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3680,11 +3680,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3751,11 +3751,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3850,11 +3850,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3935,11 +3935,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4018,11 +4018,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4104,11 +4104,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4177,11 +4177,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `generate-sbom`
@@ -4247,11 +4247,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4312,11 +4312,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4381,11 +4381,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4441,11 +4441,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4514,11 +4514,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -4588,11 +4588,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4670,11 +4670,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4738,11 +4738,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4824,11 +4824,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 ### spec-kit-execute.md
@@ -4886,11 +4886,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -4967,11 +4967,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5051,11 +5051,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5142,11 +5142,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5225,11 +5225,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5311,11 +5311,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5371,11 +5371,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5432,11 +5432,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5507,11 +5507,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5588,11 +5588,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5653,11 +5653,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
+  - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
