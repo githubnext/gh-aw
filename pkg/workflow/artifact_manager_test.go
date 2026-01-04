@@ -73,10 +73,10 @@ func TestRecordUpload(t *testing.T) {
 			err := am.RecordUpload(tt.upload)
 
 			if tt.wantError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				uploads := am.GetUploadsForJob(tt.upload.JobName)
 				assert.Len(t, uploads, 1)
 				assert.Equal(t, tt.upload.Name, uploads[0].Name)
@@ -96,7 +96,7 @@ func TestRecordUploadUsesCurrentJob(t *testing.T) {
 	}
 
 	err := am.RecordUpload(upload)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "current-job", upload.JobName)
 
 	uploads := am.GetUploadsForJob("current-job")
@@ -164,10 +164,10 @@ func TestRecordDownload(t *testing.T) {
 			err := am.RecordDownload(tt.download)
 
 			if tt.wantError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				downloads := am.GetDownloadsForJob(tt.download.JobName)
 				assert.Len(t, downloads, 1)
 			}
@@ -186,7 +186,7 @@ func TestRecordDownloadUsesCurrentJob(t *testing.T) {
 	}
 
 	err := am.RecordDownload(download)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "current-job", download.JobName)
 
 	downloads := am.GetDownloadsForJob("current-job")
@@ -439,10 +439,10 @@ func TestValidateDownload(t *testing.T) {
 			err := am.ValidateDownload(tt.download)
 
 			if tt.wantError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
