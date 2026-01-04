@@ -41,7 +41,7 @@ type WorkflowRun struct {
 	Status           string    `json:"status"`
 	Conclusion       string    `json:"conclusion"`
 	WorkflowName     string    `json:"workflowName"`
-	WorkflowPath     string    `json:"workflowPath,omitempty"` // Workflow file path (e.g., .github/workflows/copilot-swe-agent.yml)
+	WorkflowPath     string    `json:"workflowPath"` // Workflow file path (e.g., .github/workflows/copilot-swe-agent.yml)
 	CreatedAt        time.Time `json:"createdAt"`
 	StartedAt        time.Time `json:"startedAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
