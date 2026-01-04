@@ -385,11 +385,37 @@ async function updateProject(output) {
             .join(" ");
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+
+          // Detect expected field type based on field name and value heuristics
+          const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+          const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
+          const isTextField = "classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          let expectedDataType;
+          if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+            expectedDataType = "DATE";
+          } else if (isTextField) {
+            expectedDataType = "TEXT";
+          } else {
+            expectedDataType = "SINGLE_SELECT";
+          }
+
+          // Check for type mismatch if field already exists
+          if (field && field.dataType && expectedDataType) {
+            const actualType = field.dataType;
+            if (actualType !== expectedDataType) {
+              core.warning(
+                `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
+                  `The field was likely created with the wrong type. To fix this, delete the field in the GitHub Projects UI and let it be recreated, ` +
+                  `or manually change the field type if supported.`
+              );
+              // Continue anyway - we'll use the existing field type
+            }
+          }
+
           if (!field)
             if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
               // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
               // Date field values must match ISO 8601 format (YYYY-MM-DD)
-              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
               if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
                 try {
                   field = (
@@ -458,22 +484,11 @@ async function updateProject(output) {
             valueToSet = { iterationId: iteration.id };
           } else if (field.options) {
             let option = field.options.find(o => o.name === fieldValue);
-            if (!option)
-              try {
-                const allOptions = [...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(fieldValue), description: "", color: "GRAY" }],
-                  updatedField = (
-                    await github.graphql(
-                      "mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    updateProjectV2Field(input: {\n                      fieldId: $fieldId,\n                      name: $fieldName,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          options {\n                            id\n                            name\n                          }\n                        }\n                      }\n                    }\n                  }",
-                      { fieldId: field.id, fieldName: field.name, options: allOptions }
-                    )
-                  ).updateProjectV2Field.projectV2Field;
-                ((option = updatedField.options.find(o => o.name === fieldValue)), (field = updatedField));
-              } catch (createError) {
-                core.warning(`Failed to create option "${fieldValue}": ${getErrorMessage(createError)}`);
-                continue;
-              }
             if (!option) {
-              core.warning(`Could not get option ID for "${fieldValue}" in field "${fieldName}"`);
+              // GitHub's GraphQL API does not support adding new options to existing single-select fields
+              // The updateProjectV2Field mutation does not exist - users must add options manually via UI
+              const availableOptions = field.options.map(o => o.name).join(", ");
+              core.warning(`Option "${fieldValue}" not found in field "${fieldName}". Available options: ${availableOptions}. To add this option, please update the field manually in the GitHub Projects UI.`);
               continue;
             }
             valueToSet = { singleSelectOptionId: option.id };
@@ -552,11 +567,37 @@ async function updateProject(output) {
             .join(" ");
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+
+          // Detect expected field type based on field name and value heuristics
+          const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+          const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
+          const isTextField = "classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          let expectedDataType;
+          if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+            expectedDataType = "DATE";
+          } else if (isTextField) {
+            expectedDataType = "TEXT";
+          } else {
+            expectedDataType = "SINGLE_SELECT";
+          }
+
+          // Check for type mismatch if field already exists
+          if (field && field.dataType && expectedDataType) {
+            const actualType = field.dataType;
+            if (actualType !== expectedDataType) {
+              core.warning(
+                `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
+                  `The field was likely created with the wrong type. To fix this, delete the field in the GitHub Projects UI and let it be recreated, ` +
+                  `or manually change the field type if supported.`
+              );
+              // Continue anyway - we'll use the existing field type
+            }
+          }
+
           if (!field)
             if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
               // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
               // Date field values must match ISO 8601 format (YYYY-MM-DD)
-              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
               if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
                 try {
                   field = (
@@ -631,22 +672,11 @@ async function updateProject(output) {
             valueToSet = { iterationId: iteration.id };
           } else if (field.options) {
             let option = field.options.find(o => o.name === fieldValue);
-            if (!option)
-              try {
-                const allOptions = [...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(fieldValue), description: "", color: "GRAY" }],
-                  updatedField = (
-                    await github.graphql(
-                      "mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    updateProjectV2Field(input: {\n                      fieldId: $fieldId,\n                      name: $fieldName,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          options {\n                            id\n                            name\n                          }\n                        }\n                      }\n                    }\n                  }",
-                      { fieldId: field.id, fieldName: field.name, options: allOptions }
-                    )
-                  ).updateProjectV2Field.projectV2Field;
-                ((option = updatedField.options.find(o => o.name === fieldValue)), (field = updatedField));
-              } catch (createError) {
-                core.warning(`Failed to create option "${fieldValue}": ${getErrorMessage(createError)}`);
-                continue;
-              }
             if (!option) {
-              core.warning(`Could not get option ID for "${fieldValue}" in field "${fieldName}"`);
+              // GitHub's GraphQL API does not support adding new options to existing single-select fields
+              // The updateProjectV2Field mutation does not exist - users must add options manually via UI
+              const availableOptions = field.options.map(o => o.name).join(", ");
+              core.warning(`Option "${fieldValue}" not found in field "${fieldName}". Available options: ${availableOptions}. To add this option, please update the field manually in the GitHub Projects UI.`);
               continue;
             }
             valueToSet = { singleSelectOptionId: option.id };
