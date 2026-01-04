@@ -26,12 +26,7 @@ async function main() {
       title: "Assign to Agent",
       description: "The following agent assignments would be made if staged mode was disabled:",
       items: assignItems,
-      renderItem: item => {
-        let content = `**Issue:** #${item.issue_number}\n`;
-        content += `**Agent:** ${item.agent || "copilot"}\n`;
-        content += "\n";
-        return content;
-      },
+      renderItem: item => `**Issue:** #${item.issue_number}\n**Agent:** ${item.agent || "copilot"}\n\n`,
     });
     return;
   }
@@ -175,40 +170,25 @@ async function main() {
   const successCount = results.filter(r => r.success).length;
   const failureCount = results.length - successCount;
 
-  let summaryContent = "## Agent Assignment\n\n";
+  const successResults = results.filter(r => r.success);
+  const failureResults = results.filter(r => !r.success);
 
-  if (successCount > 0) {
-    summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
-    summaryContent += results
-      .filter(r => r.success)
-      .map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}`)
-      .join("\n");
-    summaryContent += "\n\n";
-  }
+  const successSection = successCount > 0
+    ? `✅ Successfully assigned ${successCount} agent(s):\n\n${successResults.map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}`).join("\n")}\n\n`
+    : "";
 
-  if (failureCount > 0) {
-    summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
-    summaryContent += results
-      .filter(r => !r.success)
-      .map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}: ${r.error}`)
-      .join("\n");
+  const hasPermissionError = failureResults.some(r => r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions"));
 
-    // Check if any failures were permission-related
-    const hasPermissionError = results.some(r => (!r.success && r.error?.includes("Resource not accessible")) || r.error?.includes("Insufficient permissions"));
+  const failureSection = failureCount > 0
+    ? `❌ Failed to assign ${failureCount} agent(s):\n\n${failureResults.map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}: ${r.error}`).join("\n")}${hasPermissionError ? generatePermissionErrorSummary() : ""}`
+    : "";
 
-    if (hasPermissionError) {
-      summaryContent += generatePermissionErrorSummary();
-    }
-  }
+  const summaryContent = `## Agent Assignment\n\n${successSection}${failureSection}`;
 
   await core.summary.addRaw(summaryContent).write();
 
   // Set outputs
-  const assignedAgents = results
-    .filter(r => r.success)
-    .map(r => `${r.issue_number}:${r.agent}`)
-    .join("\n");
-  core.setOutput("assigned_agents", assignedAgents);
+  core.setOutput("assigned_agents", results.filter(r => r.success).map(r => `${r.issue_number}:${r.agent}`).join("\n"));
 
   // Fail if any assignments failed
   if (failureCount > 0) {
