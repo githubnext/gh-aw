@@ -384,10 +384,10 @@ outputContent := filesRegex.ReplaceAllString(
 
 ### Decision 5: Node.js 20 Runtime
 
-**Decision**: Use `node20` as the runtime for all actions.
+**Decision**: Use `node24` as the runtime for all actions.
 
 **Rationale**:
-- Latest stable Node.js version supported by GitHub Actions
+- Latest stable Node.js version supported by GitHub Actions (v8.0.0+ of github-script)
 - Modern JavaScript features available
 - Consistent with workflow compilation environment
 
@@ -427,7 +427,7 @@ jobs:
        required: true
        default: '/tmp/my-action'
    runs:
-     using: 'node20'
+     using: 'node24'
      main: 'index.js'
    ```
 
@@ -833,7 +833,7 @@ inputs:
     description: 'Path to agent output JSON file'
     required: true
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'index.js'
 EOF
 
