@@ -768,7 +768,7 @@ jobs:
           if jq -e '.summary.total_tokens' logs_output.json > /dev/null 2>&1; then
             TOKEN_COUNT=$(jq '.summary.total_tokens' logs_output.json)
             echo "✅ Token count found: $TOKEN_COUNT"
-            
+
             # Validate that token count is greater than 0
             if [ "$TOKEN_COUNT" -gt 0 ]; then
               echo "✅ Token count is greater than 0: $TOKEN_COUNT"
