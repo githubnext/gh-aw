@@ -70,6 +70,21 @@ describe("repo_helpers", () => {
   });
 
   describe("getDefaultTargetRepo", () => {
+    it("should return target-repo from config when provided", async () => {
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const config = { "target-repo": "config-org/config-repo" };
+      const result = getDefaultTargetRepo(config);
+      expect(result).toBe("config-org/config-repo");
+    });
+
+    it("should prefer config target-repo over env variable", async () => {
+      process.env.GH_AW_TARGET_REPO_SLUG = "env-org/env-repo";
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const config = { "target-repo": "config-org/config-repo" };
+      const result = getDefaultTargetRepo(config);
+      expect(result).toBe("config-org/config-repo");
+    });
+
     it("should return target-repo override when set", async () => {
       process.env.GH_AW_TARGET_REPO_SLUG = "override-org/override-repo";
       const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
