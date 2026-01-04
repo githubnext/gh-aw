@@ -816,4 +816,4 @@ jobs:
           
           echo "✅ All JSON structure validations passed" >> $GITHUB_STEP_SUMMARY
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
