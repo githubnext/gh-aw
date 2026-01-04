@@ -13,34 +13,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
-
-/**
- * List all files recursively in a directory
- * @param {string} dirPath - The directory path to list
- * @param {string} [relativeTo] - Optional base path to show relative paths
- * @returns {string[]} Array of file paths
- */
-function listFilesRecursively(dirPath, relativeTo) {
-  const files = [];
-  try {
-    if (!fs.existsSync(dirPath)) {
-      return files;
-    }
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
-      if (entry.isDirectory()) {
-        files.push(...listFilesRecursively(fullPath, relativeTo));
-      } else {
-        const displayPath = relativeTo ? path.relative(relativeTo, fullPath) : fullPath;
-        files.push(displayPath);
-      }
-    }
-  } catch (error) {
-    core.warning("Failed to list files in " + dirPath + ": " + getErrorMessage(error));
-  }
-  return files;
-}
+const { listFilesRecursively } = require("./file_helpers.cjs");
 
 /**
  * Main entry point for parsing threat detection results
