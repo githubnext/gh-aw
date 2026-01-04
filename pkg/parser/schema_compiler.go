@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -222,8 +223,11 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 	var frontmatterContent string
 	var frontmatterStart = 2 // Default: frontmatter starts at line 2
 
+	// Sanitize the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(filePath)
+
 	if filePath != "" {
-		if content, readErr := os.ReadFile(filePath); readErr == nil {
+		if content, readErr := os.ReadFile(cleanPath); readErr == nil {
 			lines := strings.Split(string(content), "\n")
 
 			// Look for frontmatter section with improved detection
@@ -267,7 +271,8 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				// Create context lines around the adjusted line number in the full file
 				var adjustedContextLines []string
 				if filePath != "" {
-					if content, readErr := os.ReadFile(filePath); readErr == nil {
+					// Use the same sanitized path
+					if content, readErr := os.ReadFile(cleanPath); readErr == nil {
 						allLines := strings.Split(string(content), "\n")
 						// Create context around the adjusted line (±3 lines)
 						// The console formatter expects context to be centered around the error line
