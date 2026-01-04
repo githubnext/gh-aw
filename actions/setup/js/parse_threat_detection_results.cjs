@@ -11,7 +11,36 @@
  */
 
 const fs = require("fs");
+const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+
+/**
+ * List all files recursively in a directory
+ * @param {string} dirPath - The directory path to list
+ * @param {string} [relativeTo] - Optional base path to show relative paths
+ * @returns {string[]} Array of file paths
+ */
+function listFilesRecursively(dirPath, relativeTo) {
+  const files = [];
+  try {
+    if (!fs.existsSync(dirPath)) {
+      return files;
+    }
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...listFilesRecursively(fullPath, relativeTo));
+      } else {
+        const displayPath = relativeTo ? path.relative(relativeTo, fullPath) : fullPath;
+        files.push(displayPath);
+      }
+    }
+  } catch (error) {
+    core.warning("Failed to list files in " + dirPath + ": " + getErrorMessage(error));
+  }
+  return files;
+}
 
 /**
  * Main entry point for parsing threat detection results
@@ -22,8 +51,20 @@ async function main() {
   let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
 
   try {
-    const outputPath = "/tmp/gh-aw/artifacts/agent_output.json";
+    // Agent output is downloaded to /tmp/gh-aw/threat-detection/agent-output
+    const agentOutputDir = "/tmp/gh-aw/threat-detection/agent-output";
+    const outputPath = path.join(agentOutputDir, "agent_output.json");
     if (!fs.existsSync(outputPath)) {
+      core.error("❌ Agent output file not found at: " + outputPath);
+      // List all files in artifact directory for debugging
+      core.info("📁 Listing all files in artifact directory: " + agentOutputDir);
+      const files = listFilesRecursively(agentOutputDir, agentOutputDir);
+      if (files.length === 0) {
+        core.warning("  No files found in " + agentOutputDir);
+      } else {
+        core.info("  Found " + files.length + " file(s):");
+        files.forEach(file => core.info("    - " + file));
+      }
       core.setFailed("❌ Agent output file not found at: " + outputPath);
       return;
     }

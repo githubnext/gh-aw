@@ -190,17 +190,19 @@ func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 	var steps []string
 
 	// Download unified agent-artifacts (contains prompt, patch, logs, etc.)
+	// Use separate subdirectory to avoid conflicts with agent-output artifact
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: "agent-artifacts",
-		DownloadPath: "/tmp/gh-aw/artifacts",
+		DownloadPath: "/tmp/gh-aw/threat-detection/agent-artifacts",
 		SetupEnvStep: false,
 		StepName:     "Download agent artifacts",
 	})...)
 
 	// Download agent output artifact (still separate)
+	// Use separate subdirectory to avoid conflicts with agent-artifacts
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: constants.AgentOutputArtifactName,
-		DownloadPath: "/tmp/gh-aw/artifacts",
+		DownloadPath: "/tmp/gh-aw/threat-detection/agent-output",
 		SetupEnvStep: false,
 		StepName:     "Download agent output artifact",
 	})...)
