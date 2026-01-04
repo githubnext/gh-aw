@@ -49,8 +49,9 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 		return nil
 	}
 
-	// Write the file
-	if err := os.WriteFile(targetPath, []byte(templateContent), 0644); err != nil {
+	// Write the file with restrictive permissions (0600) to follow security best practices
+	// Agent files and instructions may contain sensitive configuration
+	if err := os.WriteFile(targetPath, []byte(templateContent), 0600); err != nil {
 		copilotAgentsLog.Printf("Failed to write file: %s, error: %v", targetPath, err)
 		return fmt.Errorf("failed to write %s: %w", fileType, err)
 	}
