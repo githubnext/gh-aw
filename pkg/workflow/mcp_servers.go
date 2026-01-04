@@ -771,11 +771,10 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 }
 
 // generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
-// for GitHub MCP server based on repository visibility. This step is only added when:
+// for GitHub MCP server based on repository visibility. This step is added when:
 // - GitHub tool is enabled AND
-// - lockdown field is not explicitly specified in the workflow configuration AND
-// - A custom GitHub MCP server token is defined (GH_AW_GITHUB_MCP_SERVER_TOKEN exists) AND
-// - Repository is public
+// - lockdown field is not explicitly specified in the workflow configuration
+// The step includes a runtime condition that only executes if GH_AW_GITHUB_MCP_SERVER_TOKEN is defined
 func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool is present
 	githubTool, hasGitHub := data.Tools["github"]
@@ -786,19 +785,6 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// Check if lockdown is already explicitly set
 	if hasGitHubLockdownExplicitlySet(githubTool) {
 		mcpServersLog.Print("Lockdown explicitly set in workflow, skipping automatic lockdown determination")
-		return
-	}
-
-	// Check if custom GitHub MCP server token is defined
-	// The step only applies when GH_AW_GITHUB_MCP_SERVER_TOKEN is explicitly configured
-	customGitHubToken := getGitHubToken(githubTool)
-	toplevelToken := data.GitHubToken
-
-	// Determine if a custom token is being used (not the default fallback)
-	hasCustomToken := customGitHubToken != "" || toplevelToken != ""
-
-	if !hasCustomToken {
-		mcpServersLog.Print("No custom GitHub MCP server token defined, skipping automatic lockdown determination")
 		return
 	}
 
@@ -816,8 +802,10 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	}
 
 	// Generate the step using the determine_automatic_lockdown.cjs action
+	// The step only runs if GH_AW_GITHUB_MCP_SERVER_TOKEN secret is defined
 	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP server\n")
 	yaml.WriteString("        id: determine-automatic-lockdown\n")
+	yaml.WriteString("        if: secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN != ''\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

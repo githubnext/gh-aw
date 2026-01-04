@@ -47,14 +47,8 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	lockdown := getGitHubLockdown(githubTool)
 
 	// Check if automatic lockdown determination step will be generated
-	// This requires: lockdown not explicitly set AND custom token configured
-	customGitHubToken := getGitHubToken(githubTool)
-	var toplevelToken string
-	if workflowData != nil {
-		toplevelToken = workflowData.GitHubToken
-	}
-	hasCustomToken := customGitHubToken != "" || toplevelToken != ""
-	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool) && hasCustomToken
+	// The step is always generated when lockdown is not explicitly set
+	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool)
 
 	if shouldUseStepOutput {
 		// Use the detected lockdown value from the step output
@@ -64,8 +58,8 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 
 	toolsets := getGitHubToolsets(githubTool)
 
-	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t (explicit=%t, custom_token=%t, use_step=%t), toolsets=%v, format=%s",
-		githubType, readOnly, lockdown, hasGitHubLockdownExplicitlySet(githubTool), hasCustomToken, shouldUseStepOutput, toolsets, r.options.Format)
+	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t (explicit=%t, use_step=%t), toolsets=%v, format=%s",
+		githubType, readOnly, lockdown, hasGitHubLockdownExplicitlySet(githubTool), shouldUseStepOutput, toolsets, r.options.Format)
 
 	if r.options.Format == "toml" {
 		r.renderGitHubTOML(yaml, githubTool, workflowData)
