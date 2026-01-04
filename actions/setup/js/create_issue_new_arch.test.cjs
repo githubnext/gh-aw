@@ -74,6 +74,7 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
       title: "[AUTO] Test Issue",
       body: expect.stringContaining("This is a test issue"),
       labels: ["automation"],
+      assignees: [],
     });
   });
 
