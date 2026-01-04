@@ -39,9 +39,10 @@ Warning: Memory usage approaching limit
 	errorCount := 0
 	warnCount := 0
 	for _, logErr := range metrics.Errors {
-		if logErr.Type == "error" {
+		switch logErr.Type {
+		case "error":
 			errorCount++
-		} else if logErr.Type == "warning" {
+		case "warning":
 			warnCount++
 		}
 	}
@@ -56,7 +57,7 @@ Warning: Memory usage approaching limit
 	// Verify error messages are populated
 	for _, logErr := range metrics.Errors {
 		assert.NotEmpty(t, logErr.Message, "Error message should not be empty")
-		assert.Greater(t, logErr.Line, 0, "Line number should be set")
+		assert.Positive(t, logErr.Line, "Line number should be set")
 	}
 }
 
@@ -99,9 +100,10 @@ Warning: Disk space low`
 	run.ErrorCount = 0
 	run.WarningCount = 0
 	for _, logErr := range metrics.Errors {
-		if logErr.Type == "error" {
+		switch logErr.Type {
+		case "error":
 			run.ErrorCount++
-		} else if logErr.Type == "warning" {
+		case "warning":
 			run.WarningCount++
 		}
 	}
@@ -111,8 +113,8 @@ Warning: Disk space low`
 	assert.Equal(t, 2, run.WarningCount, "Should have 2 warnings")
 
 	// These counts should now display in the table instead of zeros
-	assert.Greater(t, run.ErrorCount, 0, "Error count should be greater than 0")
-	assert.Greater(t, run.WarningCount, 0, "Warning count should be greater than 0")
+	assert.Positive(t, run.ErrorCount, "Error count should be greater than 0")
+	assert.Positive(t, run.WarningCount, "Warning count should be greater than 0")
 }
 
 // TestLogsCommand_MixedRunsWithAndWithoutEngine tests that the logs command
@@ -156,9 +158,10 @@ func TestLogsCommand_MixedRunsWithAndWithoutEngine(t *testing.T) {
 	errorCount := 0
 	warnCount := 0
 	for _, logErr := range metrics2.Errors {
-		if logErr.Type == "error" {
+		switch logErr.Type {
+		case "error":
 			errorCount++
-		} else if logErr.Type == "warning" {
+		case "warning":
 			warnCount++
 		}
 	}
