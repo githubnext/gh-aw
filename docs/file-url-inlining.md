@@ -6,7 +6,15 @@ This document describes the file and URL inlining syntax feature for GitHub Agen
 
 The file/URL inlining syntax allows you to include content from files and URLs directly within your workflow prompts at runtime. This provides a convenient way to reference external content without using the `{{#runtime-import}}` macro.
 
-**Important:** File paths must start with `./` or `../` (relative paths only). Paths are resolved relative to `GITHUB_WORKSPACE` and must stay within the git root.
+**Important:** File paths must start with `./` or `../` (relative paths only). Paths are resolved relative to `GITHUB_WORKSPACE` and are validated to ensure they stay within the git root for security.
+
+## Security
+
+**Path Validation**: All file paths are validated to ensure they stay within the git repository root:
+- Paths are normalized to resolve `.` and `..` components
+- After normalization, the resolved path must be within `GITHUB_WORKSPACE`
+- Attempts to escape the git root (e.g., `../../../etc/passwd`) are rejected with a security error
+- Example: `./a/b/../../c/file.txt` is allowed if it resolves to `c/file.txt` within the git root
 
 ## Syntax
 
@@ -143,6 +151,12 @@ If a file path doesn't start with `./` or `../`, it will be ignored:
 @./docs/file.md  # Processed correctly
 ```
 
+### Path Security Violation
+If a path tries to escape the git root, the workflow will fail:
+```
+Security: Path ../../../etc/passwd resolves outside git root (/workspace)
+```
+
 ### URL Fetch Failure
 If a URL cannot be fetched, the workflow will fail:
 ```
@@ -158,7 +172,8 @@ File ./docs/template.md contains GitHub Actions macros (${{ ... }}) which are no
 ## Limitations
 
 - File paths MUST start with `./` or `../` - paths without these prefixes are ignored
-- Resolved paths must stay within the git repository root
+- Resolved paths must stay within the git repository root (enforced via security checks)
+- Path normalization is performed to resolve `.` and `..` components before validation
 - Line ranges are applied to the raw file content (before front matter removal)
 - URLs are cached for 1 hour; longer caching requires manual workflow re-run
 - Large files or URLs may impact workflow performance
@@ -166,9 +181,13 @@ File ./docs/template.md contains GitHub Actions macros (${{ ... }}) which are no
 
 ## Implementation Details
 
-The feature is implemented using a unified runtime import system:
+The feature is implemented using a unified runtime import system with security validation:
 
 1. **`convertInlinesToMacros()`**: Converts `@./path` and `@url` to `{{#runtime-import}}` macros
+2. **`processRuntimeImport()`**: Handles both files and URLs with sanitization and security checks
+   - For files: Resolves and normalizes path, validates it stays within git root
+   - For URLs: Fetches content with caching
+3. **`processRuntimeImports()`**: Processes all runtime-import macros (async)
 2. **`processRuntimeImport()`**: Handles both files and URLs with sanitization
 3. **`processRuntimeImports()`**: Processes all runtime-import macros (async)
 

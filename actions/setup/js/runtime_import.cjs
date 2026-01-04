@@ -211,11 +211,21 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
 
   // Otherwise, process as a file
   const filepath = filepathOrUrl;
-  // Resolve the absolute path
+
+  // Resolve and normalize the absolute path
   const absolutePath = path.resolve(workspaceDir, filepath);
+  const normalizedPath = path.normalize(absolutePath);
+  const normalizedWorkspace = path.normalize(workspaceDir);
+
+  // Security check: ensure the resolved path is within the git root (workspace directory)
+  // Use path.relative to check if the path escapes the workspace
+  const relativePath = path.relative(normalizedWorkspace, normalizedPath);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error(`Security: Path ${filepath} resolves outside git root (${normalizedWorkspace})`);
+  }
 
   // Check if file exists
-  if (!fs.existsSync(absolutePath)) {
+  if (!fs.existsSync(normalizedPath)) {
     if (optional) {
       core.warning(`Optional runtime import file not found: ${filepath}`);
       return "";
@@ -224,7 +234,7 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
   }
 
   // Read the file
-  let content = fs.readFileSync(absolutePath, "utf8");
+  let content = fs.readFileSync(normalizedPath, "utf8");
 
   // If line range is specified, extract those lines first (before other processing)
   if (startLine !== undefined || endLine !== undefined) {

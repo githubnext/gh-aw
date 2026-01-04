@@ -252,6 +252,49 @@ describe("runtime_import", () => {
           await expect(processRuntimeImports("{{#runtime-import nonexistent.md}}", tempDir)).rejects.toThrow("Failed to process runtime import for nonexistent.md");
         }));
     }),
+    describe("Path Security", () => {
+      (it("should reject paths that escape git root with ../", async () => {
+        // Try to escape using ../../../etc/passwd
+        await expect(processRuntimeImport("../../../etc/passwd", !1, tempDir)).rejects.toThrow("Security: Path ../../../etc/passwd resolves outside git root");
+      }),
+        it("should reject paths that escape git root with ./../../", async () => {
+          // Try to escape using ./../../etc/passwd
+          await expect(processRuntimeImport("./../../etc/passwd", !1, tempDir)).rejects.toThrow("Security: Path ./../../etc/passwd resolves outside git root");
+        }),
+        it("should allow valid ../path that stays within git root", async () => {
+          // Create a subdirectory structure
+          const subdir = path.join(tempDir, "subdir");
+          fs.mkdirSync(subdir, { recursive: !0 });
+          fs.writeFileSync(path.join(subdir, "subfile.txt"), "Sub content");
+
+          // From git root (tempDir), access subdir/../subdir/subfile.txt (which resolves to subdir/subfile.txt)
+          const result = await processRuntimeImport("./subdir/../subdir/subfile.txt", !1, tempDir);
+          expect(result).toBe("Sub content");
+        }),
+        it("should allow ./path within git root", async () => {
+          fs.writeFileSync(path.join(tempDir, "test.txt"), "Test content");
+          const result = await processRuntimeImport("./test.txt", !1, tempDir);
+          expect(result).toBe("Test content");
+        }),
+        it("should normalize paths with redundant separators", async () => {
+          fs.writeFileSync(path.join(tempDir, "test.txt"), "Test content");
+          const result = await processRuntimeImport("./././test.txt", !1, tempDir);
+          expect(result).toBe("Test content");
+        }),
+        it("should allow nested ../path that stays within git root", async () => {
+          // Create nested directory structure: tempDir/a/b/file.txt and tempDir/c/other.txt
+          const dirA = path.join(tempDir, "a");
+          const dirB = path.join(dirA, "b");
+          const dirC = path.join(tempDir, "c");
+          fs.mkdirSync(dirB, { recursive: !0 });
+          fs.mkdirSync(dirC, { recursive: !0 });
+          fs.writeFileSync(path.join(dirC, "other.txt"), "Other content");
+
+          // From git root, access a/b/../../c/other.txt (which resolves to c/other.txt)
+          const result = await processRuntimeImport("./a/b/../../c/other.txt", !1, tempDir);
+          expect(result).toBe("Other content");
+        }));
+    }),
     describe("processRuntimeImport with line ranges", () => {
       (it("should extract specific line range", async () => {
         const content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
