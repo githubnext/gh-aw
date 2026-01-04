@@ -805,7 +805,9 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// The step only runs if GH_AW_GITHUB_MCP_SERVER_TOKEN secret is defined
 	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP server\n")
 	yaml.WriteString("        id: determine-automatic-lockdown\n")
-	yaml.WriteString("        if: secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN != ''\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
+	yaml.WriteString("        if: env.TOKEN_CHECK != ''\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
