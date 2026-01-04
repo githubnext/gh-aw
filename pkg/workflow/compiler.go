@@ -77,6 +77,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 
+	// Reset the artifact manager for this compilation
+	if c.artifactManager == nil {
+		c.artifactManager = NewArtifactManager()
+	} else {
+		c.artifactManager.Reset()
+	}
+
 	// Generate lock file name, handling campaign orchestrators specially
 	// Campaign orchestrators are named *.campaign.g.md (debug artifacts)
 	// but should produce *.campaign.lock.yml (not *.campaign.g.lock.yml)
