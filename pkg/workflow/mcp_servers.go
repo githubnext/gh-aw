@@ -770,10 +770,11 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 	return strings.Split(replaced, "\n")
 }
 
-// generateGitHubMCPLockdownDetectionStep generates a step to detect repository visibility
-// and set the lockdown mode accordingly. This step is only added when:
+// generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
+// for GitHub MCP server based on repository visibility. This step is added when:
 // - GitHub tool is enabled AND
 // - lockdown field is not explicitly specified in the workflow configuration
+// The step includes a runtime condition that only executes if GH_AW_GITHUB_MCP_SERVER_TOKEN is defined
 func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool is present
 	githubTool, hasGitHub := data.Tools["github"]
@@ -783,11 +784,11 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 
 	// Check if lockdown is already explicitly set
 	if hasGitHubLockdownExplicitlySet(githubTool) {
-		mcpServersLog.Print("Lockdown explicitly set in workflow, skipping auto-detection")
+		mcpServersLog.Print("Lockdown explicitly set in workflow, skipping automatic lockdown determination")
 		return
 	}
 
-	mcpServersLog.Print("Generating GitHub MCP lockdown auto-detection step")
+	mcpServersLog.Print("Generating automatic lockdown determination step for GitHub MCP server")
 
 	// Resolve the latest version of actions/github-script
 	actionRepo := "actions/github-script"
@@ -800,12 +801,14 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		pinnedAction = fmt.Sprintf("%s@%s", actionRepo, actionVersion)
 	}
 
-	// Generate the step using the detect_repo_visibility.cjs action
-	yaml.WriteString("      - name: Detect repository visibility for GitHub MCP lockdown\n")
-	yaml.WriteString("        id: detect-repo-visibility\n")
+	// Generate the step using the determine_automatic_lockdown.cjs action
+	// The step only runs if GH_AW_GITHUB_MCP_SERVER_TOKEN secret is defined
+	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP server\n")
+	yaml.WriteString("        id: determine-automatic-lockdown\n")
+	yaml.WriteString("        if: secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN != ''\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');\n")
-	yaml.WriteString("            await detectRepoVisibility(github, context, core);\n")
+	yaml.WriteString("            const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
+	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
 }

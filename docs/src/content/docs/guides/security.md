@@ -250,23 +250,25 @@ The compiler generates per-tool Squid proxies; MCP egress is forced through ipta
 
 #### Automatic GitHub Lockdown on Public Repositories
 
-When using the GitHub MCP tool in public repositories, lockdown mode is **automatically enabled by default** to prevent accidental data leakage. This security feature restricts the GitHub token from accessing private repositories, ensuring that workflows running in public repositories cannot inadvertently expose sensitive information.
+When using the GitHub MCP tool with a custom token (`GH_AW_GITHUB_MCP_SERVER_TOKEN`), lockdown mode is **automatically determined based on repository visibility** to prevent accidental data leakage. This security feature restricts the GitHub token from accessing private repositories when running in public repositories.
 
-**How Automatic Detection Works:**
+**How Automatic Determination Works:**
 
-The system automatically detects repository visibility at workflow runtime:
+When `GH_AW_GITHUB_MCP_SERVER_TOKEN` is defined, the system automatically determines lockdown mode at workflow runtime based on repository visibility:
 
 - **Public repositories**: Lockdown mode is automatically enabled. The GitHub MCP server limits surfaced content to items authored by users with push access to the repository.
 - **Private/internal repositories**: Lockdown mode is automatically disabled since there's no risk of exposing private repository access.
 - **Detection failure**: If repository visibility cannot be determined, the system defaults to lockdown mode for maximum security.
 
-**No Configuration Required:**
+**When using default `GITHUB_TOKEN`**: Automatic determination is skipped and lockdown defaults to disabled (no restriction).
+
+**Minimal Configuration:**
 
 ```yaml wrap
 tools:
   github:
-    # Lockdown is automatically enabled for public repos
-    # No explicit configuration needed
+    # Lockdown is automatically determined for public repos
+    # when GH_AW_GITHUB_MCP_SERVER_TOKEN is defined
 ```
 
 **Manual Override (Optional):**
@@ -287,10 +289,10 @@ Explicitly setting `lockdown: false` in a public repository disables this securi
 
 **Security Benefits:**
 
-- **Prevents token scope leakage**: Even if a GitHub token has access to private repositories, lockdown mode prevents that access from being used in public repository workflows
+- **Prevents token scope leakage**: When using a custom token with private repository access, lockdown mode prevents that access from being used in public repository workflows
 - **Defense in depth**: Adds an additional layer of protection beyond token scoping
-- **Automatic and transparent**: Works without any configuration changes
-- **Safe by default**: Failures default to the most secure setting
+- **Automatic and transparent**: Works automatically when `GH_AW_GITHUB_MCP_SERVER_TOKEN` is defined
+- **Safe by default**: Detection failures default to the most secure setting
 
 See also: [GitHub MCP Tool Configuration](/gh-aw/reference/tools/#github-tools-github) for complete tool configuration options.
 

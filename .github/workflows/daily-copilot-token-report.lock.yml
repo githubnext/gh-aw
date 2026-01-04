@@ -218,13 +218,14 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.7.0 bash
           which awf
           awf --version
-      - name: Detect repository visibility for GitHub MCP lockdown
-        id: detect-repo-visibility
+      - name: Determine automatic lockdown mode for GitHub MCP server
+        id: determine-automatic-lockdown
+        if: secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN != ''
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');
-            await detectRepoVisibility(github, context, core);
+            const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');
+            await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
         run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
@@ -421,7 +422,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_LOCKDOWN_MODE=${{ steps.detect-repo-visibility.outputs.lockdown == 'true' && '1' || '0' }}",
+                  "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
