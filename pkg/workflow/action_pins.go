@@ -130,8 +130,12 @@ func GetActionPin(actionRepo string) string {
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
 	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, data.StrictMode)
-	// First try dynamic resolution if resolver is available
-	if data.ActionResolver != nil {
+
+	// Check if version is already a full 40-character SHA
+	isAlreadySHA := isValidFullSHA(version)
+
+	// First try dynamic resolution if resolver is available (but not for SHAs, as they can't be resolved)
+	if data.ActionResolver != nil && !isAlreadySHA {
 		actionPinsLog.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
 		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
 		if err == nil && sha != "" {
@@ -168,12 +172,25 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		// Sort matching pins by version (descending - highest first)
 		sortPinsByVersion(matchingPins)
 
-		// First, try to find an exact version match
+		// First, try to find an exact version match (for version tags)
 		for _, pin := range matchingPins {
 			if pin.Version == version {
 				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
 				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
+		}
+
+		// If version is a SHA, check if it matches any hardcoded pin's SHA
+		if isAlreadySHA {
+			for _, pin := range matchingPins {
+				if pin.SHA == version {
+					actionPinsLog.Printf("Exact SHA match: requested=%s, found version=%s", version, pin.Version)
+					return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
+				}
+			}
+			// SHA provided but doesn't match any hardcoded pin - return it as-is without warnings
+			actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
+			return actionRepo + "@" + version + " # " + version, nil
 		}
 
 		// No exact match found
@@ -185,9 +202,12 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if !data.StrictMode && len(matchingPins) > 0 {
 			highestPin := matchingPins[0]
 			actionPinsLog.Printf("No exact match for version %s, using highest available: %s", version, highestPin.Version)
-			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-				actionRepo, version, actionRepo, highestPin.Version)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			// Only emit warning if the version is not a SHA (SHAs shouldn't generate warnings)
+			if !isAlreadySHA {
+				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
+					actionRepo, version, actionRepo, highestPin.Version)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			}
 			actionPinsLog.Printf("Using highest version in non-strict mode: %s@%s (requested) → %s@%s (used)",
 				actionRepo, version, actionRepo, highestPin.Version)
 			return actionRepo + "@" + highestPin.SHA + " # " + highestPin.Version, nil
@@ -204,7 +224,13 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		return "", fmt.Errorf("%s", errMsg)
 	}
 
-	// In non-strict mode, emit warning and return empty string
+	// In non-strict mode, emit warning and return empty string (unless it's already a SHA)
+	if isAlreadySHA {
+		// If version is already a SHA and we couldn't find it in pins, return it as-is without warnings
+		actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
+		return actionRepo + "@" + version + " # " + version, nil
+	}
+
 	warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
 	if data.ActionResolver != nil {
 		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)

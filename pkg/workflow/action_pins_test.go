@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"bytes"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -715,6 +717,83 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			if !strings.Contains(result, "@") || !strings.Contains(result, " # ") {
 				t.Errorf("GetActionPinWithData(%s, %s) = %s, expected format 'repo@sha # version'",
 					tt.repo, tt.requestedVer, result)
+			}
+		})
+	}
+}
+
+// TestGetActionPinWithData_AlreadySHA tests that no warnings are issued when
+// the version is already a full 40-character SHA
+func TestGetActionPinWithData_AlreadySHA(t *testing.T) {
+	tests := []struct {
+		name        string
+		repo        string
+		sha         string
+		expectError bool
+	}{
+		{
+			name: "actions/checkout with full SHA",
+			repo: "actions/checkout",
+			sha:  "93cb6efe18208431cddfb9bfd000000000000000", // 40-char SHA
+		},
+		{
+			name: "actions/setup-node with full SHA",
+			repo: "actions/setup-node",
+			sha:  "395ad3262231945c25e8478fd5baf05154b1d79f", // 40-char SHA from the issue
+		},
+		{
+			name: "different action with full SHA",
+			repo: "actions/upload-artifact",
+			sha:  "1234567890abcdef1234567890abcdef12345678", // 40-char SHA
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				StrictMode: false,
+			}
+
+			// Capture stderr to verify no warnings are issued
+			oldStderr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stderr = w
+
+			result, err := GetActionPinWithData(tt.repo, tt.sha, data)
+
+			w.Close()
+			os.Stderr = oldStderr
+
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			stderr := buf.String()
+
+			// Should not error for full SHAs
+			if err != nil {
+				t.Errorf("GetActionPinWithData() unexpected error = %v", err)
+				return
+			}
+
+			// Should return the SHA as-is
+			if result == "" {
+				t.Errorf("GetActionPinWithData() returned empty result")
+				return
+			}
+
+			// Result should contain the original SHA
+			if !strings.Contains(result, tt.sha) {
+				t.Errorf("GetActionPinWithData() = %s, expected to contain SHA %s", result, tt.sha)
+			}
+
+			// IMPORTANT: Should NOT emit any warnings for actions already pinned to SHAs
+			if strings.Contains(stderr, "⚠") || strings.Contains(stderr, "Unable to resolve") {
+				t.Errorf("Expected NO warnings for action already pinned to SHA, but got: %s", stderr)
+			}
+
+			// Log the resolution for debugging
+			t.Logf("Resolution: %s@%s → %s", tt.repo, tt.sha, result)
+			if stderr != "" {
+				t.Logf("Stderr (should be empty): %s", strings.TrimSpace(stderr))
 			}
 		})
 	}
