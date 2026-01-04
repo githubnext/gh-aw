@@ -92,6 +92,8 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			handler = toolName + ".sh"
 		} else if toolConfig.Py != "" {
 			handler = toolName + ".py"
+		} else if toolConfig.Go != "" {
+			handler = toolName + ".go"
 		}
 
 		// Build env list of required environment variables (not actual secrets)
@@ -285,6 +287,63 @@ func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 	return sb.String()
 }
 
+// generateSafeInputGoToolScript generates the Go script for a safe-input tool
+// Go scripts receive inputs as JSON via stdin and output JSON to stdout:
+// - Input parameters are decoded from stdin into a map[string]any
+// - Outputs are printed to stdout as JSON
+// - Environment variables from env: field are available via os.Getenv()
+func generateSafeInputGoToolScript(toolConfig *SafeInputToolConfig) string {
+	safeInputsLog.Printf("Generating Go tool script: tool=%s, input_count=%d", toolConfig.Name, len(toolConfig.Inputs))
+	var sb strings.Builder
+
+	sb.WriteString("package main\n\n")
+	sb.WriteString("// Auto-generated safe-input tool: " + toolConfig.Name + "\n")
+	sb.WriteString("// " + toolConfig.Description + "\n\n")
+	sb.WriteString("import (\n")
+	sb.WriteString("\t\"encoding/json\"\n")
+	sb.WriteString("\t\"fmt\"\n")
+	sb.WriteString("\t\"io\"\n")
+	sb.WriteString("\t\"os\"\n")
+	sb.WriteString(")\n\n")
+
+	sb.WriteString("func main() {\n")
+	sb.WriteString("\t// Read inputs from stdin (JSON format)\n")
+	sb.WriteString("\tvar inputs map[string]any\n")
+	sb.WriteString("\tinputData, err := io.ReadAll(os.Stdin)\n")
+	sb.WriteString("\tif err == nil && len(inputData) > 0 {\n")
+	sb.WriteString("\t\t_ = json.Unmarshal(inputData, &inputs)\n")
+	sb.WriteString("\t}\n")
+	sb.WriteString("\tif inputs == nil {\n")
+	sb.WriteString("\t\tinputs = make(map[string]any)\n")
+	sb.WriteString("\t}\n\n")
+
+	// Add helper comment about input parameters
+	if len(toolConfig.Inputs) > 0 {
+		sb.WriteString("\t// Input parameters available in 'inputs' map:\n")
+		// Sort input names for stable code generation
+		inputNames := make([]string, 0, len(toolConfig.Inputs))
+		for paramName := range toolConfig.Inputs {
+			inputNames = append(inputNames, paramName)
+		}
+		sort.Strings(inputNames)
+		for _, paramName := range inputNames {
+			param := toolConfig.Inputs[paramName]
+			fmt.Fprintf(&sb, "\t// %s := inputs[\"%s\"]  // %s\n", sanitizePythonVariableName(paramName), paramName, param.Description)
+		}
+		sb.WriteString("\n")
+	}
+
+	// Add user's Go code with proper indentation
+	sb.WriteString("\t// User code:\n")
+	userCode := strings.TrimSpace(toolConfig.Go)
+	// Indent user code
+	indentedCode := strings.ReplaceAll(userCode, "\n", "\n\t")
+	sb.WriteString("\t" + indentedCode + "\n")
+	sb.WriteString("}\n")
+
+	return sb.String()
+}
+
 // Public wrapper functions for CLI use
 
 // GenerateSafeInputsToolsConfigForInspector generates the tools.json configuration for the safe-inputs MCP server
@@ -315,4 +374,10 @@ func GenerateSafeInputShellToolScriptForInspector(toolConfig *SafeInputToolConfi
 // This is a public wrapper for use by the CLI inspector command
 func GenerateSafeInputPythonToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
 	return generateSafeInputPythonToolScript(toolConfig)
+}
+
+// GenerateSafeInputGoToolScriptForInspector generates a Go script tool handler
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputGoToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
+	return generateSafeInputGoToolScript(toolConfig)
 }

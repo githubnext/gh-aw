@@ -31,9 +31,10 @@ type SafeInputToolConfig struct {
 	Name        string                     // Tool name (key from the config)
 	Description string                     // Required: tool description
 	Inputs      map[string]*SafeInputParam // Optional: input parameters
-	Script      string                     // JavaScript implementation (mutually exclusive with Run and Py)
-	Run         string                     // Shell script implementation (mutually exclusive with Script and Py)
-	Py          string                     // Python script implementation (mutually exclusive with Script and Run)
+	Script      string                     // JavaScript implementation (mutually exclusive with Run, Py, and Go)
+	Run         string                     // Shell script implementation (mutually exclusive with Script, Py, and Go)
+	Py          string                     // Python script implementation (mutually exclusive with Script, Run, and Go)
+	Go          string                     // Go script implementation (mutually exclusive with Script, Run, and Py)
 	Env         map[string]string          // Environment variables (typically for secrets)
 	Timeout     int                        // Timeout in seconds for tool execution (default: 60)
 }
@@ -201,6 +202,13 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 		if py, exists := toolMap["py"]; exists {
 			if pyStr, ok := py.(string); ok {
 				toolConfig.Py = pyStr
+			}
+		}
+
+		// Parse go (Go script implementation)
+		if goScript, exists := toolMap["go"]; exists {
+			if goStr, ok := goScript.(string); ok {
+				toolConfig.Go = goStr
 			}
 		}
 
@@ -385,6 +393,13 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 			if py, exists := toolMap["py"]; exists {
 				if pyStr, ok := py.(string); ok {
 					toolConfig.Py = pyStr
+				}
+			}
+
+			// Parse go
+			if goScript, exists := toolMap["go"]; exists {
+				if goStr, ok := goScript.(string); ok {
+					toolConfig.Go = goStr
 				}
 			}
 
