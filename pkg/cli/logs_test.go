@@ -1199,7 +1199,7 @@ func TestRefFilteringWithGitHubCLI(t *testing.T) {
 	// This is a unit test for the args construction, not a network test
 
 	// Simulate args construction for ref filtering
-	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
+	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,path,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	ref := "feature-branch"
 	if ref != "" {
