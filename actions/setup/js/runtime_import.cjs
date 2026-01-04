@@ -360,9 +360,11 @@ async function processRuntimeImports(content, workspaceDir) {
 }
 
 /**
- * Converts @path, @path:line-line, and @url inline syntax to {{#runtime-import}} macros
- * @param {string} content - The markdown content containing @path and @url references
- * @returns {string} - Content with inline references converted to {{#runtime-import}} macros
+ * Converts inline syntax to runtime-import macros
+ * - File paths: `@./path` or `@../path` (must start with ./ or ../)
+ * - URLs: `@https://...` or `@http://...`
+ * @param {string} content - The markdown content containing inline references
+ * @returns {string} - Content with inline references converted to runtime-import macros
  */
 function convertInlinesToMacros(content) {
   let processedContent = content;
@@ -398,13 +400,16 @@ function convertInlinesToMacros(content) {
     processedContent = processedContent.replace(fullMatch, macro);
   }
 
-  // Then, process file path patterns (@path or @path:line-line)
-  // This pattern matches:
-  // - @path/to/file.ext
-  // - @file.ext
-  // - @path/to/file.ext:10-20
-  // But NOT email addresses like user@example.com or URLs (already processed)
-  const filePattern = /@([a-zA-Z0-9_\-./]+[a-zA-Z0-9_])(?::(\d+)-(\d+))?/g;
+  // Then, process file path patterns (@./path or @../path or @./path:line-line)
+  // This pattern matches ONLY relative paths starting with ./ or ../
+  // - @./file.ext
+  // - @./path/to/file.ext
+  // - @../path/to/file.ext:10-20
+  // But NOT:
+  // - @path (without ./ or ../)
+  // - email addresses like user@example.com
+  // - URLs (already processed)
+  const filePattern = /@(\.\.?\/[a-zA-Z0-9_\-./]+)(?::(\d+)-(\d+))?/g;
 
   filePattern.lastIndex = 0;
   while ((match = filePattern.exec(processedContent)) !== null) {
@@ -412,11 +417,6 @@ function convertInlinesToMacros(content) {
     const startLine = match[2];
     const endLine = match[3];
     const fullMatch = match[0];
-
-    // Skip URLs (they were already processed)
-    if (/^https?:\/\//i.test(filepath)) {
-      continue;
-    }
 
     // Skip if this looks like part of an email address
     const matchIndex = match.index;

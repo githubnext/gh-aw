@@ -304,21 +304,33 @@ describe("runtime_import", () => {
         }));
     }),
     describe("convertInlinesToMacros", () => {
-      (it("should convert @path to {{#runtime-import path}}", () => {
-        const result = convertInlinesToMacros("Before @test.txt after");
-        expect(result).toBe("Before {{#runtime-import test.txt}} after");
+      (it("should convert @./path to {{#runtime-import ./path}}", () => {
+        const result = convertInlinesToMacros("Before @./test.txt after");
+        expect(result).toBe("Before {{#runtime-import ./test.txt}} after");
       }),
-        it("should convert @path:line-line to {{#runtime-import path:line-line}}", () => {
-          const result = convertInlinesToMacros("Content: @test.txt:2-4 end");
-          expect(result).toBe("Content: {{#runtime-import test.txt:2-4}} end");
+        it("should convert @./path:line-line to {{#runtime-import ./path:line-line}}", () => {
+          const result = convertInlinesToMacros("Content: @./test.txt:2-4 end");
+          expect(result).toBe("Content: {{#runtime-import ./test.txt:2-4}} end");
         }),
-        it("should convert multiple @path references", () => {
-          const result = convertInlinesToMacros("Start @file1.txt middle @file2.txt end");
-          expect(result).toBe("Start {{#runtime-import file1.txt}} middle {{#runtime-import file2.txt}} end");
+        it("should convert multiple @./path references", () => {
+          const result = convertInlinesToMacros("Start @./file1.txt middle @./file2.txt end");
+          expect(result).toBe("Start {{#runtime-import ./file1.txt}} middle {{#runtime-import ./file2.txt}} end");
         }),
-        it("should handle @path with subdirectories", () => {
+        it("should handle @./path with subdirectories", () => {
+          const result = convertInlinesToMacros("See @./docs/readme.md for details");
+          expect(result).toBe("See {{#runtime-import ./docs/readme.md}} for details");
+        }),
+        it("should handle @../path references", () => {
+          const result = convertInlinesToMacros("Parent: @../parent.md content");
+          expect(result).toBe("Parent: {{#runtime-import ../parent.md}} content");
+        }),
+        it("should NOT convert @path without ./ or ../", () => {
+          const result = convertInlinesToMacros("Before @test.txt after");
+          expect(result).toBe("Before @test.txt after");
+        }),
+        it("should NOT convert @docs/file without ./ prefix", () => {
           const result = convertInlinesToMacros("See @docs/readme.md for details");
-          expect(result).toBe("See {{#runtime-import docs/readme.md}} for details");
+          expect(result).toBe("See @docs/readme.md for details");
         }),
         it("should convert @url to {{#runtime-import url}}", () => {
           const result = convertInlinesToMacros("Content from @https://example.com/file.txt ");
@@ -336,25 +348,25 @@ describe("runtime_import", () => {
           const result = convertInlinesToMacros("No inline references here");
           expect(result).toBe("No inline references here");
         }),
-        it("should handle @path at start of content", () => {
-          const result = convertInlinesToMacros("@start.txt following text");
-          expect(result).toBe("{{#runtime-import start.txt}} following text");
+        it("should handle @./path at start of content", () => {
+          const result = convertInlinesToMacros("@./start.txt following text");
+          expect(result).toBe("{{#runtime-import ./start.txt}} following text");
         }),
-        it("should handle @path at end of content", () => {
-          const result = convertInlinesToMacros("Preceding text @end.txt");
-          expect(result).toBe("Preceding text {{#runtime-import end.txt}}");
+        it("should handle @./path at end of content", () => {
+          const result = convertInlinesToMacros("Preceding text @./end.txt");
+          expect(result).toBe("Preceding text {{#runtime-import ./end.txt}}");
         }),
-        it("should handle @path on its own line", () => {
-          const result = convertInlinesToMacros("Before\n@content.txt\nAfter");
-          expect(result).toBe("Before\n{{#runtime-import content.txt}}\nAfter");
+        it("should handle @./path on its own line", () => {
+          const result = convertInlinesToMacros("Before\n@./content.txt\nAfter");
+          expect(result).toBe("Before\n{{#runtime-import ./content.txt}}\nAfter");
         }),
         it("should handle multiple line ranges", () => {
-          const result = convertInlinesToMacros("First: @test.txt:1-2 Second: @test.txt:4-5");
-          expect(result).toBe("First: {{#runtime-import test.txt:1-2}} Second: {{#runtime-import test.txt:4-5}}");
+          const result = convertInlinesToMacros("First: @./test.txt:1-2 Second: @./test.txt:4-5");
+          expect(result).toBe("First: {{#runtime-import ./test.txt:1-2}} Second: {{#runtime-import ./test.txt:4-5}}");
         }),
-        it("should convert mixed @path and @url references", () => {
-          const result = convertInlinesToMacros("File: @local.txt URL: @https://example.com/remote.txt ");
-          expect(result).toBe("File: {{#runtime-import local.txt}} URL: {{#runtime-import https://example.com/remote.txt}} ");
+        it("should convert mixed @./path and @url references", () => {
+          const result = convertInlinesToMacros("File: @./local.txt URL: @https://example.com/remote.txt ");
+          expect(result).toBe("File: {{#runtime-import ./local.txt}} URL: {{#runtime-import https://example.com/remote.txt}} ");
         }));
     }),
     describe("processRuntimeImports with line ranges from macros", () => {

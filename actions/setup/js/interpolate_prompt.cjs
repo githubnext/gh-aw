@@ -79,17 +79,17 @@ async function main() {
     // Read the prompt file
     let content = fs.readFileSync(promptPath, "utf8");
 
-    // Step 1: Convert @path and @url inline syntax to {{#runtime-import}} macros
+    // Step 1: Convert @./path and @url inline syntax to {{#runtime-import}} macros
     const hasInlines = /@[^\s]+/.test(content);
     if (hasInlines) {
-      core.info("Converting inline references (@path and @url) to runtime-import macros");
+      core.info("Converting inline references (@./path, @../path, and @url) to runtime-import macros");
       content = convertInlinesToMacros(content);
       core.info("Inline references converted successfully");
     } else {
       core.info("No inline references found, skipping conversion");
     }
 
-    // Step 2: Process runtime imports (including converted @path and @url macros)
+    // Step 2: Process runtime imports (including converted @./path and @url macros)
     const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
     if (hasRuntimeImports) {
       core.info("Processing runtime import macros (files and URLs)");

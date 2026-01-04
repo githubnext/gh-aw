@@ -9,12 +9,14 @@ permissions: read
 
 This workflow demonstrates the new inline syntax for including file and URL content.
 
+**Note:** File paths must start with `./` or `../` (relative paths only).
+
 ## 1. Full File Inlining
 
 The full content of the LICENSE file:
 
 ```
-@LICENSE
+@./LICENSE
 ```
 
 ## 2. Line Range Inlining
@@ -22,7 +24,7 @@ The full content of the LICENSE file:
 Here are lines 1-5 from the README.md file:
 
 ```
-@README.md:1-5
+@./README.md:1-5
 ```
 
 ## 3. Code Snippet from Source
@@ -30,7 +32,7 @@ Here are lines 1-5 from the README.md file:
 Let's look at the main function (lines 10-30):
 
 ```go
-@cmd/gh-aw/main.go:10-30
+@./cmd/gh-aw/main.go:10-30
 ```
 
 ## 4. Remote Content (Commented Out)

@@ -6,19 +6,27 @@ This document describes the file and URL inlining syntax feature for GitHub Agen
 
 The file/URL inlining syntax allows you to include content from files and URLs directly within your workflow prompts at runtime. This provides a convenient way to reference external content without using the `{{#runtime-import}}` macro.
 
+**Important:** File paths must start with `./` or `../` (relative paths only). Paths are resolved relative to `GITHUB_WORKSPACE` and must stay within the git root.
+
 ## Syntax
 
 ### File Inlining
 
-**Full File**: `@path/to/file.ext`
+**Full File**: `@./path/to/file.ext` or `@../path/to/file.ext`
 - Includes the entire content of the file
-- Path is relative to `GITHUB_WORKSPACE`
-- Example: `@docs/README.md`
+- Path MUST start with `./` (current directory) or `../` (parent directory)
+- Path is resolved relative to `GITHUB_WORKSPACE`
+- Example: `@./docs/README.md`
 
-**Line Range**: `@path/to/file.ext:start-end`
+**Line Range**: `@./path/to/file.ext:start-end`
 - Includes specific lines from the file (1-indexed, inclusive)
 - Start and end are line numbers
-- Example: `@src/main.go:10-20` includes lines 10 through 20
+- Example: `@./src/main.go:10-20` includes lines 10 through 20
+
+**Important Notes:**
+- `@path` (without `./` or `../`) will NOT be processed - it stays as plain text
+- Only relative paths starting with `./` or `../` are supported
+- The resolved path must stay within the git repository root
 
 ### URL Inlining
 
@@ -41,7 +49,7 @@ All inlined content is automatically sanitized:
 
 The parser is smart about email addresses:
 - `user@example.com` is NOT treated as a file reference
-- Only `@path` patterns that look like file paths or URLs are processed
+- Only `@./path`, `@../path`, and `@https://` patterns are processed
 
 ## Examples
 
@@ -60,7 +68,7 @@ Please review the following code changes.
 
 ## Coding Guidelines
 
-@docs/coding-guidelines.md
+@./docs/coding-guidelines.md
 
 ## Changes Summary
 
@@ -80,7 +88,7 @@ engine: copilot
 
 The original buggy code was:
 
-@src/auth.go:45-52
+@./src/auth.go:45-52
 
 Verify the fix addresses the issue.
 ```
@@ -105,42 +113,52 @@ Review all code changes for security vulnerabilities.
 
 ## Processing Order
 
-File and URL inlining occurs after runtime imports but before variable interpolation:
+File and URL inlining occurs as part of the runtime import system:
 
-1. `{{#runtime-import}}` macros are processed
-2. `@path` and `@path:line-line` file references are inlined
-3. `@https://...` and `@http://...` URL references are fetched and inlined
-4. Variable interpolation (`${GH_AW_EXPR_*}`) is performed
-5. Template conditionals (`{{#if}}`) are rendered
+1. `@./path` and `@url` references are converted to `{{#runtime-import}}` macros
+2. All `{{#runtime-import}}` macros are processed (files and URLs together)
+3. `${GH_AW_EXPR_*}` variable interpolation occurs
+4. `{{#if}}` template conditionals are rendered
+
+The `@` syntax is pure syntactic sugar - it simply converts to `{{#runtime-import}}` before processing.
 
 ## Error Handling
 
 ### File Not Found
 If a referenced file doesn't exist, the workflow will fail with an error:
 ```
-Failed to process inline for @missing.txt: File not found for inline: missing.txt
+Failed to process runtime import for ./missing.txt: Runtime import file not found: ./missing.txt
 ```
 
 ### Invalid Line Range
 If line numbers are out of bounds, the workflow will fail:
 ```
-Invalid start line 100 for file src/main.go (total lines: 50)
+Invalid start line 100 for file ./src/main.go (total lines: 50)
+```
+
+### Invalid Path Format
+If a file path doesn't start with `./` or `../`, it will be ignored:
+```
+@docs/file.md  # NOT processed - stays as plain text
+@./docs/file.md  # Processed correctly
 ```
 
 ### URL Fetch Failure
 If a URL cannot be fetched, the workflow will fail:
 ```
-Failed to process URL inline for @https://example.com/file.txt: Failed to fetch URL https://example.com/file.txt: HTTP 404
+Failed to process runtime import for https://example.com/file.txt: Failed to fetch URL https://example.com/file.txt: HTTP 404
 ```
 
 ### GitHub Actions Macros
 If inlined content contains GitHub Actions expressions, the workflow will fail:
 ```
-File docs/template.md contains GitHub Actions macros (${{ ... }}) which are not allowed in inline content
+File ./docs/template.md contains GitHub Actions macros (${{ ... }}) which are not allowed in runtime imports
 ```
 
 ## Limitations
 
+- File paths MUST start with `./` or `../` - paths without these prefixes are ignored
+- Resolved paths must stay within the git repository root
 - Line ranges are applied to the raw file content (before front matter removal)
 - URLs are cached for 1 hour; longer caching requires manual workflow re-run
 - Large files or URLs may impact workflow performance
@@ -148,24 +166,19 @@ File docs/template.md contains GitHub Actions macros (${{ ... }}) which are not 
 
 ## Implementation Details
 
-The feature is implemented in two JavaScript modules:
+The feature is implemented using a unified runtime import system:
 
-1. **`runtime_import.cjs`**: Core file and URL processing functions
-   - `processFileInline()`: Reads and sanitizes file content
-   - `processFileInlines()`: Processes all `@path` references
-   - `processUrlInline()`: Fetches and sanitizes URL content
-   - `processUrlInlines()`: Processes all `@url` references
+1. **`convertInlinesToMacros()`**: Converts `@./path` and `@url` to `{{#runtime-import}}` macros
+2. **`processRuntimeImport()`**: Handles both files and URLs with sanitization
+3. **`processRuntimeImports()`**: Processes all runtime-import macros (async)
 
-2. **`interpolate_prompt.cjs`**: Integration with prompt processing
-   - Calls file inlining before variable interpolation
-   - Calls URL inlining after file inlining
-   - Handles async URL fetching
+The `@` syntax is pure syntactic sugar that converts to `{{#runtime-import}}` macros.
 
 ## Testing
 
 The feature includes comprehensive test coverage:
-- 82+ unit tests in `runtime_import.test.cjs`
-- Tests for full file inlining
+- 75+ unit tests in `runtime_import.test.cjs`
+- Tests for full file inlining with `./` and `../` prefixes
 - Tests for line range extraction
 - Tests for URL fetching and caching
 - Tests for error conditions
