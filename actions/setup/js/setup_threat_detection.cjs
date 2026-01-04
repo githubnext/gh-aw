@@ -23,10 +23,10 @@ const { checkFileExists } = require("./file_helpers.cjs");
 async function main(templateContent) {
   // Check if prompt file exists
   // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/agent-artifacts,
-  // and the artifact contains files with full paths like /tmp/gh-aw/aw-prompts/prompt.txt,
-  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/tmp/gh-aw/aw-prompts/prompt.txt
+  // and the artifact contains files like aw-prompts/prompt.txt (GitHub Actions strips the common /tmp/gh-aw/ parent),
+  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/aw-prompts/prompt.txt
   const artifactsDir = "/tmp/gh-aw/threat-detection/agent-artifacts";
-  const promptPath = path.join(artifactsDir, "tmp/gh-aw/aw-prompts/prompt.txt");
+  const promptPath = path.join(artifactsDir, "aw-prompts/prompt.txt");
   if (!checkFileExists(promptPath, artifactsDir, "Prompt file", true)) {
     return;
   }
@@ -42,9 +42,9 @@ async function main(templateContent) {
 
   // Check if patch file exists
   // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/agent-artifacts,
-  // and the artifact contains /tmp/gh-aw/aw.patch,
-  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/tmp/gh-aw/aw.patch
-  const patchPath = path.join(artifactsDir, "tmp/gh-aw/aw.patch");
+  // and the artifact contains aw.patch (GitHub Actions strips the common /tmp/gh-aw/ parent),
+  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/aw.patch
+  const patchPath = path.join(artifactsDir, "aw.patch");
   const hasPatch = process.env.HAS_PATCH === "true";
   if (!checkFileExists(patchPath, artifactsDir, "Patch file", hasPatch)) {
     if (hasPatch) {
