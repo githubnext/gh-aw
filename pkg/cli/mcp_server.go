@@ -311,7 +311,7 @@ Note: Output can be filtered using the jq parameter.`,
 
 		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v",
 			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint)
-		
+
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
@@ -323,7 +323,7 @@ Note: Output can be filtered using the jq parameter.`,
 		// We should return the JSON output to the LLM so it can see validation errors.
 		// Only return an MCP error if we cannot get any output at all.
 		outputStr := string(stdout)
-		
+
 		// If the command failed but we have output, it's likely compilation errors
 		// which are included in the JSON output. Return the output, not an MCP error.
 		if err != nil {
