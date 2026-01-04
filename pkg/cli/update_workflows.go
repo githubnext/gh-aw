@@ -161,6 +161,16 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 		return resolveLatestRelease(repo, currentRef, allowMajor, verbose)
 	}
 
+	// Check if current ref is a commit SHA (40-character hex string)
+	if IsCommitSHA(currentRef) {
+		updateLog.Printf("Current ref is a commit SHA: %s, returning as-is", currentRef)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Ref %s is a commit SHA, already pinned to specific commit", currentRef)))
+		}
+		// Commit SHAs are already pinned to a specific commit, no need to resolve
+		return currentRef, nil
+	}
+
 	// Otherwise, treat as branch and get latest commit
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Treating %s as branch, getting latest commit", currentRef)))

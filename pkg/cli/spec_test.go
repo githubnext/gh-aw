@@ -797,9 +797,9 @@ func TestIsCommitSHA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isCommitSHA(tt.version)
+			got := IsCommitSHA(tt.version)
 			if got != tt.want {
-				t.Errorf("isCommitSHA(%q) = %v, want %v", tt.version, got, tt.want)
+				t.Errorf("IsCommitSHA(%q) = %v, want %v", tt.version, got, tt.want)
 			}
 		})
 	}
