@@ -15,46 +15,7 @@ In a typical setup:
 - A generated orchestrator workflow keeps the campaign coherent over time. It discovers items from the project board (optionally using tracker labels), updates the Project board, and produces ongoing progress reporting.
 - Repo-memory (optional) makes the campaign repeatable. It lets you store a cursor checkpoint and append-only metrics snapshots so each run can pick up where the last one left off.
 
-### Mental model
-
-```mermaid
-flowchart TB
-    spec["fa:fa-file-code .github/workflows/&lt;id&gt;.campaign.md<br/><small>specification / contract<br/>(tracked in git)</small>"]
-    compile["fa:fa-cogs gh aw compile"]
-    debug["fa:fa-file .campaign.g.md<br/><small>debug artifact<br/>(not tracked)</small>"]
-    lock["fa:fa-lock .campaign.lock.yml<br/><small>compiled workflow<br/>(tracked in git)</small>"]
-    orchestrator["fa:fa-sitemap Orchestrator workflow<br/><small>discovers items from project<br/>updates Project dashboard<br/>reads/writes repo-memory</small>"]
-    worker1["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
-    worker2["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
-    project["fa:fa-table GitHub Project board<br/><small>campaign dashboard</small>"]
-    memory["fa:fa-code-branch repo-memory branch<br/><small>memory/campaigns/&lt;id&gt;/cursor.json<br/>memory/campaigns/&lt;id&gt;/metrics/&lt;date&gt;.json</small>"]
-
-    spec --> compile
-    compile --> debug
-    compile --> lock
-    lock --> orchestrator
-    orchestrator -->|triggers/coordinates| worker1
-    orchestrator -->|triggers/coordinates| worker2
-    worker1 -->|creates/updates<br/>Issues/PRs<br/>(optional tracker-label)| project
-    worker2 -->|creates/updates<br/>Issues/PRs<br/>(optional tracker-label)| project
-    orchestrator -.->|reads/writes| memory
-    project -.->|dashboard view| orchestrator
-
-    %% Colors are applied via CSS for light/dark themes; keep only stroke width here.
-    classDef tracked stroke-width:2px
-    classDef notTracked stroke-width:2px
-    classDef workflow stroke-width:2px
-    classDef external stroke-width:2px
-
-    class spec,lock tracked
-    class debug notTracked
-    class orchestrator,worker1,worker2 workflow
-    class project,memory external
-```
-
 **Note:** The `.campaign.g.md` file is a local debug artifact generated during compilation to help developers review the orchestrator structure. It is not committed to git (it's in `.gitignore`). Only the source `.campaign.md` and the compiled `.campaign.lock.yml` are version controlled.
-
-This is why campaigns feel like “delegation over time”: you are defining success, scope, and reporting, not just describing a single run.
 
 ## Minimal spec
 
