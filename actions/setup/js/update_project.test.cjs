@@ -444,7 +444,7 @@ describe("updateProject", () => {
     expect(updateCall).toBeDefined();
   });
 
-  it("creates a new option in single select field with colors for existing options", async () => {
+  it("warns when attempting to add a new option to a single select field", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",
@@ -472,42 +472,19 @@ describe("updateProject", () => {
           ],
         },
       ]),
-      // Response for updateProjectV2Field mutation
-      {
-        updateProjectV2Field: {
-          projectV2Field: {
-            id: "field-status",
-            options: [
-              { id: "opt-todo", name: "Todo" },
-              { id: "opt-in-progress", name: "In Progress" },
-              { id: "opt-done", name: "Done" },
-              { id: "opt-closed", name: "Closed" },
-              { id: "opt-closed-not-planned", name: "Closed - Not Planned" },
-            ],
-          },
-        },
-      },
-      updateFieldValueResponse(),
     ]);
 
     await updateProject(output);
 
-    // Find the updateProjectV2Field mutation call
+    // The updateProjectV2Field mutation does not exist in GitHub's API
+    // Verify that no attempt was made to call it
     const updateFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2Field"));
-    expect(updateFieldCall).toBeDefined();
+    expect(updateFieldCall).toBeUndefined();
 
-    // Verify that the mutation includes color for all options
-    const options = updateFieldCall[1].options;
-    expect(options).toHaveLength(5); // 4 existing + 1 new
-
-    // Check that all existing options have their colors preserved
-    expect(options[0]).toEqual({ name: "Todo", description: "", color: "GRAY" });
-    expect(options[1]).toEqual({ name: "In Progress", description: "", color: "YELLOW" });
-    expect(options[2]).toEqual({ name: "Done", description: "", color: "GREEN" });
-    expect(options[3]).toEqual({ name: "Closed", description: "", color: "PURPLE" });
-
-    // Check that the new option has a default color
-    expect(options[4]).toEqual({ name: "Closed - Not Planned", description: "", color: "GRAY" });
+    // Verify that a warning was logged about the missing option
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Option "Closed - Not Planned" not found in field "Status"'));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Available options: Todo, In Progress, Done, Closed"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("please update the field manually in the GitHub Projects UI"));
   });
 
   it("warns when a field cannot be created", async () => {
