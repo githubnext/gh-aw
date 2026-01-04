@@ -152,7 +152,7 @@ The workflow uses **pagination** to handle parents with many sub-issues:
 ## Technical Details
 
 - **Runtime**: ubuntu-latest
-- **Action**: github-script@v7.0.1
+- **Action**: github-script@v8.0.0
 - **Language**: JavaScript
 - **API**: GitHub GraphQL API v4
 
