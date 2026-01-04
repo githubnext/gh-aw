@@ -702,3 +702,163 @@ func TestPatternDownloadWithMerge(t *testing.T) {
 	part2Path := am.ComputeDownloadPath(download, part2Upload, "part2.txt")
 	assert.Equal(t, "/tmp/all-logs/part2.txt", part2Path)
 }
+
+// TestCommonParentStripping tests that common parent directories are stripped
+// when multiple files are uploaded, simulating GitHub Actions behavior
+func TestCommonParentStripping(t *testing.T) {
+	am := NewArtifactManager()
+	am.SetCurrentJob("upload-job")
+
+	// Upload files with common parent /tmp/gh-aw/
+	err := am.RecordUpload(&ArtifactUpload{
+		Name: "test-artifact",
+		Paths: []string{
+			"/tmp/gh-aw/aw-prompts/prompt.txt",
+			"/tmp/gh-aw/aw.patch",
+		},
+		JobName: "upload-job",
+	})
+	require.NoError(t, err)
+
+	uploads := am.GetUploadsForJob("upload-job")
+	require.Len(t, uploads, 1)
+	upload := uploads[0]
+
+	// Verify normalized paths have common parent stripped
+	assert.NotNil(t, upload.NormalizedPaths)
+	assert.Equal(t, "aw-prompts/prompt.txt", upload.NormalizedPaths["/tmp/gh-aw/aw-prompts/prompt.txt"])
+	assert.Equal(t, "aw.patch", upload.NormalizedPaths["/tmp/gh-aw/aw.patch"])
+
+	// Verify download paths use normalized paths
+	am.SetCurrentJob("download-job")
+	download := &ArtifactDownload{
+		Name:      "test-artifact",
+		Path:      "/workspace",
+		JobName:   "download-job",
+		DependsOn: []string{"upload-job"},
+	}
+
+	// Download should use the normalized paths (with common parent stripped)
+	promptPath := am.ComputeDownloadPath(download, upload, "/tmp/gh-aw/aw-prompts/prompt.txt")
+	assert.Equal(t, "/workspace/aw-prompts/prompt.txt", promptPath)
+
+	patchPath := am.ComputeDownloadPath(download, upload, "/tmp/gh-aw/aw.patch")
+	assert.Equal(t, "/workspace/aw.patch", patchPath)
+}
+
+// TestCommonParentStrippingNestedPaths tests common parent stripping with nested paths
+func TestCommonParentStrippingNestedPaths(t *testing.T) {
+	am := NewArtifactManager()
+	am.SetCurrentJob("build")
+
+	// Upload files with deeper nesting
+	err := am.RecordUpload(&ArtifactUpload{
+		Name: "build-outputs",
+		Paths: []string{
+			"/home/runner/work/project/dist/app.js",
+			"/home/runner/work/project/dist/styles.css",
+			"/home/runner/work/project/dist/assets/logo.png",
+		},
+		JobName: "build",
+	})
+	require.NoError(t, err)
+
+	upload := am.GetUploadsForJob("build")[0]
+	
+	// Common parent should be /home/runner/work/project/dist
+	assert.NotNil(t, upload.NormalizedPaths)
+	assert.Equal(t, "app.js", upload.NormalizedPaths["/home/runner/work/project/dist/app.js"])
+	assert.Equal(t, "styles.css", upload.NormalizedPaths["/home/runner/work/project/dist/styles.css"])
+	assert.Equal(t, "assets/logo.png", upload.NormalizedPaths["/home/runner/work/project/dist/assets/logo.png"])
+}
+
+// TestCommonParentStrippingSingleFile tests that single file uploads work correctly
+func TestCommonParentStrippingSingleFile(t *testing.T) {
+	am := NewArtifactManager()
+	am.SetCurrentJob("job1")
+
+	// Upload single file
+	err := am.RecordUpload(&ArtifactUpload{
+		Name:    "single-file",
+		Paths:   []string{"/tmp/gh-aw/report.pdf"},
+		JobName: "job1",
+	})
+	require.NoError(t, err)
+
+	upload := am.GetUploadsForJob("job1")[0]
+	
+	// Single file should be normalized to just its base name
+	assert.NotNil(t, upload.NormalizedPaths)
+	assert.Equal(t, "report.pdf", upload.NormalizedPaths["/tmp/gh-aw/report.pdf"])
+
+	// Download should use the normalized path
+	download := &ArtifactDownload{
+		Name:      "single-file",
+		Path:      "/downloads",
+		JobName:   "job2",
+		DependsOn: []string{"job1"},
+	}
+
+	path := am.ComputeDownloadPath(download, upload, "/tmp/gh-aw/report.pdf")
+	assert.Equal(t, "/downloads/report.pdf", path)
+}
+
+// TestCommonParentStrippingNoCommonParent tests files with no common parent
+func TestCommonParentStrippingNoCommonParent(t *testing.T) {
+	am := NewArtifactManager()
+	am.SetCurrentJob("job1")
+
+	// Upload files from completely different paths
+	err := am.RecordUpload(&ArtifactUpload{
+		Name: "mixed-files",
+		Paths: []string{
+			"/tmp/file1.txt",
+			"/var/file2.txt",
+		},
+		JobName: "job1",
+	})
+	require.NoError(t, err)
+
+	upload := am.GetUploadsForJob("job1")[0]
+	
+	// No common parent (beyond root), should use base names
+	assert.NotNil(t, upload.NormalizedPaths)
+	assert.Equal(t, "file1.txt", upload.NormalizedPaths["/tmp/file1.txt"])
+	assert.Equal(t, "file2.txt", upload.NormalizedPaths["/var/file2.txt"])
+}
+
+// TestCommonParentWithPatternDownload tests common parent stripping with pattern downloads
+func TestCommonParentWithPatternDownload(t *testing.T) {
+	am := NewArtifactManager()
+	
+	// Job 1: Upload with common parent
+	am.SetCurrentJob("build")
+	err := am.RecordUpload(&ArtifactUpload{
+		Name: "build-linux",
+		Paths: []string{
+			"/build/output/linux/app",
+			"/build/output/linux/lib.so",
+		},
+		JobName: "build",
+	})
+	require.NoError(t, err)
+
+	// Job 2: Download with pattern
+	am.SetCurrentJob("deploy")
+	download := &ArtifactDownload{
+		Pattern:       "build-*",
+		Path:          "/deploy",
+		MergeMultiple: false,
+		JobName:       "deploy",
+		DependsOn:     []string{"build"},
+	}
+
+	upload := am.GetUploadsForJob("build")[0]
+	
+	// With pattern download (no merge), files go to path/artifact-name/normalized-path
+	appPath := am.ComputeDownloadPath(download, upload, "/build/output/linux/app")
+	assert.Equal(t, "/deploy/build-linux/app", appPath)
+
+	libPath := am.ComputeDownloadPath(download, upload, "/build/output/linux/lib.so")
+	assert.Equal(t, "/deploy/build-linux/lib.so", libPath)
+}

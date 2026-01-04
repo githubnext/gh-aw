@@ -37,6 +37,10 @@ type ArtifactUpload struct {
 	// These can be absolute paths or glob patterns
 	Paths []string
 
+	// NormalizedPaths are the paths after common parent directory removal
+	// This simulates GitHub Actions behavior where the common parent is stripped
+	NormalizedPaths map[string]string
+
 	// IfNoFilesFound specifies behavior when no files match
 	// Values: "warn", "error", "ignore"
 	IfNoFilesFound string
@@ -118,8 +122,11 @@ func (am *ArtifactManager) RecordUpload(upload *ArtifactUpload) error {
 		upload.JobName = am.currentJob
 	}
 
-	artifactManagerLog.Printf("Recording upload: artifact=%s, job=%s, paths=%v",
-		upload.Name, upload.JobName, upload.Paths)
+	// Compute normalized paths with common parent removed
+	upload.NormalizedPaths = computeNormalizedPaths(upload.Paths)
+
+	artifactManagerLog.Printf("Recording upload: artifact=%s, job=%s, paths=%v, normalized=%v",
+		upload.Name, upload.JobName, upload.Paths, upload.NormalizedPaths)
 
 	am.uploads[upload.JobName] = append(am.uploads[upload.JobName], upload)
 	return nil
@@ -146,6 +153,121 @@ func (am *ArtifactManager) RecordDownload(download *ArtifactDownload) error {
 	return nil
 }
 
+// computeNormalizedPaths computes normalized paths with common parent directory removed.
+// This simulates GitHub Actions behavior where files uploaded with paths like:
+//   /tmp/gh-aw/aw-prompts/prompt.txt
+//   /tmp/gh-aw/aw.patch
+// are stored in the artifact as:
+//   aw-prompts/prompt.txt
+//   aw.patch
+// (with common parent /tmp/gh-aw/ removed)
+func computeNormalizedPaths(paths []string) map[string]string {
+	if len(paths) == 0 {
+		return nil
+	}
+
+	// If only one path, normalize it relative to its parent
+	if len(paths) == 1 {
+		path := filepath.Clean(paths[0])
+		// Get the base name (file/dir name without parent)
+		base := filepath.Base(path)
+		result := make(map[string]string)
+		result[path] = base
+		artifactManagerLog.Printf("Single path normalization: %s -> %s", path, base)
+		return result
+	}
+
+	// Find common parent directory for multiple paths
+	commonParent := findCommonParent(paths)
+	artifactManagerLog.Printf("Common parent for %d paths: %s", len(paths), commonParent)
+
+	// Create mapping of original path to normalized path
+	normalized := make(map[string]string)
+	for _, path := range paths {
+		cleanPath := filepath.Clean(path)
+		var relativePath string
+
+		if commonParent != "" && commonParent != "." {
+			// Remove common parent
+			rel, err := filepath.Rel(commonParent, cleanPath)
+			if err != nil {
+				// If we can't compute relative path, use the base name
+				relativePath = filepath.Base(cleanPath)
+			} else {
+				relativePath = rel
+			}
+		} else {
+			// No common parent, use base name
+			relativePath = filepath.Base(cleanPath)
+		}
+
+		normalized[cleanPath] = relativePath
+		artifactManagerLog.Printf("Path normalization: %s -> %s (parent: %s)", cleanPath, relativePath, commonParent)
+	}
+
+	return normalized
+}
+
+// findCommonParent finds the common parent directory of multiple paths
+func findCommonParent(paths []string) string {
+	if len(paths) == 0 {
+		return ""
+	}
+	if len(paths) == 1 {
+		return filepath.Dir(filepath.Clean(paths[0]))
+	}
+
+	// Clean all paths and split into components
+	splitPaths := make([][]string, len(paths))
+	for i, p := range paths {
+		cleanPath := filepath.Clean(p)
+		// Split the full path (not just directory)
+		// Handle absolute paths starting with /
+		if strings.HasPrefix(cleanPath, string(filepath.Separator)) {
+			cleanPath = cleanPath[1:] // Remove leading separator for splitting
+		}
+		splitPaths[i] = strings.Split(cleanPath, string(filepath.Separator))
+	}
+
+	// Find the minimum length among all paths
+	minLen := len(splitPaths[0])
+	for _, sp := range splitPaths[1:] {
+		if len(sp) < minLen {
+			minLen = len(sp)
+		}
+	}
+
+	// Find common prefix by comparing each component
+	var commonParts []string
+	for i := 0; i < minLen-1; i++ { // minLen-1 to exclude the filename
+		part := splitPaths[0][i]
+		allMatch := true
+		for _, sp := range splitPaths[1:] {
+			if sp[i] != part {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
+			commonParts = append(commonParts, part)
+		} else {
+			break
+		}
+	}
+
+	if len(commonParts) == 0 {
+		return ""
+	}
+
+	// Reconstruct the path with leading separator if original paths were absolute
+	result := filepath.Join(commonParts...)
+	if strings.HasPrefix(paths[0], string(filepath.Separator)) {
+		result = string(filepath.Separator) + result
+	}
+	
+	return result
+}
+
 // ComputeDownloadPath computes the actual file path after download
 // based on GitHub Actions v4 behavior.
 //
@@ -153,33 +275,47 @@ func (am *ArtifactManager) RecordDownload(download *ArtifactDownload) error {
 // - Download by name: files extracted directly to path/ (e.g., path/file.txt)
 // - Download by pattern without merge: files in path/artifact-name/ (e.g., path/artifact-1/file.txt)
 // - Download by pattern with merge: files extracted directly to path/ (e.g., path/file.txt)
+// - Common parent directories are stripped during upload (simulated via NormalizedPaths)
 func (am *ArtifactManager) ComputeDownloadPath(download *ArtifactDownload, upload *ArtifactUpload, originalPath string) string {
-	// Normalize the original path (remove leading ./)
-	normalizedOriginal := strings.TrimPrefix(originalPath, "./")
+	// Get the normalized path (with common parent removed) from the upload
+	// This simulates how GitHub Actions strips common parent directories
+	cleanOriginal := filepath.Clean(originalPath)
+	normalizedPath := cleanOriginal
+	
+	// If upload has normalized paths, use them
+	if upload.NormalizedPaths != nil {
+		if normalized, ok := upload.NormalizedPaths[cleanOriginal]; ok {
+			normalizedPath = normalized
+			artifactManagerLog.Printf("Using normalized path from upload: %s -> %s", cleanOriginal, normalizedPath)
+		}
+	} else {
+		// Fallback: remove leading ./
+		normalizedPath = strings.TrimPrefix(originalPath, "./")
+	}
 
 	// If downloading by name (not pattern), files go directly to download path
 	if download.Name != "" && download.Pattern == "" {
-		result := filepath.Join(download.Path, normalizedOriginal)
+		result := filepath.Join(download.Path, normalizedPath)
 		artifactManagerLog.Printf("Download by name: %s -> %s", originalPath, result)
 		return result
 	}
 
 	// If downloading by pattern with merge-multiple, files go directly to download path
 	if download.Pattern != "" && download.MergeMultiple {
-		result := filepath.Join(download.Path, normalizedOriginal)
+		result := filepath.Join(download.Path, normalizedPath)
 		artifactManagerLog.Printf("Download by pattern (merge): %s -> %s", originalPath, result)
 		return result
 	}
 
 	// If downloading by pattern without merge, files go to path/artifact-name/
 	if download.Pattern != "" && !download.MergeMultiple {
-		result := filepath.Join(download.Path, upload.Name, normalizedOriginal)
+		result := filepath.Join(download.Path, upload.Name, normalizedPath)
 		artifactManagerLog.Printf("Download by pattern (no merge): %s -> %s", originalPath, result)
 		return result
 	}
 
 	// Default: direct to download path
-	result := filepath.Join(download.Path, normalizedOriginal)
+	result := filepath.Join(download.Path, normalizedPath)
 	artifactManagerLog.Printf("Download default: %s -> %s", originalPath, result)
 	return result
 }
