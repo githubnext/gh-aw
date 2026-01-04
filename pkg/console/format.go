@@ -27,3 +27,38 @@ func FormatFileSize(size int64) string {
 
 	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
+
+// FormatNumberOrEmpty formats a number or returns empty string if zero
+func FormatNumberOrEmpty(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return FormatNumber(n)
+}
+
+// FormatCostOrEmpty formats cost or returns empty string if zero
+func FormatCostOrEmpty(cost float64) string {
+	if cost == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%.3f", cost)
+}
+
+// FormatIntOrEmpty formats an int or returns empty string if zero
+func FormatIntOrEmpty(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d", n)
+}
+
+// TruncateString truncates a string to maxLen with ellipsis
+func TruncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen > 3 {
+		return s[:maxLen-3] + "..."
+	}
+	return s[:maxLen]
+}

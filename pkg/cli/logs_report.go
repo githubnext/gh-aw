@@ -829,13 +829,13 @@ func renderRunsTable(data LogsData) {
 	for _, run := range data.Runs {
 		row := []string{
 			fmt.Sprintf("%d", run.DatabaseID),
-			truncateString(run.WorkflowID, 40),
+			console.TruncateString(run.WorkflowID, 40),
 			run.Agent,
 			run.Status,
 			run.Duration,
-			formatNumberOrEmpty(run.TokenUsage),
-			formatCostOrEmpty(run.EstimatedCost),
-			formatIntOrEmpty(run.Turns),
+			console.FormatNumberOrEmpty(run.TokenUsage),
+			console.FormatCostOrEmpty(run.EstimatedCost),
+			console.FormatIntOrEmpty(run.Turns),
 			fmt.Sprintf("%d", run.ErrorCount),
 			fmt.Sprintf("%d", run.WarningCount),
 			fmt.Sprintf("%d", run.MissingToolCount),
@@ -852,9 +852,9 @@ func renderRunsTable(data LogsData) {
 		"", // Agent
 		"", // Status
 		data.Summary.TotalDuration,
-		formatNumberOrEmpty(data.Summary.TotalTokens),
-		formatCostOrEmpty(data.Summary.TotalCost),
-		formatIntOrEmpty(data.Summary.TotalTurns),
+		console.FormatNumberOrEmpty(data.Summary.TotalTokens),
+		console.FormatCostOrEmpty(data.Summary.TotalCost),
+		console.FormatIntOrEmpty(data.Summary.TotalTurns),
 		fmt.Sprintf("%d", data.Summary.TotalErrors),
 		fmt.Sprintf("%d", data.Summary.TotalWarnings),
 		fmt.Sprintf("%d", data.Summary.TotalMissingTools),
@@ -871,41 +871,6 @@ func renderRunsTable(data LogsData) {
 	}
 
 	fmt.Print(console.RenderTable(config))
-}
-
-// formatNumberOrEmpty formats a number or returns empty string if zero
-func formatNumberOrEmpty(n int) string {
-	if n == 0 {
-		return ""
-	}
-	return console.FormatNumber(n)
-}
-
-// formatCostOrEmpty formats cost or returns empty string if zero
-func formatCostOrEmpty(cost float64) string {
-	if cost == 0 {
-		return ""
-	}
-	return fmt.Sprintf("%.3f", cost)
-}
-
-// formatIntOrEmpty formats an int or returns empty string if zero
-func formatIntOrEmpty(n int) string {
-	if n == 0 {
-		return ""
-	}
-	return fmt.Sprintf("%d", n)
-}
-
-// truncateString truncates a string to maxLen with ellipsis
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	if maxLen > 3 {
-		return s[:maxLen-3] + "..."
-	}
-	return s[:maxLen]
 }
 
 // extractWorkflowID extracts the workflow ID from a workflow path
