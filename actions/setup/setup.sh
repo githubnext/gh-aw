@@ -17,21 +17,21 @@ set -e
 # Get destination from input or use default
 DESTINATION="${INPUT_DESTINATION:-/tmp/gh-aw/actions}"
 
-echo "::notice::Copying activation files to ${DESTINATION}"
+echo "Copying activation files to ${DESTINATION}"
 
 # Create destination directory if it doesn't exist
 mkdir -p "${DESTINATION}"
-echo "::notice::Created directory: ${DESTINATION}"
+echo "Created directory: ${DESTINATION}"
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JS_SOURCE_DIR="${SCRIPT_DIR}/js"
 
-echo "::debug::Script directory: ${SCRIPT_DIR}"
-echo "::debug::Looking for JavaScript sources in: ${JS_SOURCE_DIR}"
+echo "Script directory: ${SCRIPT_DIR}"
+echo "Looking for JavaScript sources in: ${JS_SOURCE_DIR}"
 
 # Debug: List the contents of the script directory to understand the file layout
-echo "::debug::Contents of ${SCRIPT_DIR}:"
+echo "Contents of ${SCRIPT_DIR}:"
 ls -la "${SCRIPT_DIR}" || echo "::warning::Failed to list ${SCRIPT_DIR}"
 
 # Check if js directory exists
@@ -41,17 +41,17 @@ if [ ! -d "${JS_SOURCE_DIR}" ]; then
   echo "::error::These files should be committed to git in actions/setup/js/"
   
   # Additional debugging: show what's in the parent directory
-  echo "::debug::Contents of parent directory $(dirname "${SCRIPT_DIR}"):"
+  echo "Contents of parent directory $(dirname "${SCRIPT_DIR}"):"
   ls -la "$(dirname "${SCRIPT_DIR}")" || echo "::warning::Failed to list parent directory"
   
   exit 1
 fi
 
 # List files in js directory for debugging
-echo "::debug::Files in ${JS_SOURCE_DIR}:"
+echo "Files in ${JS_SOURCE_DIR}:"
 ls -1 "${JS_SOURCE_DIR}" | head -10 || echo "::warning::Failed to list files in ${JS_SOURCE_DIR}"
 FILE_COUNT_IN_DIR=$(ls -1 "${JS_SOURCE_DIR}" 2>/dev/null | wc -l)
-echo "::notice::Found ${FILE_COUNT_IN_DIR} files in ${JS_SOURCE_DIR}"
+echo "Found ${FILE_COUNT_IN_DIR} files in ${JS_SOURCE_DIR}"
 
 # Copy all .cjs files from js/ to destination
 FILE_COUNT=0
@@ -59,7 +59,7 @@ for file in "${JS_SOURCE_DIR}"/*.cjs; do
   if [ -f "$file" ]; then
     filename=$(basename "$file")
     cp "$file" "${DESTINATION}/${filename}"
-    echo "::debug::Copied: ${filename}"
+    echo "Copied: ${filename}"
     FILE_COUNT=$((FILE_COUNT + 1))
   fi
 done
@@ -69,7 +69,7 @@ for file in "${JS_SOURCE_DIR}"/*.json; do
   if [ -f "$file" ]; then
     filename=$(basename "$file")
     cp "$file" "${DESTINATION}/${filename}"
-    echo "::debug::Copied: ${filename}"
+    echo "Copied: ${filename}"
     FILE_COUNT=$((FILE_COUNT + 1))
   fi
 done
@@ -77,47 +77,47 @@ done
 # Copy shell scripts from sh/ directory with executable permissions
 SH_SOURCE_DIR="${SCRIPT_DIR}/sh"
 if [ -d "${SH_SOURCE_DIR}" ]; then
-  echo "::debug::Found shell scripts directory: ${SH_SOURCE_DIR}"
+  echo "Found shell scripts directory: ${SH_SOURCE_DIR}"
   for file in "${SH_SOURCE_DIR}"/*.sh; do
     if [ -f "$file" ]; then
       filename=$(basename "$file")
       cp "$file" "${DESTINATION}/${filename}"
       chmod +x "${DESTINATION}/${filename}"
-      echo "::debug::Copied shell script: ${filename}"
+      echo "Copied shell script: ${filename}"
       FILE_COUNT=$((FILE_COUNT + 1))
     fi
   done
 else
-  echo "::debug::No shell scripts directory found at ${SH_SOURCE_DIR}"
+  echo "No shell scripts directory found at ${SH_SOURCE_DIR}"
 fi
 
-echo "::notice::Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
+echo "Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
 # Copy prompt markdown files to their expected directory
 PROMPTS_DEST="/tmp/gh-aw/prompts"
-echo "::notice::Copying prompt markdown files to ${PROMPTS_DEST}"
+echo "Copying prompt markdown files to ${PROMPTS_DEST}"
 mkdir -p "${PROMPTS_DEST}"
 
 MD_SOURCE_DIR="${SCRIPT_DIR}/md"
 PROMPT_COUNT=0
 if [ -d "${MD_SOURCE_DIR}" ]; then
-  echo "::debug::Found markdown prompts directory: ${MD_SOURCE_DIR}"
+  echo "Found markdown prompts directory: ${MD_SOURCE_DIR}"
   for file in "${MD_SOURCE_DIR}"/*.md; do
     if [ -f "$file" ]; then
       filename=$(basename "$file")
       cp "$file" "${PROMPTS_DEST}/${filename}"
-      echo "::debug::Copied prompt: ${filename}"
+      echo "Copied prompt: ${filename}"
       PROMPT_COUNT=$((PROMPT_COUNT + 1))
     fi
   done
-  echo "::notice::Successfully copied ${PROMPT_COUNT} prompt files to ${PROMPTS_DEST}"
+  echo "Successfully copied ${PROMPT_COUNT} prompt files to ${PROMPTS_DEST}"
 else
   echo "::warning::No markdown prompts directory found at ${MD_SOURCE_DIR}"
 fi
 
 # Copy safe-inputs files to their expected directory
 SAFE_INPUTS_DEST="/tmp/gh-aw/safe-inputs"
-echo "::notice::Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
+echo "Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
 mkdir -p "${SAFE_INPUTS_DEST}"
 
 SAFE_INPUTS_FILES=(
@@ -144,7 +144,7 @@ SAFE_INPUTS_MISSING=()
 for file in "${SAFE_INPUTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${SAFE_INPUTS_DEST}/${file}"
-    echo "::debug::Copied safe-inputs: ${file}"
+    echo "Copied safe-inputs: ${file}"
     SAFE_INPUTS_COUNT=$((SAFE_INPUTS_COUNT + 1))
   else
     echo "::error::Safe-inputs file not found: ${file}"
@@ -162,11 +162,11 @@ if [ ${#SAFE_INPUTS_MISSING[@]} -gt 0 ]; then
   exit 1
 fi
 
-echo "::notice::Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUTS_DEST}"
+echo "Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUTS_DEST}"
 
 # Copy safe-outputs files to their expected directory
 SAFE_OUTPUTS_DEST="/tmp/gh-aw/safeoutputs"
-echo "::notice::Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+echo "Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 mkdir -p "${SAFE_OUTPUTS_DEST}"
 
 SAFE_OUTPUTS_FILES=(
@@ -205,12 +205,12 @@ SAFE_OUTPUTS_MISSING=()
 for file in "${SAFE_OUTPUTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
-    echo "::debug::Copied safe-outputs: ${file}"
+    echo "Copied safe-outputs: ${file}"
     SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
   elif [ -f "${DESTINATION}/${file}" ]; then
     # If file was already copied to main destination, copy from there
     cp "${DESTINATION}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
-    echo "::debug::Copied safe-outputs (from destination): ${file}"
+    echo "Copied safe-outputs (from destination): ${file}"
     SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
   else
     echo "::error::Safe-outputs file not found: ${file}"
@@ -232,13 +232,13 @@ fi
 if [ -f "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" ]; then
   cp "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
   chmod +x "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
-  echo "::debug::Copied safe-outputs MCP entry point: mcp-server.cjs"
+  echo "Copied safe-outputs MCP entry point: mcp-server.cjs"
   SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
 else
   echo "::warning::Safe-outputs MCP entry point not found: safe-outputs-mcp-server.cjs"
 fi
 
-echo "::notice::Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 
 # Set output
 if [ -n "${GITHUB_OUTPUT}" ]; then
@@ -247,5 +247,5 @@ if [ -n "${GITHUB_OUTPUT}" ]; then
   echo "safe_outputs_files_copied=${SAFE_OUTPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
   echo "prompt_files_copied=${PROMPT_COUNT}" >> "${GITHUB_OUTPUT}"
 else
-  echo "::debug::GITHUB_OUTPUT not set, skipping output"
+  echo "GITHUB_OUTPUT not set, skipping output"
 fi
