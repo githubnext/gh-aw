@@ -949,13 +949,13 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-artifacts
-          path: /tmp/gh-aw/threat-detection/
+          path: /tmp/gh-aw/threat-detection/agent-artifacts
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/threat-detection/
+          path: /tmp/gh-aw/threat-detection/agent-output
       - name: Echo agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
@@ -966,6 +966,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Release"
           WORKFLOW_DESCRIPTION: "Build, test, and release gh-aw extension, then generate and prepend release highlights"
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1089,7 +1090,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
       - name: Set up Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
@@ -1170,7 +1171,7 @@ jobs:
       release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
           persist-credentials: false

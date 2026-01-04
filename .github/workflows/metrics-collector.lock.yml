@@ -22,7 +22,11 @@
 # Collects daily performance metrics for the agent ecosystem and stores them in repo-memory
 
 name: "Metrics Collector - Infrastructure Agent"
-"on": daily
+"on":
+  schedule:
+  - cron: "28 14 * * *"
+    # Friendly format: daily (scattered)
+  workflow_dispatch:
 
 permissions:
   actions: read

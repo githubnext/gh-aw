@@ -160,10 +160,15 @@ async function main(config = {}) {
     // Validate repository
     const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
     if (!repoValidation.valid) {
-      core.warning(`Skipping discussion: ${repoValidation.error}`);
+      // When valid is false, error is guaranteed to be non-null
+      const errorMessage = repoValidation.error;
+      if (!errorMessage) {
+        throw new Error("Internal error: repoValidation.error should not be null when valid is false");
+      }
+      core.warning(`Skipping discussion: ${errorMessage}`);
       return {
         success: false,
-        error: repoValidation.error,
+        error: errorMessage,
       };
     }
 

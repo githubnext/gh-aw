@@ -257,7 +257,7 @@ jobs:
           echo "Testing update command to ensure it runs without issues..."
           # Run update with verbose flag to check for updates without making changes
           # The command checks for gh-aw updates, action updates, and workflow updates
-          ./gh-aw update --verbose --no-actions || true
+          ./gh-aw update --verbose --no-actions
           echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
 
   build:
@@ -725,7 +725,7 @@ jobs:
         run: make build
 
       - name: Run ${{ matrix.tool.name }} security scan on poem workflow
-        run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }}
+        run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
 
   logs-token-check:
     runs-on: ubuntu-latest
@@ -752,9 +752,10 @@ jobs:
       - name: Run logs command with JSON output
         id: logs_check
         run: |
+          set -e  # Fail on first error
           # Run the logs command and capture only stdout (JSON output)
           # stderr is not redirected, so warning messages go to console
-          ./gh-aw logs -c 2 --engine copilot --json > logs_output.json || true
+          ./gh-aw logs -c 2 --engine copilot --json --verbose > logs_output.json
           
           # Display the output for debugging
           echo "Logs command output:"

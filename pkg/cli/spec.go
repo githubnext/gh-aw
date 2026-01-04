@@ -379,8 +379,8 @@ func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) st
 	return source
 }
 
-// isCommitSHA checks if a version string looks like a commit SHA (40-character hex string)
-func isCommitSHA(version string) bool {
+// IsCommitSHA checks if a version string looks like a commit SHA (40-character hex string)
+func IsCommitSHA(version string) bool {
 	if len(version) != 40 {
 		return false
 	}

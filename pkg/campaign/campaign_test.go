@@ -144,7 +144,7 @@ func TestValidateCampaignSpec_InvalidState(t *testing.T) {
 		ID:         "rollout-q1-2025",
 		Name:       "Rollout",
 		ProjectURL: "https://github.com/orgs/githubnext/projects/1",
-		Workflows:  []string{"org-wide-rollout"},
+		Workflows:  []string{"daily-file-diet"},
 		State:      "launching", // invalid
 	}
 

@@ -966,13 +966,13 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-artifacts
-          path: /tmp/gh-aw/threat-detection/
+          path: /tmp/gh-aw/threat-detection/agent-artifacts
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/threat-detection/
+          path: /tmp/gh-aw/threat-detection/agent-output
       - name: Echo agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
@@ -983,6 +983,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Brave Web Search Agent"
           WORKFLOW_DESCRIPTION: "Performs web searches using Brave search engine when invoked with /brave command in issues or PRs"
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
