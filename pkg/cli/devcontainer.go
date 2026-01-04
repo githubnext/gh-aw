@@ -192,7 +192,8 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	// Add newline at end of file
 	data = append(data, '\n')
 
-	if err := os.WriteFile(devcontainerPath, data, 0644); err != nil {
+	// Use owner-only read/write permissions (0600) for security best practices
+	if err := os.WriteFile(devcontainerPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write devcontainer.json: %w", err)
 	}
 	devcontainerLog.Printf("Wrote file: %s", devcontainerPath)
