@@ -115,7 +115,8 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
   if (!repoValidation.valid) {
     return {
       success: false,
-      error: repoValidation.error,
+      // When valid is false, error is guaranteed to be non-null
+      error: /** @type {string} */ repoValidation.error,
     };
   }
 

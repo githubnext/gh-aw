@@ -98,7 +98,8 @@ async function main(config = {}) {
       core.warning(`Skipping issue: ${repoValidation.error}`);
       return {
         success: false,
-        error: repoValidation.error,
+        // When valid is false, error is guaranteed to be non-null
+        error: /** @type {string} */ repoValidation.error,
       };
     }
 
