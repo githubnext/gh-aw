@@ -656,7 +656,8 @@ jobs:
           
           **Determine if this is an experimental run**:
           ```bash
-          # Generate random number between 0-100
+          # Generate random number between 0-100 using shell's RANDOM variable
+          # Note: Requires bash shell. On systems without bash, use: $(od -An -N1 -tu1 /dev/urandom | awk '{print $1}')
           RANDOM_VALUE=$((RANDOM % 100))
           # If value < 30, this is an experimental run
           ```
@@ -1019,10 +1020,6 @@ jobs:
           
           ### Step 1: Generate and Upload Chart
           ```python
-          # Generate your chart
-          plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-          ```
-          
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1052,6 +1049,10 @@ jobs:
           GH_AW_GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Generate your chart
+          plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
+          ```
+          
           ### Step 2: Upload as Asset
           Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
           

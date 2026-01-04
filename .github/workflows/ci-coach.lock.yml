@@ -669,8 +669,9 @@ jobs:
           1. **Catch-all matrix groups** for packages with specific patterns but no catch-all
           2. **New matrix entries** for packages not in the matrix at all
           
-          Example fix:
+          Example fix for missing catch-all (add to `.github/workflows/ci.yml`):
           ```yaml
+          # Add to the integration job's matrix.include section:
           - name: "CLI Other"  # Catch-all for tests not matched by specific patterns
             packages: "./pkg/cli"
             pattern: ""  # Empty pattern runs all remaining tests
@@ -969,10 +970,6 @@ jobs:
           2. Exit gracefully - no pull request needed
           3. Log findings for future reference
           
-          ## Pull Request Structure (if created)
-          
-          ```markdown
-          ## CI Optimization Proposal
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -999,6 +996,10 @@ jobs:
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ## Pull Request Structure (if created)
+          
+          ```markdown
+          ## CI Optimization Proposal
           
           ### Summary
           [Brief overview of proposed changes and expected benefits]
