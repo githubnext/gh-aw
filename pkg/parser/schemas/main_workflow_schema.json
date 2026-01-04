@@ -5193,15 +5193,19 @@
             },
             "script": {
               "type": "string",
-              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run' or 'py'."
+              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run', 'py', or 'go'."
             },
             "run": {
               "type": "string",
-              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script' or 'py'."
+              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script', 'py', or 'go'."
             },
             "py": {
               "type": "string",
-              "description": "Python script implementation. The script receives input parameters as environment variables (INPUT_* prefix, uppercased). Cannot be used together with 'script' or 'run'."
+              "description": "Python script implementation. The script receives input parameters as environment variables (INPUT_* prefix, uppercased). Cannot be used together with 'script', 'run', or 'go'."
+            },
+            "go": {
+              "type": "string",
+              "description": "Go script implementation. The script is executed using 'go run' and receives input parameters as JSON via stdin. Cannot be used together with 'script', 'run', or 'py'."
             },
             "env": {
               "type": "object",
@@ -5235,6 +5239,9 @@
                   },
                   {
                     "required": ["py"]
+                  },
+                  {
+                    "required": ["go"]
                   }
                 ]
               }
@@ -5248,6 +5255,9 @@
                   },
                   {
                     "required": ["py"]
+                  },
+                  {
+                    "required": ["go"]
                   }
                 ]
               }
@@ -5261,6 +5271,25 @@
                   },
                   {
                     "required": ["run"]
+                  },
+                  {
+                    "required": ["go"]
+                  }
+                ]
+              }
+            },
+            {
+              "required": ["go"],
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["script"]
+                  },
+                  {
+                    "required": ["run"]
+                  },
+                  {
+                    "required": ["py"]
                   }
                 ]
               }
