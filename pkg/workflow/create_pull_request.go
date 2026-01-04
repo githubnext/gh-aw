@@ -42,12 +42,12 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Build pre-steps for patch download, checkout, and git config
 	var preSteps []string
 
-	// Step 1: Download patch artifact
+	// Step 1: Download patch artifact from unified agent-artifacts
 	preSteps = append(preSteps, "      - name: Download patch artifact\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n")
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, "          name: aw.patch\n")
+	preSteps = append(preSteps, "          name: agent-artifacts\n")
 	preSteps = append(preSteps, "          path: /tmp/gh-aw/\n")
 
 	// Step 2: Checkout repository
