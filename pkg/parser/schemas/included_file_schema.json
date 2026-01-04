@@ -677,7 +677,8 @@
       }
     },
     "engine": {
-      "description": "AI engine configuration for included files",
+      "description": "AI engine configuration for included files. Defaults to 'copilot'.",
+      "default": "copilot",
       "$ref": "#/$defs/engine_config"
     },
     "safe-outputs": {
