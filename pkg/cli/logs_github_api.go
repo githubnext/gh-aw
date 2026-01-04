@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -190,6 +191,17 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		if !verbose {
 			spinner.Stop()
 		}
+
+		// Extract detailed error information including exit code
+		var exitCode int
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+			logsGitHubAPILog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
+			logsGitHubAPILog.Printf("combined output: %s", string(output))
+		} else {
+			logsGitHubAPILog.Printf("gh run list command failed (not ExitError): %v. Command: gh %v", err, args)
+		}
+
 		// Check for authentication errors - GitHub CLI can return different exit codes and messages
 		errMsg := err.Error()
 		outputMsg := string(output)
@@ -206,9 +218,9 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			return nil, 0, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		if len(output) > 0 {
-			return nil, 0, fmt.Errorf("failed to list workflow runs: %s", string(output))
+			return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %s", exitCode, string(output))
 		}
-		return nil, 0, fmt.Errorf("failed to list workflow runs: %w", err)
+		return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %w", exitCode, err)
 	}
 
 	var runs []WorkflowRun

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -480,6 +481,20 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 		if !verbose {
 			spinner.Stop()
 		}
+
+		// Extract detailed error information including exit code and stderr
+		var exitCode int
+		var stderr string
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+			stderr = string(exitErr.Stderr)
+			statusLog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
+			statusLog.Printf("stderr output: %s", stderr)
+			return nil, fmt.Errorf("failed to execute gh run list command (exit code %d): %w. stderr: %s", exitCode, err, stderr)
+		}
+
+		// If not an ExitError, log what we can
+		statusLog.Printf("gh run list command failed with error (not ExitError): %v. Command: gh %v", err, args)
 		return nil, fmt.Errorf("failed to execute gh run list command: %w", err)
 	}
 
