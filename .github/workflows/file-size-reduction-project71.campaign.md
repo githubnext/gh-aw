@@ -1,17 +1,17 @@
 ---
-id: file-size-reduction-project68
-name: "File Size Reduction Campaign (Project 68)"
+id: file-size-reduction-project71
+name: "Campaign: File Size Reduction (Project 71)"
 description: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
 version: v1
-project-url: "https://github.com/orgs/githubnext/projects/68"
+project-url: "https://github.com/orgs/githubnext/projects/71"
 project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 workflows:
   - daily-file-diet
-tracker-label: "campaign:file-size-reduction-project68"
+tracker-label: "campaign:file-size-reduction-project71"
 memory-paths:
-  - "memory/campaigns/file-size-reduction-project68/**"
-metrics-glob: "memory/campaigns/file-size-reduction-project68/metrics/*.json"
-cursor-glob: "memory/campaigns/file-size-reduction-project68/cursor.json"
+  - "memory/campaigns/file-size-reduction-project71/**"
+metrics-glob: "memory/campaigns/file-size-reduction-project71/metrics/*.json"
+cursor-glob: "memory/campaigns/file-size-reduction-project71/cursor.json"
 state: active
 tags:
   - code-quality
@@ -47,7 +47,7 @@ governance:
   max-discovery-pages-per-run: 5
 ---
 
-# File Size Reduction Campaign (Project 68)
+# File Size Reduction Campaign (Project 71)
 
 ## Overview
 

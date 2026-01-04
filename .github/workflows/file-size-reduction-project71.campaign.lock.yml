@@ -21,7 +21,7 @@
 #
 # Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions.
 
-name: "File Size Reduction Campaign (Project 68)"
+name: "Campaign: File Size Reduction (Project 71)"
 "on":
   schedule:
   - cron: "0 18 * * *"
@@ -36,9 +36,9 @@ permissions:
 
 concurrency:
   cancel-in-progress: false
-  group: campaign-file-size-reduction-project68-orchestrator-${{ github.ref }}
+  group: campaign-file-size-reduction-project71-orchestrator-${{ github.ref }}
 
-run-name: "File Size Reduction Campaign (Project 68)"
+run-name: "Campaign: File Size Reduction (Project 71)"
 
 jobs:
   activation:
@@ -62,7 +62,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "file-size-reduction-project68.campaign.g.lock.yml"
+          GH_AW_WORKFLOW_FILE: "file-size-reduction-project71.campaign.g.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -467,7 +467,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.374",
-              workflow_name: "File Size Reduction Campaign (Project 68)",
+              workflow_name: "Campaign: File Size Reduction (Project 71)",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -516,17 +516,17 @@ jobs:
           
           # Campaign Orchestrator
           
-          This workflow orchestrates the 'File Size Reduction Campaign (Project 68)' campaign.
+          This workflow orchestrates the 'Campaign: File Size Reduction (Project 71)' campaign.
           
           - Objective: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
           - KPIs:
             - Files reduced to target size (primary): baseline 0 → target 100 over 90 days percent
             - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days percent
           - Associated workflows: daily-file-diet
-          - Memory paths: memory/campaigns/file-size-reduction-project68/**
-          - Metrics glob: `memory/campaigns/file-size-reduction-project68/metrics/*.json`
-          - Cursor glob: `memory/campaigns/file-size-reduction-project68/cursor.json`
-          - Project URL: https://github.com/orgs/githubnext/projects/68
+          - Memory paths: memory/campaigns/file-size-reduction-project71/**
+          - Metrics glob: `memory/campaigns/file-size-reduction-project71/metrics/*.json`
+          - Cursor glob: `memory/campaigns/file-size-reduction-project71/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/71
           - Governance: max new items per run: 5
           - Governance: max discovery items per run: 50
           - Governance: max discovery pages per run: 5
@@ -555,14 +555,14 @@ jobs:
           - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
           
           
-          **Cursor file (repo-memory)**: `memory/campaigns/file-size-reduction-project68/cursor.json`  
+          **Cursor file (repo-memory)**: `memory/campaigns/file-size-reduction-project71/cursor.json`  
           - If it exists: read first and continue from its boundary.  
           - If it does not exist: create it by end of run.  
           - Always write the updated cursor back to the same path.
           
           
           
-          **Metrics snapshots (repo-memory)**: `memory/campaigns/file-size-reduction-project68/metrics/*.json`  
+          **Metrics snapshots (repo-memory)**: `memory/campaigns/file-size-reduction-project71/metrics/*.json`  
           - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
           - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
           - Each snapshot MUST include `campaign_id` and `date` (UTC).
@@ -680,13 +680,13 @@ jobs:
           
           - Writes MUST use only the `update-project` safe-output.
           - All writes MUST target exactly:
-            - **Project URL**: `https://github.com/orgs/githubnext/projects/68`
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/71`
           - Every item MUST include:
-            - `campaign_id: "file-size-reduction-project68"`
+            - `campaign_id: "file-size-reduction-project71"`
           
           ## Campaign ID
           
-          All campaign tracking MUST key off `campaign_id: "file-size-reduction-project68"`.
+          All campaign tracking MUST key off `campaign_id: "file-size-reduction-project71"`.
           
           ---
           
@@ -695,7 +695,7 @@ jobs:
           | Field | Type | Allowed / Notes |
           |---|---|---|
           | `status` | single-select | `Todo` / `In Progress` / `Done` |
-          | `campaign_id` | text | Must equal `file-size-reduction-project68` |
+          | `campaign_id` | text | Must equal `file-size-reduction-project71` |
           | `worker_workflow` | text | workflow ID or `"unknown"` |
           | `repository` | text | `owner/repo` |
           | `priority` | single-select | `High` / `Medium` / `Low` |
@@ -720,7 +720,7 @@ jobs:
           
           These rules apply to any time you write fields:
           
-          - `campaign_id`: always `file-size-reduction-project68`
+          - `campaign_id`: always `file-size-reduction-project71`
           - `worker_workflow`: workflow ID if known, else `"unknown"`
           - `repository`: extract `owner/repo` from the issue/PR URL
           - `priority`: default `Medium` unless explicitly known
@@ -751,13 +751,13 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/68"
-            campaign_id: "file-size-reduction-project68"
+            project: "https://github.com/orgs/githubnext/projects/71"
+            campaign_id: "file-size-reduction-project71"
             content_type: "issue"              # or "pull_request"
             content_number: 123
             fields:
               status: "Todo"                   # "Done" if already closed/merged
-              campaign_id: "file-size-reduction-project68"
+              campaign_id: "file-size-reduction-project71"
               worker_workflow: "unknown"
               repository: "owner/repo"
               priority: "Medium"
@@ -782,8 +782,8 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/68"
-            campaign_id: "file-size-reduction-project68"
+            project: "https://github.com/orgs/githubnext/projects/71"
+            campaign_id: "file-size-reduction-project71"
             content_type: "issue"              # or "pull_request"
             content_number: 123
             fields:
@@ -794,13 +794,13 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/68"
-            campaign_id: "file-size-reduction-project68"
+            project: "https://github.com/orgs/githubnext/projects/71"
+            campaign_id: "file-size-reduction-project71"
             content_type: "issue"              # or "pull_request"
             content_number: 123
             fields:
               status: "Done"
-              campaign_id: "file-size-reduction-project68"
+              campaign_id: "file-size-reduction-project71"
               worker_workflow: "WORKFLOW_ID"
               repository: "owner/repo"
               priority: "Medium"
@@ -1218,7 +1218,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "File Size Reduction Campaign (Project 68)"
+          GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1231,7 +1231,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "File Size Reduction Campaign (Project 68)"
+          GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1247,7 +1247,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "File Size Reduction Campaign (Project 68)"
+          GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1299,7 +1299,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "File Size Reduction Campaign (Project 68)"
+          WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
           WORKFLOW_DESCRIPTION: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
         with:
           script: |
@@ -1469,8 +1469,8 @@ jobs:
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "file-size-reduction-project68/**"
-          GH_AW_CAMPAIGN_ID: file-size-reduction-project68
+          FILE_GLOB_FILTER: "file-size-reduction-project71/**"
+          GH_AW_CAMPAIGN_ID: file-size-reduction-project71
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1492,8 +1492,8 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "file-size-reduction-project68.campaign.g"
-      GH_AW_WORKFLOW_NAME: "File Size Reduction Campaign (Project 68)"
+      GH_AW_WORKFLOW_ID: "file-size-reduction-project71.campaign.g"
+      GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
