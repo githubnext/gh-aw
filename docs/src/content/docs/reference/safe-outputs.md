@@ -77,6 +77,55 @@ Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-ou
 
 Create custom post-processing jobs registered as Model Context Protocol (MCP) tools. Support standard GitHub Actions properties and auto-access agent output via `$GH_AW_AGENT_OUTPUT`. See [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
 
+## Scope: Main Workflows vs Included Files
+
+Safe outputs have different capabilities depending on where they are defined:
+
+**Main Workflows** - Full access to all safe-output types:
+- Can use any of the 38+ safe-output operation types listed above
+- Can define `jobs:` for custom safe outputs
+- Can configure global options like `github-token:`, `app:`, `max-patch-size:`
+- Complete control over safe-output behavior
+
+**Included Files** - Restricted to custom jobs only:
+- Can **only** define `jobs:` under `safe-outputs:`
+- Cannot define operation types like `create-issue:`, `add-comment:`, `create-pull-request:`, etc.
+- Cannot configure global safe-outputs options
+- Designed for reusable custom safe-output jobs that can be imported by multiple workflows
+
+**Rationale**: This restriction enables modular, reusable components while maintaining clear ownership of workflow behavior. Main workflows control which GitHub operations are performed, while included files provide reusable custom jobs that main workflows can selectively import. This separation prevents complex inheritance of safe-output configurations and ensures workflows remain understandable and maintainable.
+
+**Example - Main Workflow**:
+```yaml wrap
+---
+on: issues
+imports:
+  - shared/slack-notify.md  # imports custom job only
+safe-outputs:
+  create-issue:              # main workflow controls GitHub operations
+  add-comment:
+  jobs:
+    local-notify:            # can also define local custom jobs
+      description: "Send local notification"
+---
+```
+
+**Example - Included File** (shared/slack-notify.md):
+```yaml wrap
+---
+safe-outputs:
+  jobs:                      # only jobs allowed in included files
+    slack-notify:
+      description: "Send Slack notification"
+      inputs:
+        message:
+          type: string
+          required: true
+---
+```
+
+See [Imports](/gh-aw/reference/imports/) for details on importing workflow components.
+
 ### Issue Creation (`create-issue:`)
 
 Creates GitHub issues based on workflow output.
