@@ -849,7 +849,7 @@ describe("updateProject", () => {
     // Verify that DATE fields were created (not SINGLE_SELECT)
     const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
     expect(createCalls.length).toBe(2);
-    
+
     // Check that both fields were created with DATE type
     expect(createCalls[0][1].dataType).toBe("DATE");
     expect(createCalls[0][1].name).toBe("Start Date");
