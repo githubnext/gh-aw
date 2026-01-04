@@ -130,10 +130,10 @@ func GetActionPin(actionRepo string) string {
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
 	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, data.StrictMode)
-	
+
 	// Check if version is already a full 40-character SHA
 	isAlreadySHA := isValidFullSHA(version)
-	
+
 	// First try dynamic resolution if resolver is available (but not for SHAs, as they can't be resolved)
 	if data.ActionResolver != nil && !isAlreadySHA {
 		actionPinsLog.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
@@ -179,7 +179,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
 		}
-		
+
 		// If version is a SHA, check if it matches any hardcoded pin's SHA
 		if isAlreadySHA {
 			for _, pin := range matchingPins {
@@ -230,7 +230,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
 		return actionRepo + "@" + version + " # " + version, nil
 	}
-	
+
 	warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
 	if data.ActionResolver != nil {
 		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
