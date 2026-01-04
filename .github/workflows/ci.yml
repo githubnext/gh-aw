@@ -767,15 +767,60 @@ jobs:
           echo "Logs command output:"
           cat logs_output.json
           
+          # Check if the JSON structure is valid
+          echo "## Validating JSON Structure" >> $GITHUB_STEP_SUMMARY
+          
           # Check if token count is found in the JSON output
           if jq -e '.summary.total_tokens' logs_output.json > /dev/null 2>&1; then
             TOKEN_COUNT=$(jq '.summary.total_tokens' logs_output.json)
             echo "✅ Token count found: $TOKEN_COUNT" >> $GITHUB_STEP_SUMMARY
             echo "token_count=$TOKEN_COUNT" >> $GITHUB_OUTPUT
-            exit 0
           else
             echo "❌ Token count not found in JSON output" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
+          
+          # Check if runs array exists (even if empty)
+          if jq -e '.runs' logs_output.json > /dev/null 2>&1; then
+            RUNS_COUNT=$(jq '.runs | length' logs_output.json)
+            echo "✅ Runs array found: $RUNS_COUNT runs" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Runs array not found in JSON output" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          # If there are runs, validate that key fields are resolved
+          if [ "$RUNS_COUNT" -gt 0 ]; then
+            # Check if agent (engine_id) field exists in first run
+            if jq -e '.runs[0] | has("agent")' logs_output.json > /dev/null 2>&1; then
+              AGENT=$(jq -r '.runs[0].agent // "null"' logs_output.json)
+              echo "✅ Agent field found in run: $AGENT" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ Agent field not found in run data" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+            
+            # Check if workflow_path field exists in first run
+            if jq -e '.runs[0] | has("workflow_path")' logs_output.json > /dev/null 2>&1; then
+              WORKFLOW_PATH=$(jq -r '.runs[0].workflow_path // "null"' logs_output.json)
+              echo "✅ Workflow path field found in run: $WORKFLOW_PATH" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ Workflow path field not found in run data" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+            
+            # Check if workflow_name is present
+            if jq -e '.runs[0].workflow_name' logs_output.json > /dev/null 2>&1; then
+              WORKFLOW_NAME=$(jq -r '.runs[0].workflow_name' logs_output.json)
+              echo "✅ Workflow name found in run: $WORKFLOW_NAME" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ Workflow name not found in run data" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+          else
+            echo "ℹ️ No runs found to validate (this is ok)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "✅ All JSON structure validations passed" >> $GITHUB_STEP_SUMMARY
         env:
           GH_TOKEN: ${{ github.token }}
