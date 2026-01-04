@@ -9,11 +9,7 @@
     "description": {
       "type": "string",
       "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
-      "examples": [
-        "Agent instructions",
-        "Shared tool configuration",
-        "Common workflow steps"
-      ]
+      "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
     },
     "metadata": {
       "type": "object",
@@ -66,12 +62,7 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "string",
-              "choice",
-              "boolean",
-              "number"
-            ],
+            "enum": ["string", "choice", "boolean", "number"],
             "description": "Input type"
           },
           "options": {
@@ -99,11 +90,7 @@
         {
           "type": "string",
           "description": "Single glob pattern for files/directories where these instructions apply (for custom agent instruction files)",
-          "examples": [
-            "**/*.py",
-            "src/**/*.js",
-            "pkg/workflow/*.go"
-          ]
+          "examples": ["**/*.py", "src/**/*.js", "pkg/workflow/*.go"]
         },
         {
           "type": "array",
@@ -113,14 +100,8 @@
             "description": "Glob pattern for file/directory matching"
           },
           "examples": [
-            [
-              "**/*.py",
-              "**/*.pyw"
-            ],
-            [
-              "src/**/*.ts",
-              "src/**/*.tsx"
-            ]
+            ["**/*.py", "**/*.pyw"],
+            ["src/**/*.ts", "src/**/*.tsx"]
           ]
         }
       ]
@@ -461,16 +442,9 @@
               "description": "Playwright tool configuration with custom version and domain restrictions",
               "properties": {
                 "version": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
-                  "examples": [
-                    "v1.41.0",
-                    1.41,
-                    20
-                  ]
+                  "examples": ["v1.41.0", 1.41, 20]
                 },
                 "allowed_domains": {
                   "description": "Domains allowed for Playwright browser network access. Defaults to localhost only for security.",
@@ -512,14 +486,7 @@
               "description": "Short syntax: array of language identifiers to enable (e.g., [\"go\", \"typescript\"])",
               "items": {
                 "type": "string",
-                "enum": [
-                  "go",
-                  "typescript",
-                  "python",
-                  "java",
-                  "rust",
-                  "csharp"
-                ]
+                "enum": ["go", "typescript", "python", "java", "rust", "csharp"]
               }
             },
             {
@@ -527,16 +494,9 @@
               "description": "Serena configuration with custom version and language-specific settings",
               "properties": {
                 "version": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
-                  "examples": [
-                    "latest",
-                    "0.1.0",
-                    1.0
-                  ]
+                  "examples": ["latest", "0.1.0", 1.0]
                 },
                 "args": {
                   "type": "array",
@@ -559,10 +519,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Go version (e.g., \"1.21\", 1.21)"
                             },
                             "go-mod-file": {
@@ -588,10 +545,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Node.js version for TypeScript (e.g., \"22\", 22)"
                             }
                           },
@@ -609,10 +563,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Python version (e.g., \"3.12\", 3.12)"
                             }
                           },
@@ -630,10 +581,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Java version (e.g., \"21\", 21)"
                             }
                           },
@@ -651,10 +599,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Rust version (e.g., \"stable\", \"1.75\")"
                             }
                           },
@@ -672,10 +617,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": ".NET version for C# (e.g., \"8.0\", 8.0)"
                             }
                           },
@@ -703,10 +645,7 @@
               "description": "Enable agentic-workflows tool with default settings (same as true)"
             }
           ],
-          "examples": [
-            true,
-            null
-          ]
+          "examples": [true, null]
         },
         "edit": {
           "description": "File editing tool for reading, creating, and modifying files in the repository",
@@ -758,11 +697,7 @@
           "type": "integer",
           "minimum": 1,
           "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s).",
-          "examples": [
-            60,
-            120,
-            300
-          ]
+          "examples": [60, 120, 300]
         },
         "startup-timeout": {
           "type": "integer",
@@ -840,13 +775,7 @@
               "properties": {
                 "type": {
                   "type": "string",
-                  "enum": [
-                    "string",
-                    "number",
-                    "boolean",
-                    "array",
-                    "object"
-                  ],
+                  "enum": ["string", "number", "boolean", "array", "object"],
                   "description": "JSON schema type for the input parameter"
                 },
                 "description": {
@@ -888,17 +817,10 @@
             "description": "Timeout in seconds for tool execution. Default is 60 seconds. Applies to shell (run) and Python (py) tools.",
             "default": 60,
             "minimum": 1,
-            "examples": [
-              30,
-              60,
-              120,
-              300
-            ]
+            "examples": [30, 60, 120, 300]
           }
         },
-        "required": [
-          "description"
-        ],
+        "required": ["description"],
         "additionalProperties": false
       }
     },
@@ -956,9 +878,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "defaults"
-          ],
+          "enum": ["defaults"],
           "description": "Use default network access"
         },
         {
@@ -987,9 +907,7 @@
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "disable"
-                  ],
+                  "enum": ["disable"],
                   "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
                 },
                 {
@@ -1004,27 +922,14 @@
                       }
                     },
                     "version": {
-                      "type": [
-                        "string",
-                        "number"
-                      ],
+                      "type": ["string", "number"],
                       "description": "AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-                      "examples": [
-                        "v1.0.0",
-                        "latest",
-                        20,
-                        3.11
-                      ]
+                      "examples": ["v1.0.0", "latest", 20, 3.11]
                     },
                     "log-level": {
                       "type": "string",
                       "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
-                      "enum": [
-                        "debug",
-                        "info",
-                        "warn",
-                        "error"
-                      ]
+                      "enum": ["debug", "info", "warn", "error"]
                     }
                   },
                   "additionalProperties": false
@@ -1041,12 +946,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "read-all",
-            "write-all",
-            "read",
-            "write"
-          ],
+          "enum": ["read-all", "write-all", "read", "write"],
           "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
         },
         {
@@ -1055,137 +955,77 @@
           "properties": {
             "actions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for GitHub Actions"
             },
             "checks": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for checks"
             },
             "contents": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository contents"
             },
             "deployments": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for deployments"
             },
             "discussions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for discussions"
             },
             "id-token": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for ID token"
             },
             "issues": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for issues"
             },
             "metadata": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for metadata"
             },
             "packages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for packages"
             },
             "pages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for GitHub Pages"
             },
             "pull-requests": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for pull requests"
             },
             "security-events": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for security events"
             },
             "statuses": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for commit statuses"
             },
             "attestations": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for attestations"
             },
             "models": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for AI models"
             }
           },
@@ -1202,10 +1042,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "stdio",
-            "local"
-          ],
+          "enum": ["stdio", "local"],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
@@ -1225,17 +1062,9 @@
           "description": "Container image for stdio MCP connections"
         },
         "version": {
-          "type": [
-            "string",
-            "number"
-          ],
+          "type": ["string", "number"],
           "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0', 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-          "examples": [
-            "latest",
-            "v1.0.0",
-            20,
-            3.11
-          ]
+          "examples": ["latest", "v1.0.0", 20, 3.11]
         },
         "args": {
           "type": "array",
@@ -1299,70 +1128,49 @@
       "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Dependency: 'network' requires 'container' (validated in 'allOf'). (4) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required.",
       "anyOf": [
         {
-          "required": [
-            "type"
-          ]
+          "required": ["type"]
         },
         {
-          "required": [
-            "command"
-          ]
+          "required": ["command"]
         },
         {
-          "required": [
-            "container"
-          ]
+          "required": ["container"]
         }
       ],
       "not": {
         "allOf": [
           {
-            "required": [
-              "command"
-            ]
+            "required": ["command"]
           },
           {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         ]
       },
       "allOf": [
         {
           "if": {
-            "required": [
-              "network"
-            ]
+            "required": ["network"]
           },
           "then": {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         },
         {
           "if": {
             "properties": {
               "type": {
-                "enum": [
-                  "stdio",
-                  "local"
-                ]
+                "enum": ["stdio", "local"]
               }
             }
           },
           "then": {
             "anyOf": [
               {
-                "required": [
-                  "command"
-                ]
+                "required": ["command"]
               },
               {
-                "required": [
-                  "container"
-                ]
+                "required": ["container"]
               }
             ]
           }
@@ -1375,9 +1183,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "http"
-          ],
+          "enum": ["http"],
           "description": "MCP connection type for HTTP"
         },
         "registry": {
@@ -1407,9 +1213,7 @@
           }
         }
       },
-      "required": [
-        "url"
-      ],
+      "required": ["url"],
       "additionalProperties": false
     },
     "safe_job": {
@@ -1502,12 +1306,7 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": [
-                    "string",
-                    "number",
-                    "boolean",
-                    "choice"
-                  ],
+                  "enum": ["string", "number", "boolean", "choice"],
                   "description": "Input type"
                 },
                 "options": {
@@ -1533,9 +1332,7 @@
           "description": "Custom output message"
         }
       },
-      "required": [
-        "inputs"
-      ],
+      "required": ["inputs"],
       "additionalProperties": false
     },
     "engine_config": {
@@ -1562,12 +1359,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "claude",
-            "codex",
-            "copilot",
-            "custom"
-          ],
+          "enum": ["claude", "codex", "copilot", "custom"],
           "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
         },
         {
@@ -1576,26 +1368,13 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": [
-                "claude",
-                "codex",
-                "custom",
-                "copilot"
-              ],
+              "enum": ["claude", "codex", "custom", "copilot"],
               "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
             },
             "version": {
-              "type": [
-                "string",
-                "number"
-              ],
+              "type": ["string", "number"],
               "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has sensible defaults and can typically be omitted. Numeric values are automatically converted to strings at runtime.",
-              "examples": [
-                "beta",
-                "stable",
-                20,
-                3.11
-              ]
+              "examples": ["beta", "stable", 20, 3.11]
             },
             "model": {
               "type": "string",
@@ -1633,9 +1412,7 @@
                       "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agentic workflow runs."
                     }
                   },
-                  "required": [
-                    "group"
-                  ],
+                  "required": ["group"],
                   "additionalProperties": false
                 }
               ],
@@ -1690,9 +1467,7 @@
                     "description": "Human-readable description of what this pattern matches"
                   }
                 },
-                "required": [
-                  "pattern"
-                ],
+                "required": ["pattern"],
                 "additionalProperties": false
               }
             },
@@ -1708,9 +1483,7 @@
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
             }
           },
-          "required": [
-            "id"
-          ],
+          "required": ["id"],
           "additionalProperties": false
         }
       ]

@@ -4,13 +4,7 @@
   "type": "object",
   "$comment": "Governed contract for campaign orchestrator writes. See prompts/project_update_instructions.md (law) and prompts/project_update_contract_checklist.md (enforcement). This schema validates payload shape only; it cannot enforce read/write phase separation or equality to a specific campaign ID value.",
   "additionalProperties": false,
-  "required": [
-    "project",
-    "campaign_id",
-    "content_type",
-    "content_number",
-    "fields"
-  ],
+  "required": ["project", "campaign_id", "content_type", "content_number", "fields"],
   "properties": {
     "project": {
       "type": "string",
@@ -23,10 +17,7 @@
     },
     "content_type": {
       "type": "string",
-      "enum": [
-        "issue",
-        "pull_request"
-      ]
+      "enum": ["issue", "pull_request"]
     },
     "content_number": {
       "type": "integer",
@@ -39,11 +30,7 @@
   "$defs": {
     "status": {
       "type": "string",
-      "enum": [
-        "Todo",
-        "In Progress",
-        "Done"
-      ]
+      "enum": ["Todo", "In Progress", "Done"]
     },
     "isoDate": {
       "type": "string",
@@ -60,9 +47,7 @@
               "$ref": "#/$defs/status"
             }
           },
-          "required": [
-            "status"
-          ],
+          "required": ["status"],
           "maxProperties": 1
         },
         {
@@ -88,19 +73,11 @@
             },
             "priority": {
               "type": "string",
-              "enum": [
-                "High",
-                "Medium",
-                "Low"
-              ]
+              "enum": ["High", "Medium", "Low"]
             },
             "size": {
               "type": "string",
-              "enum": [
-                "Small",
-                "Medium",
-                "Large"
-              ]
+              "enum": ["Small", "Medium", "Large"]
             },
             "start_date": {
               "$ref": "#/$defs/isoDate"
@@ -109,16 +86,7 @@
               "$ref": "#/$defs/isoDate"
             }
           },
-          "required": [
-            "status",
-            "campaign_id",
-            "worker_workflow",
-            "repository",
-            "priority",
-            "size",
-            "start_date",
-            "end_date"
-          ]
+          "required": ["status", "campaign_id", "worker_workflow", "repository", "priority", "size", "start_date", "end_date"]
         }
       ]
     }
