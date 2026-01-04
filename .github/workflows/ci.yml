@@ -752,9 +752,10 @@ jobs:
       - name: Run logs command with JSON output
         id: logs_check
         run: |
+          set -e  # Fail on first error
           # Run the logs command and capture only stdout (JSON output)
           # stderr is not redirected, so warning messages go to console
-          ./gh-aw logs -c 2 --engine copilot --json > logs_output.json
+          ./gh-aw logs -c 2 --engine copilot --json --verbose > logs_output.json
           
           # Display the output for debugging
           echo "Logs command output:"
