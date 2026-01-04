@@ -65,8 +65,9 @@ Choose one implementation method:
 - **`script:`** - JavaScript (CommonJS) code
 - **`run:`** - Shell script
 - **`py:`** - Python script (Python 3.1x)
+- **`go:`** - Go (Golang) code
 
-You can only use one of `script:`, `run:`, or `py:` per tool.
+You can only use one of `script:`, `run:`, `py:`, or `go:` per tool.
 
 ## JavaScript Tools (`script:`)
 
@@ -160,6 +161,63 @@ safe-inputs:
 ```
 
 Python 3.10+ is available with standard library modules. Install additional packages inline using pip if needed.
+
+## Go Tools (`go:`)
+
+Go tools execute using `go run` with inputs provided as a `map[string]any` parsed from stdin. Standard library imports (`encoding/json`, `fmt`, `io`, `os`) are automatically included:
+
+```yaml wrap
+safe-inputs:
+  calculate:
+    description: "Perform calculations with Go"
+    inputs:
+      a:
+        type: number
+        required: true
+      b:
+        type: number
+        required: true
+    go: |
+      a := inputs["a"].(float64)
+      b := inputs["b"].(float64)
+      result := map[string]any{
+          "sum": a + b,
+          "product": a * b,
+      }
+      json.NewEncoder(os.Stdout).Encode(result)
+```
+
+Your Go code receives `inputs map[string]any` from stdin and should output JSON to stdout. The code is wrapped in a `package main` with a `main()` function that handles input parsing.
+
+**Available by default:**
+- `encoding/json` - JSON encoding/decoding
+- `fmt` - Formatted I/O
+- `io` - I/O primitives
+- `os` - Operating system functionality
+
+Access environment variables (including secrets) using `os.Getenv()`:
+
+```yaml wrap
+safe-inputs:
+  api-call:
+    description: "Call an API with Go"
+    inputs:
+      endpoint:
+        type: string
+        required: true
+    go: |
+      apiKey := os.Getenv("API_KEY")
+      endpoint := inputs["endpoint"].(string)
+
+      // Make your API call here
+      result := map[string]any{
+          "endpoint": endpoint,
+          "authenticated": apiKey != "",
+      }
+      json.NewEncoder(os.Stdout).Encode(result)
+    env:
+      API_KEY: "${{ secrets.API_KEY }}"
+```
 
 ## Input Parameters
 

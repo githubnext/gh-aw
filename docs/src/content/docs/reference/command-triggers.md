@@ -24,6 +24,36 @@ on:
 on: /my-bot  # Ultra-short: slash prefix automatically expands to slash_command + workflow_dispatch
 ```
 
+## Multiple Command Identifiers
+
+A single workflow can respond to multiple slash command names by providing an array of command identifiers:
+
+```yaml wrap
+on:
+  slash_command:
+    name: ["cmd.add", "cmd.remove", "cmd.list"]
+```
+
+When triggered, the matched command is available as `needs.activation.outputs.slash_command`, allowing your workflow to determine which command was used:
+
+```aw wrap
+---
+on:
+  slash_command:
+    name: ["summarize", "summary", "tldr"]
+permissions:
+  issues: write
+---
+
+# Multi-Command Handler
+
+You invoked the workflow using: `/${{ needs.activation.outputs.slash_command }}`
+
+Now analyzing the content...
+```
+
+This feature enables command aliases and grouped command handlers without workflow duplication.
+
 > [!NOTE]
 > **Deprecated Syntax**
 > 
