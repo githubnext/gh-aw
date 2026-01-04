@@ -8,6 +8,7 @@
 const { generateFooter } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -22,10 +23,16 @@ async function main(config = {}) {
   const defaultSide = config.side || "RIGHT";
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 10;
+  const allowedRepos = parseAllowedRepos(config.allowed_repos);
+  const defaultTargetRepo = getDefaultTargetRepo(config);
 
   core.info(`PR review comment target configuration: ${commentTarget}`);
   core.info(`Default comment side configuration: ${defaultSide}`);
   core.info(`Max count: ${maxCount}`);
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -59,6 +66,32 @@ async function main(config = {}) {
     const commentItem = message;
 
     core.info(`Processing create_pull_request_review_comment: path=${commentItem.path}, line=${commentItem.line}, bodyLength=${commentItem.body?.length || 0}`);
+
+    // Determine target repository for this review comment
+    const itemRepo = commentItem.repo ? String(commentItem.repo).trim() : defaultTargetRepo;
+
+    // Validate the repository is allowed
+    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+    if (!repoValidation.valid) {
+      core.warning(`Skipping PR review comment: ${repoValidation.error}`);
+      return {
+        success: false,
+        error: repoValidation.error,
+      };
+    }
+
+    // Parse the repository slug
+    const repoParts = parseRepoSlug(itemRepo);
+    if (!repoParts) {
+      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
+      core.warning(`Skipping PR review comment: ${error}`);
+      return {
+        success: false,
+        error,
+      };
+    }
+
+    core.info(`Target repository: ${itemRepo}`);
 
     // Check if we're in a pull request context, or an issue comment context on a PR
     const isPRContext =
@@ -161,12 +194,12 @@ async function main(config = {}) {
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       try {
         const { data: fullPR } = await github.rest.pulls.get({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          owner: repoParts.owner,
+          repo: repoParts.repo,
           pull_number: pullRequestNumber,
         });
         pullRequest = fullPR;
-        core.info(`Fetched full pull request details for PR #${pullRequestNumber}`);
+        core.info(`Fetched full pull request details for PR #${pullRequestNumber} in ${itemRepo}`);
       } catch (error) {
         core.warning(`Failed to fetch pull request details for PR #${pullRequestNumber}: ${getErrorMessage(error)}`);
         return {
@@ -231,15 +264,15 @@ async function main(config = {}) {
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
     body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
 
-    core.info(`Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`);
+    core.info(`Creating review comment on PR #${pullRequestNumber} in ${itemRepo} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`);
     core.info(`Comment content length: ${body.length}`);
 
     try {
       // Prepare the request parameters
       /** @type {any} */
       const requestParams = {
-        owner: context.repo.owner,
-        repo: context.repo.repo,
+        owner: repoParts.owner,
+        repo: repoParts.repo,
         pull_number: pullRequestNumber,
         body: body,
         path: commentItem.path,
@@ -265,6 +298,7 @@ async function main(config = {}) {
         comment_id: comment.id,
         comment_url: comment.html_url,
         pull_request_number: pullRequestNumber,
+        repo: itemRepo,
       };
     } catch (error) {
       core.error(`✗ Failed to create review comment: ${getErrorMessage(error)}`);
