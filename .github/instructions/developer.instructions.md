@@ -18,6 +18,8 @@ This document consolidates development guidelines, architectural patterns, and i
 - [Custom GitHub Actions](#custom-github-actions)
 - [Security Best Practices](#security-best-practices)
 - [Testing Framework](#testing-framework)
+- [Repo-Memory System](#repo-memory-system)
+- [Hierarchical Agent Management](#hierarchical-agent-management)
 - [Release Management](#release-management)
 - [Quick Reference](#quick-reference)
 
@@ -455,7 +457,138 @@ The testing framework is designed to be:
 - **Scalable**: Tests can be added incrementally as functionality is implemented
 - **Security-focused**: Security regression tests prevent reintroduction of vulnerabilities
 
-**Implementation**: See specs/testing.md and test files throughout the codebase
+### Visual Regression Testing
+
+Visual regression tests ensure console output formatting remains consistent across code changes. The system uses golden files to capture expected output for table layouts, box rendering, tree structures, and error formatting.
+
+**Golden Test Commands**:
+```bash
+# Run golden tests
+go test -v ./pkg/console -run='^TestGolden_'
+
+# Update golden files (only when intentionally changing output)
+make update-golden
+```
+
+**Test Coverage**:
+- Table rendering with various configurations
+- Box formatting with different widths and content
+- Tree structures for hierarchical data
+- Error messages with context and suggestions
+- Message formatting (success, info, warning, error)
+- Layout composition and emphasis boxes
+
+**When to Update Golden Files**:
+- ✅ Intentionally improving console output formatting
+- ✅ Fixing visual bugs in rendering
+- ✅ Adding new columns or fields to tables
+- ❌ Tests fail unexpectedly during development
+- ❌ Making unrelated code changes
+
+**Implementation**: See specs/visual-regression-testing.md and `pkg/console/golden_test.go`
+
+---
+
+## Repo-Memory System
+
+The repo-memory feature provides persistent, git-backed storage for AI agents across workflow runs. Agents can maintain state, notes, and artifacts in dedicated git branches with automatic synchronization.
+
+### Architecture Overview
+
+```mermaid
+graph TD
+    A[Agent Job Start] --> B[Clone memory/{id} branch]
+    B --> C[Agent reads/writes files]
+    C --> D[Upload artifact: repo-memory-{id}]
+    D --> E[Push Repo Memory Job]
+    E --> F[Download artifact]
+    F --> G[Validate files]
+    G --> H[Commit to memory/{id}]
+    H --> I[Push to repository]
+```
+
+### Path Conventions
+
+| Pattern | Format | Example | Purpose |
+|---------|--------|---------|---------|
+| **Memory Directory** | `/tmp/gh-aw/repo-memory/{id}` | `/tmp/gh-aw/repo-memory/default` | Runtime directory for agent |
+| **Artifact Name** | `repo-memory-{id}` | `repo-memory-default` | GitHub Actions artifact |
+| **Branch Name** | `memory/{id}` | `memory/default` | Git branch for storage |
+
+### Data Flow
+
+1. **Clone Phase**: Clones `memory/{id}` branch to local directory
+2. **Execution Phase**: Agent reads/writes files in memory directory
+3. **Upload Phase**: Uploads directory as GitHub Actions artifact
+4. **Download Phase**: Downloads artifact and validates constraints
+5. **Push Phase**: Commits files to `memory/{id}` branch and pushes
+
+### Key Configuration
+
+```yaml
+repo-memory:
+  - id: default
+    create-orphan: true
+    allow-artifacts: true
+
+  - id: campaigns
+    create-orphan: true
+    max-file-size: 1MB
+    max-files: 100
+```
+
+**Validation Constraints**:
+- Maximum file size limits
+- Maximum file count limits
+- Allowed/blocked file patterns
+- Size and count tracking in commit messages
+
+**Implementation**: See specs/repo-memory.md and `pkg/workflow/repo_memory.go`
+
+---
+
+## Hierarchical Agent Management
+
+The hierarchical agent system provides meta-orchestration capabilities to manage multiple agents and workflows at scale. Specialized meta-orchestrator workflows oversee, coordinate, and optimize the agent ecosystem.
+
+### Meta-Orchestrator Architecture
+
+```mermaid
+graph TD
+    A[Meta-Orchestrators] --> B[Campaign Manager]
+    A --> C[Workflow Health Manager]
+    A --> D[Agent Performance Analyzer]
+
+    B --> E[Campaign 1]
+    B --> F[Campaign 2]
+    B --> G[Campaign N]
+
+    C --> H[Workflow Monitoring]
+    C --> I[Dependency Mapping]
+    C --> J[Issue Creation]
+
+    D --> K[Quality Assessment]
+    D --> L[Performance Metrics]
+    D --> M[Improvement Reports]
+```
+
+### Meta-Orchestrator Roles
+
+| Role | File | Purpose | Schedule |
+|------|------|---------|----------|
+| **Campaign Manager** | `campaign-manager.md` | Strategic management of campaigns | Daily |
+| **Workflow Health Manager** | `workflow-health-manager.md` | Monitor workflow health | Daily |
+| **Agent Performance Analyzer** | `agent-performance-analyzer.md` | Analyze agent quality | Daily |
+
+**Key Capabilities**:
+- Cross-campaign coordination
+- Workflow health monitoring
+- Performance trend analysis
+- Strategic priority management
+- Proactive maintenance
+- Quality assessment
+
+**Implementation**: See specs/agents/hierarchical-agents.md and `.github/workflows/` meta-orchestrator files
 
 ---
 
@@ -542,17 +675,55 @@ For manual feature testing in pull requests:
 
 For detailed specifications, see individual files in `specs/`:
 
+### Architecture & Organization
 - [Code Organization Patterns](../../specs/code-organization.md)
 - [Validation Architecture](../../specs/validation-architecture.md)
+- [Layout System](../../specs/layout.md)
+- [Go Type Patterns](../../specs/go-type-patterns.md)
+
+### Core Features
 - [Safe Output Messages Design](../../specs/safe-output-messages.md)
-- [GitHub Actions Security](../../specs/github-actions-security-best-practices.md)
+- [Repo-Memory System](../../specs/repo-memory.md)
+- [MCP Gateway](../../specs/mcp-gateway.md)
+- [MCP Logs Guardrails](../../specs/mcp_logs_guardrails.md)
+- [Custom Actions Build](../../specs/actions.md)
+
+### Testing & Quality
 - [Testing Framework](../../specs/testing.md)
-- [YAML Version Gotchas](../../specs/yaml-version-gotchas.md)
+- [Visual Regression Testing](../../specs/visual-regression-testing.md)
+- [End-to-End Feature Testing](../../specs/end-to-end-feature-testing.md)
+- [Security Review](../../specs/security_review.md)
+- [GoSec Integration](../../specs/gosec.md)
+
+### Security & Standards
+- [GitHub Actions Security](../../specs/github-actions-security-best-practices.md)
+- [Template Injection Prevention](../../specs/template-injection-prevention.md)
 - [String Sanitization](../../specs/string-sanitization-normalization.md)
+- [Schema Validation](../../specs/schema-validation.md)
+
+### Development Guidelines
 - [Capitalization Guidelines](../../specs/capitalization.md)
 - [Breaking Change Rules](../../specs/breaking-cli-rules.md)
-- [Custom Actions Build](../../specs/actions.md)
+- [CLI Command Patterns](../../specs/cli-command-patterns.md)
+- [Styles Guide](../../specs/styles-guide.md)
+- [Changesets](../../specs/changesets.md)
+- [Labels](../../specs/labels.md)
+
+### Advanced Topics
+- [Hierarchical Agents](../../specs/agents/hierarchical-agents.md)
+- [Hierarchical Agents Quickstart](../../specs/agents/hierarchical-agents-quickstart.md)
+- [Gastown Multi-Agent Orchestration](../../specs/gastown.md)
+- [mdflow Comparison](../../specs/mdflow-comparison.md)
+- [mdflow Deep Research](../../specs/mdflow.md)
+
+### Technical Details
+- [YAML Version Gotchas](../../specs/yaml-version-gotchas.md)
+- [Validation Refactoring](../../specs/validation-refactoring.md)
+- [Workflow Refactoring Patterns](../../specs/workflow-refactoring-patterns.md)
+- [Safe Output Handlers Refactoring](../../specs/safe-output-handlers-refactoring.md)
+- [Artifact Naming Compatibility](../../specs/artifact-naming-compatibility.md)
+- [Safe Output Environment Variables](../../specs/safe-output-environment-variables.md)
 
 ---
 
-**Last Updated**: 2025-12-18
+**Last Updated**: 2026-01-04
