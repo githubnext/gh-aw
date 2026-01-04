@@ -164,3 +164,9 @@ actions/setup/js/test-*/
 test-inline-*.txt
 test-inline-*.md
 test-inline-*.lock.yml
+*.txt
+*.zip
+# Temporary downloaded logs
+*.txt
+conclusion/
+detection/
