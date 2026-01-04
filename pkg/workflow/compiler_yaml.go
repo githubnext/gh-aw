@@ -549,8 +549,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          GITHUB_API_URL: ${{ github.api_url }}\n")
 
 	// Add command name for command trigger prevention in safe outputs
-	if data.Command != "" {
-		fmt.Fprintf(yaml, "          GH_AW_COMMAND: %s\n", data.Command)
+	if len(data.Command) > 0 {
+		// Pass first command for backward compatibility
+		fmt.Fprintf(yaml, "          GH_AW_COMMAND: %s\n", data.Command[0])
 	}
 
 	yaml.WriteString("        with:\n")

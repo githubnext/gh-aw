@@ -76,9 +76,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			if _, hasSlashCommandKey := onMap["slash_command"]; hasSlashCommandKey {
 				hasCommand = true
 				// Set default command to filename if not specified in the command section
-				if workflowData.Command == "" {
+				if len(workflowData.Command) == 0 {
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Command = baseName
+					workflowData.Command = []string{baseName}
 				}
 				// Check for conflicting events (but allow issues/pull_request with labeled/unlabeled types)
 				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
@@ -97,9 +97,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			} else if _, hasCommandKey := onMap["command"]; hasCommandKey {
 				hasCommand = true
 				// Set default command to filename if not specified in the command section
-				if workflowData.Command == "" {
+				if len(workflowData.Command) == 0 {
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Command = baseName
+					workflowData.Command = []string{baseName}
 				}
 				// Check for conflicting events (but allow issues/pull_request with labeled/unlabeled types)
 				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
@@ -123,7 +123,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 
 	// Clear command field if no command trigger was found
 	if !hasCommand {
-		workflowData.Command = ""
+		workflowData.Command = nil
 	}
 
 	// Auto-enable "eyes" reaction for command triggers if no explicit reaction was specified

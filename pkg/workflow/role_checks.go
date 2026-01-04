@@ -12,7 +12,7 @@ var roleLog = logger.New("workflow:role_checks")
 
 // generateMembershipCheck generates steps for the check_membership job that only sets outputs
 func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) []string {
-	if data.Command != "" {
+	if len(data.Command) > 0 {
 		steps = append(steps, "      - name: Check team membership for command workflow\n")
 	} else {
 		steps = append(steps, "      - name: Check team membership for workflow\n")
@@ -110,7 +110,7 @@ func (c *Compiler) needsRoleCheck(data *WorkflowData, frontmatter map[string]any
 	}
 
 	// Command workflows always need permission checks
-	if data.Command != "" {
+	if len(data.Command) > 0 {
 		roleLog.Print("Role check needed: command workflow")
 		return true
 	}

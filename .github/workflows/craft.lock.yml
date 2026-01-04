@@ -55,6 +55,7 @@ jobs:
       comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
+      slash_command: ${{ steps.check_command_position.outputs.matched_command }}
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Checkout actions folder
@@ -1306,7 +1307,7 @@ jobs:
         id: check_command_position
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_COMMAND: craft
+          GH_AW_COMMANDS: "[\"craft\"]"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
