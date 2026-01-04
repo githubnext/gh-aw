@@ -762,24 +762,24 @@ jobs:
           cat logs_output.json
           
           # Check if the JSON structure is valid
-          echo "## Validating JSON Structure" >> $GITHUB_STEP_SUMMARY
+          echo "## Validating JSON Structure"
           
           # Check if token count is found in the JSON output
           if jq -e '.summary.total_tokens' logs_output.json > /dev/null 2>&1; then
             TOKEN_COUNT=$(jq '.summary.total_tokens' logs_output.json)
-            echo "✅ Token count found: $TOKEN_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Token count found: $TOKEN_COUNT"
             echo "token_count=$TOKEN_COUNT" >> $GITHUB_OUTPUT
           else
-            echo "❌ Token count not found in JSON output" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Token count not found in JSON output"
             exit 1
           fi
           
           # Check if runs array exists (even if empty)
           if jq -e '.runs' logs_output.json > /dev/null 2>&1; then
             RUNS_COUNT=$(jq '.runs | length' logs_output.json)
-            echo "✅ Runs array found: $RUNS_COUNT runs" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Runs array found: $RUNS_COUNT runs"
           else
-            echo "❌ Runs array not found in JSON output" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Runs array not found in JSON output"
             exit 1
           fi
           
@@ -788,33 +788,33 @@ jobs:
             # Check if agent (engine_id) field exists in first run
             if jq -e '.runs[0] | has("agent")' logs_output.json > /dev/null 2>&1; then
               AGENT=$(jq -r '.runs[0].agent // "null"' logs_output.json)
-              echo "✅ Agent field found in run: $AGENT" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Agent field found in run: $AGENT"
             else
-              echo "❌ Agent field not found in run data" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Agent field not found in run data"
               exit 1
             fi
             
             # Check if workflow_path field exists in first run
             if jq -e '.runs[0] | has("workflow_path")' logs_output.json > /dev/null 2>&1; then
               WORKFLOW_PATH=$(jq -r '.runs[0].workflow_path // "null"' logs_output.json)
-              echo "✅ Workflow path field found in run: $WORKFLOW_PATH" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Workflow path field found in run: $WORKFLOW_PATH"
             else
-              echo "❌ Workflow path field not found in run data" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Workflow path field not found in run data"
               exit 1
             fi
             
             # Check if workflow_name is present
             if jq -e '.runs[0].workflow_name' logs_output.json > /dev/null 2>&1; then
               WORKFLOW_NAME=$(jq -r '.runs[0].workflow_name' logs_output.json)
-              echo "✅ Workflow name found in run: $WORKFLOW_NAME" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Workflow name found in run: $WORKFLOW_NAME"
             else
-              echo "❌ Workflow name not found in run data" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Workflow name not found in run data"
               exit 1
             fi
           else
-            echo "ℹ️ No runs found to validate (this is ok)" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️ No runs found to validate (this is ok)"
           fi
           
-          echo "✅ All JSON structure validations passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All JSON structure validations passed"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
