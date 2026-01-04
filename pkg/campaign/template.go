@@ -25,6 +25,9 @@ type CampaignPromptData struct {
 	// CampaignID is the unique identifier for this campaign.
 	CampaignID string
 
+	// CampaignName is the human-readable name of this campaign.
+	CampaignName string
+
 	// Objective is the campaign objective statement.
 	Objective string
 

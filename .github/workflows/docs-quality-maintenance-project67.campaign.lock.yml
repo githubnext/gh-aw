@@ -600,6 +600,66 @@ jobs:
           
           ## Required Phases (Execute In Order)
           
+          ### Phase 0 — Epic Issue Initialization [FIRST RUN ONLY]
+          
+          **Campaign Epic Issue Requirements:**
+          - Each project board MUST have exactly ONE Epic issue representing the campaign
+          - The Epic serves as the parent for all campaign work issues
+          - The Epic is narrative-only and tracks overall campaign progress
+          
+          **On every run, before other phases:**
+          
+          1) **Check for existing Epic issue** by searching the repository for:
+             - An open issue with label `epic` or `type:epic`
+             - Body text containing: `campaign_id: docs-quality-maintenance-project69`
+          
+          2) **If no Epic issue exists**, create it using `create-issue`:
+             ```yaml
+             create-issue:
+               title: "Documentation Quality & Maintenance Campaign (Project 69)"
+               body: |
+                 ## Campaign Overview
+                 
+                 **Objective**: Maintain high-quality, accessible, and consistent documentation following the Diátaxis framework while ensuring all docs are accurate, complete, and user-friendly
+                 
+                 This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
+                 
+                 **Campaign Details:**
+                 - Campaign ID: `docs-quality-maintenance-project69`
+                 - Project Board: https://github.com/orgs/githubnext/projects/69
+                 - Worker Workflows: `daily-doc-updater`, `docs-noob-tester`, `daily-multi-device-docs-tester`, `unbloat-docs`, `developer-docs-consolidator`, `technical-doc-writer`
+                 
+                 ---
+                 `campaign_id: docs-quality-maintenance-project69`
+               labels:
+                 - epic
+                 - type:epic
+             ```
+          
+          3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
+             ```yaml
+             update-project:
+               project: "https://github.com/orgs/githubnext/projects/69"
+               campaign_id: "docs-quality-maintenance-project69"
+               content_type: "issue"
+               content_number: <EPIC_ISSUE_NUMBER>
+               fields:
+                 status: "In Progress"
+                 campaign_id: "docs-quality-maintenance-project69"
+                 worker_workflow: "unknown"
+                 repository: "<OWNER/REPO>"
+                 priority: "High"
+                 size: "Large"
+                 start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
+                 end_date: "<TODAY_YYYY-MM-DD>"
+             ```
+          
+          4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
+          
+          **Note:** This phase typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
+          
+          ---
+          
           ### Phase 1 — Read State (Discovery) [NO WRITES]
           
           1) Read current GitHub Project board state (items + required fields).
