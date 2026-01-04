@@ -768,7 +768,15 @@ jobs:
           if jq -e '.summary.total_tokens' logs_output.json > /dev/null 2>&1; then
             TOKEN_COUNT=$(jq '.summary.total_tokens' logs_output.json)
             echo "✅ Token count found: $TOKEN_COUNT"
-            echo "token_count=$TOKEN_COUNT" >> $GITHUB_OUTPUT
+            
+            # Validate that token count is greater than 0
+            if [ "$TOKEN_COUNT" -gt 0 ]; then
+              echo "✅ Token count is greater than 0: $TOKEN_COUNT"
+              echo "token_count=$TOKEN_COUNT" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Token count is 0 - expected tokens to be parsed from logs"
+              exit 1
+            fi
           else
             echo "❌ Token count not found in JSON output"
             exit 1
