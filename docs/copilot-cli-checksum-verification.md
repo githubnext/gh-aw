@@ -87,7 +87,7 @@ The implementation is in:
 
 ## Affected Workflows
 
-The following 74 workflows now use checksum-verified Copilot CLI installation:
+The following 73 workflows now use checksum-verified Copilot CLI installation:
 
 1. ai-moderator.md
 2. archie.md
@@ -131,38 +131,37 @@ The following 74 workflows now use checksum-verified Copilot CLI installation:
 40. mergefest.md
 41. notion-issue-summary.md
 42. org-health-report.md
-43. org-wide-rollout.md
-44. pdf-summary.md
-45. plan.md
-46. poem-bot.md
-47. portfolio-analyst.md
-48. pr-nitpick-reviewer.md
-49. python-data-charts.md
-50. q.md
-51. release.md
-52. repo-tree-map.md
-53. repository-quality-improver.md
-54. research.md
-55. security-compliance.md
-56. slide-deck-maintainer.md
-57. smoke-copilot-no-firewall.md
-58. smoke-copilot-playground.md (if exists)
-59. smoke-copilot-safe-inputs.md
-60. smoke-copilot.md
-61. smoke-srt.md
-62. spec-kit-execute.md
-63. spec-kit-executor.md
-64. speckit-dispatcher.md
-65. stale-repo-identifier.md
-66. super-linter.md
-67. technical-doc-writer.md
-68. test-discussion-expires.md
-69. test-hide-older-comments.md
-70. test-python-safe-input.md
-71. tidy.md
-72. video-analyzer.md
-73. weekly-issue-summary.md
-74. (and any other workflows using engine: copilot)
+43. pdf-summary.md
+44. plan.md
+45. poem-bot.md
+46. portfolio-analyst.md
+47. pr-nitpick-reviewer.md
+48. python-data-charts.md
+49. q.md
+50. release.md
+51. repo-tree-map.md
+52. repository-quality-improver.md
+53. research.md
+54. security-compliance.md
+55. slide-deck-maintainer.md
+56. smoke-copilot-no-firewall.md
+57. smoke-copilot-playground.md (if exists)
+58. smoke-copilot-safe-inputs.md
+59. smoke-copilot.md
+60. smoke-srt.md
+61. spec-kit-execute.md
+62. spec-kit-executor.md
+63. speckit-dispatcher.md
+64. stale-repo-identifier.md
+65. super-linter.md
+66. technical-doc-writer.md
+67. test-discussion-expires.md
+68. test-hide-older-comments.md
+69. test-python-safe-input.md
+70. tidy.md
+71. video-analyzer.md
+72. weekly-issue-summary.md
+73. (and any other workflows using engine: copilot)
 
 ## Verification
 
