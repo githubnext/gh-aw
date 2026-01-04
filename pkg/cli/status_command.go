@@ -490,7 +490,7 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 			stderr = string(exitErr.Stderr)
 			statusLog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
 			statusLog.Printf("stderr output: %s", stderr)
-			
+
 			// Check for invalid field errors first (before generic error)
 			// GitHub CLI returns these when JSON fields don't exist or are misspelled
 			combinedMsg := err.Error() + " " + stderr
@@ -500,7 +500,7 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 				strings.Contains(combinedMsg, "no such field") {
 				return nil, fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, stderr)
 			}
-			
+
 			return nil, fmt.Errorf("failed to execute gh run list command (exit code %d): %w. stderr: %s", exitCode, err, stderr)
 		}
 

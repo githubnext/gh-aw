@@ -209,7 +209,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		if verbose {
 			fmt.Println(console.FormatVerboseMessage(outputMsg))
 		}
-		
+
 		// Check for invalid field errors first (before auth errors)
 		// GitHub CLI returns these when JSON fields don't exist or are misspelled
 		if strings.Contains(combinedMsg, "invalid field") ||
@@ -218,7 +218,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			strings.Contains(combinedMsg, "no such field") {
 			return nil, 0, fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, string(output))
 		}
-		
+
 		// Check for authentication errors
 		if strings.Contains(combinedMsg, "exit status 4") ||
 			strings.Contains(combinedMsg, "exit status 1") ||
@@ -228,7 +228,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			strings.Contains(outputMsg, "gh auth login") {
 			return nil, 0, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
-		
+
 		if len(output) > 0 {
 			return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %s", exitCode, string(output))
 		}
