@@ -250,6 +250,69 @@ function generateCampaignId(projectUrl, projectNumber) {
   const timestamp = Date.now().toString(36).substring(0, 8);
   return `${base}-${timestamp}`;
 }
+
+/**
+ * Check if a field name conflicts with unsupported GitHub built-in field types
+ * @param {string} fieldName - Original field name
+ * @param {string} normalizedFieldName - Normalized field name
+ * @returns {boolean} True if field name conflicts with unsupported built-in type
+ */
+function isUnsupportedBuiltInFieldType(fieldName, normalizedFieldName) {
+  // GitHub has built-in field types (e.g., REPOSITORY) that cannot be created or updated via API
+  // These field names are reserved and will be automatically created as unsupported built-in types
+  const unsupportedBuiltInTypes = ["REPOSITORY"];
+  const normalizedUpperFieldName = normalizedFieldName.toUpperCase();
+
+  if (unsupportedBuiltInTypes.includes(normalizedUpperFieldName)) {
+    core.warning(
+      `Field "${fieldName}" conflicts with unsupported GitHub built-in field type ${normalizedUpperFieldName}. ` +
+        `GitHub reserves this field name for built-in functionality that is not available via the API. ` +
+        `Please use a different field name (e.g., "repo", "source_repository", "linked_repo") instead.`
+    );
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check for field type mismatch and handle unsupported built-in types
+ * @param {string} fieldName - Original field name
+ * @param {any} field - Existing field object
+ * @param {string} expectedDataType - Expected field data type
+ * @returns {boolean} True if field should be skipped (due to unsupported type)
+ */
+function checkFieldTypeMismatch(fieldName, field, expectedDataType) {
+  if (!field || !field.dataType || !expectedDataType) {
+    return false;
+  }
+
+  const actualType = field.dataType;
+  if (actualType === expectedDataType) {
+    return false;
+  }
+
+  // GitHub has built-in field types that are not supported for updates
+  const unsupportedBuiltInTypes = ["REPOSITORY"];
+
+  // Special handling for unsupported built-in types
+  if (unsupportedBuiltInTypes.includes(actualType)) {
+    core.warning(
+      `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
+        `The field "${actualType}" is a GitHub built-in type that is not supported for updates via the API. ` +
+        `To fix this, delete the field in the GitHub Projects UI and rename it to avoid conflicts ` +
+        `(e.g., use "repo", "source_repository", or "linked_repo" instead of "repository").`
+    );
+    return true; // Skip this field
+  }
+
+  // Regular type mismatch warning
+  core.warning(
+    `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
+      `The field was likely created with the wrong type. To fix this, delete the field in the GitHub Projects UI and let it be recreated, ` +
+      `or manually change the field type if supported.`
+  );
+  return false; // Continue with existing field type
+}
 /**
  * Update a GitHub Project v2
  * @param {any} output - Safe output configuration
@@ -386,6 +449,11 @@ async function updateProject(output) {
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
 
+          // Check if field name conflicts with unsupported built-in types
+          if (isUnsupportedBuiltInFieldType(fieldName, normalizedFieldName)) {
+            continue;
+          }
+
           // Detect expected field type based on field name and value heuristics
           const datePattern = /^\d{4}-\d{2}-\d{2}$/;
           const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
@@ -400,16 +468,8 @@ async function updateProject(output) {
           }
 
           // Check for type mismatch if field already exists
-          if (field && field.dataType && expectedDataType) {
-            const actualType = field.dataType;
-            if (actualType !== expectedDataType) {
-              core.warning(
-                `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
-                  `The field was likely created with the wrong type. To fix this, delete the field in the GitHub Projects UI and let it be recreated, ` +
-                  `or manually change the field type if supported.`
-              );
-              // Continue anyway - we'll use the existing field type
-            }
+          if (checkFieldTypeMismatch(fieldName, field, expectedDataType)) {
+            continue; // Skip fields with unsupported built-in types
           }
 
           if (!field)
@@ -568,6 +628,11 @@ async function updateProject(output) {
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
 
+          // Check if field name conflicts with unsupported built-in types
+          if (isUnsupportedBuiltInFieldType(fieldName, normalizedFieldName)) {
+            continue;
+          }
+
           // Detect expected field type based on field name and value heuristics
           const datePattern = /^\d{4}-\d{2}-\d{2}$/;
           const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
@@ -582,16 +647,8 @@ async function updateProject(output) {
           }
 
           // Check for type mismatch if field already exists
-          if (field && field.dataType && expectedDataType) {
-            const actualType = field.dataType;
-            if (actualType !== expectedDataType) {
-              core.warning(
-                `Field type mismatch for "${fieldName}": Expected ${expectedDataType} but found ${actualType}. ` +
-                  `The field was likely created with the wrong type. To fix this, delete the field in the GitHub Projects UI and let it be recreated, ` +
-                  `or manually change the field type if supported.`
-              );
-              // Continue anyway - we'll use the existing field type
-            }
+          if (checkFieldTypeMismatch(fieldName, field, expectedDataType)) {
+            continue; // Skip fields with unsupported built-in types
           }
 
           if (!field)
