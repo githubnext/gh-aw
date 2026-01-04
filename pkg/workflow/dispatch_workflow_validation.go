@@ -83,7 +83,6 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 		var workflow map[string]any
 		if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
 			return fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", workflowFile, err)
-			return fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", lockFilePath, err)
 		}
 
 		// Check if the workflow has an "on" section

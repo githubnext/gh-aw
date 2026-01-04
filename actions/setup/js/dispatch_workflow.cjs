@@ -102,7 +102,7 @@ async function main(config = {}) {
           error: `Workflow "${workflowName}" file extension not found in configuration. This workflow may not have been validated at compile time.`,
         };
       }
-      
+
       const workflowFile = `${workflowName}${extension}`;
       core.info(`Dispatching workflow: ${workflowFile}`);
 

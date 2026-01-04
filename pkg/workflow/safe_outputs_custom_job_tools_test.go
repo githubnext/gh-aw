@@ -37,7 +37,7 @@ func TestCustomJobToolsInToolsJSON(t *testing.T) {
 	}
 
 	// Generate the tools JSON
-	toolsJSON, err := generateFilteredToolsJSON(workflowData)
+	toolsJSON, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test-workflow.md")
 	require.NoError(t, err, "Should generate tools JSON")
 
 	// Parse the JSON
@@ -144,7 +144,7 @@ func TestCustomJobToolsWithDifferentInputTypes(t *testing.T) {
 	}
 
 	// Generate the tools JSON
-	toolsJSON, err := generateFilteredToolsJSON(workflowData)
+	toolsJSON, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test-workflow.md")
 	require.NoError(t, err, "Should generate tools JSON")
 
 	// Parse the JSON
@@ -244,7 +244,7 @@ func TestCustomJobToolsRequiredFieldsSorted(t *testing.T) {
 	}
 
 	// Generate the tools JSON
-	toolsJSON, err := generateFilteredToolsJSON(workflowData)
+	toolsJSON, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test-workflow.md")
 	require.NoError(t, err, "Should generate tools JSON")
 
 	// Parse the JSON

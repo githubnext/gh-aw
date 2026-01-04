@@ -40,7 +40,7 @@ var githubWorkflowSchema string
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// Store markdownPath for use in dynamic tool generation
 	c.markdownPath = markdownPath
-	
+
 	// Parse the markdown file
 	log.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)

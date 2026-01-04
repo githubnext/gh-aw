@@ -96,8 +96,8 @@ describe("dispatch_workflow handler factory", () => {
     const config = {
       workflows: ["workflow1", "workflow2"],
       workflow_files: {
-        "workflow1": ".lock.yml",
-        "workflow2": ".yml",
+        workflow1: ".lock.yml",
+        workflow2: ".yml",
       },
       max: 1,
     };

@@ -53,19 +53,19 @@ function attachHandlers(tools, handlers) {
     if (handler) {
       tool.handler = handler;
     }
-    
+
     // Check if this is a dispatch_workflow tool (dynamic tool with workflow metadata)
     if (tool._workflow_name) {
       // Create a custom handler that adds workflow_name and uses dispatch_workflow type
       const workflowName = tool._workflow_name;
       tool.handler = args => {
         // Add workflow_name to the args and call default handler with dispatch_workflow type
-        const entry = { 
-          ...args, 
+        const entry = {
+          ...args,
           workflow_name: workflowName,
-          type: "dispatch_workflow"
+          type: "dispatch_workflow",
         };
-        
+
         // Use the default handler logic but with dispatch_workflow type
         return handlers.defaultHandler("dispatch_workflow")({ ...args, workflow_name: workflowName });
       };
