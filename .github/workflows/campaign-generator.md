@@ -9,6 +9,10 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   github:
     toolsets: [default]

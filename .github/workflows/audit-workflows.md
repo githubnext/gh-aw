@@ -10,6 +10,10 @@ permissions:
   pull-requests: read
 tracker-id: audit-workflows-daily
 engine: claude
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   repo-memory:
     branch-name: memory/audit-workflows

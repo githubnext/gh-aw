@@ -8,6 +8,10 @@ permissions:
   discussions: read
   actions: read
 engine: copilot
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   github:
     mode: remote

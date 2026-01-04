@@ -8,6 +8,10 @@ permissions:
   contents: read
   pull-requests: read
 engine: copilot
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   cache-memory: true
   github:

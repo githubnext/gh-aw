@@ -8,6 +8,10 @@ permissions:
   contents: read
   actions: read
 engine: copilot
+strict: true
+network:
+  allowed:
+    - defaults
 tracker-id: breaking-change-checker
 tools:
   github:

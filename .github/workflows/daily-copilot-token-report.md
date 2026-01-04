@@ -11,6 +11,10 @@ permissions:
   pull-requests: read
 tracker-id: daily-copilot-token-report
 engine: copilot
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   repo-memory:
     branch-name: memory/token-metrics

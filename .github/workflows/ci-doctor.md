@@ -20,6 +20,8 @@ permissions:
   issues: read         # To search and analyze issues
   pull-requests: read  # To analyze pull request context
 
+engine: copilot
+strict: true
 network: defaults
 
 safe-outputs:

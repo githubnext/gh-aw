@@ -17,6 +17,10 @@ on:
 engine:
   id: copilot
   model: gpt-5-mini
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   github:
     mode: local

@@ -15,6 +15,10 @@ permissions:
   pull-requests: read
   security-events: read
 engine: claude
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]

@@ -17,6 +17,7 @@ permissions:
   issues: read
 tracker-id: slide-deck-maintainer
 engine: copilot
+strict: true
 timeout-minutes: 45
 tools:
   cache-memory: true
@@ -38,6 +39,8 @@ tools:
     - "cat*"
     - "head*"
     - "tail*"
+  github:
+    toolsets: [default]
 safe-outputs:
   create-pull-request:
     title-prefix: "[slides] "

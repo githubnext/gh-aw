@@ -15,6 +15,10 @@ permissions:
 engine:
   id: claude
   max-turns: 100
+strict: true
+network:
+  allowed:
+    - defaults
 tools:
   github:
     toolsets: [default]

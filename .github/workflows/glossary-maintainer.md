@@ -16,6 +16,8 @@ permissions:
 engine:
   id: copilot
 
+strict: true
+
 network:
   allowed:
     - defaults

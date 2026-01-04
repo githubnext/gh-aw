@@ -15,6 +15,10 @@ permissions:
   pull-requests: read
 
 engine: copilot
+strict: true
+network:
+  allowed:
+    - defaults
 timeout-minutes: 30
 
 tools:
