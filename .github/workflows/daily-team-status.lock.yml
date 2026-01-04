@@ -926,13 +926,13 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-artifacts
-          path: /tmp/gh-aw/threat-detection/
+          path: /tmp/gh-aw/artifacts
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/threat-detection/
+          path: /tmp/gh-aw/artifacts
       - name: Echo agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
@@ -943,6 +943,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Daily Team Status"
           WORKFLOW_DESCRIPTION: "This workflow created daily team status reporter creating upbeat activity summaries.\nGathers recent repository activity (issues, PRs, releases, code changes)\nand generates engaging GitHub issues with productivity insights, community\nhighlights, and project recommendations. Uses a positive, encouraging tone with\nmoderate emoji usage to boost team morale."
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
