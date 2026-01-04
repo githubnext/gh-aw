@@ -73,7 +73,7 @@ As a meta-orchestrator, you coordinate between multiple campaigns, analyze their
 ### 3. Performance Monitoring
 
 **Aggregate metrics across campaigns:**
-- Load shared metrics from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
+- Load shared metrics from: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
 - Use workflow metrics for campaigns to assess:
   - Workflow success rates for campaign workflows
   - Safe output volume (issues, PRs created by campaign workflows)
@@ -85,7 +85,7 @@ As a meta-orchestrator, you coordinate between multiple campaigns, analyze their
 - Identify campaigns that are ahead, on track, or behind schedule
 
 **Trend analysis:**
-- Load historical daily metrics from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/`
+- Load historical daily metrics from: `/tmp/gh-aw/repo-memory/default/metrics/daily/`
 - Compare current metrics with historical data (7-day, 30-day trends)
 - Identify improving or degrading trends in workflow performance
 - Calculate velocity trends from safe output volume over time
@@ -133,7 +133,7 @@ Execute these phases each time you run:
 
 ## Shared Memory Integration
 
-**Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`**
+**Access shared repo memory at `/tmp/gh-aw/repo-memory/default/`**
 
 This workflow shares memory with other meta-orchestrators (Workflow Health Manager and Agent Performance Analyzer) to coordinate insights and avoid duplicate work.
 
@@ -141,12 +141,12 @@ This workflow shares memory with other meta-orchestrators (Workflow Health Manag
 
 The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
 
-1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
+1. **Latest Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
    - Most recent daily metrics snapshot
    - Contains workflow success rates, safe output volumes, engagement data
    - Use to assess campaign health without redundant API queries
 
-2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/YYYY-MM-DD.json`
+2. **Historical Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/daily/YYYY-MM-DD.json`
    - Daily metrics for the last 30 days
    - Calculate campaign velocity trends
    - Identify performance degradation early

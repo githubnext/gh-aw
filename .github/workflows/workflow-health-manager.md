@@ -71,7 +71,7 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 - Flag workflows with compilation warnings
 
 **Monitor workflow execution:**
-- Load shared metrics from: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/latest.json`
+- Load shared metrics from: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
 - Use workflow_runs data for each workflow:
   - Total runs, successful runs, failed runs
   - Success rate (already calculated)
@@ -131,7 +131,7 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 
 **Quality metrics:**
 - Use historical metrics for trend analysis:
-  - Load daily metrics from: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/`
+  - Load daily metrics from: `/tmp/gh-aw/repo-memory/default/metrics/daily/`
   - Calculate 7-day and 30-day success rate trends
   - Identify workflows with declining quality
 - Calculate workflow reliability score (0-100):
@@ -168,7 +168,7 @@ Execute these phases each run:
 
 ## Shared Memory Integration
 
-**Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/default/`**
+**Access shared repo memory at `/tmp/gh-aw/repo-memory/default/`**
 
 This workflow shares memory with other meta-orchestrators (Campaign Manager and Agent Performance Analyzer) to coordinate insights and avoid duplicate work.
 
@@ -176,12 +176,12 @@ This workflow shares memory with other meta-orchestrators (Campaign Manager and 
 
 The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
 
-1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/latest.json`
+1. **Latest Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
    - Most recent workflow run statistics
    - Success rates, failure counts for all workflows
    - Use to identify failing workflows without querying GitHub API repeatedly
 
-2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/YYYY-MM-DD.json`
+2. **Historical Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/daily/YYYY-MM-DD.json`
    - Daily metrics for the last 30 days
    - Track workflow health trends over time
    - Identify recent regressions by comparing current vs. historical success rates
