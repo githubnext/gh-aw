@@ -119,28 +119,31 @@ func TestAwInfoResolutionWithoutFlattening(t *testing.T) {
 	assert.Positive(t, warnCount, "Fallback parser should detect warnings")
 }
 
-// TestMultipleArtifactFlattening tests that all single-file artifacts are flattened
+// TestMultipleArtifactFlattening tests that all files from unified agent-artifacts are flattened
 func TestMultipleArtifactFlattening(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Create multiple single-file artifacts as they would be downloaded
+	// Create unified agent-artifacts structure as it would be downloaded
+	// All artifacts are now in a single agent-artifacts/tmp/gh-aw/ directory
+	nestedPath := filepath.Join(tempDir, "agent-artifacts", "tmp", "gh-aw")
+	err := os.MkdirAll(nestedPath, 0755)
+	require.NoError(t, err)
+
 	artifacts := map[string]string{
-		"aw-info/aw_info.json":          `{"engine_id":"copilot"}`,
-		"safe-output/safe_output.jsonl": `{"type":"create_issue"}`,
-		"aw-patch/aw.patch":             "diff --git a/test.txt",
-		"prompt/prompt.txt":             "Test prompt",
+		"aw_info.json":      `{"engine_id":"copilot"}`,
+		"safe_output.jsonl": `{"type":"create_issue"}`,
+		"aw.patch":          "diff --git a/test.txt",
+		"prompt.txt":        "Test prompt",
 	}
 
-	for path, content := range artifacts {
-		fullPath := filepath.Join(tempDir, path)
-		err := os.MkdirAll(filepath.Dir(fullPath), 0755)
-		require.NoError(t, err)
-		err = os.WriteFile(fullPath, []byte(content), 0644)
+	for filename, content := range artifacts {
+		fullPath := filepath.Join(nestedPath, filename)
+		err := os.WriteFile(fullPath, []byte(content), 0644)
 		require.NoError(t, err)
 	}
 
-	// Flatten all artifacts
-	err := flattenSingleFileArtifacts(tempDir, true)
+	// Flatten unified artifact
+	err = flattenUnifiedArtifact(tempDir, true)
 	require.NoError(t, err)
 
 	// Verify all files are at root level
@@ -157,17 +160,8 @@ func TestMultipleArtifactFlattening(t *testing.T) {
 		require.NoError(t, err, "File %s should exist at root", file)
 	}
 
-	// Verify artifact directories are removed
-	artifactDirs := []string{
-		"aw-info",
-		"safe-output",
-		"aw-patch",
-		"prompt",
-	}
-
-	for _, dir := range artifactDirs {
-		path := filepath.Join(tempDir, dir)
-		_, err := os.Stat(path)
-		assert.True(t, os.IsNotExist(err), "Directory %s should be removed", dir)
-	}
+	// Verify agent-artifacts directory is removed
+	agentArtifactsDir := filepath.Join(tempDir, "agent-artifacts")
+	_, err = os.Stat(agentArtifactsDir)
+	assert.True(t, os.IsNotExist(err), "agent-artifacts directory should be removed")
 }

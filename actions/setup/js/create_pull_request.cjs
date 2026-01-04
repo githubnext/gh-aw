@@ -489,17 +489,18 @@ async function main(config = {}) {
 >
 > **Workflow Run:** [View run details and download patch artifact](${runUrl})
 >
-> The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+> The patch file is available in the \`agent-artifacts\` artifact in the workflow run linked above.
 
 To apply the patch locally:
 
 \`\`\`sh
 # Download the artifact from the workflow run ${runUrl}
 # (Use GitHub MCP tools if gh CLI is not available)
-gh run download ${runId} -n aw.patch
+gh run download ${runId} -n agent-artifacts
 
+# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
 # Apply the patch
-git am aw.patch
+git am agent-artifacts/tmp/gh-aw/aw.patch
 \`\`\`
 ${patchPreview}`;
 
