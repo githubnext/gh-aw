@@ -90,44 +90,52 @@ async function main(config = {}) {
         }
       }
 
-      // Dispatch the workflow using the GitHub REST API
-      // Try .lock.yml first (for agentic workflows), then .yml (for standard workflows)
-      let dispatched = false;
-      let lastError = null;
-
-      for (const extension of [".lock.yml", ".yml"]) {
-        try {
-          await github.rest.actions.createWorkflowDispatch({
-            owner: repo.owner,
-            repo: repo.repo,
-            workflow_id: `${workflowName}${extension}`,
-            ref: ref,
-            inputs: inputs,
-          });
-
-          core.info(`✓ Successfully dispatched workflow: ${workflowName}${extension}`);
-          dispatched = true;
-          break;
-        } catch (error) {
-          const errorMessage = getErrorMessage(error);
-          
-          // If it's a 404, try the next extension
-          if (errorMessage.includes("404")) {
-            lastError = errorMessage;
-            continue;
+      // Resolve which workflow file exists (check .lock.yml first, then .yml)
+      let workflowFile = null;
+      try {
+        const workflows = await github.rest.actions.listRepoWorkflows({
+          owner: repo.owner,
+          repo: repo.repo,
+        });
+        
+        // Look for workflow file matching the name
+        const lockYmlName = `${workflowName}.lock.yml`;
+        const ymlName = `${workflowName}.yml`;
+        
+        for (const workflow of workflows.data.workflows) {
+          const path = workflow.path;
+          if (path.endsWith(lockYmlName)) {
+            workflowFile = lockYmlName;
+            break;
+          } else if (path.endsWith(ymlName)) {
+            workflowFile = ymlName;
           }
-          
-          // For other errors, fail immediately
-          throw error;
         }
-      }
-
-      if (!dispatched) {
+        
+        if (!workflowFile) {
+          return {
+            success: false,
+            error: `Workflow "${workflowName}" not found. Looked for ${lockYmlName} or ${ymlName} in repository workflows.`,
+          };
+        }
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
         return {
           success: false,
-          error: `Workflow "${workflowName}" not found. Tried ${workflowName}.lock.yml and ${workflowName}.yml. Make sure the workflow file exists and supports workflow_dispatch trigger.`,
+          error: `Failed to list workflows: ${errorMessage}`,
         };
       }
+
+      // Dispatch the workflow using the resolved file
+      await github.rest.actions.createWorkflowDispatch({
+        owner: repo.owner,
+        repo: repo.repo,
+        workflow_id: workflowFile,
+        ref: ref,
+        inputs: inputs,
+      });
+
+      core.info(`✓ Successfully dispatched workflow: ${workflowFile}`);
 
       return {
         success: true,

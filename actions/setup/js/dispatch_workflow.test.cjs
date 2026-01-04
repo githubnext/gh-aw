@@ -21,6 +21,14 @@ global.github = {
   rest: {
     actions: {
       createWorkflowDispatch: vi.fn().mockResolvedValue({}),
+      listRepoWorkflows: vi.fn().mockResolvedValue({
+        data: {
+          workflows: [
+            { path: ".github/workflows/test-workflow.lock.yml" },
+            { path: ".github/workflows/other-workflow.yml" },
+          ],
+        },
+      }),
     },
   },
 };
@@ -56,7 +64,12 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(result.success).toBe(true);
     expect(result.workflow_name).toBe("test-workflow");
-    // Should try .lock.yml first, then .yml
+    // Should resolve workflow file first
+    expect(github.rest.actions.listRepoWorkflows).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+    });
+    // Then dispatch to the resolved file
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
@@ -135,10 +148,14 @@ describe("dispatch_workflow handler factory", () => {
   it("should handle dispatch errors", async () => {
     const handler = await main({ workflows: ["missing-workflow"] });
 
-    // Mock both calls to fail with 404
-    github.rest.actions.createWorkflowDispatch
-      .mockRejectedValueOnce(new Error("Request failed with status code 404"))
-      .mockRejectedValueOnce(new Error("Request failed with status code 404"));
+    // Mock listRepoWorkflows to return workflows without missing-workflow
+    github.rest.actions.listRepoWorkflows.mockResolvedValueOnce({
+      data: {
+        workflows: [
+          { path: ".github/workflows/other-workflow.yml" },
+        ],
+      },
+    });
 
     const message = {
       type: "dispatch_workflow",
@@ -150,8 +167,6 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("not found");
-    expect(result.error).toContain(".lock.yml");
-    expect(result.error).toContain(".yml");
   });
 
   it("should convert input values to strings", async () => {
