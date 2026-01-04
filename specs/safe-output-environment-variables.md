@@ -168,6 +168,13 @@ Each safe output type has additional environment variables specific to its confi
 |----------|-------------|----------|---------|
 | `GH_AW_MILESTONES_ALLOWED` | Comma-separated allowed milestone titles | `allowed` configured | `"v1.0,v2.0"` |
 
+### Create Agent Task (`create-agent-task:`)
+
+| Variable | Description | Set When | Example |
+|----------|-------------|----------|---------|
+| `GH_AW_AGENT_TASK_BASE` | Base branch for pull request | `base` configured or `${{ github.ref_name }}` fallback | `"main"` or `"develop"` |
+| `GH_AW_TARGET_REPO` | Target repository for cross-repo tasks | `target-repo` configured | `"owner/repo"` |
+
 ### Assign to Agent (`assign-to-agent:`)
 
 | Variable | Description | Set When | Example |

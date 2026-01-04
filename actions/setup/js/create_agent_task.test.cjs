@@ -12,7 +12,7 @@ describe("create_agent_task.cjs", () => {
     afterEach(() => {
       (delete global.core,
         delete global.exec,
-        delete process.env.GITHUB_AW_AGENT_OUTPUT,
+        delete process.env.GH_AW_AGENT_OUTPUT,
         delete process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED,
         delete process.env.GITHUB_AW_AGENT_TASK_BASE,
         delete process.env.GITHUB_AW_TARGET_REPO,
@@ -21,7 +21,7 @@ describe("create_agent_task.cjs", () => {
     }));
   const createAgentOutput = items => {
       const output = { items };
-      (fs.writeFileSync(testOutputFile, JSON.stringify(output)), (process.env.GITHUB_AW_AGENT_OUTPUT = testOutputFile));
+      (fs.writeFileSync(testOutputFile, JSON.stringify(output)), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile));
     },
     runScript = async () => {
       ((global.core = mockCore), (global.exec = mockExec));
@@ -34,21 +34,21 @@ describe("create_agent_task.cjs", () => {
     };
   (describe("basic functionality", () => {
     (it("should handle missing environment variable", async () => {
-      (delete process.env.GITHUB_AW_AGENT_OUTPUT,
+      (delete process.env.GH_AW_AGENT_OUTPUT,
         await runScript(),
-        expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found"),
+        expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"),
         expect(mockCore.setOutput).toHaveBeenCalledWith("task_number", ""),
         expect(mockCore.setOutput).toHaveBeenCalledWith("task_url", ""));
     }),
       it("should handle missing output file", async () => {
-        ((process.env.GITHUB_AW_AGENT_OUTPUT = "/nonexistent/file.json"), await runScript(), expect(mockCore.setFailed).toHaveBeenCalled(), expect(mockCore.setFailed.mock.calls[0][0]).toContain("Error reading agent output file"));
+        ((process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.json"), await runScript(), expect(mockCore.setFailed).toHaveBeenCalled(), expect(mockCore.setFailed.mock.calls[0][0]).toContain("Error reading agent output file"));
       }),
       it("should handle empty agent output", async () => {
-        (fs.writeFileSync(testOutputFile, ""), (process.env.GITHUB_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));
+        (fs.writeFileSync(testOutputFile, ""), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));
       }),
       it("should handle invalid JSON", async () => {
         (fs.writeFileSync(testOutputFile, "invalid json"),
-          (process.env.GITHUB_AW_AGENT_OUTPUT = testOutputFile),
+          (process.env.GH_AW_AGENT_OUTPUT = testOutputFile),
           await runScript(),
           expect(mockCore.setFailed).toHaveBeenCalled(),
           expect(mockCore.setFailed.mock.calls[0][0]).toContain("Error parsing agent output JSON"));
@@ -108,16 +108,16 @@ describe("create_agent_task.cjs", () => {
     }),
     describe("output initialization", () => {
       it("should initialize outputs to empty strings", async () => {
-        (delete process.env.GITHUB_AW_AGENT_OUTPUT, await runScript(), expect(mockCore.setOutput).toHaveBeenCalledWith("task_number", ""), expect(mockCore.setOutput).toHaveBeenCalledWith("task_url", ""));
+        (delete process.env.GH_AW_AGENT_OUTPUT, await runScript(), expect(mockCore.setOutput).toHaveBeenCalledWith("task_number", ""), expect(mockCore.setOutput).toHaveBeenCalledWith("task_url", ""));
       });
     }),
     describe("edge cases", () => {
       (it("should handle output with no items array", async () => {
-        (fs.writeFileSync(testOutputFile, JSON.stringify({})), (process.env.GITHUB_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
+        (fs.writeFileSync(testOutputFile, JSON.stringify({})), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
       }),
         it("should handle output with non-array items", async () => {
           (fs.writeFileSync(testOutputFile, JSON.stringify({ items: "not an array" })),
-            (process.env.GITHUB_AW_AGENT_OUTPUT = testOutputFile),
+            (process.env.GH_AW_AGENT_OUTPUT = testOutputFile),
             await runScript(),
             expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
         }),
