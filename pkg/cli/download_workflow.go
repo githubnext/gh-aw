@@ -396,7 +396,8 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	}
 
 	sparseCheckoutFile := filepath.Join(sparseInfoDir, "sparse-checkout")
-	if err := os.WriteFile(sparseCheckoutFile, []byte(path+"\n"), 0644); err != nil {
+	// Use owner-only read/write permissions (0600) for security best practices
+	if err := os.WriteFile(sparseCheckoutFile, []byte(path+"\n"), 0600); err != nil {
 		return nil, fmt.Errorf("failed to write sparse-checkout file: %w", err)
 	}
 
