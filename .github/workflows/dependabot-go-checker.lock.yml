@@ -165,7 +165,7 @@ jobs:
             const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3 mcp/fetch
+        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -419,16 +419,6 @@ jobs:
                   "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }
@@ -1050,20 +1040,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
-      - name: Upload prompt
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: prompt
-          path: /tmp/gh-aw/aw-prompts/prompt.txt
-          if-no-files-found: warn
-      - name: Upload agentic run info
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: aw-info
-          path: /tmp/gh-aw/aw_info.json
-          if-no-files-found: warn
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -1103,7 +1079,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1124,25 +1100,18 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent_outputs
           path: |
             /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
-          if-no-files-found: ignore
-      - name: Upload MCP logs
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: mcp-logs
-          path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
@@ -1155,14 +1124,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/parse_copilot_log.cjs');
             await main();
-      - name: Upload Firewall Logs
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: firewall-logs-dependabot-dependency-checker
-          path: /tmp/gh-aw/sandbox/firewall/logs/
-          if-no-files-found: ignore
       - name: Parse firewall logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1172,13 +1133,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');
             await main();
-      - name: Upload Agent Stdio
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: agent-stdio.log
-          path: /tmp/gh-aw/agent-stdio.log
-          if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1191,6 +1145,19 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');
             await main();
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+          if-no-files-found: ignore
 
   conclusion:
     needs:
@@ -1309,25 +1276,18 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
-      - name: Download prompt artifact
+      - name: Download agent artifacts
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: prompt
-          path: /tmp/gh-aw/threat-detection/
+          name: agent-artifacts
+          path: /tmp/gh-aw/threat-detection/agent-artifacts
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/threat-detection/
-      - name: Download patch artifact
-        if: needs.agent.outputs.has_patch == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/threat-detection/
+          path: /tmp/gh-aw/threat-detection/agent-output
       - name: Echo agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
@@ -1338,6 +1298,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Dependabot Dependency Checker"
           WORKFLOW_DESCRIPTION: "Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes"
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1447,7 +1408,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log

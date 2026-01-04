@@ -73,23 +73,15 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 		t.Fatalf("expected non-nil WorkflowData")
 	}
 
-	// Verify that the prompt includes completion instructions
-	if !strings.Contains(data.MarkdownContent, "Campaign complete") {
-		t.Errorf("expected markdown to mention campaign completion, got: %q", data.MarkdownContent)
+	// Governed invariant: completion is reported explicitly in Phase 4.
+	expectedPhrases := []string{
+		"### Phase 4 — Report",
+		"completion state (work items only)",
 	}
-
-	if !strings.Contains(data.MarkdownContent, "terminal state") {
-		t.Errorf("expected markdown to mention terminal state, got: %q", data.MarkdownContent)
-	}
-
-	// Verify that the prompt uses system-agnostic completion logic
-	if !strings.Contains(data.MarkdownContent, "Decide completion") {
-		t.Errorf("expected markdown to include decision phase for completion, got: %q", data.MarkdownContent)
-	}
-
-	// Verify explicit completion criteria
-	if !strings.Contains(data.MarkdownContent, "all discovered items") {
-		t.Errorf("expected markdown to have explicit completion criteria, got: %q", data.MarkdownContent)
+	for _, expected := range expectedPhrases {
+		if !strings.Contains(data.MarkdownContent, expected) {
+			t.Errorf("expected markdown to contain %q, got: %q", expected, data.MarkdownContent)
+		}
 	}
 }
 
@@ -113,61 +105,34 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 		t.Fatalf("expected non-nil WorkflowData")
 	}
 
-	// Verify that the workflows are explicitly listed in the discovery instructions
-	if !strings.Contains(data.MarkdownContent, "Worker workflows:") {
-		t.Errorf("expected markdown to list worker workflows, got: %q", data.MarkdownContent)
-	}
-
-	// Verify each workflow is mentioned
+	// Verify each workflow is mentioned (both in the header list and in discovery instructions).
 	for _, workflow := range spec.Workflows {
 		if !strings.Contains(data.MarkdownContent, workflow) {
 			t.Errorf("expected markdown to mention workflow %q, got: %q", workflow, data.MarkdownContent)
 		}
 	}
 
-	// Verify the worker discovery step is present
-	if !strings.Contains(data.MarkdownContent, "Query worker-created content") {
-		t.Errorf("expected markdown to include worker discovery step, got: %q", data.MarkdownContent)
-	}
-
-	if !strings.Contains(data.MarkdownContent, "tracker-id:") {
-		t.Errorf("expected markdown to mention tracker-id search, got: %q", data.MarkdownContent)
-	}
-
-	// Verify that IMPORTANT notice is present
-	if !strings.Contains(data.MarkdownContent, "**IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow") {
-		t.Errorf("expected markdown to have IMPORTANT notice about separate searches, got: %q", data.MarkdownContent)
+	// Governed invariant: discovery is explicitly per-worker.
+	if !strings.Contains(data.MarkdownContent, "Perform separate discovery per worker workflow") {
+		t.Errorf("expected markdown to require per-worker discovery, got: %q", data.MarkdownContent)
 	}
 
 	// Verify that each workflow has an explicit search query enumerated
 	for _, workflow := range spec.Workflows {
-		expectedSearchLine := "Search for `" + workflow + "`:"
+		expectedSearchLine := "Search for tracker-id `" + workflow + "`"
 		if !strings.Contains(data.MarkdownContent, expectedSearchLine) {
-			t.Errorf("expected markdown to have explicit search query for %q, got: %q", workflow, data.MarkdownContent)
-		}
-		expectedTrackerID := "tracker-id: " + workflow
-		if !strings.Contains(data.MarkdownContent, expectedTrackerID) {
-			t.Errorf("expected markdown to have tracker-id for %q, got: %q", workflow, data.MarkdownContent)
+			t.Errorf("expected markdown to have tracker-id search instruction for %q, got: %q", workflow, data.MarkdownContent)
 		}
 	}
 
-	// Verify that all four search types are mentioned (issues, PRs, discussions, comments)
-	if !strings.Contains(data.MarkdownContent, "type:issue") {
-		t.Errorf("expected markdown to include issue search type, got: %q", data.MarkdownContent)
-	}
-	if !strings.Contains(data.MarkdownContent, "type:pr") {
-		t.Errorf("expected markdown to include PR search type, got: %q", data.MarkdownContent)
-	}
-	if !strings.Contains(data.MarkdownContent, "Discussions:") {
-		t.Errorf("expected markdown to include discussion search, got: %q", data.MarkdownContent)
-	}
-	if !strings.Contains(data.MarkdownContent, "in:comments") {
-		t.Errorf("expected markdown to include comment search, got: %q", data.MarkdownContent)
+	// Verify the orchestrator's discovery uses issues/PRs/discussions/comments as the search surface.
+	if !strings.Contains(data.MarkdownContent, "across issues/PRs/discussions/comments") {
+		t.Errorf("expected markdown to mention issues/PRs/discussions/comments discovery surface, got: %q", data.MarkdownContent)
 	}
 
-	// Verify instructions to combine results
-	if !strings.Contains(data.MarkdownContent, "Combine results from all worker searches") {
-		t.Errorf("expected markdown to mention combining results from all searches, got: %q", data.MarkdownContent)
+	// Verify that discovered results are normalized into a single list (combining across workers and types).
+	if !strings.Contains(data.MarkdownContent, "Normalize discovered items") {
+		t.Errorf("expected markdown to mention normalizing discovered items, got: %q", data.MarkdownContent)
 	}
 }
 
@@ -201,10 +166,9 @@ func TestBuildOrchestrator_ObjectiveAndKPIsAreRendered(t *testing.T) {
 
 	// Golden assertions: these should only change if we intentionally change the orchestrator contract.
 	expectedPhrases := []string{
-		"### Objective and KPIs (first-class)",
-		"Objective: Improve CI stability",
+		"- Objective: Improve CI stability",
+		"- KPIs:",
 		"Build success rate",
-		"Deterministic planner step",
 	}
 	for _, expected := range expectedPhrases {
 		if !strings.Contains(data.MarkdownContent, expected) {
@@ -230,18 +194,11 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	}
 
 	// Verify that the orchestrator uses tracker-id for monitoring
-	if !strings.Contains(data.MarkdownContent, "tracker-id") {
-		t.Errorf("expected markdown to mention tracker-id for worker monitoring, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Correlation is explicit (tracker-id)") {
+		t.Errorf("expected markdown to mention tracker-id correlation rule, got: %q", data.MarkdownContent)
 	}
-
-	// Verify that it searches for issues containing tracker-id
-	if !strings.Contains(data.MarkdownContent, "tracker-id") {
-		t.Errorf("expected markdown to mention searching for tracker-id, got: %q", data.MarkdownContent)
-	}
-
-	// Verify it explains the XML comment correlation mechanism
-	if !strings.Contains(data.MarkdownContent, "XML comment") || !strings.Contains(data.MarkdownContent, "Correlation Mechanism") {
-		t.Errorf("expected markdown to explain correlation mechanism with XML comments, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Search for tracker-id") {
+		t.Errorf("expected markdown to include tracker-id discovery instructions, got: %q", data.MarkdownContent)
 	}
 
 	// Verify that orchestrator does NOT monitor workflow runs by file name
@@ -253,31 +210,23 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 		t.Errorf("expected markdown to NOT reference .lock.yml files for monitoring, but it does: %q", data.MarkdownContent)
 	}
 
-	// Verify that it uses tracker-id based discovery
-	if !strings.Contains(data.MarkdownContent, "tracker-id") {
-		t.Errorf("expected markdown to use tracker-id for discovering worker output, got: %q", data.MarkdownContent)
-	}
-
 	// Verify it follows system-agnostic rules
-	if !strings.Contains(data.MarkdownContent, "Campaign Orchestrator Rules") {
-		t.Errorf("expected markdown to contain Campaign Orchestrator Rules section, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Core Principles (Non-Negotiable)") {
+		t.Errorf("expected markdown to contain core principles section, got: %q", data.MarkdownContent)
 	}
 
-	// Verify separation of phases
-	if !strings.Contains(data.MarkdownContent, "Phase 1: Read State") {
-		t.Errorf("expected markdown to contain Phase 1: Read State, got: %q", data.MarkdownContent)
+	// Verify separation of phases (read / decide / write / report)
+	if !strings.Contains(data.MarkdownContent, "Phase 1") || !strings.Contains(data.MarkdownContent, "Read State") {
+		t.Errorf("expected markdown to contain Phase 1 Read State, got: %q", data.MarkdownContent)
 	}
-
-	if !strings.Contains(data.MarkdownContent, "Phase 2: Make Decisions") {
-		t.Errorf("expected markdown to contain Phase 2: Make Decisions, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Phase 2") || !strings.Contains(data.MarkdownContent, "Make Decisions") {
+		t.Errorf("expected markdown to contain Phase 2 Make Decisions, got: %q", data.MarkdownContent)
 	}
-
-	if !strings.Contains(data.MarkdownContent, "Phase 3: Write State") {
-		t.Errorf("expected markdown to contain Phase 3: Write State, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Phase 3") || !strings.Contains(data.MarkdownContent, "Write State") {
+		t.Errorf("expected markdown to contain Phase 3 Write State, got: %q", data.MarkdownContent)
 	}
-
-	if !strings.Contains(data.MarkdownContent, "Phase 4: Report") {
-		t.Errorf("expected markdown to contain Phase 4: Report, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Phase 4") || !strings.Contains(data.MarkdownContent, "Report") {
+		t.Errorf("expected markdown to contain Phase 4 Report, got: %q", data.MarkdownContent)
 	}
 }
 

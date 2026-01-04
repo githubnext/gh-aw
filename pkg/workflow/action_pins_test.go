@@ -602,9 +602,9 @@ func TestGetActionPinSemverPreference(t *testing.T) {
 			expectedVersion: "v6.1.0",
 		},
 		{
-			name:            "upload-artifact prefers v5.0.0 over v5 and v4",
+			name:            "upload-artifact prefers v6.0.0 over v5 and v4",
 			repo:            "actions/upload-artifact",
-			expectedVersion: "v5.0.0",
+			expectedVersion: "v6.0.0",
 		},
 		{
 			name:            "setup-python prefers v5.6.0 over v5",
@@ -669,12 +669,12 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			name:           "fallback to highest version for upload-artifact when requesting v4",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4",
-			expectedVer:    "v5.0.0", // Falls back to v5.0.0, crossing major version boundary
+			expectedVer:    "v6.0.0", // Falls back to v6.0.0, crossing major version boundary
 			strictMode:     false,
 			shouldFallback: true,
 			// Note: This behavior matches GetActionPin and GetActionPinByRepo which return
 			// "the latest version by semver" without regard to major version boundaries.
-			// When requesting v4, the system returns v5.0.0 (the highest available version),
+			// When requesting v4, the system returns v6.0.0 (the highest available version),
 			// which crosses a major version boundary. This ensures consistency across all
 			// action pin lookup functions and matches the requirement to "always pick the
 			// highest release according to semver". Users expecting semver-compatible

@@ -12,7 +12,8 @@
  */
 
 const fs = require("fs");
-const { getErrorMessage } = require("./error_helpers.cjs");
+const path = require("path");
+const { checkFileExists } = require("./file_helpers.cjs");
 
 /**
  * Main entry point for setting up threat detection
@@ -21,48 +22,42 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function main(templateContent) {
   // Check if prompt file exists
-  const promptPath = "/tmp/gh-aw/threat-detection/prompt.txt";
-  let promptFileInfo = "No prompt file found";
-  if (fs.existsSync(promptPath)) {
-    try {
-      const stats = fs.statSync(promptPath);
-      promptFileInfo = promptPath + " (" + stats.size + " bytes)";
-      core.info("Prompt file found: " + promptFileInfo);
-    } catch (error) {
-      core.warning("Failed to stat prompt file: " + getErrorMessage(error));
-    }
-  } else {
-    core.info("No prompt file found at: " + promptPath);
+  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/agent-artifacts,
+  // and the artifact contains files like aw-prompts/prompt.txt (GitHub Actions strips the common /tmp/gh-aw/ parent),
+  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/aw-prompts/prompt.txt
+  const artifactsDir = "/tmp/gh-aw/threat-detection/agent-artifacts";
+  const promptPath = path.join(artifactsDir, "aw-prompts/prompt.txt");
+  if (!checkFileExists(promptPath, artifactsDir, "Prompt file", true)) {
+    return;
   }
 
   // Check if agent output file exists
-  const agentOutputPath = "/tmp/gh-aw/threat-detection/agent_output.json";
-  let agentOutputFileInfo = "No agent output file found";
-  if (fs.existsSync(agentOutputPath)) {
-    try {
-      const stats = fs.statSync(agentOutputPath);
-      agentOutputFileInfo = agentOutputPath + " (" + stats.size + " bytes)";
-      core.info("Agent output file found: " + agentOutputFileInfo);
-    } catch (error) {
-      core.warning("Failed to stat agent output file: " + getErrorMessage(error));
-    }
-  } else {
-    core.info("No agent output file found at: " + agentOutputPath);
+  // Agent output is a separate artifact downloaded to /tmp/gh-aw/threat-detection/agent-output,
+  // so it appears directly as /tmp/gh-aw/threat-detection/agent-output/agent_output.json
+  const agentOutputDir = "/tmp/gh-aw/threat-detection/agent-output";
+  const agentOutputPath = path.join(agentOutputDir, "agent_output.json");
+  if (!checkFileExists(agentOutputPath, agentOutputDir, "Agent output file", true)) {
+    return;
   }
 
   // Check if patch file exists
-  const patchPath = "/tmp/gh-aw/threat-detection/aw.patch";
+  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/agent-artifacts,
+  // and the artifact contains aw.patch (GitHub Actions strips the common /tmp/gh-aw/ parent),
+  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/aw.patch
+  const patchPath = path.join(artifactsDir, "aw.patch");
+  const hasPatch = process.env.HAS_PATCH === "true";
+  if (!checkFileExists(patchPath, artifactsDir, "Patch file", hasPatch)) {
+    if (hasPatch) {
+      return;
+    }
+  }
+
+  // Get file info for template replacement
+  const promptFileInfo = promptPath + " (" + fs.statSync(promptPath).size + " bytes)";
+  const agentOutputFileInfo = agentOutputPath + " (" + fs.statSync(agentOutputPath).size + " bytes)";
   let patchFileInfo = "No patch file found";
   if (fs.existsSync(patchPath)) {
-    try {
-      const stats = fs.statSync(patchPath);
-      patchFileInfo = patchPath + " (" + stats.size + " bytes)";
-      core.info("Patch file found: " + patchFileInfo);
-    } catch (error) {
-      core.warning("Failed to stat patch file: " + getErrorMessage(error));
-    }
-  } else {
-    core.info("No patch file found at: " + patchPath);
+    patchFileInfo = patchPath + " (" + fs.statSync(patchPath).size + " bytes)";
   }
 
   // Create threat detection prompt with embedded template

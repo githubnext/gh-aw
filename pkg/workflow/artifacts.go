@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -63,51 +62,5 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", config.EnvVarName, artifactPath))
 	}
 
-	artifactsLog.Printf("Generated %d artifact download steps", len(steps))
 	return steps
-}
-
-// ArtifactUploadConfig holds configuration for building artifact upload steps
-type ArtifactUploadConfig struct {
-	StepName       string   // Human-readable step name (e.g., "Upload Agent Stdio")
-	ArtifactName   string   // Name of the artifact in GitHub Actions (e.g., "agent-stdio.log")
-	UploadPaths    []string // Paths to upload (e.g., "/tmp/gh-aw/agent-stdio.log")
-	IfNoFilesFound string   // What to do if files not found: "warn" or "ignore" (default: "warn")
-}
-
-// generateArtifactUpload creates a YAML step to upload a GitHub Actions artifact
-// This is a generalized helper that eliminates duplication across different upload functions
-func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config ArtifactUploadConfig) error {
-	artifactsLog.Printf("Generating artifact upload: step=%s, artifact=%s, paths=%v",
-		config.StepName, config.ArtifactName, config.UploadPaths)
-
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload(config.StepName, config.UploadPaths)
-
-	// Determine if-no-files-found value (default to "warn")
-	ifNoFilesFound := config.IfNoFilesFound
-	if ifNoFilesFound == "" {
-		ifNoFilesFound = "warn"
-	}
-
-	// Generate upload step YAML
-	fmt.Fprintf(yaml, "      - name: %s\n", config.StepName)
-	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
-	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", config.ArtifactName)
-
-	// Write path (only single-path is supported)
-	if len(config.UploadPaths) == 0 {
-		return fmt.Errorf("no upload paths specified for artifact %s", config.ArtifactName)
-	}
-	if len(config.UploadPaths) > 1 {
-		return fmt.Errorf("multiple paths not supported (got %d paths for artifact %s)", len(config.UploadPaths), config.ArtifactName)
-	}
-	fmt.Fprintf(yaml, "          path: %s\n", config.UploadPaths[0])
-
-	fmt.Fprintf(yaml, "          if-no-files-found: %s\n", ifNoFilesFound)
-
-	artifactsLog.Printf("Generated artifact upload step for %s", config.ArtifactName)
-	return nil
 }

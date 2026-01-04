@@ -140,7 +140,6 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache
 				"- name: Cache memory file share data (default)",
-				"- name: Cache memory file share data (session)",
 			},
 		},
 		{

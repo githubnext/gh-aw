@@ -11,9 +11,10 @@ var createPRReviewCommentLog = logger.New("workflow:create_pr_review_comment")
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Side                 string `yaml:"side,omitempty"`        // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
-	Target               string `yaml:"target,omitempty"`      // Target for comments: "triggering" (default), "*" (any PR), or explicit PR number
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository PR review comments
+	Side                 string   `yaml:"side,omitempty"`          // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+	Target               string   `yaml:"target,omitempty"`        // Target for comments: "triggering" (default), "*" (any PR), or explicit PR number
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository PR review comments
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that PR review comments can be added to (additionally to the target-repo)
 }
 
 // buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job

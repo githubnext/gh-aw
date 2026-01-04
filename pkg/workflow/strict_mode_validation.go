@@ -73,16 +73,22 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 	return nil
 }
 
-// validateStrictNetwork requires network configuration and refuses "*" wildcard
+// validateStrictNetwork validates network configuration in strict mode and refuses "*" wildcard
+// Note: networkPermissions should never be nil at this point because the compiler orchestrator
+// applies defaults (Mode: "defaults") when no network configuration is specified in frontmatter.
+// This automatic default application means users don't need to explicitly declare network in strict mode.
 func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions) error {
+	// This check should never trigger in production since the compiler orchestrator
+	// always applies defaults before calling validation. However, we keep it for defensive programming
+	// and to handle direct unit test calls.
 	if networkPermissions == nil {
-		strictModeValidationLog.Printf("Network configuration missing")
-		return fmt.Errorf("strict mode: 'network' configuration is required to prevent unrestricted network access. Add 'network: { allowed: [...] }' or 'network: defaults' to your frontmatter. See: https://githubnext.github.io/gh-aw/reference/network/")
+		strictModeValidationLog.Printf("Network configuration unexpectedly nil (defaults should have been applied)")
+		return fmt.Errorf("internal error: network permissions not initialized (this should not happen in normal operation)")
 	}
 
-	// If mode is "defaults", that's acceptable
+	// If mode is "defaults", that's acceptable (this is the automatic default)
 	if networkPermissions.Mode == "defaults" {
-		strictModeValidationLog.Printf("Network validation passed: mode=defaults")
+		strictModeValidationLog.Printf("Network validation passed: mode=defaults (automatically applied or explicitly set)")
 		return nil
 	}
 

@@ -36,9 +36,9 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			expectMismatch: true,
 		},
 		{
-			name:           "github-script v7.0.1 resolves to v8.0.0 pin (latest version)",
+			name:           "github-script v7 resolves to v8.0.0 pin (latest version)",
 			repo:           "actions/github-script",
-			requestedVer:   "v7.0.1",
+			requestedVer:   "v7",
 			expectedPinVer: "v8.0.0", // Returns latest version for this repo
 			expectMismatch: true,
 		},

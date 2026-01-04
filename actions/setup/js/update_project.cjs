@@ -374,7 +374,7 @@ async function updateProject(output) {
       if (Object.keys(fieldsToUpdate).length > 0) {
         const projectFields = (
           await github.graphql(
-            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
+            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                    ... on ProjectV2IterationField {\n                      id\n                      name\n                      dataType\n                      configuration {\n                        iterations {\n                          id\n                          title\n                          startDate\n                          duration\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
             { projectId }
           )
         ).node.fields.nodes;
@@ -386,7 +386,27 @@ async function updateProject(output) {
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
           if (!field)
-            if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
+              // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
+              // Date field values must match ISO 8601 format (YYYY-MM-DD)
+              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+              if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+                try {
+                  field = (
+                    await github.graphql(
+                      "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                          dataType\n                        }\n                      }\n                    }\n                  }",
+                      { projectId, name: normalizedFieldName, dataType: "DATE" }
+                    )
+                  ).createProjectV2Field.projectV2Field;
+                } catch (createError) {
+                  core.warning(`Failed to create date field "${fieldName}": ${getErrorMessage(createError)}`);
+                  continue;
+                }
+              } else {
+                core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
+                continue;
+              }
+            } else if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
@@ -411,7 +431,32 @@ async function updateProject(output) {
                 continue;
               }
           if (field.dataType === "DATE") valueToSet = { date: String(fieldValue) };
-          else if (field.options) {
+          else if (field.dataType === "NUMBER") {
+            // NUMBER fields use ProjectV2FieldValue input type with number property
+            // The number value must be a valid float or integer
+            // Convert string values to numbers if needed
+            const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
+            if (isNaN(numValue)) {
+              core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
+              continue;
+            }
+            valueToSet = { number: numValue };
+          } else if (field.dataType === "ITERATION") {
+            // ITERATION fields use ProjectV2FieldValue input type with iterationId property
+            // The value should match an iteration title or ID
+            if (!field.configuration || !field.configuration.iterations) {
+              core.warning(`Iteration field "${fieldName}" has no configured iterations`);
+              continue;
+            }
+            // Try to find iteration by title (case-insensitive match)
+            const iteration = field.configuration.iterations.find(iter => iter.title.toLowerCase() === String(fieldValue).toLowerCase());
+            if (!iteration) {
+              const availableIterations = field.configuration.iterations.map(i => i.title).join(", ");
+              core.warning(`Iteration "${fieldValue}" not found in field "${fieldName}". Available iterations: ${availableIterations}`);
+              continue;
+            }
+            valueToSet = { iterationId: iteration.id };
+          } else if (field.options) {
             let option = field.options.find(o => o.name === fieldValue);
             if (!option)
               try {
@@ -496,7 +541,7 @@ async function updateProject(output) {
       if (Object.keys(fieldsToUpdate).length > 0) {
         const projectFields = (
           await github.graphql(
-            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
+            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                    ... on ProjectV2IterationField {\n                      id\n                      name\n                      dataType\n                      configuration {\n                        iterations {\n                          id\n                          title\n                          startDate\n                          duration\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
             { projectId }
           )
         ).node.fields.nodes;
@@ -508,7 +553,27 @@ async function updateProject(output) {
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
           if (!field)
-            if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
+              // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
+              // Date field values must match ISO 8601 format (YYYY-MM-DD)
+              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+              if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+                try {
+                  field = (
+                    await github.graphql(
+                      "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                          dataType\n                        }\n                      }\n                    }\n                  }",
+                      { projectId, name: normalizedFieldName, dataType: "DATE" }
+                    )
+                  ).createProjectV2Field.projectV2Field;
+                } catch (createError) {
+                  core.warning(`Failed to create date field "${fieldName}": ${getErrorMessage(createError)}`);
+                  continue;
+                }
+              } else {
+                core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
+                continue;
+              }
+            } else if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
@@ -539,6 +604,31 @@ async function updateProject(output) {
             // The date value must be in ISO 8601 format (YYYY-MM-DD) with no time component
             // Unlike other field types that may require IDs, date fields accept the date string directly
             valueToSet = { date: String(fieldValue) };
+          } else if (field.dataType === "NUMBER") {
+            // NUMBER fields use ProjectV2FieldValue input type with number property
+            // The number value must be a valid float or integer
+            // Convert string values to numbers if needed
+            const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
+            if (isNaN(numValue)) {
+              core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
+              continue;
+            }
+            valueToSet = { number: numValue };
+          } else if (field.dataType === "ITERATION") {
+            // ITERATION fields use ProjectV2FieldValue input type with iterationId property
+            // The value should match an iteration title or ID
+            if (!field.configuration || !field.configuration.iterations) {
+              core.warning(`Iteration field "${fieldName}" has no configured iterations`);
+              continue;
+            }
+            // Try to find iteration by title (case-insensitive match)
+            const iteration = field.configuration.iterations.find(iter => iter.title.toLowerCase() === String(fieldValue).toLowerCase());
+            if (!iteration) {
+              const availableIterations = field.configuration.iterations.map(i => i.title).join(", ");
+              core.warning(`Iteration "${fieldValue}" not found in field "${fieldName}". Available iterations: ${availableIterations}`);
+              continue;
+            }
+            valueToSet = { iterationId: iteration.id };
           } else if (field.options) {
             let option = field.options.find(o => o.name === fieldValue);
             if (!option)

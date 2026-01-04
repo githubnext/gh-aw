@@ -19,31 +19,29 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Meta-orchestrator workflow that manages multiple campaigns, analyzes their performance, and makes strategic decisions
+# Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions.
 
-name: "Campaign Manager - Meta-Orchestrator"
+name: "Campaign: File Size Reduction (Project 71)"
 "on":
   schedule:
-  - cron: "57 9 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "0 18 * * *"
   workflow_dispatch:
 
 permissions:
   actions: read
   contents: read
-  discussions: read
   issues: read
   pull-requests: read
+  security-events: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: false
+  group: campaign-file-size-reduction-project71-orchestrator-${{ github.ref }}
 
-run-name: "Campaign Manager - Meta-Orchestrator"
+run-name: "Campaign: File Size Reduction (Project 71)"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -64,7 +62,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "campaign-manager.lock.yml"
+          GH_AW_WORKFLOW_FILE: "file-size-reduction-project71.campaign.g.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -78,9 +76,9 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: read
       issues: read
       pull-requests: read
+      security-events: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -111,12 +109,12 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
+      - name: Clone repo-memory branch (campaigns)
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/meta-orchestrators
+          BRANCH_NAME: memory/campaigns
           TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
           CREATE_ORPHAN: true
         run: bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
@@ -176,17 +174,19 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
+      - name: Downloading container images
+        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":10},"create_discussion":{"max":3},"create_issue":{"max":5},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":20}}
+          {"add_comment":{"max":10},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 5 issue(s) can be created.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -224,32 +224,6 @@ jobs:
                 "type": "object"
               },
               "name": "create_issue"
-            },
-            {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 3 discussion(s) can be created.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
-                    "type": "string"
-                  },
-                  "category": {
-                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_discussion"
             },
             {
               "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 10 comment(s) can be added.",
@@ -386,32 +360,6 @@ jobs:
                 }
               }
             },
-            "create_discussion": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "category": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              }
-            },
             "create_issue": {
               "defaultMax": 1,
               "fields": {
@@ -528,14 +476,22 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
-                  "X-MCP-Lockdown": "${{ steps.determine-automatic-lockdown.outputs.lockdown }}",
-                  "X-MCP-Readonly": "true",
-                  "X-MCP-Toolsets": "context,repos,issues,pull_requests,actions,projects"
-                },
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
+                  "-e",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions,code_security",
+                  "ghcr.io/github/github-mcp-server:v0.26.3"
+                ],
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -584,7 +540,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.374",
-              workflow_name: "Campaign Manager - Meta-Orchestrator",
+              workflow_name: "Campaign: File Size Reduction (Project 71)",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -628,336 +584,439 @@ jobs:
         run: |
           bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          {{#runtime-import? .github/shared-instructions.md}}
           
-          # Campaign Manager - Meta-Orchestrator
           
-          You are a strategic campaign manager responsible for overseeing all active campaigns in the GitHub Agentic Workflows repository.
           
-          ## Your Role
+          # Campaign Orchestrator
           
-          As a meta-orchestrator, you coordinate between multiple campaigns, analyze their collective performance, and make strategic decisions to optimize outcomes across the entire agent ecosystem.
+          This workflow orchestrates the 'Campaign: File Size Reduction (Project 71)' campaign.
           
-          ## Responsibilities
+          - Objective: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
+          - KPIs:
+            - Files reduced to target size (primary): baseline 0 → target 100 over 90 days percent
+            - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days percent
+          - Associated workflows: daily-file-diet
+          - Memory paths: memory/campaigns/file-size-reduction-project71/**
+          - Metrics glob: `memory/campaigns/file-size-reduction-project71/metrics/*.json`
+          - Cursor glob: `memory/campaigns/file-size-reduction-project71/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/71
+          - Governance: max new items per run: 5
+          - Governance: max discovery items per run: 50
+          - Governance: max discovery pages per run: 5
+          - Governance: max project updates per run: 10
+          - Governance: max comments per run: 10
           
-          ### 1. Campaign Discovery and Analysis
+          ---
+          # ORCHESTRATOR INSTRUCTIONS
+          ---
+          # Orchestrator Instructions
           
-          **Discover all active campaigns:**
-          - Query the repository for all `.campaign.md` files in `.github/workflows/`
-          - For each campaign, extract:
-            - Campaign ID, name, and description
-            - Associated workflows
-            - Risk level and state
-            - Project board URL
-            - Tracker label
-            - Metrics glob pattern
+          This orchestrator coordinates a single campaign by discovering worker outputs, making deterministic decisions,
+          and synchronizing campaign state into a GitHub Project board.
           
-          **Analyze campaign health:**
-          - Check if campaign orchestrators (`.campaign.g.md` files) exist and are up-to-date
-          - Verify project boards are accessible and properly configured
-          - Review recent workflow runs for each campaign's associated workflows
-          - Identify campaigns that may be stalled, failing, or need attention
+          **Scope:** orchestration only (discovery, planning, pacing, reporting).  
+          **Write authority:** all project write semantics are governed by **Project Update Instructions** and MUST be followed.
           
-          ### 2. Cross-Campaign Coordination
+          ---
           
-          **Identify conflicts and dependencies:**
-          - Detect campaigns working on overlapping areas of the codebase
-          - Identify resource contention (e.g., multiple campaigns creating issues in the same area)
-          - Flag campaigns with conflicting goals or approaches
-          - Recommend sequencing when campaigns should run in a specific order
+          ## Traffic and Rate Limits (Required)
           
-          **Resource optimization:**
-          - Balance workload across campaigns based on priority and capacity
-          - Suggest pausing low-priority campaigns if high-priority ones need resources
-          - Identify campaigns that could be merged or coordinated more tightly
+          - Minimize API calls; avoid full rescans when possible.
+          - Prefer incremental discovery with deterministic ordering (e.g., by `updatedAt`, tie-break by ID).
+          - Enforce strict pagination budgets; if a query requires many pages, stop early and continue next run.
+          - Use a durable cursor/checkpoint so the next run continues without rescanning.
+          - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
           
-          ### 3. Performance Monitoring
           
-          **Aggregate metrics across campaigns:**
-          - Load shared metrics from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
-          - Use workflow metrics for campaigns to assess:
-            - Workflow success rates for campaign workflows
-            - Safe output volume (issues, PRs created by campaign workflows)
-            - Engagement levels (reactions, comments on campaign outputs)
-            - Quality indicators (PR merge rates, issue close times)
-          - Collect additional metrics from each campaign's project board
-          - Track velocity, completion rates, and blockers
-          - Compare actual progress vs. expected timelines
-          - Identify campaigns that are ahead, on track, or behind schedule
+          **Cursor file (repo-memory)**: `memory/campaigns/file-size-reduction-project71/cursor.json`  
+          - If it exists: read first and continue from its boundary.  
+          - If it does not exist: create it by end of run.  
+          - Always write the updated cursor back to the same path.
           
-          **Trend analysis:**
-          - Load historical daily metrics from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/`
-          - Compare current metrics with historical data (7-day, 30-day trends)
-          - Identify improving or degrading trends in workflow performance
-          - Calculate velocity trends from safe output volume over time
-          - Predict completion dates based on velocity
-          - Flag campaigns at risk of missing deadlines
-          - Detect anomalies (sudden drops in success rate, output volume)
           
-          ### 4. Strategic Decision Making
           
-          **Priority management:**
-          - Recommend priority adjustments based on:
-            - Campaign risk level and business impact
-            - Current progress and velocity
-            - Resource availability
-            - Dependencies and blockers
-          - Suggest which campaigns should be accelerated or paused
+          **Metrics snapshots (repo-memory)**: `memory/campaigns/file-size-reduction-project71/metrics/*.json`  
+          - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
+          - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
+          - Each snapshot MUST include `campaign_id` and `date` (UTC).
           
-          **Escalation and intervention:**
-          - Create issues for campaigns that need human attention:
-            - Consistently failing workflow runs
-            - Stalled progress (no updates in X days)
-            - High number of blocked tasks
-            - Resource conflicts between campaigns
-          - Recommend campaign restructuring when needed
-          - Suggest new campaigns based on patterns in issues and PRs
           
-          ### 5. Reporting and Communication
           
-          **Generate strategic reports:**
-          - Create weekly summary discussions with:
-            - Overall campaign portfolio health
-            - Key wins and completions
-            - Campaigns requiring attention
-            - Recommended priority changes
-            - Resource utilization and optimization opportunities
+          **Read budget**: max discovery items per run: 50
           
-          **Update campaign project boards:**
-          - Add cross-campaign coordination notes
-          - Update priority fields based on strategic analysis
-          - Add comments on campaign items that need managerial attention
           
-          ## Workflow Execution
+          **Read budget**: max discovery pages per run: 5
           
-          Execute these phases each time you run:
           
-          ## Shared Memory Integration
+          **Write budget**: max project updates per run: 10
           
-          **Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`**
           
-          This workflow shares memory with other meta-orchestrators (Workflow Health Manager and Agent Performance Analyzer) to coordinate insights and avoid duplicate work.
+          **Write budget**: max project comments per run: 10
           
-          **Shared Metrics Infrastructure:**
           
-          The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
+          ---
           
-          1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
-             - Most recent daily metrics snapshot
-             - Contains workflow success rates, safe output volumes, engagement data
-             - Use to assess campaign health without redundant API queries
+          ## Core Principles (Non-Negotiable)
           
-          2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/YYYY-MM-DD.json`
-             - Daily metrics for the last 30 days
-             - Calculate campaign velocity trends
-             - Identify performance degradation early
-             - Compare current vs. historical performance
+          1. Workers are immutable.
+          2. Workers are campaign-agnostic.
+          3. Campaign logic is external to workers (orchestrator only).
+          4. The GitHub Project board is the authoritative campaign state.
+          5. Correlation is explicit (tracker-id).
+          6. Reads and writes are separate phases (never interleave).
+          7. Idempotent operation is mandatory (safe to re-run).
+          8. Only predefined project fields may be updated.
+          9. **Project Update Instructions take precedence for all project writes.**
           
-          **Read from shared memory:**
-          1. Check for existing files in the memory directory:
-             - `metrics/latest.json` - Latest performance metrics (NEW - use this first!)
-             - `metrics/daily/*.json` - Historical daily metrics for trend analysis (NEW)
-             - `campaign-manager-latest.md` - Your last run's summary
-             - `workflow-health-latest.md` - Latest workflow health insights
-             - `agent-performance-latest.md` - Latest agent quality insights
-             - `shared-alerts.md` - Cross-orchestrator alerts and coordination notes
+          ---
           
-          2. Use insights from other orchestrators:
-             - Workflow Health Manager may flag campaigns whose workflows are failing
-             - Agent Performance Analyzer may identify campaigns with low-quality outputs
-             - Coordinate actions to avoid duplicate issues or conflicting recommendations
+          ## Required Phases (Execute In Order)
           
-          **Write to shared memory:**
-          1. Save your current run's summary as `campaign-manager-latest.md`:
-             - Campaign health scores
-             - Priority adjustments made
-             - Issues created or flagged
-             - Key recommendations
-             - Run timestamp
+          ### Phase 0 — Epic Issue Initialization [FIRST RUN ONLY]
           
-          2. Add coordination notes to `shared-alerts.md`:
-             - Cross-cutting concerns affecting multiple orchestrators
-             - High-priority systemic issues
-             - Recommendations for other orchestrators
+          **Campaign Epic Issue Requirements:**
+          - Each project board MUST have exactly ONE Epic issue representing the campaign
+          - The Epic serves as the parent for all campaign work issues
+          - The Epic is narrative-only and tracks overall campaign progress
           
-          **Format for memory files:**
-          - Use markdown format only
-          - Include timestamp and workflow name at the top
-          - Keep files concise (< 10KB recommended)
-          - Use clear headers and bullet points
-          - Include issue/PR numbers for reference
+          **On every run, before other phases:**
           
-          ### Phase 1: Discovery (5 minutes)
+          1) **Check for existing Epic issue** by searching the repository for:
+             - An open issue with label `epic` or `type:epic`
+             - Body text containing: `campaign_id: file-size-reduction-project71`
           
-          1. **Scan for campaigns:**
-             - Find all `.campaign.md` files
-             - Parse their YAML frontmatter
-             - Identify active vs. paused vs. completed campaigns
+          2) **If no Epic issue exists**, create it using `create-issue`:
+             ```yaml
+             create-issue:
+               title: "Campaign: File Size Reduction (Project 71)"
+               body: |
+                 ## Campaign Overview
+                 
+                 **Objective**: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
+                 
+                 This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
+                 
+                 **Campaign Details:**
+                 - Campaign ID: `file-size-reduction-project71`
+                 - Project Board: https://github.com/orgs/githubnext/projects/71
+                 - Worker Workflows: `daily-file-diet`
+                 
+                 ---
+                 `campaign_id: file-size-reduction-project71`
+               labels:
+                 - epic
+                 - type:epic
+             ```
           
-          2. **Gather campaign status:**
-             - For each active campaign:
-               - Check if orchestrator exists and is compiled
-               - Query the project board for current state
-               - Get recent workflow run results
-               - Extract latest metrics if available
+          3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
+             ```yaml
+             update-project:
+               project: "https://github.com/orgs/githubnext/projects/71"
+               campaign_id: "file-size-reduction-project71"
+               content_type: "issue"
+               content_number: <EPIC_ISSUE_NUMBER>
+               fields:
+                 status: "In Progress"
+                 campaign_id: "file-size-reduction-project71"
+                 worker_workflow: "unknown"
+                 repository: "<OWNER/REPO>"
+                 priority: "High"
+                 size: "Large"
+                 start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
+                 end_date: "<TODAY_YYYY-MM-DD>"
+             ```
           
-          3. **Collect ecosystem data:**
-             - Count total issues/PRs across all campaigns
-             - Identify campaigns sharing tracker labels
-             - Map workflows to campaigns
-             - Check for orphaned workflows (not in any campaign)
+          4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
           
-          ### Phase 2: Analysis (5 minutes)
+          **Note:** This phase typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
           
-          4. **Health assessment:**
-             - Calculate health score for each campaign (0-100):
-               - Orchestrator compiled and current: +20 points
-               - Recent successful workflow runs: +20 points
-               - Positive velocity (tasks completing): +20 points
-               - No stale items (all updated recently): +20 points
-               - On track for completion date: +20 points
-             - Flag campaigns with score < 60 as needing attention
+          ---
           
-          5. **Cross-campaign analysis:**
-             - Identify resource conflicts (multiple campaigns affecting same files/areas)
-             - Find dependency relationships (campaign A's output feeds campaign B)
-             - Detect redundant efforts (campaigns with similar goals)
-             - Calculate portfolio metrics:
-               - Total active campaigns
-               - Overall completion percentage
-               - Resource utilization across campaigns
-               - Risk distribution (low/medium/high)
+          ### Phase 1 — Read State (Discovery) [NO WRITES]
           
-          6. **Trend analysis:**
-             - Compare current state with previous runs (if available)
-             - Identify campaigns with accelerating/decelerating velocity
-             - Predict which campaigns will complete soon
-             - Flag campaigns likely to miss deadlines
+          1) Read current GitHub Project board state (items + required fields).
           
-          ### Phase 3: Decision Making (3 minutes)
+          2) Discover worker outputs (if workers are configured):
           
-          7. **Generate recommendations:**
-             - **Priority adjustments:** Campaigns to promote/demote based on health and business value
-             - **Resource reallocation:** Pause low-value campaigns to free resources
-             - **Interventions needed:** List campaigns requiring human review
-             - **New campaigns:** Suggest campaigns based on patterns in issues
+          - Perform separate discovery per worker workflow:
           
-          8. **Create action items:**
-             - For unhealthy campaigns: Create issues describing problems and recommended fixes
-             - For conflicts: Create discussions to coordinate between campaign owners
-             - For strategic opportunities: Create issues suggesting new campaigns or improvements
+            - Search for tracker-id `daily-file-diet` across issues/PRs/discussions/comments (parent issue/PR is the unit of work).
           
-          ### Phase 4: Execution (2 minutes)
           
-          9. **Update project boards:**
-             - For campaigns with priority changes: Update priority field with rationale comment
-             - For campaigns needing attention: Add managerial comment explaining concerns
-             - For cross-campaign dependencies: Add coordination notes to relevant items
           
-          10. **Create reports:**
-              - Generate strategic summary discussion with:
-                - Executive summary of campaign portfolio
-                - Detailed findings and recommendations
-                - Action items created this run
-                - Metrics and trends visualization (if possible)
+          3) Normalize discovered items into a single list with:
+          - URL, `content_type` (issue/pull_request/discussion), `content_number`
+          - `repository` (owner/repo), `created_at`, `updated_at`
+          - `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
           
-          ## Output Format
+          4) Respect read budgets and cursor; stop early if needed and persist cursor.
           
-          ### Strategic Summary Discussion
+          ### Phase 2 — Make Decisions (Planning) [NO WRITES]
           
-          Create a discussion (or update existing pinned discussion) with this structure:
+          5) Determine desired `status` strictly from explicit GitHub state:
+          - Open → `Todo` (or `In Progress` only if explicitly indicated elsewhere)
+          - Closed (issue/discussion) → `Done`
+          - Merged (PR) → `Done`
           
-          ```markdown
-          # Campaign Portfolio Report - [DATE]
+          6) Calculate required date fields for each item (per Project Update Instructions):
+          - `start_date`: format `created_at` as `YYYY-MM-DD`
+          - `end_date`:
+            - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
+            - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
           
-          ## Executive Summary
-          - X active campaigns (Y high-priority, Z medium-priority)
-          - Overall completion: XX%
-          - Campaigns on track: X | Behind schedule: Y | Ahead of schedule: Z
-          - Actions taken this run: X issues created, Y priority updates, Z coordination notes
+          7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
           
-          ## Campaign Health Dashboard
+          8) Apply write budget:
+          - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
+            (e.g., oldest `updated_at` first; tie-break by ID/number).
+          - Defer remaining items to next run via cursor.
           
-          ### Healthy Campaigns ✅
-          - Campaign Name 1 (85/100) - On track, good velocity
-          - Campaign Name 2 (92/100) - Ahead of schedule
+          ### Phase 3 — Write State (Execution) [WRITES ONLY]
           
-          ### Campaigns Needing Attention ⚠️
-          - Campaign Name 3 (55/100) - Stalled, no progress in 7 days
-          - Campaign Name 4 (48/100) - High failure rate in workflows
+          9) For each selected item, send an `update-project` request.
+          - Do NOT interleave reads.
+          - Do NOT pre-check whether the item is on the board.
+          - **All write semantics MUST follow Project Update Instructions**, including:
+            - first add → full required fields (status, campaign_id, worker_workflow, repository, priority, size, start_date, end_date)
+            - existing item → status-only update unless explicit backfill is required
           
-          ### Critical Campaigns 🚨
-          - Campaign Name 5 (30/100) - Multiple blockers, requires immediate attention
+          10) Record per-item outcome: success/failure + error details.
           
-          ## Strategic Recommendations
+          ### Phase 4 — Report
           
-          ### Priority Adjustments
-          1. Promote "Campaign X" from medium to high (reason)
-          2. Pause "Campaign Y" temporarily (reason)
+          11) Report:
+          - counts discovered (by type)
+          - counts processed this run (by action: add/status_update/backfill/noop/failed)
+          - counts deferred due to budgets
+          - failures (with reasons)
+          - completion state (work items only)
+          - cursor advanced / remaining backlog estimate
           
-          ### Resource Optimization
-          - Merge "Campaign A" and "Campaign B" (similar goals)
-          - Coordinate "Campaign C" and "Campaign D" (shared resources)
+          ---
           
-          ### New Campaign Opportunities
-          - Consider "New Campaign Idea" based on pattern in issues
+          ## Authority
           
-          ## Actions Taken
-          - Created issue #XXX: Campaign X needs restructuring
-          - Updated priorities on Campaign Y project board
-          - Added coordination notes between Campaign A and B
+          If any instruction in this file conflicts with **Project Update Instructions**, the Project Update Instructions win for all project writes.
+          ---
+          # PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)
+          ---
+          # Project Update Instructions (Authoritative Write Contract)
           
-          ## Metrics
-          - Total tracked issues: XXX
-          - Total tracked PRs: XXX
-          - Average campaign velocity: X.X tasks/day
-          - Campaigns at risk of missing deadline: X
+          ## Project Board Integration
+          
+          This file defines the ONLY allowed rules for writing to the GitHub Project board.
+          If any other instructions conflict with this file, THIS FILE TAKES PRECEDENCE for all project writes.
+          
+          ---
+          
+          ## 0) Hard Requirements (Do Not Deviate)
+          
+          - Writes MUST use only the `update-project` safe-output.
+          - All writes MUST target exactly:
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/71`
+          - Every item MUST include:
+            - `campaign_id: "file-size-reduction-project71"`
+          
+          ## Campaign ID
+          
+          All campaign tracking MUST key off `campaign_id: "file-size-reduction-project71"`.
+          
+          ---
+          
+          ## 1) Required Project Fields (Must Already Exist)
+          
+          | Field | Type | Allowed / Notes |
+          |---|---|---|
+          | `status` | single-select | `Todo` / `In Progress` / `Done` |
+          | `campaign_id` | text | Must equal `file-size-reduction-project71` |
+          | `worker_workflow` | text | workflow ID or `"unknown"` |
+          | `repository` | text | `owner/repo` |
+          | `priority` | single-select | `High` / `Medium` / `Low` |
+          | `size` | single-select | `Small` / `Medium` / `Large` |
+          | `start_date` | date | `YYYY-MM-DD` |
+          | `end_date` | date | `YYYY-MM-DD` |
+          
+          Field names are case-sensitive.
+          
+          ---
+          
+          ## 2) Content Identification (Mandatory)
+          
+          Use **content number** (integer), never the URL as an identifier.
+          
+          - Issue URL: `.../issues/123` → `content_type: "issue"`, `content_number: 123`
+          - PR URL: `.../pull/456` → `content_type: "pull_request"`, `content_number: 456`
+          
+          ---
+          
+          ## 3) Deterministic Field Rules (No Inference)
+          
+          These rules apply to any time you write fields:
+          
+          - `campaign_id`: always `file-size-reduction-project71`
+          - `worker_workflow`: workflow ID if known, else `"unknown"`
+          - `repository`: extract `owner/repo` from the issue/PR URL
+          - `priority`: default `Medium` unless explicitly known
+          - `size`: default `Medium` unless explicitly known
+          - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
+          - `end_date`:
+            - if closed/merged → `closed_at` / `merged_at` formatted `YYYY-MM-DD`
+            - if open → **today’s date** formatted `YYYY-MM-DD` (**required for roadmap view; do not leave blank**)
+          
+          For open items, `end_date` is a UI-required placeholder and does NOT represent actual completion.
+          
+          ---
+          
+          ## 4) Two-Phase Execution (Prevents Read/Write Mixing)
+          
+          1. **READ PHASE (no writes)** — validate existence and gather metadata
+          2. **WRITE PHASE (writes only)** — execute `update-project`
+          
+          Never interleave reads and writes.
+          
+          ---
+          
+          ## 5) Adding an Issue or PR (First Write)
+          
+          ### Adding New Issues
+          
+          When first adding an item to the project, you MUST write ALL required fields.
+          
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/71"
+            campaign_id: "file-size-reduction-project71"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Todo"                   # "Done" if already closed/merged
+              campaign_id: "file-size-reduction-project71"
+              worker_workflow: "unknown"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-03"
           ```
           
-          ## Important Guidelines
+          ---
           
-          **Strategic thinking:**
-          - Think holistically about the entire campaign portfolio, not individual campaigns in isolation
-          - Balance short-term wins with long-term strategic goals
-          - Consider organizational capacity when making recommendations
-          - Prioritize high-impact, low-effort opportunities
+          ## 6) Updating an Existing Item (Minimal Writes)
           
-          **Evidence-based decisions:**
-          - Base all recommendations on concrete data and metrics
-          - Cite specific workflow runs, metrics, or trends
-          - Avoid speculation or assumptions
-          - When uncertain, flag for human review rather than making risky decisions
+          ### Updating Existing Items
           
-          **Collaboration:**
-          - Respect campaign ownership - suggest, don't dictate
-          - Frame recommendations as "consider" rather than "must"
-          - Facilitate coordination between campaigns through discussions
-          - Escalate conflicts rather than trying to resolve them unilaterally
+          Preferred behavior is minimal, idempotent writes:
           
-          **Idempotency:**
-          - Don't create duplicate issues for the same problem
-          - Check if strategic discussion already exists before creating new one
-          - Update existing items rather than creating redundant ones
-          - Track what you've already done to avoid repetition
+          - If item exists and `status` is unchanged → **No-op**
+          - If item exists and `status` differs → **Update `status` only**
+          - If any required field is missing/empty/invalid → **One-time full backfill** (repair only)
           
-          ## Tools Available
+          ### Status-only Update (Default)
           
-          - **GitHub MCP:** Query repositories, issues, PRs, project boards
-          - **create-issue:** Flag campaigns needing attention
-          - **add-comment:** Add coordination notes and recommendations
-          - **create-discussion:** Generate strategic reports
-          - **update-project:** Adjust campaign priorities and add context
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/71"
+            campaign_id: "file-size-reduction-project71"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
+          ```
           
-          ## Success Metrics
+          ### Full Backfill (Repair Only)
           
-          Your effectiveness is measured by:
-          - Campaigns staying healthy and on track
-          - Early identification and resolution of problems
-          - Efficient resource allocation across campaigns
-          - Reduction in campaign conflicts and redundancy
-          - Timely completion of high-priority campaigns
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/71"
+            campaign_id: "file-size-reduction-project71"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
+              campaign_id: "file-size-reduction-project71"
+              worker_workflow: "WORKFLOW_ID"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-02"
+          ```
           
-          Execute all phases systematically and maintain a strategic, data-driven approach to campaign management.
+          ---
+          
+          ## 7) Idempotency Rules
+          
+          - Matching status already set → **No-op**
+          - Different status → **Status-only update**
+          - Invalid/deleted/inaccessible URL → **Record failure and continue**
+          
+          ## Write Operation Rules
+          
+          All writes MUST conform to this file and use `update-project` only.
+          
+          ---
+          
+          ## 8) Logging + Failure Handling (Mandatory)
+          
+          For every attempted item, record:
+          
+          - `content_type`, `content_number`, `repository`
+          - action taken: `noop | add | status_update | backfill | failed`
+          - error details if failed
+          
+          Failures must not stop processing remaining items.
+          
+          ---
+          
+          ## 9) Worker Workflow Policy
+          
+          - Workers are campaign-agnostic.
+          - Orchestrator populates `worker_workflow`.
+          - If `worker_workflow` cannot be determined, it MUST remain `"unknown"` unless explicitly reclassified by the orchestrator.
+          
+          ---
+          
+          ## 10) Parent / Sub-Issue Rules (Campaign Hierarchy)
+          
+          - Each project board MUST have exactly **one Epic issue** representing the campaign.
+          - The Epic issue MUST:
+            - Be added to the project board
+            - Use the same `campaign_id`
+            - Use `worker_workflow: "unknown"`
+          
+          - All campaign work issues (non-epic) MUST be created as **sub-issues of the Epic**.
+          - Issues MUST NOT be re-parented based on worker assignment.
+          
+          - Pull requests cannot be sub-issues:
+            - PRs MUST reference their related issue via standard GitHub linking (e.g. “Closes #123”).
+          
+          - Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
+          
+          - The Epic issue is narrative only.
+          - The project board is the sole authoritative source of campaign state.
+          ---
+          # CLOSING INSTRUCTIONS (HIGHEST PRIORITY)
+          ---
+          # Closing Instructions (Highest Priority)
+          
+          Execute all four phases in strict order:
+          
+          1. Read State (no writes)
+          2. Make Decisions (no writes)
+          3. Write State (update-project only)
+          4. Report
+          
+          The following rules are mandatory and override inferred behavior:
+          
+          - The GitHub Project board is the single source of truth.
+          - All project writes MUST comply with `project_update_instructions.md`.
+          - State reads and state writes MUST NOT be interleaved.
+          - Do NOT infer missing data or invent values.
+          - Do NOT reorganize hierarchy.
+          - Do NOT overwrite fields except as explicitly allowed.
+          - Workers are immutable and campaign-agnostic.
+          
+          If any instruction conflicts, the Project Update Instructions take precedence for all writes.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -970,6 +1029,11 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/tmp/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat "/tmp/gh-aw/prompts/edit_tool_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append repo memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -978,27 +1042,24 @@ jobs:
           
           ---
           
-          ## Repo Memory Available
+          ## Repo Memory Locations Available
           
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch.
+          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:
           
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/meta-orchestrators` branch of the current repository
+          - **campaigns**: `/tmp/gh-aw/repo-memory/campaigns/` (branch: `memory/campaigns`)
+          
+          - **Read/Write Access**: You can freely read from and write to any files in these folders
+          - **Git Branch Storage**: Each memory is stored in its own git branch
           - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
           - **Merge Strategy**: In case of conflicts, your changes (current version) win
           - **Persistence**: Files persist across workflow runs via git branch storage
           
-          **Constraints:**
-          - **Allowed Files**: Only files matching patterns: **
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
-          
           Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files
           
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1013,7 +1074,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, create_discussion, create_issue, missing_tool, noop, update_project
+          **Available tools**: add_comment, create_issue, missing_tool, noop, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1105,30 +1166,14 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
-      - name: Upload prompt
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: prompt
-          path: /tmp/gh-aw/aw-prompts/prompt.txt
-          if-no-files-found: warn
-      - name: Upload agentic run info
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: aw-info
-          path: /tmp/gh-aw/aw_info.json
-          if-no-files-found: warn
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -1160,7 +1205,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1181,25 +1226,18 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent_outputs
           path: |
             /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
-          if-no-files-found: ignore
-      - name: Upload MCP logs
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: mcp-logs
-          path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
@@ -1212,14 +1250,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/parse_copilot_log.cjs');
             await main();
-      - name: Upload Firewall Logs
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: firewall-logs-campaign-manager-meta-orchestrator
-          path: /tmp/gh-aw/sandbox/firewall/logs/
-          if-no-files-found: ignore
       - name: Parse firewall logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1229,20 +1259,13 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');
             await main();
-      - name: Upload Agent Stdio
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: agent-stdio.log
-          path: /tmp/gh-aw/agent-stdio.log
-          if-no-files-found: warn
       # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
+      - name: Upload repo-memory artifact (campaigns)
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
           retention-days: 1
           if-no-files-found: ignore
       - name: Validate agent logs for errors
@@ -1257,6 +1280,19 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');
             await main();
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+          if-no-files-found: ignore
 
   conclusion:
     needs:
@@ -1315,7 +1351,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Campaign Manager - Meta-Orchestrator"
+          GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1328,7 +1364,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign Manager - Meta-Orchestrator"
+          GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1344,7 +1380,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Campaign Manager - Meta-Orchestrator"
+          GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1376,24 +1412,17 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
-      - name: Download prompt artifact
+      - name: Download agent artifacts
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: prompt
+          name: agent-artifacts
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/threat-detection/
-      - name: Download patch artifact
-        if: needs.agent.outputs.has_patch == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: aw.patch
           path: /tmp/gh-aw/threat-detection/
       - name: Echo agent output types
         env:
@@ -1403,8 +1432,9 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Campaign Manager - Meta-Orchestrator"
-          WORKFLOW_DESCRIPTION: "Meta-orchestrator workflow that manages multiple campaigns, analyzes their performance, and makes strategic decisions"
+          WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
+          WORKFLOW_DESCRIPTION: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1514,41 +1544,11 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  pre_activation:
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /tmp/gh-aw/actions
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');
-            await main();
 
   push_repo_memory:
     needs:
@@ -1585,25 +1585,26 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
+      - name: Download repo-memory artifact (campaigns)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         continue-on-error: true
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+      - name: Push repo-memory changes (campaigns)
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
+          MEMORY_ID: campaigns
           TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/meta-orchestrators
+          BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "**"
+          FILE_GLOB_FILTER: "file-size-reduction-project71/**"
+          GH_AW_CAMPAIGN_ID: file-size-reduction-project71
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1625,8 +1626,8 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "campaign-manager"
-      GH_AW_WORKFLOW_NAME: "Campaign Manager - Meta-Orchestrator"
+      GH_AW_WORKFLOW_ID: "file-size-reduction-project71.campaign.g"
+      GH_AW_WORKFLOW_NAME: "Campaign: File Size Reduction (Project 71)"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1657,7 +1658,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"create_discussion\":{\"max\":3},\"create_issue\":{\"max\":5}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"create_issue\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1672,7 +1673,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);

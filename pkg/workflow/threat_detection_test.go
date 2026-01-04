@@ -597,7 +597,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 	expectedComponents := []string{
 		"name: Upload threat detection log",
 		"if: always()",
-		"uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4",
+		"uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
 		"name: threat-detection.log",
 		"path: /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",
@@ -727,7 +727,7 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
-	// Test that the download artifact step includes prompt.txt download
+	// Test that the download artifact step includes unified agent-artifacts download
 	steps := compiler.buildDownloadArtifactStep("agent")
 
 	if len(steps) == 0 {
@@ -737,13 +737,13 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	// Join all steps into a single string for easier verification
 	stepsString := strings.Join(steps, "")
 
-	// Verify key components of the download prompt step
+	// Verify unified agent-artifacts download (contains prompt, patch, logs, etc.)
 	expectedComponents := []string{
-		"name: Download prompt artifact",
+		"name: Download agent artifacts",
 		"continue-on-error: true",
 		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
-		"name: prompt",
-		"path: /tmp/gh-aw/threat-detection/",
+		"name: agent-artifacts",
+		"path: /tmp/gh-aw/threat-detection/agent-artifacts",
 	}
 
 	for _, expected := range expectedComponents {
@@ -752,63 +752,24 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 		}
 	}
 
-	// Verify it still includes agent output and patch downloads
+	// Verify it still includes agent output download (separate artifact)
 	if !strings.Contains(stepsString, "Download agent output artifact") {
 		t.Error("Expected download steps to include agent output artifact")
 	}
-	if !strings.Contains(stepsString, "Download patch artifact") {
-		t.Error("Expected download steps to include patch artifact")
+
+	// Verify agent output uses separate subdirectory to avoid conflicts
+	if !strings.Contains(stepsString, "path: /tmp/gh-aw/threat-detection/agent-output") {
+		t.Error("Expected agent output to use separate subdirectory path")
 	}
 }
 
 func TestDownloadPatchArtifactHasConditional(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
-
-	// Test that the patch download step has a conditional to only run when has_patch is true
-	steps := compiler.buildDownloadArtifactStep("agent")
-
-	if len(steps) == 0 {
-		t.Fatal("Expected non-empty steps for download artifact")
-	}
-
-	// Join all steps into a single string for easier verification
-	stepsString := strings.Join(steps, "")
-
-	// Verify the patch download step has the conditional
-	if !strings.Contains(stepsString, "Download patch artifact") {
-		t.Error("Expected download steps to include patch artifact")
-	}
-
-	// Verify the conditional is present
-	if !strings.Contains(stepsString, "if: needs.agent.outputs.has_patch == 'true'") {
-		t.Error("Expected patch download step to have conditional checking needs.agent.outputs.has_patch == 'true'")
-	}
-
-	// More specific test: look for the pattern "Download patch artifact" followed by "if:" within the same step
-	expectedPattern := "Download patch artifact"
-	patchStepIndex := strings.Index(stepsString, expectedPattern)
-	if patchStepIndex == -1 {
-		t.Fatal("Could not find patch download step")
-	}
-
-	// Get the substring from the patch step onwards
-	afterPatchStep := stepsString[patchStepIndex:]
-
-	// Find the next step (starts with "- name:")
-	nextStepIndex := strings.Index(afterPatchStep[len(expectedPattern):], "- name:")
-	var patchStepContent string
-	if nextStepIndex == -1 {
-		// This is the last step
-		patchStepContent = afterPatchStep
-	} else {
-		// Get content up to the next step
-		patchStepContent = afterPatchStep[:len(expectedPattern)+nextStepIndex]
-	}
-
-	// Verify the patch step content includes the conditional
-	if !strings.Contains(patchStepContent, "if: needs.agent.outputs.has_patch == 'true'") {
-		t.Errorf("Expected patch download step to contain conditional, but got:\n%s", patchStepContent)
-	}
+	// This test is no longer applicable since we now download the entire
+	// agent-artifacts unconditionally. The unified artifact contains prompt,
+	// patch (if present), logs, etc. The patch file being present or not
+	// doesn't affect the download step - it just means the file may or may not
+	// be in the downloaded artifact.
+	t.Skip("Patch is now part of unified agent-artifacts download without conditional")
 }
 
 func TestSetupScriptReferencesPromptFile(t *testing.T) {

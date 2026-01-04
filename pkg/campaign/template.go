@@ -25,6 +25,9 @@ type CampaignPromptData struct {
 	// CampaignID is the unique identifier for this campaign.
 	CampaignID string
 
+	// CampaignName is the human-readable name of this campaign.
+	CampaignName string
+
 	// Objective is the campaign objective statement.
 	Objective string
 
@@ -45,6 +48,12 @@ type CampaignPromptData struct {
 
 	// MaxDiscoveryPagesPerRun caps how many pages may be fetched during discovery.
 	MaxDiscoveryPagesPerRun int
+
+	// MaxProjectUpdatesPerRun caps how many project update writes may happen per run.
+	MaxProjectUpdatesPerRun int
+
+	// MaxProjectCommentsPerRun caps how many comments may be written per run.
+	MaxProjectCommentsPerRun int
 
 	// Workflows is the list of worker workflow IDs associated with this campaign.
 	Workflows []string

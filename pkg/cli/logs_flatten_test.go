@@ -172,21 +172,37 @@ func TestFlattenSingleFileArtifactsInvalidDirectory(t *testing.T) {
 
 func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 	// Test that flattening works correctly for typical audit artifact files
-	// This test uses NEW artifact names (upload-artifact@v5 compliant)
+	// This test uses unified agent-artifacts structure
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create artifact structure as it would be downloaded by gh run download
-	// Using NEW artifact names: aw-info, safe-output, agent-output, prompt
-	artifacts := map[string]string{
-		"aw-info/aw_info.json":             `{"engine_id":"claude","workflow_name":"test"}`,
-		"safe-output/safe_output.jsonl":    `{"action":"create_issue","title":"test"}`,
-		"aw-patch/aw.patch":                "diff --git a/test.txt b/test.txt\n",
+	// Create unified agent-artifacts structure as it would be downloaded by gh run download
+	// All single-file artifacts are now in agent-artifacts/tmp/gh-aw/
+	nestedPath := filepath.Join(tmpDir, "agent-artifacts", "tmp", "gh-aw")
+	if err := os.MkdirAll(nestedPath, 0755); err != nil {
+		t.Fatalf("Failed to create agent-artifacts directory: %v", err)
+	}
+
+	unifiedArtifacts := map[string]string{
+		"aw_info.json":      `{"engine_id":"claude","workflow_name":"test"}`,
+		"safe_output.jsonl": `{"action":"create_issue","title":"test"}`,
+		"aw.patch":          "diff --git a/test.txt b/test.txt\n",
+	}
+
+	for filename, content := range unifiedArtifacts {
+		fullPath := filepath.Join(nestedPath, filename)
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to write file %s: %v", filename, err)
+		}
+	}
+
+	// Also create multi-file artifact directories (these remain separate)
+	multiFileArtifacts := map[string]string{
 		"agent_outputs/output1.txt":        "log output 1",
 		"agent_outputs/output2.txt":        "log output 2",
 		"agent_outputs/nested/subfile.txt": "nested file",
 	}
 
-	for path, content := range artifacts {
+	for path, content := range multiFileArtifacts {
 		fullPath := filepath.Join(tmpDir, path)
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 			t.Fatalf("Failed to create directory for %s: %v", path, err)
@@ -196,7 +212,12 @@ func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 		}
 	}
 
-	// Run flattening
+	// Run flattening for unified artifact
+	if err := flattenUnifiedArtifact(tmpDir, true); err != nil {
+		t.Fatalf("flattenUnifiedArtifact failed: %v", err)
+	}
+
+	// Also run single file artifact flattening for any remaining separate artifacts
 	if err := flattenSingleFileArtifacts(tmpDir, true); err != nil {
 		t.Fatalf("flattenSingleFileArtifacts failed: %v", err)
 	}
@@ -245,41 +266,39 @@ func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 		}
 	}
 
-	// Verify original artifact directories are removed
-	removedDirs := []string{"aw-info", "safe-output", "aw-patch"}
-	for _, dir := range removedDirs {
-		path := filepath.Join(tmpDir, dir)
-		if _, err := os.Stat(path); err == nil {
-			t.Errorf("Single-file artifact directory %s should be removed after flattening", dir)
-		}
+	// Verify agent-artifacts directory is removed
+	agentArtifactsDir := filepath.Join(tmpDir, "agent-artifacts")
+	if _, err := os.Stat(agentArtifactsDir); err == nil {
+		t.Errorf("agent-artifacts directory should be removed after flattening")
 	}
 }
 
 func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
 	// Simulate what the audit command does - check that it can find artifacts after flattening
-	// This test uses NEW artifact names (upload-artifact@v5 compliant)
+	// This test uses unified agent-artifacts structure
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create realistic artifact structure before flattening
-	// Using NEW artifact names: aw-info, safe-output
-	testArtifacts := map[string]string{
-		"aw-info/aw_info.json":          `{"engine_id":"claude","workflow_name":"github-mcp-tools-report","run_id":123456}`,
-		"safe-output/safe_output.jsonl": `{"action":"create_discussion","title":"GitHub MCP Tools Report"}`,
-		"aw-patch/aw.patch":             "diff --git a/report.md b/report.md\nnew file mode 100644\n",
+	// Create realistic unified artifact structure before flattening
+	nestedPath := filepath.Join(tmpDir, "agent-artifacts", "tmp", "gh-aw")
+	if err := os.MkdirAll(nestedPath, 0755); err != nil {
+		t.Fatalf("Setup failed: %v", err)
 	}
 
-	for path, content := range testArtifacts {
-		fullPath := filepath.Join(tmpDir, path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Setup failed: %v", err)
-		}
+	testArtifacts := map[string]string{
+		"aw_info.json":      `{"engine_id":"claude","workflow_name":"github-mcp-tools-report","run_id":123456}`,
+		"safe_output.jsonl": `{"action":"create_discussion","title":"GitHub MCP Tools Report"}`,
+		"aw.patch":          "diff --git a/report.md b/report.md\nnew file mode 100644\n",
+	}
+
+	for filename, content := range testArtifacts {
+		fullPath := filepath.Join(nestedPath, filename)
 		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
 			t.Fatalf("Setup failed: %v", err)
 		}
 	}
 
 	// Flatten artifacts (this happens during download)
-	if err := flattenSingleFileArtifacts(tmpDir, false); err != nil {
+	if err := flattenUnifiedArtifact(tmpDir, false); err != nil {
 		t.Fatalf("Flattening failed: %v", err)
 	}
 
@@ -317,5 +336,136 @@ func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
 	// Verify content is valid
 	if !strings.Contains(string(data), "engine_id") {
 		t.Error("aw_info.json content is corrupted after flattening")
+	}
+}
+
+func TestFlattenUnifiedArtifact(t *testing.T) {
+	tests := []struct {
+		name            string
+		setup           func(string) error
+		expectedFiles   []string
+		expectedDirs    []string
+		unexpectedFiles []string
+		unexpectedDirs  []string
+	}{
+		{
+			name: "unified artifact with nested structure gets flattened",
+			setup: func(dir string) error {
+				// Create the structure: agent-artifacts/tmp/gh-aw/...
+				nestedPath := filepath.Join(dir, "agent-artifacts", "tmp", "gh-aw")
+				if err := os.MkdirAll(nestedPath, 0755); err != nil {
+					return err
+				}
+
+				// Create test files
+				if err := os.WriteFile(filepath.Join(nestedPath, "aw_info.json"), []byte("test"), 0644); err != nil {
+					return err
+				}
+
+				// Create subdirectories with files
+				promptDir := filepath.Join(nestedPath, "aw-prompts")
+				if err := os.MkdirAll(promptDir, 0755); err != nil {
+					return err
+				}
+				if err := os.WriteFile(filepath.Join(promptDir, "prompt.txt"), []byte("test"), 0644); err != nil {
+					return err
+				}
+
+				mcpLogsDir := filepath.Join(nestedPath, "mcp-logs")
+				if err := os.MkdirAll(mcpLogsDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(mcpLogsDir, "log.txt"), []byte("test"), 0644)
+			},
+			expectedFiles: []string{
+				"aw_info.json",
+				"aw-prompts/prompt.txt",
+				"mcp-logs/log.txt",
+			},
+			expectedDirs: []string{
+				"aw-prompts",
+				"mcp-logs",
+			},
+			unexpectedDirs: []string{"agent-artifacts", "tmp", "gh-aw"},
+			unexpectedFiles: []string{
+				"agent-artifacts/tmp/gh-aw/aw_info.json",
+				"tmp/gh-aw/aw_info.json",
+			},
+		},
+		{
+			name: "no agent-artifacts directory - no-op",
+			setup: func(dir string) error {
+				// Create a regular file structure without agent-artifacts
+				return os.WriteFile(filepath.Join(dir, "regular.txt"), []byte("test"), 0644)
+			},
+			expectedFiles: []string{"regular.txt"},
+		},
+		{
+			name: "agent-artifacts without tmp/gh-aw structure - no-op",
+			setup: func(dir string) error {
+				// Create agent-artifacts but without the expected nested structure
+				artifactDir := filepath.Join(dir, "agent-artifacts")
+				if err := os.MkdirAll(artifactDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(artifactDir, "file.txt"), []byte("test"), 0644)
+			},
+			expectedDirs:  []string{"agent-artifacts"},
+			expectedFiles: []string{"agent-artifacts/file.txt"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-flatten-unified-*")
+
+			// Setup test structure
+			if err := tt.setup(tmpDir); err != nil {
+				t.Fatalf("Setup failed: %v", err)
+			}
+
+			// Run flattening
+			if err := flattenUnifiedArtifact(tmpDir, true); err != nil {
+				t.Fatalf("flattenUnifiedArtifact failed: %v", err)
+			}
+
+			// Verify expected files exist
+			for _, file := range tt.expectedFiles {
+				path := filepath.Join(tmpDir, file)
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Errorf("Expected file %s does not exist: %v", file, err)
+				} else if info.IsDir() {
+					t.Errorf("Expected %s to be a file, but it's a directory", file)
+				}
+			}
+
+			// Verify expected directories exist
+			for _, dir := range tt.expectedDirs {
+				path := filepath.Join(tmpDir, dir)
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Errorf("Expected directory %s does not exist: %v", dir, err)
+				} else if !info.IsDir() {
+					t.Errorf("Expected %s to be a directory", dir)
+				}
+			}
+
+			// Verify unexpected files don't exist
+			for _, file := range tt.unexpectedFiles {
+				path := filepath.Join(tmpDir, file)
+				if _, err := os.Stat(path); err == nil {
+					t.Errorf("Unexpected file %s exists", file)
+				}
+			}
+
+			// Verify unexpected directories don't exist
+			for _, dir := range tt.unexpectedDirs {
+				path := filepath.Join(tmpDir, dir)
+				if _, err := os.Stat(path); err == nil {
+					t.Errorf("Unexpected directory %s exists", dir)
+				}
+			}
+		})
 	}
 }

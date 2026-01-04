@@ -646,6 +646,63 @@
             }
           ],
           "examples": [true, null]
+        },
+        "edit": {
+          "description": "File editing tool for reading, creating, and modifying files in the repository",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable edit tool"
+            },
+            {
+              "type": "object",
+              "description": "Edit tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "web-fetch": {
+          "description": "Web content fetching tool for downloading web pages and API responses (subject to network permissions)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable web fetch tool with default configuration"
+            },
+            {
+              "type": "object",
+              "description": "Web fetch tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "web-search": {
+          "description": "Web search tool for performing internet searches and retrieving search results (subject to network permissions)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable web search tool with default configuration"
+            },
+            {
+              "type": "object",
+              "description": "Web search tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "safety-prompt": {
+          "type": "boolean",
+          "description": "Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the prompt. Defaults to true (enabled). Set to false to disable security warnings."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s).",
+          "examples": [60, 120, 300]
+        },
+        "startup-timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout in seconds for MCP server startup. Applies to MCP server initialization if supported by the engine. Default: 120 seconds."
         }
       },
       "additionalProperties": {

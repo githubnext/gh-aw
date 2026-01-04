@@ -59,48 +59,45 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected Playwright MCP configuration to include official Docker image 'mcr.microsoft.com/playwright/mcp'")
 	}
 
-	// Verify MCP logs upload step exists
-	if !strings.Contains(lockContentStr, "- name: Upload MCP logs") {
-		t.Error("Expected 'Upload MCP logs' step to be in generated workflow")
+	// Verify MCP logs are uploaded via the unified artifact upload
+	if !strings.Contains(lockContentStr, "- name: Upload agent artifacts") {
+		t.Error("Expected 'Upload agent artifacts' step to be in generated workflow")
 	}
 
-	// Verify the upload step uses actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4") {
-		t.Error("Expected upload-artifact action to be used for MCP logs upload step")
+	// Verify the upload step uses actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f") {
+		t.Error("Expected upload-artifact action to be used for artifact upload step")
 	}
 
-	// Verify the artifact upload configuration
-	if !strings.Contains(lockContentStr, "name: mcp-logs") {
-		t.Error("Expected artifact name 'mcp-logs' in upload step")
+	// Verify the MCP logs path is included in the unified upload
+	if !strings.Contains(lockContentStr, "/tmp/gh-aw/mcp-logs/") {
+		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in unified upload")
 	}
 
-	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/mcp-logs/") {
-		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in upload step")
-	}
-
+	// Verify the upload step has 'if-no-files-found: ignore' condition
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {
 		t.Error("Expected 'if-no-files-found: ignore' in upload step")
 	}
 
 	// Verify the upload step has 'if: always()' condition
-	uploadMCPLogsIndex := strings.Index(lockContentStr, "- name: Upload MCP logs")
-	if uploadMCPLogsIndex == -1 {
-		t.Fatal("Upload MCP logs step not found")
+	uploadArtifactsIndex := strings.Index(lockContentStr, "- name: Upload agent artifacts")
+	if uploadArtifactsIndex == -1 {
+		t.Fatal("Upload agent artifacts step not found")
 	}
 
-	// Find the next step after upload MCP logs step
-	nextUploadStart := uploadMCPLogsIndex + len("- name: Upload MCP logs")
+	// Find the next step after upload agent artifacts step
+	nextUploadStart := uploadArtifactsIndex + len("- name: Upload agent artifacts")
 	uploadStepEnd := strings.Index(lockContentStr[nextUploadStart:], "- name:")
 	if uploadStepEnd == -1 {
 		uploadStepEnd = len(lockContentStr) - nextUploadStart
 	}
-	uploadMCPLogsStep := lockContentStr[uploadMCPLogsIndex : nextUploadStart+uploadStepEnd]
+	uploadArtifactsStep := lockContentStr[uploadArtifactsIndex : nextUploadStart+uploadStepEnd]
 
-	if !strings.Contains(uploadMCPLogsStep, "if: always()") {
-		t.Error("Expected upload MCP logs step to have 'if: always()' condition")
+	if !strings.Contains(uploadArtifactsStep, "if: always()") {
+		t.Error("Expected upload agent artifacts step to have 'if: always()' condition")
 	}
 
-	// Verify step ordering: MCP logs upload should be after agentic execution but before agent logs upload
+	// Verify step ordering: unified artifact upload should be after agentic execution
 	agenticIndex := strings.Index(lockContentStr, "Execute Claude Code")
 	if agenticIndex == -1 {
 		// Try alternative agentic step names
@@ -110,15 +107,9 @@ Please navigate to example.com and take a screenshot.
 		}
 	}
 
-	uploadAgentLogsIndex := strings.Index(lockContentStr, "Upload Agent Stdio")
-
-	if agenticIndex != -1 && uploadMCPLogsIndex != -1 && uploadAgentLogsIndex != -1 {
-		if uploadMCPLogsIndex <= agenticIndex {
-			t.Error("MCP logs upload step should appear after agentic execution step")
-		}
-
-		if uploadMCPLogsIndex >= uploadAgentLogsIndex {
-			t.Error("MCP logs upload step should appear before Agent Stdio upload step")
+	if agenticIndex != -1 && uploadArtifactsIndex != -1 {
+		if uploadArtifactsIndex <= agenticIndex {
+			t.Error("Unified artifact upload step should appear after agentic execution step")
 		}
 	}
 }
@@ -166,25 +157,21 @@ This workflow does not use Playwright but should still have MCP logs upload.
 
 	lockContentStr := string(lockContent)
 
-	// Verify MCP logs upload step EXISTS even when no Playwright is used (always emit)
-	if !strings.Contains(lockContentStr, "- name: Upload MCP logs") {
-		t.Error("Expected 'Upload MCP logs' step to be present even when Playwright is not used")
+	// Verify MCP logs path EXISTS in unified artifact upload even when no Playwright is used
+	if !strings.Contains(lockContentStr, "- name: Upload agent artifacts") {
+		t.Error("Expected 'Upload agent artifacts' step to be present")
 	}
 
-	if !strings.Contains(lockContentStr, "name: mcp-logs") {
-		t.Error("Expected 'mcp-logs' artifact even when Playwright is not used")
+	if !strings.Contains(lockContentStr, "/tmp/gh-aw/mcp-logs/") {
+		t.Error("Expected MCP logs path in unified artifact upload even when Playwright is not used")
 	}
 
-	// Verify the upload step uses actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4") {
-		t.Error("Expected upload-artifact action to be used for MCP logs upload step")
+	// Verify the upload step uses actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f") {
+		t.Error("Expected upload-artifact action to be used for artifact upload step")
 	}
 
-	// Verify the artifact upload configuration
-	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/mcp-logs/") {
-		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in upload step")
-	}
-
+	// Verify the upload step has 'if-no-files-found: ignore' condition
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {
 		t.Error("Expected 'if-no-files-found: ignore' in upload step")
 	}

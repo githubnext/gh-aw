@@ -899,6 +899,44 @@ func TestUpdateActions_InvalidJSON(t *testing.T) {
 	}
 }
 
+// TestResolveLatestRef_CommitSHA tests that commit SHAs are returned as-is
+func TestResolveLatestRef_CommitSHA(t *testing.T) {
+	// Test with a valid commit SHA
+	sha := "ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
+	result, err := resolveLatestRef("test/repo", sha, false, false)
+	if err != nil {
+		t.Fatalf("Expected no error for commit SHA, got: %v", err)
+	}
+	if result != sha {
+		t.Errorf("Expected commit SHA to be returned as-is, got: %s", result)
+	}
+}
+
+// TestResolveLatestRef_NotCommitSHA tests that non-SHA refs are handled appropriately
+func TestResolveLatestRef_NotCommitSHA(t *testing.T) {
+	tests := []struct {
+		name      string
+		ref       string
+		expectSHA bool
+	}{
+		{"branch name", "main", false},
+		{"short SHA", "abc123", false},
+		{"version tag", "v1.0.0", false},
+		{"invalid hex", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", false},
+		{"valid SHA lowercase", "abcdef1234567890123456789012345678901234", true},
+		{"valid SHA uppercase", "ABCDEF1234567890123456789012345678901234", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isValid := IsCommitSHA(tt.ref)
+			if isValid != tt.expectSHA {
+				t.Errorf("IsCommitSHA(%q) = %v, expected %v", tt.ref, isValid, tt.expectSHA)
+			}
+		})
+	}
+}
+
 // TestUpdateWorkflowsWithExtensionCheck_FixIntegration tests that fix is called during update
 func TestUpdateWorkflowsWithExtensionCheck_FixIntegration(t *testing.T) {
 	// This test verifies that the fix functionality is integrated into the update flow

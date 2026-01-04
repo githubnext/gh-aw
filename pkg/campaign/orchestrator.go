@@ -206,12 +206,13 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Render orchestrator instructions using templates
 	// All orchestrators follow the same system-agnostic rules with no conditional logic
 	promptData := CampaignPromptData{
-		CampaignID:  spec.ID,
-		ProjectURL:  strings.TrimSpace(spec.ProjectURL),
-		Objective:   strings.TrimSpace(spec.Objective),
-		CursorGlob:  strings.TrimSpace(spec.CursorGlob),
-		MetricsGlob: strings.TrimSpace(spec.MetricsGlob),
-		Workflows:   spec.Workflows,
+		CampaignID:   spec.ID,
+		CampaignName: spec.Name,
+		Objective:    strings.TrimSpace(spec.Objective),
+		ProjectURL:   strings.TrimSpace(spec.ProjectURL),
+		CursorGlob:   strings.TrimSpace(spec.CursorGlob),
+		MetricsGlob:  strings.TrimSpace(spec.MetricsGlob),
+		Workflows:    spec.Workflows,
 	}
 	if len(spec.KPIs) > 0 {
 		promptData.KPIs = spec.KPIs
@@ -219,18 +220,16 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	if spec.Governance != nil {
 		promptData.MaxDiscoveryItemsPerRun = spec.Governance.MaxDiscoveryItemsPerRun
 		promptData.MaxDiscoveryPagesPerRun = spec.Governance.MaxDiscoveryPagesPerRun
+		promptData.MaxProjectUpdatesPerRun = spec.Governance.MaxProjectUpdatesPerRun
+		promptData.MaxProjectCommentsPerRun = spec.Governance.MaxCommentsPerRun
 	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
-	markdownBuilder.WriteString("\n" + orchestratorInstructions + "\n")
+	appendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
 
 	projectInstructions := RenderProjectUpdateInstructions(promptData)
-	if projectInstructions != "" {
-		markdownBuilder.WriteString("\n" + projectInstructions + "\n")
-	}
-
-	closingInstructions := RenderClosingInstructions()
-	markdownBuilder.WriteString("\n" + closingInstructions + "\n")
+	appendPromptSection(markdownBuilder, "PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)", projectInstructions)
+	appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", RenderClosingInstructions())
 
 	// Enable safe outputs needed for campaign coordination.
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from
@@ -247,6 +246,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	}
 
 	safeOutputs := &workflow.SafeOutputsConfig{}
+	// Allow creating the Epic issue for the campaign (max: 1, only created once).
+	safeOutputs.CreateIssues = &workflow.CreateIssuesConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1}}
 	// Allow commenting on related issues/PRs as part of campaign coordination.
 	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxComments}}
 	// Allow updating the campaign's GitHub Project dashboard.

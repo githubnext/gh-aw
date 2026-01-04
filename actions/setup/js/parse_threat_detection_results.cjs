@@ -11,7 +11,9 @@
  */
 
 const fs = require("fs");
+const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { listFilesRecursively } = require("./file_helpers.cjs");
 
 /**
  * Main entry point for parsing threat detection results
@@ -22,18 +24,32 @@ async function main() {
   let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
 
   try {
-    const outputPath = "/tmp/gh-aw/threat-detection/agent_output.json";
-    if (fs.existsSync(outputPath)) {
-      const outputContent = fs.readFileSync(outputPath, "utf8");
-      const lines = outputContent.split("\n");
+    // Agent output is downloaded to /tmp/gh-aw/threat-detection/agent-output
+    const agentOutputDir = "/tmp/gh-aw/threat-detection/agent-output";
+    const outputPath = path.join(agentOutputDir, "agent_output.json");
+    if (!fs.existsSync(outputPath)) {
+      core.error("❌ Agent output file not found at: " + outputPath);
+      // List all files in artifact directory for debugging
+      core.info("📁 Listing all files in artifact directory: " + agentOutputDir);
+      const files = listFilesRecursively(agentOutputDir, agentOutputDir);
+      if (files.length === 0) {
+        core.warning("  No files found in " + agentOutputDir);
+      } else {
+        core.info("  Found " + files.length + " file(s):");
+        files.forEach(file => core.info("    - " + file));
+      }
+      core.setFailed("❌ Agent output file not found at: " + outputPath);
+      return;
+    }
+    const outputContent = fs.readFileSync(outputPath, "utf8");
+    const lines = outputContent.split("\n");
 
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (trimmedLine.startsWith("THREAT_DETECTION_RESULT:")) {
-          const jsonPart = trimmedLine.substring("THREAT_DETECTION_RESULT:".length);
-          verdict = { ...verdict, ...JSON.parse(jsonPart) };
-          break;
-        }
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("THREAT_DETECTION_RESULT:")) {
+        const jsonPart = trimmedLine.substring("THREAT_DETECTION_RESULT:".length);
+        verdict = { ...verdict, ...JSON.parse(jsonPart) };
+        break;
       }
     }
   } catch (error) {

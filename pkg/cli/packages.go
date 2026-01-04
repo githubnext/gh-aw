@@ -119,7 +119,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	defer os.RemoveAll(tempDir)
 	packagesLog.Printf("Created temporary directory: %s", tempDir)
 
-	isSHA := isCommitSHA(version)
+	isSHA := IsCommitSHA(version)
 
 	// Prepare fallback git clone arguments
 	// Support enterprise GitHub domains

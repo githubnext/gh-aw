@@ -19,7 +19,7 @@ Common GitHub Actions used across workflows, pinned to specific commit SHAs for 
 | `actions/setup-node` | `395ad326` | Sets up Node.js environment | Used in workflows requiring npm/node |
 | `actions/setup-python` | `a26af69b` | Sets up Python environment | Used for Python-based analysis and tools |
 | `actions/setup-go` | `4dc61999` | Sets up Go environment | Used for Go compilation and testing |
-| `actions/github-script` | `60a0d830` or `ed597411` | Runs GitHub API scripts | Used for GitHub API interactions |
+| `actions/github-script` | `ed597411` | Runs GitHub API scripts | Used for GitHub API interactions |
 | `actions/cache` | `0057852b` | Caches dependencies and artifacts | Used for performance optimization |
 | `actions/cache/restore` | `0057852b` | Restores cached dependencies | Used to restore previously cached items |
 | `actions/cache/save` | `0057852b` | Saves dependencies to cache | Used to save items for future runs |

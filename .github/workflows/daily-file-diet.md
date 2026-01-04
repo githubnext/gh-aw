@@ -1,6 +1,6 @@
 ---
 name: Daily File Diet
-description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the Go File Size Reduction campaign threshold
+description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the healthy size threshold
 on:
   workflow_dispatch:
   schedule:
@@ -18,7 +18,6 @@ engine: copilot
 imports:
   - shared/reporting.md
   - shared/safe-output-app.md
-  - shared/trends.md
 
 safe-outputs:
   create-issue:
@@ -30,9 +29,6 @@ tools:
   serena: ["go"]
   github:
     toolsets: [default]
-  repo-memory:
-    branch-name: memory/campaigns
-    file-glob: "memory/campaigns/go-file-size-reduction-*/**"
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"
@@ -228,69 +224,6 @@ Your output MUST either:
    ```
 
 2. **If largest file ≥ 800 lines**: Create an issue with the detailed description above
-
-In both cases, update campaign metrics and trend charts as described below.
-
-## Campaign Metrics & Trend Charts
-
-To support enterprise reporting and visual trends for the
-`go-file-size-reduction` campaign:
-
-1. **Write a campaign metrics snapshot** to repo-memory on each run using
-   the `repo-memory` tool. Follow a simplified metrics schema:
-
-   - `date`: analysis date (YYYY-MM-DD)
-   - `largest_file_path`: path of the largest file analyzed
-   - `largest_file_loc`: line count of the largest file
-   - `files_over_threshold`: count of files over the 800-line threshold
-   - `issue_created`: boolean indicating if an issue was created this run
-
-   Store this snapshot under the metrics path:
-
-   - `memory/campaigns/go-file-size-reduction-${{ github.run_id }}/metrics/<DATE>.json`
-
-2. **Aggregate historical snapshots** from repo-memory when generating a
-   report:
-
-   - Read all existing JSON snapshots matching
-     `memory/campaigns/go-file-size-reduction-*/metrics/*.json`.
-   - Build a time-series table keyed by `date` with columns like:
-     `largest_file_loc`, `files_over_threshold`, `issue_created`.
-
-3. **Generate trend charts using Python data viz** (provided via the
-   `shared/trends.md` / `shared/python-dataviz.md` imports):
-
-   - Write the aggregated metrics table to
-     `/tmp/gh-aw/python/data/file-diet-metrics.json` or `.csv`.
-   - Use Pandas + Matplotlib/Seaborn to create at least two PNG charts
-     in `/tmp/gh-aw/python/charts/`:
-     - **Chart 1**: `largest_file_loc` over time (line chart) to show
-       how the maximum file size is trending.
-     - **Chart 2**: `tasks_total` vs `tasks_completed` over time to show
-       campaign progress.
-   - Follow the styling and quality guidelines from `shared/trends.md`
-     (DPI 300, clear labels, professional styling).
-
-4. **Upload charts as assets and use them as screenshots**:
-
-   - Use the `upload-assets` safe-output (from `shared/python-dataviz.md`)
-     to upload the generated PNGs and obtain URLs.
-   - When you create a refactor issue (for files ≥800 lines), embed the
-     most relevant chart URLs in the issue body using Markdown image
-     syntax so humans see them as screenshots, for example under a
-     `## Trend` section:
-
-     ```markdown
-     ## Trend
-
-     ![Largest file size over time](FILE_DIET_LARGEST_FILE_TREND_URL)
-
-     ![Refactor tasks progress](FILE_DIET_TASKS_TREND_URL)
-     ```
-
-   - When no issue is created (all files healthy), you may still update
-     the metrics snapshot and generate charts so artifacts remain
-     up-to-date for campaign-level intelligence workflows.
 
 ## Important Guidelines
 

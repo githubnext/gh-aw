@@ -74,10 +74,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
 	// Both of these safe outputs require the patch file to apply changes
+	// Download from unified agent-artifacts artifact
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
 		consolidatedSafeOutputsLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: "aw.patch",
+			ArtifactName: "agent-artifacts",
 			DownloadPath: "/tmp/gh-aw/",
 			SetupEnvStep: false, // No environment variable needed, the script checks the file directly
 			StepName:     "Download patch artifact",
@@ -287,9 +288,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		insertIndex += len(buildAgentOutputDownloadSteps())
 
 		// Add patch download steps if present
+		// Download from unified agent-artifacts artifact
 		if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
 			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-				ArtifactName: "aw.patch",
+				ArtifactName: "agent-artifacts",
 				DownloadPath: "/tmp/gh-aw/",
 				SetupEnvStep: false,
 				StepName:     "Download patch artifact",
@@ -630,6 +632,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.TitlePrefix != "" {
 			handlerConfig["title_prefix"] = cfg.TitlePrefix
 		}
+		// Add assignees to config
+		if len(cfg.Assignees) > 0 {
+			handlerConfig["assignees"] = cfg.Assignees
+		}
 		// Add target-repo to config
 		if cfg.TargetRepoSlug != "" {
 			handlerConfig["target-repo"] = cfg.TargetRepoSlug
@@ -652,6 +658,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// Add target-repo to config
 		if cfg.TargetRepoSlug != "" {
 			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["add_comment"] = handlerConfig
 	}
@@ -705,6 +714,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.RequiredTitlePrefix != "" {
 			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
 		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
 		config["close_issue"] = handlerConfig
 	}
 
@@ -726,6 +741,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.RequiredCategory != "" {
 			handlerConfig["required_category"] = cfg.RequiredCategory
 		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
 		config["close_discussion"] = handlerConfig
 	}
 
@@ -740,6 +761,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.Target != "" {
 			handlerConfig["target"] = cfg.Target
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["add_labels"] = handlerConfig
 	}
@@ -762,6 +789,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.Body != nil {
 			handlerConfig["allow_body"] = true
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["update_issue"] = handlerConfig
 	}
@@ -788,6 +821,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if len(cfg.AllowedLabels) > 0 {
 			handlerConfig["allowed_labels"] = cfg.AllowedLabels
 		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
 		config["update_discussion"] = handlerConfig
 	}
 
@@ -808,6 +847,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.SubTitlePrefix != "" {
 			handlerConfig["sub_title_prefix"] = cfg.SubTitlePrefix
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["link_sub_issue"] = handlerConfig
 	}
@@ -832,6 +877,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.Target != "" {
 			handlerConfig["target"] = cfg.Target
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["create_pull_request_review_comment"] = handlerConfig
 	}
@@ -859,6 +910,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		// Add base branch (required for git operations)
 		handlerConfig["base_branch"] = "${{ github.ref_name }}"
@@ -924,6 +981,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		} else {
 			handlerConfig["allow_body"] = true
 		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
 		config["update_pull_request"] = handlerConfig
 	}
 
@@ -942,6 +1005,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.RequiredTitlePrefix != "" {
 			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
 		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
 		config["close_pull_request"] = handlerConfig
 	}
 
@@ -953,6 +1022,12 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if len(cfg.AllowedReasons) > 0 {
 			handlerConfig["allowed_reasons"] = cfg.AllowedReasons
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["hide_comment"] = handlerConfig
 	}

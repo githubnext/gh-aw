@@ -20,6 +20,7 @@ type CreatePullRequestsConfig struct {
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`  // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty           bool     `yaml:"allow-empty,omitempty"`    // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository pull requests
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that pull requests can be created in (additionally to the target-repo)
 	Expires              int      `yaml:"expires,omitempty"`        // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
 }
 
@@ -41,12 +42,12 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Build pre-steps for patch download, checkout, and git config
 	var preSteps []string
 
-	// Step 1: Download patch artifact
+	// Step 1: Download patch artifact from unified agent-artifacts
 	preSteps = append(preSteps, "      - name: Download patch artifact\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n")
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, "          name: aw.patch\n")
+	preSteps = append(preSteps, "          name: agent-artifacts\n")
 	preSteps = append(preSteps, "          path: /tmp/gh-aw/\n")
 
 	// Step 2: Checkout repository

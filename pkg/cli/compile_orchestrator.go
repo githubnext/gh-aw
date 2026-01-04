@@ -81,6 +81,11 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 		// NOTE: We must emit the public frontmatter keys (e.g. "add-comment") rather
 		// than the internal struct YAML tags (e.g. "add-comments").
 		outputs := map[string]any{}
+		if data.SafeOutputs.CreateIssues != nil {
+			outputs["create-issue"] = map[string]any{
+				"max": data.SafeOutputs.CreateIssues.Max,
+			}
+		}
 		if data.SafeOutputs.AddComments != nil {
 			outputs["add-comment"] = map[string]any{
 				"max": data.SafeOutputs.AddComments.Max,
