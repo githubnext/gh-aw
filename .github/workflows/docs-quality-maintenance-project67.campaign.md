@@ -1,9 +1,9 @@
 ---
-id: docs-quality-maintenance-project67
-name: "Documentation Quality & Maintenance Campaign (Project 67)"
+id: docs-quality-maintenance-project69
+name: "Documentation Quality & Maintenance Campaign (Project 69)"
 description: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
 version: v1
-project-url: "https://github.com/orgs/githubnext/projects/67"
+project-url: "https://github.com/orgs/githubnext/projects/69"
 project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 workflows:
   - daily-doc-updater
@@ -12,11 +12,11 @@ workflows:
   - unbloat-docs
   - developer-docs-consolidator
   - technical-doc-writer
-tracker-label: "campaign:docs-quality-maintenance-project67"
+tracker-label: "campaign:docs-quality-maintenance-project69"
 memory-paths:
-  - "memory/campaigns/docs-quality-maintenance-project67/**"
-metrics-glob: "memory/campaigns/docs-quality-maintenance-project67/metrics/*.json"
-cursor-glob: "memory/campaigns/docs-quality-maintenance-project67/cursor.json"
+  - "memory/campaigns/docs-quality-maintenance-project69/**"
+metrics-glob: "memory/campaigns/docs-quality-maintenance-project69/metrics/*.json"
+cursor-glob: "memory/campaigns/docs-quality-maintenance-project69/cursor.json"
 state: active
 tags:
   - documentation
@@ -65,7 +65,7 @@ governance:
   max-discovery-pages-per-run: 10
 ---
 
-# Documentation Quality & Maintenance Campaign (Project 67)
+# Documentation Quality & Maintenance Campaign (Project 69)
 
 ## Overview
 
@@ -137,7 +137,7 @@ Creates or enhances technical documentation for complex features. On-demand or s
 
 ## Project Board
 
-**URL**: https://github.com/orgs/githubnext/projects/67
+**URL**: https://github.com/orgs/githubnext/projects/69
 
 The project board serves as the campaign dashboard, tracking:
 - Documentation gaps and coverage
@@ -150,14 +150,14 @@ The project board serves as the campaign dashboard, tracking:
 
 ## Tracker Label
 
-All campaign-related issues and PRs are tagged with: `campaign:docs-quality-maintenance-project67`
+All campaign-related issues and PRs are tagged with: `campaign:docs-quality-maintenance-project69`
 
 ## Memory Paths
 
 Campaign state and metrics are stored in:
-- `memory/campaigns/docs-quality-maintenance-project67/**`
+- `memory/campaigns/docs-quality-maintenance-project69/**`
 
-Metrics snapshots: `memory/campaigns/docs-quality-maintenance-project67/metrics/*.json`
+Metrics snapshots: `memory/campaigns/docs-quality-maintenance-project69/metrics/*.json`
 
 ## Governance Policies
 
@@ -195,7 +195,7 @@ This campaign does not modify production code and requires human review for all 
 ## Orchestrator
 
 This campaign uses an automatically generated orchestrator workflow:
-- **File**: `.github/workflows/docs-quality-maintenance-project67.campaign.g.md`
+- **File**: `.github/workflows/docs-quality-maintenance-project69.campaign.g.md`
 - **Schedule**: Daily at 18:00 UTC (cron: `0 18 * * *`)
 - **Purpose**: Coordinate worker outputs and update project board
 
