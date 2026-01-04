@@ -207,7 +207,7 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
-      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       - name: Run tests
         run: npm test
 `
@@ -240,7 +240,7 @@ jobs:
 	}{
 		{"actions/checkout", "v5"},
 		{"actions/setup-node", "v6"},
-		{"actions/github-script", "v7.0.1"},
+		{"actions/github-script", "v8.0.0"},
 	}
 
 	for _, tt := range tests {
