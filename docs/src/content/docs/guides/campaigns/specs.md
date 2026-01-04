@@ -17,8 +17,6 @@ In a typical setup:
 
 **Note:** The `.campaign.g.md` file is a local debug artifact generated during compilation to help developers review the orchestrator structure. It is not committed to git (it's in `.gitignore`). Only the source `.campaign.md` and the compiled `.campaign.lock.yml` are version controlled.
 
-See the [campaign overview](/gh-aw/guides/campaigns/) for a visual mental model of how campaigns work.
-
 ## Minimal spec
 
 ```yaml
