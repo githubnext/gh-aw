@@ -22,31 +22,30 @@ const { checkFileExists } = require("./file_helpers.cjs");
  */
 async function main(templateContent) {
   // Check if prompt file exists
-  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/agent-artifacts,
-  // and the artifact contains files like aw-prompts/prompt.txt (GitHub Actions strips the common /tmp/gh-aw/ parent),
-  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/aw-prompts/prompt.txt
-  const artifactsDir = "/tmp/gh-aw/threat-detection/agent-artifacts";
-  const promptPath = path.join(artifactsDir, "aw-prompts/prompt.txt");
-  if (!checkFileExists(promptPath, artifactsDir, "Prompt file", true)) {
+  // The agent-artifacts artifact is downloaded to /tmp/gh-aw/threat-detection/
+  // GitHub Actions preserves the directory structure from the uploaded artifact
+  // (stripping the common /tmp/gh-aw/ prefix from the uploaded paths)
+  // So /tmp/gh-aw/aw-prompts/prompt.txt becomes /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt
+  const threatDetectionDir = "/tmp/gh-aw/threat-detection";
+  const promptPath = path.join(threatDetectionDir, "aw-prompts/prompt.txt");
+  if (!checkFileExists(promptPath, threatDetectionDir, "Prompt file", true)) {
     return;
   }
 
   // Check if agent output file exists
-  // Agent output is a separate artifact downloaded to /tmp/gh-aw/threat-detection/agent-output,
-  // so it appears directly as /tmp/gh-aw/threat-detection/agent-output/agent_output.json
-  const agentOutputDir = "/tmp/gh-aw/threat-detection/agent-output";
-  const agentOutputPath = path.join(agentOutputDir, "agent_output.json");
-  if (!checkFileExists(agentOutputPath, agentOutputDir, "Agent output file", true)) {
+  // The agent-output artifact is also downloaded to /tmp/gh-aw/threat-detection/
+  // The artifact contains /tmp/gh-aw/agent_output.json which becomes /tmp/gh-aw/threat-detection/agent_output.json
+  const agentOutputPath = path.join(threatDetectionDir, "agent_output.json");
+  if (!checkFileExists(agentOutputPath, threatDetectionDir, "Agent output file", true)) {
     return;
   }
 
   // Check if patch file exists
-  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/agent-artifacts,
-  // and the artifact contains aw.patch (GitHub Actions strips the common /tmp/gh-aw/ parent),
-  // the downloaded file will be at /tmp/gh-aw/threat-detection/agent-artifacts/aw.patch
-  const patchPath = path.join(artifactsDir, "aw.patch");
+  // The patch file is part of the agent-artifacts artifact
+  // So /tmp/gh-aw/aw.patch becomes /tmp/gh-aw/threat-detection/aw.patch
+  const patchPath = path.join(threatDetectionDir, "aw.patch");
   const hasPatch = process.env.HAS_PATCH === "true";
-  if (!checkFileExists(patchPath, artifactsDir, "Patch file", hasPatch)) {
+  if (!checkFileExists(patchPath, threatDetectionDir, "Patch file", hasPatch)) {
     if (hasPatch) {
       return;
     }

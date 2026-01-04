@@ -1,7 +1,0 @@
-﻿2026-01-04T16:43:32.9493156Z ##[group]Run echo "Agent output-types: $AGENT_OUTPUT_TYPES"
-2026-01-04T16:43:32.9493631Z [36;1mecho "Agent output-types: $AGENT_OUTPUT_TYPES"[0m
-2026-01-04T16:43:32.9527635Z shell: /usr/bin/bash -e {0}
-2026-01-04T16:43:32.9527903Z env:
-2026-01-04T16:43:32.9528120Z   AGENT_OUTPUT_TYPES: update_project,noop
-2026-01-04T16:43:32.9528397Z ##[endgroup]
-2026-01-04T16:43:32.9578418Z Agent output-types: update_project,noop
