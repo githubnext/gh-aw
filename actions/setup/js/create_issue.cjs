@@ -24,6 +24,7 @@ const HANDLER_TYPE = "create_issue";
 async function main(config = {}) {
   // Extract configuration
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+  const envAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(assignee => String(assignee).trim()).filter(assignee => assignee) : [];
   const titlePrefix = config.title_prefix || "";
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 10;
@@ -36,6 +37,9 @@ async function main(config = {}) {
   }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
+  }
+  if (envAssignees.length > 0) {
+    core.info(`Default assignees: ${envAssignees.join(", ")}`);
   }
   if (titlePrefix) {
     core.info(`Title prefix: ${titlePrefix}`);
@@ -177,6 +181,17 @@ async function main(config = {}) {
       .map(label => (label.length > 64 ? label.substring(0, 64) : label))
       .filter((label, index, arr) => arr.indexOf(label) === index);
 
+    // Build assignees array (merge config default assignees with message-specific assignees)
+    let assignees = [...envAssignees];
+    if (createIssueItem.assignees && Array.isArray(createIssueItem.assignees)) {
+      assignees = [...assignees, ...createIssueItem.assignees];
+    }
+    assignees = assignees
+      .filter(assignee => !!assignee)
+      .map(assignee => String(assignee).trim())
+      .filter(assignee => assignee)
+      .filter((assignee, index, arr) => arr.indexOf(assignee) === index);
+
     let title = createIssueItem.title ? createIssueItem.title.trim() : "";
 
     // Replace temporary ID references in the body using already-created issues
@@ -234,6 +249,9 @@ async function main(config = {}) {
 
     core.info(`Creating issue in ${itemRepo} with title: ${title}`);
     core.info(`Labels: ${labels.join(", ")}`);
+    if (assignees.length > 0) {
+      core.info(`Assignees: ${assignees.join(", ")}`);
+    }
     core.info(`Body length: ${body.length}`);
 
     try {
@@ -243,6 +261,7 @@ async function main(config = {}) {
         title: title,
         body: body,
         labels: labels,
+        assignees: assignees,
       });
 
       core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
