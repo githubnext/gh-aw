@@ -30,11 +30,7 @@
 #     - shared/reporting.md
 
 name: "Daily Issues Report Generator"
-"on":
-  schedule:
-  - cron: "10 16 * * *"
-    # Friendly format: daily (scattered)
-  workflow_dispatch:
+"on": daily
 
 permissions:
   actions: read

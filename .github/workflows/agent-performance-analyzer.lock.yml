@@ -22,11 +22,7 @@
 # Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
 
 name: "Agent Performance Analyzer - Meta-Orchestrator"
-"on":
-  schedule:
-  - cron: "48 4 * * *"
-    # Friendly format: daily (scattered)
-  workflow_dispatch:
+"on": daily
 
 permissions:
   actions: read
