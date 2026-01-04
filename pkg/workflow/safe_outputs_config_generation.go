@@ -406,6 +406,33 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
+	// Add dispatch-workflow configuration
+	if data.SafeOutputs.DispatchWorkflow != nil {
+		dispatchWorkflowConfig := map[string]any{}
+		
+		// Include workflows list
+		if len(data.SafeOutputs.DispatchWorkflow.Workflows) > 0 {
+			dispatchWorkflowConfig["workflows"] = data.SafeOutputs.DispatchWorkflow.Workflows
+		}
+		
+		// Include workflow files mapping (file extension for each workflow)
+		if len(data.SafeOutputs.DispatchWorkflow.WorkflowFiles) > 0 {
+			dispatchWorkflowConfig["workflow_files"] = data.SafeOutputs.DispatchWorkflow.WorkflowFiles
+		}
+		
+		// Include max count
+		maxValue := 1 // default
+		if data.SafeOutputs.DispatchWorkflow.Max > 0 {
+			maxValue = data.SafeOutputs.DispatchWorkflow.Max
+		}
+		dispatchWorkflowConfig["max"] = maxValue
+		
+		// Only add if it has fields
+		if len(dispatchWorkflowConfig) > 0 {
+			safeOutputsConfig["dispatch_workflow"] = dispatchWorkflowConfig
+		}
+	}
+
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	return string(configJSON)
 }
@@ -667,6 +694,11 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		// Get workflows directory from markdownPath
 		workflowsDir := filepath.Dir(markdownPath)
 
+		// Initialize WorkflowFiles map if not already initialized
+		if data.SafeOutputs.DispatchWorkflow.WorkflowFiles == nil {
+			data.SafeOutputs.DispatchWorkflow.WorkflowFiles = make(map[string]string)
+		}
+
 		for _, workflowName := range data.SafeOutputs.DispatchWorkflow.Workflows {
 			// Try to find the workflow file - priority: .lock.yml > .yml
 			// .lock.yml is used for compiled agentic workflows
@@ -675,10 +707,13 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 			ymlFilePath := filepath.Join(workflowsDir, workflowName+".yml")
 
 			var workflowPath string
+			var extension string
 			if fileExists(lockFilePath) {
 				workflowPath = lockFilePath
+				extension = ".lock.yml"
 			} else if fileExists(ymlFilePath) {
 				workflowPath = ymlFilePath
+				extension = ".yml"
 			} else {
 				safeOutputsConfigLog.Printf("Warning: workflow file not found for %s (tried %s and %s)", workflowName, lockFilePath, ymlFilePath)
 				// Continue with empty inputs
@@ -686,6 +721,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				filteredTools = append(filteredTools, tool)
 				continue
 			}
+
+			// Store the file extension for runtime use
+			data.SafeOutputs.DispatchWorkflow.WorkflowFiles[workflowName] = extension
 
 			// Extract workflow_dispatch inputs
 			workflowInputs, err := extractWorkflowDispatchInputs(workflowPath)

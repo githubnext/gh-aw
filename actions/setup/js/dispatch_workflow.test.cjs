@@ -21,14 +21,6 @@ global.github = {
   rest: {
     actions: {
       createWorkflowDispatch: vi.fn().mockResolvedValue({}),
-      listRepoWorkflows: vi.fn().mockResolvedValue({
-        data: {
-          workflows: [
-            { path: ".github/workflows/test-workflow.lock.yml" },
-            { path: ".github/workflows/other-workflow.yml" },
-          ],
-        },
-      }),
     },
   },
 };
@@ -47,6 +39,9 @@ describe("dispatch_workflow handler factory", () => {
   it("should dispatch workflows with valid configuration", async () => {
     const config = {
       workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
       max: 5,
     };
     const handler = await main(config);
@@ -64,12 +59,7 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(result.success).toBe(true);
     expect(result.workflow_name).toBe("test-workflow");
-    // Should resolve workflow file first
-    expect(github.rest.actions.listRepoWorkflows).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-    });
-    // Then dispatch to the resolved file
+    // Should use the extension from config
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
@@ -105,6 +95,10 @@ describe("dispatch_workflow handler factory", () => {
   it("should enforce max count", async () => {
     const config = {
       workflows: ["workflow1", "workflow2"],
+      workflow_files: {
+        "workflow1": ".lock.yml",
+        "workflow2": ".yml",
+      },
       max: 1,
     };
     const handler = await main(config);
@@ -126,7 +120,7 @@ describe("dispatch_workflow handler factory", () => {
     };
     const result2 = await handler(message2, {});
     expect(result2.success).toBe(false);
-    expect(result2.error).toContain("max count");
+    expect(result2.error).toContain("Max count");
   });
 
   it("should handle empty workflow name", async () => {
@@ -146,15 +140,9 @@ describe("dispatch_workflow handler factory", () => {
   });
 
   it("should handle dispatch errors", async () => {
-    const handler = await main({ workflows: ["missing-workflow"] });
-
-    // Mock listRepoWorkflows to return workflows without missing-workflow
-    github.rest.actions.listRepoWorkflows.mockResolvedValueOnce({
-      data: {
-        workflows: [
-          { path: ".github/workflows/other-workflow.yml" },
-        ],
-      },
+    const handler = await main({
+      workflows: ["missing-workflow"],
+      workflow_files: {}, // No extension for missing-workflow
     });
 
     const message = {
@@ -166,11 +154,17 @@ describe("dispatch_workflow handler factory", () => {
     const result = await handler(message, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("not found");
+    expect(result.error).toContain("not found in configuration");
   });
 
   it("should convert input values to strings", async () => {
-    const handler = await main({ workflows: ["test-workflow"] });
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    };
+    const handler = await main(config);
 
     const message = {
       type: "dispatch_workflow",

@@ -19,10 +19,14 @@ async function main(config = {}) {
   // Extract configuration
   const allowedWorkflows = config.workflows || [];
   const maxCount = config.max || 1;
+  const workflowFiles = config.workflow_files || {}; // Map of workflow name to file extension
 
   core.info(`Dispatch workflow configuration: max=${maxCount}`);
   if (allowedWorkflows.length > 0) {
     core.info(`Allowed workflows: ${allowedWorkflows.join(", ")}`);
+  }
+  if (Object.keys(workflowFiles).length > 0) {
+    core.info(`Workflow files: ${JSON.stringify(workflowFiles)}`);
   }
 
   // Track how many items we've processed for max limit
@@ -90,41 +94,17 @@ async function main(config = {}) {
         }
       }
 
-      // Resolve which workflow file exists (check .lock.yml first, then .yml)
-      let workflowFile = null;
-      try {
-        const workflows = await github.rest.actions.listRepoWorkflows({
-          owner: repo.owner,
-          repo: repo.repo,
-        });
-        
-        // Look for workflow file matching the name
-        const lockYmlName = `${workflowName}.lock.yml`;
-        const ymlName = `${workflowName}.yml`;
-        
-        for (const workflow of workflows.data.workflows) {
-          const path = workflow.path;
-          if (path.endsWith(lockYmlName)) {
-            workflowFile = lockYmlName;
-            break;
-          } else if (path.endsWith(ymlName)) {
-            workflowFile = ymlName;
-          }
-        }
-        
-        if (!workflowFile) {
-          return {
-            success: false,
-            error: `Workflow "${workflowName}" not found. Looked for ${lockYmlName} or ${ymlName} in repository workflows.`,
-          };
-        }
-      } catch (error) {
-        const errorMessage = getErrorMessage(error);
+      // Get the workflow file extension from compile-time resolution
+      const extension = workflowFiles[workflowName];
+      if (!extension) {
         return {
           success: false,
-          error: `Failed to list workflows: ${errorMessage}`,
+          error: `Workflow "${workflowName}" file extension not found in configuration. This workflow may not have been validated at compile time.`,
         };
       }
+      
+      const workflowFile = `${workflowName}${extension}`;
+      core.info(`Dispatching workflow: ${workflowFile}`);
 
       // Dispatch the workflow using the resolved file
       await github.rest.actions.createWorkflowDispatch({

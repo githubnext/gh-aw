@@ -9,7 +9,8 @@ var dispatchWorkflowLog = logger.New("workflow:dispatch_workflow")
 // DispatchWorkflowConfig holds configuration for dispatching workflows from agent output
 type DispatchWorkflowConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Workflows            []string `yaml:"workflows,omitempty"` // List of workflow names (without .md extension) to allow dispatching
+	Workflows            []string                   `yaml:"workflows,omitempty"`        // List of workflow names (without .md extension) to allow dispatching
+	WorkflowFiles        map[string]string          `yaml:"workflow_files,omitempty"`   // Map of workflow name to file extension (.lock.yml or .yml) - populated at compile time
 }
 
 // parseDispatchWorkflowConfig handles dispatch-workflow configuration
