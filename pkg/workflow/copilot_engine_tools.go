@@ -85,9 +85,15 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", constants.SafeInputsMCPServerID)
 	}
 
+	// Handle web-fetch builtin tool (Copilot CLI uses web_fetch with underscore)
+	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
+		// web-fetch -> web_fetch
+		args = append(args, "--allow-tool", "web_fetch")
+	}
+
 	// Built-in tool names that should be skipped when processing MCP servers
 	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
-	// Note: web-fetch is NOT included here because it may be an MCP server for engines without native support
+	// Note: web-fetch is NOT included here because it needs explicit --allow-tool argument
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
