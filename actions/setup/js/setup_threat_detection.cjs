@@ -21,7 +21,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function main(templateContent) {
   // Check if prompt file exists
-  const promptPath = "/tmp/gh-aw/threat-detection/prompt.txt";
+  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/,
+  // and the artifact contains files with full paths like /tmp/gh-aw/aw-prompts/prompt.txt,
+  // the downloaded file will be at /tmp/gh-aw/threat-detection/tmp/gh-aw/aw-prompts/prompt.txt
+  const promptPath = "/tmp/gh-aw/threat-detection/tmp/gh-aw/aw-prompts/prompt.txt";
   let promptFileInfo = "No prompt file found";
   if (fs.existsSync(promptPath)) {
     try {
@@ -36,6 +39,8 @@ async function main(templateContent) {
   }
 
   // Check if agent output file exists
+  // Agent output is still a separate artifact downloaded to /tmp/gh-aw/threat-detection/,
+  // so it appears directly as /tmp/gh-aw/threat-detection/agent_output.json
   const agentOutputPath = "/tmp/gh-aw/threat-detection/agent_output.json";
   let agentOutputFileInfo = "No agent output file found";
   if (fs.existsSync(agentOutputPath)) {
@@ -51,7 +56,10 @@ async function main(templateContent) {
   }
 
   // Check if patch file exists
-  const patchPath = "/tmp/gh-aw/threat-detection/aw.patch";
+  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/,
+  // and the artifact contains /tmp/gh-aw/aw.patch,
+  // the downloaded file will be at /tmp/gh-aw/threat-detection/tmp/gh-aw/aw.patch
+  const patchPath = "/tmp/gh-aw/threat-detection/tmp/gh-aw/aw.patch";
   let patchFileInfo = "No patch file found";
   if (fs.existsSync(patchPath)) {
     try {
