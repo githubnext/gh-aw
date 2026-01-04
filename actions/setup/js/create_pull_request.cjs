@@ -11,6 +11,7 @@ const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -65,6 +66,8 @@ async function main(config = {}) {
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const baseBranch = config.base_branch || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
+  const allowedRepos = parseAllowedRepos(config.allowed_repos);
+  const defaultTargetRepo = getDefaultTargetRepo(config);
 
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GH_AW_WORKFLOW_ID;
@@ -80,6 +83,10 @@ async function main(config = {}) {
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Base branch: ${baseBranch}`);
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
   }
@@ -119,6 +126,32 @@ async function main(config = {}) {
     const pullRequestItem = message;
 
     core.info(`Processing create_pull_request: title=${pullRequestItem.title || "No title"}, bodyLength=${pullRequestItem.body?.length || 0}`);
+
+    // Determine target repository for this pull request
+    const itemRepo = pullRequestItem.repo ? String(pullRequestItem.repo).trim() : defaultTargetRepo;
+
+    // Validate the repository is allowed
+    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+    if (!repoValidation.valid) {
+      core.warning(`Skipping pull request: ${repoValidation.error}`);
+      return {
+        success: false,
+        error: repoValidation.error,
+      };
+    }
+
+    // Parse the repository slug
+    const repoParts = parseRepoSlug(itemRepo);
+    if (!repoParts) {
+      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
+      core.warning(`Skipping pull request: ${error}`);
+      return {
+        success: false,
+        error,
+      };
+    }
+
+    core.info(`Target repository: ${itemRepo}`);
 
     // Check if patch file exists and has valid content
     if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
@@ -299,8 +332,7 @@ async function main(config = {}) {
     if (resolvedTemporaryIds && Object.keys(resolvedTemporaryIds).length > 0) {
       // Convert object to Map for compatibility with replaceTemporaryIdReferences
       const tempIdMap = new Map(Object.entries(resolvedTemporaryIds));
-      const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
-      processedBody = replaceTemporaryIdReferences(processedBody, tempIdMap, currentRepo);
+      processedBody = replaceTemporaryIdReferences(processedBody, tempIdMap, itemRepo);
       core.info(`Resolved ${tempIdMap.size} temporary ID references in PR body`);
     }
 
@@ -324,7 +356,7 @@ async function main(config = {}) {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/actions/runs/${runId}`;
 
     // Add fingerprint comment if present
     const trackerIDComment = getTrackerID("markdown");
@@ -471,7 +503,7 @@ async function main(config = {}) {
 
         const runId = context.runId;
         const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-        const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+        const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/actions/runs/${runId}`;
 
         // Read patch content for preview
         let patchPreview = "";
@@ -505,8 +537,8 @@ ${patchPreview}`;
 
         try {
           const { data: issue } = await github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
             title: title,
             body: fallbackBody,
             labels: labels,
@@ -538,6 +570,7 @@ ${patchPreview}`;
             issue_number: issue.number,
             issue_url: issue.html_url,
             branch_name: branchName,
+            repo: itemRepo,
           };
         } catch (issueError) {
           const error = `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
@@ -614,8 +647,8 @@ ${patchPreview}`;
     // Try to create the pull request, with fallback to issue creation
     try {
       const { data: pullRequest } = await github.rest.pulls.create({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
+        owner: repoParts.owner,
+        repo: repoParts.repo,
         title: title,
         body: body,
         head: branchName,
@@ -628,8 +661,8 @@ ${patchPreview}`;
       // Add labels if specified
       if (labels.length > 0) {
         await github.rest.issues.addLabels({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          owner: repoParts.owner,
+          repo: repoParts.repo,
           issue_number: pullRequest.number,
           labels: labels,
         });
@@ -659,6 +692,7 @@ ${patchPreview}`;
         pull_request_url: pullRequest.html_url,
         branch_name: branchName,
         temporary_id: pullRequestItem.temporary_id, // Pass through if present
+        repo: itemRepo,
       };
     } catch (prError) {
       core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
@@ -666,7 +700,7 @@ ${patchPreview}`;
 
       // Create issue as fallback with enhanced body content
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+      const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/tree/${branchName}`;
 
       // Read patch content for preview
       let patchPreview = "";
@@ -687,8 +721,8 @@ You can manually create a pull request from the branch if needed.${patchPreview}
 
       try {
         const { data: issue } = await github.rest.issues.create({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          owner: repoParts.owner,
+          repo: repoParts.repo,
           title: title,
           body: fallbackBody,
           labels: labels,
@@ -706,6 +740,7 @@ You can manually create a pull request from the branch if needed.${patchPreview}
           issue_number: issue.number,
           issue_url: issue.html_url,
           branch_name: branchName,
+          repo: itemRepo,
         };
       } catch (issueError) {
         const error = `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
