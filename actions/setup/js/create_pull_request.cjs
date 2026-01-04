@@ -11,7 +11,7 @@ const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -127,30 +127,16 @@ async function main(config = {}) {
 
     core.info(`Processing create_pull_request: title=${pullRequestItem.title || "No title"}, bodyLength=${pullRequestItem.body?.length || 0}`);
 
-    // Determine target repository for this pull request
-    const itemRepo = pullRequestItem.repo ? String(pullRequestItem.repo).trim() : defaultTargetRepo;
-
-    // Validate the repository is allowed
-    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-    if (!repoValidation.valid) {
-      core.warning(`Skipping pull request: ${repoValidation.error}`);
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(pullRequestItem, defaultTargetRepo, allowedRepos, "pull request");
+    if (!repoResult.success) {
+      core.warning(`Skipping pull request: ${repoResult.error}`);
       return {
         success: false,
-        error: repoValidation.error,
+        error: repoResult.error,
       };
     }
-
-    // Parse the repository slug
-    const repoParts = parseRepoSlug(itemRepo);
-    if (!repoParts) {
-      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
-      core.warning(`Skipping pull request: ${error}`);
-      return {
-        success: false,
-        error,
-      };
-    }
-
+    const { repo: itemRepo, repoParts } = repoResult;
     core.info(`Target repository: ${itemRepo}`);
 
     // Check if patch file exists and has valid content

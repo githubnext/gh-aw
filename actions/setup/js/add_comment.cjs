@@ -11,7 +11,7 @@ const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -323,30 +323,16 @@ async function main(config = {}) {
       }
     }
 
-    // Determine target repository for this comment
-    const itemRepo = item.repo ? String(item.repo).trim() : defaultTargetRepo;
-
-    // Validate the repository is allowed
-    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-    if (!repoValidation.valid) {
-      core.warning(`Skipping comment: ${repoValidation.error}`);
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "comment");
+    if (!repoResult.success) {
+      core.warning(`Skipping comment: ${repoResult.error}`);
       return {
         success: false,
-        error: repoValidation.error,
+        error: repoResult.error,
       };
     }
-
-    // Parse the repository slug
-    const repoParts = parseRepoSlug(itemRepo);
-    if (!repoParts) {
-      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
-      core.warning(`Skipping comment: ${error}`);
-      return {
-        success: false,
-        error,
-      };
-    }
-
+    const { repo: itemRepo, repoParts } = repoResult;
     core.info(`Target repository: ${itemRepo}`);
 
     // Determine target number and type

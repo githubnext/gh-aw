@@ -164,4 +164,69 @@ describe("repo_helpers", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("resolveAndValidateRepo", () => {
+    it("should successfully resolve and validate default repo", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = {}; // No repo field
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set();
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("default/repo");
+      expect(result.repoParts).toEqual({ owner: "default", repo: "repo" });
+    });
+
+    it("should successfully resolve and validate repo from item", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "org/other-repo" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/other-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/other-repo");
+      expect(result.repoParts).toEqual({ owner: "org", repo: "other-repo" });
+    });
+
+    it("should fail when repo not in allowed list", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "org/unauthorized-repo" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/allowed-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+
+    it("should fail with invalid repo format", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "invalid-format" };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["invalid-format"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid repository format");
+      expect(result.error).toContain("owner/repo");
+    });
+
+    it("should trim whitespace from repo field", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "  org/trimmed-repo  " };
+      const defaultRepo = "default/repo";
+      const allowedRepos = new Set(["org/trimmed-repo"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/trimmed-repo");
+    });
+  });
 });

@@ -8,7 +8,7 @@
 const { generateFooter } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -67,30 +67,16 @@ async function main(config = {}) {
 
     core.info(`Processing create_pull_request_review_comment: path=${commentItem.path}, line=${commentItem.line}, bodyLength=${commentItem.body?.length || 0}`);
 
-    // Determine target repository for this review comment
-    const itemRepo = commentItem.repo ? String(commentItem.repo).trim() : defaultTargetRepo;
-
-    // Validate the repository is allowed
-    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-    if (!repoValidation.valid) {
-      core.warning(`Skipping PR review comment: ${repoValidation.error}`);
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(commentItem, defaultTargetRepo, allowedRepos, "PR review comment");
+    if (!repoResult.success) {
+      core.warning(`Skipping PR review comment: ${repoResult.error}`);
       return {
         success: false,
-        error: repoValidation.error,
+        error: repoResult.error,
       };
     }
-
-    // Parse the repository slug
-    const repoParts = parseRepoSlug(itemRepo);
-    if (!repoParts) {
-      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
-      core.warning(`Skipping PR review comment: ${error}`);
-      return {
-        success: false,
-        error,
-      };
-    }
-
+    const { repo: itemRepo, repoParts } = repoResult;
     core.info(`Target repository: ${itemRepo}`);
 
     // Check if we're in a pull request context, or an issue comment context on a PR

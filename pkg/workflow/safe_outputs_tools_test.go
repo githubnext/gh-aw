@@ -624,12 +624,12 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 					repoMap, ok := repoParam.(map[string]any)
 					require.True(t, ok, "repo parameter should be a map")
 					assert.Equal(t, "string", repoMap["type"], "repo type should be string")
-					
+
 					description, ok := repoMap["description"].(string)
 					require.True(t, ok, "repo description should be a string")
 					assert.Contains(t, description, "Target repository", "repo description should mention target repository")
 					assert.Contains(t, description, "allowed-repos", "repo description should mention allowed-repos")
-					
+
 					if tt.expectRepoDesc != "" {
 						assert.Contains(t, description, tt.expectRepoDesc, "repo description should include target-repo value")
 					}
