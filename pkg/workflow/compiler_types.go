@@ -275,7 +275,7 @@ type WorkflowData struct {
 	SkipIfMatch         *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
 	SkipIfNoMatch       *SkipIfNoMatchConfig // skip-if-no-match configuration with query and min threshold
 	ManualApproval      string               // environment name for manual approval from on: section
-	Command             string               // for /command trigger support
+	Command             []string             // for /command trigger support - multiple command names
 	CommandEvents       []string             // events where command should be active (nil = all events)
 	CommandOtherEvents  map[string]any       // for merging command with other events
 	AIReaction          string               // AI reaction type like "eyes", "heart", etc.

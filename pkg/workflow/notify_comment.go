@@ -28,7 +28,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// - Write noop messages to step summary (if no comment)
 
 	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
-	hasCommand := data.Command != ""
+	hasCommand := len(data.Command) > 0
 	hasNoOp := data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 	hasSafeOutputs := data.SafeOutputs != nil

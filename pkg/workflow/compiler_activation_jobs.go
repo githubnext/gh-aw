@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -101,12 +102,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	// Add command position check if this is a command workflow
-	if data.Command != "" {
+	if len(data.Command) > 0 {
 		steps = append(steps, "      - name: Check command position\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCommandPositionStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
+		// Pass commands as JSON array
+		commandsJSON, _ := json.Marshal(data.Command)
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMMANDS: %q\n", string(commandsJSON)))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_command_position.cjs"))
@@ -164,7 +167,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		conditions = append(conditions, skipNoMatchCheckOk)
 	}
 
-	if data.Command != "" {
+	if len(data.Command) > 0 {
 		// Add command position check condition
 		commandPositionCheck := BuildComparison(
 			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckCommandPositionStepID, constants.CommandPositionOkOutput)),
@@ -372,8 +375,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        env:\n")
 		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
 		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
-		if data.Command != "" {
-			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
+		if len(data.Command) > 0 {
+			// Pass first command for backward compatibility with reaction script
+			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command[0]))
 		}
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 
@@ -443,6 +447,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 	if _, exists := outputs["comment_repo"]; !exists {
 		outputs["comment_repo"] = `""`
+	}
+
+	// Add slash_command output if this is a command workflow
+	// This output contains the matched command name from check_command_position step
+	if len(data.Command) > 0 {
+		outputs["slash_command"] = fmt.Sprintf("${{ steps.%s.outputs.matched_command }}", constants.CheckCommandPositionStepID)
 	}
 
 	// If no steps have been added, add a placeholder step to make the job valid
