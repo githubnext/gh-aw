@@ -4,11 +4,14 @@
 // runtime_import.cjs
 // Processes {{#runtime-import filepath}} and {{#runtime-import? filepath}} macros
 // at runtime to import markdown file contents dynamically.
+// Also processes inline @path and @url references.
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
+const https = require("https");
+const http = require("http");
 
 /**
  * Checks if a file starts with front matter (---\n)
@@ -283,11 +286,160 @@ function processFileInlines(content, workspaceDir) {
   return processedContent;
 }
 
+/**
+ * Fetches content from a URL with caching
+ * @param {string} url - The URL to fetch
+ * @param {string} cacheDir - Directory to store cached URL content
+ * @returns {Promise<string>} - The fetched content
+ * @throws {Error} - If URL fetch fails
+ */
+async function fetchUrlContent(url, cacheDir) {
+  // Create cache directory if it doesn't exist
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+
+  // Generate cache filename from URL (hash it for safety)
+  const crypto = require("crypto");
+  const urlHash = crypto.createHash("sha256").update(url).digest("hex");
+  const cacheFile = path.join(cacheDir, `url-${urlHash}.cache`);
+
+  // Check if cached version exists and is recent (less than 1 hour old)
+  if (fs.existsSync(cacheFile)) {
+    const stats = fs.statSync(cacheFile);
+    const ageInMs = Date.now() - stats.mtimeMs;
+    const oneHourInMs = 60 * 60 * 1000;
+
+    if (ageInMs < oneHourInMs) {
+      core.info(`Using cached content for URL: ${url}`);
+      return fs.readFileSync(cacheFile, "utf8");
+    }
+  }
+
+  // Fetch URL content
+  core.info(`Fetching content from URL: ${url}`);
+
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith("https") ? https : http;
+
+    protocol
+      .get(url, res => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`Failed to fetch URL ${url}: HTTP ${res.statusCode}`));
+          return;
+        }
+
+        let data = "";
+        res.on("data", chunk => {
+          data += chunk;
+        });
+
+        res.on("end", () => {
+          // Cache the content
+          fs.writeFileSync(cacheFile, data, "utf8");
+          resolve(data);
+        });
+      })
+      .on("error", err => {
+        reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
+      });
+  });
+}
+
+/**
+ * Processes a URL inline and returns content with sanitization
+ * @param {string} url - The URL to fetch
+ * @param {string} cacheDir - Directory to store cached URL content
+ * @returns {Promise<string>} - The processed URL content
+ * @throws {Error} - If URL fetch fails or content is invalid
+ */
+async function processUrlInline(url, cacheDir) {
+  // Fetch URL content (with caching)
+  let content = await fetchUrlContent(url, cacheDir);
+
+  // Check for front matter and warn
+  if (hasFrontMatter(content)) {
+    core.warning(`URL ${url} contains front matter which will be ignored in inline`);
+    // Remove front matter (everything between first --- and second ---)
+    const lines = content.split("\n");
+    let inFrontMatter = false;
+    let frontMatterCount = 0;
+    const processedLines = [];
+
+    for (const line of lines) {
+      if (line.trim() === "---" || line.trim() === "---\r") {
+        frontMatterCount++;
+        if (frontMatterCount === 1) {
+          inFrontMatter = true;
+          continue;
+        } else if (frontMatterCount === 2) {
+          inFrontMatter = false;
+          continue;
+        }
+      }
+      if (!inFrontMatter && frontMatterCount >= 2) {
+        processedLines.push(line);
+      }
+    }
+    content = processedLines.join("\n");
+  }
+
+  // Remove XML comments
+  content = removeXMLComments(content);
+
+  // Check for GitHub Actions macros and error if found
+  if (hasGitHubActionsMacros(content)) {
+    throw new Error(`URL ${url} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in inline content`);
+  }
+
+  return content;
+}
+
+/**
+ * Processes all @url inline references in the content
+ * @param {string} content - The markdown content containing @url references
+ * @param {string} cacheDir - Directory to store cached URL content
+ * @returns {Promise<string>} - Content with @url references replaced by URL contents
+ */
+async function processUrlInlines(content, cacheDir) {
+  // Pattern to match @https://... or @http://...
+  const pattern = /@(https?:\/\/[^\s]+)/g;
+
+  let processedContent = content;
+  const matches = [];
+
+  // Collect all matches first
+  let match;
+  pattern.lastIndex = 0;
+  while ((match = pattern.exec(content)) !== null) {
+    matches.push({
+      fullMatch: match[0],
+      url: match[1],
+    });
+  }
+
+  // Process each match sequentially (to handle async)
+  for (const { fullMatch, url } of matches) {
+    try {
+      const inlinedContent = await processUrlInline(url, cacheDir);
+      // Replace the @url reference with the inlined content
+      processedContent = processedContent.replace(fullMatch, inlinedContent);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      throw new Error(`Failed to process URL inline for ${fullMatch}: ${errorMessage}`);
+    }
+  }
+
+  return processedContent;
+}
+
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
   processFileInline,
   processFileInlines,
+  processUrlInline,
+  processUrlInlines,
   hasFrontMatter,
   removeXMLComments,
   hasGitHubActionsMacros,

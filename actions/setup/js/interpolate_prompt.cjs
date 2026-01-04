@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
-const { processRuntimeImports, processFileInlines } = require("./runtime_import.cjs");
+const { processRuntimeImports, processFileInlines, processUrlInlines } = require("./runtime_import.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -97,6 +97,17 @@ async function main() {
       core.info("Inline file references processed successfully");
     } else {
       core.info("No inline file references found, skipping inline processing");
+    }
+
+    // Step 1.6: Process inline URL references (@https://... and @http://...)
+    const hasUrlInlines = /@https?:\/\//.test(content);
+    if (hasUrlInlines) {
+      core.info("Processing inline URL references");
+      const cacheDir = "/tmp/gh-aw/url-cache";
+      content = await processUrlInlines(content, cacheDir);
+      core.info("Inline URL references processed successfully");
+    } else {
+      core.info("No inline URL references found, skipping URL processing");
     }
 
     // Step 2: Interpolate variables

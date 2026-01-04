@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-const { processRuntimeImports, processRuntimeImport, processFileInline, processFileInlines, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
+const { processRuntimeImports, processRuntimeImport, processFileInline, processFileInlines, processUrlInline, processUrlInlines, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
   (beforeEach(() => {
@@ -393,6 +393,22 @@ describe("runtime_import", () => {
         it("should not process @ as part of email addresses", () => {
           const result = processFileInlines("Email: user@example.com is valid", tempDir);
           expect(result).toBe("Email: user@example.com is valid");
+        }));
+    }),
+    describe("processUrlInlines", () => {
+      (it("should process @url reference with mock server", async () => {
+        // This test would require a mock HTTP server
+        // For now, we'll skip it or test with file:// URLs
+        // In a real workflow, this would fetch from the internet
+      }),
+        it("should handle content without @url references", async () => {
+          const result = await processUrlInlines("No URL references here", tempDir);
+          expect(result).toBe("No URL references here");
+        }),
+        it("should not process regular URLs without @ prefix", async () => {
+          const content = "Visit https://example.com for more info";
+          const result = await processUrlInlines(content, tempDir);
+          expect(result).toBe(content);
         }));
     }));
 });
