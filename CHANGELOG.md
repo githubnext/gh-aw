@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.34.4 - 2026-01-04
+
+### Bug Fixes
+
+#### Migrate detection job artifacts to the unified `/tmp/gh-aw/artifacts` path and add validations.
+
+- Update artifact download paths used by detection jobs to `/tmp/gh-aw/artifacts`.
+- Fail fast when `prompt.txt` or `agent_output.json` are missing.
+- Fail when `aw.patch` is expected but not present.
+
+This is an internal tooling fix and non-breaking (patch).
+
+#### Use the unified `agent-artifacts` artifact for downloads and remove duplicate
+
+artifact downloads. Updated tests to expect `agent-artifacts` and removed
+dead/unused artifact upload helpers.
+
+This is an internal fix that consolidates artifact downloads used by
+safe_outputs and threat detection jobs.
+
+
 ## v0.34.3 - 2026-01-04
 
 ### Bug Fixes
