@@ -798,4 +798,96 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Iteration "Sprint 99" not found'));
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Available iterations: Sprint 41, Sprint 42"));
   });
+
+  it("creates a new DATE field when field doesn't exist and value is in YYYY-MM-DD format", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 90,
+      fields: {
+        start_date: "2026-01-15",
+        end_date: "2026-02-28",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-create-date-field"),
+      issueResponse("issue-id-90"),
+      existingItemResponse("issue-id-90", "item-create-date-field"),
+      // No existing fields - will need to create them
+      fieldsResponse([]),
+      // Response for creating start_date field as DATE type
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-start-date",
+            name: "Start Date",
+            dataType: "DATE",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+      // Response for creating end_date field as DATE type
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-end-date",
+            name: "End Date",
+            dataType: "DATE",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify that DATE fields were created (not SINGLE_SELECT)
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(2);
+    
+    // Check that both fields were created with DATE type
+    expect(createCalls[0][1].dataType).toBe("DATE");
+    expect(createCalls[0][1].name).toBe("Start Date");
+    expect(createCalls[1][1].dataType).toBe("DATE");
+    expect(createCalls[1][1].name).toBe("End Date");
+
+    // Verify the field values were set using date format
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBe(2);
+    expect(updateCalls[0][1].value).toEqual({ date: "2026-01-15" });
+    expect(updateCalls[1][1].value).toEqual({ date: "2026-02-28" });
+  });
+
+  it("warns when date field name is detected but value is not in YYYY-MM-DD format", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 91,
+      fields: {
+        start_date: "January 15, 2026",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-invalid-date-format"),
+      issueResponse("issue-id-91"),
+      existingItemResponse("issue-id-91", "item-invalid-date"),
+      // No existing fields
+      fieldsResponse([]),
+    ]);
+
+    await updateProject(output);
+
+    // Verify a warning was logged about the invalid date format
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Field "start_date" looks like a date field but value "January 15, 2026" is not in YYYY-MM-DD format'));
+  });
 });
