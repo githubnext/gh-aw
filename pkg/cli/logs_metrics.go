@@ -57,6 +57,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 	// First check for aw_info.json to determine the engine
 	var detectedEngine workflow.CodingAgentEngine
 	infoFilePath := filepath.Join(logDir, "aw_info.json")
+	logsMetricsLog.Printf("Checking for aw_info.json at: %s", infoFilePath)
 	if _, err := os.Stat(infoFilePath); err == nil {
 		logsMetricsLog.Print("Found aw_info.json, extracting engine")
 		// aw_info.json exists, try to extract engine information
@@ -66,9 +67,17 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 			if verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Detected engine from aw_info.json: %s", engine.GetID())))
 			}
+		} else {
+			logsMetricsLog.Print("Failed to extract engine from aw_info.json")
+			if verbose {
+				fmt.Println(console.FormatWarningMessage("aw_info.json exists but failed to extract engine"))
+			}
 		}
 	} else {
-		logsMetricsLog.Print("No aw_info.json found")
+		logsMetricsLog.Printf("No aw_info.json found at %s: %v", infoFilePath, err)
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No aw_info.json found at %s", infoFilePath)))
+		}
 	}
 
 	// Check for safe_output.jsonl artifact file
