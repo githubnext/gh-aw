@@ -764,7 +764,7 @@ func TestCommonParentStrippingNestedPaths(t *testing.T) {
 	require.NoError(t, err)
 
 	upload := am.GetUploadsForJob("build")[0]
-	
+
 	// Common parent should be /home/runner/work/project/dist
 	assert.NotNil(t, upload.NormalizedPaths)
 	assert.Equal(t, "app.js", upload.NormalizedPaths["/home/runner/work/project/dist/app.js"])
@@ -786,7 +786,7 @@ func TestCommonParentStrippingSingleFile(t *testing.T) {
 	require.NoError(t, err)
 
 	upload := am.GetUploadsForJob("job1")[0]
-	
+
 	// Single file should be normalized to just its base name
 	assert.NotNil(t, upload.NormalizedPaths)
 	assert.Equal(t, "report.pdf", upload.NormalizedPaths["/tmp/gh-aw/report.pdf"])
@@ -820,7 +820,7 @@ func TestCommonParentStrippingNoCommonParent(t *testing.T) {
 	require.NoError(t, err)
 
 	upload := am.GetUploadsForJob("job1")[0]
-	
+
 	// No common parent (beyond root), should use base names
 	assert.NotNil(t, upload.NormalizedPaths)
 	assert.Equal(t, "file1.txt", upload.NormalizedPaths["/tmp/file1.txt"])
@@ -830,7 +830,7 @@ func TestCommonParentStrippingNoCommonParent(t *testing.T) {
 // TestCommonParentWithPatternDownload tests common parent stripping with pattern downloads
 func TestCommonParentWithPatternDownload(t *testing.T) {
 	am := NewArtifactManager()
-	
+
 	// Job 1: Upload with common parent
 	am.SetCurrentJob("build")
 	err := am.RecordUpload(&ArtifactUpload{
@@ -854,7 +854,7 @@ func TestCommonParentWithPatternDownload(t *testing.T) {
 	}
 
 	upload := am.GetUploadsForJob("build")[0]
-	
+
 	// With pattern download (no merge), files go to path/artifact-name/normalized-path
 	appPath := am.ComputeDownloadPath(download, upload, "/build/output/linux/app")
 	assert.Equal(t, "/deploy/build-linux/app", appPath)

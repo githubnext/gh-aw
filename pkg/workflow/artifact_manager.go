@@ -155,11 +155,15 @@ func (am *ArtifactManager) RecordDownload(download *ArtifactDownload) error {
 
 // computeNormalizedPaths computes normalized paths with common parent directory removed.
 // This simulates GitHub Actions behavior where files uploaded with paths like:
-//   /tmp/gh-aw/aw-prompts/prompt.txt
-//   /tmp/gh-aw/aw.patch
+//
+//	/tmp/gh-aw/aw-prompts/prompt.txt
+//	/tmp/gh-aw/aw.patch
+//
 // are stored in the artifact as:
-//   aw-prompts/prompt.txt
-//   aw.patch
+//
+//	aw-prompts/prompt.txt
+//	aw.patch
+//
 // (with common parent /tmp/gh-aw/ removed)
 func computeNormalizedPaths(paths []string) map[string]string {
 	if len(paths) == 0 {
@@ -264,7 +268,7 @@ func findCommonParent(paths []string) string {
 	if strings.HasPrefix(paths[0], string(filepath.Separator)) {
 		result = string(filepath.Separator) + result
 	}
-	
+
 	return result
 }
 
@@ -281,7 +285,7 @@ func (am *ArtifactManager) ComputeDownloadPath(download *ArtifactDownload, uploa
 	// This simulates how GitHub Actions strips common parent directories
 	cleanOriginal := filepath.Clean(originalPath)
 	normalizedPath := cleanOriginal
-	
+
 	// If upload has normalized paths, use them
 	if upload.NormalizedPaths != nil {
 		if normalized, ok := upload.NormalizedPaths[cleanOriginal]; ok {
