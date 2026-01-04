@@ -21,7 +21,7 @@
 #
 # Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks.
 
-name: "Documentation Quality & Maintenance Campaign (Project 73)"
+name: "Campaign: Documentation Quality & Maintenance (Project 73)"
 "on":
   schedule:
   - cron: "0 18 * * *"
@@ -38,7 +38,7 @@ concurrency:
   cancel-in-progress: false
   group: campaign-docs-quality-maintenance-project73-orchestrator-${{ github.ref }}
 
-run-name: "Documentation Quality & Maintenance Campaign (Project 73)"
+run-name: "Campaign: Documentation Quality & Maintenance (Project 73)"
 
 jobs:
   activation:
@@ -540,7 +540,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.374",
-              workflow_name: "Documentation Quality & Maintenance Campaign (Project 73)",
+              workflow_name: "Campaign: Documentation Quality & Maintenance (Project 73)",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -589,7 +589,7 @@ jobs:
           
           # Campaign Orchestrator
           
-          This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Project 73)' campaign.
+          This workflow orchestrates the 'Campaign: Documentation Quality & Maintenance (Project 73)' campaign.
           
           - Objective: Maintain high-quality, accessible, and consistent documentation following the Diátaxis framework while ensuring all docs are accurate, complete, and user-friendly
           - KPIs:
@@ -689,7 +689,7 @@ jobs:
           2) **If no Epic issue exists**, create it using `create-issue`:
              ```yaml
              create-issue:
-               title: "Documentation Quality & Maintenance Campaign (Project 73)"
+               title: "Campaign: Documentation Quality & Maintenance (Project 73)"
                body: |
                  ## Campaign Overview
                  
@@ -1362,7 +1362,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
+          GH_AW_WORKFLOW_NAME: "Campaign: Documentation Quality & Maintenance (Project 73)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1375,7 +1375,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
+          GH_AW_WORKFLOW_NAME: "Campaign: Documentation Quality & Maintenance (Project 73)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1391,7 +1391,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
+          GH_AW_WORKFLOW_NAME: "Campaign: Documentation Quality & Maintenance (Project 73)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1443,7 +1443,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
+          WORKFLOW_NAME: "Campaign: Documentation Quality & Maintenance (Project 73)"
           WORKFLOW_DESCRIPTION: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
@@ -1638,7 +1638,7 @@ jobs:
     env:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "docs-quality-maintenance-project67.campaign.g"
-      GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 73)"
+      GH_AW_WORKFLOW_NAME: "Campaign: Documentation Quality & Maintenance (Project 73)"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
