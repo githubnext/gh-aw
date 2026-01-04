@@ -133,11 +133,19 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgent
 		return detectedEngine.ParseLogMetrics(logContent, verbose), nil
 	}
 
-	// No aw_info.json metadata available - return empty metrics
+	// No aw_info.json metadata available - use fallback parser with common error patterns
+	logsParsingLog.Print("No engine detected, using fallback parser with common error patterns")
 	if verbose {
-		fmt.Println(console.FormatWarningMessage("No aw_info.json found, unable to parse engine-specific metrics"))
+		fmt.Println(console.FormatWarningMessage("No aw_info.json found, using fallback parser with common error patterns"))
 	}
-	return LogMetrics{}, nil
+	
+	// Apply common error patterns that work across all engines
+	var metrics LogMetrics
+	commonPatterns := workflow.GetCommonErrorPatterns()
+	metrics.Errors = workflow.CountErrorsAndWarningsWithPatterns(logContent, commonPatterns)
+	logsParsingLog.Printf("Fallback parser found %d errors/warnings", len(metrics.Errors))
+	
+	return metrics, nil
 }
 
 // findAgentOutputFile searches for a file named agent_output.json within the logDir tree.
