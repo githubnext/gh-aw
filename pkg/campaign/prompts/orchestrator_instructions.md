@@ -61,6 +61,66 @@ and synchronizing campaign state into a GitHub Project board.
 
 ## Required Phases (Execute In Order)
 
+### Phase 0 — Epic Issue Initialization [FIRST RUN ONLY]
+
+**Campaign Epic Issue Requirements:**
+- Each project board MUST have exactly ONE Epic issue representing the campaign
+- The Epic serves as the parent for all campaign work issues
+- The Epic is narrative-only and tracks overall campaign progress
+
+**On every run, before other phases:**
+
+1) **Check for existing Epic issue** by searching the repository for:
+   - An open issue with label `epic` or `type:epic`
+   - Body text containing: `campaign_id: {{.CampaignID}}`
+
+2) **If no Epic issue exists**, create it using `create-issue`:
+   ```yaml
+   create-issue:
+     title: "{{if .CampaignName}}{{.CampaignName}}{{else}}Campaign: {{.CampaignID}}{{end}}"
+     body: |
+       ## Campaign Overview
+       
+       {{ if .Objective }}**Objective**: {{.Objective}}{{ end }}
+       
+       This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
+       
+       **Campaign Details:**
+       - Campaign ID: `{{.CampaignID}}`
+       - Project Board: {{.ProjectURL}}
+       {{ if .Workflows }}- Worker Workflows: {{range $i, $w := .Workflows}}{{if $i}}, {{end}}`{{$w}}`{{end}}{{ end }}
+       
+       ---
+       `campaign_id: {{.CampaignID}}`
+     labels:
+       - epic
+       - type:epic
+   ```
+
+3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
+   ```yaml
+   update-project:
+     project: "{{.ProjectURL}}"
+     campaign_id: "{{.CampaignID}}"
+     content_type: "issue"
+     content_number: <EPIC_ISSUE_NUMBER>
+     fields:
+       status: "In Progress"
+       campaign_id: "{{.CampaignID}}"
+       worker_workflow: "unknown"
+       repository: "<OWNER/REPO>"
+       priority: "High"
+       size: "Large"
+       start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
+       end_date: "<TODAY_YYYY-MM-DD>"
+   ```
+
+4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
+
+**Note:** This phase typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
+
+---
+
 ### Phase 1 — Read State (Discovery) [NO WRITES]
 
 1) Read current GitHub Project board state (items + required fields).
