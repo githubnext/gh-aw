@@ -441,6 +441,9 @@ func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool, gitRo
 		}
 
 		// Read file content for context display
+		// #nosec G304 -- absPath is validated through: 1) filepath.Clean() normalization,
+		// 2) absolute path resolution, and 3) filepath.Rel() check ensuring it's within gitRoot
+		// (lines 414-441). Path traversal attacks are prevented by the boundary validation.
 		fileContent, err := os.ReadFile(absPath)
 		var fileLines []string
 		if err == nil {
