@@ -149,15 +149,15 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 		destPath := filepath.Join(outputDir, relPath)
 
 		if info.IsDir() {
-			// Create directory in destination
-			if err := os.MkdirAll(destPath, 0755); err != nil {
+			// Create directory in destination with owner+group permissions only (0750)
+			if err := os.MkdirAll(destPath, 0750); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
 			}
 			logsDownloadLog.Printf("Created directory: %s", destPath)
 		} else {
 			// Move file to destination
-			// Ensure parent directory exists
-			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			// Ensure parent directory exists with owner+group permissions only (0750)
+			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
 				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
 			}
 

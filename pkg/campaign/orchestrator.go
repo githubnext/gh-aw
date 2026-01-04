@@ -219,18 +219,16 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	if spec.Governance != nil {
 		promptData.MaxDiscoveryItemsPerRun = spec.Governance.MaxDiscoveryItemsPerRun
 		promptData.MaxDiscoveryPagesPerRun = spec.Governance.MaxDiscoveryPagesPerRun
+		promptData.MaxProjectUpdatesPerRun = spec.Governance.MaxProjectUpdatesPerRun
+		promptData.MaxProjectCommentsPerRun = spec.Governance.MaxCommentsPerRun
 	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
-	markdownBuilder.WriteString("\n" + orchestratorInstructions + "\n")
+	appendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
 
 	projectInstructions := RenderProjectUpdateInstructions(promptData)
-	if projectInstructions != "" {
-		markdownBuilder.WriteString("\n" + projectInstructions + "\n")
-	}
-
-	closingInstructions := RenderClosingInstructions()
-	markdownBuilder.WriteString("\n" + closingInstructions + "\n")
+	appendPromptSection(markdownBuilder, "PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)", projectInstructions)
+	appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", RenderClosingInstructions())
 
 	// Enable safe outputs needed for campaign coordination.
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from

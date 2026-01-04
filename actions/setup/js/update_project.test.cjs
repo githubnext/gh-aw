@@ -595,4 +595,207 @@ describe("updateProject", () => {
     // Explicitly verify it's NOT using singleSelectOptionId
     expect(updateCall[1].value).not.toHaveProperty("singleSelectOptionId");
   });
+
+  it("correctly handles NUMBER fields with numeric values", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 80,
+      fields: {
+        story_points: 5,
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-number-field"),
+      issueResponse("issue-id-80"),
+      existingItemResponse("issue-id-80", "item-number-field"),
+      fieldsResponse([{ id: "field-story-points", name: "Story Points", dataType: "NUMBER" }]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1].value).toEqual({ number: 5 });
+  });
+
+  it("correctly converts string to number for NUMBER fields", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 81,
+      fields: {
+        story_points: "8.5",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-number-field"),
+      issueResponse("issue-id-81"),
+      existingItemResponse("issue-id-81", "item-number-field-string"),
+      fieldsResponse([{ id: "field-story-points", name: "Story Points", dataType: "NUMBER" }]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1].value).toEqual({ number: 8.5 });
+  });
+
+  it("handles invalid NUMBER field values with warning", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 82,
+      fields: {
+        story_points: "not-a-number",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-number-field"),
+      issueResponse("issue-id-82"),
+      existingItemResponse("issue-id-82", "item-number-field-invalid"),
+      fieldsResponse([{ id: "field-story-points", name: "Story Points", dataType: "NUMBER" }]),
+    ]);
+
+    await updateProject(output);
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Invalid number value "not-a-number"'));
+  });
+
+  it("correctly handles ITERATION fields by matching title", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 85,
+      fields: {
+        sprint: "Sprint 42",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-iteration-field"),
+      issueResponse("issue-id-85"),
+      existingItemResponse("issue-id-85", "item-iteration-field"),
+      fieldsResponse([
+        {
+          id: "field-sprint",
+          name: "Sprint",
+          dataType: "ITERATION",
+          configuration: {
+            iterations: [
+              { id: "iter-41", title: "Sprint 41", startDate: "2026-01-01", duration: 2 },
+              { id: "iter-42", title: "Sprint 42", startDate: "2026-01-15", duration: 2 },
+              { id: "iter-43", title: "Sprint 43", startDate: "2026-01-29", duration: 2 },
+            ],
+          },
+        },
+      ]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1].value).toEqual({ iterationId: "iter-42" });
+  });
+
+  it("handles case-insensitive iteration title matching", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 86,
+      fields: {
+        sprint: "sprint 42",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-iteration-field"),
+      issueResponse("issue-id-86"),
+      existingItemResponse("issue-id-86", "item-iteration-field-case"),
+      fieldsResponse([
+        {
+          id: "field-sprint",
+          name: "Sprint",
+          dataType: "ITERATION",
+          configuration: {
+            iterations: [{ id: "iter-42", title: "Sprint 42", startDate: "2026-01-15", duration: 2 }],
+          },
+        },
+      ]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1].value).toEqual({ iterationId: "iter-42" });
+  });
+
+  it("handles ITERATION field with non-existent iteration with warning", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 87,
+      fields: {
+        sprint: "Sprint 99",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-iteration-field"),
+      issueResponse("issue-id-87"),
+      existingItemResponse("issue-id-87", "item-iteration-field-missing"),
+      fieldsResponse([
+        {
+          id: "field-sprint",
+          name: "Sprint",
+          dataType: "ITERATION",
+          configuration: {
+            iterations: [
+              { id: "iter-41", title: "Sprint 41", startDate: "2026-01-01", duration: 2 },
+              { id: "iter-42", title: "Sprint 42", startDate: "2026-01-15", duration: 2 },
+            ],
+          },
+        },
+      ]),
+    ]);
+
+    await updateProject(output);
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Iteration "Sprint 99" not found'));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Available iterations: Sprint 41, Sprint 42"));
+  });
 });

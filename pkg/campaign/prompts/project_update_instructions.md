@@ -1,118 +1,197 @@
 {{if .ProjectURL}}
-### Project Board Integration
+# Project Update Instructions (Authoritative Write Contract)
 
-Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
+## Project Board Integration
 
-**Project URL**: {{.ProjectURL}}
+This file defines the ONLY allowed rules for writing to the GitHub Project board.
+If any other instructions conflict with this file, THIS FILE TAKES PRECEDENCE for all project writes.
 
-#### Required project fields (must exist)
+---
 
-Your GitHub Project **must** have these fields configured. Do not attempt partial updates.
+## 0) Hard Requirements (Do Not Deviate)
 
-- `status` (single-select)
-- `campaign_id` (text)
-- `worker_workflow` (text)
-- `repository` (text)
-- `priority` (single-select: "High", "Medium", "Low")
-- `size` (single-select: "Small", "Medium", "Large")
-- `start_date` (date)
-- `end_date` (date)
+- Writes MUST use only the `update-project` safe-output.
+- All writes MUST target exactly:
+  - **Project URL**: `{{.ProjectURL}}`
+- Every item MUST include:
+  - `campaign_id: "{{.CampaignID}}"`
 
-**Campaign ID**: `{{.CampaignID}}` (this exact value must be written to `campaign_id` for every item)
+## Campaign ID
 
-#### Adding New Issues/PRs
+All campaign tracking MUST key off `campaign_id: "{{.CampaignID}}"`.
 
-When adding an issue or PR to the project board, use the **content number** (not URL):
-```
-update-project:
-  project: "{{.ProjectURL}}"
-  content_type: "issue"  # or "pull_request"
-  content_number: 123  # Extract number from URL like https://github.com/owner/repo/issues/123
-  campaign_id: "{{.CampaignID}}"  # Required
-  fields:
-    status: "Todo"  # or "Done" if issue/PR is already closed/merged
-    worker_workflow: "unknown"  # Required: use worker workflow ID when known, else "unknown"
-    repository: "owner/repo"  # Required: extract from URL
-    priority: "Medium"  # Required default
-    size: "Medium"  # Required default
-    start_date: "2025-12-15"  # Required: use issue/PR created_at date in YYYY-MM-DD format
-    end_date: "2026-01-03"  # Required: use closed_at/merged_at if closed/merged, else today's date
-```
+---
 
-**How to extract content_number from URLs**:
-- Issue URL: `https://github.com/owner/repo/issues/123` → `content_number: 123`, `content_type: "issue"`
-- PR URL: `https://github.com/owner/repo/pull/456` → `content_number: 456`, `content_type: "pull_request"`
+## 1) Required Project Fields (Must Already Exist)
 
-#### Required fields for every item
+| Field | Type | Allowed / Notes |
+|---|---|---|
+| `status` | single-select | `Todo` / `In Progress` / `Done` |
+| `campaign_id` | text | Must equal `{{.CampaignID}}` |
+| `worker_workflow` | text | workflow ID or `"unknown"` |
+| `repository` | text | `owner/repo` |
+| `priority` | single-select | `High` / `Medium` / `Low` |
+| `size` | single-select | `Small` / `Medium` / `Large` |
+| `start_date` | date | `YYYY-MM-DD` |
+| `end_date` | date | `YYYY-MM-DD` |
 
-When adding or updating an item, always provide ALL required fields.
+Field names are case-sensitive.
 
-Deterministic defaults:
-- `worker_workflow`: set to the worker workflow ID when the item is worker-created; otherwise set to `unknown`
+---
+
+## 2) Content Identification (Mandatory)
+
+Use **content number** (integer), never the URL as an identifier.
+
+- Issue URL: `.../issues/123` → `content_type: "issue"`, `content_number: 123`
+- PR URL: `.../pull/456` → `content_type: "pull_request"`, `content_number: 456`
+
+---
+
+## 3) Deterministic Field Rules (No Inference)
+
+These rules apply to any time you write fields:
+
+- `campaign_id`: always `{{.CampaignID}}`
+- `worker_workflow`: workflow ID if known, else `"unknown"`
 - `repository`: extract `owner/repo` from the issue/PR URL
-- `priority`: default to `Medium` unless explicitly known
-- `size`: default to `Medium` unless explicitly known
-- `start_date`: use the issue/PR creation date (created_at) in YYYY-MM-DD format
-- `end_date`: use the issue/PR closed/merged date if closed/merged, otherwise use today's date in YYYY-MM-DD format
+- `priority`: default `Medium` unless explicitly known
+- `size`: default `Medium` unless explicitly known
+- `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
+- `end_date`:
+  - if closed/merged → `closed_at` / `merged_at` formatted `YYYY-MM-DD`
+  - if open → **today’s date** formatted `YYYY-MM-DD` (**required for roadmap view; do not leave blank**)
 
-```
+For open items, `end_date` is a UI-required placeholder and does NOT represent actual completion.
+
+---
+
+## 4) Two-Phase Execution (Prevents Read/Write Mixing)
+
+1. **READ PHASE (no writes)** — validate existence and gather metadata
+2. **WRITE PHASE (writes only)** — execute `update-project`
+
+Never interleave reads and writes.
+
+---
+
+## 5) Adding an Issue or PR (First Write)
+
+### Adding New Issues
+
+When first adding an item to the project, you MUST write ALL required fields.
+
+```yaml
 update-project:
   project: "{{.ProjectURL}}"
-  content_type: "issue"  # or "pull_request"
-  content_number: 123  # Extract from URL
+  campaign_id: "{{.CampaignID}}"
+  content_type: "issue"              # or "pull_request"
+  content_number: 123
   fields:
-    status: "Todo"  # or "In Progress", "Done"
-    campaign_id: "{{.CampaignID}}"  # Required
-    worker_workflow: "WORKFLOW_ID"  # Required (or "unknown" when not known)
-    repository: "owner/repo"  # Required
-    priority: "High"  # or "Medium", "Low"
-    size: "Medium"  # or "Small", "Large"
-    start_date: "2025-12-15"  # Required: issue/PR created_at date
-    end_date: "2026-01-03"  # Required: closed_at/merged_at or today's date
+    status: "Todo"                   # "Done" if already closed/merged
+    campaign_id: "{{.CampaignID}}"
+    worker_workflow: "unknown"
+    repository: "owner/repo"
+    priority: "Medium"
+    size: "Medium"
+    start_date: "2025-12-15"
+    end_date: "2026-01-03"
 ```
 
-**Field semantics**:
-- `worker_workflow`: Enables swimlane grouping and filtering; use the worker workflow ID when known
-- `repository`: Enables cross-repo views and grouping
-- `priority`: Enables priority-based filtering and sorting
-- `size`: Supports capacity planning and workload distribution
-- `start_date`: Required for roadmap view; use the issue/PR creation date (created_at)
-- `end_date`: Required for roadmap view; use the issue/PR closed/merged date if closed/merged, otherwise today's date
+---
 
-**Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
+## 6) Updating an Existing Item (Minimal Writes)
 
-Field names are case-sensitive and must match exactly as configured in GitHub Projects.
+### Updating Existing Items
 
-#### Updating Existing Items
+Preferred behavior is minimal, idempotent writes:
 
-When updating status for an existing board item:
-```
+- If item exists and `status` is unchanged → **No-op**
+- If item exists and `status` differs → **Update `status` only**
+- If any required field is missing/empty/invalid → **One-time full backfill** (repair only)
+
+### Status-only Update (Default)
+
+```yaml
 update-project:
   project: "{{.ProjectURL}}"
-  content_type: "issue"  # or "pull_request"
-  content_number: 123  # Extract from URL
-  campaign_id: "{{.CampaignID}}"  # Required
+  campaign_id: "{{.CampaignID}}"
+  content_type: "issue"              # or "pull_request"
+  content_number: 123
   fields:
-    status: "Done"  # or "In Progress", "Todo"
-    worker_workflow: "WORKFLOW_ID"  # Required (or "unknown")
-    repository: "owner/repo"  # Required
-    priority: "Medium"  # Required
-    size: "Medium"  # Required
-    start_date: "2025-12-15"  # Required: issue/PR created_at date
-    end_date: "2026-01-02"  # Required: closed_at/merged_at if closed/merged
+    status: "Done"
 ```
 
-#### Idempotency
+### Full Backfill (Repair Only)
 
-- If an issue/PR is already on the board with matching status → Skip (no-op)
-- If an issue/PR is already on the board with different status → Update status field only
-- If an issue/PR URL is invalid or deleted → Record failure, continue with remaining items
+```yaml
+update-project:
+  project: "{{.ProjectURL}}"
+  campaign_id: "{{.CampaignID}}"
+  content_type: "issue"              # or "pull_request"
+  content_number: 123
+  fields:
+    status: "Done"
+    campaign_id: "{{.CampaignID}}"
+    worker_workflow: "WORKFLOW_ID"
+    repository: "owner/repo"
+    priority: "Medium"
+    size: "Medium"
+    start_date: "2025-12-15"
+    end_date: "2026-01-02"
+```
 
-#### Write Operation Rules
+---
 
-1. **Batch writes separately** - Do not mix reads and writes in the same operation
-2. **Validate before writing** - Confirm issue/PR URL exists and is accessible
-3. **Record all outcomes** - Log success/failure for each write operation
-4. **Never infer state** - Only update based on explicit issue/PR state (open/closed/merged)
-5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
+## 7) Idempotency Rules
+
+- Matching status already set → **No-op**
+- Different status → **Status-only update**
+- Invalid/deleted/inaccessible URL → **Record failure and continue**
+
+## Write Operation Rules
+
+All writes MUST conform to this file and use `update-project` only.
+
+---
+
+## 8) Logging + Failure Handling (Mandatory)
+
+For every attempted item, record:
+
+- `content_type`, `content_number`, `repository`
+- action taken: `noop | add | status_update | backfill | failed`
+- error details if failed
+
+Failures must not stop processing remaining items.
+
+---
+
+## 9) Worker Workflow Policy
+
+- Workers are campaign-agnostic.
+- Orchestrator populates `worker_workflow`.
+- If `worker_workflow` cannot be determined, it MUST remain `"unknown"` unless explicitly reclassified by the orchestrator.
+
+---
+
+## 10) Parent / Sub-Issue Rules (Campaign Hierarchy)
+
+- Each project board MUST have exactly **one Epic issue** representing the campaign.
+- The Epic issue MUST:
+  - Be added to the project board
+  - Use the same `campaign_id`
+  - Use `worker_workflow: "unknown"`
+
+- All campaign work issues (non-epic) MUST be created as **sub-issues of the Epic**.
+- Issues MUST NOT be re-parented based on worker assignment.
+
+- Pull requests cannot be sub-issues:
+  - PRs MUST reference their related issue via standard GitHub linking (e.g. “Closes #123”).
+
+- Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
+
+- The Epic issue is narrative only.
+- The project board is the sole authoritative source of campaign state.
+
 {{end}}

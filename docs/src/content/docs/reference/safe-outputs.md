@@ -263,6 +263,31 @@ safe-outputs:
 
 Agent must provide full project URL (e.g., `https://github.com/orgs/myorg/projects/42`). Optional `campaign_id` applies `campaign:<id>` labels for [Campaign Workflows](/gh-aw/guides/campaigns/). Exposes outputs: `project-id`, `project-number`, `project-url`, `campaign-id`, `item-id`.
 
+#### Supported Field Types
+
+GitHub Projects V2 supports various custom field types. The following field types are automatically detected and handled:
+
+- **`TEXT`** — Text fields (default)
+- **`DATE`** — Date fields (format: `YYYY-MM-DD`)
+- **`NUMBER`** — Numeric fields (story points, estimates, etc.)
+- **`ITERATION`** — Sprint/iteration fields (matched by iteration title)
+- **`SINGLE_SELECT`** — Dropdown/select fields (creates missing options automatically)
+
+**Example field usage:**
+```yaml
+fields:
+  status: "In Progress"          # SINGLE_SELECT field
+  start_date: "2026-01-04"       # DATE field
+  story_points: 8                # NUMBER field
+  sprint: "Sprint 42"            # ITERATION field (by title)
+  priority: "High"               # SINGLE_SELECT field
+```
+
+:::note
+Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
+:::
+
+
 ### Pull Request Creation (`create-pull-request:`)
 
 Creates PRs with code changes. Falls back to issue if creation fails (e.g., org settings block it). `expires` field (same-repo only) auto-closes after period: integers (days) or `2h`, `7d`, `2w`, `1m`, `1y` (hours < 24 treated as 1 day).

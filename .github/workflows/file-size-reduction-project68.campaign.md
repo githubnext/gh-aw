@@ -1,17 +1,17 @@
 ---
-id: go-file-size-reduction-project64
-name: "Go File Size Reduction Campaign (Project 64)"
+id: file-size-reduction-project68
+name: "File Size Reduction Campaign (Project 68)"
 description: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
 version: v1
-project-url: "https://github.com/orgs/githubnext/projects/64"
+project-url: "https://github.com/orgs/githubnext/projects/68"
 project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 workflows:
   - daily-file-diet
-tracker-label: "campaign:go-file-size-reduction-project64"
+tracker-label: "campaign:file-size-reduction-project68"
 memory-paths:
-  - "memory/campaigns/go-file-size-reduction-project64/**"
-metrics-glob: "memory/campaigns/go-file-size-reduction-project64/metrics/*.json"
-cursor-glob: "memory/campaigns/go-file-size-reduction-project64/cursor.json"
+  - "memory/campaigns/file-size-reduction-project68/**"
+metrics-glob: "memory/campaigns/file-size-reduction-project68/metrics/*.json"
+cursor-glob: "memory/campaigns/file-size-reduction-project68/cursor.json"
 state: active
 tags:
   - code-quality
@@ -47,7 +47,7 @@ governance:
   max-discovery-pages-per-run: 5
 ---
 
-# Go File Size Reduction Campaign (Project 64)
+# File Size Reduction Campaign (Project 68)
 
 ## Overview
 
@@ -93,7 +93,7 @@ Primary worker workflow that:
 
 ## Project Board
 
-**URL**: https://github.com/orgs/githubnext/projects/64
+**URL**: https://github.com/orgs/githubnext/projects/68
 
 The project board serves as the primary campaign dashboard, tracking:
 - Open refactoring tasks
@@ -103,14 +103,14 @@ The project board serves as the primary campaign dashboard, tracking:
 
 ## Tracker Label
 
-All campaign-related issues and PRs are tagged with: `campaign:go-file-size-reduction-project64`
+All campaign-related issues and PRs are tagged with: `campaign:file-size-reduction-project68`
 
 ## Memory Paths
 
 Campaign state and metrics are stored in:
-- `memory/campaigns/go-file-size-reduction-project64-*/**`
+- `memory/campaigns/file-size-reduction-project68-*/**`
 
-Metrics snapshots: `memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json`
+Metrics snapshots: `memory/campaigns/file-size-reduction-project68-*/metrics/*.json`
 
 ## Governance Policies
 
@@ -145,7 +145,7 @@ This campaign:
 ## Orchestrator
 
 This campaign uses an automatically generated orchestrator workflow:
-- **File**: `.github/workflows/go-file-size-reduction-project64.campaign.g.md`
+- **File**: `.github/workflows/file-size-reduction-project68.campaign.g.md`
 - **Schedule**: Daily at 18:00 UTC (cron: `0 18 * * *`)
 - **Purpose**: Coordinate worker outputs and update project board
 
