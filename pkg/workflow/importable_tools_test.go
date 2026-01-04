@@ -537,3 +537,446 @@ Missing actions:read permission.
 		t.Errorf("Expected error to mention 'actions: read', got: %v", err)
 	}
 }
+
+// TestImportEditTool tests that edit tool can be imported from a shared workflow
+func TestImportEditTool(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with edit tool
+	sharedPath := filepath.Join(tempDir, "shared-edit.md")
+	sharedContent := `---
+description: "Shared edit tool configuration"
+tools:
+  edit:
+---
+
+# Shared Edit Tool Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports edit tool
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-edit.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported edit tool.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify edit tool functionality is present
+	// The edit tool enables --allow-all-paths flag in Copilot
+	if !strings.Contains(workflowData, "--allow-all-paths") {
+		t.Error("Expected compiled workflow to contain --allow-all-paths flag for edit tool")
+	}
+}
+
+// TestImportWebFetchTool tests that web-fetch tool can be imported from a shared workflow
+func TestImportWebFetchTool(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with web-fetch tool
+	sharedPath := filepath.Join(tempDir, "shared-web-fetch.md")
+	sharedContent := `---
+description: "Shared web-fetch tool configuration"
+tools:
+  web-fetch:
+---
+
+# Shared Web Fetch Tool Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports web-fetch tool
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-web-fetch.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported web-fetch tool.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify web-fetch is configured as an MCP server (Copilot doesn't have native support)
+	if !strings.Contains(workflowData, `"web-fetch"`) {
+		t.Error("Expected compiled workflow to contain web-fetch configuration")
+	}
+}
+
+// TestImportWebSearchTool tests that web-search tool can be imported from a shared workflow
+func TestImportWebSearchTool(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with web-search tool
+	sharedPath := filepath.Join(tempDir, "shared-web-search.md")
+	sharedContent := `---
+description: "Shared web-search tool configuration"
+tools:
+  web-search:
+---
+
+# Shared Web Search Tool Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports web-search tool
+	// Use Claude engine since Copilot doesn't support web-search
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: claude
+imports:
+  - shared-web-search.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported web-search tool.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify web-search tool is configured
+	// For Claude, web-search is a native tool capability
+	if !strings.Contains(workflowData, "WebSearch") {
+		t.Error("Expected compiled workflow to contain WebSearch tool configuration for Claude")
+	}
+}
+
+// TestImportSafetyPromptTool tests that safety-prompt tool can be imported from a shared workflow
+func TestImportSafetyPromptTool(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with safety-prompt disabled
+	sharedPath := filepath.Join(tempDir, "shared-safety-prompt.md")
+	sharedContent := `---
+description: "Shared safety-prompt configuration"
+tools:
+  safety-prompt: false
+---
+
+# Shared Safety Prompt Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports safety-prompt setting
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-safety-prompt.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported safety-prompt setting.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify safety-prompt is disabled (XPIA injection step should not be present)
+	// When safety-prompt is disabled, the XPIA step is not included
+	if strings.Contains(workflowData, "XPIA") {
+		t.Error("Expected XPIA prompt injection to be disabled when safety-prompt is false")
+	}
+}
+
+// TestImportTimeoutTool tests that timeout tool setting can be imported from a shared workflow
+func TestImportTimeoutTool(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with timeout setting
+	sharedPath := filepath.Join(tempDir, "shared-timeout.md")
+	sharedContent := `---
+description: "Shared timeout configuration"
+tools:
+  timeout: 90
+---
+
+# Shared Timeout Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports timeout setting
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported timeout setting.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify timeout is configured
+	// The timeout setting sets environment variables for MCP and bash tools
+	hasTimeout := strings.Contains(workflowData, "MCP_TOOL_TIMEOUT") ||
+		strings.Contains(workflowData, "90000") ||
+		strings.Contains(workflowData, "GH_AW_TOOL_TIMEOUT")
+	if !hasTimeout {
+		t.Error("Expected compiled workflow to contain timeout configuration (90 seconds)")
+	}
+}
+
+// TestImportStartupTimeoutTool tests that startup-timeout tool setting can be imported from a shared workflow
+func TestImportStartupTimeoutTool(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with startup-timeout setting
+	sharedPath := filepath.Join(tempDir, "shared-startup-timeout.md")
+	sharedContent := `---
+description: "Shared startup-timeout configuration"
+tools:
+  startup-timeout: 60
+---
+
+# Shared Startup Timeout Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports startup-timeout setting
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-startup-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported startup-timeout setting.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify startup-timeout is configured
+	// The startup-timeout setting sets environment variables for MCP startup
+	hasStartupTimeout := strings.Contains(workflowData, "MCP_TIMEOUT") ||
+		strings.Contains(workflowData, "60000") ||
+		strings.Contains(workflowData, "GH_AW_STARTUP_TIMEOUT")
+	if !hasStartupTimeout {
+		t.Error("Expected compiled workflow to contain startup-timeout configuration (60 seconds)")
+	}
+}
+
+// TestImportMultipleNeutralTools tests importing multiple neutral tools together
+func TestImportMultipleNeutralTools(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with multiple neutral tools
+	sharedPath := filepath.Join(tempDir, "shared-neutral-tools.md")
+	sharedContent := `---
+description: "Shared configuration with multiple neutral tools"
+tools:
+  edit:
+  web-fetch:
+  safety-prompt: true
+  timeout: 120
+  startup-timeout: 90
+---
+
+# Shared Neutral Tools Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports all neutral tools
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-neutral-tools.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses all imported neutral tools.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify edit tool is present (--allow-all-paths flag)
+	if !strings.Contains(workflowData, "--allow-all-paths") {
+		t.Error("Expected compiled workflow to contain --allow-all-paths flag for edit tool")
+	}
+
+	// Verify web-fetch tool is present
+	if !strings.Contains(workflowData, `"web-fetch"`) {
+		t.Error("Expected compiled workflow to contain web-fetch configuration")
+	}
+
+	// Verify timeout is configured (120 seconds)
+	hasTimeout := strings.Contains(workflowData, "120000") ||
+		strings.Contains(workflowData, "MCP_TOOL_TIMEOUT") ||
+		strings.Contains(workflowData, "GH_AW_TOOL_TIMEOUT")
+	if !hasTimeout {
+		t.Error("Expected compiled workflow to contain timeout configuration (120 seconds)")
+	}
+
+	// Verify startup-timeout is configured (90 seconds)
+	hasStartupTimeout := strings.Contains(workflowData, "90000") ||
+		strings.Contains(workflowData, "MCP_TIMEOUT") ||
+		strings.Contains(workflowData, "GH_AW_STARTUP_TIMEOUT")
+	if !hasStartupTimeout {
+		t.Error("Expected compiled workflow to contain startup-timeout configuration (90 seconds)")
+	}
+}
