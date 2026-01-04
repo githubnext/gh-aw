@@ -56,6 +56,7 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(result.success).toBe(true);
     expect(result.workflow_name).toBe("test-workflow");
+    // Should try .lock.yml first, then .yml
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
@@ -134,7 +135,10 @@ describe("dispatch_workflow handler factory", () => {
   it("should handle dispatch errors", async () => {
     const handler = await main({ workflows: ["missing-workflow"] });
 
-    github.rest.actions.createWorkflowDispatch.mockRejectedValueOnce(new Error("Request failed with status code 404"));
+    // Mock both calls to fail with 404
+    github.rest.actions.createWorkflowDispatch
+      .mockRejectedValueOnce(new Error("Request failed with status code 404"))
+      .mockRejectedValueOnce(new Error("Request failed with status code 404"));
 
     const message = {
       type: "dispatch_workflow",
@@ -146,6 +150,8 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("not found");
+    expect(result.error).toContain(".lock.yml");
+    expect(result.error).toContain(".yml");
   });
 
   it("should convert input values to strings", async () => {

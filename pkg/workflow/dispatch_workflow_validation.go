@@ -42,37 +42,47 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 			return fmt.Errorf("dispatch-workflow: self-reference not allowed (workflow '%s' cannot dispatch itself)", workflowName)
 		}
 
-		// Check if the workflow file exists
+		// Check if the workflow file exists - support .md, .lock.yml, or .yml files
 		workflowFilePath := filepath.Join(workflowsDir, workflowName+".md")
 		lockFilePath := filepath.Join(workflowsDir, workflowName+".lock.yml")
+		ymlFilePath := filepath.Join(workflowsDir, workflowName+".yml")
 
-		// Check if either .md or .lock.yml exists
+		// Check if any workflow file exists
 		mdExists := fileExists(workflowFilePath)
 		lockExists := fileExists(lockFilePath)
+		ymlExists := fileExists(ymlFilePath)
 
-		if !mdExists && !lockExists {
-			return fmt.Errorf("dispatch-workflow: workflow '%s' not found (expected %s or %s)", workflowName, workflowFilePath, lockFilePath)
+		if !mdExists && !lockExists && !ymlExists {
+			return fmt.Errorf("dispatch-workflow: workflow '%s' not found (expected %s, %s, or %s)", workflowName, workflowFilePath, lockFilePath, ymlFilePath)
 		}
 
 		// Validate that the workflow supports workflow_dispatch
-		// We check the .lock.yml file if it exists, otherwise parse the .md file
+		// Priority: .lock.yml (compiled agentic workflow) > .yml (standard GitHub Actions) > .md (needs compilation)
 		var workflowContent []byte
 		var err error
+		var workflowFile string
 
 		if lockExists {
+			workflowFile = lockFilePath
 			workflowContent, err = os.ReadFile(lockFilePath)
 			if err != nil {
 				return fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", lockFilePath, err)
 			}
+		} else if ymlExists {
+			workflowFile = ymlFilePath
+			workflowContent, err = os.ReadFile(ymlFilePath)
+			if err != nil {
+				return fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", ymlFilePath, err)
+			}
 		} else {
-			// For .md files, we need to compile them first or just check the frontmatter
-			// For simplicity, we'll just check if the .lock.yml exists
+			// Only .md exists - needs to be compiled first
 			return fmt.Errorf("dispatch-workflow: workflow '%s' must be compiled first (run 'gh aw compile %s')", workflowName, workflowFilePath)
 		}
 
 		// Parse the workflow YAML to check for workflow_dispatch trigger
 		var workflow map[string]any
 		if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
+			return fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", workflowFile, err)
 			return fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", lockFilePath, err)
 		}
 
@@ -107,7 +117,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 			return fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
 		}
 
-		dispatchWorkflowValidationLog.Printf("Workflow '%s' is valid for dispatch", workflowName)
+		dispatchWorkflowValidationLog.Printf("Workflow '%s' is valid for dispatch (found in %s)", workflowName, workflowFile)
 	}
 
 	dispatchWorkflowValidationLog.Printf("All %d workflows validated successfully", len(config.Workflows))

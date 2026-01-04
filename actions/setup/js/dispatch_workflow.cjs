@@ -91,15 +91,43 @@ async function main(config = {}) {
       }
 
       // Dispatch the workflow using the GitHub REST API
-      await github.rest.actions.createWorkflowDispatch({
-        owner: repo.owner,
-        repo: repo.repo,
-        workflow_id: `${workflowName}.lock.yml`,
-        ref: ref,
-        inputs: inputs,
-      });
+      // Try .lock.yml first (for agentic workflows), then .yml (for standard workflows)
+      let dispatched = false;
+      let lastError = null;
 
-      core.info(`✓ Successfully dispatched workflow: ${workflowName}`);
+      for (const extension of [".lock.yml", ".yml"]) {
+        try {
+          await github.rest.actions.createWorkflowDispatch({
+            owner: repo.owner,
+            repo: repo.repo,
+            workflow_id: `${workflowName}${extension}`,
+            ref: ref,
+            inputs: inputs,
+          });
+
+          core.info(`✓ Successfully dispatched workflow: ${workflowName}${extension}`);
+          dispatched = true;
+          break;
+        } catch (error) {
+          const errorMessage = getErrorMessage(error);
+          
+          // If it's a 404, try the next extension
+          if (errorMessage.includes("404")) {
+            lastError = errorMessage;
+            continue;
+          }
+          
+          // For other errors, fail immediately
+          throw error;
+        }
+      }
+
+      if (!dispatched) {
+        return {
+          success: false,
+          error: `Workflow "${workflowName}" not found. Tried ${workflowName}.lock.yml and ${workflowName}.yml. Make sure the workflow file exists and supports workflow_dispatch trigger.`,
+        };
+      }
 
       return {
         success: true,
@@ -110,18 +138,10 @@ async function main(config = {}) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to dispatch workflow "${workflowName}": ${errorMessage}`);
 
-      // Check if it's a 404 error (workflow not found)
-      if (errorMessage.includes("404")) {
-        return {
-          success: false,
-          error: `Workflow "${workflowName}.lock.yml" not found. Make sure the workflow file exists and supports workflow_dispatch trigger.`,
-        };
-      } else {
-        return {
-          success: false,
-          error: `Failed to dispatch workflow "${workflowName}": ${errorMessage}`,
-        };
-      }
+      return {
+        success: false,
+        error: `Failed to dispatch workflow "${workflowName}": ${errorMessage}`,
+      };
     }
   };
 }

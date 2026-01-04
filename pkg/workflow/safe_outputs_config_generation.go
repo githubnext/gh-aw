@@ -668,13 +668,29 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		workflowsDir := filepath.Dir(markdownPath)
 
 		for _, workflowName := range data.SafeOutputs.DispatchWorkflow.Workflows {
-			// Generate a tool for this workflow
+			// Try to find the workflow file - priority: .lock.yml > .yml
+			// .lock.yml is used for compiled agentic workflows
+			// .yml is used for standard GitHub Actions workflows
 			lockFilePath := filepath.Join(workflowsDir, workflowName+".lock.yml")
+			ymlFilePath := filepath.Join(workflowsDir, workflowName+".yml")
+
+			var workflowPath string
+			if fileExists(lockFilePath) {
+				workflowPath = lockFilePath
+			} else if fileExists(ymlFilePath) {
+				workflowPath = ymlFilePath
+			} else {
+				safeOutputsConfigLog.Printf("Warning: workflow file not found for %s (tried %s and %s)", workflowName, lockFilePath, ymlFilePath)
+				// Continue with empty inputs
+				tool := generateDispatchWorkflowTool(workflowName, make(map[string]any))
+				filteredTools = append(filteredTools, tool)
+				continue
+			}
 
 			// Extract workflow_dispatch inputs
-			workflowInputs, err := extractWorkflowDispatchInputs(lockFilePath)
+			workflowInputs, err := extractWorkflowDispatchInputs(workflowPath)
 			if err != nil {
-				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s: %v", workflowName, err)
+				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s from %s: %v", workflowName, workflowPath, err)
 				// Continue with empty inputs
 				workflowInputs = make(map[string]any)
 			}
