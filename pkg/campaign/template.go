@@ -46,6 +46,12 @@ type CampaignPromptData struct {
 	// MaxDiscoveryPagesPerRun caps how many pages may be fetched during discovery.
 	MaxDiscoveryPagesPerRun int
 
+	// MaxProjectUpdatesPerRun caps how many project update writes may happen per run.
+	MaxProjectUpdatesPerRun int
+
+	// MaxProjectCommentsPerRun caps how many comments may be written per run.
+	MaxProjectCommentsPerRun int
+
 	// Workflows is the list of worker workflow IDs associated with this campaign.
 	Workflows []string
 }

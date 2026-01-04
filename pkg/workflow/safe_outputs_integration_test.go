@@ -517,10 +517,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 				"SHARED_VAR",
 			},
 			expectedStepNames: []string{
-				"create_issue",
-				"create_pull_request",
-				"add_comment",
-				// Note: "noop" is not included in consolidated job
+				"process_safe_outputs", // Consolidated step for all safe outputs
 			},
 		},
 	}

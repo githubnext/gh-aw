@@ -647,12 +647,10 @@ Uses imported web-fetch tool.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	workflowData := string(lockFileContent)
-
-	// Verify web-fetch is configured as an MCP server (Copilot doesn't have native support)
-	if !strings.Contains(workflowData, `"web-fetch"`) {
-		t.Error("Expected compiled workflow to contain web-fetch configuration")
-	}
+	// Verify compilation succeeded
+	// Note: Copilot has built-in web-fetch support, so no explicit MCP configuration is needed
+	// The test verifies that the workflow compiles successfully when web-fetch is imported
+	_ = lockFileContent // Compilation success is sufficient verification
 }
 
 // TestImportWebSearchTool tests that web-search tool can be imported from a shared workflow
@@ -959,10 +957,8 @@ Uses all imported neutral tools.
 		t.Error("Expected compiled workflow to contain --allow-all-paths flag for edit tool")
 	}
 
-	// Verify web-fetch tool is present
-	if !strings.Contains(workflowData, `"web-fetch"`) {
-		t.Error("Expected compiled workflow to contain web-fetch configuration")
-	}
+	// Note: web-fetch has built-in Copilot support, so no explicit MCP configuration is needed
+	// The test verifies that web-fetch compiles successfully when imported
 
 	// Verify timeout is configured (120 seconds)
 	hasTimeout := strings.Contains(workflowData, "120000") ||

@@ -19,39 +19,26 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem
+# Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions.
 
-name: "Campaign - Incident Response"
+name: "Go File Size Reduction Campaign (Project 68)"
 "on":
+  schedule:
+  - cron: "0 18 * * *"
   workflow_dispatch:
-    inputs:
-      affected_services:
-        description: Comma-separated list of affected services/repos
-        required: true
-      incident_description:
-        description: Brief incident description
-        required: true
-      incident_severity:
-        description: Incident severity
-        options:
-        - critical
-        - high
-        - medium
-        required: true
-        type: choice
-      stakeholder_issue:
-        description: Issue number for stakeholder updates
-        required: false
 
 permissions:
+  actions: read
   contents: read
   issues: read
   pull-requests: read
+  security-events: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: false
+  group: campaign-file-size-reduction-project68-orchestrator-${{ github.ref }}
 
-run-name: "Campaign - Incident Response"
+run-name: "Go File Size Reduction Campaign (Project 68)"
 
 jobs:
   activation:
@@ -75,7 +62,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "incident-response.lock.yml"
+          GH_AW_WORKFLOW_FILE: "file-size-reduction-project64.campaign.g.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -87,9 +74,11 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
+      security-events: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -120,12 +109,12 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
+      - name: Clone repo-memory branch (campaigns)
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH_NAME: memory/campaigns
           TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
           CREATE_ORPHAN: true
         run: bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
@@ -192,52 +181,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"add_labels":{"max":3},"create_issue":{"max":1},"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":10},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [campaign-tracker incident] will be automatically added.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
-                    "type": "string"
-                  },
-                  "labels": {
-                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "parent": {
-                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "temporary_id": {
-                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_issue"
-            },
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 1 comment(s) can be added.",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 10 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -257,63 +206,6 @@ jobs:
                 "type": "object"
               },
               "name": "add_comment"
-            },
-            {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Labels [campaign-fix incident] will be automatically added.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
-                    "type": "string"
-                  },
-                  "branch": {
-                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
-                    "type": "string"
-                  },
-                  "labels": {
-                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "title": {
-                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_pull_request"
-            },
-            {
-              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "item_number": {
-                    "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow.",
-                    "type": "number"
-                  },
-                  "labels": {
-                    "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  }
-                },
-                "required": [
-                  "labels"
-                ],
-                "type": "object"
-              },
-              "name": "add_labels"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -357,6 +249,58 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "campaign_id": {
+                    "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
+                    "type": "string"
+                  },
+                  "content_number": {
+                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
+                    "type": "number"
+                  },
+                  "content_type": {
+                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
+                    "enum": [
+                      "issue",
+                      "pull_request",
+                      "draft_issue"
+                    ],
+                    "type": "string"
+                  },
+                  "create_if_missing": {
+                    "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
+                    "type": "boolean"
+                  },
+                  "draft_body": {
+                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "draft_title": {
+                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
+                    "type": "object"
+                  },
+                  "project": {
+                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project",
+                  "content_type"
+                ],
+                "type": "object"
+              },
+              "name": "update_project"
             }
           ]
           EOF
@@ -373,83 +317,6 @@ jobs:
                 },
                 "item_number": {
                   "issueOrPRNumber": true
-                }
-              }
-            },
-            "add_labels": {
-              "defaultMax": 5,
-              "fields": {
-                "item_number": {
-                  "issueOrPRNumber": true
-                },
-                "labels": {
-                  "required": true,
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                }
-              }
-            },
-            "create_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "parent": {
-                  "issueOrPRNumber": true
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "temporary_id": {
-                  "type": "string"
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              }
-            },
-            "create_pull_request": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "branch": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
                 }
               }
             },
@@ -485,6 +352,43 @@ jobs:
                   "maxLength": 65000
                 }
               }
+            },
+            "update_project": {
+              "defaultMax": 10,
+              "fields": {
+                "campaign_id": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "content_number": {
+                  "optionalPositiveInteger": true
+                },
+                "content_type": {
+                  "type": "string",
+                  "enum": [
+                    "issue",
+                    "pull_request"
+                  ]
+                },
+                "fields": {
+                  "type": "object"
+                },
+                "issue": {
+                  "optionalPositiveInteger": true
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                },
+                "pull_request": {
+                  "optionalPositiveInteger": true
+                }
+              }
             }
           }
           EOF
@@ -512,7 +416,7 @@ jobs:
                   "-e",
                   "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
                   "-e",
-                  "GITHUB_TOOLSETS=repos,issues,pull_requests,search",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions,code_security",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "tools": ["*"],
@@ -563,7 +467,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.374",
-              workflow_name: "Campaign - Incident Response",
+              workflow_name: "Go File Size Reduction Campaign (Project 68)",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -604,435 +508,378 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
-          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
-          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
-          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Campaign: Incident Response Coordination
           
-          **Purpose**: Coordinate cross-team incident response that GitHub Actions/basic workflows cannot handle.
           
-          **Campaign ID**: `incident-__GH_AW_GITHUB_RUN_ID__`
           
-          **Severity**: `__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__`
+          # Campaign Orchestrator
           
-          ## Why Campaigns Solve This (Not GitHub Actions)
+          This workflow orchestrates the 'Go File Size Reduction Campaign (Project 68)' campaign.
           
-          **Problem**: Production incident affecting multiple repos/teams requires:
-          - Central command & control
-          - Multi-team coordination
-          - Real-time status tracking
-          - Stakeholder communication every 30min
-          - SLA pressure (time-to-mitigation)
-          - Post-mortem with business context
-          - Approval gates for emergency fixes
+          - Objective: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
+          - KPIs:
+            - Files reduced to target size (primary): baseline 0 → target 100 over 90 days percent
+            - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days percent
+          - Associated workflows: daily-file-diet
+          - Memory paths: memory/campaigns/file-size-reduction-project68/**
+          - Metrics glob: `memory/campaigns/file-size-reduction-project68/metrics/*.json`
+          - Cursor glob: `memory/campaigns/file-size-reduction-project68/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/68
+          - Governance: max new items per run: 5
+          - Governance: max discovery items per run: 50
+          - Governance: max discovery pages per run: 5
+          - Governance: max project updates per run: 10
+          - Governance: max comments per run: 10
           
-          **GitHub Actions fails**: No cross-team coordination, no SLA tracking, no stakeholder communication pattern
+          ---
+          # ORCHESTRATOR INSTRUCTIONS
+          ---
+          # Orchestrator Instructions
           
-          **Basic agentic workflow fails**: Single execution, no orchestration, no persistent command center
+          This orchestrator coordinates a single campaign by discovering worker outputs, making deterministic decisions,
+          and synchronizing campaign state into a GitHub Project board.
           
-          **Campaign solves**: Human-AI collaboration + persistent memory + coordination + governance
-          
-          ## Incident Response Steps
-          
-          ### 1. Initialize Command Center (repo-memory)
-          
-          Create file `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/command-center.json`:
-          ```json
-          {
-            "campaign_id": "incident-__GH_AW_GITHUB_RUN_ID__",
-            "incident_id": "INC-__GH_AW_GITHUB_RUN_ID__",
-            "severity": "__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__",
-            "description": "__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__",
-            "started": "[timestamp]",
-            "affected_services": "__GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES__".split(","),
-            "sla_target_minutes": {
-              "critical": 30,
-              "high": 120,
-              "medium": 480
-            }["__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__"],
-            "status": "investigating",
-            "teams_involved": [],
-            "timeline": []
-          }
-          ```
-          
-          ### 2. Create Command Center Issue
-          
-          Use `create-issue`:
-          
-          **Title**: `🚨 INCIDENT [__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__]: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__`
-          
-          **Labels**: `campaign-tracker`, `tracker:incident-__GH_AW_GITHUB_RUN_ID__`, `incident`, `severity:__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__`
-          
-          **Body**:
-          ```markdown
-          # Incident Response: INC-__GH_AW_GITHUB_RUN_ID__
-          
-          **Campaign ID**: `incident-__GH_AW_GITHUB_RUN_ID__`
-          **Severity**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
-          **Started**: [timestamp]
-          **SLA Target**: [minutes based on severity]
-          
-          ## Incident Details
-          
-          **Description**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__
-          
-          **Affected Services**: __GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES__
-          
-          ## Response Status
-          
-          **Current Status**: 🔍 Investigating
-          
-          **Teams Involved**: [AI to identify from affected services]
-          
-          **Timeline**:
-          - [timestamp] - Incident detected and campaign initiated
-          
-          ## Coordination
-          
-          **Query all incident work**:
-          ```bash
-          gh issue list --search "tracker:incident-__GH_AW_GITHUB_RUN_ID__"
-          gh pr list --search "tracker:incident-__GH_AW_GITHUB_RUN_ID__"
-          ```
-          
-          **Command Center Data**: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
-          
-          ## SLA Tracking
-          
-          **Target Resolution**: [SLA minutes] minutes from start
-          **Time Remaining**: [calculated]
+          **Scope:** orchestration only (discovery, planning, pacing, reporting).  
+          **Write authority:** all project write semantics are governed by **Project Update Instructions** and MUST be followed.
           
           ---
           
-          **Updates will be posted here every 30 minutes or on status changes**
-          ```
+          ## Traffic and Rate Limits (Required)
           
-          ### 3. AI Analysis Phase
+          - Minimize API calls; avoid full rescans when possible.
+          - Prefer incremental discovery with deterministic ordering (e.g., by `updatedAt`, tie-break by ID).
+          - Enforce strict pagination budgets; if a query requires many pages, stop early and continue next run.
+          - Use a durable cursor/checkpoint so the next run continues without rescanning.
+          - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
           
-          **For each affected service/repo**:
           
-          1. **Search for related issues/PRs** (recent errors, deployment failures)
-          2. **Identify recent changes** (PRs merged in last 48h)
-          3. **Check dependencies** (related services that might be impacted)
-          4. **Analyze error patterns** (common failure modes)
+          **Cursor file (repo-memory)**: `memory/campaigns/file-size-reduction-project68/cursor.json`  
+          - If it exists: read first and continue from its boundary.  
+          - If it does not exist: create it by end of run.  
+          - Always write the updated cursor back to the same path.
           
-          **Generate hypothesis**:
-          - Likely root causes (ranked by probability)
-          - Affected blast radius (repos, users, services)
-          - Recommended immediate actions
-          - Teams that need to be involved
           
-          ### 4. Human Decision Checkpoint
           
-          **AI presents findings to command center issue**:
+          **Metrics snapshots (repo-memory)**: `memory/campaigns/file-size-reduction-project68/metrics/*.json`  
+          - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
+          - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
+          - Each snapshot MUST include `campaign_id` and `date` (UTC).
           
-          ```markdown
-          ## 🤖 AI Analysis Complete
           
-          ### Likely Root Causes (by probability)
-          1. [Cause A] - 60% confidence
-             - Evidence: [specific findings]
-             - Impact: [scope]
-             - Recommended action: [specific fix]
-             - Risk: [rollback complexity]
-             
-          2. [Cause B] - 25% confidence
-             - Evidence: [specific findings]
-             - Recommended action: [specific fix]
           
-          ### Blast Radius
-          - Affected repos: [list]
-          - Affected users: [estimate]
-          - Downstream dependencies: [list]
+          **Read budget**: max discovery items per run: 50
           
-          ### Recommended Actions (Risk-Tiered)
           
-          **IMMEDIATE (Low Risk - AI can execute)**:
-          - [ ] Rollback deployment in repo X
-          - [ ] Increase timeout in service Y
-          - [ ] Scale up instances in service Z
+          **Read budget**: max discovery pages per run: 5
           
-          **REQUIRES APPROVAL (Medium Risk - needs team lead)**:
-          - [ ] Apply hotfix PR #123
-          - [ ] Disable feature flag "new-api"
           
-          **REQUIRES EXECUTIVE APPROVAL (High Risk - data/security impact)**:
-          - [ ] Database migration rollback
-          - [ ] Traffic failover to backup region
+          **Write budget**: max project updates per run: 10
           
-          ### Teams to Involve
-          - @team-api - [reason]
-          - @team-database - [reason]
-          - @team-frontend - [reason]
+          
+          **Write budget**: max project comments per run: 10
+          
           
           ---
           
-          **🚦 Awaiting incident commander decision on recommended actions**
+          ## Core Principles (Non-Negotiable)
           
-          Reply with:
-          - "execute-immediate" - Run all low-risk actions
-          - "approve-medium [action numbers]" - Approve specific medium-risk actions
-          - "escalate-high" - Escalate high-risk actions to executive
-          - "investigate-more [cause]" - Deep dive into specific cause
-          ```
-          
-          ### 5. Execute Approved Actions
-          
-          **Based on human decisions**:
-          
-          **If "execute-immediate"**:
-          - Create PRs for rollbacks/hotfixes
-          - Apply labels: `incident-fix`, `tracker:incident-__GH_AW_GITHUB_RUN_ID__`
-          - Add comments linking back to command center
-          - Update command center with execution status
-          
-          **If "approve-medium [actions]"**:
-          - Create issues for each approved action
-          - Assign to relevant teams
-          - Track progress in command center
-          - Update SLA countdown
-          
-          **If "escalate-high"**:
-          - Create executive escalation issue
-          - Tag VP/CTO for approval
-          - Document business impact
-          - Pause until approval received
-          
-          ### 6. Status Updates (Every 30min)
-          
-          Add comment to command center issue:
-          
-          ```markdown
-          ## 🕐 Status Update: [HH:MM] ([X] minutes since start)
-          
-          **SLA Status**: ⏰ [minutes remaining] / [target minutes]
-          
-          **Current Status**: [investigating/mitigating/resolved]
-          
-          **Actions Completed** (last 30min):
-          - ✅ [Action A] - [outcome]
-          - ✅ [Action B] - [outcome]
-          
-          **Actions In Progress**:
-          - 🔄 [Action C] - [team] - ETA [time]
-          - 🔄 [Action D] - [team] - ETA [time]
-          
-          **Blockers**:
-          - 🚫 [Blocker A] - [reason] - [action needed]
-          
-          **Next Steps**:
-          - [Next action 1]
-          - [Next action 2]
-          
-          **Metrics**:
-          - Error rate: [current vs baseline]
-          - User impact: [affected users]
-          - Service health: [status]
-          ```
-          
-          {% if github.event.inputs.stakeholder_issue %}
-          Also post sanitized update to stakeholder issue #__GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE__.
-          {% endif %}
-          
-          ### 7. Store Timeline Events (repo-memory)
-          
-          Update `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/timeline.json` continuously:
-          ```json
-          {
-            "incident_id": "INC-__GH_AW_GITHUB_RUN_ID__",
-            "timeline": [
-              {
-                "timestamp": "[time]",
-                "event": "incident_detected",
-                "details": "Description",
-                "actor": "system"
-              },
-              {
-                "timestamp": "[time]",
-                "event": "ai_analysis_complete",
-                "hypotheses": ["cause A", "cause B"],
-                "confidence": {"cause A": 0.6, "cause B": 0.25},
-                "actor": "ai"
-              },
-              {
-                "timestamp": "[time]",
-                "event": "human_decision",
-                "decision": "execute-immediate",
-                "actions_approved": ["rollback X", "scale Y"],
-                "actor": "@incident-commander"
-              },
-              {
-                "timestamp": "[time]",
-                "event": "action_executed",
-                "action": "rollback X",
-                "outcome": "success",
-                "actor": "ai"
-              },
-              {
-                "timestamp": "[time]",
-                "event": "incident_resolved",
-                "resolution": "Rollback deployed, error rate back to baseline",
-                "duration_minutes": 45,
-                "actor": "@incident-commander"
-              }
-            ]
-          }
-          ```
-          
-          ### 8. Incident Resolution
-          
-          When resolved, create final summary in command center:
-          
-          ```markdown
-          ## ✅ Incident Resolved
-          
-          **Duration**: [X] minutes
-          **SLA Status**: ✅ Within SLA / ⚠️ Exceeded by [X] minutes
-          
-          **Root Cause**: [confirmed cause]
-          
-          **Resolution**: [what fixed it]
-          
-          **Impact**:
-          - Affected users: [count]
-          - Services impacted: [list]
-          - Duration: [minutes]
-          - Data loss: Yes/No
-          
-          **Teams Involved**:
-          - [Team A] - [contribution]
-          - [Team B] - [contribution]
-          
-          **PRs/Fixes Applied**:
-          - #123 - [description]
-          - #124 - [description]
-          
-          **Post-Mortem Required**: Yes
-          
-          See full timeline and analysis: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
+          1. Workers are immutable.
+          2. Workers are campaign-agnostic.
+          3. Campaign logic is external to workers (orchestrator only).
+          4. The GitHub Project board is the authoritative campaign state.
+          5. Correlation is explicit (tracker-id).
+          6. Reads and writes are separate phases (never interleave).
+          7. Idempotent operation is mandatory (safe to re-run).
+          8. Only predefined project fields may be updated.
+          9. **Project Update Instructions take precedence for all project writes.**
           
           ---
           
-          Campaign closed.
+          ## Required Phases (Execute In Order)
+          
+          ### Phase 1 — Read State (Discovery) [NO WRITES]
+          
+          1) Read current GitHub Project board state (items + required fields).
+          
+          2) Discover worker outputs (if workers are configured):
+          
+          - Perform separate discovery per worker workflow:
+          
+            - Search for tracker-id `daily-file-diet` across issues/PRs/discussions/comments (parent issue/PR is the unit of work).
+          
+          
+          
+          3) Normalize discovered items into a single list with:
+          - URL, `content_type` (issue/pull_request/discussion), `content_number`
+          - `repository` (owner/repo), `created_at`, `updated_at`
+          - `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
+          
+          4) Respect read budgets and cursor; stop early if needed and persist cursor.
+          
+          ### Phase 2 — Make Decisions (Planning) [NO WRITES]
+          
+          5) Determine desired `status` strictly from explicit GitHub state:
+          - Open → `Todo` (or `In Progress` only if explicitly indicated elsewhere)
+          - Closed (issue/discussion) → `Done`
+          - Merged (PR) → `Done`
+          
+          6) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+          
+          7) Apply write budget:
+          - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
+            (e.g., oldest `updated_at` first; tie-break by ID/number).
+          - Defer remaining items to next run via cursor.
+          
+          ### Phase 3 — Write State (Execution) [WRITES ONLY]
+          
+          8) For each selected item, send an `update-project` request.
+          - Do NOT interleave reads.
+          - Do NOT pre-check whether the item is on the board.
+          - **All write semantics MUST follow Project Update Instructions**, including:
+            - first add → full required fields
+            - existing item → status-only update unless explicit backfill is required
+          
+          9) Record per-item outcome: success/failure + error details.
+          
+          ### Phase 4 — Report
+          
+          10) Report:
+          - counts discovered (by type)
+          - counts processed this run (by action: add/status_update/backfill/noop/failed)
+          - counts deferred due to budgets
+          - failures (with reasons)
+          - completion state (work items only)
+          - cursor advanced / remaining backlog estimate
+          
+          ---
+          
+          ## Authority
+          
+          If any instruction in this file conflicts with **Project Update Instructions**, the Project Update Instructions win for all project writes.
+          ---
+          # PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)
+          ---
+          # Project Update Instructions (Authoritative Write Contract)
+          
+          ## Project Board Integration
+          
+          This file defines the ONLY allowed rules for writing to the GitHub Project board.
+          If any other instructions conflict with this file, THIS FILE TAKES PRECEDENCE for all project writes.
+          
+          ---
+          
+          ## 0) Hard Requirements (Do Not Deviate)
+          
+          - Writes MUST use only the `update-project` safe-output.
+          - All writes MUST target exactly:
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/68`
+          - Every item MUST include:
+            - `campaign_id: "file-size-reduction-project68"`
+          
+          ## Campaign ID
+          
+          All campaign tracking MUST key off `campaign_id: "file-size-reduction-project68"`.
+          
+          ---
+          
+          ## 1) Required Project Fields (Must Already Exist)
+          
+          | Field | Type | Allowed / Notes |
+          |---|---|---|
+          | `status` | single-select | `Todo` / `In Progress` / `Done` |
+          | `campaign_id` | text | Must equal `file-size-reduction-project68` |
+          | `worker_workflow` | text | workflow ID or `"unknown"` |
+          | `repository` | text | `owner/repo` |
+          | `priority` | single-select | `High` / `Medium` / `Low` |
+          | `size` | single-select | `Small` / `Medium` / `Large` |
+          | `start_date` | date | `YYYY-MM-DD` |
+          | `end_date` | date | `YYYY-MM-DD` |
+          
+          Field names are case-sensitive.
+          
+          ---
+          
+          ## 2) Content Identification (Mandatory)
+          
+          Use **content number** (integer), never the URL as an identifier.
+          
+          - Issue URL: `.../issues/123` → `content_type: "issue"`, `content_number: 123`
+          - PR URL: `.../pull/456` → `content_type: "pull_request"`, `content_number: 456`
+          
+          ---
+          
+          ## 3) Deterministic Field Rules (No Inference)
+          
+          These rules apply to any time you write fields:
+          
+          - `campaign_id`: always `file-size-reduction-project68`
+          - `worker_workflow`: workflow ID if known, else `"unknown"`
+          - `repository`: extract `owner/repo` from the issue/PR URL
+          - `priority`: default `Medium` unless explicitly known
+          - `size`: default `Medium` unless explicitly known
+          - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
+          - `end_date`:
+            - if closed/merged → `closed_at` / `merged_at` formatted `YYYY-MM-DD`
+            - if open → **today’s date** formatted `YYYY-MM-DD` (**required for roadmap view; do not leave blank**)
+          
+          For open items, `end_date` is a UI-required placeholder and does NOT represent actual completion.
+          
+          ---
+          
+          ## 4) Two-Phase Execution (Prevents Read/Write Mixing)
+          
+          1. **READ PHASE (no writes)** — validate existence and gather metadata
+          2. **WRITE PHASE (writes only)** — execute `update-project`
+          
+          Never interleave reads and writes.
+          
+          ---
+          
+          ## 5) Adding an Issue or PR (First Write)
+          
+          ### Adding New Issues
+          
+          When first adding an item to the project, you MUST write ALL required fields.
+          
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/68"
+            campaign_id: "file-size-reduction-project68"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Todo"                   # "Done" if already closed/merged
+              campaign_id: "file-size-reduction-project68"
+              worker_workflow: "unknown"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-03"
           ```
           
-          ### 9. Generate Post-Mortem Template
+          ---
           
-          Create `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/post-mortem-template.md`:
+          ## 6) Updating an Existing Item (Minimal Writes)
           
-          ```markdown
-          # Post-Mortem: INC-__GH_AW_GITHUB_RUN_ID__
+          ### Updating Existing Items
           
-          **Date**: [date]
-          **Severity**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
-          **Duration**: [minutes]
-          **Impact**: [user impact summary]
+          Preferred behavior is minimal, idempotent writes:
           
-          ## Timeline
+          - If item exists and `status` is unchanged → **No-op**
+          - If item exists and `status` differs → **Update `status` only**
+          - If any required field is missing/empty/invalid → **One-time full backfill** (repair only)
           
-          [AI-generated timeline from timeline.json with human-readable descriptions]
+          ### Status-only Update (Default)
           
-          ## Root Cause
-          
-          [Confirmed root cause with technical details]
-          
-          ## What Went Well
-          
-          - [AI-assisted analysis provided accurate hypothesis in X minutes]
-          - [Team Y responded quickly with fix]
-          - [Rollback procedure worked as designed]
-          
-          ## What Went Wrong
-          
-          - [Detection delay - [X] minutes before incident noticed]
-          - [Communication gap between teams]
-          - [Missing monitoring for [specific metric]]
-          
-          ## Action Items
-          
-          **Prevent Recurrence**:
-          - [ ] [Action 1] - Owner: [team] - Due: [date]
-          - [ ] [Action 2] - Owner: [team] - Due: [date]
-          
-          **Improve Response**:
-          - [ ] [Action 3] - Owner: [team] - Due: [date]
-          - [ ] [Action 4] - Owner: [team] - Due: [date]
-          
-          **Improve Detection**:
-          - [ ] [Action 5] - Owner: [team] - Due: [date]
-          
-          ## Lessons Learned
-          
-          [AI-generated insights from timeline analysis]
-          
-          ## Campaign Metrics
-          
-          - Time to detection: [minutes]
-          - Time to AI analysis: [minutes]
-          - Time to human decision: [minutes]
-          - Time to resolution: [minutes]
-          - Actions taken: [count]
-          - Teams coordinated: [count]
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/68"
+            campaign_id: "file-size-reduction-project68"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
           ```
           
-          ## Why This Campaign Cannot Be Done Without Campaigns
+          ### Full Backfill (Repair Only)
           
-          **Cross-team coordination**: Command center orchestrates multiple teams across repos
-          **SLA tracking**: Time pressure and deadline monitoring
-          **Human-in-loop**: AI analyzes, humans decide on risk-tiered actions
-          **Stakeholder communication**: Regular status updates with business context
-          **Audit trail**: Complete timeline with business justification for every decision
-          **Post-mortem**: Learning capture with action items and ownership
-          **Governance**: Approval gates for high-risk emergency actions
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/68"
+            campaign_id: "file-size-reduction-project68"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
+              campaign_id: "file-size-reduction-project68"
+              worker_workflow: "WORKFLOW_ID"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-02"
+          ```
           
-          **GitHub Actions**: Can't coordinate across teams, no SLA concept, no stakeholder communication
-          **Basic workflows**: Single execution, no orchestration, no persistent command center
+          ---
           
-          ## Output
+          ## 7) Idempotency Rules
           
-          Provide summary:
-          - Campaign ID: `incident-__GH_AW_GITHUB_RUN_ID__`
-          - Incident ID: `INC-__GH_AW_GITHUB_RUN_ID__`
-          - Command center issue: #[number]
-          - Severity: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
-          - Status: [investigating/mitigating/resolved]
-          - Duration: [minutes] / SLA: [target minutes]
-          - Teams involved: [count]
-          - Actions taken: [count]
-          - Memory location: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
-          - Post-mortem template: Ready for human review
+          - Matching status already set → **No-op**
+          - Different status → **Status-only update**
+          - Invalid/deleted/inaccessible URL → **Record failure and continue**
+          
+          ## Write Operation Rules
+          
+          All writes MUST conform to this file and use `update-project` only.
+          
+          ---
+          
+          ## 8) Logging + Failure Handling (Mandatory)
+          
+          For every attempted item, record:
+          
+          - `content_type`, `content_number`, `repository`
+          - action taken: `noop | add | status_update | backfill | failed`
+          - error details if failed
+          
+          Failures must not stop processing remaining items.
+          
+          ---
+          
+          ## 9) Worker Workflow Policy
+          
+          - Workers are campaign-agnostic.
+          - Orchestrator populates `worker_workflow`.
+          - If `worker_workflow` cannot be determined, it MUST remain `"unknown"` unless explicitly reclassified by the orchestrator.
+          
+          ---
+          
+          ## 10) Parent / Sub-Issue Rules (Campaign Hierarchy)
+          
+          - Each project board MUST have exactly **one Epic issue** representing the campaign.
+          - The Epic issue MUST:
+            - Be added to the project board
+            - Use the same `campaign_id`
+            - Use `worker_workflow: "unknown"`
+          
+          - All campaign work issues (non-epic) MUST be created as **sub-issues of the Epic**.
+          - Issues MUST NOT be re-parented based on worker assignment.
+          
+          - Pull requests cannot be sub-issues:
+            - PRs MUST reference their related issue via standard GitHub linking (e.g. “Closes #123”).
+          
+          - Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
+          
+          - The Epic issue is narrative only.
+          - The project board is the sole authoritative source of campaign state.
+          ---
+          # CLOSING INSTRUCTIONS (HIGHEST PRIORITY)
+          ---
+          # Closing Instructions (Highest Priority)
+          
+          Execute all four phases in strict order:
+          
+          1. Read State (no writes)
+          2. Make Decisions (no writes)
+          3. Write State (update-project only)
+          4. Report
+          
+          The following rules are mandatory and override inferred behavior:
+          
+          - The GitHub Project board is the single source of truth.
+          - All project writes MUST comply with `project_update_instructions.md`.
+          - State reads and state writes MUST NOT be interleaved.
+          - Do NOT infer missing data or invent values.
+          - Do NOT reorganize hierarchy.
+          - Do NOT overwrite fields except as explicitly allowed.
+          - Workers are immutable and campaign-agnostic.
+          
+          If any instruction conflicts, the Project Update Instructions take precedence for all writes.
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
-          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
-          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
-          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: process.env.GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES,
-                GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: process.env.GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION,
-                GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: process.env.GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY,
-                GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: process.env.GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1056,27 +903,24 @@ jobs:
           
           ---
           
-          ## Repo Memory Available
+          ## Repo Memory Locations Available
           
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch.
+          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:
           
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/campaigns` branch of the current repository
+          - **campaigns**: `/tmp/gh-aw/repo-memory/campaigns/` (branch: `memory/campaigns`)
+          
+          - **Read/Write Access**: You can freely read from and write to any files in these folders
+          - **Git Branch Storage**: Each memory is stored in its own git branch
           - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
           - **Merge Strategy**: In case of conflicts, your changes (current version) win
           - **Persistence**: Files persist across workflow runs via git branch storage
           
-          **Constraints:**
-          - **Allowed Files**: Only files matching patterns: memory/campaigns/incident-*/**
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
-          
           Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files
           
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1091,7 +935,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, add_labels, create_issue, create_pull_request, missing_tool, noop
+          **Available tools**: add_comment, missing_tool, noop, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1173,11 +1017,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
-          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
-          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
-          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1191,34 +1030,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(git add:*)
-        # --allow-tool shell(git branch:*)
-        # --allow-tool shell(git checkout:*)
-        # --allow-tool shell(git commit:*)
-        # --allow-tool shell(git merge:*)
-        # --allow-tool shell(git rm:*)
-        # --allow-tool shell(git status)
-        # --allow-tool shell(git switch:*)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool write
-        timeout-minutes: 60
+        timeout-minutes: 20
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -1305,12 +1121,12 @@ jobs:
             const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');
             await main();
       # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
+      - name: Upload repo-memory artifact (campaigns)
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
           retention-days: 1
           if-no-files-found: ignore
       - name: Validate agent logs for errors
@@ -1337,7 +1153,6 @@ jobs:
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
-            /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
   conclusion:
@@ -1397,7 +1212,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1410,7 +1225,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1426,7 +1241,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1478,8 +1293,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Campaign - Incident Response"
-          WORKFLOW_DESCRIPTION: "Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem"
+          WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
+          WORKFLOW_DESCRIPTION: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1630,25 +1445,26 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
+      - name: Download repo-memory artifact (campaigns)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         continue-on-error: true
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+      - name: Push repo-memory changes (campaigns)
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
+          MEMORY_ID: campaigns
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "memory/campaigns/incident-*/**"
+          FILE_GLOB_FILTER: "file-size-reduction-project68/**"
+          GH_AW_CAMPAIGN_ID: file-size-reduction-project68
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1658,21 +1474,20 @@ jobs:
 
   safe_outputs:
     needs:
-      - activation
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
       discussions: write
       issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "incident-response"
-      GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
+      GH_AW_WORKFLOW_ID: "file-size-reduction-project64.campaign.g"
+      GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1698,42 +1513,30 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: agent-artifacts
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          token: ${{ github.token }}
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Configure Git credentials
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"add_labels\":{},\"create_issue\":{\"labels\":[\"campaign-tracker\",\"incident\"],\"max\":1},\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"labels\":[\"campaign-fix\",\"incident\"],\"max\":1,\"max_patch_size\":1024}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/safe_output_handler_manager.cjs');
+            await main();
+      - name: Update Project
+        id: update_project
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+        with:
+          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/update_project.cjs');
             await main();
 
