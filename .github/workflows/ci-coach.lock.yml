@@ -23,8 +23,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/jqschema.md
+#     - shared/ci-data-analysis.md
+#     - shared/ci-optimization-strategies.md
 #     - shared/reporting.md
+#     - shared/jqschema.md
 
 name: "CI Optimization Coach"
 "on":
@@ -117,8 +119,6 @@ jobs:
           package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Set up jq utilities directory
-        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download CI workflow runs from last 7 days
@@ -148,6 +148,8 @@ jobs:
         run: |-
           mkdir -p /tmp/gh-aw
           go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee /tmp/gh-aw/test-results.json
+      - name: Set up jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -488,13 +490,293 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
-          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          # CI Data Analysis
+          
+          Pre-downloaded CI run data and artifacts are available for analysis:
+          
+          ## Available Data
+          
+          1. **CI Runs**: `/tmp/ci-runs.json`
+             - Last 100 workflow runs with status, timing, and metadata
+             
+          2. **Artifacts**: `/tmp/ci-artifacts/`
+             - Coverage reports and benchmark results from recent successful runs
+             
+          3. **CI Configuration**: `.github/workflows/ci.yml`
+             - Current CI workflow configuration
+             
+          4. **Cache Memory**: `/tmp/cache-memory/`
+             - Historical analysis data from previous runs
+             
+          5. **Test Results**: `/tmp/gh-aw/test-results.json`
+             - JSON output from Go unit tests with performance and timing data
+          
+          ## Test Case Locations
+          
+          Go test cases are located throughout the repository:
+          - **Command tests**: `./cmd/gh-aw/*_test.go`
+          - **Workflow tests**: `./pkg/workflow/*_test.go`
+          - **CLI tests**: `./pkg/cli/*_test.go`
+          - **Parser tests**: `./pkg/parser/*_test.go`
+          - **Campaign tests**: `./pkg/campaign/*_test.go`
+          - **Other package tests**: Various `./pkg/*/test.go` files
+          
+          ## Environment Setup
+          
+          The workflow has already completed:
+          - ✅ **Linting**: Dev dependencies installed, linters run successfully
+          - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
+          - ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
+          
+          This means you can:
+          - Make changes to code or configuration files
+          - Validate changes immediately by running `make lint`, `make build`, or `make test-unit`
+          - Ensure proposed optimizations don't break functionality before creating a PR
+          
+          ## Analyzing Run Data
+          
+          Parse the downloaded CI runs data:
+          
+          ```bash
+          # Analyze run data
+          cat /tmp/ci-runs.json | jq '
+          {
+            total_runs: length,
+            by_status: group_by(.status) | map({status: .[0].status, count: length}),
+            by_conclusion: group_by(.conclusion) | map({conclusion: .[0].conclusion, count: length}),
+            by_branch: group_by(.headBranch) | map({branch: .[0].headBranch, count: length}),
+            by_event: group_by(.event) | map({event: .[0].event, count: length})
+          }'
+          ```
+          
+          **Metrics to extract:**
+          - Success rate per job
+          - Average duration per job
+          - Failure patterns (which jobs fail most often)
+          - Cache hit rates from step summaries
+          - Resource usage patterns
+          
+          ## Review Artifacts
+          
+          Examine downloaded artifacts for insights:
+          
+          ```bash
+          # List downloaded artifacts
+          find /tmp/ci-artifacts -type f -name "*.txt" -o -name "*.html" -o -name "*.json"
+          
+          # Analyze coverage reports if available
+          # Check benchmark results for performance trends
+          ```
+          
+          ## Historical Context
+          
+          Check cache memory for previous analyses:
+          
+          ```bash
+          # Read previous optimization recommendations
+          if [ -f /tmp/cache-memory/ci-coach/last-analysis.json ]; then
+            cat /tmp/cache-memory/ci-coach/last-analysis.json
+          fi
+          
+          # Check if previous recommendations were implemented
+          # Compare current metrics with historical baselines
+          ```
+          
+          # CI Optimization Analysis Strategies
+          
+          Comprehensive strategies for analyzing CI workflows to identify optimization opportunities.
+          
+          ## Phase 1: CI Configuration Study
+          
+          Read and understand the current CI workflow structure:
+          
+          ```bash
+          # Read the CI workflow configuration
+          cat .github/workflows/ci.yml
+          
+          # Understand the job structure
+          # - lint (runs first)
+          # - test (depends on lint)
+          # - integration (depends on test, matrix strategy)
+          # - build (depends on lint)
+          # etc.
+          ```
+          
+          **Key aspects to analyze:**
+          - Job dependencies and parallelization opportunities
+          - Cache usage patterns (Go cache, Node cache)
+          - Matrix strategy effectiveness
+          - Timeout configurations
+          - Concurrency groups
+          - Artifact retention policies
+          
+          ## Phase 2: Test Coverage Analysis
+          
+          ### Critical: Ensure ALL Tests are Executed
+          
+          **Step 1: Get complete list of all tests**
+          ```bash
+          # List all test functions in the repository
+          go test -list='^Test' ./... 2>&1 | grep -E '^Test' > /tmp/all-tests.txt
+          
+          # Count total tests
+          TOTAL_TESTS=$(wc -l < /tmp/all-tests.txt)
+          echo "Total tests found: $TOTAL_TESTS"
+          ```
+          
+          **Step 2: Analyze unit test coverage**
+          ```bash
+          # Unit tests run all non-integration tests
+          # Verify the test job's command captures all non-integration tests
+          # Current: go test -v -parallel=8 -timeout=3m -tags '!integration' -run='^Test' ./...
+          
+          # Get list of integration tests (tests with integration build tag)
+          grep -r "//go:build integration" --include="*_test.go" . | cut -d: -f1 | sort -u > /tmp/integration-test-files.txt
+          
+          # Estimate number of integration tests
+          echo "Files with integration tests:"
+          wc -l < /tmp/integration-test-files.txt
+          ```
+          
+          **Step 3: Analyze integration test matrix coverage**
+          ```bash
+          # The integration job has a matrix with specific patterns
+          # Each matrix entry targets specific packages and test patterns
+          
+          # CRITICAL CHECK: Are there tests that don't match ANY pattern?
+          
+          # Extract all integration test patterns from ci.yml
+          cat .github/workflows/ci.yml | grep -A 2 'pattern:' | grep 'pattern:' > /tmp/matrix-patterns.txt
+          
+          # Check for catch-all groups
+          cat .github/workflows/ci.yml | grep -B 2 'pattern: ""' | grep 'name:' > /tmp/catchall-groups.txt
+          ```
+          
+          **Step 4: Identify coverage gaps**
+          ```bash
+          # Check if each package with tests is covered by at least one matrix group
+          # Compare packages with tests vs. packages in CI matrix
+          # Identify any "orphaned" tests not executed by any job
+          ```
+          
+          **Required Action if Gaps Found:**
+          If any tests are not covered by the CI matrix, propose adding:
+          1. **Catch-all matrix groups** for packages with specific patterns but no catch-all
+          2. **New matrix entries** for packages not in the matrix at all
+          
+          Example fix:
+          ```yaml
+          - name: "CLI Other"  # Catch-all for tests not matched by specific patterns
+            packages: "./pkg/cli"
+            pattern: ""  # Empty pattern runs all remaining tests
+          ```
+          
+          ## Phase 3: Test Performance Optimization
+          
+          ### A. Test Splitting Analysis
+          - Review current test matrix configuration
+          - Analyze if test groups are balanced in execution time
+          - Suggest rebalancing to minimize longest-running group
+          
+          ### B. Test Parallelization Within Jobs
+          - Check if tests run sequentially when they could run in parallel
+          - Suggest using `go test -parallel=N` to increase parallelism
+          - Analyze if `-count=1` is necessary for all tests
+          
+          ### C. Test Selection Optimization
+          - Suggest path-based test filtering to skip irrelevant tests
+          - Recommend running only affected tests for non-main branch pushes
+          
+          ### D. Test Timeout Optimization
+          - Review current timeout settings
+          - Check if timeouts are too conservative or too tight
+          - Suggest adjusting per-job timeouts based on historical data
+          
+          ### E. Test Dependencies Analysis
+          - Examine test job dependencies
+          - Suggest removing unnecessary dependencies to enable more parallelism
+          
+          ### F. Selective Test Execution
+          - Suggest running expensive tests only on main branch or on-demand
+          - Recommend running security scans conditionally
+          
+          ### G. Matrix Strategy Optimization
+          - Analyze if all integration test matrix jobs are necessary
+          - Check if some matrix jobs could be combined or run conditionally
+          - Suggest reducing matrix size for PR builds vs. main branch builds
+          
+          ## Phase 4: Resource Optimization
+          
+          ### Job Parallelization
+          - Identify jobs that could run in parallel but currently don't
+          - Restructure dependencies to reduce critical path
+          - Example: Could some test jobs start earlier?
+          
+          ### Cache Optimization
+          - Analyze cache hit rates
+          - Suggest caching more aggressively (dependencies, build artifacts)
+          - Check if cache keys are properly scoped
+          
+          ### Resource Right-Sizing
+          - Check if timeouts are set appropriately
+          - Evaluate if jobs could run on faster runners
+          - Review concurrency groups
+          
+          ### Artifact Management
+          - Check if retention days are optimal
+          - Identify unnecessary artifacts
+          - Example: Coverage reports only need 7 days retention
+          
+          ### Dependency Installation
+          - Check for redundant dependency installations
+          - Suggest using dependency caching more effectively
+          - Example: Sharing `node_modules` between jobs
+          
+          ## Phase 5: Cost-Benefit Analysis
+          
+          For each potential optimization:
+          - **Impact**: How much time/cost savings?
+          - **Effort**: How difficult to implement?
+          - **Risk**: Could it break the build or miss issues?
+          - **Priority**: High/Medium/Low
+          
+          ## Optimization Categories
+          
+          1. **Job Parallelization** - Reduce critical path
+          2. **Cache Optimization** - Improve cache hit rates
+          3. **Test Suite Restructuring** - Balance test execution
+          4. **Resource Right-Sizing** - Optimize timeouts and runners
+          5. **Artifact Management** - Reduce unnecessary uploads
+          6. **Matrix Strategy** - Balance breadth vs. speed
+          7. **Conditional Execution** - Skip unnecessary jobs
+          8. **Dependency Installation** - Reduce redundant work
+          
+          ## Expected Metrics
+          
+          Track these metrics before and after optimization:
+          - Total CI duration (wall clock time)
+          - Critical path duration
+          - Cache hit rates
+          - Test execution time
+          - Resource utilization
+          - Cost per CI run
+          
+          ## Report Structure
+          
+          1. **Overview**: 1-2 paragraphs summarizing key findings
+          2. **Details**: Use `<details><summary><b>Full Report</b></summary>` for expanded content
+          
+          ## Workflow Run References
+          
+          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
+          - Include up to 3 most relevant run URLs at end under `**References:**`
+          - Do NOT add footer attribution (system adds automatically)
+          
           ## jqschema - JSON Schema Discovery
           
           A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
@@ -581,17 +863,6 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          ## Report Structure
-          
-          1. **Overview**: 1-2 paragraphs summarizing key findings
-          2. **Details**: Use `<details><summary><b>Full Report</b></summary>` for expanded content
-          
-          ## Workflow Run References
-          
-          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
-          - Include up to 3 most relevant run URLs at end under `**References:**`
-          - Do NOT add footer attribution (system adds automatically)
-          
           # CI Optimization Coach
           
           You are the CI Optimization Coach, an expert system that analyzes CI workflow performance to identify opportunities for optimization, efficiency improvements, and cost reduction.
@@ -608,444 +879,58 @@ jobs:
           
           ## Data Available
           
-          ### Pre-downloaded Data
-          1. **CI Runs**: `/tmp/ci-runs.json` - Last 100 workflow runs with status, timing, and metadata
-          2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
-          3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
-          4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
-          5. **Test Results**: `/tmp/gh-aw/test-results.json` - JSON output from Go unit tests with performance and timing data
+          The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
+          ## Data Available
           
-          ### Test Case Information
-          The Go test cases are located throughout the repository:
-          - **Command tests**: `./cmd/gh-aw/*_test.go` - CLI command and main entry point tests
-          - **Workflow tests**: `./pkg/workflow/*_test.go` - Workflow compilation, validation, and execution tests
-          - **CLI tests**: `./pkg/cli/*_test.go` - Command implementation tests
-          - **Parser tests**: `./pkg/parser/*_test.go` - Frontmatter and schema parsing tests
-          - **Campaign tests**: `./pkg/campaign/*_test.go` - Campaign specification tests
-          - **Other package tests**: Various `./pkg/*/test.go` files throughout the codebase
+          The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
           
-          The `/tmp/gh-aw/test-results.json` file contains detailed timing and performance data for each test case in JSON format, allowing you to identify slow tests, flaky tests, and optimization opportunities.
+          1. **CI Runs**: `/tmp/ci-runs.json` - Last 100 workflow runs
+          2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmarks
+          3. **CI Configuration**: `.github/workflows/ci.yml` - Current workflow
+          4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data
+          5. **Test Results**: `/tmp/gh-aw/test-results.json` - Test performance data
           
-          ### Environment Setup
-          The workflow has already completed:
-          - ✅ **Linting**: Dev dependencies installed, linters run successfully
-          - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
-          - ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
-          
-          This means you can:
-          - Make changes to code or configuration files
-          - Validate changes immediately by running `make lint`, `make build`, or `make test-unit`
-          - Ensure proposed optimizations don't break functionality before creating a PR
+          The project has been **built, linted, and tested** so you can validate changes immediately.
           
           ## Analysis Framework
           
+          Follow the optimization strategies defined in the `ci-optimization-strategies` shared module:
+          
           ### Phase 1: Study CI Configuration (5 minutes)
-          
-          Read and understand the current CI workflow structure:
-          
-          ```bash
-          # Read the CI workflow configuration
-          cat .github/workflows/ci.yml
-          
-          # Understand the job structure
-          # - lint (runs first)
-          # - test (depends on lint)
-          # - integration (depends on test, matrix strategy)
-          # - build (depends on lint)
-          # - js (depends on lint)
-          # - bench (depends on test)
-          # - fuzz (depends on test)
-          # - security (depends on test)
-          # - security-scan (depends on test, matrix strategy)
-          # - actions-build (depends on lint)
-          # - logs-token-check (depends on test)
-          ```
-          
-          **Key aspects to analyze:**
-          - Job dependencies and parallelization opportunities
-          - Cache usage patterns (Go cache, Node cache)
-          - Matrix strategy effectiveness
-          - Timeout configurations
-          - Concurrency groups
-          - Artifact retention policies
-          
-          ### Phase 2: Analyze Run Data (5 minutes)
-          
-          Parse the downloaded CI runs data:
-          
-          ```bash
-          # Analyze run data
-          cat /tmp/ci-runs.json | jq '
-          {
-            total_runs: length,
-            by_status: group_by(.status) | map({status: .[0].status, count: length}),
-            by_conclusion: group_by(.conclusion) | map({conclusion: .[0].conclusion, count: length}),
-            by_branch: group_by(.headBranch) | map({branch: .[0].headBranch, count: length}),
-            by_event: group_by(.event) | map({event: .[0].event, count: length})
-          }'
-          
-          # Calculate average duration (if available in run details)
-          # Check for patterns in failures
-          # Identify flaky tests or jobs
-          ```
-          
-          **Metrics to extract:**
-          - Success rate per job
-          - Average duration per job
-          - Failure patterns (which jobs fail most often)
-          - Cache hit rates from step summaries
-          - Resource usage patterns
-          
-          ### Phase 3: Review Artifacts (3 minutes)
-          
-          Examine downloaded artifacts for insights:
-          
-          ```bash
-          # List downloaded artifacts
-          find /tmp/ci-artifacts -type f -name "*.txt" -o -name "*.html" -o -name "*.json"
-          
-          # Analyze coverage reports if available
-          # Check benchmark results for performance trends
-          ```
-          
-          ### Phase 4: Load Historical Context (2 minutes)
-          
-          Check cache memory for previous analyses:
-          
-          ```bash
-          # Read previous optimization recommendations
-          if [ -f /tmp/cache-memory/ci-coach/last-analysis.json ]; then
-            cat /tmp/cache-memory/ci-coach/last-analysis.json
-          fi
-          
-          # Check if previous recommendations were implemented
-          # Compare current metrics with historical baselines
-          ```
-          
-          ### Phase 5: Identify Optimization Opportunities (10 minutes)
-          
-          Look for concrete improvements in these categories:
-          
-          #### 1. **Job Parallelization**
-          - Are there jobs that could run in parallel but currently don't?
-          - Can dependencies be restructured to reduce critical path?
-          - Example: Could some test jobs start earlier?
-          
-          #### 2. **Cache Optimization**
-          - Are cache hit rates optimal?
-          - Could we cache more aggressively (e.g., dependencies, build artifacts)?
-          - Are cache keys properly scoped?
-          - Example: Cache npm dependencies globally vs. per-job
-          
-          #### 3. **Test Suite Restructuring**
-          
-          Analyze the current test suite structure and suggest optimizations for execution time:
-          
-          **A. Test Coverage Analysis** ⚠️ **CRITICAL**
-          
-          Before analyzing test performance, ensure ALL tests are actually being executed:
-          
-          **Step 1: Get complete list of all tests**
-          ```bash
-          # List all test functions in the repository
-          cd /home/runner/work/gh-aw/gh-aw
-          go test -list='^Test' ./... 2>&1 | grep -E '^Test' > /tmp/all-tests.txt
-          
-          # Count total tests
-          TOTAL_TESTS=$(wc -l < /tmp/all-tests.txt)
-          echo "Total tests found: $TOTAL_TESTS"
-          ```
-          
-          **Step 2: Analyze unit test coverage**
-          ```bash
-          # Unit tests run all non-integration tests
-          # Verify the test job's command captures all non-integration tests
-          # Current: go test -v -parallel=8 -timeout=3m -tags '!integration' -run='^Test' ./...
-          
-          # Get list of integration tests (tests with integration build tag)
-          grep -r "//go:build integration" --include="*_test.go" . | cut -d: -f1 | sort -u > /tmp/integration-test-files.txt
-          
-          # Estimate number of integration tests
-          # (This is approximate - we'll validate coverage in next step)
-          echo "Files with integration tests:"
-          wc -l < /tmp/integration-test-files.txt
-          ```
-          
-          **Step 3: Analyze integration test matrix coverage**
-          ```bash
-          # The integration job has a matrix with specific patterns
-          # Each matrix entry targets specific packages and test patterns
-          # Example: pattern: "TestCompile|TestPoutine" in ./pkg/cli
-          
-          # CRITICAL CHECK: Are there tests that don't match ANY pattern?
-          
-          # Extract all integration test patterns from ci.yml
-          cat .github/workflows/ci.yml | grep -A 2 'pattern:' | grep 'pattern:' > /tmp/matrix-patterns.txt
-          
-          # For each matrix group with empty pattern, those run ALL remaining tests in that package
-          # Groups with pattern="" are catch-all groups for their package
-          
-          # Check for catch-all groups
-          cat .github/workflows/ci.yml | grep -B 2 'pattern: ""' | grep 'name:' > /tmp/catchall-groups.txt
-          
-          echo "Matrix groups with catch-all patterns (pattern: ''):"
-          cat /tmp/catchall-groups.txt
-          ```
-          
-          **Step 4: Identify coverage gaps**
-          ```bash
-          # Check if each package in the repository is covered by at least one matrix group
-          # List all packages with integration tests
-          find . -path ./vendor -prune -o -name "*_test.go" -print | grep -E "integration" | sed 's|/[^/]*$||' | sort -u > /tmp/integration-packages.txt
-          
-          # List packages covered in matrix
-          cat .github/workflows/ci.yml | grep 'packages:' | awk '{print $2}' | tr -d '"' | sort -u > /tmp/covered-packages.txt
-          
-          # Compare and find gaps
-          echo "Packages with integration tests:"
-          cat /tmp/integration-packages.txt
-          
-          echo "Packages covered in CI matrix:"
-          cat /tmp/covered-packages.txt
-          
-          # Check for packages not covered
-          comm -23 /tmp/integration-packages.txt /tmp/covered-packages.txt > /tmp/uncovered-packages.txt
-          
-          if [ -s /tmp/uncovered-packages.txt ]; then
-            echo "⚠️ WARNING: Packages with tests but NOT in CI matrix:"
-            cat /tmp/uncovered-packages.txt
-            echo "These tests are NOT being executed!"
-          fi
-          ```
-          
-          **Step 5: Validate catch-all coverage**
-          ```bash
-          # For packages that have BOTH specific patterns AND a catch-all group, verify the catch-all exists
-          # For packages with ONLY specific patterns, check if all tests are covered
-          
-          # Example for ./pkg/cli:
-          # - Has many matrix entries with specific patterns
-          # - Should have a catch-all entry (pattern: "") to ensure all remaining tests run
-          
-          # Check each package
-          for pkg in ./pkg/cli ./pkg/workflow ./pkg/parser ./cmd/gh-aw; do
-            echo "Checking package: $pkg"
-            
-            # Count matrix entries for this package
-            SPECIFIC_PATTERNS=$(cat .github/workflows/ci.yml | grep -A 1 "packages: \"$pkg\"" | grep 'pattern:' | grep -v 'pattern: ""' | wc -l)
-            HAS_CATCHALL=$(cat .github/workflows/ci.yml | grep -A 1 "packages: \"$pkg\"" | grep 'pattern: ""' | wc -l)
-            
-            echo "  - Specific pattern groups: $SPECIFIC_PATTERNS"
-            echo "  - Has catch-all group: $HAS_CATCHALL"
-            
-            if [ "$SPECIFIC_PATTERNS" -gt 0 ] && [ "$HAS_CATCHALL" -eq 0 ]; then
-              echo "  ⚠️ WARNING: $pkg has specific patterns but NO catch-all group!"
-              echo "  Tests not matching any specific pattern will NOT run!"
-            fi
-          done
-          ```
-          
-          **Required Action if Gaps Found:**
-          
-          If any tests are not covered by the CI matrix, you MUST propose adding:
-          1. **Catch-all matrix groups** for packages with specific patterns but no catch-all
-             - Example: Add a "CLI Other" group with `pattern: ""` for ./pkg/cli
-             - Example: Add a "Workflow Misc" group with `pattern: ""` for ./pkg/workflow
-          
-          2. **New matrix entries** for packages not in the matrix at all
-             - Add matrix entry with package path and empty pattern
-          
-          Example fix for missing catch-all:
-          ```yaml
-          - name: "CLI Other"  # Catch-all for tests not matched by specific patterns
-            packages: "./pkg/cli"
-            pattern: ""  # Empty pattern runs all remaining tests
-          ```
-          
-          **Expected Outcome:**
-          - ✅ All tests in repository are covered by at least one CI job
-          - ✅ Each package with integration tests has either:
-            - A single matrix entry (with or without pattern), OR
-            - Multiple specific pattern entries PLUS a catch-all entry (pattern: "")
-          - ❌ No tests should be "orphaned" (not executed by any job)
-          
-          **B. Test Splitting Analysis**
-          - Review the current test matrix configuration (integration tests split into groups)
-          - Analyze if test groups are balanced in terms of execution time
-          - Check if any test group consistently takes much longer than others
-          - Suggest rebalancing test groups to minimize the longest-running group
-          
-          **Example Analysis:**
-          ```bash
-          # Extract test durations from downloaded run data
-          # Identify if certain matrix jobs are bottlenecks
-          cat /tmp/ci-runs.json | jq '.[] | select(.conclusion=="success") | .jobs[] | select(.name | contains("Integration")) | {name, duration}'
-          
-          # Look for imbalanced matrix groups
-          # If "Integration: Workflow" takes 8 minutes while others take 3 minutes, suggest splitting it
-          ```
-          
-          **Restructuring Suggestions:**
-          - If unit tests take >5 minutes, suggest splitting by package (e.g., `./pkg/cli`, `./pkg/workflow`, `./pkg/parser`)
-          - If integration matrix is imbalanced, suggest redistributing tests:
-            - Move slow tests from overloaded groups to faster groups
-            - Split large test groups (like "Workflow" with no pattern filter) into more specific groups
-            - Example: Split "CLI Logs & Firewall" if TestLogs and TestFirewall are both slow
-          
-          **C. Test Parallelization Within Jobs**
-          - Check if tests are running sequentially when they could run in parallel
-          - Suggest using `go test -parallel=N` to increase parallelism
-          - Analyze if `-count=1` (disables test caching) is necessary for all tests
-          - Example: Unit tests could run with `-parallel=4` to utilize multiple cores
-          
-          **D. Test Selection Optimization**
-          - Suggest path-based test filtering to skip irrelevant tests
-          - Recommend running only affected tests for non-main branch pushes
-          - Example configuration:
-            ```yaml
-            - name: Check for code changes
-              id: code-changes
-              run: |
-                if git diff --name-only __GH_AW_GITHUB_EVENT_BEFORE__..__GH_AW_GITHUB_EVENT_AFTER__ | grep -E '\.(go|js|cjs)$'; then
-                  echo "has_code_changes=true" >> $GITHUB_OUTPUT
-                fi
-            
-            - name: Run tests
-              if: steps.code-changes.outputs.has_code_changes == 'true'
-              run: go test ./...
-            ```
-          
-          **E. Test Timeout Optimization**
-          - Review current timeout settings (currently 3 minutes for tests)
-          - Check if timeouts are too conservative or too tight based on actual run times
-          - Suggest adjusting per-job timeouts based on historical data
-          - Example: If unit tests consistently complete in 1.5 minutes, timeout could be 2 minutes instead of 3
-          
-          **F. Test Dependencies Analysis**
-          - Examine test job dependencies (test → integration → bench/fuzz/security)
-          - Suggest removing unnecessary dependencies to enable more parallelism
-          - Example: Could `integration`, `bench`, `fuzz`, and `security` all depend on `lint` instead of `test`?
-            - This allows integration tests to run while unit tests are still running
-            - Only makes sense if they don't need unit test artifacts
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
-          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_EVENT_AFTER: process.env.GH_AW_GITHUB_EVENT_AFTER,
-                GH_AW_GITHUB_EVENT_BEFORE: process.env.GH_AW_GITHUB_EVENT_BEFORE,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_NUMBER: process.env.GH_AW_GITHUB_RUN_NUMBER
-              }
-            });
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
-          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          **G. Selective Test Execution**
-          - Suggest running expensive tests (benchmarks, fuzz tests) only on main branch or on-demand
-          - Recommend running security scans only on main or for security-related file changes
-          - Example:
-            ```yaml
-            if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-            ```
-          
-          **H. Test Caching Improvements**
-          - Check if test results could be cached (with appropriate cache keys)
-          - Suggest caching test binaries to speed up reruns
-          - Example: Cache compiled test binaries keyed by go.sum + source files
-          
-          **I. Matrix Strategy Optimization**
-          - Analyze if all integration test matrix jobs are necessary
-          - Check if some matrix jobs could be combined or run conditionally
-          - Suggest reducing matrix size for PR builds vs. main branch builds
-          - Example: Run full matrix on main, reduced matrix on PRs
-          
-          **J. Test Infrastructure**
-          - Check if tests could benefit from faster runners (e.g., ubuntu-latest-4-core)
-          - Analyze if test containers could be used to improve isolation and speed
-          - Suggest pre-warming test environments with cached dependencies
-          
-          **Concrete Restructuring Example:**
-          
-          Current structure:
-          ```
-          lint (2 min) → test (unit, 2.5 min) → integration (6 parallel groups, longest: 8 min)
-                                               → bench (3 min)
-                                               → fuzz (2 min)
-                                               → security (2 min)
-          ```
-          
-          Optimized structure suggestion:
-          ```
-          lint (2 min) → test-unit-1 (./pkg/cli, 1.5 min) ─┐
-                      → test-unit-2 (./pkg/workflow, 1.5 min) ├→ integration-fast (4 groups, 4 min)
-                      → test-unit-3 (./pkg/parser, 1 min) ────┘  → integration-slow (2 groups, 4 min)
-                      → bench (main only, 3 min)
-                      → fuzz (main only, 2 min)
-          ```
-          
-          Benefits: Reduces critical path from 12.5 min to ~7.5 min (40% improvement)
-          
-          #### 4. **Resource Right-Sizing**
-          - Are timeouts set appropriately?
-          - Could jobs run on faster runners?
-          - Are concurrency groups optimal?
-          - Example: Reducing timeout from 30m to 10m if jobs typically complete in 5m
-          
-          #### 5. **Artifact Management**
-          - Are retention days optimal?
-          - Are we uploading unnecessary artifacts?
-          - Example: Coverage reports only need 7 days retention
-          
-          #### 6. **Matrix Strategy**
-          - Is the matrix well-balanced?
-          - Could we reduce matrix combinations?
-          - Are all matrix configurations necessary?
-          - Example: Testing on fewer Node versions
-          
-          #### 7. **Conditional Execution**
-          - Can we skip jobs based on file paths?
-          - Should certain jobs only run on main branch?
-          - Example: Only run benchmarks on main branch pushes
-          
-          #### 8. **Dependency Installation**
-          - Are we installing dependencies multiple times unnecessarily?
-          - Could we use dependency caching more effectively?
-          - Example: Sharing `node_modules` between jobs
-          
-          ### Phase 6: Cost-Benefit Analysis (3 minutes)
-          
+          - Understand job dependencies and parallelization opportunities
+          - Analyze cache usage, matrix strategy, timeouts, and concurrency
+          
+          ### Phase 2: Analyze Test Coverage (10 minutes)
+          **CRITICAL**: Ensure all tests are executed by the CI matrix
+          - Check for orphaned tests not covered by any CI job
+          - Verify catch-all matrix groups exist for packages with specific patterns
+          - Identify coverage gaps and propose fixes if needed
+          
+          ### Phase 3: Identify Optimization Opportunities (10 minutes)
+          Apply the optimization strategies from the shared module:
+          1. **Job Parallelization** - Reduce critical path
+          2. **Cache Optimization** - Improve cache hit rates
+          3. **Test Suite Restructuring** - Balance test execution
+          4. **Resource Right-Sizing** - Optimize timeouts and runners
+          5. **Artifact Management** - Reduce unnecessary uploads
+          6. **Matrix Strategy** - Balance breadth vs. speed
+          7. **Conditional Execution** - Skip unnecessary jobs
+          8. **Dependency Installation** - Reduce redundant work
+          
+          ### Phase 4: Cost-Benefit Analysis (3 minutes)
           For each potential optimization:
-          - **Impact**: How much time/cost savings? (estimate in minutes and/or GitHub Actions minutes)
+          - **Impact**: How much time/cost savings?
           - **Risk**: What's the risk of breaking something?
           - **Effort**: How hard is it to implement?
           - **Priority**: High/Medium/Low
           
-          **Prioritize optimizations with:**
-          - High impact (>10% time savings)
-          - Low risk
-          - Low to medium effort
+          Prioritize optimizations with high impact, low risk, and low to medium effort.
           
-          ### Phase 7: Implement and Validate Changes (if improvements found) (8 minutes)
+          ### Phase 5: Implement and Validate Changes (8 minutes)
+          
+          If you identify improvements worth implementing:
+          
+          ### Phase 5: Implement and Validate Changes (8 minutes)
           
           If you identify improvements worth implementing:
           
@@ -1056,31 +941,14 @@ jobs:
           
           2. **Validate changes immediately**:
              ```bash
-             # Validate YAML syntax and workflow logic
-             make lint
-             
-             # Rebuild to ensure code still builds correctly
-             make build
-             
-             # Run unit tests to ensure no functionality is broken
-             make test-unit
-             
-             # Recompile workflows if you made any changes to workflow files
-             make recompile
+             make lint && make build && make test-unit && make recompile
              ```
              
-             **IMPORTANT**: Only proceed to creating a PR if all validations pass. If tests fail or build breaks, either:
-             - Fix the issues and re-validate
-             - Abandon the changes if they're too risky
+             **IMPORTANT**: Only proceed to creating a PR if all validations pass.
           
-          3. **Document changes** in the PR description:
-             - List each optimization with expected impact
-             - Explain the rationale
-             - Note any risks or trade-offs
-             - Include before/after metrics if possible
-             - Mention that changes have been validated (linted, built, tested)
+          3. **Document changes** in the PR description (see template below)
           
-          4. **Save analysis** to cache memory for future reference:
+          4. **Save analysis** to cache memory:
              ```bash
              mkdir -p /tmp/cache-memory/ci-coach
              cat > /tmp/cache-memory/ci-coach/last-analysis.json << EOF
@@ -1092,31 +960,45 @@ jobs:
              EOF
              ```
           
-          5. **Create the pull request** using the `create_pull_request` tool with:
-             - **Title**: Clear description of the optimization focus (e.g., "Optimize CI test parallelization")
-             - **Body**: Comprehensive description including:
-               - Summary of optimizations proposed
-               - Expected impact (time/cost savings)
-               - Risk assessment
-               - List of changes made to `.github/workflows/ci.yml`
-               - Validation results (make lint, make build, make test-unit)
-               - Reference to this workflow run (#__GH_AW_GITHUB_RUN_NUMBER__)
-             - The title will automatically be prefixed with "[ci-coach] " as configured in safe-outputs
+          5. **Create pull request** using the `create_pull_request` tool (title auto-prefixed with "[ci-coach]")
           
-          ### Phase 8: No Changes Path
+          ### Phase 6: No Changes Path
           
           If no improvements are found or changes are too risky:
+          1. Save analysis to cache memory
+          2. Exit gracefully - no pull request needed
+          3. Log findings for future reference
           
-          1. **Save analysis** to cache memory documenting that CI is already well-optimized
-          2. **Exit gracefully** - no pull request needed
-          3. **Log findings** for future reference
-          
-          ## Output Requirements
-          
-          ### Pull Request Structure (if created)
+          ## Pull Request Structure (if created)
           
           ```markdown
           ## CI Optimization Proposal
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_NUMBER: process.env.GH_AW_GITHUB_RUN_NUMBER
+              }
+            });
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ### Summary
           [Brief overview of proposed changes and expected benefits]
@@ -1267,8 +1149,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
-          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
         with:
@@ -1279,8 +1159,6 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_EVENT_AFTER: process.env.GH_AW_GITHUB_EVENT_AFTER,
-                GH_AW_GITHUB_EVENT_BEFORE: process.env.GH_AW_GITHUB_EVENT_BEFORE,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_NUMBER: process.env.GH_AW_GITHUB_RUN_NUMBER
               }
@@ -1420,8 +1298,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
-          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
         with:
