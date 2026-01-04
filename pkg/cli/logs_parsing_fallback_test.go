@@ -79,9 +79,10 @@ INFO: Configuration loaded`,
 			errorCount := 0
 			warnCount := 0
 			for _, logErr := range metrics.Errors {
-				if logErr.Type == "error" {
+				switch logErr.Type {
+				case "error":
 					errorCount++
-				} else if logErr.Type == "warning" {
+				case "warning":
 					warnCount++
 				}
 			}
@@ -106,7 +107,7 @@ ERROR: Generic error
 	// Test 1: No engine (fallback parser)
 	metricsNoEngine, err := parseLogFileWithEngine(logFile, nil, false, false)
 	require.NoError(t, err)
-	assert.Greater(t, len(metricsNoEngine.Errors), 0, "Fallback parser should detect errors")
+	assert.NotEmpty(t, metricsNoEngine.Errors, "Fallback parser should detect errors")
 
 	// Test 2: With engine - the engine will parse using its own logic
 	// We're just testing that the code path works, actual parsing depends on engine
@@ -138,9 +139,10 @@ Done`
 	errorCount := 0
 	warnCount := 0
 	for _, logErr := range metrics.Errors {
-		if logErr.Type == "error" {
+		switch logErr.Type {
+		case "error":
 			errorCount++
-		} else if logErr.Type == "warning" {
+		case "warning":
 			warnCount++
 		}
 	}
