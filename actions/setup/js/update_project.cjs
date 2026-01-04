@@ -386,7 +386,27 @@ async function updateProject(output) {
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
           if (!field)
-            if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
+              // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
+              // Date field values must match ISO 8601 format (YYYY-MM-DD)
+              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+              if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+                try {
+                  field = (
+                    await github.graphql(
+                      "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                          dataType\n                        }\n                      }\n                    }\n                  }",
+                      { projectId, name: normalizedFieldName, dataType: "DATE" }
+                    )
+                  ).createProjectV2Field.projectV2Field;
+                } catch (createError) {
+                  core.warning(`Failed to create date field "${fieldName}": ${getErrorMessage(createError)}`);
+                  continue;
+                }
+              } else {
+                core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
+                continue;
+              }
+            } else if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
@@ -533,7 +553,27 @@ async function updateProject(output) {
           let valueToSet,
             field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
           if (!field)
-            if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            if (fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date")) {
+              // Check if field name suggests it's a date field (e.g., start_date, end_date, due_date)
+              // Date field values must match ISO 8601 format (YYYY-MM-DD)
+              const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+              if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
+                try {
+                  field = (
+                    await github.graphql(
+                      "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                          dataType\n                        }\n                      }\n                    }\n                  }",
+                      { projectId, name: normalizedFieldName, dataType: "DATE" }
+                    )
+                  ).createProjectV2Field.projectV2Field;
+                } catch (createError) {
+                  core.warning(`Failed to create date field "${fieldName}": ${getErrorMessage(createError)}`);
+                  continue;
+                }
+              } else {
+                core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
+                continue;
+              }
+            } else if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
