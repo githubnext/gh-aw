@@ -183,6 +183,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.HideComment = hideCommentConfig
 			}
 
+			// Handle dispatch-workflow
+			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
+			if dispatchWorkflowConfig != nil {
+				config.DispatchWorkflow = dispatchWorkflowConfig
+			}
+
 			// Handle missing-tool (parse configuration if present, or enable by default)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {

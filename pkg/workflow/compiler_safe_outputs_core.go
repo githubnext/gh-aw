@@ -263,6 +263,19 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 	}
 
+	// 24. Dispatch Workflow step
+	if data.SafeOutputs.DispatchWorkflow != nil {
+		stepConfig := c.buildDispatchWorkflowStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		outputs["dispatch_workflow_count"] = "${{ steps.dispatch_workflow.outputs.count }}"
+
+		// Dispatch workflow requires actions:write permission
+		permissions.Merge(NewPermissionsActionsWrite())
+	}
+
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
 		consolidatedSafeOutputsLog.Print("No safe output steps were added")

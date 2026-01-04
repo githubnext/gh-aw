@@ -1,6 +1,9 @@
 package workflow
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // buildAssignToAgentStepConfig builds the configuration for assigning to an agent
 func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
@@ -62,6 +65,37 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 		StepID:        "update_project",
 		ScriptName:    "update_project",
 		Script:        getUpdateProjectScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}
+
+// buildDispatchWorkflowStepConfig builds the configuration for dispatching workflows
+func (c *Compiler) buildDispatchWorkflowStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.DispatchWorkflow
+
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+	// Add max count environment variable for JavaScript to validate against
+	if cfg.Max > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISPATCH_WORKFLOW_MAX_COUNT: %d\n", cfg.Max))
+	}
+
+	// Add the list of allowed workflows as environment variable
+	if len(cfg.Workflows) > 0 {
+		workflowsJSON, _ := json.Marshal(cfg.Workflows)
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISPATCH_WORKFLOW_ALLOWED: %q\n", string(workflowsJSON)))
+	}
+
+	condition := BuildSafeOutputType("dispatch_workflow")
+
+	return SafeOutputStepConfig{
+		StepName:      "Dispatch Workflow",
+		StepID:        "dispatch_workflow",
+		ScriptName:    "dispatch_workflow",
+		Script:        getDispatchWorkflowScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
 		Token:         cfg.GitHubToken,

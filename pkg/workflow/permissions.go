@@ -849,6 +849,14 @@ func NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite() *Permissions
 	})
 }
 
+// NewPermissionsActionsWrite creates permissions with actions: write
+// This is required for dispatching workflows via workflow_dispatch
+func NewPermissionsActionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionActions: PermissionWrite,
+	})
+}
+
 // NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite creates permissions with actions: write, contents: write, issues: write, pull-requests: write
 // This is required for the replaceActorsForAssignable GraphQL mutation used to assign GitHub Copilot agents to issues
 func NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite() *Permissions {
