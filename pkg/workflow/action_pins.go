@@ -130,6 +130,14 @@ func GetActionPin(actionRepo string) string {
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
 	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, data.StrictMode)
+	
+	// If version is already a full 40-character SHA, return it immediately without warnings
+	// This handles cases where actions are already pinned (e.g., actions/checkout@93cb6efe...)
+	if isValidFullSHA(version) {
+		actionPinsLog.Printf("Version is already a full SHA, skipping resolution: %s@%s", actionRepo, version)
+		return actionRepo + "@" + version + " # " + version, nil
+	}
+	
 	// First try dynamic resolution if resolver is available
 	if data.ActionResolver != nil {
 		actionPinsLog.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
