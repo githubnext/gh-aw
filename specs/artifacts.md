@@ -66,11 +66,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -182,11 +182,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -245,11 +245,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -302,11 +302,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -365,11 +365,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -428,11 +428,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -491,11 +491,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -555,11 +555,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -627,11 +627,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -706,11 +706,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -777,11 +777,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -839,11 +839,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -908,11 +908,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -972,11 +972,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1054,11 +1054,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -1146,11 +1146,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1207,11 +1207,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `test_environment`
@@ -1289,11 +1289,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -1380,11 +1380,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1443,11 +1443,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1521,11 +1521,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1623,11 +1623,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -1729,11 +1729,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1821,11 +1821,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -1912,11 +1912,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -1975,11 +1975,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2038,11 +2038,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2102,11 +2102,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2205,11 +2205,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2298,11 +2298,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2380,11 +2380,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2460,11 +2460,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2533,11 +2533,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2598,11 +2598,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2665,11 +2665,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2737,11 +2737,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2797,11 +2797,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2865,11 +2865,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -2940,11 +2940,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3004,11 +3004,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3075,11 +3075,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `notion_add_comment`
@@ -3163,11 +3163,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3263,11 +3263,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `notion_add_comment`
@@ -3341,11 +3341,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3375,86 +3375,6 @@ When artifacts are downloaded, files are extracted based on the download mode:
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
-
-### org-wide-rollout.md
-
-#### Job: `agent`
-
-**Uploads:**
-
-- **Artifact**: `safe-output`
-  - **Upload paths**:
-    - `${{ env.GH_AW_SAFE_OUTPUTS }}`
-
-- **Artifact**: `agent-output`
-  - **Upload paths**:
-    - `${{ env.GH_AW_AGENT_OUTPUT }}`
-
-- **Artifact**: `agent_outputs`
-  - **Upload paths**:
-    - `/tmp/gh-aw/sandbox/agent/logs/
-/tmp/gh-aw/redacted-urls.log
-`
-
-- **Artifact**: `repo-memory-default`
-  - **Upload paths**:
-    - `/tmp/gh-aw/repo-memory/default`
-
-- **Artifact**: `agent-artifacts`
-  - **Upload paths**:
-    - `/tmp/gh-aw/aw-prompts/prompt.txt
-/tmp/gh-aw/aw_info.json
-/tmp/gh-aw/mcp-logs/
-/tmp/gh-aw/sandbox/firewall/logs/
-/tmp/gh-aw/agent-stdio.log
-/tmp/gh-aw/aw.patch
-`
-
-#### Job: `conclusion`
-
-**Downloads:**
-
-- **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs]
-
-#### Job: `detection`
-
-**Uploads:**
-
-- **Artifact**: `threat-detection.log`
-  - **Upload paths**:
-    - `/tmp/gh-aw/threat-detection/detection.log`
-
-**Downloads:**
-
-- **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
-  - **Depends on jobs**: [agent]
-
-- **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
-  - **Depends on jobs**: [agent]
-
-#### Job: `push_repo_memory`
-
-**Downloads:**
-
-- **Artifact**: `repo-memory-default` (by name)
-  - **Download path**: `/tmp/gh-aw/repo-memory/default`
-  - **Depends on jobs**: [agent detection]
-
-#### Job: `safe_outputs`
-
-**Downloads:**
-
-- **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [activation agent detection]
-
-- **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/`
-  - **Depends on jobs**: [activation agent detection]
 
 ### pdf-summary.md
 
@@ -3508,11 +3428,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3579,11 +3499,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3642,11 +3562,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3706,11 +3626,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3779,11 +3699,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3881,11 +3801,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -3968,11 +3888,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4054,11 +3974,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4142,11 +4062,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4217,11 +4137,11 @@ When artifacts are downloaded, files are extracted based on the download mode:
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `generate-sbom`
@@ -4290,11 +4210,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4357,11 +4277,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4428,11 +4348,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4489,11 +4409,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4564,11 +4484,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -4640,11 +4560,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4724,11 +4644,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4793,11 +4713,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -4883,11 +4803,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 ### spec-kit-execute.md
@@ -4947,11 +4867,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
@@ -5030,11 +4950,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5118,11 +5038,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5211,11 +5131,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5296,11 +5216,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5384,11 +5304,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5445,11 +5365,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5508,11 +5428,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5586,11 +5506,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5669,11 +5589,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `safe_outputs`
@@ -5736,11 +5656,11 @@ sbom.cdx.json
 **Downloads:**
 
 - **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-artifacts`
   - **Depends on jobs**: [agent]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
+  - **Download path**: `/tmp/gh-aw/threat-detection/agent-output`
   - **Depends on jobs**: [agent]
 
 #### Job: `push_repo_memory`
