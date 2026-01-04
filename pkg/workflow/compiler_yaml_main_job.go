@@ -286,32 +286,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Collect repo-memory artifact paths (instead of generating uploads)
-	if data.RepoMemoryConfig != nil {
-		for _, memory := range data.RepoMemoryConfig.Memories {
-			memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
-			artifactPaths = append(artifactPaths, memoryDir)
-		}
-	}
+	// Add repo-memory artifact upload to save state for push job
+	generateRepoMemoryArtifactUpload(yaml, data)
 
-	// Collect cache-memory artifact paths (instead of generating uploads)
-	// Only collect when threat detection is enabled (needed for update_cache_memory job)
-	threatDetectionEnabled := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
-	if threatDetectionEnabled && data.CacheMemoryConfig != nil {
-		for _, cache := range data.CacheMemoryConfig.Caches {
-			// Skip restore-only caches
-			if cache.RestoreOnly {
-				continue
-			}
-			var cacheDir string
-			if cache.ID == "default" {
-				cacheDir = "/tmp/gh-aw/cache-memory"
-			} else {
-				cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
-			}
-			artifactPaths = append(artifactPaths, cacheDir)
-		}
-	}
+	// Add cache-memory artifact upload (after agent execution)
+	// This ensures artifacts are uploaded after the agent has finished modifying the cache
+	generateCacheMemoryArtifactUpload(yaml, data)
 
 	// Collect safe-outputs assets path if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
