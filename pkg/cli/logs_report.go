@@ -62,7 +62,8 @@ type LogsSummary struct {
 type RunData struct {
 	DatabaseID       int64     `json:"database_id" console:"header:Run ID"`
 	Number           int       `json:"number" console:"-"`
-	WorkflowName     string    `json:"workflow_name" console:"header:Workflow"`
+	WorkflowName     string    `json:"workflow_name" console:"header:Workflow Name"`
+	WorkflowID       string    `json:"workflow_id" console:"header:Workflow"`
 	Agent            string    `json:"agent,omitempty" console:"header:Agent,omitempty"`
 	Status           string    `json:"status" console:"header:Status"`
 	Conclusion       string    `json:"conclusion,omitempty" console:"-"`
@@ -160,10 +161,15 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			agentID = info.EngineID
 		}
 
+		// Extract workflow ID from WorkflowPath
+		// WorkflowPath format: .github/workflows/workflow-name.lock.yml
+		workflowID := extractWorkflowID(run.WorkflowPath)
+
 		runData := RunData{
 			DatabaseID:       run.DatabaseID,
 			Number:           run.Number,
 			WorkflowName:     run.WorkflowName,
+			WorkflowID:       workflowID,
 			Agent:            agentID,
 			Status:           run.Status,
 			Conclusion:       run.Conclusion,
@@ -823,7 +829,7 @@ func renderRunsTable(data LogsData) {
 	for _, run := range data.Runs {
 		row := []string{
 			fmt.Sprintf("%d", run.DatabaseID),
-			truncateString(run.WorkflowName, 40),
+			truncateString(run.WorkflowID, 40),
 			run.Agent,
 			run.Status,
 			run.Duration,
@@ -900,4 +906,24 @@ func truncateString(s string, maxLen int) string {
 		return s[:maxLen-3] + "..."
 	}
 	return s[:maxLen]
+}
+
+// extractWorkflowID extracts the workflow ID from a workflow path
+// WorkflowPath format: .github/workflows/workflow-name.lock.yml or .github/workflows/workflow-name.campaign.lock.yml
+// Returns: workflow-name
+func extractWorkflowID(workflowPath string) string {
+	if workflowPath == "" {
+		return ""
+	}
+
+	// Get the basename
+	base := filepath.Base(workflowPath)
+
+	// Remove .lock.yml extension
+	base = strings.TrimSuffix(base, ".lock.yml")
+
+	// Remove .campaign suffix if present
+	base = strings.TrimSuffix(base, ".campaign")
+
+	return base
 }

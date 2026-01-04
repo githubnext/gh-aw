@@ -22,7 +22,8 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		Runs: []RunData{
 			{
 				DatabaseID:       12345,
-				WorkflowName:     "test-workflow",
+				WorkflowName:     "Test Workflow",
+				WorkflowID:       "test-workflow",
 				Agent:            "claude",
 				Status:           "completed",
 				Duration:         "5m30s",
