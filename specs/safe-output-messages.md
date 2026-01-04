@@ -505,17 +505,18 @@ index 1234567..abcdefg 100644
 >
 > **Workflow Run:** [View run details and download patch artifact](run_url)
 >
-> The patch file is available as an artifact (`aw.patch`) in the workflow run linked above.
+> The patch file is available in the `agent-artifacts` artifact in the workflow run linked above.
 
 To apply the patch locally:
 
 \`\`\`sh
 # Download the artifact from the workflow run [url]
 # (Use GitHub MCP tools if gh CLI is not available)
-gh run download [run_id] -n aw.patch
+gh run download [run_id] -n agent-artifacts
 
+# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
 # Apply the patch
-git am aw.patch
+git am agent-artifacts/tmp/gh-aw/aw.patch
 \`\`\`
 
 [patch preview if available]
@@ -530,17 +531,18 @@ git am aw.patch
 >
 > **Workflow Run:** [View run details and download patch artifact](https://github.com/example/repo/actions/runs/12345)
 >
-> The patch file is available as an artifact (`aw.patch`) in the workflow run linked above.
+> The patch file is available in the `agent-artifacts` artifact in the workflow run linked above.
 
 To apply the patch locally:
 
 ```sh
 # Download the artifact from the workflow run
 # (Use GitHub MCP tools if gh CLI is not available)
-gh run download 12345 -n aw.patch
+gh run download 12345 -n agent-artifacts
 
+# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
 # Apply the patch
-git am aw.patch
+git am agent-artifacts/tmp/gh-aw/aw.patch
 ```text
 
 <details><summary>Show patch (45 lines)</summary>
