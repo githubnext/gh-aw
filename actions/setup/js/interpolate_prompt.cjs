@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
-const { processRuntimeImports } = require("./runtime_import.cjs");
+const { processRuntimeImports, processFileInlines } = require("./runtime_import.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -87,6 +87,16 @@ async function main() {
       core.info("Runtime imports processed successfully");
     } else {
       core.info("No runtime import macros found, skipping runtime import processing");
+    }
+
+    // Step 1.5: Process inline file references (@path and @path:line-line)
+    const hasFileInlines = /@[^\s:]+(?::\d+-\d+)?/.test(content);
+    if (hasFileInlines) {
+      core.info("Processing inline file references");
+      content = processFileInlines(content, workspaceDir);
+      core.info("Inline file references processed successfully");
+    } else {
+      core.info("No inline file references found, skipping inline processing");
     }
 
     // Step 2: Interpolate variables

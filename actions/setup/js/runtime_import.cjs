@@ -148,9 +148,146 @@ function processRuntimeImports(content, workspaceDir) {
   return processedContent;
 }
 
+/**
+ * Processes a file inline and returns content with sanitization
+ * @param {string} filepath - The path to the file (relative to GITHUB_WORKSPACE)
+ * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
+ * @param {number} [startLine] - Optional start line (1-indexed, inclusive)
+ * @param {number} [endLine] - Optional end line (1-indexed, inclusive)
+ * @returns {string} - The processed file content
+ * @throws {Error} - If file is not found or line ranges are invalid
+ */
+function processFileInline(filepath, workspaceDir, startLine, endLine) {
+  // Resolve the absolute path
+  const absolutePath = path.resolve(workspaceDir, filepath);
+
+  // Check if file exists
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`File not found for inline: ${filepath}`);
+  }
+
+  // Read the file
+  let content = fs.readFileSync(absolutePath, "utf8");
+
+  // If line range is specified, extract those lines
+  if (startLine !== undefined || endLine !== undefined) {
+    const lines = content.split("\n");
+    const totalLines = lines.length;
+
+    // Validate line numbers (1-indexed)
+    const start = startLine !== undefined ? startLine : 1;
+    const end = endLine !== undefined ? endLine : totalLines;
+
+    if (start < 1 || start > totalLines) {
+      throw new Error(`Invalid start line ${start} for file ${filepath} (total lines: ${totalLines})`);
+    }
+    if (end < 1 || end > totalLines) {
+      throw new Error(`Invalid end line ${end} for file ${filepath} (total lines: ${totalLines})`);
+    }
+    if (start > end) {
+      throw new Error(`Start line ${start} cannot be greater than end line ${end} for file ${filepath}`);
+    }
+
+    // Extract lines (convert to 0-indexed)
+    content = lines.slice(start - 1, end).join("\n");
+  }
+
+  // Check for front matter and warn
+  if (hasFrontMatter(content)) {
+    core.warning(`File ${filepath} contains front matter which will be ignored in inline`);
+    // Remove front matter (everything between first --- and second ---)
+    const lines = content.split("\n");
+    let inFrontMatter = false;
+    let frontMatterCount = 0;
+    const processedLines = [];
+
+    for (const line of lines) {
+      if (line.trim() === "---" || line.trim() === "---\r") {
+        frontMatterCount++;
+        if (frontMatterCount === 1) {
+          inFrontMatter = true;
+          continue;
+        } else if (frontMatterCount === 2) {
+          inFrontMatter = false;
+          continue;
+        }
+      }
+      if (!inFrontMatter && frontMatterCount >= 2) {
+        processedLines.push(line);
+      }
+    }
+    content = processedLines.join("\n");
+  }
+
+  // Remove XML comments
+  content = removeXMLComments(content);
+
+  // Check for GitHub Actions macros and error if found
+  if (hasGitHubActionsMacros(content)) {
+    throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in inline content`);
+  }
+
+  return content;
+}
+
+/**
+ * Processes all @path and @path:line-line inline references in the content
+ * @param {string} content - The markdown content containing @path references
+ * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
+ * @returns {string} - Content with @path references replaced by file contents
+ */
+function processFileInlines(content, workspaceDir) {
+  // Pattern to match @filepath or @filepath:startline-endline
+  // This pattern matches:
+  // - @path/to/file.ext
+  // - @file.ext
+  // - @path/to/file.ext:10-20
+  // But NOT email addresses like user@example.com
+  // We require the path to contain at least one of: /, ., - or alphanumeric followed by /, ., -
+  // This ensures we match file paths but not bare domain names in emails
+  const pattern = /@([a-zA-Z0-9_\-./]+[a-zA-Z0-9_])(?::(\d+)-(\d+))?/g;
+
+  let processedContent = content;
+  let match;
+
+  // Reset regex state
+  pattern.lastIndex = 0;
+
+  while ((match = pattern.exec(content)) !== null) {
+    const filepath = match[1];
+    const startLine = match[2] ? parseInt(match[2], 10) : undefined;
+    const endLine = match[3] ? parseInt(match[3], 10) : undefined;
+    const fullMatch = match[0];
+
+    // Skip if this looks like part of an email address
+    // Check if there's an alphanumeric character immediately before the @
+    const matchIndex = match.index;
+    if (matchIndex > 0) {
+      const charBefore = content[matchIndex - 1];
+      if (/[a-zA-Z0-9_]/.test(charBefore)) {
+        // This is likely an email address, skip it
+        continue;
+      }
+    }
+
+    try {
+      const inlinedContent = processFileInline(filepath, workspaceDir, startLine, endLine);
+      // Replace the @path reference with the inlined content
+      processedContent = processedContent.replace(fullMatch, inlinedContent);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      throw new Error(`Failed to process inline for ${fullMatch}: ${errorMessage}`);
+    }
+  }
+
+  return processedContent;
+}
+
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
+  processFileInline,
+  processFileInlines,
   hasFrontMatter,
   removeXMLComments,
   hasGitHubActionsMacros,
