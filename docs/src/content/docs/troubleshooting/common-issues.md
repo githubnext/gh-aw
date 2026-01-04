@@ -158,6 +158,35 @@ safe-outputs:
   create-issue:
 ```
 
+### Project Field Type Errors
+
+If you receive errors like "The field of type repository is currently not supported" when using `update-project`:
+
+**Problem**: GitHub Projects has built-in field types (like REPOSITORY) that are reserved and cannot be created or updated via the API. Using field names that match these reserved types causes errors.
+
+**Solution**: Use different field names to avoid conflicts with GitHub's built-in types:
+
+```yaml wrap
+# ❌ Wrong - "repository" conflicts with REPOSITORY built-in type
+safe-outputs:
+  update-project:
+    fields:
+      repository: "myorg/myrepo"
+
+# ✅ Correct - Use alternative field names
+safe-outputs:
+  update-project:
+    fields:
+      repo: "myorg/myrepo"              # Short form
+      source_repository: "myorg/myrepo" # Descriptive
+      linked_repo: "myorg/myrepo"       # Clear alternative
+```
+
+**Reserved field names to avoid**:
+- `repository` (REPOSITORY type - not supported via API)
+
+If a field already exists with an unsupported type, delete it in the GitHub Projects UI and recreate it with a different name.
+
 ## Engine-Specific Issues
 
 ### Copilot CLI Not Found
