@@ -597,7 +597,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 	expectedComponents := []string{
 		"name: Upload threat detection log",
 		"if: always()",
-		"uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4",
+		"uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
 		"name: threat-detection.log",
 		"path: /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",
