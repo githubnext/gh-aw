@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-01-04T12:43:33Z",
+  "report_date": "2026-01-04",
+  "summary": {
+    "last_data_date": "2025-12-05",
+    "workflows_analyzed": 12,
+    "runs_analyzed": 700,
+    "total_requests": 8894,
+    "allowed_requests": 8894,
+    "denied_requests": 0,
+    "denial_rate": 0.0
+  },
+  "top_blocked_domains": [
+    {"domain": "linkedin.com", "count": 90},
+    {"domain": "api.github.com", "count": 80},
+    {"domain": "pypi.org", "count": 71},
+    {"domain": "facebook.com", "count": 71},
+    {"domain": "registry.npmjs.org", "count": 67},
+    {"domain": "analytics.google.com", "count": 63},
+    {"domain": "doubleclick.net", "count": 62},
+    {"domain": "github.com", "count": 54},
+    {"domain": "twitter.com", "count": 53},
+    {"domain": "cdn.example.com", "count": 49}
+  ],
+  "note": "Analysis based on historical cache data from Nov-Dec 2025"
+}
