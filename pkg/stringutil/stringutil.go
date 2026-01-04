@@ -8,6 +8,10 @@ import (
 
 // Truncate truncates a string to a maximum length, adding "..." if truncated.
 // If maxLen is 3 or less, the string is truncated without "...".
+//
+// This is a general-purpose utility for truncating any string to a configurable
+// length. For domain-specific workflow command identifiers with newline handling,
+// see workflow.ShortenCommand instead.
 func Truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
