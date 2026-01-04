@@ -256,7 +256,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 
 		// Generate and write the filtered tools.json file
-		filteredToolsJSON, err := generateFilteredToolsJSON(workflowData)
+		filteredToolsJSON, err := generateFilteredToolsJSON(workflowData, c.markdownPath)
 		if err != nil {
 			mcpServersLog.Printf("Error generating filtered tools JSON: %v", err)
 			// Fall back to empty array on error

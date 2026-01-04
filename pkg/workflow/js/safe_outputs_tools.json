@@ -636,25 +636,5 @@
       },
       "additionalProperties": false
     }
-  },
-  {
-    "name": "dispatch_workflow",
-    "description": "Dispatch a workflow_dispatch event to trigger another workflow in the repository. Use this to orchestrate multi-workflow pipelines or delegate work to specialized workflows. The target workflow must support workflow_dispatch trigger with defined inputs. You can only dispatch workflows in the same repository, and self-reference is not allowed.",
-    "inputSchema": {
-      "type": "object",
-      "required": ["workflow_name"],
-      "properties": {
-        "workflow_name": {
-          "type": "string",
-          "description": "Name of the workflow to dispatch (without .md or .lock.yml extension). For example, if the workflow file is 'test-workflow.md', use 'test-workflow'. The workflow must exist in .github/workflows/ and support workflow_dispatch trigger."
-        },
-        "inputs": {
-          "type": "object",
-          "description": "Input parameters for the workflow_dispatch event. The structure must match the workflow's input schema defined in its workflow_dispatch trigger configuration. All inputs are converted to strings when dispatching.",
-          "additionalProperties": true
-        }
-      },
-      "additionalProperties": false
-    }
   }
 ]

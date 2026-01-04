@@ -114,6 +114,53 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	return nil
 }
 
+// extractWorkflowDispatchInputs parses a workflow file and extracts the workflow_dispatch inputs schema
+// Returns a map of input definitions that can be used to generate MCP tool schemas
+func extractWorkflowDispatchInputs(workflowPath string) (map[string]any, error) {
+	workflowContent, err := os.ReadFile(workflowPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read workflow file %s: %w", workflowPath, err)
+	}
+
+	var workflow map[string]any
+	if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
+		return nil, fmt.Errorf("failed to parse workflow file %s: %w", workflowPath, err)
+	}
+
+	// Navigate to workflow_dispatch.inputs
+	onSection, hasOn := workflow["on"]
+	if !hasOn {
+		return make(map[string]any), nil // No inputs
+	}
+
+	onMap, ok := onSection.(map[string]any)
+	if !ok {
+		return make(map[string]any), nil // No inputs
+	}
+
+	workflowDispatch, hasWorkflowDispatch := onMap["workflow_dispatch"]
+	if !hasWorkflowDispatch {
+		return make(map[string]any), nil // No inputs
+	}
+
+	workflowDispatchMap, ok := workflowDispatch.(map[string]any)
+	if !ok {
+		return make(map[string]any), nil // No inputs
+	}
+
+	inputs, hasInputs := workflowDispatchMap["inputs"]
+	if !hasInputs {
+		return make(map[string]any), nil // No inputs
+	}
+
+	inputsMap, ok := inputs.(map[string]any)
+	if !ok {
+		return make(map[string]any), nil // No inputs
+	}
+
+	return inputsMap, nil
+}
+
 // getCurrentWorkflowName extracts the workflow name from the file path
 func getCurrentWorkflowName(workflowPath string) string {
 	filename := filepath.Base(workflowPath)

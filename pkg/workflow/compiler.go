@@ -38,6 +38,9 @@ var githubWorkflowSchema string
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
+	// Store markdownPath for use in dynamic tool generation
+	c.markdownPath = markdownPath
+	
 	// Parse the markdown file
 	log.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
