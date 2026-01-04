@@ -719,7 +719,7 @@ jobs:
                  status: "In Progress"
                  campaign_id: "file-size-reduction-project71"
                  worker_workflow: "unknown"
-                 repository: "<OWNER/REPO>"
+                 repo: "<OWNER/REPO>"
                  priority: "High"
                  size: "Large"
                  start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
@@ -746,7 +746,7 @@ jobs:
           
           3) Normalize discovered items into a single list with:
           - URL, `content_type` (issue/pull_request/discussion), `content_number`
-          - `repository` (owner/repo), `created_at`, `updated_at`
+          - `repo` (owner/repo), `created_at`, `updated_at`
           - `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
           
           4) Respect read budgets and cursor; stop early if needed and persist cursor.
@@ -777,7 +777,7 @@ jobs:
           - Do NOT interleave reads.
           - Do NOT pre-check whether the item is on the board.
           - **All write semantics MUST follow Project Update Instructions**, including:
-            - first add → full required fields (status, campaign_id, worker_workflow, repository, priority, size, start_date, end_date)
+            - first add → full required fields (status, campaign_id, worker_workflow, repo, priority, size, start_date, end_date)
             - existing item → status-only update unless explicit backfill is required
           
           10) Record per-item outcome: success/failure + error details.
@@ -830,7 +830,7 @@ jobs:
           | `status` | single-select | `Todo` / `In Progress` / `Done` |
           | `campaign_id` | text | Must equal `file-size-reduction-project71` |
           | `worker_workflow` | text | workflow ID or `"unknown"` |
-          | `repository` | text | `owner/repo` |
+          | `repo` | text | `owner/repo` (Note: Do not use field name "repository" - it conflicts with GitHub's built-in REPOSITORY type) |
           | `priority` | single-select | `High` / `Medium` / `Low` |
           | `size` | single-select | `Small` / `Medium` / `Large` |
           | `start_date` | date | `YYYY-MM-DD` |
@@ -892,7 +892,7 @@ jobs:
               status: "Todo"                   # "Done" if already closed/merged
               campaign_id: "file-size-reduction-project71"
               worker_workflow: "unknown"
-              repository: "owner/repo"
+              repo: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
@@ -935,7 +935,7 @@ jobs:
               status: "Done"
               campaign_id: "file-size-reduction-project71"
               worker_workflow: "WORKFLOW_ID"
-              repository: "owner/repo"
+              repo: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
