@@ -374,7 +374,7 @@ async function updateProject(output) {
       if (Object.keys(fieldsToUpdate).length > 0) {
         const projectFields = (
           await github.graphql(
-            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
+            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                    ... on ProjectV2IterationField {\n                      id\n                      name\n                      dataType\n                      configuration {\n                        iterations {\n                          id\n                          title\n                          startDate\n                          duration\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
             { projectId }
           )
         ).node.fields.nodes;
@@ -411,7 +411,32 @@ async function updateProject(output) {
                 continue;
               }
           if (field.dataType === "DATE") valueToSet = { date: String(fieldValue) };
-          else if (field.options) {
+          else if (field.dataType === "NUMBER") {
+            // NUMBER fields use ProjectV2FieldValue input type with number property
+            // The number value must be a valid float or integer
+            // Convert string values to numbers if needed
+            const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
+            if (isNaN(numValue)) {
+              core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
+              continue;
+            }
+            valueToSet = { number: numValue };
+          } else if (field.dataType === "ITERATION") {
+            // ITERATION fields use ProjectV2FieldValue input type with iterationId property
+            // The value should match an iteration title or ID
+            if (!field.configuration || !field.configuration.iterations) {
+              core.warning(`Iteration field "${fieldName}" has no configured iterations`);
+              continue;
+            }
+            // Try to find iteration by title (case-insensitive match)
+            const iteration = field.configuration.iterations.find(iter => iter.title.toLowerCase() === String(fieldValue).toLowerCase());
+            if (!iteration) {
+              const availableIterations = field.configuration.iterations.map(i => i.title).join(", ");
+              core.warning(`Iteration "${fieldValue}" not found in field "${fieldName}". Available iterations: ${availableIterations}`);
+              continue;
+            }
+            valueToSet = { iterationId: iteration.id };
+          } else if (field.options) {
             let option = field.options.find(o => o.name === fieldValue);
             if (!option)
               try {
@@ -496,7 +521,7 @@ async function updateProject(output) {
       if (Object.keys(fieldsToUpdate).length > 0) {
         const projectFields = (
           await github.graphql(
-            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
+            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                    ... on ProjectV2IterationField {\n                      id\n                      name\n                      dataType\n                      configuration {\n                        iterations {\n                          id\n                          title\n                          startDate\n                          duration\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
             { projectId }
           )
         ).node.fields.nodes;
@@ -539,6 +564,31 @@ async function updateProject(output) {
             // The date value must be in ISO 8601 format (YYYY-MM-DD) with no time component
             // Unlike other field types that may require IDs, date fields accept the date string directly
             valueToSet = { date: String(fieldValue) };
+          } else if (field.dataType === "NUMBER") {
+            // NUMBER fields use ProjectV2FieldValue input type with number property
+            // The number value must be a valid float or integer
+            // Convert string values to numbers if needed
+            const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
+            if (isNaN(numValue)) {
+              core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
+              continue;
+            }
+            valueToSet = { number: numValue };
+          } else if (field.dataType === "ITERATION") {
+            // ITERATION fields use ProjectV2FieldValue input type with iterationId property
+            // The value should match an iteration title or ID
+            if (!field.configuration || !field.configuration.iterations) {
+              core.warning(`Iteration field "${fieldName}" has no configured iterations`);
+              continue;
+            }
+            // Try to find iteration by title (case-insensitive match)
+            const iteration = field.configuration.iterations.find(iter => iter.title.toLowerCase() === String(fieldValue).toLowerCase());
+            if (!iteration) {
+              const availableIterations = field.configuration.iterations.map(i => i.title).join(", ");
+              core.warning(`Iteration "${fieldValue}" not found in field "${fieldName}". Available iterations: ${availableIterations}`);
+              continue;
+            }
+            valueToSet = { iterationId: iteration.id };
           } else if (field.options) {
             let option = field.options.find(o => o.name === fieldValue);
             if (!option)
