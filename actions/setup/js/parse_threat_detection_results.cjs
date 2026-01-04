@@ -24,16 +24,17 @@ async function main() {
   let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
 
   try {
-    // Agent output is downloaded to /tmp/gh-aw/threat-detection/agent-output
-    const agentOutputDir = "/tmp/gh-aw/threat-detection/agent-output";
-    const outputPath = path.join(agentOutputDir, "agent_output.json");
+    // Agent output artifact is downloaded to /tmp/gh-aw/threat-detection/
+    // GitHub Actions places single-file artifacts directly in the target directory
+    const threatDetectionDir = "/tmp/gh-aw/threat-detection";
+    const outputPath = path.join(threatDetectionDir, "agent_output.json");
     if (!fs.existsSync(outputPath)) {
       core.error("❌ Agent output file not found at: " + outputPath);
       // List all files in artifact directory for debugging
-      core.info("📁 Listing all files in artifact directory: " + agentOutputDir);
-      const files = listFilesRecursively(agentOutputDir, agentOutputDir);
+      core.info("📁 Listing all files in artifact directory: " + threatDetectionDir);
+      const files = listFilesRecursively(threatDetectionDir, threatDetectionDir);
       if (files.length === 0) {
-        core.warning("  No files found in " + agentOutputDir);
+        core.warning("  No files found in " + threatDetectionDir);
       } else {
         core.info("  Found " + files.length + " file(s):");
         files.forEach(file => core.info("    - " + file));
