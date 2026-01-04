@@ -399,17 +399,19 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	}
 
 	if len(processedRuns) == 0 {
-		if timeoutReached {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached before any runs could be downloaded"))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
-		}
-		// Still output JSON structure even with no runs (for --json flag)
+		// When JSON output is requested, output JSON first to stdout before any stderr messages
+		// This prevents stderr messages from corrupting JSON when both streams are redirected together
 		if jsonOutput {
 			logsData := buildLogsData([]ProcessedRun{}, outputDir, nil)
 			if err := renderLogsJSON(logsData); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
 			}
+		}
+		// Now print warning messages to stderr after JSON output (if any) is complete
+		if timeoutReached {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached before any runs could be downloaded"))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
 		}
 		return nil
 	}

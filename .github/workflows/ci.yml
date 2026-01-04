@@ -759,8 +759,9 @@ jobs:
       - name: Run logs command with JSON output
         id: logs_check
         run: |
-          # Run the logs command and capture output
-          ./gh-aw logs -c 2 --engine copilot --json > logs_output.json 2>&1 || true
+          # Run the logs command and capture only stdout (JSON output)
+          # stderr is not redirected, so warning messages go to console
+          ./gh-aw logs -c 2 --engine copilot --json > logs_output.json || true
           
           # Display the output for debugging
           echo "Logs command output:"
