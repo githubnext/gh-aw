@@ -202,13 +202,24 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			logsGitHubAPILog.Printf("gh run list command failed (not ExitError): %v. Command: gh %v", err, args)
 		}
 
-		// Check for authentication errors - GitHub CLI can return different exit codes and messages
+		// Check for different error types with heuristics
 		errMsg := err.Error()
 		outputMsg := string(output)
 		combinedMsg := errMsg + " " + outputMsg
 		if verbose {
 			fmt.Println(console.FormatVerboseMessage(outputMsg))
 		}
+		
+		// Check for invalid field errors first (before auth errors)
+		// GitHub CLI returns these when JSON fields don't exist or are misspelled
+		if strings.Contains(combinedMsg, "invalid field") ||
+			strings.Contains(combinedMsg, "unknown field") ||
+			strings.Contains(combinedMsg, "field not found") ||
+			strings.Contains(combinedMsg, "no such field") {
+			return nil, 0, fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, string(output))
+		}
+		
+		// Check for authentication errors
 		if strings.Contains(combinedMsg, "exit status 4") ||
 			strings.Contains(combinedMsg, "exit status 1") ||
 			strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
@@ -217,6 +228,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			strings.Contains(outputMsg, "gh auth login") {
 			return nil, 0, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
+		
 		if len(output) > 0 {
 			return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %s", exitCode, string(output))
 		}
