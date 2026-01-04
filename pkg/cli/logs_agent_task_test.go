@@ -32,12 +32,12 @@ func TestLogsCommandAgentTaskFlagInHelp(t *testing.T) {
 func TestListWorkflowRunsFilteringWithAgentTaskFalse(t *testing.T) {
 	// Note: This test is primarily documentation of expected behavior
 	// since listWorkflowRunsWithPagination requires GitHub CLI authentication
-	
+
 	// When agentTask=false (default), the function should:
 	// 1. Call getAgenticWorkflowNames() to get list of workflows from .lock.yml files
 	// 2. Filter runs to only include those workflows
 	// 3. Exclude any workflows not in that list (e.g., "Agent Task" workflows from gh agent task)
-	
+
 	// This is the default behavior to filter out gh agent task runs
 	t.Log("When agentTask=false, only workflows with .lock.yml files should be included")
 }
@@ -47,12 +47,12 @@ func TestListWorkflowRunsFilteringWithAgentTaskFalse(t *testing.T) {
 func TestListWorkflowRunsFilteringWithAgentTaskTrue(t *testing.T) {
 	// Note: This test is primarily documentation of expected behavior
 	// since listWorkflowRunsWithPagination requires GitHub CLI authentication
-	
+
 	// When agentTask=true, the function should:
 	// 1. Skip the filtering step
 	// 2. Return all workflow runs from GitHub API
 	// 3. Include both agentic workflows AND agent task workflows
-	
+
 	// This allows users to see gh agent task runs in addition to gh aw workflows
 	t.Log("When agentTask=true, all workflow runs should be included (agentic + agent task)")
 }
@@ -62,12 +62,12 @@ func TestListWorkflowRunsFilteringWithAgentTaskTrue(t *testing.T) {
 func TestListWorkflowRunsWithSpecificWorkflowName(t *testing.T) {
 	// Note: This test is primarily documentation of expected behavior
 	// since listWorkflowRunsWithPagination requires GitHub CLI authentication
-	
+
 	// When a specific workflow name is provided:
 	// 1. The GitHub API filters to that workflow
 	// 2. The agentTask flag should not matter
 	// 3. All runs for that specific workflow are returned
-	
+
 	// This allows users to target a specific workflow regardless of its type
 	t.Log("When a specific workflow name is provided, agentTask flag is ignored")
 }
