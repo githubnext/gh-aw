@@ -1,6 +1,6 @@
 ---
 id: file-size-reduction-project68
-name: "Go File Size Reduction Campaign (Project 68)"
+name: "File Size Reduction Campaign (Project 68)"
 description: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
 version: v1
 project-url: "https://github.com/orgs/githubnext/projects/68"
@@ -47,7 +47,7 @@ governance:
   max-discovery-pages-per-run: 5
 ---
 
-# Go File Size Reduction Campaign (Project 68)
+# File Size Reduction Campaign (Project 68)
 
 ## Overview
 
