@@ -743,7 +743,7 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 		"continue-on-error: true",
 		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
 		"name: agent-artifacts",
-		"path: /tmp/gh-aw/threat-detection/",
+		"path: /tmp/gh-aw/artifacts",
 	}
 
 	for _, expected := range expectedComponents {

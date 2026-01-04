@@ -22,18 +22,20 @@ async function main() {
   let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
 
   try {
-    const outputPath = "/tmp/gh-aw/threat-detection/agent_output.json";
-    if (fs.existsSync(outputPath)) {
-      const outputContent = fs.readFileSync(outputPath, "utf8");
-      const lines = outputContent.split("\n");
+    const outputPath = "/tmp/gh-aw/artifacts/agent_output.json";
+    if (!fs.existsSync(outputPath)) {
+      core.setFailed("❌ Agent output file not found at: " + outputPath);
+      return;
+    }
+    const outputContent = fs.readFileSync(outputPath, "utf8");
+    const lines = outputContent.split("\n");
 
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (trimmedLine.startsWith("THREAT_DETECTION_RESULT:")) {
-          const jsonPart = trimmedLine.substring("THREAT_DETECTION_RESULT:".length);
-          verdict = { ...verdict, ...JSON.parse(jsonPart) };
-          break;
-        }
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("THREAT_DETECTION_RESULT:")) {
+        const jsonPart = trimmedLine.substring("THREAT_DETECTION_RESULT:".length);
+        verdict = { ...verdict, ...JSON.parse(jsonPart) };
+        break;
       }
     }
   } catch (error) {

@@ -168,7 +168,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	steps = append(steps, c.buildEchoAgentOutputsStep(mainJobName)...)
 
 	// Step 3: Setup and run threat detection
-	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
+	steps = append(steps, c.buildThreatDetectionAnalysisStep(data, mainJobName)...)
 
 	// Step 4: Add custom steps if configured
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
@@ -192,7 +192,7 @@ func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 	// Download unified agent-artifacts (contains prompt, patch, logs, etc.)
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: "agent-artifacts",
-		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		DownloadPath: "/tmp/gh-aw/artifacts",
 		SetupEnvStep: false,
 		StepName:     "Download agent artifacts",
 	})...)
@@ -200,7 +200,7 @@ func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 	// Download agent output artifact (still separate)
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: constants.AgentOutputArtifactName,
-		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		DownloadPath: "/tmp/gh-aw/artifacts",
 		SetupEnvStep: false,
 		StepName:     "Download agent output artifact",
 	})...)
@@ -220,7 +220,7 @@ func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 }
 
 // buildThreatDetectionAnalysisStep creates the main threat analysis step
-func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string {
+func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobName string) []string {
 	var steps []string
 
 	// Setup step
@@ -230,6 +230,9 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		"        env:\n",
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
+
+	// Add HAS_PATCH environment variable from agent job output
+	steps = append(steps, fmt.Sprintf("          HAS_PATCH: ${{ needs.%s.outputs.has_patch }}\n", mainJobName))
 
 	// Add custom prompt instructions if configured
 	customPrompt := ""

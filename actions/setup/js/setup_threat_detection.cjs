@@ -21,10 +21,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function main(templateContent) {
   // Check if prompt file exists
-  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/,
+  // Since agent-artifacts is downloaded to /tmp/gh-aw/artifacts,
   // and the artifact contains files with full paths like /tmp/gh-aw/aw-prompts/prompt.txt,
-  // the downloaded file will be at /tmp/gh-aw/threat-detection/tmp/gh-aw/aw-prompts/prompt.txt
-  const promptPath = "/tmp/gh-aw/threat-detection/tmp/gh-aw/aw-prompts/prompt.txt";
+  // the downloaded file will be at /tmp/gh-aw/artifacts/tmp/gh-aw/aw-prompts/prompt.txt
+  const promptPath = "/tmp/gh-aw/artifacts/tmp/gh-aw/aw-prompts/prompt.txt";
   let promptFileInfo = "No prompt file found";
   if (fs.existsSync(promptPath)) {
     try {
@@ -35,13 +35,14 @@ async function main(templateContent) {
       core.warning("Failed to stat prompt file: " + getErrorMessage(error));
     }
   } else {
-    core.info("No prompt file found at: " + promptPath);
+    core.setFailed("❌ Prompt file not found at: " + promptPath);
+    return;
   }
 
   // Check if agent output file exists
-  // Agent output is still a separate artifact downloaded to /tmp/gh-aw/threat-detection/,
-  // so it appears directly as /tmp/gh-aw/threat-detection/agent_output.json
-  const agentOutputPath = "/tmp/gh-aw/threat-detection/agent_output.json";
+  // Agent output is still a separate artifact downloaded to /tmp/gh-aw/artifacts,
+  // so it appears directly as /tmp/gh-aw/artifacts/agent_output.json
+  const agentOutputPath = "/tmp/gh-aw/artifacts/agent_output.json";
   let agentOutputFileInfo = "No agent output file found";
   if (fs.existsSync(agentOutputPath)) {
     try {
@@ -52,15 +53,17 @@ async function main(templateContent) {
       core.warning("Failed to stat agent output file: " + getErrorMessage(error));
     }
   } else {
-    core.info("No agent output file found at: " + agentOutputPath);
+    core.setFailed("❌ Agent output file not found at: " + agentOutputPath);
+    return;
   }
 
   // Check if patch file exists
-  // Since agent-artifacts is downloaded to /tmp/gh-aw/threat-detection/,
+  // Since agent-artifacts is downloaded to /tmp/gh-aw/artifacts,
   // and the artifact contains /tmp/gh-aw/aw.patch,
-  // the downloaded file will be at /tmp/gh-aw/threat-detection/tmp/gh-aw/aw.patch
-  const patchPath = "/tmp/gh-aw/threat-detection/tmp/gh-aw/aw.patch";
+  // the downloaded file will be at /tmp/gh-aw/artifacts/tmp/gh-aw/aw.patch
+  const patchPath = "/tmp/gh-aw/artifacts/tmp/gh-aw/aw.patch";
   let patchFileInfo = "No patch file found";
+  const hasPatch = process.env.HAS_PATCH === "true";
   if (fs.existsSync(patchPath)) {
     try {
       const stats = fs.statSync(patchPath);
@@ -70,7 +73,12 @@ async function main(templateContent) {
       core.warning("Failed to stat patch file: " + getErrorMessage(error));
     }
   } else {
-    core.info("No patch file found at: " + patchPath);
+    if (hasPatch) {
+      core.setFailed("❌ Patch file not found at: " + patchPath + " but was expected (has_patch=true)");
+      return;
+    } else {
+      core.info("No patch file found at: " + patchPath);
+    }
   }
 
   // Create threat detection prompt with embedded template
