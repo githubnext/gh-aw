@@ -129,6 +129,7 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 //   - ref: filter by branch or tag name
 //   - beforeRunID/afterRunID: filter by run database ID range
 //   - repoOverride: fetch from a specific repository instead of current
+//   - agentTask: when false (default), filter to only agentic workflows; when true, include all workflows
 //
 // Returns:
 //   - []WorkflowRun: filtered list of workflow runs
@@ -142,8 +143,8 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 // not the total number of matching runs the user wants to find.
 //
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
-func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, ref string, beforeRunID, afterRunID int64, repoOverride string, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
-	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", workflowName, limit, startDate, endDate, ref)
+func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, ref string, beforeRunID, afterRunID int64, repoOverride string, processedCount, targetCount int, verbose bool, agentTask bool) ([]WorkflowRun, int, error) {
+	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s, agentTask=%v", workflowName, limit, startDate, endDate, ref, agentTask)
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -252,11 +253,12 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	// Store the total count fetched from API before filtering
 	totalFetched := len(runs)
 
-	// Filter only agentic workflow runs when no specific workflow is specified
+	// Filter only agentic workflow runs when no specific workflow is specified AND agentTask flag is false
 	// If a workflow name was specified, we already filtered by it in the API call
+	// If agentTask flag is true, include all workflows (agentic + agent task)
 	var agenticRuns []WorkflowRun
-	if workflowName == "" {
-		// No specific workflow requested, filter to only agentic workflows
+	if workflowName == "" && !agentTask {
+		// No specific workflow requested and agentTask flag is false, filter to only agentic workflows
 		// Get the list of agentic workflow names from .lock.yml files
 		agenticWorkflowNames, err := getAgenticWorkflowNames(verbose)
 		if err != nil {
@@ -269,7 +271,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			}
 		}
 	} else {
-		// Specific workflow requested, return all runs (they're already filtered by GitHub API)
+		// Specific workflow requested OR agentTask flag is true, return all runs
 		agenticRuns = runs
 	}
 

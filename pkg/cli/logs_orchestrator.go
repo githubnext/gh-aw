@@ -38,8 +38,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string, agentTask bool) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s, agentTask=%v", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile, agentTask)
 
 	// Check context cancellation at the start
 	select {
@@ -132,7 +132,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			}
 		}
 
-		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, ref, beforeRunID, afterRunID, repoOverride, len(processedRuns), count, verbose)
+		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, ref, beforeRunID, afterRunID, repoOverride, len(processedRuns), count, verbose, agentTask)
 		if err != nil {
 			return err
 		}

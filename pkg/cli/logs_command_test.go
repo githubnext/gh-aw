@@ -104,7 +104,7 @@ func TestLogsCommandBooleanFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 	flags := cmd.Flags()
 
-	boolFlags := []string{"firewall", "no-firewall", "tool-graph", "parse", "json"}
+	boolFlags := []string{"firewall", "no-firewall", "tool-graph", "parse", "json", "agent-task"}
 
 	for _, flagName := range boolFlags {
 		t.Run(flagName, func(t *testing.T) {

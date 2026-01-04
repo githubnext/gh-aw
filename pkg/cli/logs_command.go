@@ -89,6 +89,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
   ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download all runs until yesterday
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download all runs from last month
+  ` + string(constants.CLIExtensionPrefix) + ` logs --agent-task              # Include gh agent task runs in addition to agentic workflows
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine codex            # Filter logs by codex engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine copilot          # Filter logs by copilot engine
@@ -165,6 +166,7 @@ Examples:
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			campaignOnly, _ := cmd.Flags().GetBool("campaign")
 			summaryFile, _ := cmd.Flags().GetString("summary-file")
+			agentTask, _ := cmd.Flags().GetBool("agent-task")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -197,9 +199,9 @@ Examples:
 				}
 			}
 
-			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s", workflowName, count, engine)
+			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, agentTask=%v", workflowName, count, engine, agentTask)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile)
+			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile, agentTask)
 		},
 	}
 
@@ -222,6 +224,7 @@ Examples:
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
+	logsCmd.Flags().Bool("agent-task", false, "Include GitHub Copilot agent task runs (from gh agent task) in addition to agentic workflows")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command
