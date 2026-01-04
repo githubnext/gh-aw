@@ -625,27 +625,33 @@ jobs:
           - Closed (issue/discussion) → `Done`
           - Merged (PR) → `Done`
           
-          6) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+          6) Calculate required date fields for each item (per Project Update Instructions):
+          - `start_date`: format `created_at` as `YYYY-MM-DD`
+          - `end_date`:
+            - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
+            - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
           
-          7) Apply write budget:
+          7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+          
+          8) Apply write budget:
           - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
             (e.g., oldest `updated_at` first; tie-break by ID/number).
           - Defer remaining items to next run via cursor.
           
           ### Phase 3 — Write State (Execution) [WRITES ONLY]
           
-          8) For each selected item, send an `update-project` request.
+          9) For each selected item, send an `update-project` request.
           - Do NOT interleave reads.
           - Do NOT pre-check whether the item is on the board.
           - **All write semantics MUST follow Project Update Instructions**, including:
-            - first add → full required fields
+            - first add → full required fields (status, campaign_id, worker_workflow, repository, priority, size, start_date, end_date)
             - existing item → status-only update unless explicit backfill is required
           
-          9) Record per-item outcome: success/failure + error details.
+          10) Record per-item outcome: success/failure + error details.
           
           ### Phase 4 — Report
           
-          10) Report:
+          11) Report:
           - counts discovered (by type)
           - counts processed this run (by action: add/status_update/backfill/noop/failed)
           - counts deferred due to budgets

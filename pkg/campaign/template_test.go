@@ -52,6 +52,18 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 				"never interleave",
 			},
 		},
+		{
+			name: "date field calculation in Phase 2",
+			data: CampaignPromptData{},
+			shouldContain: []string{
+				"Calculate required date fields",
+				"start_date",
+				"end_date",
+				"format `created_at` as `YYYY-MM-DD`",
+				"format `closed_at`/`merged_at` as `YYYY-MM-DD`",
+				"today's date",
+			},
+		},
 	}
 
 	for _, tt := range tests {
