@@ -321,132 +321,132 @@ func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
 }
 
 func TestFlattenUnifiedArtifact(t *testing.T) {
-tests := []struct {
-name            string
-setup           func(string) error
-expectedFiles   []string
-expectedDirs    []string
-unexpectedFiles []string
-unexpectedDirs  []string
-}{
-{
-name: "unified artifact with nested structure gets flattened",
-setup: func(dir string) error {
-// Create the structure: agent-artifacts/tmp/gh-aw/...
-nestedPath := filepath.Join(dir, "agent-artifacts", "tmp", "gh-aw")
-if err := os.MkdirAll(nestedPath, 0755); err != nil {
-return err
-}
+	tests := []struct {
+		name            string
+		setup           func(string) error
+		expectedFiles   []string
+		expectedDirs    []string
+		unexpectedFiles []string
+		unexpectedDirs  []string
+	}{
+		{
+			name: "unified artifact with nested structure gets flattened",
+			setup: func(dir string) error {
+				// Create the structure: agent-artifacts/tmp/gh-aw/...
+				nestedPath := filepath.Join(dir, "agent-artifacts", "tmp", "gh-aw")
+				if err := os.MkdirAll(nestedPath, 0755); err != nil {
+					return err
+				}
 
-// Create test files
-if err := os.WriteFile(filepath.Join(nestedPath, "aw_info.json"), []byte("test"), 0644); err != nil {
-return err
-}
+				// Create test files
+				if err := os.WriteFile(filepath.Join(nestedPath, "aw_info.json"), []byte("test"), 0644); err != nil {
+					return err
+				}
 
-// Create subdirectories with files
-promptDir := filepath.Join(nestedPath, "aw-prompts")
-if err := os.MkdirAll(promptDir, 0755); err != nil {
-return err
-}
-if err := os.WriteFile(filepath.Join(promptDir, "prompt.txt"), []byte("test"), 0644); err != nil {
-return err
-}
+				// Create subdirectories with files
+				promptDir := filepath.Join(nestedPath, "aw-prompts")
+				if err := os.MkdirAll(promptDir, 0755); err != nil {
+					return err
+				}
+				if err := os.WriteFile(filepath.Join(promptDir, "prompt.txt"), []byte("test"), 0644); err != nil {
+					return err
+				}
 
-mcpLogsDir := filepath.Join(nestedPath, "mcp-logs")
-if err := os.MkdirAll(mcpLogsDir, 0755); err != nil {
-return err
-}
-return os.WriteFile(filepath.Join(mcpLogsDir, "log.txt"), []byte("test"), 0644)
-},
-expectedFiles: []string{
-"aw_info.json",
-"aw-prompts/prompt.txt",
-"mcp-logs/log.txt",
-},
-expectedDirs: []string{
-"aw-prompts",
-"mcp-logs",
-},
-unexpectedDirs: []string{"agent-artifacts", "tmp", "gh-aw"},
-unexpectedFiles: []string{
-"agent-artifacts/tmp/gh-aw/aw_info.json",
-"tmp/gh-aw/aw_info.json",
-},
-},
-{
-name: "no agent-artifacts directory - no-op",
-setup: func(dir string) error {
-// Create a regular file structure without agent-artifacts
-return os.WriteFile(filepath.Join(dir, "regular.txt"), []byte("test"), 0644)
-},
-expectedFiles: []string{"regular.txt"},
-},
-{
-name: "agent-artifacts without tmp/gh-aw structure - no-op",
-setup: func(dir string) error {
-// Create agent-artifacts but without the expected nested structure
-artifactDir := filepath.Join(dir, "agent-artifacts")
-if err := os.MkdirAll(artifactDir, 0755); err != nil {
-return err
-}
-return os.WriteFile(filepath.Join(artifactDir, "file.txt"), []byte("test"), 0644)
-},
-expectedDirs:  []string{"agent-artifacts"},
-expectedFiles: []string{"agent-artifacts/file.txt"},
-},
-}
+				mcpLogsDir := filepath.Join(nestedPath, "mcp-logs")
+				if err := os.MkdirAll(mcpLogsDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(mcpLogsDir, "log.txt"), []byte("test"), 0644)
+			},
+			expectedFiles: []string{
+				"aw_info.json",
+				"aw-prompts/prompt.txt",
+				"mcp-logs/log.txt",
+			},
+			expectedDirs: []string{
+				"aw-prompts",
+				"mcp-logs",
+			},
+			unexpectedDirs: []string{"agent-artifacts", "tmp", "gh-aw"},
+			unexpectedFiles: []string{
+				"agent-artifacts/tmp/gh-aw/aw_info.json",
+				"tmp/gh-aw/aw_info.json",
+			},
+		},
+		{
+			name: "no agent-artifacts directory - no-op",
+			setup: func(dir string) error {
+				// Create a regular file structure without agent-artifacts
+				return os.WriteFile(filepath.Join(dir, "regular.txt"), []byte("test"), 0644)
+			},
+			expectedFiles: []string{"regular.txt"},
+		},
+		{
+			name: "agent-artifacts without tmp/gh-aw structure - no-op",
+			setup: func(dir string) error {
+				// Create agent-artifacts but without the expected nested structure
+				artifactDir := filepath.Join(dir, "agent-artifacts")
+				if err := os.MkdirAll(artifactDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(artifactDir, "file.txt"), []byte("test"), 0644)
+			},
+			expectedDirs:  []string{"agent-artifacts"},
+			expectedFiles: []string{"agent-artifacts/file.txt"},
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-tmpDir := testutil.TempDir(t, "test-flatten-unified-*")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-flatten-unified-*")
 
-// Setup test structure
-if err := tt.setup(tmpDir); err != nil {
-t.Fatalf("Setup failed: %v", err)
-}
+			// Setup test structure
+			if err := tt.setup(tmpDir); err != nil {
+				t.Fatalf("Setup failed: %v", err)
+			}
 
-// Run flattening
-if err := flattenUnifiedArtifact(tmpDir, true); err != nil {
-t.Fatalf("flattenUnifiedArtifact failed: %v", err)
-}
+			// Run flattening
+			if err := flattenUnifiedArtifact(tmpDir, true); err != nil {
+				t.Fatalf("flattenUnifiedArtifact failed: %v", err)
+			}
 
-// Verify expected files exist
-for _, file := range tt.expectedFiles {
-path := filepath.Join(tmpDir, file)
-info, err := os.Stat(path)
-if err != nil {
-t.Errorf("Expected file %s does not exist: %v", file, err)
-} else if info.IsDir() {
-t.Errorf("Expected %s to be a file, but it's a directory", file)
-}
-}
+			// Verify expected files exist
+			for _, file := range tt.expectedFiles {
+				path := filepath.Join(tmpDir, file)
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Errorf("Expected file %s does not exist: %v", file, err)
+				} else if info.IsDir() {
+					t.Errorf("Expected %s to be a file, but it's a directory", file)
+				}
+			}
 
-// Verify expected directories exist
-for _, dir := range tt.expectedDirs {
-path := filepath.Join(tmpDir, dir)
-info, err := os.Stat(path)
-if err != nil {
-t.Errorf("Expected directory %s does not exist: %v", dir, err)
-} else if !info.IsDir() {
-t.Errorf("Expected %s to be a directory", dir)
-}
-}
+			// Verify expected directories exist
+			for _, dir := range tt.expectedDirs {
+				path := filepath.Join(tmpDir, dir)
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Errorf("Expected directory %s does not exist: %v", dir, err)
+				} else if !info.IsDir() {
+					t.Errorf("Expected %s to be a directory", dir)
+				}
+			}
 
-// Verify unexpected files don't exist
-for _, file := range tt.unexpectedFiles {
-path := filepath.Join(tmpDir, file)
-if _, err := os.Stat(path); err == nil {
-t.Errorf("Unexpected file %s exists", file)
-}
-}
+			// Verify unexpected files don't exist
+			for _, file := range tt.unexpectedFiles {
+				path := filepath.Join(tmpDir, file)
+				if _, err := os.Stat(path); err == nil {
+					t.Errorf("Unexpected file %s exists", file)
+				}
+			}
 
-// Verify unexpected directories don't exist
-for _, dir := range tt.unexpectedDirs {
-path := filepath.Join(tmpDir, dir)
-if _, err := os.Stat(path); err == nil {
-t.Errorf("Unexpected directory %s exists", dir)
-}
-}
-})
-}
+			// Verify unexpected directories don't exist
+			for _, dir := range tt.unexpectedDirs {
+				path := filepath.Join(tmpDir, dir)
+				if _, err := os.Stat(path); err == nil {
+					t.Errorf("Unexpected directory %s exists", dir)
+				}
+			}
+		})
+	}
 }

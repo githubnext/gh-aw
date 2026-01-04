@@ -112,15 +112,15 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 // This function moves those files to the root output directory and removes the nested structure
 func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 	agentArtifactsDir := filepath.Join(outputDir, "agent-artifacts")
-	
+
 	// Check if agent-artifacts directory exists
 	if _, err := os.Stat(agentArtifactsDir); os.IsNotExist(err) {
 		// No unified artifact, nothing to flatten
 		return nil
 	}
-	
+
 	logsDownloadLog.Printf("Flattening unified agent-artifacts directory: %s", agentArtifactsDir)
-	
+
 	// Look for tmp/gh-aw/ subdirectory structure
 	tmpGhAwPath := filepath.Join(agentArtifactsDir, "tmp", "gh-aw")
 	if _, err := os.Stat(tmpGhAwPath); os.IsNotExist(err) {
@@ -128,26 +128,26 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 		logsDownloadLog.Printf("No tmp/gh-aw structure found in agent-artifacts, skipping flatten")
 		return nil
 	}
-	
+
 	// Walk through tmp/gh-aw and move all files to root output directory
 	err := filepath.Walk(tmpGhAwPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// Skip the root directory itself
 		if path == tmpGhAwPath {
 			return nil
 		}
-		
+
 		// Calculate relative path from tmp/gh-aw
 		relPath, err := filepath.Rel(tmpGhAwPath, path)
 		if err != nil {
 			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
 		}
-		
+
 		destPath := filepath.Join(outputDir, relPath)
-		
+
 		if info.IsDir() {
 			// Create directory in destination
 			if err := os.MkdirAll(destPath, 0755); err != nil {
@@ -160,7 +160,7 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
 			}
-			
+
 			if err := os.Rename(path, destPath); err != nil {
 				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
 			}
@@ -169,14 +169,14 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
 	}
-	
+
 	// Remove the now-empty agent-artifacts directory structure
 	if err := os.RemoveAll(agentArtifactsDir); err != nil {
 		logsDownloadLog.Printf("Failed to remove agent-artifacts directory %s: %v", agentArtifactsDir, err)
@@ -190,7 +190,7 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened unified agent-artifacts and removed nested structure"))
 		}
 	}
-	
+
 	return nil
 }
 
