@@ -410,7 +410,11 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 
 	// Merge each imported config
 	for _, config := range importedConfigs {
-		result = mergeSafeOutputConfig(result, config, c)
+		var err error
+		result, err = mergeSafeOutputConfig(result, config, c)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	importsLog.Printf("Successfully merged safe-outputs from imports")
@@ -476,7 +480,7 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 }
 
 // mergeSafeOutputConfig merges a single imported config map into the result SafeOutputsConfig
-func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *Compiler) *SafeOutputsConfig {
+func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *Compiler) (*SafeOutputsConfig, error) {
 	// Create a frontmatter-like structure for extractSafeOutputsConfig
 	frontmatter := map[string]any{
 		"safe-outputs": config,
@@ -485,7 +489,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	// Use the existing extraction logic to parse the config
 	importedConfig := c.extractSafeOutputsConfig(frontmatter)
 	if importedConfig == nil {
-		return result
+		return result, nil
 	}
 
 	// Merge each safe output type (only set if nil in result)
@@ -590,7 +594,12 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		}
 	}
 
-	return result
+	// NOTE: Jobs are NOT merged here. They are handled separately in compiler_orchestrator.go
+	// via mergeSafeJobsFromIncludedConfigs and extractSafeJobsFromFrontmatter.
+	// The Jobs field is managed independently from other safe-output types to support
+	// complex merge scenarios and conflict detection across multiple imports.
+
+	return result, nil
 }
 
 // mergeMessagesConfig merges two SafeOutputMessagesConfig structs at the field level.

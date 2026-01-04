@@ -1286,3 +1286,196 @@ Uses only imported safe-outputs including messages.
 	assert.Equal(t, "> Imported footer", workflowData.SafeOutputs.Messages.Footer, "Footer should be imported")
 	assert.Equal(t, "Imported success", workflowData.SafeOutputs.Messages.RunSuccess, "RunSuccess should be imported")
 }
+
+// TestMergeSafeOutputsJobsNotMerged tests that Jobs are NOT merged in MergeSafeOutputs
+// because they are handled separately in the orchestrator via mergeSafeJobsFromIncludedConfigs
+func TestMergeSafeOutputsJobsNotMerged(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a top-level config with a job
+	topConfig := &SafeOutputsConfig{
+		Jobs: map[string]*SafeJobConfig{
+			"existing-job": {
+				Name:   "Existing Job",
+				RunsOn: "ubuntu-latest",
+			},
+		},
+	}
+
+	// Import JSON that contains a job - this should be ignored by MergeSafeOutputs
+	importedJSON := []string{
+		`{"jobs":{"imported-job":{"name":"Imported Job","runs-on":"ubuntu-latest"}},"create-issue":{"title-prefix":"[test] "}}`,
+	}
+
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	require.NoError(t, err, "MergeSafeOutputs should not error")
+
+	// Verify that the existing job is preserved (Jobs field untouched)
+	require.NotNil(t, result.Jobs, "Jobs should not be nil")
+	assert.Contains(t, result.Jobs, "existing-job", "Existing job should be preserved")
+	assert.NotContains(t, result.Jobs, "imported-job", "Imported job should NOT be merged here (handled separately in orchestrator)")
+
+	// Verify that other safe-output types ARE merged
+	require.NotNil(t, result.CreateIssues, "CreateIssues should be merged")
+	assert.Equal(t, "[test] ", result.CreateIssues.TitlePrefix, "CreateIssues config should be imported")
+}
+
+// TestMergeSafeOutputsJobsSkippedWhenEmpty tests that Jobs field is not created if not present
+func TestMergeSafeOutputsJobsSkippedWhenEmpty(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a top-level config without jobs
+	topConfig := &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{TitlePrefix: "[main] "},
+	}
+
+	// Import JSON that contains a job - this should be ignored
+	importedJSON := []string{
+		`{"jobs":{"imported-job":{"name":"Imported Job"}},"add-comment":{"max":5}}`,
+	}
+
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	require.NoError(t, err, "MergeSafeOutputs should not error")
+
+	// Jobs should still be nil since we don't merge them in MergeSafeOutputs
+	assert.Nil(t, result.Jobs, "Jobs should remain nil (not merged in this function)")
+
+	// Other safe-output types should be merged
+	require.NotNil(t, result.CreateIssues, "CreateIssues should be preserved")
+	require.NotNil(t, result.AddComments, "AddComments should be merged")
+	assert.Equal(t, 5, result.AddComments.Max, "AddComments config should be correct")
+}
+
+// TestMergeSafeOutputsErrorPropagation tests error propagation from mergeSafeOutputConfig
+// This test verifies the error handling infrastructure is in place
+func TestMergeSafeOutputsErrorPropagation(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	tests := []struct {
+		name          string
+		importedJSON  []string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "valid JSON should not error",
+			importedJSON: []string{
+				`{"create-issue":{"title-prefix":"[test] "}}`,
+			},
+			expectError: false,
+		},
+		{
+			name: "malformed JSON should be skipped gracefully",
+			importedJSON: []string{
+				`{"create-issue":{"title-prefix":"[test] "}}`,
+				`invalid json{`,
+				`{"add-comment":{"max":3}}`,
+			},
+			expectError: false, // Malformed JSON is skipped, not an error
+		},
+		{
+			name: "conflicting safe-output types should error",
+			importedJSON: []string{
+				`{"create-issue":{"title-prefix":"[import1] "}}`,
+				`{"create-issue":{"title-prefix":"[import2] "}}`,
+			},
+			expectError:   true,
+			errorContains: "safe-outputs conflict",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := compiler.MergeSafeOutputs(nil, tt.importedJSON)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected error")
+				assert.Contains(t, err.Error(), tt.errorContains, "Error message should contain expected text")
+				return
+			}
+
+			require.NoError(t, err, "Should not error")
+			require.NotNil(t, result, "Result should not be nil")
+		})
+	}
+}
+
+// TestMergeSafeOutputsWithJobsIntegration tests the complete workflow parsing with Jobs
+// This verifies that Jobs ARE properly imported when going through ParseWorkflowFile
+// (which uses the orchestrator's mergeSafeJobsFromIncludedConfigs)
+func TestMergeSafeOutputsWithJobsIntegration(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with both jobs and safe-output types
+	sharedWorkflow := `---
+safe-outputs:
+  jobs:
+    notify:
+      name: "Notification Job"
+      runs-on: ubuntu-latest
+      steps:
+        - name: Send notification
+          run: echo "Notification sent"
+  create-issue:
+    title-prefix: "[shared] "
+  messages:
+    footer: "> Shared footer"
+---
+
+# Shared Configuration
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-all.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that imports everything
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+imports:
+  - ./shared-all.md
+---
+
+# Main Workflow
+
+This workflow imports jobs and safe-outputs.
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow - this goes through the orchestrator
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify Jobs ARE imported (via orchestrator's mergeSafeJobsFromIncludedConfigs)
+	require.NotNil(t, workflowData.SafeOutputs.Jobs, "Jobs should be imported by orchestrator")
+	require.Contains(t, workflowData.SafeOutputs.Jobs, "notify", "notify job should be present")
+	assert.Equal(t, "Notification Job", workflowData.SafeOutputs.Jobs["notify"].Name, "Job name should match")
+
+	// Verify safe-output types ARE imported (via MergeSafeOutputs)
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be imported")
+	assert.Equal(t, "[shared] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix, "CreateIssues config should match")
+
+	// Verify messages ARE imported (via MergeSafeOutputs)
+	require.NotNil(t, workflowData.SafeOutputs.Messages, "Messages should be imported")
+	assert.Equal(t, "> Shared footer", workflowData.SafeOutputs.Messages.Footer, "Footer should match")
+}

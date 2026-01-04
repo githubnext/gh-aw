@@ -43,7 +43,7 @@ func TestAwInfoResolution(t *testing.T) {
 	// Step 3: Verify aw_info.json is now at the root
 	flattenedAwInfoPath := filepath.Join(tempDir, "aw_info.json")
 	_, err = os.Stat(flattenedAwInfoPath)
-	assert.NoError(t, err, "aw_info.json should exist at root after flattening")
+	require.NoError(t, err, "aw_info.json should exist at root after flattening")
 
 	// Step 4: Verify the aw-info directory is removed
 	_, err = os.Stat(awInfoDir)
@@ -57,16 +57,17 @@ func TestAwInfoResolution(t *testing.T) {
 	errorCount := 0
 	warnCount := 0
 	for _, logErr := range metrics.Errors {
-		if logErr.Type == "error" {
+		switch logErr.Type {
+		case "error":
 			errorCount++
-		} else if logErr.Type == "warning" {
+		case "warning":
 			warnCount++
 		}
 	}
 
 	// With engine detection, errors should be detected
-	assert.Greater(t, errorCount, 0, "Should detect errors when engine is found")
-	assert.Greater(t, warnCount, 0, "Should detect warnings when engine is found")
+	assert.Positive(t, errorCount, "Should detect errors when engine is found")
+	assert.Positive(t, warnCount, "Should detect warnings when engine is found")
 }
 
 // TestAwInfoResolutionWithoutFlattening tests the failure case
@@ -105,16 +106,17 @@ func TestAwInfoResolutionWithoutFlattening(t *testing.T) {
 	errorCount := 0
 	warnCount := 0
 	for _, logErr := range metrics.Errors {
-		if logErr.Type == "error" {
+		switch logErr.Type {
+		case "error":
 			errorCount++
-		} else if logErr.Type == "warning" {
+		case "warning":
 			warnCount++
 		}
 	}
 
 	// Fallback parser should still detect errors and warnings
-	assert.Greater(t, errorCount, 0, "Fallback parser should detect errors")
-	assert.Greater(t, warnCount, 0, "Fallback parser should detect warnings")
+	assert.Positive(t, errorCount, "Fallback parser should detect errors")
+	assert.Positive(t, warnCount, "Fallback parser should detect warnings")
 }
 
 // TestMultipleArtifactFlattening tests that all single-file artifacts are flattened
@@ -152,7 +154,7 @@ func TestMultipleArtifactFlattening(t *testing.T) {
 	for _, file := range expectedFiles {
 		path := filepath.Join(tempDir, file)
 		_, err := os.Stat(path)
-		assert.NoError(t, err, "File %s should exist at root", file)
+		require.NoError(t, err, "File %s should exist at root", file)
 	}
 
 	// Verify artifact directories are removed
