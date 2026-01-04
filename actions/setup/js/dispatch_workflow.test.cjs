@@ -1,19 +1,12 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { main } from "./dispatch_workflow.cjs";
-import fs from "fs";
 
 // Mock dependencies
 global.core = {
   info: vi.fn(),
-  setOutput: vi.fn(),
-  setFailed: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
-  summary: {
-    addRaw: vi.fn().mockReturnThis(),
-    write: vi.fn().mockResolvedValue(undefined),
-  },
 };
 
 global.context = {
@@ -32,153 +25,158 @@ global.github = {
   },
 };
 
-describe("dispatch_workflow", () => {
+describe("dispatch_workflow handler factory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.GH_AW_AGENT_OUTPUT;
-    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
-    delete process.env.GH_AW_DISPATCH_WORKFLOW_ALLOWED;
-    delete process.env.GH_AW_DISPATCH_WORKFLOW_MAX_COUNT;
+    process.env.GITHUB_REF = "refs/heads/main";
   });
 
-  it("should handle no agent output environment variable", async () => {
-    await main();
-    expect(core.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
-    expect(core.setOutput).toHaveBeenCalledWith("count", "");
+  it("should create a handler function", async () => {
+    const handler = await main({});
+    expect(typeof handler).toBe("function");
   });
 
-  it("should handle empty agent output", async () => {
-    process.env.GH_AW_AGENT_OUTPUT = "/tmp/test-empty.json";
-    vi.spyOn(fs, "readFileSync").mockReturnValue("");
+  it("should dispatch workflows with valid configuration", async () => {
+    const config = {
+      workflows: ["test-workflow"],
+      max: 5,
+    };
+    const handler = await main(config);
 
-    await main();
-    expect(core.info).toHaveBeenCalledWith("Agent output content is empty");
-  });
-
-  it("should dispatch workflows in non-staged mode", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "dispatch_workflow",
-          workflow_name: "test-workflow",
-          inputs: {
-            param1: "value1",
-            param2: 42,
-          },
-        },
-      ],
-      errors: [],
+    const message = {
+      type: "dispatch_workflow",
+      workflow_name: "test-workflow",
+      inputs: {
+        param1: "value1",
+        param2: 42,
+      },
     };
 
-    process.env.GH_AW_AGENT_OUTPUT = "/tmp/test-dispatch.json";
-    process.env.GH_AW_DISPATCH_WORKFLOW_ALLOWED = '["test-workflow"]';
-    process.env.GH_AW_DISPATCH_WORKFLOW_MAX_COUNT = "5";
-    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(agentOutput));
+    const result = await handler(message, {});
 
-    await main();
-
+    expect(result.success).toBe(true);
+    expect(result.workflow_name).toBe("test-workflow");
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
       workflow_id: "test-workflow.lock.yml",
-      ref: expect.any(String), // Accept any string ref
+      ref: expect.any(String),
       inputs: {
         param1: "value1",
         param2: "42",
       },
     });
-
-    expect(core.setOutput).toHaveBeenCalledWith("count", "1");
-    expect(core.info).toHaveBeenCalledWith("✓ Successfully dispatched workflow: test-workflow");
-  });
-
-  it("should preview workflows in staged mode", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "dispatch_workflow",
-          workflow_name: "test-workflow",
-          inputs: {
-            param1: "value1",
-          },
-        },
-      ],
-      errors: [],
-    };
-
-    process.env.GH_AW_AGENT_OUTPUT = "/tmp/test-staged.json";
-    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
-    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(agentOutput));
-
-    await main();
-
-    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
-    expect(core.summary.addRaw).toHaveBeenCalled();
-    expect(core.summary.write).toHaveBeenCalled();
   });
 
   it("should reject workflows not in allowed list", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "dispatch_workflow",
-          workflow_name: "unauthorized-workflow",
-          inputs: {},
-        },
-      ],
-      errors: [],
+    const config = {
+      workflows: ["allowed-workflow"],
+      max: 5,
+    };
+    const handler = await main(config);
+
+    const message = {
+      type: "dispatch_workflow",
+      workflow_name: "unauthorized-workflow",
+      inputs: {},
     };
 
-    process.env.GH_AW_AGENT_OUTPUT = "/tmp/test-unauthorized.json";
-    process.env.GH_AW_DISPATCH_WORKFLOW_ALLOWED = '["test-workflow", "other-workflow"]';
-    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(agentOutput));
+    const result = await handler(message, {});
 
-    await main();
-
-    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('Workflow "unauthorized-workflow" is not in the allowed workflows list'));
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not in the allowed workflows list");
     expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
   it("should enforce max count", async () => {
-    const agentOutput = {
-      items: [
-        { type: "dispatch_workflow", workflow_name: "workflow1", inputs: {} },
-        { type: "dispatch_workflow", workflow_name: "workflow2", inputs: {} },
-        { type: "dispatch_workflow", workflow_name: "workflow3", inputs: {} },
-      ],
-      errors: [],
+    const config = {
+      workflows: ["workflow1", "workflow2"],
+      max: 1,
+    };
+    const handler = await main(config);
+
+    // First message should succeed
+    const message1 = {
+      type: "dispatch_workflow",
+      workflow_name: "workflow1",
+      inputs: {},
+    };
+    const result1 = await handler(message1, {});
+    expect(result1.success).toBe(true);
+
+    // Second message should be rejected due to max count
+    const message2 = {
+      type: "dispatch_workflow",
+      workflow_name: "workflow2",
+      inputs: {},
+    };
+    const result2 = await handler(message2, {});
+    expect(result2.success).toBe(false);
+    expect(result2.error).toContain("max count");
+  });
+
+  it("should handle empty workflow name", async () => {
+    const handler = await main({});
+
+    const message = {
+      type: "dispatch_workflow",
+      workflow_name: "",
+      inputs: {},
     };
 
-    process.env.GH_AW_AGENT_OUTPUT = "/tmp/test-max-count.json";
-    process.env.GH_AW_DISPATCH_WORKFLOW_MAX_COUNT = "2";
-    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(agentOutput));
+    const result = await handler(message, {});
 
-    await main();
-
-    expect(core.setFailed).toHaveBeenCalledWith("Too many dispatch-workflow items: 3 (max: 2)");
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("empty");
     expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
   it("should handle dispatch errors", async () => {
-    const agentOutput = {
-      items: [
-        {
-          type: "dispatch_workflow",
-          workflow_name: "missing-workflow",
-          inputs: {},
-        },
-      ],
-      errors: [],
-    };
-
-    process.env.GH_AW_AGENT_OUTPUT = "/tmp/test-error.json";
-    process.env.GH_AW_DISPATCH_WORKFLOW_ALLOWED = '["missing-workflow"]';
-    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(agentOutput));
+    const handler = await main({ workflows: ["missing-workflow"] });
 
     github.rest.actions.createWorkflowDispatch.mockRejectedValueOnce(new Error("Request failed with status code 404"));
 
-    await main();
+    const message = {
+      type: "dispatch_workflow",
+      workflow_name: "missing-workflow",
+      inputs: {},
+    };
 
-    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('Workflow "missing-workflow.lock.yml" not found'));
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not found");
+  });
+
+  it("should convert input values to strings", async () => {
+    const handler = await main({ workflows: ["test-workflow"] });
+
+    const message = {
+      type: "dispatch_workflow",
+      workflow_name: "test-workflow",
+      inputs: {
+        string: "hello",
+        number: 42,
+        boolean: true,
+        object: { key: "value" },
+        null: null,
+        undefined: undefined,
+      },
+    };
+
+    await handler(message, {});
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputs: {
+          string: "hello",
+          number: "42",
+          boolean: "true",
+          object: '{"key":"value"}',
+          null: "",
+          undefined: "",
+        },
+      })
+    );
   });
 });

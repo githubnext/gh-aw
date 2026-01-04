@@ -28,7 +28,6 @@ func getCreateCodeScanningAlertScript() string { return "" }
 func getCreateDiscussionScript() string        { return "" }
 func getCreateIssueScript() string             { return "" }
 func getCreatePRReviewCommentScript() string   { return "" }
-func getDispatchWorkflowScript() string        { return "" }
 func getNoOpScript() string                    { return "" }
 func getNotifyCommentErrorScript() string      { return "" }
 func getUpdateProjectScript() string           { return "" }

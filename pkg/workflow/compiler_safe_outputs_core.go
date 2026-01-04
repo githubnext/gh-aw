@@ -114,7 +114,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.UpdatePullRequests != nil ||
 		data.SafeOutputs.ClosePullRequests != nil ||
 		data.SafeOutputs.MarkPullRequestAsReadyForReview != nil ||
-		data.SafeOutputs.HideComment != nil
+		data.SafeOutputs.HideComment != nil ||
+		data.SafeOutputs.DispatchWorkflow != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -178,6 +179,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.HideComment != nil {
 			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		}
+		if data.SafeOutputs.DispatchWorkflow != nil {
+			permissions.Merge(NewPermissionsActionsWrite())
 		}
 	}
 
@@ -261,19 +265,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		// Update project requires organization-projects permission (via GitHub App token)
 		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-	}
-
-	// 24. Dispatch Workflow step
-	if data.SafeOutputs.DispatchWorkflow != nil {
-		stepConfig := c.buildDispatchWorkflowStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["dispatch_workflow_count"] = "${{ steps.dispatch_workflow.outputs.count }}"
-
-		// Dispatch workflow requires actions:write permission
-		permissions.Merge(NewPermissionsActionsWrite())
 	}
 
 	// If no steps were added, return nil
@@ -1043,6 +1034,18 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["hide_comment"] = handlerConfig
+	}
+
+	if data.SafeOutputs.DispatchWorkflow != nil {
+		cfg := data.SafeOutputs.DispatchWorkflow
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.Workflows) > 0 {
+			handlerConfig["workflows"] = cfg.Workflows
+		}
+		config["dispatch_workflow"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure
