@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.34.3 - 2026-01-04
+
+### Bug Fixes
+
+#### Skip dynamic resolution warnings for actions pinned to full SHAs
+
+Actions pinned to full 40-character commit SHAs should not emit dynamic
+resolution warnings. This change updates `GetActionPinWithData()` to
+detect SHA-based versions, suppress dynamic resolution warnings for
+SHA-pinned actions, and preserve known SHA->version annotations when
+available. Tests were added to cover SHA-pinned behavior.
+
+
 ## v0.34.2 - 2026-01-04
 
 Maintenance release with dependency updates and minor improvements.
