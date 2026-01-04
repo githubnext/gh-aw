@@ -106,6 +106,94 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 	return nil
 }
 
+// flattenUnifiedArtifact flattens the unified agent-artifacts directory structure
+// The unified artifact contains files with full paths like /tmp/gh-aw/*, which when downloaded
+// creates a nested structure: agent-artifacts/tmp/gh-aw/...
+// This function moves those files to the root output directory and removes the nested structure
+func flattenUnifiedArtifact(outputDir string, verbose bool) error {
+	agentArtifactsDir := filepath.Join(outputDir, "agent-artifacts")
+	
+	// Check if agent-artifacts directory exists
+	if _, err := os.Stat(agentArtifactsDir); os.IsNotExist(err) {
+		// No unified artifact, nothing to flatten
+		return nil
+	}
+	
+	logsDownloadLog.Printf("Flattening unified agent-artifacts directory: %s", agentArtifactsDir)
+	
+	// Look for tmp/gh-aw/ subdirectory structure
+	tmpGhAwPath := filepath.Join(agentArtifactsDir, "tmp", "gh-aw")
+	if _, err := os.Stat(tmpGhAwPath); os.IsNotExist(err) {
+		// No nested structure to flatten
+		logsDownloadLog.Printf("No tmp/gh-aw structure found in agent-artifacts, skipping flatten")
+		return nil
+	}
+	
+	// Walk through tmp/gh-aw and move all files to root output directory
+	err := filepath.Walk(tmpGhAwPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// Skip the root directory itself
+		if path == tmpGhAwPath {
+			return nil
+		}
+		
+		// Calculate relative path from tmp/gh-aw
+		relPath, err := filepath.Rel(tmpGhAwPath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
+		}
+		
+		destPath := filepath.Join(outputDir, relPath)
+		
+		if info.IsDir() {
+			// Create directory in destination
+			if err := os.MkdirAll(destPath, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
+			}
+			logsDownloadLog.Printf("Created directory: %s", destPath)
+		} else {
+			// Move file to destination
+			// Ensure parent directory exists
+			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
+			}
+			
+			if err := os.Rename(path, destPath); err != nil {
+				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
+			}
+			logsDownloadLog.Printf("Moved file: %s → %s", path, destPath)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
+			}
+		}
+		
+		return nil
+	})
+	
+	if err != nil {
+		return fmt.Errorf("failed to flatten unified artifact: %w", err)
+	}
+	
+	// Remove the now-empty agent-artifacts directory structure
+	if err := os.RemoveAll(agentArtifactsDir); err != nil {
+		logsDownloadLog.Printf("Failed to remove agent-artifacts directory %s: %v", agentArtifactsDir, err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove agent-artifacts directory: %v", err)))
+		}
+		// Don't fail the entire operation if cleanup fails
+	} else {
+		logsDownloadLog.Printf("Removed agent-artifacts directory: %s", agentArtifactsDir)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened unified agent-artifacts and removed nested structure"))
+		}
+	}
+	
+	return nil
+}
+
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
 func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error {
 	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s", runID, outputDir)
@@ -335,6 +423,11 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	// Flatten single-file artifacts
 	if err := flattenSingleFileArtifacts(outputDir, verbose); err != nil {
 		return fmt.Errorf("failed to flatten artifacts: %w", err)
+	}
+
+	// Flatten unified agent-artifacts directory structure
+	if err := flattenUnifiedArtifact(outputDir, verbose); err != nil {
+		return fmt.Errorf("failed to flatten unified artifact: %w", err)
 	}
 
 	// Download and unzip workflow run logs
