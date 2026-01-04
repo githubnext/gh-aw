@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { describe, it, expect, beforeEach, afterEach } = require("vitest");
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
