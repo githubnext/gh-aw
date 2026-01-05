@@ -11,18 +11,18 @@ import (
 // TestBuildConsolidatedSafeOutputStep tests individual step building
 func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 	tests := []struct {
-		name          string
-		config        SafeOutputStepConfig
-		checkContains []string
+		name             string
+		config           SafeOutputStepConfig
+		checkContains    []string
 		checkNotContains []string
 	}{
 		{
 			name: "basic step with inline script",
 			config: SafeOutputStepConfig{
-				StepName:   "Test Step",
-				StepID:     "test_step",
-				Script:     "console.log('test');",
-				Token:      "${{ github.token }}",
+				StepName: "Test Step",
+				StepID:   "test_step",
+				Script:   "console.log('test');",
+				Token:    "${{ github.token }}",
 			},
 			checkContains: []string{
 				"name: Test Step",
@@ -55,11 +55,11 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 		{
 			name: "step with condition",
 			config: SafeOutputStepConfig{
-				StepName:   "Conditional Step",
-				StepID:     "conditional",
-				Script:     "console.log('test');",
-				Token:      "${{ github.token }}",
-				Condition:  BuildEquals(BuildStringLiteral("test"), BuildStringLiteral("test")),
+				StepName:  "Conditional Step",
+				StepID:    "conditional",
+				Script:    "console.log('test');",
+				Token:     "${{ github.token }}",
+				Condition: BuildEquals(BuildStringLiteral("test"), BuildStringLiteral("test")),
 			},
 			checkContains: []string{
 				"if: 'test' == 'test'",
@@ -186,7 +186,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			name: "with GitHub App token",
 			safeOutputs: &SafeOutputsConfig{
 				App: &GitHubAppConfig{
-					AppID:         "12345",
+					AppID:      "12345",
 					PrivateKey: "test-key",
 				},
 				CreatePullRequests: &CreatePullRequestsConfig{},

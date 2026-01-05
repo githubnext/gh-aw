@@ -278,7 +278,6 @@ func TestHandlerConfigMaxValues(t *testing.T) {
 	var steps []string
 	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
 
-
 	// Extract and validate JSON
 	for _, step := range steps {
 		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
@@ -297,7 +296,7 @@ func TestHandlerConfigMaxValues(t *testing.T) {
 
 				maxVal, ok := issueConfig["max"]
 				require.True(t, ok)
-				assert.Equal(t, float64(10), maxVal)
+				assert.InDelta(t, float64(10), maxVal, 0.0001)
 			}
 		}
 	}
@@ -318,7 +317,6 @@ func TestHandlerConfigAllowedLabels(t *testing.T) {
 
 	var steps []string
 	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
-
 
 	// Extract and validate JSON
 	for _, step := range steps {
@@ -438,8 +436,8 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 // TestHandlerConfigUpdateFields tests update field configurations
 func TestHandlerConfigUpdateFields(t *testing.T) {
 	tests := []struct {
-		name        string
-		config      *UpdateIssuesConfig
+		name         string
+		config       *UpdateIssuesConfig
 		expectedKeys []string
 	}{
 		{
@@ -568,9 +566,9 @@ func TestHandlerConfigTargetRepo(t *testing.T) {
 // TestHandlerConfigPatchSize tests max patch size configuration
 func TestHandlerConfigPatchSize(t *testing.T) {
 	tests := []struct {
-		name           string
-		maxPatchSize   int
-		expectedSize   int
+		name         string
+		maxPatchSize int
+		expectedSize int
 	}{
 		{
 			name:         "default patch size",
@@ -619,7 +617,7 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 
 						maxSize, ok := prConfig["max_patch_size"]
 						require.True(t, ok)
-						assert.Equal(t, float64(tt.expectedSize), maxSize)
+						assert.InDelta(t, float64(tt.expectedSize), maxSize, 0.0001)
 					}
 				}
 			}

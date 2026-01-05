@@ -12,14 +12,14 @@ import (
 // TestBuildConsolidatedSafeOutputsJob tests the main job builder function
 func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 	tests := []struct {
-		name              string
-		safeOutputs       *SafeOutputsConfig
-		threatDetection   bool
-		expectedJobName   string
-		expectedSteps     int
-		expectNil         bool
-		checkPermissions  bool
-		expectedPerms     []string
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		threatDetection  bool
+		expectedJobName  string
+		expectedSteps    int
+		expectNil        bool
+		checkPermissions bool
+		expectedPerms    []string
 	}{
 		{
 			name:          "no safe outputs configured",
@@ -121,7 +121,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			job, stepNames, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(string(constants.AgentJobName)), "test-workflow.md")
+			job, stepNames, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
 
 			if tt.expectNil {
 				assert.Nil(t, job)
@@ -137,7 +137,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			assert.NotEmpty(t, job.Env)
 
 			// Check job dependencies
-			assert.Contains(t, job.Needs, string(string(constants.AgentJobName)))
+			assert.Contains(t, job.Needs, string(constants.AgentJobName))
 			if tt.threatDetection {
 				assert.Contains(t, job.Needs, string(constants.DetectionJobName))
 			}
@@ -162,12 +162,12 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 // TestBuildJobLevelSafeOutputEnvVars tests job-level environment variable generation
 func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 	tests := []struct {
-		name         string
-		workflowData *WorkflowData
-		workflowID   string
-		trialMode    bool
-		trialRepo    string
-		expectedVars map[string]string
+		name          string
+		workflowData  *WorkflowData
+		workflowID    string
+		trialMode     bool
+		trialRepo     string
+		expectedVars  map[string]string
 		checkContains bool
 	}{
 		{
@@ -343,7 +343,7 @@ func TestJobWithGitHubApp(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			App: &GitHubAppConfig{
-				AppID:         "12345",
+				AppID:      "12345",
 				PrivateKey: "test-key",
 			},
 			CreateIssues: &CreateIssuesConfig{
