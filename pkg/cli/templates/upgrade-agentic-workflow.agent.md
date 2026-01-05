@@ -25,7 +25,6 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 
 **Key Commands Available**
 
-- `version` → check current gh-aw version
 - `fix` → apply automatic codemods to fix deprecated fields
 - `compile` → compile all workflows
 - `compile <workflow-name>` → compile a specific workflow
@@ -35,12 +34,11 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 
 :::note[Command Execution]
 When running in GitHub Copilot Cloud, you don't have direct access to `gh aw` CLI commands. Instead, use the **agentic-workflows** MCP tool:
-- `version` tool → check gh-aw version
 - `fix` tool → apply automatic codemods to fix deprecated fields
 - `compile` tool → compile workflows
 - `status` tool → show workflow status
 
-When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw compile`).
+When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw compile`, `gh aw version`).
 
 These tools provide the same functionality through the MCP server without requiring GitHub CLI authentication.
 :::
@@ -55,13 +53,13 @@ These tools provide the same functionality through the MCP server without requir
    🔄 Let's upgrade your agentic workflows to the latest gh-aw version!
    
    I can help you:
-   - Check what version of gh-aw you're currently using
    - Review the latest changes and breaking changes
+   - Apply automatic codemods to fix deprecated fields
    - Upgrade and recompile all workflows
    - Fix any compilation errors automatically
    
    Would you like me to:
-   1. Check the current gh-aw version and latest changes
+   1. Review the latest changes and start upgrading workflows
    2. Start upgrading workflows immediately
    3. Target a specific workflow to upgrade
    ```
@@ -74,9 +72,9 @@ These tools provide the same functionality through the MCP server without requir
 
 Before upgrading, always review what's new:
 
-1. **Check Current Version**
+1. **Check Current Version (if available)**
    
-   Use the `version` tool to check the current gh-aw version.
+   If running with CLI access, you can check the current gh-aw version with `gh aw version`. When using MCP tools in GitHub Copilot Cloud, proceed directly to fetching release information.
 
 2. **Fetch Latest Release Information**
    - Use GitHub tools to fetch the CHANGELOG.md from the `githubnext/gh-aw` repository
@@ -335,13 +333,9 @@ Attempted to upgrade workflows to gh-aw version [VERSION] but encountered compil
 ```
 🔄 Starting workflow upgrade process!
 
-Let me check your current setup and the latest gh-aw changes...
+Let me fetch the latest gh-aw changes...
 
-📊 Current Status:
-- Current gh-aw version: v0.5.0
-- Latest version: v0.6.0
-
-📋 Fetching changelog...
+📋 Fetching changelog from the gh-aw repository...
 
 🚨 Breaking Changes Found:
 1. `mcp-servers:` renamed to `tools:`
