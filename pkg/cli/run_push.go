@@ -272,33 +272,6 @@ func isWorkflowSpecFormatLocal(path string) bool {
 func pushWorkflowFiles(workflowName string, files []string, verbose bool) error {
 	runPushLog.Printf("Pushing %d files for workflow: %s", len(files), workflowName)
 
-	// Check if there are any staged files in git
-	statusCmd := exec.Command("git", "diff", "--cached", "--name-only")
-	statusOutput, err := statusCmd.CombinedOutput()
-	if err != nil {
-		runPushLog.Printf("Failed to check git status: %v, output: %s", err, string(statusOutput))
-		return fmt.Errorf("failed to check git status: %w\nOutput: %s", err, string(statusOutput))
-	}
-
-	// If there are any staged files, give up
-	if len(strings.TrimSpace(string(statusOutput))) > 0 {
-		stagedFiles := strings.Split(strings.TrimSpace(string(statusOutput)), "\n")
-		runPushLog.Printf("Found %d staged files, refusing to proceed", len(stagedFiles))
-		
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Cannot proceed: there are already staged files in git"))
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Staged files:"))
-		for _, file := range stagedFiles {
-			fmt.Fprintf(os.Stderr, "  - %s\n", file)
-		}
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please commit or unstage these files before using --push"))
-		fmt.Fprintln(os.Stderr, "")
-		
-		return fmt.Errorf("git has staged files - commit or unstage them before using --push")
-	}
-
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Staging %d files for commit", len(files))))
 		for _, file := range files {
@@ -316,6 +289,70 @@ func pushWorkflowFiles(workflowName string, files []string, verbose bool) error 
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Files staged successfully"))
+	}
+
+	// Check if there are any staged files in git (after we've staged our files)
+	statusCmd := exec.Command("git", "diff", "--cached", "--name-only")
+	statusOutput, err := statusCmd.CombinedOutput()
+	if err != nil {
+		runPushLog.Printf("Failed to check git status: %v, output: %s", err, string(statusOutput))
+		return fmt.Errorf("failed to check git status: %w\nOutput: %s", err, string(statusOutput))
+	}
+
+	// Check if there are no staged changes (nothing to commit)
+	if len(strings.TrimSpace(string(statusOutput))) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
+		}
+		runPushLog.Print("No changes to commit")
+		return nil
+	}
+
+	// Get the list of staged files
+	stagedFiles := strings.Split(strings.TrimSpace(string(statusOutput)), "\n")
+	
+	// Check if there are staged files beyond what we just staged
+	// Convert our files list to a map for quick lookup
+	ourFiles := make(map[string]bool)
+	for _, file := range files {
+		// Normalize the path
+		absPath, err := filepath.Abs(file)
+		if err == nil {
+			ourFiles[absPath] = true
+		}
+		ourFiles[file] = true
+	}
+	
+	// Check if there are any staged files that aren't in our list
+	var extraStagedFiles []string
+	for _, stagedFile := range stagedFiles {
+		// Try both absolute and relative paths
+		absStagedPath, err := filepath.Abs(stagedFile)
+		if err == nil && ourFiles[absStagedPath] {
+			continue
+		}
+		if ourFiles[stagedFile] {
+			continue
+		}
+		extraStagedFiles = append(extraStagedFiles, stagedFile)
+	}
+	
+	// If there are extra staged files that we didn't stage, give up
+	if len(extraStagedFiles) > 0 {
+		runPushLog.Printf("Found %d extra staged files not in our list, refusing to proceed", len(extraStagedFiles))
+		
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Cannot proceed: there are already staged files in git that are not part of this workflow"))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Extra staged files:"))
+		for _, file := range extraStagedFiles {
+			fmt.Fprintf(os.Stderr, "  - %s\n", file)
+		}
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please commit or unstage these files before using --push"))
+		fmt.Fprintln(os.Stderr, "")
+		
+		return fmt.Errorf("git has staged files not part of workflow - commit or unstage them before using --push")
 	}
 
 	// Create commit message
@@ -351,14 +388,6 @@ func pushWorkflowFiles(workflowName string, files []string, verbose bool) error 
 	// Commit the changes
 	cmd = exec.Command("git", "commit", "-m", commitMessage)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		// Check if there are no changes to commit
-		if strings.Contains(string(output), "nothing to commit") {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
-			}
-			runPushLog.Print("No changes to commit")
-			return nil
-		}
 		runPushLog.Printf("Failed to commit: %v, output: %s", err, string(output))
 		return fmt.Errorf("failed to commit changes: %w\nOutput: %s", err, string(output))
 	}
