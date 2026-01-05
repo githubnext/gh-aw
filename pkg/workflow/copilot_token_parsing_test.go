@@ -97,4 +97,9 @@ func TestCopilotTokenCountAccumulation(t *testing.T) {
 	if metrics.TokenUsage != expectedTokens {
 		t.Errorf("Expected accumulated token count %d, got %d", expectedTokens, metrics.TokenUsage)
 	}
+
+	// Validate that token count is greater than 0 (as required by CI test)
+	if metrics.TokenUsage <= 0 {
+		t.Errorf("Token count should be greater than 0, got %d", metrics.TokenUsage)
+	}
 }

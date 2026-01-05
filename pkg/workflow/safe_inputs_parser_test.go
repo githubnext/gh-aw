@@ -79,6 +79,25 @@ func TestParseSafeInputs(t *testing.T) {
 			expectedTools: 1,
 		},
 		{
+			name: "single go tool",
+			frontmatter: map[string]any{
+				"safe-inputs": map[string]any{
+					"process-data": map[string]any{
+						"description": "Process data with Go",
+						"go":          "result := map[string]any{\"count\": len(inputs)}\njson.NewEncoder(os.Stdout).Encode(result)",
+						"inputs": map[string]any{
+							"data": map[string]any{
+								"type":        "string",
+								"description": "Data to process",
+								"required":    true,
+							},
+						},
+					},
+				},
+			},
+			expectedTools: 1,
+		},
+		{
 			name: "multiple tools",
 			frontmatter: map[string]any{
 				"safe-inputs": map[string]any{

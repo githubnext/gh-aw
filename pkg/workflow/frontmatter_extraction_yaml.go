@@ -507,7 +507,7 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 }
 
 // extractCommandConfig extracts command configuration from frontmatter including name and events
-func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName string, commandEvents []string) {
+func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandNames []string, commandEvents []string) {
 	// Check new format: on.slash_command or on.slash_command.name (preferred)
 	// Also check legacy format: on.command or on.command.name (deprecated)
 	if onValue, exists := frontmatter["on"]; exists {
@@ -537,16 +537,23 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 
 				// Check if command is a string (shorthand format)
 				if commandStr, ok := commandValue.(string); ok {
-					return commandStr, nil // nil means default (all events)
+					return []string{commandStr}, nil // nil means default (all events)
 				}
 				// Check if command is a map with a name key (object format)
 				if commandMap, ok := commandValue.(map[string]any); ok {
-					var name string
+					var names []string
 					var events []string
 
 					if nameValue, hasName := commandMap["name"]; hasName {
+						// Handle string or array of strings
 						if nameStr, ok := nameValue.(string); ok {
-							name = nameStr
+							names = []string{nameStr}
+						} else if nameArray, ok := nameValue.([]any); ok {
+							for _, nameItem := range nameArray {
+								if nameItemStr, ok := nameItem.(string); ok {
+									names = append(names, nameItemStr)
+								}
+							}
 						}
 					}
 
@@ -555,11 +562,11 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 						events = ParseCommandEvents(eventsValue)
 					}
 
-					return name, events
+					return names, events
 				}
 			}
 		}
 	}
 
-	return "", nil
+	return nil, nil
 }

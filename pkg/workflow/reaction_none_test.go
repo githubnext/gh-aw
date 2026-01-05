@@ -50,8 +50,8 @@ Test command workflow with reaction explicitly disabled.
 	}
 
 	// Verify command and reaction fields are parsed correctly
-	if workflowData.Command != "test-bot" {
-		t.Errorf("Expected Command to be 'test-bot', got '%s'", workflowData.Command)
+	if len(workflowData.Command) != 1 || workflowData.Command[0] != "test-bot" {
+		t.Errorf("Expected Command to be ['test-bot'], got %v", workflowData.Command)
 	}
 
 	if workflowData.AIReaction != "none" {
@@ -137,8 +137,8 @@ Test command workflow with default (eyes) reaction.
 	}
 
 	// Verify command is parsed correctly
-	if workflowData.Command != "test-bot" {
-		t.Errorf("Expected Command to be 'test-bot', got '%s'", workflowData.Command)
+	if len(workflowData.Command) != 1 || workflowData.Command[0] != "test-bot" {
+		t.Errorf("Expected Command to be ['test-bot'], got %v", workflowData.Command)
 	}
 
 	// Verify AIReaction defaults to "eyes" for command workflows

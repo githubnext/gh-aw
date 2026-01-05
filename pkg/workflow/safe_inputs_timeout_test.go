@@ -82,6 +82,20 @@ func TestSafeInputsTimeoutParsing(t *testing.T) {
 			toolName:        "python-tool",
 			expectedTimeout: 45,
 		},
+		{
+			name: "timeout for go script",
+			frontmatter: map[string]any{
+				"safe-inputs": map[string]any{
+					"go-tool": map[string]any{
+						"description": "Go tool",
+						"go":          "fmt.Println(\"hello\")",
+						"timeout":     90,
+					},
+				},
+			},
+			toolName:        "go-tool",
+			expectedTimeout: 90,
+		},
 	}
 
 	for _, tt := range tests {
@@ -125,6 +139,12 @@ func TestSafeInputsTimeoutInJSON(t *testing.T) {
 				Py:          "print('default')",
 				Timeout:     60,
 			},
+			"go-tool": {
+				Name:        "go-tool",
+				Description: "Go timeout tool",
+				Go:          "fmt.Println(\"hello\")",
+				Timeout:     180,
+			},
 		},
 	}
 
@@ -146,6 +166,7 @@ func TestSafeInputsTimeoutInJSON(t *testing.T) {
 		"fast-tool":    30,
 		"slow-tool":    120,
 		"default-tool": 60,
+		"go-tool":      180,
 	}
 
 	for toolName, expectedTimeout := range expected {

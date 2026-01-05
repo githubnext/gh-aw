@@ -405,6 +405,17 @@ function loadToolHandlers(server, tools, basePath) {
 
         loadedCount++;
         server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
+      } else if (ext === ".go") {
+        // Go script handler - uses go run command
+        server.debug(`  [${toolName}] Detected Go script handler`);
+
+        // Lazy-load Go handler module
+        const { createGoHandler } = require("./mcp_handler_go.cjs");
+        const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
+        tool.handler = createGoHandler(server, toolName, resolvedPath, timeout);
+
+        loadedCount++;
+        server.debug(`  [${toolName}] Go handler created successfully with timeout: ${timeout}s`);
       } else {
         // JavaScript/CommonJS handler - use require()
         server.debug(`  [${toolName}] Loading JavaScript handler module`);

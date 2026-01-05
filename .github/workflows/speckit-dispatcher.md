@@ -3,7 +3,7 @@ name: Spec-Kit Command Dispatcher
 description: Dispatches user requests to appropriate spec-kit commands for spec-driven development
 on:
   slash_command:
-    name: speckit
+    name: ["speckit", "speckit.specify", "speckit.clarify", "speckit.plan", "speckit.tasks", "speckit.implement", "speckit.analyze", "speckit.checklist", "speckit.constitution", "speckit.taskstoissues"]
     events: [issues, issue_comment, pull_request, pull_request_comment, discussion, discussion_comment]
   reaction: eyes
 
@@ -56,16 +56,19 @@ You are the **Spec-Kit Command Dispatcher**. Your role is to help users navigate
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
+- **Command Used**: /${{ needs.activation.outputs.slash_command }}
 - **User Request**: "${{ needs.activation.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
 
 ## Your Mission
 
-1. **Understand the user's request** from the "User Request" above
+1. **Understand the user's request** from the "User Request" above and the command they used
 2. **Check the current state** of specs in the repository
-3. **Determine which spec-kit command** is most appropriate
+3. **Determine which spec-kit command** is most appropriate (if they used a generic /speckit command)
 4. **Guide the user** with specific instructions on what command to run
+
+**Note**: The user may have used a specific command like /speckit.specify or a generic /speckit command. Adapt your guidance accordingly.
 
 ## Step-by-Step Process
 

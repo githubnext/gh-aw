@@ -363,6 +363,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				}
 				fmt.Fprintf(yaml, "          EOFPY_%s\n", toolName)
 				fmt.Fprintf(yaml, "          chmod +x /tmp/gh-aw/safe-inputs/%s.py\n", toolName)
+			} else if toolConfig.Go != "" {
+				// Go script tool
+				toolScript := generateSafeInputGoToolScript(toolConfig)
+				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.go << 'EOFGO_%s'\n", toolName, toolName)
+				for _, line := range strings.Split(toolScript, "\n") {
+					yaml.WriteString("          " + line + "\n")
+				}
+				fmt.Fprintf(yaml, "          EOFGO_%s\n", toolName)
 			}
 		}
 		yaml.WriteString("          \n")

@@ -64,13 +64,38 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/speckit')) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/speckit')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/speckit')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/speckit')) ||
-      (github.event_name == 'discussion') &&
-      (contains(github.event.discussion.body, '/speckit')) || (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/speckit')))
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/speckit') ||
+      contains(github.event.issue.body, '/speckit.specify') || contains(github.event.issue.body, '/speckit.clarify') ||
+      contains(github.event.issue.body, '/speckit.plan') || contains(github.event.issue.body, '/speckit.tasks') ||
+      contains(github.event.issue.body, '/speckit.implement') || contains(github.event.issue.body, '/speckit.analyze') ||
+      contains(github.event.issue.body, '/speckit.checklist') || contains(github.event.issue.body, '/speckit.constitution') ||
+      contains(github.event.issue.body, '/speckit.taskstoissues')) || (github.event_name == 'issue_comment') &&
+      ((contains(github.event.comment.body, '/speckit') || contains(github.event.comment.body, '/speckit.specify') ||
+      contains(github.event.comment.body, '/speckit.clarify') || contains(github.event.comment.body, '/speckit.plan') ||
+      contains(github.event.comment.body, '/speckit.tasks') || contains(github.event.comment.body, '/speckit.implement') ||
+      contains(github.event.comment.body, '/speckit.analyze') || contains(github.event.comment.body, '/speckit.checklist') ||
+      contains(github.event.comment.body, '/speckit.constitution') || contains(github.event.comment.body, '/speckit.taskstoissues')) &&
+      (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/speckit') ||
+      contains(github.event.comment.body, '/speckit.specify') || contains(github.event.comment.body, '/speckit.clarify') ||
+      contains(github.event.comment.body, '/speckit.plan') || contains(github.event.comment.body, '/speckit.tasks') ||
+      contains(github.event.comment.body, '/speckit.implement') || contains(github.event.comment.body, '/speckit.analyze') ||
+      contains(github.event.comment.body, '/speckit.checklist') || contains(github.event.comment.body, '/speckit.constitution') ||
+      contains(github.event.comment.body, '/speckit.taskstoissues')) && (github.event.issue.pull_request != null)) ||
+      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/speckit') || contains(github.event.pull_request.body, '/speckit.specify') ||
+      contains(github.event.pull_request.body, '/speckit.clarify') || contains(github.event.pull_request.body, '/speckit.plan') ||
+      contains(github.event.pull_request.body, '/speckit.tasks') || contains(github.event.pull_request.body, '/speckit.implement') ||
+      contains(github.event.pull_request.body, '/speckit.analyze') || contains(github.event.pull_request.body, '/speckit.checklist') ||
+      contains(github.event.pull_request.body, '/speckit.constitution') || contains(github.event.pull_request.body, '/speckit.taskstoissues')) ||
+      (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/speckit') || contains(github.event.discussion.body, '/speckit.specify') ||
+      contains(github.event.discussion.body, '/speckit.clarify') || contains(github.event.discussion.body, '/speckit.plan') ||
+      contains(github.event.discussion.body, '/speckit.tasks') || contains(github.event.discussion.body, '/speckit.implement') ||
+      contains(github.event.discussion.body, '/speckit.analyze') || contains(github.event.discussion.body, '/speckit.checklist') ||
+      contains(github.event.discussion.body, '/speckit.constitution') || contains(github.event.discussion.body, '/speckit.taskstoissues')) ||
+      (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/speckit') || contains(github.event.comment.body, '/speckit.specify') ||
+      contains(github.event.comment.body, '/speckit.clarify') || contains(github.event.comment.body, '/speckit.plan') ||
+      contains(github.event.comment.body, '/speckit.tasks') || contains(github.event.comment.body, '/speckit.implement') ||
+      contains(github.event.comment.body, '/speckit.analyze') || contains(github.event.comment.body, '/speckit.checklist') ||
+      contains(github.event.comment.body, '/speckit.constitution') || contains(github.event.comment.body, '/speckit.taskstoissues')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -82,6 +107,7 @@ jobs:
       comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
+      slash_command: ${{ steps.check_command_position.outputs.matched_command }}
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Checkout actions folder
@@ -583,6 +609,7 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_SLASH_COMMAND: ${{ needs.activation.outputs.slash_command }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         run: |
           bash /tmp/gh-aw/actions/create_prompt_first.sh
@@ -778,16 +805,19 @@ jobs:
           ## Current Context
           
           - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Command Used**: /__GH_AW_NEEDS_ACTIVATION_OUTPUTS_SLASH_COMMAND__
           - **User Request**: "__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__"
           - **Issue/PR Number**: __GH_AW_EXPR_799BE623__
           - **Triggered by**: @__GH_AW_GITHUB_ACTOR__
           
           ## Your Mission
           
-          1. **Understand the user's request** from the "User Request" above
+          1. **Understand the user's request** from the "User Request" above and the command they used
           2. **Check the current state** of specs in the repository
-          3. **Determine which spec-kit command** is most appropriate
+          3. **Determine which spec-kit command** is most appropriate (if they used a generic /speckit command)
           4. **Guide the user** with specific instructions on what command to run
+          
+          **Note**: The user may have used a specific command like /speckit.specify or a generic /speckit command. Adapt your guidance accordingly.
           
           ## Step-by-Step Process
           
@@ -944,6 +974,7 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_SLASH_COMMAND: ${{ needs.activation.outputs.slash_command }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
@@ -956,6 +987,7 @@ jobs:
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_EXPR_799BE623: process.env.GH_AW_EXPR_799BE623,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_NEEDS_ACTIVATION_OUTPUTS_SLASH_COMMAND: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_SLASH_COMMAND,
                 GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT
               }
             });
@@ -1074,6 +1106,7 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_SLASH_COMMAND: ${{ needs.activation.outputs.slash_command }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
@@ -1484,15 +1517,37 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name == 'issues') && (contains(github.event.issue.body, '/speckit')) ||
-      (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/speckit')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/speckit')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request') &&
-      (contains(github.event.pull_request.body, '/speckit')) || (github.event_name == 'discussion') &&
-      (contains(github.event.discussion.body, '/speckit')) ||
-      (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/speckit'))
+      (github.event_name == 'issues') && (contains(github.event.issue.body, '/speckit') || contains(github.event.issue.body, '/speckit.specify') ||
+      contains(github.event.issue.body, '/speckit.clarify') || contains(github.event.issue.body, '/speckit.plan') ||
+      contains(github.event.issue.body, '/speckit.tasks') || contains(github.event.issue.body, '/speckit.implement') ||
+      contains(github.event.issue.body, '/speckit.analyze') || contains(github.event.issue.body, '/speckit.checklist') ||
+      contains(github.event.issue.body, '/speckit.constitution') || contains(github.event.issue.body, '/speckit.taskstoissues')) ||
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/speckit') || contains(github.event.comment.body, '/speckit.specify') ||
+      contains(github.event.comment.body, '/speckit.clarify') || contains(github.event.comment.body, '/speckit.plan') ||
+      contains(github.event.comment.body, '/speckit.tasks') || contains(github.event.comment.body, '/speckit.implement') ||
+      contains(github.event.comment.body, '/speckit.analyze') || contains(github.event.comment.body, '/speckit.checklist') ||
+      contains(github.event.comment.body, '/speckit.constitution') || contains(github.event.comment.body, '/speckit.taskstoissues')) &&
+      (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/speckit') ||
+      contains(github.event.comment.body, '/speckit.specify') || contains(github.event.comment.body, '/speckit.clarify') ||
+      contains(github.event.comment.body, '/speckit.plan') || contains(github.event.comment.body, '/speckit.tasks') ||
+      contains(github.event.comment.body, '/speckit.implement') || contains(github.event.comment.body, '/speckit.analyze') ||
+      contains(github.event.comment.body, '/speckit.checklist') || contains(github.event.comment.body, '/speckit.constitution') ||
+      contains(github.event.comment.body, '/speckit.taskstoissues')) && (github.event.issue.pull_request != null)) ||
+      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/speckit') || contains(github.event.pull_request.body, '/speckit.specify') ||
+      contains(github.event.pull_request.body, '/speckit.clarify') || contains(github.event.pull_request.body, '/speckit.plan') ||
+      contains(github.event.pull_request.body, '/speckit.tasks') || contains(github.event.pull_request.body, '/speckit.implement') ||
+      contains(github.event.pull_request.body, '/speckit.analyze') || contains(github.event.pull_request.body, '/speckit.checklist') ||
+      contains(github.event.pull_request.body, '/speckit.constitution') || contains(github.event.pull_request.body, '/speckit.taskstoissues')) ||
+      (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/speckit') || contains(github.event.discussion.body, '/speckit.specify') ||
+      contains(github.event.discussion.body, '/speckit.clarify') || contains(github.event.discussion.body, '/speckit.plan') ||
+      contains(github.event.discussion.body, '/speckit.tasks') || contains(github.event.discussion.body, '/speckit.implement') ||
+      contains(github.event.discussion.body, '/speckit.analyze') || contains(github.event.discussion.body, '/speckit.checklist') ||
+      contains(github.event.discussion.body, '/speckit.constitution') || contains(github.event.discussion.body, '/speckit.taskstoissues')) ||
+      (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/speckit') || contains(github.event.comment.body, '/speckit.specify') ||
+      contains(github.event.comment.body, '/speckit.clarify') || contains(github.event.comment.body, '/speckit.plan') ||
+      contains(github.event.comment.body, '/speckit.tasks') || contains(github.event.comment.body, '/speckit.implement') ||
+      contains(github.event.comment.body, '/speckit.analyze') || contains(github.event.comment.body, '/speckit.checklist') ||
+      contains(github.event.comment.body, '/speckit.constitution') || contains(github.event.comment.body, '/speckit.taskstoissues'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1525,7 +1580,7 @@ jobs:
         id: check_command_position
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_COMMAND: speckit
+          GH_AW_COMMANDS: "[\"speckit\",\"speckit.specify\",\"speckit.clarify\",\"speckit.plan\",\"speckit.tasks\",\"speckit.implement\",\"speckit.analyze\",\"speckit.checklist\",\"speckit.constitution\",\"speckit.taskstoissues\"]"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
