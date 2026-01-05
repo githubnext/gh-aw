@@ -705,7 +705,10 @@ Test workflow with staged/non-staged modes, error handling, JSON schema validati
 - [ ] MCP server handles type (custom handler if needed)
 - [ ] Go filter includes type in `generateFilteredToolsJSON`
 - [ ] Collection validates fields
-- [ ] JavaScript implementation handles all cases
+- [ ] Handler factory function implemented (returns message handler)
+- [ ] Handler registered in HANDLER_MAP or STANDALONE_STEP_TYPES
+- [ ] Handler config added to `addHandlerManagerConfigEnvVar()`
+- [ ] Permissions added to consolidated job
 - [ ] Tests pass with good coverage
 - [ ] Workflows compile
 - [ ] Manual testing confirms functionality
@@ -723,6 +726,10 @@ Test workflow with staged/non-staged modes, error handling, JSON schema validati
 9. GitHub API error handling
 10. Missing staged mode implementation
 11. Forgetting `make build` after modifying embedded files
+12. Handler factory not returning a function (must return async message handler)
+13. Forgetting to add handler to HANDLER_MAP in safe_output_handler_manager.cjs
+14. Not adding handler config to addHandlerManagerConfigEnvVar() in compiler
+15. Missing hasHandlerManagerTypes check for consolidated job integration
 
 ## References
 
@@ -730,4 +737,6 @@ Test workflow with staged/non-staged modes, error handling, JSON schema validati
 - GitHub Actions Core: https://github.com/actions/toolkit/tree/main/packages/core  
 - GitHub REST API: https://docs.github.com/en/rest
 - Vitest: https://vitest.dev/
-- Existing implementations: `pkg/workflow/js/*.cjs`
+- Handler Manager: `actions/setup/js/safe_output_handler_manager.cjs`
+- Existing Handler Implementations: `actions/setup/js/create_issue.cjs`, `actions/setup/js/add_comment.cjs`, etc.
+- Compiler Integration: `pkg/workflow/compiler_safe_outputs_*.go`
