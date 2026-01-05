@@ -54,7 +54,7 @@ safe-outputs:
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
         - name: Checkout .beads folder
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             ref: beads-sync
             sparse-checkout: |
@@ -68,11 +68,6 @@ safe-outputs:
             echo "=== Syncing beads data ==="
             # Install beads CLI
             curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-            
-            # Verify installation
-            bd --version
-            
-            # Sync beads data from repository
             bd --no-db sync
             echo "✓ Beads data synced"
         
@@ -126,7 +121,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
       
       - name: Checkout .beads folder
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: beads-sync
           sparse-checkout: |
@@ -137,10 +132,6 @@ jobs:
         run: |
           # Install beads CLI
           curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-          
-          # Verify installation
-          bd --version
-      
       - name: Claim ready bead
         id: claim_bead
         env:
@@ -151,7 +142,7 @@ jobs:
           
           # Sync beads data from repository
           echo "Syncing beads data..."
-          bd --no-db sync
+          bd --no-daemon --no-db sync
           echo "✓ Beads data synced"
           
           # Check if beads are initialized
@@ -214,7 +205,7 @@ jobs:
           echo "=== Starting bead sync ==="
           echo "Syncing changes to repository..."
           
-          bd --no-db sync
+          bd --no-daemon --no-db sync
           echo "✓ Sync completed successfully"
           echo "=== Bead sync completed ==="
   
@@ -231,7 +222,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
       
       - name: Checkout .beads folder
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: beads-sync
           sparse-checkout: |
@@ -283,7 +274,7 @@ jobs:
           echo "=== Bead release process completed ==="
 ---
 
-# Beads Worker
+## Beads Worker
 
 You are an automated beads worker that processes ready tasks from a beads-equipped repository.
 
