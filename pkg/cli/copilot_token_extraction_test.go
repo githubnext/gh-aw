@@ -99,7 +99,7 @@ func TestCopilotTokenExtractionFromLogs(t *testing.T) {
 		"Token count should be accumulated from all API responses")
 
 	// Verify it's greater than 0 (minimum requirement)
-	assert.Greater(t, metrics.TokenUsage, 0,
+	assert.Positive(t, metrics.TokenUsage,
 		"Token usage must be greater than 0 when log contains usage data")
 }
 
