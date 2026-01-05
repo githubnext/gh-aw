@@ -98,13 +98,17 @@ describe("safe_inputs_mcp_server.cjs", () => {
 
   describe("startSafeInputsServer integration", () => {
     it("should start server with JavaScript handler", async () => {
-      // Create a handler file
+      // Create a handler file that reads from stdin and writes to stdout
       const handlerPath = path.join(tempDir, "test_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = function(args) {
-          return { result: "hello " + args.name };
-        };`
+        `let input = '';
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const args = JSON.parse(input);
+  const result = { result: "hello " + args.name };
+  console.log(JSON.stringify(result));
+});`
       );
 
       // Create config file
@@ -418,13 +422,17 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       const safeinputsServerContent = fs.readFileSync(path.join(__dirname, "safe_inputs_mcp_server.cjs"), "utf-8");
       fs.writeFileSync(safeinputsServerPath, safeinputsServerContent);
 
-      // Create an echo tool handler
+      // Create an echo tool handler that reads from stdin and writes to stdout
       const echoHandlerPath = path.join(tempDir, "echo.cjs");
       fs.writeFileSync(
         echoHandlerPath,
-        `module.exports = function(args) {
-  return { message: "Echo: " + args.message };
-};`
+        `let input = '';
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const args = JSON.parse(input);
+  const result = { message: "Echo: " + args.message };
+  console.log(JSON.stringify(result));
+});`
       );
 
       // Create the tools.json configuration with echo tool

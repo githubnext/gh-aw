@@ -267,9 +267,10 @@ function createWrappedHandler(server, toolName, handlerFn) {
  * This function iterates through tools and loads handler modules based on file extension:
  *
  * For JavaScript handlers (.js, .cjs, .mjs):
- *   - Uses require() to load the module
- *   - Handler must export a function as default export
- *   - Handler signature: async function handler(args: Record<string, unknown>): Promise<unknown>
+ *   - Executed in a separate Node.js process for isolation
+ *   - Inputs are passed as JSON via stdin
+ *   - Outputs are read from stdout (JSON format expected)
+ *   - Handler signature: reads JSON from stdin, writes result to stdout
  *
  * For Shell script handlers (.sh):
  *   - Uses GitHub Actions convention for passing inputs/outputs
@@ -278,11 +279,14 @@ function createWrappedHandler(server, toolName, handlerFn) {
  *   - Returns: { stdout, stderr, outputs }
  *
  * For Python script handlers (.py):
- *   - Uses GitHub Actions convention for passing inputs/outputs
- *   - Inputs are passed as environment variables prefixed with INPUT_ (uppercased)
- *   - Outputs are read from GITHUB_OUTPUT file (key=value format per line)
+ *   - Inputs are passed as JSON via stdin
+ *   - Outputs are read from stdout (JSON format expected)
  *   - Executed using python3 command
- *   - Returns: { stdout, stderr, outputs }
+ *
+ * For Go script handlers (.go):
+ *   - Inputs are passed as JSON via stdin
+ *   - Outputs are read from stdout (JSON format expected)
+ *   - Executed using 'go run' command
  *
  * SECURITY NOTE: Handler paths are loaded from tools.json configuration file,
  * which should be controlled by the server administrator. When basePath is provided,
@@ -417,39 +421,16 @@ function loadToolHandlers(server, tools, basePath) {
         loadedCount++;
         server.debug(`  [${toolName}] Go handler created successfully with timeout: ${timeout}s`);
       } else {
-        // JavaScript/CommonJS handler - use require()
-        server.debug(`  [${toolName}] Loading JavaScript handler module`);
+        // JavaScript/CommonJS handler - execute in separate Node.js process
+        server.debug(`  [${toolName}] Detected JavaScript handler`);
 
-        // Load the handler module
-        const handlerModule = require(resolvedPath);
-        server.debug(`  [${toolName}] Handler module loaded successfully`);
-        server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
-
-        // Get the handler function (support default export patterns)
-        let handlerFn = handlerModule;
-
-        // Handle ES module default export pattern (module.default)
-        if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
-          handlerFn = handlerModule.default;
-          server.debug(`  [${toolName}] Using module.default export`);
-        }
-
-        // Validate that the handler is a function
-        if (typeof handlerFn !== "function") {
-          server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
-          server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
-          errorCount++;
-          continue;
-        }
-
-        server.debug(`  [${toolName}] Handler function validated successfully`);
-        server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
-
-        // Wrap the handler using the separate function to avoid bloating the closure
-        tool.handler = createWrappedHandler(server, toolName, handlerFn);
+        // Lazy-load JavaScript handler module
+        const { createJavaScriptHandler } = require("./mcp_handler_javascript.cjs");
+        const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
+        tool.handler = createJavaScriptHandler(server, toolName, resolvedPath, timeout);
 
         loadedCount++;
-        server.debug(`  [${toolName}] JavaScript handler loaded and wrapped successfully`);
+        server.debug(`  [${toolName}] JavaScript handler created successfully with timeout: ${timeout}s`);
       }
     } catch (error) {
       server.debugError(`  [${toolName}] ERROR loading handler: `, error);
