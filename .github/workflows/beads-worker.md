@@ -43,7 +43,7 @@ safe-outputs:
           run: |
             git config --global user.name "github-actions[bot]"
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git config --global init.defaultBranch main
+            git config --global init.defaultBranch beads-sync
         
         - name: Initialize git repository
           run: |
@@ -119,7 +119,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global init.defaultBranch main
+          git config --global init.defaultBranch beads-sync
       
       - name: Initialize git repository
         run: |
@@ -236,7 +236,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global init.defaultBranch main
+          git config --global init.defaultBranch beads-sync
       
       - name: Initialize git repository
         run: |
