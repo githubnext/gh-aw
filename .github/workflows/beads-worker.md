@@ -30,6 +30,10 @@ safe-outputs:
           description: "The new state (open, in_progress, closed)"
           required: true
           type: string
+          options:
+            - open
+            - in_progress
+            - closed
         reason:
           description: "Reason for the state change"
           required: false
@@ -39,15 +43,20 @@ safe-outputs:
           uses: actions/checkout@v5
           with:
             token: ${{ secrets.GITHUB_TOKEN }}
-            fetch-depth: 0
+            fetch-depth: 1
         
-        - name: Install beads
+        - name: Sync with beads
           run: |
+            echo "=== Syncing beads data ==="
             # Install beads CLI
             curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
             
             # Verify installation
             bd --version
+            
+            # Sync beads data from repository
+            bd sync
+            echo "✓ Beads data synced"
         
         - name: Update bead state
           env:

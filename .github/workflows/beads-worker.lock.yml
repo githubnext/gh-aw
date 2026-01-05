@@ -171,7 +171,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"bead-update-state":{"description":"Update bead state (completed, failed, or released)","inputs":{"reason":{"default":null,"description":"Reason for the state change","required":false,"type":"string"},"state":{"default":null,"description":"The new state (open, in_progress, closed)","required":true,"type":"string"}},"output":"Bead state updated successfully"},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"bead-update-state":{"description":"Update bead state (completed, failed, or released)","inputs":{"reason":{"default":null,"description":"Reason for the state change","required":false,"type":"string"},"state":{"default":null,"description":"The new state (open, in_progress, closed)","options":["open","in_progress","closed"],"required":true,"type":"string"}},"output":"Bead state updated successfully"},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -841,15 +841,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install beads
+      - name: Sync with beads
         run: |
+          echo "=== Syncing beads data ==="
           # Install beads CLI
           curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
 
           # Verify installation
           bd --version
+
+          # Sync beads data from repository
+          bd sync
+          echo "✓ Beads data synced"
       - name: Update bead state
         run: |
           echo "=== Starting bead state update ==="
