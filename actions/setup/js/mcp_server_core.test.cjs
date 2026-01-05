@@ -430,7 +430,7 @@ process.stdin.on('end', async () => {
     it("should handle handler that returns MCP format directly", async () => {
       const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
-      // Create a handler that reads from stdin and returns MCP format to stdout
+      // Create a handler that reads from stdin and returns string to stdout
       const handlerPath = path.join(tempDir, "mcp_format_handler.cjs");
       fs.writeFileSync(
         handlerPath,
@@ -438,7 +438,7 @@ process.stdin.on('end', async () => {
 process.stdin.on('data', chunk => { input += chunk; });
 process.stdin.on('end', () => {
   const args = JSON.parse(input);
-  console.log(JSON.stringify("MCP format: " + args.input));
+  console.log("MCP format: " + args.input);
 });`
       );
 
@@ -467,7 +467,9 @@ process.stdin.on('end', () => {
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0].result.content[0].text).toBe("MCP format: test");
+      // Non-JSON output is wrapped in stdout/stderr format
+      const parsed = JSON.parse(results[0].result.content[0].text);
+      expect(parsed.stdout).toContain("MCP format: test");
     });
 
     it("should handle handler with module.default export pattern", async () => {
@@ -722,9 +724,10 @@ process.stdin.on('end', () => {
         params: { name: "test_circular", arguments: { input: "test" } },
       });
 
-      // Should handle non-JSON output
+      // Should handle non-JSON output (wrapped in stdout/stderr format)
       expect(results).toHaveLength(1);
-      expect(results[0].result.content[0].text).toBe("[object Object]");
+      const parsed = JSON.parse(results[0].result.content[0].text);
+      expect(parsed.stdout).toContain("[object Object]");
     });
 
     it("should load and execute shell script handler", async () => {
