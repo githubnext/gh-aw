@@ -182,6 +182,33 @@ func TestBuildActivationJobWithReaction(t *testing.T) {
 	}
 }
 
+// TestBuildActivationJobCampaignOrchestratorFilename tests that campaign orchestrator
+// workflows (.campaign.g.md) generate correct GH_AW_WORKFLOW_FILE (.campaign.lock.yml)
+func TestBuildActivationJobCampaignOrchestratorFilename(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	workflowData := &WorkflowData{
+		Name:        "Test Campaign",
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	// Test with campaign orchestrator filename (with .g.)
+	job, err := compiler.buildActivationJob(workflowData, false, "", "example.campaign.lock.yml")
+	if err != nil {
+		t.Fatalf("buildActivationJob() returned error: %v", err)
+	}
+
+	// Check that GH_AW_WORKFLOW_FILE uses .campaign.lock.yml (without .g.)
+	stepsContent := strings.Join(job.Steps, "")
+	if !strings.Contains(stepsContent, `GH_AW_WORKFLOW_FILE: "example.campaign.lock.yml"`) {
+		t.Errorf("Expected GH_AW_WORKFLOW_FILE to be 'example.campaign.lock.yml', got steps content:\n%s", stepsContent)
+	}
+	// Verify it does NOT contain the incorrect .g. version
+	if strings.Contains(stepsContent, "example.campaign.g.lock.yml") {
+		t.Error("GH_AW_WORKFLOW_FILE should not contain '.g.' in the filename")
+	}
+}
+
 // TestBuildMainJobWithActivation tests building the main job with activation dependency
 func TestBuildMainJobWithActivation(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
