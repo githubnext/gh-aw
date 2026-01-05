@@ -201,33 +201,46 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
-	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	// After artifact refactoring, the file is flattened to agent_output.json at root
+	agentOutputJSONPath := filepath.Join(runDir, "agent_output.json")
 
-	// Support both file and directory forms of agent_output.json artifact (directory contains nested agent_output.json file)
-	// Also fall back to searching the tree if neither form exists at root.
+	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
+	// 1. New: agent_output.json at root (after flattening)
+	// 2. Old: agent-output directory with nested agent-output file
+	// 3. Fallback: search recursively
 	var resolvedAgentOutputFile string
-	if stat, err := os.Stat(agentOutputPath); err == nil {
-		if stat.IsDir() {
-			// Directory form – look for nested file
-			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-			if _, nestedErr := os.Stat(nested); nestedErr == nil {
-				resolvedAgentOutputFile = nested
-				if verbose {
-					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("agent_output.json is a directory; using nested file %s", nested)))
-				}
-			} else if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
-			}
-		} else {
-			// Regular file
-			resolvedAgentOutputFile = agentOutputPath
+	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
+		// New flattened structure: agent_output.json at root
+		resolvedAgentOutputFile = agentOutputJSONPath
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at root: %s", agentOutputJSONPath)))
 		}
 	} else {
-		// Not present at root – search recursively (depth-first) for a file named agent_output.json
-		if found, ok := findAgentOutputFile(runDir); ok {
-			resolvedAgentOutputFile = found
-			if verbose && found != agentOutputPath {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at %s", found)))
+		// Try old structure: agent-output directory
+		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+		if stat, err := os.Stat(agentOutputPath); err == nil {
+			if stat.IsDir() {
+				// Directory form – look for nested file
+				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+				if _, nestedErr := os.Stat(nested); nestedErr == nil {
+					resolvedAgentOutputFile = nested
+					if verbose {
+						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("agent_output.json is a directory; using nested file %s", nested)))
+					}
+				} else if verbose {
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+				}
+			} else {
+				// Regular file
+				resolvedAgentOutputFile = agentOutputPath
+			}
+		} else {
+			// Not present at root – search recursively (depth-first) for a file named agent_output.json
+			if found, ok := findAgentOutputFile(runDir); ok {
+				resolvedAgentOutputFile = found
+				if verbose && found != agentOutputPath {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at %s", found)))
+				}
 			}
 		}
 	}
@@ -297,7 +310,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 	} else {
 		logsMetricsLog.Print("No safe output artifact found")
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputJSONPath, run.DatabaseID)))
 		}
 	}
 
@@ -311,33 +324,46 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
-	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	// After artifact refactoring, the file is flattened to agent_output.json at root
+	agentOutputJSONPath := filepath.Join(runDir, "agent_output.json")
 
-	// Support both file and directory forms of agent_output.json artifact (directory contains nested agent_output.json file)
-	// Also fall back to searching the tree if neither form exists at root.
+	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
+	// 1. New: agent_output.json at root (after flattening)
+	// 2. Old: agent-output directory with nested agent-output file
+	// 3. Fallback: search recursively
 	var resolvedAgentOutputFile string
-	if stat, err := os.Stat(agentOutputPath); err == nil {
-		if stat.IsDir() {
-			// Directory form – look for nested file
-			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-			if _, nestedErr := os.Stat(nested); nestedErr == nil {
-				resolvedAgentOutputFile = nested
-				if verbose {
-					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("agent_output.json is a directory; using nested file %s", nested)))
-				}
-			} else if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
-			}
-		} else {
-			// Regular file
-			resolvedAgentOutputFile = agentOutputPath
+	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
+		// New flattened structure: agent_output.json at root
+		resolvedAgentOutputFile = agentOutputJSONPath
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at root: %s", agentOutputJSONPath)))
 		}
 	} else {
-		// Not present at root – search recursively (depth-first) for a file named agent_output.json
-		if found, ok := findAgentOutputFile(runDir); ok {
-			resolvedAgentOutputFile = found
-			if verbose && found != agentOutputPath {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at %s", found)))
+		// Try old structure: agent-output directory
+		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+		if stat, err := os.Stat(agentOutputPath); err == nil {
+			if stat.IsDir() {
+				// Directory form – look for nested file
+				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+				if _, nestedErr := os.Stat(nested); nestedErr == nil {
+					resolvedAgentOutputFile = nested
+					if verbose {
+						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("agent_output.json is a directory; using nested file %s", nested)))
+					}
+				} else if verbose {
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+				}
+			} else {
+				// Regular file
+				resolvedAgentOutputFile = agentOutputPath
+			}
+		} else {
+			// Not present at root – search recursively (depth-first) for a file named agent_output.json
+			if found, ok := findAgentOutputFile(runDir); ok {
+				resolvedAgentOutputFile = found
+				if verbose && found != agentOutputPath {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at %s", found)))
+				}
 			}
 		}
 	}
@@ -403,7 +429,7 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 	} else {
 		logsMetricsLog.Print("No safe output artifact found")
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputJSONPath, run.DatabaseID)))
 		}
 	}
 
