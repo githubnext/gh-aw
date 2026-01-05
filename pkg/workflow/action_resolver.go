@@ -33,6 +33,7 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	}
 
 	resolverLog.Printf("Cache miss for %s@%s, querying GitHub API", repo, version)
+	resolverLog.Printf("This may take a moment as we query GitHub API at /repos/%s/git/ref/tags/%s", extractBaseRepo(repo), version)
 
 	// Resolve using GitHub CLI
 	sha, err := r.resolveFromGitHub(repo, version)

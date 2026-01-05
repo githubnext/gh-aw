@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -165,6 +166,21 @@ func (c *ActionCache) Get(repo, version string) (string, bool) {
 // Set stores a new cache entry
 func (c *ActionCache) Set(repo, version, sha string) {
 	key := repo + "@" + version
+
+	// Check if there are existing entries with the same repo+SHA but different version
+	for existingKey, entry := range c.Entries {
+		if entry.Repo == repo && entry.SHA == sha && entry.Version != version {
+			// Truncate SHA for logging (handle short SHAs in tests)
+			shortSHA := sha
+			if len(sha) > 8 {
+				shortSHA = sha[:8]
+			}
+			actionCacheLog.Printf("WARNING: Adding cache entry %s with SHA %s that already exists as %s",
+				key, shortSHA, existingKey)
+			actionCacheLog.Printf("This may cause version comment flipping in lock files. Consider using consistent version tags.")
+		}
+	}
+
 	actionCacheLog.Printf("Setting cache entry: key=%s, sha=%s", key, sha)
 	c.Entries[key] = ActionCacheEntry{
 		Repo:    repo,
@@ -196,10 +212,19 @@ func (c *ActionCache) deduplicateEntries() {
 
 	// For each group with multiple entries, keep only the most precise one
 	toDelete := make([]string, 0)
-	for _, keys := range groups {
+	deduplicationDetails := make([]string, 0) // Track details for user-friendly message
+
+	for ek, keys := range groups {
 		if len(keys) <= 1 {
 			continue
 		}
+
+		// Truncate SHA for logging (handle short SHAs in tests)
+		shortSHA := ek.sha
+		if len(ek.sha) > 8 {
+			shortSHA = ek.sha[:8]
+		}
+		actionCacheLog.Printf("Found %d cache entries for %s with SHA %s", len(keys), ek.repo, shortSHA)
 
 		// Find the most precise version reference
 		// Extract the version reference from each key (format: "repo@versionRef")
@@ -223,10 +248,17 @@ func (c *ActionCache) deduplicateEntries() {
 		})
 
 		// Keep the most precise version, mark others for deletion
+		keepVersion := keyInfos[0].versionRef
+		removedVersions := make([]string, 0)
 		for i := 1; i < len(keyInfos); i++ {
 			toDelete = append(toDelete, keyInfos[i].key)
+			removedVersions = append(removedVersions, keyInfos[i].versionRef)
 			actionCacheLog.Printf("Deduplicating: keeping %s, removing %s", keyInfos[0].key, keyInfos[i].key)
 		}
+
+		// Build user-friendly message
+		detail := fmt.Sprintf("%s: kept %s, removed %s", ek.repo, keepVersion, strings.Join(removedVersions, ", "))
+		deduplicationDetails = append(deduplicationDetails, detail)
 	}
 
 	// Delete the less precise entries
@@ -236,6 +268,10 @@ func (c *ActionCache) deduplicateEntries() {
 
 	if len(toDelete) > 0 {
 		actionCacheLog.Printf("Deduplicated %d entries, %d entries remaining", len(toDelete), len(c.Entries))
+		// Log detailed deduplication info at verbose level
+		for _, detail := range deduplicationDetails {
+			actionCacheLog.Printf("Deduplication detail: %s", detail)
+		}
 	}
 }
 
