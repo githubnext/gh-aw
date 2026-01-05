@@ -1,13 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  normalizeItem,
-  loadCursor,
-  saveCursor,
-  searchByTrackerId,
-  searchByLabel,
-  discover,
-} from "./campaign_discovery.cjs";
+import { normalizeItem, loadCursor, saveCursor, searchByTrackerId, searchByLabel, discover } from "./campaign_discovery.cjs";
 import fs from "fs";
 import path from "path";
 
@@ -151,14 +144,7 @@ describe("campaign_discovery", () => {
         },
       };
 
-      const result = await searchByTrackerId(
-        octokit,
-        "workflow-1",
-        ["owner/repo"],
-        100,
-        10,
-        null
-      );
+      const result = await searchByTrackerId(octokit, "workflow-1", ["owner/repo"], 100, 10, null);
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].content_type).toBe("issue");
@@ -225,21 +211,15 @@ describe("campaign_discovery", () => {
       const octokit = {
         rest: {
           search: {
-            issuesAndPullRequests: vi.fn()
+            issuesAndPullRequests: vi
+              .fn()
               .mockResolvedValueOnce({ data: { items: page1Items } })
               .mockResolvedValueOnce({ data: { items: page2Items } }),
           },
         },
       };
 
-      const result = await searchByTrackerId(
-        octokit,
-        "workflow-1",
-        ["owner/repo"],
-        150,
-        10,
-        null
-      );
+      const result = await searchByTrackerId(octokit, "workflow-1", ["owner/repo"], 150, 10, null);
 
       expect(result.items).toHaveLength(150);
       expect(result.pagesScanned).toBe(2);
@@ -270,14 +250,7 @@ describe("campaign_discovery", () => {
         },
       };
 
-      const result = await searchByLabel(
-        octokit,
-        "campaign:test",
-        ["owner/repo"],
-        100,
-        10,
-        null
-      );
+      const result = await searchByLabel(octokit, "campaign:test", ["owner/repo"], 100, 10, null);
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].content_type).toBe("issue");
@@ -294,14 +267,7 @@ describe("campaign_discovery", () => {
         },
       };
 
-      await searchByLabel(
-        octokit,
-        "campaign:test",
-        ["owner/repo1", "owner/repo2"],
-        100,
-        10,
-        null
-      );
+      await searchByLabel(octokit, "campaign:test", ["owner/repo1", "owner/repo2"], 100, 10, null);
 
       const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
       expect(call.q).toContain('label:"campaign:test"');

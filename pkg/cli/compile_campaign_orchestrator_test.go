@@ -339,7 +339,7 @@ func TestCampaignOrchestratorGitHubToken(t *testing.T) {
 				safeOutputsEnd = idx
 			}
 		}
-		
+
 		if safeOutputsStart >= 0 && safeOutputsEnd > 0 {
 			safeOutputsSection := safeOutputsContent[:safeOutputsEnd]
 			if strings.Contains(safeOutputsSection, "github-token:") {

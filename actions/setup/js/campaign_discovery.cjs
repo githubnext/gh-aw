@@ -3,17 +3,17 @@
 
 /**
  * Campaign Discovery Precomputation
- * 
+ *
  * Discovers campaign items (worker-created issues/PRs/discussions) by scanning
  * a predefined list of repos using tracker-id markers and/or tracker labels.
- * 
+ *
  * This script runs deterministically before the agent, eliminating the need for
  * agents to perform GitHub-wide discovery during Phase 1.
- * 
+ *
  * Outputs:
  * - Manifest file: ./.gh-aw/campaign.discovery.json
  * - Cursor file: in repo-memory for continuation across runs
- * 
+ *
  * Features:
  * - Strict pagination budgets
  * - Durable cursor for incremental discovery
@@ -127,10 +127,10 @@ async function searchByTrackerId(octokit, trackerId, repos, maxItems, maxPages, 
 
   try {
     let page = cursor?.page || 1;
-    
+
     while (pagesScanned < maxPages && itemsScanned < maxItems) {
       core.info(`Fetching page ${page} for tracker-id: ${trackerId}`);
-      
+
       const response = await octokit.rest.search.issuesAndPullRequests({
         q: searchQuery,
         per_page: 100,
@@ -152,7 +152,7 @@ async function searchByTrackerId(octokit, trackerId, repos, maxItems, maxPages, 
         }
 
         itemsScanned++;
-        
+
         // Determine if it's a PR or issue
         const contentType = item.pull_request ? "pull_request" : "issue";
         const normalized = normalizeItem(item, contentType);
@@ -199,7 +199,7 @@ async function searchByLabel(octokit, label, repos, maxItems, maxPages, cursor) 
 
   // Build search query for label across all repos
   let searchQuery = `label:"${label}"`;
-  
+
   // If specific repos are provided, add them to the query
   if (repos && repos.length > 0) {
     // GitHub search supports up to ~1024 characters in query
@@ -212,10 +212,10 @@ async function searchByLabel(octokit, label, repos, maxItems, maxPages, cursor) 
 
   try {
     let page = cursor?.page || 1;
-    
+
     while (pagesScanned < maxPages && itemsScanned < maxItems) {
       core.info(`Fetching page ${page} for label: ${label}`);
-      
+
       const response = await octokit.rest.search.issuesAndPullRequests({
         q: searchQuery,
         per_page: 100,
@@ -237,7 +237,7 @@ async function searchByLabel(octokit, label, repos, maxItems, maxPages, cursor) 
         }
 
         itemsScanned++;
-        
+
         // Determine if it's a PR or issue
         const contentType = item.pull_request ? "pull_request" : "issue";
         const normalized = normalizeItem(item, contentType);
@@ -271,16 +271,7 @@ async function searchByLabel(octokit, label, repos, maxItems, maxPages, cursor) 
  * @returns {Promise<any>} Discovery manifest
  */
 async function discover(config) {
-  const {
-    campaignId,
-    workflows = [],
-    trackerLabel = null,
-    repos = [],
-    maxDiscoveryItems = DEFAULT_MAX_ITEMS,
-    maxDiscoveryPages = DEFAULT_MAX_PAGES,
-    cursorPath = null,
-    projectUrl = null,
-  } = config;
+  const { campaignId, workflows = [], trackerLabel = null, repos = [], maxDiscoveryItems = DEFAULT_MAX_ITEMS, maxDiscoveryPages = DEFAULT_MAX_PAGES, cursorPath = null, projectUrl = null } = config;
 
   core.info(`Starting campaign discovery for: ${campaignId}`);
   core.info(`Workflows: ${workflows.join(", ")}`);
@@ -306,14 +297,7 @@ async function discover(config) {
       const remainingItems = maxDiscoveryItems - totalItemsScanned;
       const remainingPages = maxDiscoveryPages - totalPagesScanned;
 
-      const result = await searchByTrackerId(
-        octokit,
-        workflow,
-        repos,
-        remainingItems,
-        remainingPages,
-        cursor
-      );
+      const result = await searchByTrackerId(octokit, workflow, repos, remainingItems, remainingPages, cursor);
 
       allItems.push(...result.items);
       totalItemsScanned += result.itemsScanned;
@@ -328,14 +312,7 @@ async function discover(config) {
       const remainingItems = maxDiscoveryItems - totalItemsScanned;
       const remainingPages = maxDiscoveryPages - totalPagesScanned;
 
-      const result = await searchByLabel(
-        octokit,
-        trackerLabel,
-        repos,
-        remainingItems,
-        remainingPages,
-        cursor
-      );
+      const result = await searchByLabel(octokit, trackerLabel, repos, remainingItems, remainingPages, cursor);
 
       // Merge items (deduplicate by URL)
       const existingUrls = new Set(allItems.map(i => i.url));
@@ -415,18 +392,8 @@ async function main() {
         .split(",")
         .map(r => r.trim())
         .filter(r => r.length > 0),
-      maxDiscoveryItems: parseInt(
-        process.env.GH_AW_MAX_DISCOVERY_ITEMS ||
-        core.getInput("max-discovery-items") ||
-        DEFAULT_MAX_ITEMS.toString(),
-        10
-      ),
-      maxDiscoveryPages: parseInt(
-        process.env.GH_AW_MAX_DISCOVERY_PAGES ||
-        core.getInput("max-discovery-pages") ||
-        DEFAULT_MAX_PAGES.toString(),
-        10
-      ),
+      maxDiscoveryItems: parseInt(process.env.GH_AW_MAX_DISCOVERY_ITEMS || core.getInput("max-discovery-items") || DEFAULT_MAX_ITEMS.toString(), 10),
+      maxDiscoveryPages: parseInt(process.env.GH_AW_MAX_DISCOVERY_PAGES || core.getInput("max-discovery-pages") || DEFAULT_MAX_PAGES.toString(), 10),
       cursorPath: process.env.GH_AW_CURSOR_PATH || core.getInput("cursor-path") || null,
       projectUrl: process.env.GH_AW_PROJECT_URL || core.getInput("project-url") || null,
     };
@@ -467,7 +434,6 @@ async function main() {
     core.info(`  Total items: ${manifest.discovery.total_items}`);
     core.info(`  Needs add: ${manifest.summary.needs_add_count}`);
     core.info(`  Needs update: ${manifest.summary.needs_update_count}`);
-
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     core.setFailed(`Discovery failed: ${err.message}`);
