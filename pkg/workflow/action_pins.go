@@ -59,8 +59,13 @@ func getActionPins() []ActionPin {
 				keyVersion := key[idx+1:]
 				if keyVersion != pin.Version {
 					mismatchCount++
+					// Safely truncate SHA for logging
+					shortSHA := pin.SHA
+					if len(pin.SHA) > 8 {
+						shortSHA = pin.SHA[:8]
+					}
 					actionPinsLog.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
-						key, keyVersion, pin.Version, pin.SHA[:8])
+						key, keyVersion, pin.Version, shortSHA)
 				}
 			}
 		}
@@ -75,19 +80,15 @@ func getActionPins() []ActionPin {
 		}
 
 		// Sort by version (descending) then by repo name (ascending)
-		for i := 0; i < len(pins); i++ {
-			for j := i + 1; j < len(pins); j++ {
-				// Compare versions first (descending)
-				if pins[i].Version < pins[j].Version {
-					pins[i], pins[j] = pins[j], pins[i]
-				} else if pins[i].Version == pins[j].Version {
-					// Same version, sort by repo name (ascending)
-					if pins[i].Repo > pins[j].Repo {
-						pins[i], pins[j] = pins[j], pins[i]
-					}
-				}
+		// Use standard library sort for better performance O(n log n) vs O(n²)
+		sort.Slice(pins, func(i, j int) bool {
+			// Compare versions first (descending order - higher version first)
+			if pins[i].Version != pins[j].Version {
+				return pins[i].Version > pins[j].Version
 			}
-		}
+			// Same version, sort by repo name (ascending order)
+			return pins[i].Repo < pins[j].Repo
+		})
 
 		actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
 		cachedActionPins = pins

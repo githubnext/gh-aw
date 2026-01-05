@@ -329,7 +329,7 @@ func TestActionCacheDeduplicationMultipleActions(t *testing.T) {
 
 	// actions/setup-node: no duplicates
 	cache.Set("actions/setup-node", "v6.1.0", "sha3")
-	
+
 	// Since we set Entries directly, we need to mark as dirty for the test
 	cache.dirty = true
 
@@ -459,48 +459,48 @@ func TestIsMorePreciseVersion(t *testing.T) {
 
 // TestActionCacheDirtyFlag verifies that the cache dirty flag prevents unnecessary saves
 func TestActionCacheDirtyFlag(t *testing.T) {
-tmpDir := testutil.TempDir(t, "test-*")
-cache := NewActionCache(tmpDir)
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
 
-// Initially, cache should be clean (no data)
-err := cache.Save()
-if err != nil {
-t.Fatalf("Failed to save empty cache: %v", err)
-}
+	// Initially, cache should be clean (no data)
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save empty cache: %v", err)
+	}
 
-// Cache file should not exist (empty cache)
-cachePath := cache.GetCachePath()
-if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
-t.Error("Empty cache should not create a file")
-}
+	// Cache file should not exist (empty cache)
+	cachePath := cache.GetCachePath()
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Error("Empty cache should not create a file")
+	}
 
-// Add an entry - should mark as dirty
-cache.Set("actions/checkout", "v5", "abc123")
+	// Add an entry - should mark as dirty
+	cache.Set("actions/checkout", "v5", "abc123")
 
-// Save should work now
-err = cache.Save()
-if err != nil {
-t.Fatalf("Failed to save dirty cache: %v", err)
-}
+	// Save should work now
+	err = cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save dirty cache: %v", err)
+	}
 
-// Cache file should now exist
-if _, err := os.Stat(cachePath); err != nil {
-t.Errorf("Cache file should exist after save: %v", err)
-}
+	// Cache file should now exist
+	if _, err := os.Stat(cachePath); err != nil {
+		t.Errorf("Cache file should exist after save: %v", err)
+	}
 
-// Save again without changes - should skip (cache is clean)
-// We can't directly verify the skip, but we can ensure it doesn't error
-err = cache.Save()
-if err != nil {
-t.Fatalf("Failed to save clean cache: %v", err)
-}
+	// Save again without changes - should skip (cache is clean)
+	// We can't directly verify the skip, but we can ensure it doesn't error
+	err = cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save clean cache: %v", err)
+	}
 
-// Add another entry - should mark as dirty again
-cache.Set("actions/setup-node", "v4", "def456")
+	// Add another entry - should mark as dirty again
+	cache.Set("actions/setup-node", "v4", "def456")
 
-// Save should work
-err = cache.Save()
-if err != nil {
-t.Fatalf("Failed to save dirty cache after modification: %v", err)
-}
+	// Save should work
+	err = cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save dirty cache after modification: %v", err)
+	}
 }

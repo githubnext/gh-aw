@@ -39,7 +39,7 @@ func NewActionCache(repoRoot string) *ActionCache {
 	return &ActionCache{
 		Entries: make(map[string]ActionCacheEntry),
 		path:    cachePath,
-		dirty:   false,
+		// dirty is initialized to false (zero value)
 	}
 }
 
@@ -61,6 +61,9 @@ func (c *ActionCache) Load() error {
 		actionCacheLog.Printf("Failed to unmarshal cache data: %v", err)
 		return err
 	}
+
+	// Mark cache as clean after successful load (it matches disk state)
+	c.dirty = false
 
 	actionCacheLog.Printf("Successfully loaded cache with %d entries", len(c.Entries))
 	return nil
