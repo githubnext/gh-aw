@@ -28,7 +28,7 @@ func TestFlattenAgentOutputsArtifact(t *testing.T) {
 
 	// Verify agent_outputs directory exists before flattening
 	_, err = os.Stat(agentOutputsDir)
-	assert.NoError(t, err, "agent_outputs directory should exist before flattening")
+	require.NoError(t, err, "agent_outputs directory should exist before flattening")
 
 	// Flatten the artifact
 	err = flattenAgentOutputsArtifact(tempDir, false)
@@ -41,7 +41,7 @@ func TestFlattenAgentOutputsArtifact(t *testing.T) {
 	// Verify session log file is now at the flattened location
 	flattenedLogPath := filepath.Join(tempDir, "sandbox", "agent", "logs", "session-test-123.log")
 	_, err = os.Stat(flattenedLogPath)
-	assert.NoError(t, err, "Session log should exist at flattened location")
+	require.NoError(t, err, "Session log should exist at flattened location")
 
 	// Verify content is preserved
 	content, err := os.ReadFile(flattenedLogPath)
@@ -90,7 +90,7 @@ func TestFlattenAgentOutputsArtifactPreservesStructure(t *testing.T) {
 	for _, dir := range dirs {
 		flattenedPath := filepath.Join(tempDir, dir, "test.log")
 		_, err := os.Stat(flattenedPath)
-		assert.NoError(t, err, "File should exist at flattened location: %s", dir)
+		require.NoError(t, err, "File should exist at flattened location: %s", dir)
 	}
 
 	// Verify agent_outputs directory was removed
