@@ -1,23 +1,10 @@
 ---
-services:
-  dbhub:
-    image: bytebase/dbhub:latest
-    ports:
-      - 8080:8080
-    options: >-
-      --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
-    command: >-
-      --transport http
-      --port 8080
-      --demo
-
 mcp-servers:
   dbhub:
-    type: http
-    url: "http://dbhub:8080"
+    container: "bytebase/dbhub"
+    version: "latest"
+    entrypointArgs:
+      - "--demo"
     allowed:
       - execute_sql
       - search_objects
@@ -67,22 +54,25 @@ DBHub provides two core MCP tools designed for token efficiency:
 This shared configuration runs DBHub in demo mode with an in-memory SQLite database.
 This is ideal for testing, learning, and exploration without requiring external setup.
 
+The container uses the default stdio transport for MCP communication.
+
 ### Production Mode with SQLite File
 
-To use a real SQLite database file, modify the service configuration:
+To use a real SQLite database file, modify the MCP server configuration:
 
 ```yaml
-services:
+mcp-servers:
   dbhub:
-    image: bytebase/dbhub:latest
-    ports:
-      - 8080:8080
+    container: "bytebase/dbhub"
+    version: "latest"
+    entrypointArgs:
+      - "--dsn"
+      - "sqlite:///data/your-database.db"
     volumes:
       - ./data:/data
-    command: >-
-      --transport http
-      --port 8080
-      --dsn "sqlite:///data/your-database.db"
+    allowed:
+      - execute_sql
+      - search_objects
 ```
 
 ### Other Database Types
@@ -90,18 +80,24 @@ services:
 DBHub supports multiple database types via DSN (Data Source Name):
 
 **PostgreSQL:**
-```
---dsn "postgres://user:password@host:5432/dbname?sslmode=disable"
+```yaml
+entrypointArgs:
+  - "--dsn"
+  - "******host:5432/dbname?sslmode=disable"
 ```
 
 **MySQL:**
-```
---dsn "mysql://user:password@host:3306/dbname"
+```yaml
+entrypointArgs:
+  - "--dsn"
+  - "******host:3306/dbname"
 ```
 
 **SQL Server:**
-```
---dsn "sqlserver://user:password@host:1433?database=dbname"
+```yaml
+entrypointArgs:
+  - "--dsn"
+  - "******host:1433?database=dbname"
 ```
 
 For multi-database setups, see: https://dbhub.ai/config/toml
@@ -139,17 +135,18 @@ imports:
    - Add database credentials to GitHub repository secrets
    - Example: `DB_PASSWORD`, `DB_USER`, `DB_HOST`
 
-3. **Update the service configuration** in your workflow:
+3. **Update the MCP server configuration** in your shared workflow or inline:
    ```yaml
-   services:
+   mcp-servers:
      dbhub:
-       image: bytebase/dbhub:latest
-       ports:
-         - 8080:8080
-       command: >-
-         --transport http
-         --port 8080
-         --dsn "postgres://user:PASSWORD@host:5432/dbname"
+       container: "bytebase/dbhub"
+       version: "latest"
+       entrypointArgs:
+         - "--dsn"
+         - "postgres://user:PASSWORD@host:5432/dbname"
+       allowed:
+         - execute_sql
+         - search_objects
    ```
    
    Replace `PASSWORD` with your secret reference (e.g., `secrets.DB_PASSWORD`) in your actual workflow.
@@ -211,7 +208,7 @@ Focus on actionable metrics and notable changes from previous days.
 
 ## Security Considerations
 
-- **Network isolation**: DBHub service runs in isolated Docker network
+- **Container isolation**: DBHub runs in an isolated Docker container
 - **Credentials**: Store database passwords in GitHub secrets, never in code
 - **Read-only mode**: Enable `--read-only` flag for query-only access
 - **Row limits**: Use `--max-rows` to prevent excessive data retrieval
@@ -220,7 +217,9 @@ Focus on actionable metrics and notable changes from previous days.
 ## Workbench
 
 DBHub includes a built-in web interface for testing queries and custom tools
-without requiring an MCP client. This is useful for development and debugging:
+without requiring an MCP client. This is useful for local development and debugging.
+
+To run the workbench locally with HTTP transport:
 
 ```bash
 docker run --rm --init \
@@ -233,6 +232,9 @@ docker run --rm --init \
 ```
 
 Then visit: http://localhost:8080
+
+Note: The shared workflow uses stdio transport (default) for MCP protocol communication,
+not HTTP. The workbench is a separate feature for local testing.
 
 ## More Information
 
@@ -248,9 +250,9 @@ Then visit: http://localhost:8080
 
 If the MCP server cannot connect to DBHub:
 
-1. Check service health status in GitHub Actions logs
-2. Verify port 8080 is exposed and accessible
-3. Ensure the health check is passing
+1. Check container status in GitHub Actions logs
+2. Verify the container image is accessible
+3. Check for any error messages in the MCP server logs
 
 ### Query Errors
 
