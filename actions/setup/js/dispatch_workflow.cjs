@@ -31,6 +31,7 @@ async function main(config = {}) {
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
+  let lastDispatchTime = 0;
 
   // Get the current repository context and ref
   const repo = context.repo;
@@ -76,6 +77,16 @@ async function main(config = {}) {
     }
 
     try {
+      // Add 5 second delay between dispatches (except for the first one)
+      if (lastDispatchTime > 0) {
+        const timeSinceLastDispatch = Date.now() - lastDispatchTime;
+        const delayNeeded = 5000 - timeSinceLastDispatch;
+        if (delayNeeded > 0) {
+          core.info(`Waiting ${Math.ceil(delayNeeded / 1000)} seconds before next dispatch...`);
+          await new Promise(resolve => setTimeout(resolve, delayNeeded));
+        }
+      }
+
       core.info(`Dispatching workflow: ${workflowName}`);
 
       // Prepare inputs - convert all values to strings as required by workflow_dispatch
@@ -116,6 +127,9 @@ async function main(config = {}) {
       });
 
       core.info(`✓ Successfully dispatched workflow: ${workflowFile}`);
+
+      // Record the time of this dispatch for rate limiting
+      lastDispatchTime = Date.now();
 
       return {
         success: true,

@@ -27,8 +27,8 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 					dispatchWorkflowConfig.Workflows = append(dispatchWorkflowConfig.Workflows, workflowStr)
 				}
 			}
-			// Set default max to 1
-			dispatchWorkflowConfig.Max = 1
+			// Set default max to 3
+			dispatchWorkflowConfig.Max = 3
 			return dispatchWorkflowConfig
 		}
 
@@ -47,8 +47,8 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 				}
 			}
 
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &dispatchWorkflowConfig.BaseSafeOutputConfig, 1)
+			// Parse common base fields with default max of 3
+			c.parseBaseSafeOutputConfig(configMap, &dispatchWorkflowConfig.BaseSafeOutputConfig, 3)
 
 			dispatchWorkflowLog.Printf("Parsed dispatch-workflow config: max=%d, workflows=%v",
 				dispatchWorkflowConfig.Max, dispatchWorkflowConfig.Workflows)

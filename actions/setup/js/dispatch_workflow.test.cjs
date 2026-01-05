@@ -194,4 +194,44 @@ describe("dispatch_workflow handler factory", () => {
       })
     );
   });
+
+  it("should delay 5 seconds between dispatches", async () => {
+    const config = {
+      workflows: ["workflow1", "workflow2"],
+      workflow_files: {
+        workflow1: ".lock.yml",
+        workflow2: ".yml",
+      },
+      max: 5,
+    };
+    const handler = await main(config);
+
+    const message1 = {
+      type: "dispatch_workflow",
+      workflow_name: "workflow1",
+      inputs: {},
+    };
+
+    const message2 = {
+      type: "dispatch_workflow",
+      workflow_name: "workflow2",
+      inputs: {},
+    };
+
+    // Dispatch first workflow
+    const startTime = Date.now();
+    await handler(message1, {});
+    const firstDispatchTime = Date.now();
+
+    // Dispatch second workflow (should be delayed)
+    await handler(message2, {});
+    const secondDispatchTime = Date.now();
+
+    // Verify first dispatch had no delay
+    expect(firstDispatchTime - startTime).toBeLessThan(1000);
+
+    // Verify second dispatch was delayed by at least 5 seconds
+    expect(secondDispatchTime - firstDispatchTime).toBeGreaterThanOrEqual(5000);
+    expect(secondDispatchTime - firstDispatchTime).toBeLessThan(6000);
+  });
 });
