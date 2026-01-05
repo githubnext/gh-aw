@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-01-04T12:43:33Z",
-  "report_date": "2026-01-04",
+  "timestamp": "2026-01-05T12:44:51Z",
+  "report_date": "2026-01-05",
   "summary": {
     "last_data_date": "2025-12-05",
     "workflows_analyzed": 12,
@@ -22,5 +22,5 @@
     {"domain": "twitter.com", "count": 53},
     {"domain": "cdn.example.com", "count": 49}
   ],
-  "note": "Analysis based on historical cache data from Nov-Dec 2025"
+  "note": "Analysis based on cached data. Report generated for 2026-01-05."
 }
