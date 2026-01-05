@@ -246,34 +246,34 @@ func TestResolveImportPathLocal(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		name        string
-		importPath  string
-		baseDir     string
-		expected    string
+		name       string
+		importPath string
+		baseDir    string
+		expected   string
 	}{
 		{
-			name:        "relative path",
-			importPath:  "shared/file.md",
-			baseDir:     baseDir,
-			expected:    filepath.Join(baseDir, "shared/file.md"),
+			name:       "relative path",
+			importPath: "shared/file.md",
+			baseDir:    baseDir,
+			expected:   filepath.Join(baseDir, "shared/file.md"),
 		},
 		{
-			name:        "path with section",
-			importPath:  "shared/file.md#section",
-			baseDir:     baseDir,
-			expected:    filepath.Join(baseDir, "shared/file.md"),
+			name:       "path with section",
+			importPath: "shared/file.md#section",
+			baseDir:    baseDir,
+			expected:   filepath.Join(baseDir, "shared/file.md"),
 		},
 		{
-			name:        "workflowspec format with @",
-			importPath:  "owner/repo/path/file.md@abc123",
-			baseDir:     baseDir,
-			expected:    "",
+			name:       "workflowspec format with @",
+			importPath: "owner/repo/path/file.md@abc123",
+			baseDir:    baseDir,
+			expected:   "",
 		},
 		{
-			name:        "workflowspec format without @",
-			importPath:  "owner/repo/path/file.md",
-			baseDir:     baseDir,
-			expected:    "",
+			name:       "workflowspec format without @",
+			importPath: "owner/repo/path/file.md",
+			baseDir:    baseDir,
+			expected:   "",
 		},
 	}
 
