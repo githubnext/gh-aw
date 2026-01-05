@@ -95,7 +95,7 @@ func validateCampaigns(workflowDir string, verbose bool, campaignFiles []string)
 				campaignFileMap[absPath] = true
 			}
 		}
-		
+
 		for _, spec := range specs {
 			// Get absolute path of the spec's config file
 			specPath := spec.ConfigPath
@@ -139,9 +139,8 @@ func validateCampaigns(workflowDir string, verbose bool, campaignFiles []string)
 			for _, problem := range problems {
 				msg := fmt.Sprintf("Campaign '%s' (%s): %s", spec.ID, spec.ConfigPath, problem)
 				allProblems = append(allProblems, msg)
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
-				}
+				// Always display problems, not just in verbose mode
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(msg))
 			}
 		}
 	}
