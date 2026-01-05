@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,13 +33,46 @@ func collectWorkflowFiles(workflowPath string, verbose bool) ([]string, error) {
 	files[absWorkflowPath] = true
 	runPushLog.Printf("Added workflow file: %s", absWorkflowPath)
 
-	// Add the corresponding .lock.yml file
+	// Check if lock file needs recompilation
 	lockFilePath := strings.TrimSuffix(absWorkflowPath, ".md") + ".lock.yml"
+	needsRecompile := false
+	
+	if lockStat, err := os.Stat(lockFilePath); err == nil {
+		// Lock file exists - check if it's outdated
+		if mdStat, err := os.Stat(absWorkflowPath); err == nil {
+			if mdStat.ModTime().After(lockStat.ModTime()) {
+				needsRecompile = true
+				runPushLog.Printf("Lock file is outdated (md: %v, lock: %v)", mdStat.ModTime(), lockStat.ModTime())
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Detected outdated lock file, recompiling workflow..."))
+				}
+			}
+		}
+	} else if os.IsNotExist(err) {
+		// Lock file doesn't exist - needs compilation
+		needsRecompile = true
+		runPushLog.Printf("Lock file not found: %s", lockFilePath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Lock file not found, compiling workflow..."))
+		}
+	}
+
+	// Recompile if needed
+	if needsRecompile {
+		if err := recompileWorkflow(absWorkflowPath, verbose); err != nil {
+			return nil, fmt.Errorf("failed to recompile workflow: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow compiled successfully"))
+		}
+	}
+
+	// Add the corresponding .lock.yml file
 	if _, err := os.Stat(lockFilePath); err == nil {
 		files[lockFilePath] = true
 		runPushLog.Printf("Added lock file: %s", lockFilePath)
 	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Lock file not found: %s", lockFilePath)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Lock file not found after compilation: %s", lockFilePath)))
 	}
 
 	// Collect transitive closure of imported files
@@ -54,6 +88,35 @@ func collectWorkflowFiles(workflowPath string, verbose bool) ([]string, error) {
 
 	runPushLog.Printf("Collected %d files total", len(result))
 	return result, nil
+}
+
+// recompileWorkflow compiles a workflow using CompileWorkflows
+func recompileWorkflow(workflowPath string, verbose bool) error {
+	runPushLog.Printf("Recompiling workflow: %s", workflowPath)
+	
+	config := CompileConfig{
+		MarkdownFiles:        []string{workflowPath},
+		Verbose:              verbose,
+		EngineOverride:       "",
+		Validate:             true,
+		Watch:                false,
+		WorkflowDir:          "",
+		SkipInstructions:     false,
+		NoEmit:               false,
+		Purge:                false,
+		TrialMode:            false,
+		TrialLogicalRepoSlug: "",
+		Strict:               false,
+	}
+	
+	// Use background context for compilation
+	ctx := context.Background()
+	if _, err := CompileWorkflows(ctx, config); err != nil {
+		return fmt.Errorf("compilation failed: %w", err)
+	}
+	
+	runPushLog.Printf("Successfully recompiled workflow: %s", workflowPath)
+	return nil
 }
 
 // collectImports recursively collects all imported files (transitive closure)
