@@ -146,7 +146,14 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Extract lock filename for timestamp check
-	lockFilename := filepath.Base(strings.TrimSuffix(markdownPath, ".md") + ".lock.yml")
+	// Handle campaign orchestrators specially: example.campaign.g.md -> example.campaign.lock.yml
+	var lockFilename string
+	if strings.HasSuffix(markdownPath, ".campaign.g.md") {
+		baseName := strings.TrimSuffix(markdownPath, ".campaign.g.md")
+		lockFilename = filepath.Base(baseName + ".campaign.lock.yml")
+	} else {
+		lockFilename = filepath.Base(strings.TrimSuffix(markdownPath, ".md") + ".lock.yml")
+	}
 
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, and command position check)
 	var preActivationJobCreated bool
