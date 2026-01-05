@@ -3501,7 +3501,7 @@
             "type": "string"
           }
         },
-        "allow-github-references": {
+        "allowed-github-references": {
           "type": "array",
           "description": "List of allowed repositories for GitHub references (e.g., #123 or owner/repo#456). Use 'repo' to allow current repository. References to other repositories will be escaped with backticks. If not specified, all references are allowed.",
           "items": {

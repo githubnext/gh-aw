@@ -17,8 +17,8 @@ func TestAllowGitHubReferencesConfig(t *testing.T) {
 			name: "allow current repo only",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"allow-github-references": []any{"repo"},
-					"create-issue":            map[string]any{},
+					"allowed-github-references": []any{"repo"},
+					"create-issue":              map[string]any{},
 				},
 			},
 			expected: []string{"repo"},
@@ -27,8 +27,8 @@ func TestAllowGitHubReferencesConfig(t *testing.T) {
 			name: "allow multiple repos",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"allow-github-references": []any{"repo", "org/repo2", "org/repo3"},
-					"create-issue":            map[string]any{},
+					"allowed-github-references": []any{"repo", "org/repo2", "org/repo3"},
+					"create-issue":              map[string]any{},
 				},
 			},
 			expected: []string{"repo", "org/repo2", "org/repo3"},
@@ -37,14 +37,14 @@ func TestAllowGitHubReferencesConfig(t *testing.T) {
 			name: "no restrictions (empty array)",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"allow-github-references": []any{},
-					"create-issue":            map[string]any{},
+					"allowed-github-references": []any{},
+					"create-issue":              map[string]any{},
 				},
 			},
 			expected: nil, // Empty array results in nil
 		},
 		{
-			name: "no allow-github-references field",
+			name: "no allowed-github-references field",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
 					"create-issue": map[string]any{},

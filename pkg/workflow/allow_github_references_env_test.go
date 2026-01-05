@@ -26,13 +26,13 @@ permissions:
   contents: read
   issues: write
 safe-outputs:
-  allow-github-references: ["repo"]
+  allowed-github-references: ["repo"]
   create-issue: {}
 ---
 
 # Test Workflow
 
-Test workflow with allow-github-references.
+Test workflow with allowed-github-references.
 `,
 			expectedEnvVarPresent: true,
 			expectedEnvVarValue:   "repo",
@@ -47,7 +47,7 @@ permissions:
   contents: read
   issues: write
 safe-outputs:
-  allow-github-references: ["repo", "org/repo2", "org/repo3"]
+  allowed-github-references: ["repo", "org/repo2", "org/repo3"]
   create-issue: {}
 ---
 
@@ -59,7 +59,7 @@ Test workflow with multiple allowed repos.
 			expectedEnvVarValue:   "repo,org/repo2,org/repo3",
 		},
 		{
-			name: "env var not set when allow-github-references is absent",
+			name: "env var not set when allowed-github-references is absent",
 			workflow: `---
 on: push
 engine: copilot
@@ -73,7 +73,7 @@ safe-outputs:
 
 # Test Workflow
 
-Test workflow without allow-github-references.
+Test workflow without allowed-github-references.
 `,
 			expectedEnvVarPresent: false,
 		},
