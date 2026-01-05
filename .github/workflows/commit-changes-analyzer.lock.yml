@@ -163,7 +163,7 @@ jobs:
             const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3
+        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -330,7 +330,7 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.26.3"
+                  "ghcr.io/github/github-mcp-server:v0.27.0"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
