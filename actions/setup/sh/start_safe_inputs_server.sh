@@ -36,6 +36,8 @@ REQUIRED_DEPS=(
   "read_buffer.cjs"
   "mcp_handler_shell.cjs"
   "mcp_handler_python.cjs"
+  "mcp_handler_go.cjs"
+  "mcp_handler_javascript.cjs"
 )
 
 MISSING_FILES=()

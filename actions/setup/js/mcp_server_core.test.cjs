@@ -327,13 +327,17 @@ describe("mcp_server_core.cjs", () => {
     it("should load a sync handler from file path", async () => {
       const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
-      // Create a test handler file
+      // Create a test handler file that reads from stdin and writes to stdout
       const handlerPath = path.join(tempDir, "sync_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = function(args) {
-          return { result: "sync result: " + args.input };
-        };`
+        `let input = '';
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const args = JSON.parse(input);
+  const result = { result: "sync result: " + args.input };
+  console.log(JSON.stringify(result));
+});`
       );
 
       // Create tool with handler path
@@ -374,14 +378,18 @@ describe("mcp_server_core.cjs", () => {
     it("should load an async handler from file path", async () => {
       const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
-      // Create a test async handler file
+      // Create a test async handler file that reads from stdin and writes to stdout
       const handlerPath = path.join(tempDir, "async_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = async function(args) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-          return { result: "async result: " + args.input };
-        };`
+        `let input = '';
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', async () => {
+  const args = JSON.parse(input);
+  await new Promise(resolve => setTimeout(resolve, 10));
+  const result = { result: "async result: " + args.input };
+  console.log(JSON.stringify(result));
+});`
       );
 
       // Create tool with handler path
@@ -422,15 +430,16 @@ describe("mcp_server_core.cjs", () => {
     it("should handle handler that returns MCP format directly", async () => {
       const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
-      // Create a handler that returns MCP format
+      // Create a handler that reads from stdin and returns string to stdout
       const handlerPath = path.join(tempDir, "mcp_format_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = function(args) {
-          return {
-            content: [{ type: "text", text: "MCP format: " + args.input }]
-          };
-        };`
+        `let input = '';
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const args = JSON.parse(input);
+  console.log("MCP format: " + args.input);
+});`
       );
 
       const tools = [
@@ -458,21 +467,25 @@ describe("mcp_server_core.cjs", () => {
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0].result.content[0].text).toBe("MCP format: test");
+      // Non-JSON output is wrapped in stdout/stderr format
+      const parsed = JSON.parse(results[0].result.content[0].text);
+      expect(parsed.stdout).toContain("MCP format: test");
     });
 
     it("should handle handler with module.default export pattern", async () => {
       const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
-      // Create a handler with default export pattern
+      // Create a handler that reads from stdin (module.default doesn't apply to separate processes)
       const handlerPath = path.join(tempDir, "default_export_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = {
-          default: function(args) {
-            return { result: "default export: " + args.input };
-          }
-        };`
+        `let input = '';
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const args = JSON.parse(input);
+  const result = { result: "default export: " + args.input };
+  console.log(JSON.stringify(result));
+});`
       );
 
       const tools = [
@@ -543,9 +556,9 @@ describe("mcp_server_core.cjs", () => {
     it("should handle handler that is not a function", async () => {
       const { loadToolHandlers } = await import("./mcp_server_core.cjs");
 
-      // Create a handler file that exports an object, not a function
+      // Create a handler file - in separate process mode, it will create a handler function
       const handlerPath = path.join(tempDir, "not_a_function.cjs");
-      fs.writeFileSync(handlerPath, `module.exports = { notAFunction: true };`);
+      fs.writeFileSync(handlerPath, `console.log(JSON.stringify({ result: "ok" }));`);
 
       const tools = [
         {
@@ -558,20 +571,18 @@ describe("mcp_server_core.cjs", () => {
 
       loadToolHandlers(server, tools, tempDir);
 
-      // Handler should remain the original string (validation failed)
-      expect(tools[0].handler).toBe(handlerPath);
+      // Handler should be a function now (JavaScript handler always creates a function)
+      expect(typeof tools[0].handler).toBe("function");
     });
 
     it("should handle handler that throws error", async () => {
       const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
-      // Create a handler that throws an error
+      // Create a handler that exits with error code (separate process)
       const handlerPath = path.join(tempDir, "error_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = function(args) {
-          throw new Error("Handler error: " + args.input);
-        };`
+        `process.exit(1);`
       );
 
       const tools = [
@@ -600,7 +611,6 @@ describe("mcp_server_core.cjs", () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].error.code).toBe(-32603);
-      expect(results[0].error.message).toContain("Handler error: oops");
     });
 
     it("should resolve relative paths from basePath", async () => {
@@ -612,9 +622,13 @@ describe("mcp_server_core.cjs", () => {
       const handlerPath = path.join(subDir, "relative_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = function(args) {
-          return { result: "relative: " + args.input };
-        };`
+        `let input = '';
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const args = JSON.parse(input);
+  const result = { result: "relative: " + args.input };
+  console.log(JSON.stringify(result));
+});`
       );
 
       // Use relative path in tool definition
@@ -679,15 +693,11 @@ describe("mcp_server_core.cjs", () => {
     it("should handle handler returning non-serializable value (circular reference)", async () => {
       const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
-      // Create a handler that returns a circular reference
+      // Create a handler - in separate process, we just output string directly
       const handlerPath = path.join(tempDir, "circular_handler.cjs");
       fs.writeFileSync(
         handlerPath,
-        `module.exports = function(args) {
-          const obj = { input: args.input };
-          obj.self = obj; // Circular reference
-          return obj;
-        };`
+        `console.log("[object Object]");`
       );
 
       const tools = [
@@ -714,9 +724,10 @@ describe("mcp_server_core.cjs", () => {
         params: { name: "test_circular", arguments: { input: "test" } },
       });
 
-      // Should fall back to String() serialization for circular references
+      // Should handle non-JSON output (wrapped in stdout/stderr format)
       expect(results).toHaveLength(1);
-      expect(results[0].result.content[0].text).toBe("[object Object]");
+      const parsed = JSON.parse(results[0].result.content[0].text);
+      expect(parsed.stdout).toContain("[object Object]");
     });
 
     it("should load and execute shell script handler", async () => {

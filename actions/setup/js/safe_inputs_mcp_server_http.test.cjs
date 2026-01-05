@@ -30,7 +30,7 @@ describe("safe_inputs_mcp_server_http.cjs integration", () => {
       (req.on("error", reject), req.write(data), req.end());
     });
   }
-  (fs.writeFileSync(handlerPath, 'module.exports = function(args) {\n      return { echo: args.message || "empty", timestamp: Date.now() };\n    };'),
+  (fs.writeFileSync(handlerPath, 'let input = "";\nprocess.stdin.on("data", chunk => { input += chunk; });\nprocess.stdin.on("end", () => {\n  const args = JSON.parse(input);\n  const result = { echo: args.message || "empty", timestamp: Date.now() };\n  console.log(JSON.stringify(result));\n});'),
     fs.writeFileSync(
       configPath,
       JSON.stringify({
