@@ -269,7 +269,7 @@ All action scripts are copied from `actions/setup/js/*.cjs` and `actions/setup/s
 | `DefaultCopilotVersion` | `Version` | `"0.0.374"` | GitHub Copilot CLI version |
 | `DefaultClaudeCodeVersion` | `Version` | `"2.0.76"` | Claude Code CLI version |
 | `DefaultCodexVersion` | `Version` | `"0.77.0"` | OpenAI Codex CLI version |
-| `DefaultGitHubMCPServerVersion` | `Version` | `"v0.26.3"` | GitHub MCP server Docker image |
+| `DefaultGitHubMCPServerVersion` | `Version` | `"v0.27.0"` | GitHub MCP server Docker image |
 | `DefaultFirewallVersion` | `Version` | `"v0.7.0"` | gh-aw-firewall (AWF) binary |
 | `DefaultPlaywrightMCPVersion` | `Version` | `"0.0.54"` | @playwright/mcp package |
 | `DefaultPlaywrightBrowserVersion` | `Version` | `"v1.57.0"` | Playwright browser Docker image |
