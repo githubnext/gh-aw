@@ -42,9 +42,7 @@ run-name: "Campaign Generator"
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && (startsWith(github.event.issue.title, '[Campaign]') ||
-      startsWith(github.event.issue.title, '[Agentic Campaign]') || startsWith(github.event.issue.title, '[New Agentic Campaign]'))
+    if: (needs.pre_activation.outputs.activated == 'true') && (startsWith(github.event.issue.title, '[New Agentic Campaign]'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1078,9 +1076,7 @@ jobs:
           if-no-files-found: ignore
 
   pre_activation:
-    if: >
-      startsWith(github.event.issue.title, '[Campaign]') || startsWith(github.event.issue.title, '[Agentic Campaign]') ||
-      startsWith(github.event.issue.title, '[New Agentic Campaign]')
+    if: startsWith(github.event.issue.title, '[New Agentic Campaign]')
     runs-on: ubuntu-slim
     permissions:
       contents: read
