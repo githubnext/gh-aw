@@ -231,10 +231,10 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		if status, err := checkLockFileStatus(workflowMarkdownPath); err == nil {
 			if status.Missing {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file is missing"))
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run 'gh aw compile %s' to create the lock file", workflowIdOrName)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run 'gh aw run %s --push' to automatically compile and push the lock file", workflowIdOrName)))
 			} else if status.Outdated {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file is outdated (workflow file is newer)"))
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run 'gh aw compile %s' to update the lock file", workflowIdOrName)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run 'gh aw run %s --push' to automatically compile and push the lock file", workflowIdOrName)))
 			}
 		}
 	}
