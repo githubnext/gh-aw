@@ -137,33 +137,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "=== Starting bead claim process ==="
-          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          
-          # Sync beads data from repository
-          echo "Syncing beads data..."
-          bd --no-daemon --no-db sync
-          echo "✓ Beads data synced"
-          
-          # Check if beads are initialized
-          echo "Checking for .beads directory..."
-          if [ ! -d ".beads" ]; then
-            echo "id=" >> "$GITHUB_OUTPUT"
-            echo "title=" >> "$GITHUB_OUTPUT"
-            echo "description=" >> "$GITHUB_OUTPUT"
-            echo "status=" >> "$GITHUB_OUTPUT"
-            echo "⚠️  No beads found - repository not initialized with beads"
-            exit 0
-          fi
-          echo "✓ .beads directory found"
-          
-          # Get ready beads (without daemon)
           echo "Fetching ready beads..."
           READY_BEADS=$(bd ready --json --no-daemon 2>/dev/null || echo "[]")
-          BEAD_COUNT=$(echo "$READY_BEADS" | jq 'length')
-          
-          echo "✓ Found $BEAD_COUNT ready beads"
-          
+          BEAD_COUNT=$(echo "$READY_BEADS" | jq 'length')          
+          echo "✓ Found $BEAD_COUNT ready beads"          
           if [ "$BEAD_COUNT" -gt 0 ]; then
             # Get the first ready bead
             echo "Processing first ready bead..."
@@ -195,10 +172,8 @@ jobs:
             echo "description=" >> "$GITHUB_OUTPUT"
             echo "status=none" >> "$GITHUB_OUTPUT"
             echo "ℹ️  No ready beads to work on"
-          fi
-          
-          echo "=== Bead claim process completed ==="
-      
+          fi        
+          echo "=== Bead claim process completed ==="      
       - name: Sync bead changes
         if: steps.claim_bead.outputs.id != ''
         run: |
@@ -210,7 +185,7 @@ jobs:
           echo "=== Bead sync completed ==="
   
   release_bead:
-    needs: [bead, agent]
+    needs: [bead, agent, conclusion]
     if: always() && needs.bead.outputs.id != ''
     runs-on: ubuntu-latest
     permissions:
