@@ -198,9 +198,9 @@ func ensureAgenticCampaignDesignerAgent(verbose bool, skipInstructions bool) err
 	return ensureAgentFromTemplate("agentic-campaign-designer.agent.md", agenticCampaignDesignerAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureUpgradeAgenticWorkflowAgent ensures that .github/agents/upgrade-agentic-workflow.agent.md contains the upgrade workflow agent
+// ensureUpgradeAgenticWorkflowAgent ensures that .github/agents/upgrade-agentic-workflows.md contains the upgrade workflow agent
 func ensureUpgradeAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
-	return ensureAgentFromTemplate("upgrade-agentic-workflow.agent.md", upgradeAgenticWorkflowAgentTemplate, verbose, skipInstructions)
+	return ensureAgentFromTemplate("upgrade-agentic-workflows.md", upgradeAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
 // deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists

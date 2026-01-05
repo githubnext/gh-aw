@@ -54,7 +54,7 @@ func TestEnsureUpgradeAgenticWorkflowAgent(t *testing.T) {
 			}
 
 			agentsDir := filepath.Join(tempDir, ".github", "agents")
-			upgradeAgenticWorkflowAgentPath := filepath.Join(agentsDir, "upgrade-agentic-workflow.agent.md")
+			upgradeAgenticWorkflowAgentPath := filepath.Join(agentsDir, "upgrade-agentic-workflows.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
@@ -122,7 +122,7 @@ func TestEnsureUpgradeAgenticWorkflowAgent_WithSkipInstructionsTrue(t *testing.T
 
 	// Check that file was NOT created
 	agentsDir := filepath.Join(tempDir, ".github", "agents")
-	upgradeAgenticWorkflowAgentPath := filepath.Join(agentsDir, "upgrade-agentic-workflow.agent.md")
+	upgradeAgenticWorkflowAgentPath := filepath.Join(agentsDir, "upgrade-agentic-workflows.md")
 	if _, err := os.Stat(upgradeAgenticWorkflowAgentPath); !os.IsNotExist(err) {
 		t.Fatalf("Expected upgrade agentic workflow agent file to NOT exist when skipInstructions=true")
 	}
