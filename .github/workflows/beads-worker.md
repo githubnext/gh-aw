@@ -42,6 +42,19 @@ safe-outputs:
           required: false
           type: string
       steps:
+        - name: Validate bead ID
+          env:
+            INPUT_BEAD_ID: ${{ inputs.bead_id }}
+            CLAIMED_BEAD_ID: ${{ needs.bead.outputs.id }}
+          run: |
+            # Ensure the bead_id matches the claimed bead
+            if [ "$INPUT_BEAD_ID" != "$CLAIMED_BEAD_ID" ]; then
+              echo "Error: Cannot update bead '$INPUT_BEAD_ID'"
+              echo "This workflow can only update the claimed bead: '$CLAIMED_BEAD_ID'"
+              exit 1
+            fi
+            echo "Validation passed: Updating claimed bead $CLAIMED_BEAD_ID"
+        
         - name: Checkout repository
           uses: actions/checkout@v5
           with:
@@ -74,6 +87,8 @@ safe-outputs:
         
         - name: Sync bead changes
           run: |
+            # Sync changes to repository
+            bd sync
             # Sync changes to repository
             bd sync
 jobs:

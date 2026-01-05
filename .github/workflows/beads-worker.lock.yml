@@ -898,6 +898,18 @@ jobs:
         run: |
           find "/tmp/gh-aw/safe-jobs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent-output" >> "$GITHUB_ENV"
+      - name: Validate bead ID
+        run: |
+          # Ensure the bead_id matches the claimed bead
+          if [ "$INPUT_BEAD_ID" != "$CLAIMED_BEAD_ID" ]; then
+            echo "Error: Cannot update bead '$INPUT_BEAD_ID'"
+            echo "This workflow can only update the claimed bead: '$CLAIMED_BEAD_ID'"
+            exit 1
+          fi
+          echo "Validation passed: Updating claimed bead $CLAIMED_BEAD_ID"
+        env:
+          CLAIMED_BEAD_ID: ${{ needs.bead.outputs.id }}
+          INPUT_BEAD_ID: ${{ inputs.bead_id }}
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -927,6 +939,8 @@ jobs:
           STATE: ${{ inputs.state }}
       - name: Sync bead changes
         run: |
+          # Sync changes to repository
+          bd sync
           # Sync changes to repository
           bd sync
 
