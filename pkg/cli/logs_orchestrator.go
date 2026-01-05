@@ -729,18 +729,9 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Download interrupted: %v", err)))
 	}
 
-	// Clear progress bar and show final message
+	// Clear progress bar silently - detailed summary shown at the end
 	if progressBar != nil {
 		fmt.Fprint(os.Stderr, "\r\033[K") // Clear the line
-		successCount := 0
-		for _, result := range results {
-			// Count as successful if: no error AND not skipped
-			// This includes both newly downloaded and cached runs
-			if result.Error == nil && !result.Skipped {
-				successCount++
-			}
-		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Processed %d/%d runs successfully", successCount, totalRuns)))
 	}
 
 	if verbose {

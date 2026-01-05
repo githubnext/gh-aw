@@ -244,9 +244,9 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
 	}
 
-	// Stop spinner with success message
+	// Stop spinner silently - don't show per-iteration messages
 	if !verbose {
-		spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflow runs", len(runs)))
+		spinner.Stop()
 	}
 
 	// Store the total count fetched from API before filtering
