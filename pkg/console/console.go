@@ -330,6 +330,17 @@ func FormatErrorMessage(message string) string {
 	return applyStyle(styles.Error, "✗ ") + message
 }
 
+// FormatSectionHeader formats a section header with proper styling
+// This is used for major sections in CLI output (e.g., "Overview", "Metrics")
+func FormatSectionHeader(header string) string {
+	if isTTY() {
+		// TTY mode: Use styled header with underline
+		return applyStyle(styles.Header, header)
+	}
+	// Non-TTY mode: Simple header text
+	return header
+}
+
 // FormatErrorWithSuggestions formats an error message with actionable suggestions
 func FormatErrorWithSuggestions(message string, suggestions []string) string {
 	var output strings.Builder
