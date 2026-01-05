@@ -49,7 +49,7 @@ func compileSpecificFiles(
 	var errorMessages []string
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
-	var hasCampaignFiles bool
+	var campaignFiles []string
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -89,7 +89,7 @@ func compileSpecificFiles(
 
 		// Handle campaign spec files separately
 		if strings.HasSuffix(resolvedFile, ".campaign.md") {
-			hasCampaignFiles = true
+			campaignFiles = append(campaignFiles, resolvedFile)
 			campaignResult, success := processCampaignSpec(
 				compiler, resolvedFile, config.Verbose, config.JSONOutput,
 				config.NoEmit, false, false, false, // Disable per-file security tools
@@ -173,7 +173,7 @@ func compileSpecificFiles(
 	displayScheduleWarnings(compiler, config.JSONOutput)
 
 	// Post-processing
-	if err := runPostProcessing(compiler, workflowDataList, config, compiledCount, hasCampaignFiles); err != nil {
+	if err := runPostProcessing(compiler, workflowDataList, config, compiledCount, campaignFiles); err != nil {
 		return workflowDataList, err
 	}
 
@@ -424,7 +424,7 @@ func runPostProcessing(
 	workflowDataList []*workflow.WorkflowData,
 	config CompileConfig,
 	successCount int,
-	hasCampaignFiles bool,
+	campaignFiles []string,
 ) error {
 	// Get action cache
 	actionCache := compiler.GetSharedActionCache()
@@ -447,8 +447,9 @@ func runPostProcessing(
 
 	// Validate campaigns only if we're compiling campaign files
 	// When compiling specific non-campaign workflows, skip campaign validation
-	if hasCampaignFiles {
-		if err := validateCampaignsWrapper(config.WorkflowDir, config.Verbose, config.Strict); err != nil {
+	// When compiling specific campaign files, validate only those campaign files
+	if len(campaignFiles) > 0 {
+		if err := validateCampaignsWrapper(config.WorkflowDir, config.Verbose, config.Strict, campaignFiles); err != nil {
 			if config.Strict {
 				return err
 			}
@@ -497,7 +498,7 @@ func runPostProcessingForDirectory(
 	}
 
 	// Validate campaigns
-	if err := validateCampaignsWrapper(config.WorkflowDir, config.Verbose, config.Strict); err != nil {
+	if err := validateCampaignsWrapper(config.WorkflowDir, config.Verbose, config.Strict, nil); err != nil {
 		if config.Strict {
 			return err
 		}
