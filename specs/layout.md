@@ -1,11 +1,11 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2025-12-30
+> Last updated: 2026-01-05
 
 ## Overview
 
-This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). This specification is derived from analyzing **128 workflow lock files** in `.github/workflows/`, along with Go source code in `pkg/workflow/` and JavaScript code in `actions/setup/js/`.
+This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). This specification is derived from analyzing **127 workflow lock files** in `.github/workflows/`, along with Go source code in `pkg/workflow/` and JavaScript code in `actions/setup/js/`.
 
 ## GitHub Actions
 
@@ -30,7 +30,7 @@ Common GitHub Actions used across workflows, pinned to specific commit SHAs for 
 | `super-linter/super-linter` | `2bdd90ed` | Runs code linting across multiple languages | Code quality enforcement |
 | `anchore/sbom-action` | `fbfd9c6c` | Generates Software Bill of Materials | Security and compliance |
 | `github/stale-repos` | `a21e5556` | Identifies stale repositories | Repository maintenance |
-| `githubnext/gh-aw/actions/setup` | `523f6cfa` | Sets up gh-aw environment | **Local action** - workflow setup |
+| `githubnext/gh-aw/actions/setup` | `623e612f` | Sets up gh-aw environment | **Local action** - workflow setup |
 | `./actions/setup` | N/A | Local setup action | Used to reference local action in repository |
 
 ## Artifact Names
@@ -59,6 +59,8 @@ Core artifacts uploaded/downloaded between workflow jobs:
 | `cache-memory-<ID>` | Directory | Named cache memory | Used when cache.ID is specified |
 | `cache-memory-focus-areas` | File | Cache memory focus areas | Specific cache for focus areas |
 | `repo-memory-default` | Directory | Default repository memory | Persistent memory across workflow runs |
+| `repo-memory-campaigns` | Directory | Campaign repository memory | Persistent memory for campaign workflows |
+| `repo-memory-<ID>` | Directory | Custom repo memory | Named repository memory with custom ID |
 
 ### Specialized Artifacts
 
@@ -103,6 +105,9 @@ Standard job names across workflows (using snake_case convention):
 | `check_ci_status` | CI status verification | Checks CI pipeline status |
 | `check_external_user` | External contributor check | Validates external contributors |
 | `ast_grep` | AST-based code search | Structural code analysis |
+| `bead` | Bead workflow execution | Beads-based agent workflow |
+| `bead_update_state` | Bead state update | Updates bead execution state |
+| `release_bead` | Bead release workflow | Releases bead artifacts |
 
 ## File Paths
 
@@ -164,10 +169,28 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 | `/tmp/gh-aw/safe-jobs/` | Safe job data | Safe output job artifacts |
 | `/tmp/gh-aw/safeoutputs/` | Safe outputs directory | Safe output execution data |
 | `/tmp/gh-aw/safeoutputs/assets/` | Safe output assets | Assets for safe outputs |
+| `/tmp/gh-aw/safeoutputs/config.json` | Safe outputs config | MCP server configuration |
+| `/tmp/gh-aw/safeoutputs/tools.json` | Safe outputs tools | Tool definitions for MCP |
+| `/tmp/gh-aw/safeoutputs/validation.json` | Safe outputs validation | Validation rules |
+| `/tmp/gh-aw/safeoutputs/mcp-server.cjs` | Safe outputs MCP server | MCP server implementation |
+| `/tmp/gh-aw/safeoutputs/outputs.jsonl` | Safe outputs log | JSONL output log |
 | `/tmp/gh-aw/sandbox/agent/logs/` | Agent sandbox logs | Sandboxed agent execution logs |
 | `/tmp/gh-aw/sandbox/firewall/logs/` | Firewall sandbox logs | Sandboxed firewall logs |
 | `/tmp/gh-aw/threat-detection/` | Threat detection data | Security analysis data |
 | `/tmp/gh-aw/threat-detection/detection.log` | Threat detection log | Security scan log |
+| `/tmp/gh-aw/session-data/` | Session data directory | Stores session information |
+| `/tmp/gh-aw/session-data/sessions-list.json` | Session list | List of active sessions |
+| `/tmp/gh-aw/session-data/sessions-schema.json` | Session schema | JSON schema for sessions |
+| `/tmp/gh-aw/session-data/logs/` | Session logs | Log files for sessions |
+| `/tmp/gh-aw/weekly-issues-data/` | Weekly issues data | Data for weekly issue reports |
+| `/tmp/gh-aw/weekly-issues-data/issues.json` | Issues JSON | Collected issues data |
+| `/tmp/gh-aw/weekly-issues-data/issues-schema.json` | Issues schema | JSON schema for issues |
+| `/tmp/gh-aw/workflow-logs` | Workflow logs | Aggregated workflow logs |
+| `/tmp/gh-aw/test-results.json` | Test results | JSON test results output |
+| `/tmp/gh-aw/super-linter.log` | Super Linter log | Linting output log |
+| `/tmp/gh-aw/prompts/` | Prompt templates | Template prompts (xpia_prompt.md, temp_folder_prompt.md) |
+| `/tmp/gh-aw/scripts` | Runtime scripts | Temporary scripts directory |
+| `/tmp/gh-aw/actions/` | Runtime action files | Copied from actions/setup/ at runtime (*.cjs, *.sh) |
 
 ### SBOM Output Paths
 
@@ -175,6 +198,65 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 |------|-------------|---------|
 | `sbom.cdx.json` | CycloneDX SBOM | CycloneDX format SBOM output |
 | `sbom.spdx.json` | SPDX SBOM | SPDX format SBOM output |
+
+### Runtime Action Scripts (`/tmp/gh-aw/actions/`)
+
+All action scripts are copied from `actions/setup/js/*.cjs` and `actions/setup/sh/*.sh` to `/tmp/gh-aw/actions/` at runtime by the setup action.
+
+#### JavaScript Action Scripts (`.cjs`)
+
+| Script | Description | Context |
+|--------|-------------|---------|
+| `add_reaction_and_edit_comment.cjs` | Adds reactions and edits comments | Safe-output handler |
+| `assign_to_agent.cjs` | Assigns issues to agents | GitHub API integration |
+| `check_command_position.cjs` | Validates command position in comments | Activation check |
+| `check_membership.cjs` | Checks team membership | Authorization |
+| `check_skip_if_match.cjs` | Checks skip-if-match patterns | Activation filter |
+| `check_skip_if_no_match.cjs` | Checks skip-if-no-match patterns | Activation filter |
+| `check_stop_time.cjs` | Validates workflow stop time | Time-based activation |
+| `check_workflow_timestamp_api.cjs` | Checks workflow timestamps via API | Activation validation |
+| `checkout_pr_branch.cjs` | Checks out pull request branch | Git operations |
+| `collect_ndjson_output.cjs` | Collects NDJSON output | Data aggregation |
+| `compute_text.cjs` | Computes text transformations | Text processing |
+| `create_agent_task.cjs` | Creates agent tasks | Task orchestration |
+| `determine_automatic_lockdown.cjs` | Determines lockdown status | Security |
+| `generate_workflow_overview.cjs` | Generates workflow overview | Documentation |
+| `interpolate_prompt.cjs` | Interpolates prompt templates | Prompt processing |
+| `lock-issue.cjs` | Locks GitHub issues | Issue management |
+| `unlock-issue.cjs` | Unlocks GitHub issues | Issue management |
+| `missing_tool.cjs` | Reports missing tools | Safe-output handler |
+| `noop.cjs` | No-operation handler | Safe-output handler |
+| `notify_comment_error.cjs` | Notifies comment errors | Error handling |
+| `parse_claude_log.cjs` | Parses Claude engine logs | Log parsing |
+| `parse_codex_log.cjs` | Parses Codex engine logs | Log parsing |
+| `parse_copilot_log.cjs` | Parses Copilot engine logs | Log parsing |
+| `parse_custom_log.cjs` | Parses custom engine logs | Log parsing |
+| `parse_firewall_logs.cjs` | Parses firewall logs | Security monitoring |
+| `parse_safe_inputs_logs.cjs` | Parses safe inputs logs | Input validation |
+| `parse_threat_detection_results.cjs` | Parses threat detection results | Security analysis |
+| `push_repo_memory.cjs` | Pushes repository memory | Memory persistence |
+| `redact_secrets.cjs` | Redacts secrets from logs | Security |
+| `safe_output_handler_manager.cjs` | Manages safe output handlers | Safe-output orchestration |
+| `setup_globals.cjs` | Sets up global configuration | Environment setup |
+| `setup_threat_detection.cjs` | Sets up threat detection | Security initialization |
+| `substitute_placeholders.cjs` | Substitutes placeholders | Template processing |
+| `update_project.cjs` | Updates GitHub projects | Project management |
+| `upload_assets.cjs` | Uploads assets | Asset management |
+| `validate_errors.cjs` | Validates error outputs | Error handling |
+
+#### Shell Action Scripts (`.sh`)
+
+| Script | Description | Context |
+|--------|-------------|---------|
+| `clone_repo_memory_branch.sh` | Clones repo-memory branch | Memory initialization |
+| `create_cache_memory_dir.sh` | Creates cache-memory directory | Cache setup |
+| `create_gh_aw_tmp_dir.sh` | Creates /tmp/gh-aw/ directory | Temp directory setup |
+| `create_prompt_first.sh` | Creates initial prompt file | Prompt initialization |
+| `download_docker_images.sh` | Downloads Docker images | Container setup |
+| `print_prompt_summary.sh` | Prints prompt summary | Debugging |
+| `start_safe_inputs_server.sh` | Starts safe-inputs server | Safe-inputs initialization |
+| `validate_multi_secret.sh` | Validates multiple secrets | Secret validation |
+| `verify_mcp_gateway_health.sh` | Verifies MCP gateway health | Health check |
 
 ## Constants and Patterns
 
@@ -220,6 +302,16 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 | `PreActivationJobName` | `JobName` | `"pre_activation"` | Pre-activation job name |
 | `DetectionJobName` | `JobName` | `"detection"` | Detection job name |
 
+#### Step ID Constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `CheckMembershipStepID` | `StepID` | `"check_membership"` | Checks team membership |
+| `CheckStopTimeStepID` | `StepID` | `"check_stop_time"` | Validates stop time |
+| `CheckSkipIfMatchStepID` | `StepID` | `"check_skip_if_match"` | Skip-if-match validation |
+| `CheckSkipIfNoMatchStepID` | `StepID` | `"check_skip_if_no_match"` | Skip-if-no-match validation |
+| `CheckCommandPositionStepID` | `StepID` | `"check_command_position"` | Command position validation |
+
 #### Other Constants
 
 | Constant | Type | Value | Description |
@@ -230,6 +322,35 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 | `ExpressionBreakThreshold` | `LineLength` | `100` | Threshold for breaking long lines |
 | `DefaultActivationJobRunnerImage` | `string` | `"ubuntu-slim"` | Default runner for activation jobs |
 | `SafeOutputsMCPServerID` | `string` | `"safeoutputs"` | Safe-outputs MCP server identifier |
+| `SafeInputsMCPServerID` | `string` | `"safeinputs"` | Safe-inputs MCP server identifier |
+| `SafeInputsMCPVersion` | `string` | `"1.0.0"` | Safe-inputs MCP server version |
+
+#### Feature Flag Constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `SafeInputsFeatureFlag` | `FeatureFlag` | `"safe-inputs"` | Safe-inputs feature flag |
+| `MCPGatewayFeatureFlag` | `FeatureFlag` | `"mcp-gateway"` | MCP gateway feature flag |
+| `SandboxRuntimeFeatureFlag` | `FeatureFlag` | `"sandbox-runtime"` | Sandbox runtime feature flag |
+
+#### Pre-Activation Output Names
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `IsTeamMemberOutput` | `string` | `"is_team_member"` | Team membership check output |
+| `StopTimeOkOutput` | `string` | `"stop_time_ok"` | Stop time validation output |
+| `SkipCheckOkOutput` | `string` | `"skip_check_ok"` | Skip-if-match check output |
+| `SkipNoMatchCheckOkOutput` | `string` | `"skip_no_match_check_ok"` | Skip-if-no-match check output |
+| `CommandPositionOkOutput` | `string` | `"command_position_ok"` | Command position check output |
+| `ActivatedOutput` | `string` | `"activated"` | Activation status output |
+
+#### Path Constants (Go)
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `ScriptsBasePath` | `string` | `"/tmp/gh-aw/scripts"` | Runtime scripts directory |
+| `RedactedURLsLogPath` | `string` | `"/tmp/gh-aw/redacted-urls.log"` | Redacted URLs log path |
+| `SafeInputsDirectory` | `string` | `"/tmp/gh-aw/safe-inputs"` | Safe inputs directory |
 
 #### Timeout Constants
 
@@ -459,13 +580,18 @@ jobs:
 
 This specification was generated by analyzing:
 
-- **Lock files analyzed**: 128 workflow files
+- **Lock files analyzed**: 127 workflow files
 - **Actions cataloged**: 18 unique GitHub Actions with pinned SHAs
-- **Artifacts documented**: 40+ artifact patterns (standard, memory, specialized)
-- **Job patterns found**: 24 common job names
-- **File paths listed**: 60+ paths across workflows, source, and temporary locations
-- **Go constants**: 50+ version, timeout, and configuration constants
+- **Artifacts documented**: 45+ artifact patterns (standard, memory, specialized)
+- **Job patterns found**: 27 common job names
+- **File paths listed**: 90+ paths across workflows, source, and temporary locations
+- **Runtime action scripts**: 40+ JavaScript scripts and 9 shell scripts
+- **Go constants**: 70+ version, timeout, path, and configuration constants
 - **JavaScript patterns**: Common path construction and import patterns
+- **Environment variables**: 10+ workflow and model configuration variables
+- **Step IDs**: 5 pre-activation step identifiers
+- **Feature flags**: 3 feature flag constants
+- **GitHub expressions**: 50+ allowed expressions for workflow conditions
 
 ### Source Analysis
 
@@ -492,4 +618,4 @@ To regenerate this specification, run the Layout Specification Maintainer workfl
 ---
 
 *This document is automatically maintained by the Layout Specification Maintainer workflow.*
-*Generated by scanning 128 workflow files and associated Go/JavaScript source code.*
+*Generated by scanning 127 workflow files and associated Go/JavaScript source code.*
