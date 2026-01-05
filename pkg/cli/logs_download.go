@@ -561,7 +561,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Artifact file count: %d", fileCount)))
 			for _, f := range firstFiles {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("  • " + f))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("  • "+f))
 			}
 			if fileCount > len(firstFiles) {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("  … %d more files omitted", fileCount-len(firstFiles))))
