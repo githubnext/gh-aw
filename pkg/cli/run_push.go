@@ -295,6 +295,31 @@ func pushWorkflowFiles(workflowName string, files []string, verbose bool) error 
 	commitMessage := fmt.Sprintf("Updated agentic workflow %s", workflowName)
 	runPushLog.Printf("Creating commit with message: %s", commitMessage)
 
+	// Show what will be committed and ask for confirmation
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Ready to commit and push the following files:"))
+	for _, file := range files {
+		fmt.Fprintf(os.Stderr, "  - %s\n", file)
+	}
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Commit message: %s\n"), commitMessage)
+	fmt.Fprintln(os.Stderr, "")
+
+	// Ask for confirmation
+	fmt.Fprint(os.Stderr, console.FormatPromptMessage("Do you want to commit and push these changes? [y/N]: "))
+
+	var response string
+	_, err := fmt.Scanln(&response)
+	if err != nil {
+		response = "n" // Default to no on error
+	}
+
+	response = strings.ToLower(strings.TrimSpace(response))
+	if response != "y" && response != "yes" {
+		runPushLog.Print("Push cancelled by user")
+		return fmt.Errorf("push cancelled by user")
+	}
+
 	// Commit the changes
 	cmd = exec.Command("git", "commit", "-m", commitMessage)
 	if output, err := cmd.CombinedOutput(); err != nil {
