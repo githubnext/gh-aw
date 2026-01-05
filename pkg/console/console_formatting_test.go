@@ -370,6 +370,51 @@ func TestFormatErrorMessage(t *testing.T) {
 	}
 }
 
+func TestFormatSectionHeader(t *testing.T) {
+	tests := []struct {
+		name     string
+		header   string
+		expected string
+	}{
+		{
+			name:     "simple header",
+			header:   "Overview",
+			expected: "Overview",
+		},
+		{
+			name:     "header with spaces",
+			header:   "Key Findings",
+			expected: "Key Findings",
+		},
+		{
+			name:     "empty header",
+			header:   "",
+			expected: "",
+		},
+		{
+			name:     "header with numbers",
+			header:   "Section 1: Configuration",
+			expected: "Section 1: Configuration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatSectionHeader(tt.header)
+
+			// Should contain the header text
+			if !strings.Contains(result, tt.expected) {
+				t.Errorf("FormatSectionHeader() = %v, should contain %v", result, tt.expected)
+			}
+
+			// Result should not be empty unless input was empty
+			if tt.header != "" && result == "" {
+				t.Errorf("FormatSectionHeader() returned empty string for non-empty input")
+			}
+		})
+	}
+}
+
 // Edge case tests for all formatting functions
 func TestFormattingFunctionsWithSpecialCharacters(t *testing.T) {
 	specialChars := "!@#$%^&*()[]{}|\\:;\"'<>,.?/`~"
