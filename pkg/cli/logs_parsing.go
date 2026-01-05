@@ -171,7 +171,8 @@ func findAgentOutputFile(logDir string) (string, bool) {
 // findAgentLogFile searches for agent logs within the logDir.
 // It uses engine.GetLogFileForParsing() to determine which log file to use:
 //   - If GetLogFileForParsing() returns a non-empty value that doesn't point to agent-stdio.log,
-//     look for files in the "agent_output" artifact directory
+//     look for files in the "agent_output" artifact directory (before flattening)
+//     or in the flattened location (after flattening)
 //   - Otherwise, look for the "agent-stdio.log" artifact file
 //
 // Returns the first path found and a boolean indicating success.
@@ -180,9 +181,9 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 	logFileForParsing := engine.GetLogFileForParsing()
 
 	// If the engine specifies a log file that isn't the default agent-stdio.log,
-	// look in the agent_output artifact directory
+	// look in the agent_output artifact directory or flattened location
 	if logFileForParsing != "" && logFileForParsing != defaultAgentStdioLogPath {
-		// Check for agent_output directory (artifact)
+		// Check for agent_output directory (artifact, before flattening)
 		agentOutputDir := filepath.Join(logDir, "agent_output")
 		if fileutil.DirExists(agentOutputDir) {
 			// Find the first file in this directory
@@ -199,6 +200,35 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 			})
 			if foundFile != "" {
 				return foundFile, true
+			}
+		}
+
+		// Check for flattened location (after flattening)
+		// The engine's log path is absolute (e.g., /tmp/gh-aw/sandbox/agent/logs/)
+		// After flattening, it's at logDir/sandbox/agent/logs/
+		// Strip /tmp/gh-aw/ prefix to get the relative path
+		const tmpGhAwPrefix = "/tmp/gh-aw/"
+		if strings.HasPrefix(logFileForParsing, tmpGhAwPrefix) {
+			relPath := strings.TrimPrefix(logFileForParsing, tmpGhAwPrefix)
+			flattenedDir := filepath.Join(logDir, relPath)
+			logsParsingLog.Printf("Checking flattened location for logs: %s", flattenedDir)
+			if fileutil.DirExists(flattenedDir) {
+				// Find the first .log file in this directory
+				var foundFile string
+				_ = filepath.Walk(flattenedDir, func(path string, info os.FileInfo, err error) error {
+					if err != nil || info == nil {
+						return nil
+					}
+					if !info.IsDir() && strings.HasSuffix(info.Name(), ".log") && foundFile == "" {
+						foundFile = path
+						logsParsingLog.Printf("Found session log file: %s", path)
+						return errors.New("stop") // sentinel to stop walking early
+					}
+					return nil
+				})
+				if foundFile != "" {
+					return foundFile, true
+				}
 			}
 		}
 	}

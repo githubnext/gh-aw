@@ -1260,6 +1260,49 @@ func TestFindAgentLogFile(t *testing.T) {
 		}
 	})
 
+	// Test Copilot engine with flattened agent_outputs artifact
+	// After flattening, session logs are at sandbox/agent/logs/ in the root
+	t.Run("copilot_engine_flattened_location", func(t *testing.T) {
+		copilotDir := filepath.Join(tmpDir, "copilot_flattened_test")
+		err := os.MkdirAll(copilotDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create test directory: %v", err)
+		}
+
+		// Create flattened session logs directory (after flattenAgentOutputsArtifact)
+		sessionLogsDir := filepath.Join(copilotDir, "sandbox", "agent", "logs")
+		err = os.MkdirAll(sessionLogsDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create flattened session logs directory: %v", err)
+		}
+
+		// Create a test session log file
+		sessionLog := filepath.Join(sessionLogsDir, "session-test-123.log")
+		err = os.WriteFile(sessionLog, []byte("test session log content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create session log file: %v", err)
+		}
+
+		copilotEngine := workflow.NewCopilotEngine()
+
+		// Test findAgentLogFile - should find the session log in flattened location
+		found, ok := findAgentLogFile(copilotDir, copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Copilot engine in flattened location")
+		}
+
+		// Should find the session log file
+		if !strings.HasSuffix(found, "session-test-123.log") {
+			t.Errorf("Expected to find session-test-123.log, but found %s", found)
+		}
+
+		// Verify the path is correct
+		expectedPath := filepath.Join(copilotDir, "sandbox", "agent", "logs", "session-test-123.log")
+		if found != expectedPath {
+			t.Errorf("Expected path %s, got %s", expectedPath, found)
+		}
+	})
+
 	// Test 2: Claude engine with agent-stdio.log
 	t.Run("Claude engine uses agent-stdio.log", func(t *testing.T) {
 		claudeEngine := workflow.NewClaudeEngine()
