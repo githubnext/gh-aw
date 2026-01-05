@@ -22,8 +22,8 @@ import (
 var runLog = logger.New("cli:run_command")
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, inputs []string, verbose bool) error {
-	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, wait=%v, inputs=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, waitForCompletion, inputs)
+func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, waitForCompletion bool, inputs []string, verbose bool) error {
+	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, push=%v, wait=%v, inputs=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, push, waitForCompletion, inputs)
 
 	// Check context cancellation at the start
 	select {
@@ -223,6 +223,32 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 
 	if verbose {
 		fmt.Printf("Using lock file: %s\n", lockFileName)
+	}
+
+	// Handle --push flag: commit and push workflow files before running
+	if push {
+		// Only valid for local workflows
+		if repoOverride != "" {
+			return fmt.Errorf("--push flag is only supported for local workflows, not remote repositories")
+		}
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Collecting workflow files for push..."))
+		}
+
+		// Collect the workflow .md file, .lock.yml file, and transitive imports
+		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
+		files, err := collectWorkflowFiles(workflowMarkdownPath, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to collect workflow files: %w", err)
+		}
+
+		// Commit and push the files
+		if err := pushWorkflowFiles(workflowIdOrName, files, verbose); err != nil {
+			return fmt.Errorf("failed to push workflow files: %w", err)
+		}
+
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully pushed %d file(s) for workflow %s", len(files), workflowIdOrName)))
 	}
 
 	// Handle secret pushing if requested
@@ -472,7 +498,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, inputs []string, verbose bool) error {
+func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, inputs []string, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -535,7 +561,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, waitForCompletion, inputs, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, waitForCompletion, inputs, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
