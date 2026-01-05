@@ -1,11 +1,10 @@
 {
   "campaign_id": "file-size-reduction-project71",
   "date": "2026-01-05",
-  "tasks_total": 17,
-  "tasks_completed": 16,
+  "tasks_total": 18,
+  "tasks_completed": 17,
   "tasks_in_progress": 1,
   "tasks_blocked": 0,
-  "velocity_per_day": 2.29,
-  "estimated_completion": "2026-01-05",
-  "notes": "First orchestrator run - added Epic and 9 work items to project board. 7 items deferred to next run."
+  "velocity_per_day": 1.89,
+  "estimated_completion": "2026-01-06"
 }
