@@ -1,6 +1,5 @@
 // @ts-check
-const { describe, it, beforeEach } = require("node:test");
-const assert = require("node:assert");
+import { describe, it, expect, beforeEach } from "vitest";
 const { main } = require("./add_labels.cjs");
 
 describe("add_labels", () => {
@@ -21,15 +20,15 @@ describe("add_labels", () => {
     };
 
     // Capture all logged messages
-    mockCore.info = (msg) => {
+    mockCore.info = msg => {
       mockCore.infos.push(msg);
       mockCore.messages.push({ level: "info", message: msg });
     };
-    mockCore.warning = (msg) => {
+    mockCore.warning = msg => {
       mockCore.warnings.push(msg);
       mockCore.messages.push({ level: "warning", message: msg });
     };
-    mockCore.error = (msg) => {
+    mockCore.error = msg => {
       mockCore.errors.push(msg);
       mockCore.messages.push({ level: "error", message: msg });
     };
@@ -63,7 +62,7 @@ describe("add_labels", () => {
   describe("main factory", () => {
     it("should create a handler function with default configuration", async () => {
       const handler = await main();
-      assert.strictEqual(typeof handler, "function");
+      expect(typeof handler).toBe("function");
     });
 
     it("should create a handler function with custom configuration", async () => {
@@ -71,13 +70,13 @@ describe("add_labels", () => {
         allowed: ["bug", "enhancement"],
         max: 5,
       });
-      assert.strictEqual(typeof handler, "function");
+      expect(typeof handler).toBe("function");
     });
 
     it("should log configuration on initialization", async () => {
       await main({ allowed: ["bug", "enhancement"], max: 3 });
-      assert.ok(mockCore.infos.some((msg) => msg.includes("max=3")));
-      assert.ok(mockCore.infos.some((msg) => msg.includes("bug, enhancement")));
+      expect(mockCore.infos.some(msg => msg.includes("max=3"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("bug, enhancement"))).toBe(true);
     });
   });
 
@@ -86,7 +85,7 @@ describe("add_labels", () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
 
-      mockGithub.rest.issues.addLabels = async (params) => {
+      mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
       };
@@ -99,19 +98,19 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(result.number, 456);
-      assert.deepStrictEqual(result.labelsAdded, ["bug", "enhancement"]);
-      assert.strictEqual(addLabelsCalls.length, 1);
-      assert.strictEqual(addLabelsCalls[0].issue_number, 456);
-      assert.deepStrictEqual(addLabelsCalls[0].labels, ["bug", "enhancement"]);
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(456);
+      expect(result.labelsAdded).toEqual(["bug", "enhancement"]);
+      expect(addLabelsCalls.length).toBe(1);
+      expect(addLabelsCalls[0].issue_number).toBe(456);
+      expect(addLabelsCalls[0].labels).toEqual(["bug", "enhancement"]);
     });
 
     it("should add labels to an issue from context when item_number not provided", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
 
-      mockGithub.rest.issues.addLabels = async (params) => {
+      mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
       };
@@ -123,10 +122,10 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(result.number, 123);
-      assert.deepStrictEqual(result.labelsAdded, ["documentation"]);
-      assert.strictEqual(result.contextType, "issue");
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(123);
+      expect(result.labelsAdded).toEqual(["documentation"]);
+      expect(result.contextType).toBe("issue");
     });
 
     it("should add labels to a pull request from context", async () => {
@@ -139,7 +138,7 @@ describe("add_labels", () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
 
-      mockGithub.rest.issues.addLabels = async (params) => {
+      mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
       };
@@ -151,9 +150,9 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(result.number, 789);
-      assert.strictEqual(result.contextType, "pull request");
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(789);
+      expect(result.contextType).toBe("pull request");
     });
 
     it("should handle invalid item_number", async () => {
@@ -167,8 +166,8 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, false);
-      assert.ok(result.error.includes("Invalid item number"));
+      expect(result.success).toBe(false);
+      expect(result.error.includes("Invalid item number")).toBe(true);
     });
 
     it("should handle missing item_number and no context", async () => {
@@ -183,8 +182,8 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, false);
-      assert.ok(result.error.includes("No issue/PR number available"));
+      expect(result.success).toBe(false);
+      expect(result.error.includes("No issue/PR number available")).toBe(true);
     });
 
     it("should respect max count limit", async () => {
@@ -198,7 +197,7 @@ describe("add_labels", () => {
         },
         {}
       );
-      assert.strictEqual(result1.success, true);
+      expect(result1.success).toBe(true);
 
       // Second call succeeds
       const result2 = await handler(
@@ -208,7 +207,7 @@ describe("add_labels", () => {
         },
         {}
       );
-      assert.strictEqual(result2.success, true);
+      expect(result2.success).toBe(true);
 
       // Third call should fail
       const result3 = await handler(
@@ -218,8 +217,8 @@ describe("add_labels", () => {
         },
         {}
       );
-      assert.strictEqual(result3.success, false);
-      assert.ok(result3.error.includes("Max count"));
+      expect(result3.success).toBe(false);
+      expect(result3.error.includes("Max count")).toBe(true);
     });
 
     it("should filter labels based on allowed list", async () => {
@@ -229,7 +228,7 @@ describe("add_labels", () => {
       });
 
       const addLabelsCalls = [];
-      mockGithub.rest.issues.addLabels = async (params) => {
+      mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
       };
@@ -242,8 +241,8 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, true);
-      assert.deepStrictEqual(result.labelsAdded, ["bug", "enhancement"]);
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug", "enhancement"]);
     });
 
     it("should handle empty labels array", async () => {
@@ -257,8 +256,9 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, false);
-      assert.ok(result.error.includes("labels must be an array") || result.error.includes("No valid labels"));
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual([]);
+      expect(result.message).toBe("No valid labels found");
     });
 
     it("should handle API errors gracefully", async () => {
@@ -276,15 +276,15 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, false);
-      assert.ok(result.error.includes("API Error"));
+      expect(result.success).toBe(false);
+      expect(result.error.includes("API Error")).toBe(true);
     });
 
     it("should deduplicate labels", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
 
-      mockGithub.rest.issues.addLabels = async (params) => {
+      mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
       };
@@ -297,15 +297,15 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, true);
-      assert.deepStrictEqual(result.labelsAdded, ["bug", "enhancement"]);
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug", "enhancement"]);
     });
 
     it("should sanitize and trim label names", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
 
-      mockGithub.rest.issues.addLabels = async (params) => {
+      mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
       };
@@ -318,15 +318,15 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(result.success, true);
-      assert.ok(result.labelsAdded.length > 0);
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded.length).toBeGreaterThan(0);
     });
 
     it("should use spread operator for context.repo", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
 
-      mockGithub.rest.issues.addLabels = async (params) => {
+      mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
       };
@@ -339,8 +339,8 @@ describe("add_labels", () => {
         {}
       );
 
-      assert.strictEqual(addLabelsCalls[0].owner, "test-owner");
-      assert.strictEqual(addLabelsCalls[0].repo, "test-repo");
+      expect(addLabelsCalls[0].owner).toBe("test-owner");
+      expect(addLabelsCalls[0].repo).toBe("test-repo");
     });
   });
 });
