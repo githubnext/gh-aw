@@ -216,9 +216,9 @@ func ensureGitAttributes() error {
 		return nil
 	}
 
-	// Write back to file
+	// Write back to file with owner-only read/write permissions (0600) for security best practices
 	content := strings.Join(lines, "\n")
-	if err := os.WriteFile(gitAttributesPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(gitAttributesPath, []byte(content), 0600); err != nil {
 		gitLog.Printf("Failed to write .gitattributes: %v", err)
 		return fmt.Errorf("failed to write .gitattributes: %w", err)
 	}
@@ -261,14 +261,14 @@ func ensureLogsGitignore() error {
 		return fmt.Errorf("failed to create .github/aw/logs directory: %w", err)
 	}
 
-	// Write the .gitignore file
+	// Write the .gitignore file with owner-only read/write permissions (0600) for security best practices
 	gitignoreContent := `# Ignore all downloaded workflow logs
 *
 
 # But keep the .gitignore file itself
 !.gitignore
 `
-	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0600); err != nil {
 		gitLog.Printf("Failed to write .gitignore: %v", err)
 		return fmt.Errorf("failed to write .github/aw/logs/.gitignore: %w", err)
 	}

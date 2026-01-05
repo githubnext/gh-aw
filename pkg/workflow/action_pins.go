@@ -140,15 +140,33 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
 		if err == nil && sha != "" {
 			actionPinsLog.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
+
+			// Check if there are other cache entries with the same SHA
+			if data.ActionCache != nil {
+				actionPinsLog.Printf("Checking cache for other versions with same SHA %s", sha[:8])
+				for key, entry := range data.ActionCache.Entries {
+					if entry.Repo == actionRepo && entry.SHA == sha && entry.Version != version {
+						actionPinsLog.Printf("Found cache entry with same SHA: %s (version=%s) vs requested version=%s",
+							key, entry.Version, version)
+					}
+				}
+			}
+
 			// Successfully resolved, save cache
 			if data.ActionCache != nil {
 				_ = data.ActionCache.Save()
 			}
-			return actionRepo + "@" + sha + " # " + version, nil
+			result := actionRepo + "@" + sha + " # " + version
+			actionPinsLog.Printf("Returning pinned reference: %s", result)
+			return result, nil
 		}
 		actionPinsLog.Printf("Dynamic resolution failed for %s@%s: %v", actionRepo, version, err)
 	} else {
-		actionPinsLog.Printf("No action resolver available, skipping dynamic resolution")
+		if isAlreadySHA {
+			actionPinsLog.Printf("Version is already a SHA, skipping dynamic resolution")
+		} else {
+			actionPinsLog.Printf("No action resolver available, skipping dynamic resolution")
+		}
 	}
 
 	// Dynamic resolution failed, try hardcoded pins

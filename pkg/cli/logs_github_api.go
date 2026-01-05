@@ -29,14 +29,14 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 	logsGitHubAPILog.Printf("Fetching job statuses: runID=%d", runID)
 
 	if verbose {
-		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Fetching job statuses for run %d", runID)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job statuses for run %d", runID)))
 	}
 
 	cmd := workflow.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if verbose {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job statuses for run %d: %v", runID, err)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job statuses for run %d: %v", runID, err)))
 		}
 		// Don't fail the entire operation if we can't get job info
 		return 0, nil
@@ -53,7 +53,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 		var job JobInfo
 		if err := json.Unmarshal([]byte(line), &job); err != nil {
 			if verbose {
-				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Failed to parse job info: %s", line)))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to parse job info: %s", line)))
 			}
 			continue
 		}
@@ -63,7 +63,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 			failedJobs++
 			logsGitHubAPILog.Printf("Found failed job: name=%s, conclusion=%s", job.Name, job.Conclusion)
 			if verbose {
-				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Found failed job '%s' with conclusion '%s'", job.Name, job.Conclusion)))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found failed job '%s' with conclusion '%s'", job.Name, job.Conclusion)))
 			}
 		}
 	}
@@ -173,7 +173,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
 	}
 
 	// Start spinner for network operation
@@ -207,7 +207,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		outputMsg := string(output)
 		combinedMsg := errMsg + " " + outputMsg
 		if verbose {
-			fmt.Println(console.FormatVerboseMessage(outputMsg))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(outputMsg))
 		}
 
 		// Check for invalid field errors first (before auth errors)
