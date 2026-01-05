@@ -44,3 +44,37 @@ func compareVersions(v1, v2 string) int {
 	semverLog.Printf("Version comparison result: %s == %s", v1, v2)
 	return 0
 }
+
+// extractMajorVersion extracts the major version number from a version string
+// Examples: "v5.0.0" -> 5, "v6" -> 6, "5.1.0" -> 5
+func extractMajorVersion(version string) int {
+	// Strip 'v' prefix if present
+	v := strings.TrimPrefix(version, "v")
+	
+	// Split by '.' and get the first part
+	parts := strings.Split(v, ".")
+	if len(parts) > 0 {
+		var major int
+		fmt.Sscanf(parts[0], "%d", &major)
+		return major
+	}
+	
+	return 0
+}
+
+// isSemverCompatible checks if pinVersion is semver-compatible with requestedVersion
+// Semver compatibility means the major version must match
+// Examples:
+//   - isSemverCompatible("v5.0.0", "v5") -> true
+//   - isSemverCompatible("v5.1.0", "v5.0.0") -> true
+//   - isSemverCompatible("v6.0.0", "v5") -> false
+func isSemverCompatible(pinVersion, requestedVersion string) bool {
+	pinMajor := extractMajorVersion(pinVersion)
+	requestedMajor := extractMajorVersion(requestedVersion)
+	
+	compatible := pinMajor == requestedMajor
+	semverLog.Printf("Checking semver compatibility: pin=%s (major=%d), requested=%s (major=%d) -> %v",
+		pinVersion, pinMajor, requestedVersion, requestedMajor, compatible)
+	
+	return compatible
+}
