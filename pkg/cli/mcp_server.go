@@ -58,6 +58,7 @@ The server provides the following tools:
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
   - add         - Add workflows from remote repositories to .github/workflows
   - update      - Update workflows from their source repositories
+  - fix         - Apply automatic codemod-style fixes to workflow files
 
 By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
@@ -818,6 +819,85 @@ Returns formatted text output showing:
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to update workflows",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			}
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(output)},
+			},
+		}, nil, nil
+	})
+
+	// Add fix tool
+	type fixArgs struct {
+		Workflows    []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to fix (empty for all workflows)"`
+		Write        bool     `json:"write,omitempty" jsonschema:"Write changes to files (default is dry-run)"`
+		ListCodemods bool     `json:"list_codemods,omitempty" jsonschema:"List all available codemods and exit"`
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "fix",
+		Description: `Apply automatic codemod-style fixes to agentic workflow files.
+
+This command applies a registry of codemods that automatically update deprecated fields
+and migrate to new syntax. Codemods preserve formatting and comments as much as possible.
+
+Available codemods:
+• timeout-minutes-migration: Replaces 'timeout_minutes' with 'timeout-minutes'
+• network-firewall-migration: Replaces 'network.firewall' with 'sandbox.agent: false'
+• safe-inputs-mode-removal: Removes deprecated 'safe-inputs.mode' field
+
+If no workflows are specified, all Markdown files in .github/workflows will be processed.
+
+The command will:
+1. Scan workflow files for deprecated fields
+2. Apply relevant codemods to fix issues
+3. Report what was changed in each file
+4. Write updated files back to disk (with write flag)
+
+Returns formatted text output showing:
+- List of workflow files processed
+- Which codemods were applied to each file
+- Summary of fixes applied`,
+		Icons: []mcp.Icon{
+			{Source: "🔧"},
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args fixArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
+		default:
+		}
+
+		// Build command arguments
+		cmdArgs := []string{"fix"}
+
+		// Add workflow IDs if specified
+		cmdArgs = append(cmdArgs, args.Workflows...)
+
+		// Add optional flags
+		if args.Write {
+			cmdArgs = append(cmdArgs, "--write")
+		}
+		if args.ListCodemods {
+			cmdArgs = append(cmdArgs, "--list-codemods")
+		}
+
+		// Execute the CLI command
+		cmd := execCmd(ctx, cmdArgs...)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to fix workflows",
 				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
 			}
 		}
