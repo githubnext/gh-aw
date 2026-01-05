@@ -105,6 +105,19 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Parse allow-github-references configuration
+			if allowGitHubRefs, exists := outputMap["allow-github-references"]; exists {
+				if refsArray, ok := allowGitHubRefs.([]any); ok {
+					var refStrings []string
+					for _, ref := range refsArray {
+						if refStr, ok := ref.(string); ok {
+							refStrings = append(refStrings, refStr)
+						}
+					}
+					config.AllowGitHubReferences = refStrings
+				}
+			}
+
 			// Parse add-labels configuration
 			addLabelsConfig := c.parseAddLabelsConfig(outputMap)
 			if addLabelsConfig != nil {

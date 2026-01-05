@@ -543,6 +543,12 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 
+	// Add allowed GitHub references configuration for reference escaping
+	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowGitHubReferences) > 0 {
+		refsStr := strings.Join(data.SafeOutputs.AllowGitHubReferences, ",")
+		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_GITHUB_REFS: %q\n", refsStr)
+	}
+
 	// Add GitHub server URL and API URL for dynamic domain extraction
 	// This allows the sanitization code to permit GitHub domains that vary by deployment
 	yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")

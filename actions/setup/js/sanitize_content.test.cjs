@@ -22,9 +22,11 @@ describe("sanitize_content.cjs", () => {
   afterEach(() => {
     delete global.core;
     delete process.env.GH_AW_ALLOWED_DOMAINS;
+    delete process.env.GH_AW_ALLOWED_GITHUB_REFS;
     delete process.env.GH_AW_COMMAND;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_API_URL;
+    delete process.env.GITHUB_REPOSITORY;
   });
 
   describe("basic sanitization", () => {
@@ -490,6 +492,105 @@ describe("sanitize_content.cjs", () => {
     it("should neutralize alphanumeric issue references", () => {
       const result = sanitizeContent("fixes #abc123def");
       expect(result).toBe("`fixes #abc123def`");
+    });
+  });
+
+  describe("GitHub reference neutralization", () => {
+    beforeEach(() => {
+      delete process.env.GH_AW_ALLOWED_GITHUB_REFS;
+      delete process.env.GITHUB_REPOSITORY;
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_ALLOWED_GITHUB_REFS;
+      delete process.env.GITHUB_REPOSITORY;
+    });
+
+    it("should allow all references by default (no env var set)", () => {
+      const result = sanitizeContent("See issue #123 and owner/repo#456");
+      // Bot trigger neutralization happens after reference neutralization
+      // So #123 gets neutralized by bot triggers, but owner/repo#456 stays
+      expect(result).toBe("See issue `#123` and owner/repo#456");
+    });
+
+    it("should restrict to current repo only when 'repo' is specified", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
+
+      const result = sanitizeContent("See issue #123 and other/repo#456");
+      expect(result).toBe("See issue `#123` and `other/repo#456`");
+    });
+
+    it("should allow current repo references with 'repo' keyword", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
+
+      const result = sanitizeContent("See myorg/myrepo#123");
+      expect(result).toBe("See myorg/myrepo#123");
+    });
+
+    it("should allow specific repos in the list", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo,other/allowed-repo";
+
+      const result = sanitizeContent("See #123, other/allowed-repo#456, and bad/repo#789");
+      expect(result).toBe("See `#123`, other/allowed-repo#456, and `bad/repo#789`");
+    });
+
+    it("should handle multiple allowed repos", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "myorg/myrepo,other/repo,another/repo";
+
+      const result = sanitizeContent("Issues: myorg/myrepo#1, other/repo#2, another/repo#3, blocked/repo#4");
+      expect(result).toBe("Issues: myorg/myrepo#1, other/repo#2, another/repo#3, `blocked/repo#4`");
+    });
+
+    it("should be case-insensitive for repo names", () => {
+      process.env.GITHUB_REPOSITORY = "MyOrg/MyRepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
+
+      const result = sanitizeContent("Issues: myorg/myrepo#123, MYORG/MYREPO#456");
+      expect(result).toBe("Issues: myorg/myrepo#123, MYORG/MYREPO#456");
+    });
+
+    it("should not escape references inside backticks", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
+
+      const result = sanitizeContent("Already escaped: `other/repo#123`");
+      expect(result).toBe("Already escaped: `other/repo#123`");
+    });
+
+    it("should handle issue numbers with alphanumeric characters", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
+
+      const result = sanitizeContent("See #abc123 and other/repo#def456");
+      expect(result).toBe("See `#abc123` and `other/repo#def456`");
+    });
+
+    it("should handle references in different contexts", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
+
+      const result = sanitizeContent("Start #123 middle other/repo#456 end");
+      expect(result).toBe("Start `#123` middle `other/repo#456` end");
+    });
+
+    it("should trim whitespace in allowed-refs list", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = " repo , other/repo ";
+
+      const result = sanitizeContent("See myorg/myrepo#123 and other/repo#456");
+      expect(result).toBe("See myorg/myrepo#123 and other/repo#456");
+    });
+
+    it("should log when escaping references", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
+
+      sanitizeContent("See other/repo#123");
+      expect(mockCore.info).toHaveBeenCalledWith("Escaped GitHub reference: other/repo#123 (not in allowed list)");
     });
   });
 

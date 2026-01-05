@@ -334,6 +334,89 @@ function neutralizeBotTriggers(s) {
 }
 
 /**
+ * Builds the list of allowed repositories for GitHub reference filtering
+ * Returns null if all references should be allowed (default behavior)
+ * @returns {string[]|null} Array of allowed repository slugs or null if all allowed
+ */
+function buildAllowedGitHubReferences() {
+  const allowedRefsEnv = process.env.GH_AW_ALLOWED_GITHUB_REFS;
+  if (!allowedRefsEnv) {
+    return null; // All references allowed by default
+  }
+
+  return allowedRefsEnv
+    .split(",")
+    .map(ref => ref.trim().toLowerCase())
+    .filter(ref => ref);
+}
+
+/**
+ * Gets the current repository slug from GitHub context
+ * @returns {string} Repository slug in "owner/repo" format, or empty string if not available
+ */
+function getCurrentRepoSlug() {
+  // Try to get from GITHUB_REPOSITORY env var
+  const repoSlug = process.env.GITHUB_REPOSITORY;
+  if (repoSlug) {
+    return repoSlug.toLowerCase();
+  }
+  return "";
+}
+
+/**
+ * Neutralizes GitHub references (#123 or owner/repo#456) by wrapping them in backticks
+ * if they reference repositories not in the allowed list
+ * @param {string} s - The string to process
+ * @param {string[]|null} allowedRepos - List of allowed repository slugs (lowercase), or null to allow all
+ * @returns {string} The string with unauthorized references neutralized
+ */
+function neutralizeGitHubReferences(s, allowedRepos) {
+  // If no restrictions configured, allow all references
+  if (!allowedRepos || allowedRepos.length === 0) {
+    return s;
+  }
+
+  const currentRepo = getCurrentRepoSlug();
+
+  // Match GitHub references:
+  // - #123 (current repo reference)
+  // - owner/repo#456 (cross-repo reference)
+  // - GH-123 (GitHub shorthand)
+  // Must not be inside backticks or code blocks
+  return s.replace(/(^|[^\w`])(?:([a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?)\/([a-z0-9._-]+))?#(\w+)/gi, (match, prefix, owner, repo, issueNum) => {
+    let targetRepo;
+
+    if (owner && repo) {
+      // Cross-repo reference: owner/repo#123
+      targetRepo = `${owner}/${repo}`.toLowerCase();
+    } else {
+      // Current repo reference: #123
+      targetRepo = currentRepo;
+    }
+
+    // Check if "repo" is in allowed list (means current repo)
+    const allowCurrentRepo = allowedRepos.includes("repo");
+
+    // Check if this specific repo is in the allowed list
+    const isAllowed = allowedRepos.includes(targetRepo) || (allowCurrentRepo && targetRepo === currentRepo);
+
+    if (isAllowed) {
+      return match; // Keep the original reference
+    } else {
+      // Escape the reference
+      const refText = owner && repo ? `${owner}/${repo}#${issueNum}` : `#${issueNum}`;
+
+      // Log when a reference is escaped
+      if (typeof core !== "undefined" && core.info) {
+        core.info(`Escaped GitHub reference: ${refText} (not in allowed list)`);
+      }
+
+      return `${prefix}\`${refText}\``;
+    }
+  });
+}
+
+/**
  * Apply truncation limits to content
  * @param {string} content - The content to truncate
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
@@ -376,6 +459,9 @@ function sanitizeContentCore(content, maxLength) {
   // Build list of allowed domains from environment and GitHub context
   const allowedDomains = buildAllowedDomains();
 
+  // Build list of allowed GitHub references from environment
+  const allowedGitHubRefs = buildAllowedGitHubReferences();
+
   let sanitized = content;
 
   // Remove ANSI escape sequences and control characters early
@@ -406,6 +492,9 @@ function sanitizeContentCore(content, maxLength) {
   // Apply truncation limits
   sanitized = applyTruncation(sanitized, maxLength);
 
+  // Neutralize GitHub references if restrictions are configured
+  sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
+
   // Neutralize common bot trigger phrases
   sanitized = neutralizeBotTriggers(sanitized);
 
@@ -421,9 +510,12 @@ module.exports = {
   writeRedactedDomainsLog,
   extractDomainsFromUrl,
   buildAllowedDomains,
+  buildAllowedGitHubReferences,
+  getCurrentRepoSlug,
   sanitizeUrlProtocols,
   sanitizeUrlDomains,
   neutralizeCommands,
+  neutralizeGitHubReferences,
   removeXmlComments,
   convertXmlTags,
   neutralizeBotTriggers,
