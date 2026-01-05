@@ -4,22 +4,13 @@
   "tasks_total": 16,
   "tasks_completed": 15,
   "tasks_in_progress": 1,
-  "tasks_blocked": 0,
   "velocity_per_day": 1.5,
-  "estimated_completion": "2026-01-06",
   "processed_this_run": 15,
   "deferred_this_run": 1,
-  "discovery_summary": {
-    "total_items": 16,
-    "needs_add_count": 1,
-    "needs_update_count": 15,
-    "open_count": 1,
-    "closed_count": 15,
-    "merged_count": 0
-  },
-  "write_operations": {
-    "successful": 15,
-    "failed": 0,
-    "skipped": 1
+  "summary": {
+    "issues": 5,
+    "pull_requests": 11,
+    "closed": 15,
+    "open": 1
   }
 }
