@@ -3508,11 +3508,7 @@
             "type": "string",
             "pattern": "^(repo|[a-zA-Z0-9][a-zA-Z0-9-]{0,38}/[a-zA-Z0-9._-]+)$"
           },
-          "examples": [
-            ["repo"],
-            ["repo", "octocat/hello-world"],
-            ["microsoft/vscode", "microsoft/typescript"]
-          ]
+          "examples": [["repo"], ["repo", "octocat/hello-world"], ["microsoft/vscode", "microsoft/typescript"]]
         },
         "create-issue": {
           "oneOf": [
