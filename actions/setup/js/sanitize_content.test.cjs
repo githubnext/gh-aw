@@ -425,6 +425,42 @@ describe("sanitize_content.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Redacted URL:"));
       expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
     });
+
+    it("should support wildcard domain patterns (*.example.com)", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "*.example.com";
+      const result = sanitizeContent("Visit https://subdomain.example.com/page and https://another.example.com/path");
+      expect(result).toBe("Visit https://subdomain.example.com/page and https://another.example.com/path");
+    });
+
+    it("should allow base domain when wildcard pattern is used", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "*.example.com";
+      const result = sanitizeContent("Visit https://example.com/page");
+      expect(result).toBe("Visit https://example.com/page");
+    });
+
+    it("should redact domains not matching wildcard pattern", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "*.example.com";
+      const result = sanitizeContent("Visit https://evil.com/malicious");
+      expect(result).toContain("(redacted)");
+    });
+
+    it("should support mixed wildcard and plain domains", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "github.com,*.githubusercontent.com,api.example.com";
+      const result = sanitizeContent("Visit https://github.com/repo, https://raw.githubusercontent.com/user/repo/main/file.txt, " + "https://api.example.com/endpoint, and https://subdomain.githubusercontent.com/file");
+      expect(result).toBe("Visit https://github.com/repo, https://raw.githubusercontent.com/user/repo/main/file.txt, " + "https://api.example.com/endpoint, and https://subdomain.githubusercontent.com/file");
+    });
+
+    it("should redact domains with wildcards that don't match pattern", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "*.github.com";
+      const result = sanitizeContent("Visit https://github.io/page");
+      expect(result).toContain("(redacted)");
+    });
+
+    it("should handle multiple levels of subdomains with wildcard", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "*.example.com";
+      const result = sanitizeContent("Visit https://deep.nested.example.com/page");
+      expect(result).toBe("Visit https://deep.nested.example.com/page");
+    });
   });
 
   describe("bot trigger neutralization", () => {

@@ -153,6 +153,21 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate safe-outputs allowed-domains configuration
+	log.Printf("Validating safe-outputs allowed-domains")
+	if err := validateSafeOutputsAllowedDomains(workflowData.SafeOutputs); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return errors.New(formattedErr)
+	}
+
 	// Emit experimental warning for sandbox-runtime feature
 	if isSRTEnabled(workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: sandbox-runtime firewall"))
