@@ -39,13 +39,20 @@ safe-outputs:
           required: false
           type: string
       steps:
-        - name: Checkout repository
-          uses: actions/checkout@v5
-          with:
-            token: ${{ secrets.GITHUB_TOKEN }}
-            fetch-depth: 1
+        - name: Setup git configuration
+          run: |
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git config --global init.defaultBranch main
+        
+        - name: Initialize git repository
+          run: |
+            git init
+            git remote add origin https://github.com/${{ github.repository }}.git
         
         - name: Sync with beads
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
             echo "=== Syncing beads data ==="
             # Install beads CLI
@@ -54,9 +61,15 @@ safe-outputs:
             # Verify installation
             bd --version
             
+            # Configure git credentials for beads sync
+            git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+            
             # Sync beads data from repository
             bd sync
             echo "✓ Beads data synced"
+            
+            # Clear credentials
+            git config --unset credential.helper
         
         - name: Update bead state
           env:
@@ -102,11 +115,16 @@ jobs:
       description: ${{ steps.claim_bead.outputs.description }}
       status: ${{ steps.claim_bead.outputs.status }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+      - name: Setup git configuration
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global init.defaultBranch main
+      
+      - name: Initialize git repository
+        run: |
+          git init
+          git remote add origin https://github.com/${{ github.repository }}.git
       
       - name: Install beads CLI
         run: |
@@ -118,9 +136,19 @@ jobs:
       
       - name: Claim ready bead
         id: claim_bead
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=== Starting bead claim process ==="
           echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
+          # Configure git credentials for beads sync
+          git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+          
+          # Sync beads data from repository
+          echo "Syncing beads data..."
+          bd sync
+          echo "✓ Beads data synced"
           
           # Check if beads are initialized
           echo "Checking for .beads directory..."
@@ -174,15 +202,27 @@ jobs:
             echo "ℹ️  No ready beads to work on"
           fi
           
+          # Clear credentials
+          git config --unset credential.helper
+          
           echo "=== Bead claim process completed ==="
       
       - name: Sync bead changes
         if: steps.claim_bead.outputs.id != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=== Starting bead sync ==="
           echo "Syncing changes to repository..."
+          
+          # Configure git credentials for sync
+          git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+          
           bd sync
           echo "✓ Sync completed successfully"
+          
+          # Clear credentials
+          git config --unset credential.helper
           echo "=== Bead sync completed ==="
   
   release_bead:
@@ -192,11 +232,16 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+      - name: Setup git configuration
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global init.defaultBranch main
+      
+      - name: Initialize git repository
+        run: |
+          git init
+          git remote add origin https://github.com/${{ github.repository }}.git
       
       - name: Install beads CLI
         run: |
@@ -210,10 +255,19 @@ jobs:
         env:
           BEAD_ID: ${{ needs.bead.outputs.id }}
           AGENT_RESULT: ${{ needs.agent.result }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=== Starting bead release process ==="
           echo "Claimed bead ID: $BEAD_ID"
           echo "Agent result: $AGENT_RESULT"
+          
+          # Configure git credentials for beads sync
+          git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+          
+          # Sync beads data from repository
+          echo "Syncing beads data..."
+          bd sync
+          echo "✓ Beads data synced"
           
           # Check if the claimed bead is still in_progress
           echo "Checking bead status..."
@@ -233,6 +287,9 @@ jobs:
           else
             echo "ℹ️  Bead is no longer in progress (status: $BEAD_STATUS) - no need to release"
           fi
+          
+          # Clear credentials
+          git config --unset credential.helper
           
           echo "=== Bead release process completed ==="
 ---
