@@ -518,7 +518,7 @@ describe("sanitize_content.cjs", () => {
       process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
 
       const result = sanitizeContent("See issue #123 and other/repo#456");
-      expect(result).toBe("See issue `#123` and `other/repo#456`");
+      expect(result).toBe("See issue #123 and `other/repo#456`");
     });
 
     it("should allow current repo references with 'repo' keyword", () => {
@@ -534,7 +534,7 @@ describe("sanitize_content.cjs", () => {
       process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo,other/allowed-repo";
 
       const result = sanitizeContent("See #123, other/allowed-repo#456, and bad/repo#789");
-      expect(result).toBe("See `#123`, other/allowed-repo#456, and `bad/repo#789`");
+      expect(result).toBe("See #123, other/allowed-repo#456, and `bad/repo#789`");
     });
 
     it("should handle multiple allowed repos", () => {
@@ -566,7 +566,7 @@ describe("sanitize_content.cjs", () => {
       process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
 
       const result = sanitizeContent("See #abc123 and other/repo#def456");
-      expect(result).toBe("See `#abc123` and `other/repo#def456`");
+      expect(result).toBe("See #abc123 and `other/repo#def456`");
     });
 
     it("should handle references in different contexts", () => {
@@ -574,7 +574,7 @@ describe("sanitize_content.cjs", () => {
       process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
 
       const result = sanitizeContent("Start #123 middle other/repo#456 end");
-      expect(result).toBe("Start `#123` middle `other/repo#456` end");
+      expect(result).toBe("Start #123 middle `other/repo#456` end");
     });
 
     it("should trim whitespace in allowed-refs list", () => {
