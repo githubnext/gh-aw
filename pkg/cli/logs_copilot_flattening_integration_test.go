@@ -98,7 +98,7 @@ func TestCopilotLogParsingDirectFlattening(t *testing.T) {
 	// it puts the contents directly in agent_outputs/ without preserving the full path
 	// So if we upload /tmp/gh-aw/sandbox/agent/logs/session-*.log,
 	// it ends up as agent_outputs/session-*.log (not agent_outputs/sandbox/agent/logs/session-*.log)
-	
+
 	// Step 1: Simulate downloaded artifacts structure (before flattening)
 	agentOutputsDir := filepath.Join(tmpDir, "agent_outputs")
 	err := os.MkdirAll(agentOutputsDir, 0755)
@@ -192,7 +192,7 @@ func TestCopilotLogParsingMultipleSessionFiles(t *testing.T) {
 	require.True(t, ok, "findAgentLogFile should find a session log")
 
 	// Verify the found file is a .log file in the correct directory
-	assert.True(t, filepath.Ext(found) == ".log", "Found file should have .log extension")
+	assert.Equal(t, ".log", filepath.Ext(found), "Found file should have .log extension")
 	assert.Contains(t, found, "sandbox/agent/logs", "Found file should be in sandbox/agent/logs")
 }
 

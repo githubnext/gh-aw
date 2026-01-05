@@ -108,6 +108,28 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Create workspace directory
+        run: mkdir -p ./.gh-aw
+      - env:
+          GH_AW_CAMPAIGN_ID: file-size-reduction-project71
+          GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/file-size-reduction-project71/cursor.json
+          GH_AW_MAX_DISCOVERY_ITEMS: "50"
+          GH_AW_MAX_DISCOVERY_PAGES: "5"
+          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/71
+          GH_AW_TRACKER_LABEL: campaign:file-size-reduction-project71
+          GH_AW_WORKFLOWS: daily-file-diet
+        id: discovery
+        name: Run campaign discovery precomputation
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |-
+
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/campaign_discovery.cjs');
+            await main();
+
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (campaigns)
         env:
@@ -734,22 +756,26 @@ jobs:
           
           ### Phase 1 — Read State (Discovery) [NO WRITES]
           
-          1) Read current GitHub Project board state (items + required fields).
+          **IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
           
-          2) Discover worker outputs (if workers are configured):
+          1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
+             - This manifest contains all discovered worker outputs with normalized metadata
+             - Schema version: v1
+             - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
           
-          - Perform separate discovery per worker workflow:
+          2) Read current GitHub Project board state (items + required fields).
           
-            - Search for tracker-id `daily-file-diet` across issues/PRs/discussions/comments (parent issue/PR is the unit of work).
+          3) Parse discovered items from the manifest:
+             - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
+             - Closed items have: closed_at (for issues) or merged_at (for PRs)
+             - Items are pre-sorted by updated_at for deterministic processing
           
+          4) Check the manifest summary for work counts:
+             - `needs_add_count`: Number of items that need to be added to the project
+             - `needs_update_count`: Number of items that need status updates
+             - If both are 0, you may skip to reporting phase
           
-          
-          3) Normalize discovered items into a single list with:
-          - URL, `content_type` (issue/pull_request/discussion), `content_number`
-          - `repo` (owner/repo), `created_at`, `updated_at`
-          - `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
-          
-          4) Respect read budgets and cursor; stop early if needed and persist cursor.
+          5) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
           
           ### Phase 2 — Make Decisions (Planning) [NO WRITES]
           

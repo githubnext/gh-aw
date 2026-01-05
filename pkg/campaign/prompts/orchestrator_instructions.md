@@ -123,22 +123,26 @@ and synchronizing campaign state into a GitHub Project board.
 
 ### Phase 1 — Read State (Discovery) [NO WRITES]
 
-1) Read current GitHub Project board state (items + required fields).
+**IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
 
-2) Discover worker outputs (if workers are configured):
-{{ if .Workflows }}
-- Perform separate discovery per worker workflow:
-{{ range .Workflows }}
-  - Search for tracker-id `{{ . }}` across issues/PRs/discussions/comments (parent issue/PR is the unit of work).
-{{ end }}
-{{ end }}
+1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
+   - This manifest contains all discovered worker outputs with normalized metadata
+   - Schema version: v1
+   - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
 
-3) Normalize discovered items into a single list with:
-- URL, `content_type` (issue/pull_request/discussion), `content_number`
-- `repo` (owner/repo), `created_at`, `updated_at`
-- `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
+2) Read current GitHub Project board state (items + required fields).
 
-4) Respect read budgets and cursor; stop early if needed and persist cursor.
+3) Parse discovered items from the manifest:
+   - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
+   - Closed items have: closed_at (for issues) or merged_at (for PRs)
+   - Items are pre-sorted by updated_at for deterministic processing
+
+4) Check the manifest summary for work counts:
+   - `needs_add_count`: Number of items that need to be added to the project
+   - `needs_update_count`: Number of items that need status updates
+   - If both are 0, you may skip to reporting phase
+
+5) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
 
 ### Phase 2 — Make Decisions (Planning) [NO WRITES]
 

@@ -326,9 +326,25 @@ func TestCampaignOrchestratorGitHubToken(t *testing.T) {
 		}
 		mdStr := string(mdContent)
 
-		// Verify the github-token is NOT present when not configured
-		if strings.Contains(mdStr, "github-token:") {
-			t.Errorf("expected generated markdown to NOT contain 'github-token:' field when not configured")
+		// Verify the github-token is NOT present in safe-outputs when not configured
+		// Note: The discovery step may have github-token in its `with:` section with a fallback,
+		// but the safe-outputs section should not have a custom github-token field
+		safeOutputsStart := strings.Index(mdStr, "safe-outputs:")
+		// Find the end of safe-outputs section (before runs-on, tools, or steps)
+		safeOutputsContent := mdStr[safeOutputsStart:]
+		boundaries := []string{"\nruns-on:", "\ntools:", "\nsteps:"}
+		safeOutputsEnd := len(safeOutputsContent)
+		for _, boundary := range boundaries {
+			if idx := strings.Index(safeOutputsContent, boundary); idx > 0 && idx < safeOutputsEnd {
+				safeOutputsEnd = idx
+			}
+		}
+
+		if safeOutputsStart >= 0 && safeOutputsEnd > 0 {
+			safeOutputsSection := safeOutputsContent[:safeOutputsEnd]
+			if strings.Contains(safeOutputsSection, "github-token:") {
+				t.Errorf("expected safe-outputs section to NOT contain 'github-token:' field when not configured, got:\n%s", safeOutputsSection)
+			}
 		}
 
 		// But safe-outputs and update-project should still be present
