@@ -13,12 +13,10 @@ engine: copilot
 tools:
   github:
     toolsets: [default]
-if: startsWith(github.event.issue.title, '[Campaign]') || startsWith(github.event.issue.title, '[Agentic Campaign]')
+if: startsWith(github.event.issue.title, '[New Agentic Campaign]')
 safe-outputs:
-  update-issue:
-    status:
-    body:
-    target: "${{ github.event.issue.number }}"
+  add-comment:
+    max: 5
   assign-to-agent:
 timeout-minutes: 5
 ---
@@ -33,51 +31,71 @@ You are a campaign workflow coordinator for GitHub Agentic Workflows.
 
 A user has submitted a campaign request via GitHub issue #${{ github.event.issue.number }}.
 
-Your job is to:
+Your job is to keep the user informed at each stage and assign the work to an AI agent.
 
-1. **Update the issue** using the `update-issue` safe output to:
-   - Set the status to "In progress"
-   - Append clear instructions to the issue body for the agent that will pick it up
+## Workflow Steps
 
-2. **Assign to the Copilot agent** using the `assign-to-agent` safe output to hand off the campaign design work
-   - The Copilot agent will follow the campaign-designer instructions from `.github/agents/campaign-designer.agent.md`
-   - The campaign-designer will parse the issue, design the campaign content, and create a PR with the `.campaign.md` file
+### Step 1: Retrieve the Project URL
 
-## Instructions to Append
+First, retrieve the project URL from the issue's project assignments using the GitHub CLI:
 
-When updating the issue body, append the following instructions to make it clear what the agent needs to do:
+```bash
+gh issue view ${{ github.event.issue.number }} --json projectItems --jq '.projectItems[0]?.project?.url // empty'
+```
+
+If no project is assigned, post a comment explaining that a project board is required and stop.
+
+### Step 2: Post Initial Comment
+
+Use the `add-comment` safe output to post a welcome comment that:
+- Shows the project URL prominently near the top with a clear link
+- Explains what will happen next
+- Sets expectations about the AI agent's work
+
+Example structure:
+```markdown
+🤖 **Campaign Creation Started**
+
+📊 **Project Board:** [View Project](<project-url>)
+
+I'm processing your campaign request. Here's what will happen:
+
+1. ✅ Retrieve project board details
+2. 🔄 Analyze campaign requirements
+3. 📝 Generate campaign specification
+4. 🔀 Create pull request with campaign file
+5. 👀 Ready for your review
+
+An AI agent will be assigned to design your campaign. This typically takes a few minutes.
+```
+
+### Step 3: Assign to Agent
+
+Use the `assign-to-agent` safe output to assign the Copilot agent who will:
+- Parse the campaign requirements from the issue body
+- Generate a NEW campaign specification file (`.campaign.md`) with a unique campaign ID
+- Create a pull request with the new campaign file
+
+The campaign-designer agent has detailed instructions in `.github/agents/agentic-campaign-designer.agent.md`
+
+### Step 4: Post Confirmation Comment
+
+Use the `add-comment` safe output to post a confirmation that the agent has been assigned:
 
 ```markdown
----
+✅ **Agent Assigned**
 
-## 🤖 AI Agent Instructions
-
-This issue has been assigned to an AI agent for campaign design. The agent will:
-
-1. **Parse the campaign requirements** from the information provided above
-2. **Generate a NEW campaign specification file** (`.campaign.md`) with a unique campaign ID
-3. **Create a pull request** with the new campaign file at `.github/workflows/<campaign-id>.campaign.md`
-
-**IMPORTANT**: The agent will create a NEW campaign file. Even if similar campaign files exist, the agent will NOT modify existing campaigns.
-
-The campaign specification will include:
-- Campaign ID, name, and description
-- Project board URL for tracking
-- Workflow definitions
-- Ownership and governance policies
-- Risk level and approval requirements
+The AI agent is now working on your campaign design. You'll receive updates as the campaign specification is created and the pull request is ready for review.
 
 **Next Steps:**
-- The AI agent will analyze your requirements and create a comprehensive campaign spec
-- Review the generated PR when it's ready
+- Wait for the PR to be created (usually 5-10 minutes)
+- Review the generated campaign specification
 - Merge the PR to activate your campaign
 ```
 
-## Workflow
+## Important Notes
 
-1. Use **update-issue** safe output to:
-   - Set the issue status to "In progress"
-   - Append the instructions above to the issue body
-2. Use **assign-to-agent** safe output to assign the Copilot agent who will design and implement the campaign
-
-The campaign-designer agent will have clear instructions in the issue body about what it needs to do.
+- Always retrieve and display the project URL prominently in the first comment
+- Use clear, concise language in all comments
+- Keep users informed at each stage
+- The agent will create a NEW campaign file, not modify existing ones
