@@ -27,6 +27,16 @@ When the spec includes orchestration, the tooling generates an orchestrator work
 
 **Note:** During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the source `.campaign.md` and compiled `.campaign.lock.yml` are tracked.
 
+### Orchestrator architecture
+
+The generated orchestrator workflow consists of two key components:
+
+1. **Discovery precomputation step**: Runs before the agent to gather candidate items from GitHub (issues, PRs, discussions) and writes a normalized manifest file (`.gh-aw/campaign.discovery.json`). This step uses GitHub Script to efficiently query the GitHub API with pagination budgets and cursor-based incremental discovery.
+
+2. **Agent coordination job**: Reads the discovery manifest, makes deterministic decisions about project updates, and executes writes in a separate phase. The agent never performs GitHub-wide searches directly—it only processes the precomputed manifest.
+
+This architecture reduces API traffic, enables deterministic processing with rate limit controls, and ensures consistent campaign coordination across runs.
+
 ### Mental model
 
 ```mermaid
@@ -66,7 +76,13 @@ flowchart TB
 
 ## How it works
 
-Most campaigns follow the same shape. The GitHub Project is the human-facing status view and the canonical source of campaign membership. The orchestrator workflow discovers tracked items from the workers and updates the Project. Worker workflows do the real work, such as opening pull requests or applying fixes but they stay campaign-agnostic. If you want cross-run discovery of worker-created assets, workers can include a `tracker-id` marker which the orchestrator can search for. Optionally, you can configure a tracker label (e.g., `campaign:<id>`) as an ingestion hint to help discover issues and PRs created by workers.
+Most campaigns follow the same shape. The GitHub Project is the human-facing status view and the canonical source of campaign membership. The orchestrator workflow has two phases:
+
+1. **Discovery precomputation**: A dedicated GitHub Actions step queries GitHub for candidate items (using tracker label searches and workflow run queries), applies pagination budgets, and writes a normalized manifest (`.gh-aw/campaign.discovery.json`). This manifest contains all discovered items with metadata like URLs, content types, timestamps, and state.
+
+2. **Agent coordination**: The agent reads the discovery manifest, makes deterministic decisions about which items need to be added or updated on the project board, and executes writes using the `update-project` safe output. The agent follows strict phases (read, plan, write, report) to ensure idempotent operation.
+
+Worker workflows do the real work, such as opening pull requests or applying fixes, but they stay campaign-agnostic. Workers can include a `tracker-id` marker in their outputs, and you can configure a tracker label (e.g., `campaign:<id>`) as an ingestion hint to help discover issues and PRs created by workers.
 
 ## Memory
 
@@ -74,9 +90,24 @@ Campaigns become repeatable when they also write durable state to repo-memory (a
 
 Campaign tooling enforces this durability contract at push time: when a campaign writes repo-memory, it must include a cursor and at least one metrics snapshot.
 
+### Cursor-based incremental discovery
+
+The orchestrator uses cursor-based incremental discovery to avoid rescanning the same items repeatedly. The cursor file (`cursor.json`) stores the last processed item boundary (typically an `updatedAt` timestamp and item ID). On subsequent runs, the discovery precomputation step reads this cursor and continues from where it left off, using deterministic ordering (e.g., oldest `updatedAt` first, tie-break by ID).
+
+### Metrics snapshots
+
+Each orchestrator run writes a new metrics snapshot file with the UTC date in the filename (e.g., `metrics/2025-01-05.json`). These snapshots are append-only and must include required fields:
+- `campaign_id`: The campaign identifier
+- `date`: UTC date in YYYY-MM-DD format
+- `tasks_total`: Total number of tasks (>= 0)
+- `tasks_completed`: Completed task count (>= 0)
+
+Optional fields include `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`, and `estimated_completion`.
+
 ## Next steps
 
 - [Getting started](/gh-aw/guides/campaigns/getting-started/) – create a campaign quickly
 - [Campaign specs](/gh-aw/guides/campaigns/specs/) – spec fields (objective/KPIs, governance, memory)
 - [Project management](/gh-aw/guides/campaigns/project-management/) – project board setup tips
 - [CLI commands](/gh-aw/guides/campaigns/cli-commands/) – CLI reference
+- [Improvements & future directions](/gh-aw/guides/campaigns/improvements/) – enhancement opportunities for reporting and learning systems

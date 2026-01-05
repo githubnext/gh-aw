@@ -29,11 +29,14 @@ description: "Move services to Framework vNext"
 project-url: "https://github.com/orgs/ORG/projects/1"
 tracker-label: "campaign:framework-upgrade"
 
+# Optional: Custom GitHub token for Projects v2 operations
+# project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+
 objective: "Upgrade all services to Framework vNext with zero downtime."
 kpis:
   - id: services_upgraded
     name: "Services upgraded"
-    primary: true
+    priority: primary
     direction: "increase"
     target: 50
   - id: incidents
@@ -53,9 +56,10 @@ owners:
 
 - `id`: stable identifier used for file naming, reporting, and (if used) repo-memory paths.
 - `project-url`: the GitHub Project that acts as the campaign dashboard and canonical source of campaign membership.
-- `tracker-label` (optional): an ingestion hint label that helps discover issues and pull requests created by workers (commonly `campaign:<id>`). When provided, the orchestrator can discover work across runs. The project board remains the canonical source of truth.
+- `project-github-token` (optional): a GitHub token expression (e.g., `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`) used for GitHub Projects v2 operations. When specified, this token is passed to the `update-project` safe output configuration in the generated orchestrator workflow. Use this when the default `GITHUB_TOKEN` doesn't have sufficient permissions for project board operations.
+- `tracker-label` (optional): an ingestion hint label that helps discover issues and pull requests created by workers (commonly `campaign:<id>`). When provided, the orchestrator's discovery precomputation step can discover work across runs. The project board remains the canonical source of truth.
 - `objective`: a single sentence describing what “done” means.
-- `kpis`: the measures you use to report progress (exactly one should be marked `primary`).
+- `kpis`: the measures you use to report progress. Use `priority: primary` to mark exactly one KPI as the primary measure (not `primary: true`).
 - `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`), and they can be scheduled, event-driven, or long-running.
 
 ## KPIs (recommended shape)
@@ -99,6 +103,18 @@ governance:
   max-project-updates-per-run: 50
   max-comments-per-run: 10
 ```
+
+### Governance fields
+
+- `max-new-items-per-run`: Maximum number of new items to add to the project board per run (applies to agent write phase)
+- `max-discovery-items-per-run`: Maximum number of candidate items the discovery precomputation step will scan per run (default: 100)
+- `max-discovery-pages-per-run`: Maximum number of API result pages the discovery step will fetch per run (default: 10)
+- `opt-out-labels`: Labels that exclude an item from campaign tracking
+- `do-not-downgrade-done-items`: Prevent moving items backwards from "Done" status
+- `max-project-updates-per-run`: Maximum number of project board updates per run (default: 10)
+- `max-comments-per-run`: Maximum number of comments the orchestrator can post per run (default: 10)
+
+These governance policies are enforced during the discovery precomputation step (for read budgets) and during the agent coordination phase (for write budgets), ensuring sustainable API usage and manageable workload.
 
 ## Compilation and orchestrators
 
