@@ -241,6 +241,12 @@ engine: copilot  # sensible defaults
 # MCP Servers Configuration
 
 ```yaml
+# GitHub MCP (recommended: use toolsets)
+tools:
+  github:
+    toolsets: [default]  # repos, issues, pull_requests
+
+# Custom MCP servers
 mcp-servers:
   bundle-analyzer:
     command: "node"
@@ -249,8 +255,6 @@ mcp-servers:
 ```
 
 **MCP:** Extend AI with [Model Context Protocol](https://modelcontextprotocol.io/)
-
-**Managed endpoint:** https://api.githubcopilot.com/mcp/ with OAuth authentication
 
 ---
 
@@ -296,7 +300,8 @@ gh aw compile
 on:
   pull_request:
     types: [opened]
-cache-memory: true  # AI remembers across runs
+tools:
+  cache-memory:  # AI remembers across runs
 ---
 Review this PR with context from previous reviews:
 - Check for repeated issues

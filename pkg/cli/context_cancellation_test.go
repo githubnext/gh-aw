@@ -15,7 +15,7 @@ func TestRunWorkflowOnGitHubWithCancellation(t *testing.T) {
 	cancel()
 
 	// Try to run a workflow with a cancelled context
-	err := RunWorkflowOnGitHub(ctx, "test-workflow", false, "", "", "", false, false, false, []string{}, false)
+	err := RunWorkflowOnGitHub(ctx, "test-workflow", false, "", "", "", false, false, false, false, []string{}, false)
 
 	// Should return context.Canceled error
 	assert.ErrorIs(t, err, context.Canceled, "Should return context.Canceled error when context is cancelled")
@@ -28,7 +28,7 @@ func TestRunWorkflowsOnGitHubWithCancellation(t *testing.T) {
 	cancel()
 
 	// Try to run workflows with a cancelled context
-	err := RunWorkflowsOnGitHub(ctx, []string{"test-workflow"}, 0, false, "", "", "", false, false, []string{}, false)
+	err := RunWorkflowsOnGitHub(ctx, []string{"test-workflow"}, 0, false, "", "", "", false, false, false, []string{}, false)
 
 	// Should return context.Canceled error
 	assert.ErrorIs(t, err, context.Canceled, "Should return context.Canceled error when context is cancelled")
@@ -96,7 +96,7 @@ func TestRunWorkflowsOnGitHubCancellationDuringExecution(t *testing.T) {
 	// Try to run multiple workflows that would take a long time
 	// This should fail validation before timeout, but if it gets past validation,
 	// it should respect the context cancellation
-	err := RunWorkflowsOnGitHub(ctx, []string{"nonexistent-workflow-1", "nonexistent-workflow-2"}, 0, false, "", "", "", false, false, []string{}, false)
+	err := RunWorkflowsOnGitHub(ctx, []string{"nonexistent-workflow-1", "nonexistent-workflow-2"}, 0, false, "", "", "", false, false, false, []string{}, false)
 
 	// Should return an error (either validation error or context error)
 	assert.Error(t, err, "Should return an error")
