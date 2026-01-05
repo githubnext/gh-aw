@@ -18,6 +18,7 @@ and synchronizing campaign state into a GitHub Project board.
 
 {{ if .CursorGlob }}
 **Cursor file (repo-memory)**: `{{ .CursorGlob }}`  
+**File system path**: `/tmp/gh-aw/repo-memory/campaigns/{{.CampaignID}}/cursor.json`  
 - If it exists: read first and continue from its boundary.  
 - If it does not exist: create it by end of run.  
 - Always write the updated cursor back to the same path.
@@ -25,6 +26,7 @@ and synchronizing campaign state into a GitHub Project board.
 
 {{ if .MetricsGlob }}
 **Metrics snapshots (repo-memory)**: `{{ .MetricsGlob }}`  
+**File system path**: `/tmp/gh-aw/repo-memory/campaigns/{{.CampaignID}}/metrics/*.json`  
 - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
 - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
 - Each snapshot MUST include ALL required fields (even if zero):
