@@ -375,7 +375,7 @@ When a run is still executing:
 # Poll until completion
 while true; do
   output=$(gh aw audit <run-id> --json 2>&1)
-  if echo "$output" | grep -qE '"status":\s*"(completed|failure|cancelled)"'; then
+  if echo "$output" | grep -q '"status":.*"\(completed\|failure\|cancelled\)"'; then
     echo "$output"
     break
   fi
