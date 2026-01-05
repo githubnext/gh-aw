@@ -651,6 +651,7 @@ jobs:
           
           
           **Cursor file (repo-memory)**: `memory/campaigns/file-size-reduction-project71/cursor.json`  
+          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/file-size-reduction-project71/cursor.json`  
           - If it exists: read first and continue from its boundary.  
           - If it does not exist: create it by end of run.  
           - Always write the updated cursor back to the same path.
@@ -658,6 +659,7 @@ jobs:
           
           
           **Metrics snapshots (repo-memory)**: `memory/campaigns/file-size-reduction-project71/metrics/*.json`  
+          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/file-size-reduction-project71/metrics/*.json`  
           - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
           - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
           - Each snapshot MUST include ALL required fields (even if zero):

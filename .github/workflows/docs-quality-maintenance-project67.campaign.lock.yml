@@ -652,6 +652,7 @@ jobs:
           
           
           **Cursor file (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project73/cursor.json`  
+          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/docs-quality-maintenance-project73/cursor.json`  
           - If it exists: read first and continue from its boundary.  
           - If it does not exist: create it by end of run.  
           - Always write the updated cursor back to the same path.
@@ -659,6 +660,7 @@ jobs:
           
           
           **Metrics snapshots (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project73/metrics/*.json`  
+          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/docs-quality-maintenance-project73/metrics/*.json`  
           - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
           - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
           - Each snapshot MUST include ALL required fields (even if zero):
@@ -1052,17 +1054,17 @@ jobs:
           - The GitHub Project board is the single source of truth.
           - All project writes MUST comply with `project_update_instructions.md`.
           - State reads and state writes MUST NOT be interleaved.
-          - Do NOT infer missing data or invent values.
-          - Do NOT reorganize hierarchy.
-          - Do NOT overwrite fields except as explicitly allowed.
-          - Workers are immutable and campaign-agnostic.
-          
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          - Do NOT infer missing data or invent values.
+          - Do NOT reorganize hierarchy.
+          - Do NOT overwrite fields except as explicitly allowed.
+          - Workers are immutable and campaign-agnostic.
+          
           If any instruction conflicts, the Project Update Instructions take precedence for all writes.
           
           PROMPT_EOF
