@@ -77,6 +77,69 @@ Test workflow without allowed-github-references.
 `,
 			expectedEnvVarPresent: false,
 		},
+		{
+			name: "env var with repos containing special characters",
+			workflow: `---
+on: push
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: write
+safe-outputs:
+  allowed-github-references: ["my-org/my-repo", "test-org/test.repo"]
+  create-issue: {}
+---
+
+# Test Workflow
+
+Test workflow with special characters in repo names.
+`,
+			expectedEnvVarPresent: true,
+			expectedEnvVarValue:   "my-org/my-repo,test-org/test.repo",
+		},
+		{
+			name: "env var with mix of repo keyword and specific repos",
+			workflow: `---
+on: push
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: write
+safe-outputs:
+  allowed-github-references: ["repo", "microsoft/vscode"]
+  create-issue: {}
+---
+
+# Test Workflow
+
+Test workflow mixing repo keyword with specific repos.
+`,
+			expectedEnvVarPresent: true,
+			expectedEnvVarValue:   "repo,microsoft/vscode",
+		},
+		{
+			name: "env var with only specific repos (no repo keyword)",
+			workflow: `---
+on: push
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: write
+safe-outputs:
+  allowed-github-references: ["octocat/hello-world", "github/copilot"]
+  create-issue: {}
+---
+
+# Test Workflow
+
+Test workflow with only specific repos allowed.
+`,
+			expectedEnvVarPresent: true,
+			expectedEnvVarValue:   "octocat/hello-world,github/copilot",
+		},
 	}
 
 	for _, tt := range tests {

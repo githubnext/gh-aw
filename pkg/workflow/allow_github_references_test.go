@@ -52,6 +52,46 @@ func TestAllowGitHubReferencesConfig(t *testing.T) {
 			},
 			expected: nil,
 		},
+		{
+			name: "allow repos with hyphens",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"allowed-github-references": []any{"my-org/my-repo", "other-org/other-repo"},
+					"create-issue":              map[string]any{},
+				},
+			},
+			expected: []string{"my-org/my-repo", "other-org/other-repo"},
+		},
+		{
+			name: "allow repos with underscores and dots",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"allowed-github-references": []any{"my-org/my.repo", "test-org/test.repo.v2"},
+					"create-issue":              map[string]any{},
+				},
+			},
+			expected: []string{"my-org/my.repo", "test-org/test.repo.v2"},
+		},
+		{
+			name: "single specific repo without 'repo' keyword",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"allowed-github-references": []any{"octocat/hello-world"},
+					"create-issue":              map[string]any{},
+				},
+			},
+			expected: []string{"octocat/hello-world"},
+		},
+		{
+			name: "mix of 'repo' keyword and specific repos",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"allowed-github-references": []any{"repo", "microsoft/vscode", "github/copilot"},
+					"create-issue":              map[string]any{},
+				},
+			},
+			expected: []string{"repo", "microsoft/vscode", "github/copilot"},
+		},
 	}
 
 	for _, tt := range tests {
