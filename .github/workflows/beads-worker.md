@@ -67,9 +67,6 @@ safe-outputs:
             # Sync beads data from repository
             bd sync
             echo "✓ Beads data synced"
-            
-            # Clear credentials
-            git config --unset credential.helper
         
         - name: Update bead state
           env:
@@ -102,6 +99,9 @@ safe-outputs:
             echo "Syncing changes to repository..."
             bd sync
             echo "✓ Sync completed successfully"
+            
+            # Clear credentials after all bd operations
+            git config --unset credential.helper
             echo "=== Bead sync completed ==="
 jobs:
   bead:
@@ -202,26 +202,18 @@ jobs:
             echo "ℹ️  No ready beads to work on"
           fi
           
-          # Clear credentials
-          git config --unset credential.helper
-          
           echo "=== Bead claim process completed ==="
       
       - name: Sync bead changes
         if: steps.claim_bead.outputs.id != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=== Starting bead sync ==="
           echo "Syncing changes to repository..."
           
-          # Configure git credentials for sync
-          git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
-          
           bd sync
           echo "✓ Sync completed successfully"
           
-          # Clear credentials
+          # Clear credentials after all bd operations
           git config --unset credential.helper
           echo "=== Bead sync completed ==="
   
