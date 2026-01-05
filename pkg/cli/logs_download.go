@@ -194,6 +194,86 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 	return nil
 }
 
+// flattenAgentOutputsArtifact flattens the agent_outputs artifact directory
+// The agent_outputs artifact contains session logs with detailed token usage data
+// that are critical for accurate token count parsing
+func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
+	agentOutputsDir := filepath.Join(outputDir, "agent_outputs")
+
+	// Check if agent_outputs directory exists
+	if _, err := os.Stat(agentOutputsDir); os.IsNotExist(err) {
+		// No agent_outputs artifact, nothing to flatten
+		logsDownloadLog.Print("No agent_outputs artifact found (session logs may be missing)")
+		return nil
+	}
+
+	logsDownloadLog.Printf("Flattening agent_outputs directory: %s", agentOutputsDir)
+
+	// Walk through agent_outputs and move all files to root output directory
+	err := filepath.Walk(agentOutputsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the root directory itself
+		if path == agentOutputsDir {
+			return nil
+		}
+
+		// Calculate relative path from agent_outputs
+		relPath, err := filepath.Rel(agentOutputsDir, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
+		}
+
+		destPath := filepath.Join(outputDir, relPath)
+
+		if info.IsDir() {
+			// Create directory in destination
+			if err := os.MkdirAll(destPath, 0750); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
+			}
+			logsDownloadLog.Printf("Created directory: %s", destPath)
+		} else {
+			// Move file to destination
+			// Ensure parent directory exists
+			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
+				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
+			}
+
+			if err := os.Rename(path, destPath); err != nil {
+				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
+			}
+			logsDownloadLog.Printf("Moved file: %s → %s", path, destPath)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
+	}
+
+	// Remove the now-empty agent_outputs directory
+	if err := os.RemoveAll(agentOutputsDir); err != nil {
+		logsDownloadLog.Printf("Failed to remove agent_outputs directory %s: %v", agentOutputsDir, err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove agent_outputs directory: %v", err)))
+		}
+		// Don't fail the entire operation if cleanup fails
+	} else {
+		logsDownloadLog.Printf("Removed agent_outputs directory: %s", agentOutputsDir)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened agent_outputs artifact and removed nested structure"))
+		}
+	}
+
+	return nil
+}
+
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
 func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error {
 	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s", runID, outputDir)
@@ -428,6 +508,11 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	// Flatten unified agent-artifacts directory structure
 	if err := flattenUnifiedArtifact(outputDir, verbose); err != nil {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
+	}
+
+	// Flatten agent_outputs artifact if present
+	if err := flattenAgentOutputsArtifact(outputDir, verbose); err != nil {
+		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
 	}
 
 	// Download and unzip workflow run logs
