@@ -27,7 +27,21 @@ and synchronizing campaign state into a GitHub Project board.
 **Metrics snapshots (repo-memory)**: `{{ .MetricsGlob }}`  
 - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
 - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
-- Each snapshot MUST include `campaign_id` and `date` (UTC).
+- Each snapshot MUST include ALL required fields (even if zero):
+  - `campaign_id` (string): The campaign identifier
+  - `date` (string): UTC date in YYYY-MM-DD format
+  - `tasks_total` (number): Total number of tasks (>= 0, even if 0)
+  - `tasks_completed` (number): Completed task count (>= 0, even if 0)
+- Optional fields (include only if available): `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`, `estimated_completion`
+- Example minimum valid snapshot:
+  ```json
+  {
+    "campaign_id": "{{.CampaignID}}",
+    "date": "2025-12-22",
+    "tasks_total": 0,
+    "tasks_completed": 0
+  }
+  ```
 {{ end }}
 
 {{ if gt .MaxDiscoveryItemsPerRun 0 }}
