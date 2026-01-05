@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 func TestValidateWorkflowName_Integration(t *testing.T) {
