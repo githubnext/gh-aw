@@ -147,15 +147,15 @@ func TestExtractNoopsFromRun(t *testing.T) {
 // TestExtractNoopsFlattenedStructure tests extracting noops from the new flattened artifact structure
 // where agent_output.json is at root after artifact flattening
 func TestExtractNoopsFlattenedStructure(t *testing.T) {
-tmpDir := testutil.TempDir(t, "test-*")
-runDir := filepath.Join(tmpDir, "run-flattened-noop")
-err := os.MkdirAll(runDir, 0755)
-if err != nil {
-t.Fatalf("Failed to create test directory: %v", err)
-}
+	tmpDir := testutil.TempDir(t, "test-*")
+	runDir := filepath.Join(tmpDir, "run-flattened-noop")
+	err := os.MkdirAll(runDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
 
-// Create agent_output.json at root (new flattened structure)
-agentOutputContent := `{
+	// Create agent_output.json at root (new flattened structure)
+	agentOutputContent := `{
   "items": [
     {
       "type": "noop",
@@ -171,47 +171,47 @@ agentOutputContent := `{
   "errors": []
 }`
 
-// Use the actual filename: agent_output.json (with underscore and .json extension)
-agentOutputPath := filepath.Join(runDir, "agent_output.json")
-err = os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0644)
-if err != nil {
-t.Fatalf("Failed to write agent_output.json: %v", err)
-}
+	// Use the actual filename: agent_output.json (with underscore and .json extension)
+	agentOutputPath := filepath.Join(runDir, "agent_output.json")
+	err = os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write agent_output.json: %v", err)
+	}
 
-// Create test run
-testRun := WorkflowRun{
-DatabaseID:   88888,
-WorkflowName: "Flattened Noop Test",
-}
+	// Create test run
+	testRun := WorkflowRun{
+		DatabaseID:   88888,
+		WorkflowName: "Flattened Noop Test",
+	}
 
-// Extract noops - should find the file at root
-noops, err := extractNoopsFromRun(runDir, testRun, false)
-if err != nil {
-t.Fatalf("Error extracting noops from flattened structure: %v", err)
-}
+	// Extract noops - should find the file at root
+	noops, err := extractNoopsFromRun(runDir, testRun, false)
+	if err != nil {
+		t.Fatalf("Error extracting noops from flattened structure: %v", err)
+	}
 
-// Verify results
-if len(noops) != 2 {
-t.Errorf("Expected 2 noops from flattened structure, got %d", len(noops))
-return
-}
+	// Verify results
+	if len(noops) != 2 {
+		t.Errorf("Expected 2 noops from flattened structure, got %d", len(noops))
+		return
+	}
 
-expectedMessages := []string{
-"Test noop message from flattened structure",
-"Second noop message",
-}
+	expectedMessages := []string{
+		"Test noop message from flattened structure",
+		"Second noop message",
+	}
 
-for i, noop := range noops {
-if noop.Message != expectedMessages[i] {
-t.Errorf("Expected message '%s', got '%s'", expectedMessages[i], noop.Message)
-}
+	for i, noop := range noops {
+		if noop.Message != expectedMessages[i] {
+			t.Errorf("Expected message '%s', got '%s'", expectedMessages[i], noop.Message)
+		}
 
-if noop.WorkflowName != testRun.WorkflowName {
-t.Errorf("Expected workflow name '%s', got '%s'", testRun.WorkflowName, noop.WorkflowName)
-}
+		if noop.WorkflowName != testRun.WorkflowName {
+			t.Errorf("Expected workflow name '%s', got '%s'", testRun.WorkflowName, noop.WorkflowName)
+		}
 
-if noop.RunID != testRun.DatabaseID {
-t.Errorf("Expected run ID %d, got %d", testRun.DatabaseID, noop.RunID)
-}
-}
+		if noop.RunID != testRun.DatabaseID {
+			t.Errorf("Expected run ID %d, got %d", testRun.DatabaseID, noop.RunID)
+		}
+	}
 }
