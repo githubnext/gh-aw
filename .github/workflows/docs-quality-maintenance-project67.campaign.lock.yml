@@ -661,7 +661,21 @@ jobs:
           **Metrics snapshots (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project73/metrics/*.json`  
           - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
           - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
-          - Each snapshot MUST include `campaign_id` and `date` (UTC).
+          - Each snapshot MUST include ALL required fields (even if zero):
+            - `campaign_id` (string): The campaign identifier
+            - `date` (string): UTC date in YYYY-MM-DD format
+            - `tasks_total` (number): Total number of tasks (>= 0, even if 0)
+            - `tasks_completed` (number): Completed task count (>= 0, even if 0)
+          - Optional fields (include only if available): `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`, `estimated_completion`
+          - Example minimum valid snapshot:
+            ```json
+            {
+              "campaign_id": "docs-quality-maintenance-project73",
+              "date": "2025-12-22",
+              "tasks_total": 0,
+              "tasks_completed": 0
+            }
+            ```
           
           
           
@@ -1043,6 +1057,12 @@ jobs:
           - Do NOT overwrite fields except as explicitly allowed.
           - Workers are immutable and campaign-agnostic.
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           If any instruction conflicts, the Project Update Instructions take precedence for all writes.
           
           PROMPT_EOF
