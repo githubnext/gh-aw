@@ -1,17 +1,8 @@
 package console
 
 import (
-	"os"
-
 	"github.com/charmbracelet/huh"
 )
-
-// isAccessibleMode detects if accessibility mode should be enabled based on environment variables
-func isAccessibleMode() bool {
-	return os.Getenv("ACCESSIBLE") != "" ||
-		os.Getenv("TERM") == "dumb" ||
-		os.Getenv("NO_COLOR") != ""
-}
 
 // ConfirmAction shows an interactive confirmation dialog using Bubble Tea (huh)
 // Returns true if the user confirms, false if they cancel or an error occurs
@@ -26,7 +17,7 @@ func ConfirmAction(title, affirmative, negative string) (bool, error) {
 				Negative(negative).
 				Value(&confirmed),
 		),
-	).WithAccessible(isAccessibleMode())
+	).WithAccessible(IsAccessibleMode())
 
 	if err := confirmForm.Run(); err != nil {
 		return false, err

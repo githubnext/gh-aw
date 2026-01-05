@@ -225,7 +225,7 @@ func TestIsAccessibleMode(t *testing.T) {
 				os.Unsetenv("NO_COLOR")
 			}
 
-			result := isAccessibleMode()
+			result := console.IsAccessibleMode()
 
 			// Restore original values
 			if origAccessible != "" {
@@ -245,7 +245,7 @@ func TestIsAccessibleMode(t *testing.T) {
 			}
 
 			if result != tt.expected {
-				t.Errorf("isAccessibleMode() with ACCESSIBLE=%q TERM=%q NO_COLOR=%q = %v, want %v",
+				t.Errorf("console.IsAccessibleMode() with ACCESSIBLE=%q TERM=%q NO_COLOR=%q = %v, want %v",
 					tt.accessible, tt.term, tt.noColor, result, tt.expected)
 			}
 		})
