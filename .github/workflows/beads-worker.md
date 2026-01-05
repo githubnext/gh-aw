@@ -52,12 +52,14 @@ safe-outputs:
           run: |
             git config --global user.name "github-actions[bot]"
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git config --global init.defaultBranch beads-sync
         
-        - name: Initialize git repository
-          run: |
-            git init
-            git remote add origin https://github.com/${{ github.repository }}.git
+        - name: Checkout .beads folder
+          uses: actions/checkout@v4
+          with:
+            ref: beads-sync
+            sparse-checkout: |
+              .beads
+            persist-credentials: true
         
         - name: Sync with beads
           env:
@@ -69,9 +71,6 @@ safe-outputs:
             
             # Verify installation
             bd --version
-            
-            # Configure git credentials for beads sync
-            git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
             
             # Sync beads data from repository
             bd sync
@@ -108,9 +107,6 @@ safe-outputs:
             echo "Syncing changes to repository..."
             bd sync
             echo "✓ Sync completed successfully"
-            
-            # Clear credentials after all bd operations
-            git config --unset credential.helper
             echo "=== Bead sync completed ==="
 jobs:
   bead:
@@ -128,12 +124,14 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global init.defaultBranch beads-sync
       
-      - name: Initialize git repository
-        run: |
-          git init
-          git remote add origin https://github.com/${{ github.repository }}.git
+      - name: Checkout .beads folder
+        uses: actions/checkout@v4
+        with:
+          ref: beads-sync
+          sparse-checkout: |
+            .beads
+          persist-credentials: true
       
       - name: Install beads CLI
         run: |
@@ -150,9 +148,6 @@ jobs:
         run: |
           echo "=== Starting bead claim process ==="
           echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          
-          # Configure git credentials for beads sync
-          git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
           
           # Sync beads data from repository
           echo "Syncing beads data..."
@@ -221,9 +216,6 @@ jobs:
           
           bd sync
           echo "✓ Sync completed successfully"
-          
-          # Clear credentials after all bd operations
-          git config --unset credential.helper
           echo "=== Bead sync completed ==="
   
   release_bead:
@@ -237,12 +229,14 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global init.defaultBranch beads-sync
       
-      - name: Initialize git repository
-        run: |
-          git init
-          git remote add origin https://github.com/${{ github.repository }}.git
+      - name: Checkout .beads folder
+        uses: actions/checkout@v4
+        with:
+          ref: beads-sync
+          sparse-checkout: |
+            .beads
+          persist-credentials: true
       
       - name: Install beads CLI
         run: |
@@ -261,9 +255,6 @@ jobs:
           echo "=== Starting bead release process ==="
           echo "Claimed bead ID: $BEAD_ID"
           echo "Agent result: $AGENT_RESULT"
-          
-          # Configure git credentials for beads sync
-          git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
           
           # Sync beads data from repository
           echo "Syncing beads data..."
@@ -288,9 +279,6 @@ jobs:
           else
             echo "ℹ️  Bead is no longer in progress (status: $BEAD_STATUS) - no need to release"
           fi
-          
-          # Clear credentials
-          git config --unset credential.helper
           
           echo "=== Bead release process completed ==="
 ---
