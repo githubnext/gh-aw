@@ -10,6 +10,7 @@ permissions:
 engine: copilot
 strict: true
 timeout-minutes: 60
+if: needs.bead.outputs.id != ''
 tools:
   github:
     toolsets: [default]
@@ -17,10 +18,6 @@ tools:
     - "*"
   edit:
 safe-outputs:
-  create-issue:
-    title-prefix: "[beads] "
-    labels: [automation, beads]
-    max: 3
   jobs:
     bead-update-state:
       description: "Update bead state (completed, failed, or released)"
@@ -47,13 +44,18 @@ safe-outputs:
             INPUT_BEAD_ID: ${{ inputs.bead_id }}
             CLAIMED_BEAD_ID: ${{ needs.bead.outputs.id }}
           run: |
+            echo "=== Starting bead ID validation ==="
+            echo "Input bead ID: $INPUT_BEAD_ID"
+            echo "Claimed bead ID: $CLAIMED_BEAD_ID"
+            
             # Ensure the bead_id matches the claimed bead
             if [ "$INPUT_BEAD_ID" != "$CLAIMED_BEAD_ID" ]; then
-              echo "Error: Cannot update bead '$INPUT_BEAD_ID'"
+              echo "❌ Error: Cannot update bead '$INPUT_BEAD_ID'"
               echo "This workflow can only update the claimed bead: '$CLAIMED_BEAD_ID'"
               exit 1
             fi
-            echo "Validation passed: Updating claimed bead $CLAIMED_BEAD_ID"
+            echo "✓ Validation passed: Updating claimed bead $CLAIMED_BEAD_ID"
+            echo "=== Bead ID validation completed ==="
         
         - name: Checkout repository
           uses: actions/checkout@v5
@@ -75,22 +77,32 @@ safe-outputs:
             STATE: ${{ inputs.state }}
             REASON: ${{ inputs.reason }}
           run: |
+            echo "=== Starting bead state update ==="
+            echo "Bead ID: $BEAD_ID"
+            echo "New state: $STATE"
+            echo "Reason: $REASON"
+            
             # Update bead state
+            echo "Updating bead state..."
             if [ -n "$REASON" ]; then
               bd update "$BEAD_ID" --status "$STATE" --comment "$REASON"
             else
               bd update "$BEAD_ID" --status "$STATE"
             fi
+            echo "✓ Bead state updated successfully"
             
             # Show updated bead
+            echo "Updated bead details:"
             bd show "$BEAD_ID" --json
+            echo "=== Bead state update completed ==="
         
         - name: Sync bead changes
           run: |
-            # Sync changes to repository
+            echo "=== Starting bead sync ==="
+            echo "Syncing changes to repository..."
             bd sync
-            # Sync changes to repository
-            bd sync
+            echo "✓ Sync completed successfully"
+            echo "=== Bead sync completed ==="
 jobs:
   bead:
     needs: activation
@@ -120,24 +132,31 @@ jobs:
       - name: Claim ready bead
         id: claim_bead
         run: |
+          echo "=== Starting bead claim process ==="
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
           # Check if beads are initialized
+          echo "Checking for .beads directory..."
           if [ ! -d ".beads" ]; then
             echo "id=" >> "$GITHUB_OUTPUT"
             echo "title=" >> "$GITHUB_OUTPUT"
             echo "description=" >> "$GITHUB_OUTPUT"
             echo "status=" >> "$GITHUB_OUTPUT"
-            echo "No beads found - repository not initialized with beads"
+            echo "⚠️  No beads found - repository not initialized with beads"
             exit 0
           fi
+          echo "✓ .beads directory found"
           
           # Get ready beads (without daemon)
+          echo "Fetching ready beads..."
           READY_BEADS=$(bd ready --json --no-daemon 2>/dev/null || echo "[]")
           BEAD_COUNT=$(echo "$READY_BEADS" | jq 'length')
           
-          echo "Found $BEAD_COUNT ready beads"
+          echo "✓ Found $BEAD_COUNT ready beads"
           
           if [ "$BEAD_COUNT" -gt 0 ]; then
             # Get the first ready bead
+            echo "Processing first ready bead..."
             BEAD_ID=$(echo "$READY_BEADS" | jq -r '.[0].id')
             BEAD_TITLE=$(echo "$READY_BEADS" | jq -r '.[0].title // ""')
             BEAD_DESC=$(echo "$READY_BEADS" | jq -r '.[0].description // ""')
@@ -147,27 +166,37 @@ jobs:
             echo "description=$BEAD_DESC" >> "$GITHUB_OUTPUT"
             echo "status=claimed" >> "$GITHUB_OUTPUT"
             
-            echo "Ready to work on bead: $BEAD_ID"
-            echo "Title: $BEAD_TITLE"
+            echo "✓ Bead selected:"
+            echo "  - ID: $BEAD_ID"
+            echo "  - Title: $BEAD_TITLE"
+            echo "  - Description: $BEAD_DESC"
             
             # Claim the bead by updating to in_progress
+            echo "Claiming bead (updating to in_progress)..."
             bd update "$BEAD_ID" --status in_progress
+            echo "✓ Bead claimed successfully"
             
             # Show bead details
+            echo "Bead details:"
             bd show "$BEAD_ID" --json
           else
             echo "id=" >> "$GITHUB_OUTPUT"
             echo "title=" >> "$GITHUB_OUTPUT"
             echo "description=" >> "$GITHUB_OUTPUT"
             echo "status=none" >> "$GITHUB_OUTPUT"
-            echo "No ready beads to work on"
+            echo "ℹ️  No ready beads to work on"
           fi
+          
+          echo "=== Bead claim process completed ==="
       
       - name: Sync bead changes
         if: steps.claim_bead.outputs.id != ''
         run: |
-          # Sync changes to repository
+          echo "=== Starting bead sync ==="
+          echo "Syncing changes to repository..."
           bd sync
+          echo "✓ Sync completed successfully"
+          echo "=== Bead sync completed ==="
   
   release_bead:
     needs: [bead, agent]
@@ -195,27 +224,56 @@ jobs:
           BEAD_ID: ${{ needs.bead.outputs.id }}
           AGENT_RESULT: ${{ needs.agent.result }}
         run: |
-          # Check if the claimed bead is still in_progress
-          BEAD_STATUS=$(bd show "$BEAD_ID" --json 2>/dev/null | jq -r '.status')
-          
-          echo "Claimed bead: $BEAD_ID"
-          echo "Current status: $BEAD_STATUS"
+          echo "=== Starting bead release process ==="
+          echo "Claimed bead ID: $BEAD_ID"
           echo "Agent result: $AGENT_RESULT"
           
+          # Check if the claimed bead is still in_progress
+          echo "Checking bead status..."
+          BEAD_STATUS=$(bd show "$BEAD_ID" --json 2>/dev/null | jq -r '.status')
+          
+          echo "Current bead status: $BEAD_STATUS"
+          
           if [ "$BEAD_STATUS" = "in_progress" ]; then
-            echo "Bead is still in progress - releasing it back to open state"
+            echo "⚠️  Bead is still in progress - releasing it back to open state"
             bd update "$BEAD_ID" --status open --comment "Released by workflow (agent result: $AGENT_RESULT)"
+            echo "✓ Bead released successfully"
             
             # Sync changes
+            echo "Syncing changes to repository..."
             bd sync
+            echo "✓ Sync completed successfully"
           else
-            echo "Bead is no longer in progress (status: $BEAD_STATUS) - no need to release"
+            echo "ℹ️  Bead is no longer in progress (status: $BEAD_STATUS) - no need to release"
           fi
+          
+          echo "=== Bead release process completed ==="
 ---
 
 # Beads Worker
 
 You are an automated beads worker that processes ready tasks from a beads-equipped repository.
+
+<!--
+BEAD STATE MACHINE:
+
+States:
+  - open: Bead is ready to be claimed and worked on
+  - in_progress: Bead has been claimed and is being worked on
+  - closed: Bead work is complete
+
+Transitions:
+  open -> in_progress: When bead job claims a ready bead
+  in_progress -> closed: When agent successfully completes the work (via bead-update-state)
+  in_progress -> open: When agent cannot complete work (via bead-update-state) OR when release_bead job runs (timeout/failure)
+  
+Workflow:
+  1. bead job: Finds ready beads (state=open) and claims first one (state=in_progress)
+  2. agent job: Works on the bead and updates state via bead-update-state tool
+     - Success: in_progress -> closed
+     - Cannot complete: in_progress -> open
+  3. release_bead job (if: always()): If bead is still in_progress, releases it back to open
+-->
 
 ## Context
 
@@ -245,7 +303,7 @@ You are an automated beads worker that processes ready tasks from a beads-equipp
 2. If the task involves code changes:
    - Make the necessary changes
    - Test your changes if possible
-   - Create an issue documenting what was done (use create-issue safe output)
+   - Document significant work appropriately
 3. If the task is complete, call `bead-update-state` with:
    - `bead_id`: "${{ needs.bead.outputs.id }}"
    - `state`: "closed"
