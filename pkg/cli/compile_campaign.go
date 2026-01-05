@@ -39,8 +39,10 @@ import (
 var compileCampaignLog = logger.New("cli:compile_campaign")
 
 // validateCampaigns validates campaign spec files and their referenced workflows.
+// If campaignFiles is provided (non-nil), only those specific campaign files are validated.
+// If campaignFiles is nil, all campaign specs are validated.
 // Returns an error if any campaign specs are invalid or reference missing workflows.
-func validateCampaigns(workflowDir string, verbose bool) error {
+func validateCampaigns(workflowDir string, verbose bool, campaignFiles []string) error {
 	compileCampaignLog.Printf("Validating campaigns with workflow directory: %s", workflowDir)
 
 	// Get absolute path to workflows directory
@@ -81,16 +83,50 @@ func validateCampaigns(workflowDir string, verbose bool) error {
 		return nil
 	}
 
-	compileCampaignLog.Printf("Loaded %d campaign specs for validation", len(specs))
+	// Filter specs if specific campaign files were provided
+	var specsToValidate []campaign.CampaignSpec
+	if campaignFiles != nil && len(campaignFiles) > 0 {
+		compileCampaignLog.Printf("Filtering to validate only %d specific campaign file(s)", len(campaignFiles))
+		// Create a map of absolute paths for quick lookup
+		campaignFileMap := make(map[string]bool)
+		for _, cf := range campaignFiles {
+			absPath, err := filepath.Abs(cf)
+			if err == nil {
+				campaignFileMap[absPath] = true
+			}
+		}
+		
+		for _, spec := range specs {
+			// Get absolute path of the spec's config file
+			specPath := spec.ConfigPath
+			if !filepath.IsAbs(specPath) {
+				specPath = filepath.Join(gitRoot, specPath)
+			}
+			absSpecPath, err := filepath.Abs(specPath)
+			if err == nil && campaignFileMap[absSpecPath] {
+				specsToValidate = append(specsToValidate, spec)
+			}
+		}
+		compileCampaignLog.Printf("Filtered to %d campaign spec(s) for validation", len(specsToValidate))
+	} else {
+		// Validate all specs
+		specsToValidate = specs
+		compileCampaignLog.Printf("Loaded %d campaign specs for validation", len(specs))
+	}
+
+	if len(specsToValidate) == 0 {
+		compileCampaignLog.Print("No matching campaign specs found to validate")
+		return nil
+	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Validating %d campaign spec(s)...", len(specs))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Validating %d campaign spec(s)...", len(specsToValidate))))
 	}
 
 	var allProblems []string
 	hasErrors := false
 
-	for _, spec := range specs {
+	for _, spec := range specsToValidate {
 		// Validate the spec itself
 		problems := campaign.ValidateSpec(&spec)
 
@@ -115,9 +151,9 @@ func validateCampaigns(workflowDir string, verbose bool) error {
 		return fmt.Errorf("found %d problem(s) in campaign specs", len(allProblems))
 	}
 
-	compileCampaignLog.Printf("All %d campaign specs validated successfully", len(specs))
+	compileCampaignLog.Printf("All %d campaign specs validated successfully", len(specsToValidate))
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All %d campaign spec(s) validated successfully", len(specs))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All %d campaign spec(s) validated successfully", len(specsToValidate))))
 	}
 
 	return nil
