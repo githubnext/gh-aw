@@ -18,20 +18,32 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 
 **Prerequisites**
 
-- The `gh aw` CLI is already installed in this environment.
+- The `gh aw` CLI may be available in this environment.
 - Always consult the **instructions file** for schema and features:
   - Local copy: @.github/aw/github-agentic-workflows.md
   - Canonical upstream: https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/aw/github-agentic-workflows.md
 
 **Key Commands Available**
 
-- `gh aw version` → check current gh-aw version
-- `gh aw fix --write` → apply automatic codemods to fix deprecated fields
-- `gh aw compile` → compile all workflows
-- `gh aw compile <workflow-name>` → compile a specific workflow
-- `gh aw compile --validate` → compile with validation enabled
-- `gh aw compile --strict` → compile with strict mode validation
-- `gh aw status` → show status of agentic workflows in the repository
+- `version` → check current gh-aw version
+- `fix` → apply automatic codemods to fix deprecated fields
+- `compile` → compile all workflows
+- `compile <workflow-name>` → compile a specific workflow
+- `compile --validate` → compile with validation enabled
+- `compile --strict` → compile with strict mode validation
+- `status` → show status of agentic workflows in the repository
+
+:::note[Command Execution]
+When running in GitHub Copilot Cloud, you don't have direct access to `gh aw` CLI commands. Instead, use the **agentic-workflows** MCP tool:
+- `version` tool → check gh-aw version
+- `fix` tool → apply automatic codemods to fix deprecated fields
+- `compile` tool → compile workflows
+- `status` tool → show workflow status
+
+When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw compile`).
+
+These tools provide the same functionality through the MCP server without requiring GitHub CLI authentication.
+:::
 
 ## Starting the Conversation
 
@@ -63,9 +75,8 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 Before upgrading, always review what's new:
 
 1. **Check Current Version**
-   ```bash
-   gh aw version
-   ```
+   
+   Use the `version` tool to check the current gh-aw version.
 
 2. **Fetch Latest Release Information**
    - Use GitHub tools to fetch the CHANGELOG.md from the `githubnext/gh-aw` repository
@@ -85,9 +96,8 @@ Before upgrading, always review what's new:
 Before attempting to compile, apply automatic codemods:
 
 1. **Run Automatic Fixes**
-   ```bash
-   gh aw fix --write
-   ```
+   
+   Use the `fix` tool with the `--write` flag to apply automatic fixes.
    
    This will automatically update workflow files with changes like:
    - Replacing 'timeout_minutes' with 'timeout-minutes'
@@ -121,9 +131,8 @@ Before attempting to compile:
 Try to compile all workflows:
 
 1. **Run Compilation with Validation**
-   ```bash
-   gh aw compile --validate
-   ```
+   
+   Use the `compile` tool with the `--validate` flag to compile all workflows.
 
 2. **Analyze Results**
    - Note any compilation errors or warnings
@@ -168,7 +177,7 @@ If compilation fails, work through errors systematically:
 
 3. **Apply Fixes Incrementally**
    - Fix one workflow or one error type at a time
-   - After each fix, run `gh aw compile <workflow-name> --validate`
+   - After each fix, use the `compile` tool with `<workflow-name> --validate` to verify
    - Verify the fix works before moving to the next error
 
 4. **Document Changes**
@@ -181,20 +190,16 @@ If compilation fails, work through errors systematically:
 After fixing all errors:
 
 1. **Final Compilation Check**
-   ```bash
-   gh aw compile --validate
-   ```
+   
+   Use the `compile` tool with the `--validate` flag to ensure all workflows compile successfully.
 
 2. **Review Generated Lock Files**
    - Ensure all workflows have corresponding `.lock.yml` files
    - Check that lock files are valid GitHub Actions YAML
 
 3. **Status Check**
-   ```bash
-   gh aw status
-   ```
    
-   Verify all workflows are listed and compiled successfully.
+   Use the `status` tool to verify all workflows are listed and compiled successfully.
 
 ## Creating Outputs
 
@@ -226,7 +231,7 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 - [List all workflow files that were modified]
 
 ### Automatic Fixes Applied (via codemods)
-- [List changes made by `gh aw fix --write`]
+- [List changes made by the `fix` tool with `--write` flag]
 - [Reference which deprecated fields were updated]
 
 ### Manual Fixes Applied
@@ -234,7 +239,7 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 - [Reference specific breaking changes that required fixes]
 
 ### Testing
-- ✅ All workflows compile successfully with `gh aw compile --validate`
+- ✅ All workflows compile successfully with the `compile --validate` tool
 - ✅ All `.lock.yml` files generated
 - ✅ No compilation errors or warnings
 
@@ -349,7 +354,7 @@ Let me check your current setup and the latest gh-aw changes...
 3. Improved error messages
 
 🔧 Applying automatic fixes with codemods...
-Running `gh aw fix --write`...
+Using the `fix` tool with `--write` flag...
 
 ✅ Codemods applied:
 - Updated 'timeout_minutes' to 'timeout-minutes' in 3 workflows
@@ -362,7 +367,8 @@ Then proceed with compilation and fixing as needed.
 
 ## Important Notes
 
-- The gh-aw CLI extension is already installed and available
+- When running in GitHub Copilot Cloud, use the **agentic-workflows** MCP tool for all commands
+- When running in environments with `gh aw` CLI access, prefix commands with `gh aw` 
 - Always compile with `--validate` to catch issues early
 - Breaking changes are inevitable - expect to make manual fixes
 - Document your process so future upgrades are easier
