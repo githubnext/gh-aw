@@ -401,17 +401,27 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			expectedFiles: []string{"regular.txt"},
 		},
 		{
-			name: "agent-artifacts without tmp/gh-aw structure - no-op",
+			name: "agent-artifacts without tmp/gh-aw structure - flatten directly",
 			setup: func(dir string) error {
-				// Create agent-artifacts but without the expected nested structure
+				// Create agent-artifacts with new structure (files directly in agent-artifacts/)
 				artifactDir := filepath.Join(dir, "agent-artifacts")
 				if err := os.MkdirAll(artifactDir, 0755); err != nil {
 					return err
 				}
-				return os.WriteFile(filepath.Join(artifactDir, "file.txt"), []byte("test"), 0644)
+				// Create file directly in agent-artifacts (new structure)
+				if err := os.WriteFile(filepath.Join(artifactDir, "file.txt"), []byte("test"), 0644); err != nil {
+					return err
+				}
+				// Create a subdirectory with a file
+				subDir := filepath.Join(artifactDir, "subdir")
+				if err := os.MkdirAll(subDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0644)
 			},
-			expectedDirs:  []string{"agent-artifacts"},
-			expectedFiles: []string{"agent-artifacts/file.txt"},
+			expectedDirs:    []string{"subdir"},
+			expectedFiles:   []string{"file.txt", "subdir/nested.txt"},
+			unexpectedFiles: []string{"agent-artifacts/file.txt"},
 		},
 	}
 

@@ -107,9 +107,9 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 }
 
 // flattenUnifiedArtifact flattens the unified agent-artifacts directory structure
-// The unified artifact contains files with full paths like /tmp/gh-aw/*, which when downloaded
-// creates a nested structure: agent-artifacts/tmp/gh-aw/...
+// After artifact refactoring, files are stored directly in agent-artifacts/ without the tmp/gh-aw/ prefix
 // This function moves those files to the root output directory and removes the nested structure
+// For backward compatibility, it also handles the old structure (agent-artifacts/tmp/gh-aw/...)
 func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 	agentArtifactsDir := filepath.Join(outputDir, "agent-artifacts")
 
@@ -121,27 +121,38 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 
 	logsDownloadLog.Printf("Flattening unified agent-artifacts directory: %s", agentArtifactsDir)
 
-	// Look for tmp/gh-aw/ subdirectory structure
+	// Check for old nested structure (agent-artifacts/tmp/gh-aw/)
 	tmpGhAwPath := filepath.Join(agentArtifactsDir, "tmp", "gh-aw")
-	if _, err := os.Stat(tmpGhAwPath); os.IsNotExist(err) {
-		// No nested structure to flatten
-		logsDownloadLog.Printf("No tmp/gh-aw structure found in agent-artifacts, skipping flatten")
-		return nil
+	hasOldStructure := false
+	if _, err := os.Stat(tmpGhAwPath); err == nil {
+		hasOldStructure = true
+		logsDownloadLog.Printf("Found old artifact structure with tmp/gh-aw prefix")
 	}
 
-	// Walk through tmp/gh-aw and move all files to root output directory
-	err := filepath.Walk(tmpGhAwPath, func(path string, info os.FileInfo, err error) error {
+	// Determine the source path for flattening
+	var sourcePath string
+	if hasOldStructure {
+		// Old structure: flatten from agent-artifacts/tmp/gh-aw/
+		sourcePath = tmpGhAwPath
+	} else {
+		// New structure: flatten from agent-artifacts/ directly
+		sourcePath = agentArtifactsDir
+		logsDownloadLog.Printf("Found new artifact structure without tmp/gh-aw prefix")
+	}
+
+	// Walk through source path and move all files to root output directory
+	err := filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip the root directory itself
-		if path == tmpGhAwPath {
+		// Skip the source directory itself
+		if path == sourcePath {
 			return nil
 		}
 
-		// Calculate relative path from tmp/gh-aw
-		relPath, err := filepath.Rel(tmpGhAwPath, path)
+		// Calculate relative path from source
+		relPath, err := filepath.Rel(sourcePath, path)
 		if err != nil {
 			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
 		}

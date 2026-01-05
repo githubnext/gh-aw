@@ -160,3 +160,68 @@ func TestMissingToolTypeConsistency(t *testing.T) {
 		t.Errorf("Expected 0 tools with incorrect type 'missing-tool', got %d", len(tools))
 	}
 }
+
+// TestMissingToolFlattenedStructure tests the new flattened artifact structure
+// where agent_output.json is at root after artifact flattening
+func TestMissingToolFlattenedStructure(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	runDir := filepath.Join(tmpDir, "run-flattened")
+	err := os.MkdirAll(runDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Create agent_output.json at root (new flattened structure)
+	agentOutputContent := `{
+  "items": [
+    {
+      "type": "missing_tool",
+      "tool": "test_tool_flattened",
+      "reason": "Test reason for flattened structure",
+      "alternatives": "Use alternative approach",
+      "timestamp": "2025-01-05T00:00:00.000Z"
+    }
+  ],
+  "errors": []
+}`
+
+	// Use the actual filename: agent_output.json (with underscore and .json extension)
+	agentOutputPath := filepath.Join(runDir, "agent_output.json")
+	err = os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write agent_output.json: %v", err)
+	}
+
+	// Create test run
+	testRun := WorkflowRun{
+		DatabaseID:   99999,
+		WorkflowName: "Flattened Test",
+	}
+
+	// Extract missing tools - should find the file at root
+	missingTools, err := extractMissingToolsFromRun(runDir, testRun, false)
+	if err != nil {
+		t.Fatalf("Error extracting missing tools from flattened structure: %v", err)
+	}
+
+	// Verify results
+	if len(missingTools) != 1 {
+		t.Errorf("Expected 1 missing tool from flattened structure, got %d", len(missingTools))
+		return
+	}
+
+	tool := missingTools[0]
+	expectedTool := "test_tool_flattened"
+	if tool.Tool != expectedTool {
+		t.Errorf("Expected tool '%s', got '%s'", expectedTool, tool.Tool)
+	}
+
+	expectedReason := "Test reason for flattened structure"
+	if tool.Reason != expectedReason {
+		t.Errorf("Expected reason '%s', got '%s'", expectedReason, tool.Reason)
+	}
+
+	if tool.WorkflowName != testRun.WorkflowName {
+		t.Errorf("Expected workflow name '%s', got '%s'", testRun.WorkflowName, tool.WorkflowName)
+	}
+}
