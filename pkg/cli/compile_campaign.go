@@ -85,7 +85,7 @@ func validateCampaigns(workflowDir string, verbose bool, campaignFiles []string)
 
 	// Filter specs if specific campaign files were provided
 	var specsToValidate []campaign.CampaignSpec
-	if campaignFiles != nil && len(campaignFiles) > 0 {
+	if len(campaignFiles) > 0 {
 		compileCampaignLog.Printf("Filtering to validate only %d specific campaign file(s)", len(campaignFiles))
 		// Create a map of absolute paths for quick lookup
 		campaignFileMap := make(map[string]bool)
