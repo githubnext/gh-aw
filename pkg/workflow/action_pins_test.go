@@ -1084,30 +1084,30 @@ func TestActionPinsCaching(t *testing.T) {
 
 // TestGetActionPinWithData_V5ExactMatch verifies that v5.0.0 resolves to its exact SHA
 func TestGetActionPinWithData_V5ExactMatch(t *testing.T) {
-data := &WorkflowData{
-StrictMode: false,
-}
+	data := &WorkflowData{
+		StrictMode: false,
+	}
 
-result, err := GetActionPinWithData("actions/upload-artifact", "v5.0.0", data)
+	result, err := GetActionPinWithData("actions/upload-artifact", "v5.0.0", data)
 
-if err != nil {
-t.Fatalf("GetActionPinWithData returned error: %v", err)
-}
+	if err != nil {
+		t.Fatalf("GetActionPinWithData returned error: %v", err)
+	}
 
-if result == "" {
-t.Fatalf("GetActionPinWithData returned empty string")
-}
+	if result == "" {
+		t.Fatalf("GetActionPinWithData returned empty string")
+	}
 
-t.Logf("Result: %s", result)
+	t.Logf("Result: %s", result)
 
-// Should match v5.0.0 exactly, not fall back to v6.0.0
-if !strings.Contains(result, "# v5.0.0") {
-t.Errorf("Expected v5.0.0 in result, got: %s", result)
-}
+	// Should match v5.0.0 exactly, not fall back to v6.0.0
+	if !strings.Contains(result, "# v5.0.0") {
+		t.Errorf("Expected v5.0.0 in result, got: %s", result)
+	}
 
-// Check the SHA matches v5.0.0
-expectedSHA := "330a01c490aca151604b8cf639adc76d48f6c5d4"
-if !strings.Contains(result, expectedSHA) {
-t.Errorf("Expected SHA %s in result, got: %s", expectedSHA, result)
-}
+	// Check the SHA matches v5.0.0
+	expectedSHA := "330a01c490aca151604b8cf639adc76d48f6c5d4"
+	if !strings.Contains(result, expectedSHA) {
+		t.Errorf("Expected SHA %s in result, got: %s", expectedSHA, result)
+	}
 }

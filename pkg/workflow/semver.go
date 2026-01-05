@@ -50,7 +50,7 @@ func compareVersions(v1, v2 string) int {
 func extractMajorVersion(version string) int {
 	// Strip 'v' prefix if present
 	v := strings.TrimPrefix(version, "v")
-	
+
 	// Split by '.' and get the first part
 	parts := strings.Split(v, ".")
 	if len(parts) > 0 {
@@ -58,7 +58,7 @@ func extractMajorVersion(version string) int {
 		fmt.Sscanf(parts[0], "%d", &major)
 		return major
 	}
-	
+
 	return 0
 }
 
@@ -71,10 +71,10 @@ func extractMajorVersion(version string) int {
 func isSemverCompatible(pinVersion, requestedVersion string) bool {
 	pinMajor := extractMajorVersion(pinVersion)
 	requestedMajor := extractMajorVersion(requestedVersion)
-	
+
 	compatible := pinMajor == requestedMajor
 	semverLog.Printf("Checking semver compatibility: pin=%s (major=%d), requested=%s (major=%d) -> %v",
 		pinVersion, pinMajor, requestedVersion, requestedMajor, compatible)
-	
+
 	return compatible
 }

@@ -243,7 +243,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 					compatiblePins = append(compatiblePins, pin)
 				}
 			}
-			
+
 			// If we found compatible pins, use the highest one (first after sorting)
 			// Otherwise fall back to the highest overall pin
 			var selectedPin ActionPin
@@ -254,7 +254,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				selectedPin = matchingPins[0]
 				actionPinsLog.Printf("No exact match for version %s, no semver-compatible versions found, using highest available: %s", version, selectedPin.Version)
 			}
-			
+
 			// Only emit warning if the version is not a SHA (SHAs shouldn't generate warnings)
 			if !isAlreadySHA {
 				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
