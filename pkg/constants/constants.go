@@ -225,7 +225,7 @@ const (
 const DefaultCodexVersion Version = "0.77.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.26.3"
+const DefaultGitHubMCPServerVersion Version = "v0.27.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.7.0"

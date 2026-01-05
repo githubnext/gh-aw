@@ -64,7 +64,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 
 		// Validate that the workflow supports workflow_dispatch
 		// Priority: .lock.yml (compiled agentic workflow) > .yml (standard GitHub Actions) > .md (needs compilation)
-		var workflowContent []byte
+		var workflowContent []byte // #nosec G304 -- All file paths are validated via isPathWithinDir() before use
 		var err error
 		var workflowFile string
 
