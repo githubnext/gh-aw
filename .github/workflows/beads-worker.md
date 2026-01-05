@@ -160,12 +160,12 @@ jobs:
             
             # Claim the bead by updating to in_progress
             echo "Claiming bead (updating to in_progress)..."
-            bd --no-db update "$BEAD_ID" --status in_progress
+            bd --no-db --no-daemon update "$BEAD_ID" --status in_progress
             echo "✓ Bead claimed successfully"
             
             # Show bead details
             echo "Bead details:"
-            bd --no-db show "$BEAD_ID" --json
+            bd --no-db --no-daemon show "$BEAD_ID" --json
           else
             echo "id=" >> "$GITHUB_OUTPUT"
             echo "title=" >> "$GITHUB_OUTPUT"
@@ -180,7 +180,7 @@ jobs:
           echo "=== Starting bead sync ==="
           echo "Syncing changes to repository..."
           
-          bd --no-daemon --no-db sync
+          bd sync --no-daemon --no-db
           echo "✓ Sync completed successfully"
           echo "=== Bead sync completed ==="
   
