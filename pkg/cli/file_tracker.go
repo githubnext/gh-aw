@@ -155,7 +155,8 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 
 		// Restore original content if we have it
 		if originalContent, exists := ft.OriginalContent[file]; exists {
-			if err := os.WriteFile(file, originalContent, 0644); err != nil {
+			// Use owner-only read/write permissions (0600) for security best practices
+			if err := os.WriteFile(file, originalContent, 0600); err != nil {
 				errors = append(errors, fmt.Sprintf("failed to restore %s: %v", file, err))
 			}
 		} else {
