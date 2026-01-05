@@ -108,7 +108,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Parse allowed-github-references configuration
 			if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
 				if refsArray, ok := allowGitHubRefs.([]any); ok {
-					var refStrings []string
+					refStrings := []string{} // Initialize as empty slice, not nil
 					for _, ref := range refsArray {
 						if refStr, ok := ref.(string); ok {
 							refStrings = append(refStrings, refStr)

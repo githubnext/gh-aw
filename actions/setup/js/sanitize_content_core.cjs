@@ -336,12 +336,17 @@ function neutralizeBotTriggers(s) {
 /**
  * Builds the list of allowed repositories for GitHub reference filtering
  * Returns null if all references should be allowed (default behavior)
+ * Returns empty array if no references should be allowed (escape all)
  * @returns {string[]|null} Array of allowed repository slugs or null if all allowed
  */
 function buildAllowedGitHubReferences() {
   const allowedRefsEnv = process.env.GH_AW_ALLOWED_GITHUB_REFS;
-  if (!allowedRefsEnv) {
-    return null; // All references allowed by default
+  if (allowedRefsEnv === undefined) {
+    return null; // All references allowed by default (env var not set)
+  }
+
+  if (allowedRefsEnv === "") {
+    return []; // Empty array means escape all references
   }
 
   return allowedRefsEnv
@@ -371,8 +376,8 @@ function getCurrentRepoSlug() {
  * @returns {string} The string with unauthorized references neutralized
  */
 function neutralizeGitHubReferences(s, allowedRepos) {
-  // If no restrictions configured, allow all references
-  if (!allowedRepos || allowedRepos.length === 0) {
+  // If no restrictions configured (null), allow all references
+  if (allowedRepos === null) {
     return s;
   }
 

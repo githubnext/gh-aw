@@ -41,7 +41,7 @@ func TestAllowGitHubReferencesConfig(t *testing.T) {
 					"create-issue":              map[string]any{},
 				},
 			},
-			expected: nil, // Empty array results in nil
+			expected: []string{}, // Empty array should be preserved (means escape all)
 		},
 		{
 			name: "no allowed-github-references field",

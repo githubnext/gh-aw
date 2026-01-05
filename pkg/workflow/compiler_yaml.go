@@ -544,7 +544,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	}
 
 	// Add allowed GitHub references configuration for reference escaping
-	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowGitHubReferences) > 0 {
+	if data.SafeOutputs != nil && data.SafeOutputs.AllowGitHubReferences != nil {
 		refsStr := strings.Join(data.SafeOutputs.AllowGitHubReferences, ",")
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_GITHUB_REFS: %q\n", refsStr)
 	}

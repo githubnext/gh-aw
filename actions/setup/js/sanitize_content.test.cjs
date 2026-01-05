@@ -593,12 +593,20 @@ describe("sanitize_content.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("Escaped GitHub reference: other/repo#123 (not in allowed list)");
     });
 
+    it("should escape all references when allowed-refs is empty array", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "";
+
+      const result = sanitizeContent("See #123 and myorg/myrepo#456 and other/repo#789");
+      expect(result).toBe("See `#123` and `myorg/myrepo#456` and `other/repo#789`");
+    });
+
     it("should handle empty allowed-refs list (all references escaped)", () => {
       process.env.GITHUB_REPOSITORY = "myorg/myrepo";
       process.env.GH_AW_ALLOWED_GITHUB_REFS = "";
 
       const result = sanitizeContent("See #123 and other/repo#456");
-      expect(result).toBe("See #123 and other/repo#456");
+      expect(result).toBe("See `#123` and `other/repo#456`");
     });
 
     it("should escape references when current repo is not in list", () => {
