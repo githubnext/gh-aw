@@ -396,7 +396,7 @@ func isWorkflowSpecFormatLocal(path string) bool {
 }
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository
-func pushWorkflowFiles(workflowName string, files []string, verbose bool) error {
+func pushWorkflowFiles(workflowName string, files []string, refOverride string, verbose bool) error {
 	runPushLog.Printf("Pushing %d files for workflow: %s", len(files), workflowName)
 	runPushLog.Printf("Files to push: %v", files)
 
@@ -439,6 +439,28 @@ func pushWorkflowFiles(workflowName string, files []string, verbose bool) error 
 		}
 		runPushLog.Print("No changes to commit")
 		return nil
+	}
+	
+	// Now that we know there are changes to commit, check that current branch matches --ref value if specified
+	// This happens after we've determined there are actual changes, so we don't fail unnecessarily
+	if refOverride != "" {
+		runPushLog.Printf("Checking if current branch matches --ref value: %s", refOverride)
+		currentBranch, err := getCurrentBranch()
+		if err != nil {
+			runPushLog.Printf("Failed to determine current branch: %v", err)
+			return fmt.Errorf("failed to determine current branch: %w", err)
+		}
+		runPushLog.Printf("Current branch: %s", currentBranch)
+		
+		if currentBranch != refOverride {
+			runPushLog.Printf("Current branch (%s) does not match --ref value (%s)", currentBranch, refOverride)
+			return fmt.Errorf("--push requires the current branch (%s) to match the --ref value (%s). Switching branches is not supported. Please checkout the target branch first", currentBranch, refOverride)
+		}
+		
+		runPushLog.Printf("Current branch matches --ref value: %s", currentBranch)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Verified current branch matches --ref: %s", currentBranch)))
+		}
 	}
 
 	// Get the list of staged files

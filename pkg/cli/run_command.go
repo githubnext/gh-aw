@@ -246,21 +246,6 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			return fmt.Errorf("--push flag is only supported for local workflows, not remote repositories")
 		}
 
-		// Check that current branch matches --ref value if specified
-		// Switching branches is not supported
-		if refOverride != "" {
-			currentBranch, err := getCurrentBranch()
-			if err != nil {
-				return fmt.Errorf("failed to determine current branch: %w", err)
-			}
-			if currentBranch != refOverride {
-				return fmt.Errorf("--push requires the current branch (%s) to match the --ref value (%s). Switching branches is not supported. Please checkout the target branch first", currentBranch, refOverride)
-			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Verified current branch matches --ref: %s", currentBranch)))
-			}
-		}
-
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Collecting workflow files for push..."))
 		}
@@ -272,8 +257,8 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			return fmt.Errorf("failed to collect workflow files: %w", err)
 		}
 
-		// Commit and push the files
-		if err := pushWorkflowFiles(workflowIdOrName, files, verbose); err != nil {
+		// Commit and push the files (includes branch verification if --ref is specified)
+		if err := pushWorkflowFiles(workflowIdOrName, files, refOverride, verbose); err != nil {
 			return fmt.Errorf("failed to push workflow files: %w", err)
 		}
 

@@ -376,7 +376,7 @@ workflowFile := filepath.Join(tmpDir, "workflow.md")
 err = os.WriteFile(workflowFile, []byte("# Test"), 0644)
 require.NoError(t, err)
 
-err = pushWorkflowFiles("test-workflow", []string{workflowFile}, false)
+err = pushWorkflowFiles("test-workflow", []string{workflowFile}, "", false)
 
 // Should return an error about staged files
 assert.Error(t, err)
