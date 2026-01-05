@@ -105,16 +105,6 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Agentic campaigns',
-					items: [
-						{ label: 'Overview', link: '/guides/campaigns/' },
-						{ label: 'Campaign Specs', link: '/guides/campaigns/specs/' },
-						{ label: 'Getting Started', link: '/guides/campaigns/getting-started/' },
-						{ label: 'Project Management', link: '/guides/campaigns/project-management/' },
-						{ label: 'CLI Commands', link: '/guides/campaigns/cli-commands/' },
-					],
-				},
-				{
 					label: 'Guides',
 					items: [
 						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
@@ -147,6 +137,16 @@ export default defineConfig({
 						{ label: 'Triage & Analysis', link: '/examples/issue-pr-events/triage-analysis/' },
 						{ label: 'Coding & Development', link: '/examples/issue-pr-events/coding-development/' },
 						{ label: 'Quality & Testing', link: '/examples/issue-pr-events/quality-testing/' },
+					],
+				},
+				{
+					label: 'Agentic campaigns',
+					items: [
+						{ label: 'Overview', link: '/guides/campaigns/' },
+						{ label: 'Campaign Specs', link: '/guides/campaigns/specs/' },
+						{ label: 'Getting Started', link: '/guides/campaigns/getting-started/' },
+						{ label: 'Project Management', link: '/guides/campaigns/project-management/' },
+						{ label: 'CLI Commands', link: '/guides/campaigns/cli-commands/' },
 					],
 				},
 				{
