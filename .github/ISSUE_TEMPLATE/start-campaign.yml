@@ -1,6 +1,6 @@
 name: 🚀 Start an Agentic Campaign
 description: Create a new agentic campaign with AI assistance - describe your goal and we'll generate the details
-title: "[Agentic Campaign] "
+title: "[Agentic Campaign]"
 labels: ["campaign", "campaign-tracker"]
 body:
   - type: markdown
@@ -11,8 +11,7 @@ body:
   - type: textarea
     id: campaign_goal
     attributes:
-      label: Campaign Goal
-      description: What should this campaign accomplish?
+      label: What should this campaign accomplish?
       placeholder: |
         Examples:
         - Migrate services from Node.js 16 to 20
@@ -20,15 +19,5 @@ body:
         - Refactor legacy auth code
     validations:
       required: true
-
-  - type: textarea
-    id: additional_context
-    attributes:
-      label: Additional Context (Optional)
-      description: Constraints, deadlines, requirements, prior learnings
-      placeholder: |
-        Add relevant context...
-    validations:
-      required: false
 
 
