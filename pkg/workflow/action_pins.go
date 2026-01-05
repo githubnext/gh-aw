@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -30,58 +31,69 @@ type ActionPinsData struct {
 	Entries map[string]ActionPin `json:"entries"` // key: "repo@version"
 }
 
-// getActionPins unmarshals and returns the action pins from the embedded JSON
+var (
+	// cachedActionPins holds the parsed and sorted action pins
+	cachedActionPins []ActionPin
+	// actionPinsOnce ensures the action pins are loaded only once
+	actionPinsOnce sync.Once
+)
+
+// getActionPins returns the action pins from the embedded JSON
 // Returns a sorted slice of action pins (by version descending, then by repo name)
-// This is called on-demand rather than cached globally
+// The data is parsed once on first call and cached for subsequent calls
 func getActionPins() []ActionPin {
-	actionPinsLog.Print("Unmarshaling action pins from embedded JSON")
+	actionPinsOnce.Do(func() {
+		actionPinsLog.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
 
-	var data ActionPinsData
-	if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
-		actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
-		panic(fmt.Sprintf("failed to load action pins: %v", err))
-	}
-
-	// Detect and log key/version mismatches
-	mismatchCount := 0
-	for key, pin := range data.Entries {
-		// Extract version from key (format: "repo@version")
-		if idx := strings.LastIndex(key, "@"); idx != -1 {
-			keyVersion := key[idx+1:]
-			if keyVersion != pin.Version {
-				mismatchCount++
-				actionPinsLog.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
-					key, keyVersion, pin.Version, pin.SHA[:8])
-			}
+		var data ActionPinsData
+		if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
+			actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
+			panic(fmt.Sprintf("failed to load action pins: %v", err))
 		}
-	}
-	if mismatchCount > 0 {
-		actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", mismatchCount)
-	}
 
-	// Convert map to sorted slice
-	pins := make([]ActionPin, 0, len(data.Entries))
-	for _, pin := range data.Entries {
-		pins = append(pins, pin)
-	}
-
-	// Sort by version (descending) then by repo name (ascending)
-	for i := 0; i < len(pins); i++ {
-		for j := i + 1; j < len(pins); j++ {
-			// Compare versions first (descending)
-			if pins[i].Version < pins[j].Version {
-				pins[i], pins[j] = pins[j], pins[i]
-			} else if pins[i].Version == pins[j].Version {
-				// Same version, sort by repo name (ascending)
-				if pins[i].Repo > pins[j].Repo {
-					pins[i], pins[j] = pins[j], pins[i]
+		// Detect and log key/version mismatches
+		mismatchCount := 0
+		for key, pin := range data.Entries {
+			// Extract version from key (format: "repo@version")
+			if idx := strings.LastIndex(key, "@"); idx != -1 {
+				keyVersion := key[idx+1:]
+				if keyVersion != pin.Version {
+					mismatchCount++
+					actionPinsLog.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
+						key, keyVersion, pin.Version, pin.SHA[:8])
 				}
 			}
 		}
-	}
+		if mismatchCount > 0 {
+			actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", mismatchCount)
+		}
 
-	actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
-	return pins
+		// Convert map to sorted slice
+		pins := make([]ActionPin, 0, len(data.Entries))
+		for _, pin := range data.Entries {
+			pins = append(pins, pin)
+		}
+
+		// Sort by version (descending) then by repo name (ascending)
+		for i := 0; i < len(pins); i++ {
+			for j := i + 1; j < len(pins); j++ {
+				// Compare versions first (descending)
+				if pins[i].Version < pins[j].Version {
+					pins[i], pins[j] = pins[j], pins[i]
+				} else if pins[i].Version == pins[j].Version {
+					// Same version, sort by repo name (ascending)
+					if pins[i].Repo > pins[j].Repo {
+						pins[i], pins[j] = pins[j], pins[i]
+					}
+				}
+			}
+		}
+
+		actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
+		cachedActionPins = pins
+	})
+
+	return cachedActionPins
 }
 
 // sortPinsByVersion sorts action pins by version in descending order (highest first)
@@ -152,10 +164,8 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				}
 			}
 
-			// Successfully resolved, save cache
-			if data.ActionCache != nil {
-				_ = data.ActionCache.Save()
-			}
+			// Successfully resolved - cache will be saved at end of compilation
+			actionPinsLog.Printf("Successfully resolved action pin (cache marked dirty, will save at end)")
 			result := actionRepo + "@" + sha + " # " + version
 			actionPinsLog.Printf("Returning pinned reference: %s", result)
 			return result, nil

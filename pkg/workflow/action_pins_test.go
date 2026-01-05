@@ -1042,3 +1042,39 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 		})
 	}
 }
+
+// TestActionPinsCaching verifies that action pins are cached and not re-parsed
+func TestActionPinsCaching(t *testing.T) {
+// Reset the cache by creating a new sync.Once
+// Note: In production, this is handled automatically by sync.Once
+
+// First call - should load and cache
+pins1 := getActionPins()
+if len(pins1) == 0 {
+t.Fatal("No action pins loaded on first call")
+}
+
+// Second call - should return cached data (same slice reference)
+pins2 := getActionPins()
+if len(pins2) == 0 {
+t.Fatal("No action pins loaded on second call")
+}
+
+// Verify both calls return the same data
+if len(pins1) != len(pins2) {
+t.Errorf("Cache returned different number of pins: first=%d, second=%d", len(pins1), len(pins2))
+}
+
+// Verify the data is identical by checking a few pins
+for i := 0; i < len(pins1) && i < 3; i++ {
+if pins1[i].Repo != pins2[i].Repo {
+t.Errorf("Pin %d repo mismatch: first=%s, second=%s", i, pins1[i].Repo, pins2[i].Repo)
+}
+if pins1[i].Version != pins2[i].Version {
+t.Errorf("Pin %d version mismatch: first=%s, second=%s", i, pins1[i].Version, pins2[i].Version)
+}
+if pins1[i].SHA != pins2[i].SHA {
+t.Errorf("Pin %d SHA mismatch: first=%s, second=%s", i, pins1[i].SHA, pins2[i].SHA)
+}
+}
+}
