@@ -31,10 +31,10 @@ func TestSRTInstallationStepVersionPinning(t *testing.T) {
 		step := generateSRTInstallationStep()
 		stepStr := strings.Join(step, "\n")
 
-		// Ensure we don't have unpinned npm install (without @version)
-		// The pattern "sandbox-runtime " followed by newline or end indicates unpinned
-		if strings.Contains(stepStr, "npm install @anthropic-ai/sandbox-runtime\n") {
-			t.Error("SRT installation step should not use unpinned 'npm install @anthropic-ai/sandbox-runtime'")
+		// Check that we have a versioned npm install (with @version suffix)
+		// The pattern should be "sandbox-runtime@" indicating a pinned version
+		if !strings.Contains(stepStr, "@anthropic-ai/sandbox-runtime@") {
+			t.Error("SRT installation step should use versioned npm install '@anthropic-ai/sandbox-runtime@VERSION'")
 		}
 	})
 }
