@@ -6,6 +6,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"go.yaml.in/yaml/v3"
 )
 
 var orchestratorLog = logger.New("campaign:orchestrator")
@@ -69,6 +70,91 @@ func extractFileGlobPatterns(spec *CampaignSpec) []string {
 	fallbackPattern := fmt.Sprintf("%s/**", spec.ID)
 	orchestratorLog.Printf("Using fallback file-glob pattern: %s", fallbackPattern)
 	return []string{fallbackPattern}
+}
+
+// buildDiscoverySteps creates GitHub Actions steps for campaign discovery precomputation
+func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
+	// Only add discovery steps if we have workflows or a tracker label
+	if len(spec.Workflows) == 0 && spec.TrackerLabel == "" {
+		orchestratorLog.Printf("Skipping discovery steps: no workflows or tracker label configured")
+		return nil
+	}
+
+	orchestratorLog.Printf("Building discovery steps for campaign: %s", spec.ID)
+
+	steps := []map[string]any{
+		{
+			"name": "Create workspace directory",
+			"run":  "mkdir -p ./.gh-aw",
+		},
+		{
+			"name": "Run campaign discovery precomputation",
+			"id":   "discovery",
+			"uses": "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd", // v8.0.0
+			"env": map[string]any{
+				"GH_AW_CAMPAIGN_ID":         spec.ID,
+				"GH_AW_WORKFLOWS":           strings.Join(spec.Workflows, ","),
+				"GH_AW_TRACKER_LABEL":       spec.TrackerLabel,
+				"GH_AW_PROJECT_URL":         spec.ProjectURL,
+				"GH_AW_MAX_DISCOVERY_ITEMS": getMaxDiscoveryItems(spec),
+				"GH_AW_MAX_DISCOVERY_PAGES": getMaxDiscoveryPages(spec),
+				"GH_AW_CURSOR_PATH":         getCursorPath(spec),
+			},
+			"with": map[string]any{
+				"github-token": "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+				"script": `
+const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io);
+const { main } = require('/tmp/gh-aw/actions/campaign_discovery.cjs');
+await main();
+`,
+			},
+		},
+	}
+
+	return steps
+}
+
+// getMaxDiscoveryItems returns the max discovery items budget from governance or default
+func getMaxDiscoveryItems(spec *CampaignSpec) int {
+	if spec.Governance != nil && spec.Governance.MaxDiscoveryItemsPerRun > 0 {
+		return spec.Governance.MaxDiscoveryItemsPerRun
+	}
+	return 100 // default
+}
+
+// getMaxDiscoveryPages returns the max discovery pages budget from governance or default
+func getMaxDiscoveryPages(spec *CampaignSpec) int {
+	if spec.Governance != nil && spec.Governance.MaxDiscoveryPagesPerRun > 0 {
+		return spec.Governance.MaxDiscoveryPagesPerRun
+	}
+	return 10 // default
+}
+
+// getCursorPath returns the cursor path for the campaign or empty if not configured
+func getCursorPath(spec *CampaignSpec) string {
+	if spec.CursorGlob != "" {
+		// Convert glob to actual path - remove wildcards and use repo-memory path
+		// For now, use a simple convention: /tmp/gh-aw/repo-memory/campaigns/<campaign-id>/cursor.json
+		return fmt.Sprintf("/tmp/gh-aw/repo-memory/campaigns/%s/cursor.json", spec.ID)
+	}
+	return ""
+}
+
+// renderStepsAsYAML renders a list of steps as YAML string for CustomSteps field
+func renderStepsAsYAML(steps []map[string]any) string {
+	if len(steps) == 0 {
+		return ""
+	}
+
+	// Marshal steps to YAML
+	data, err := yaml.Marshal(steps)
+	if err != nil {
+		orchestratorLog.Printf("Failed to marshal discovery steps to YAML: %v", err)
+		return ""
+	}
+
+	return string(data)
 }
 
 // BuildOrchestrator constructs a minimal agentic workflow representation for a
@@ -266,6 +352,10 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// multiple directory structures (e.g., both dated "campaign-id-*/**" and non-dated "campaign-id/**")
 	fileGlobPatterns := extractFileGlobPatterns(spec)
 
+	// Build discovery step configuration
+	// This runs before the agent to precompute campaign discovery
+	discoverySteps := buildDiscoverySteps(spec)
+
 	data := &workflow.WorkflowData{
 		Name:            name,
 		Description:     description,
@@ -294,6 +384,11 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 			"edit": nil,
 		},
 		SafeOutputs: safeOutputs,
+	}
+
+	// Add discovery steps if configuration is valid
+	if len(discoverySteps) > 0 {
+		data.CustomSteps = renderStepsAsYAML(discoverySteps)
 	}
 
 	return data, orchestratorPath
