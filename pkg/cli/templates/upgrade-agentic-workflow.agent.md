@@ -26,6 +26,7 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 **Key Commands Available**
 
 - `gh aw version` → check current gh-aw version
+- `gh aw fix --write` → apply automatic codemods to fix deprecated fields
 - `gh aw compile` → compile all workflows
 - `gh aw compile <workflow-name>` → compile a specific workflow
 - `gh aw compile --validate` → compile with validation enabled
@@ -79,7 +80,26 @@ Before upgrading, always review what's new:
      - ⚠️ Deprecations (plan to update)
      - 📖 Migration guides (follow instructions)
 
-### 2. Prepare for Compilation
+### 2. Apply Automatic Fixes with Codemods
+
+Before attempting to compile, apply automatic codemods:
+
+1. **Run Automatic Fixes**
+   ```bash
+   gh aw fix --write
+   ```
+   
+   This will automatically update workflow files with changes like:
+   - Replacing 'timeout_minutes' with 'timeout-minutes'
+   - Replacing 'network.firewall' with 'sandbox.agent: false'
+   - Removing deprecated 'safe-inputs.mode' field
+
+2. **Review the Changes**
+   - The command will show you what changes were made
+   - Note which workflows were updated by the codemods
+   - These automatic fixes handle common deprecations
+
+### 3. Prepare for Compilation
 
 Before attempting to compile:
 
@@ -96,7 +116,7 @@ Before attempting to compile:
    
    This ensures fresh compilation with the new version.
 
-### 3. Attempt Recompilation
+### 4. Attempt Recompilation
 
 Try to compile all workflows:
 
@@ -110,7 +130,7 @@ Try to compile all workflows:
    - Group errors by type (schema validation, breaking changes, missing features)
    - Identify patterns in the errors
 
-### 4. Fix Compilation Errors
+### 5. Fix Compilation Errors
 
 If compilation fails, work through errors systematically:
 
@@ -156,7 +176,7 @@ If compilation fails, work through errors systematically:
    - Note which breaking changes affected which workflows
    - Document any manual migration steps taken
 
-### 5. Verify All Workflows
+### 6. Verify All Workflows
 
 After fixing all errors:
 
@@ -204,6 +224,10 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 
 ### Workflows Updated
 - [List all workflow files that were modified]
+
+### Automatic Fixes Applied (via codemods)
+- [List changes made by `gh aw fix --write`]
+- [Reference which deprecated fields were updated]
 
 ### Manual Fixes Applied
 - [Describe any manual changes made to fix compilation errors]
@@ -323,6 +347,13 @@ Let me check your current setup and the latest gh-aw changes...
 1. Fuzzy scheduling for daily/weekly workflows
 2. Enhanced network permissions
 3. Improved error messages
+
+🔧 Applying automatic fixes with codemods...
+Running `gh aw fix --write`...
+
+✅ Codemods applied:
+- Updated 'timeout_minutes' to 'timeout-minutes' in 3 workflows
+- Replaced 'network.firewall' with 'sandbox.agent: false' in 2 workflows
 
 ⚙️ Now attempting to recompile all workflows...
 ```
