@@ -824,6 +824,12 @@ func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
 		}
 	}
 	
+	// Limit to top 20 most common errors to keep output concise
+	maxErrors := 20
+	if len(actionableErrors) > maxErrors {
+		actionableErrors = actionableErrors[:maxErrors]
+	}
+	
 	return actionableErrors
 }
 
@@ -913,6 +919,22 @@ func renderLogsConsole(data LogsData) {
 	// Use unified console rendering for the entire logs data structure
 	fmt.Print(console.RenderStruct(data))
 
-	// Display logs location
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", data.Summary.TotalRuns, data.LogsLocation)))
+	// Display concise summary at the end
+	fmt.Fprintln(os.Stderr, "") // Blank line for spacing
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Downloaded %d workflow logs to %s", data.Summary.TotalRuns, data.LogsLocation)))
+	
+	// Show key metrics in a concise format
+	if data.Summary.TotalErrors > 0 || data.Summary.TotalWarnings > 0 {
+		fmt.Fprintf(os.Stderr, "  %s %d errors, %d warnings across %d runs\n", 
+			console.FormatInfoMessage("•"),
+			data.Summary.TotalErrors, 
+			data.Summary.TotalWarnings,
+			data.Summary.TotalRuns)
+	}
+	
+	if len(data.ToolUsage) > 0 {
+		fmt.Fprintf(os.Stderr, "  %s %d unique tools used\n", 
+			console.FormatInfoMessage("•"),
+			len(data.ToolUsage))
+	}
 }
