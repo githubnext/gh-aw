@@ -296,7 +296,7 @@ func TestHandlerConfigMaxValues(t *testing.T) {
 
 				maxVal, ok := issueConfig["max"]
 				require.True(t, ok)
-				assert.Equal(t, float64(10), maxVal)
+				assert.InDelta(t, float64(10), maxVal, 0.0001)
 			}
 		}
 	}
@@ -617,7 +617,7 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 
 						maxSize, ok := prConfig["max_patch_size"]
 						require.True(t, ok)
-						assert.Equal(t, float64(tt.expectedSize), maxSize)
+						assert.InDelta(t, float64(tt.expectedSize), maxSize, 0.0001)
 					}
 				}
 			}

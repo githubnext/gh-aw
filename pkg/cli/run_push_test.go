@@ -379,6 +379,6 @@ func TestPushWorkflowFiles_WithStagedFiles(t *testing.T) {
 	err = pushWorkflowFiles("test-workflow", []string{workflowFile}, "", false)
 
 	// Should return an error about staged files
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "staged files")
 }

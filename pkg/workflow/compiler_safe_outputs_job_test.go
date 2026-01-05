@@ -121,7 +121,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			job, stepNames, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(string(constants.AgentJobName)), "test-workflow.md")
+			job, stepNames, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
 
 			if tt.expectNil {
 				assert.Nil(t, job)
@@ -137,7 +137,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			assert.NotEmpty(t, job.Env)
 
 			// Check job dependencies
-			assert.Contains(t, job.Needs, string(string(constants.AgentJobName)))
+			assert.Contains(t, job.Needs, string(constants.AgentJobName))
 			if tt.threatDetection {
 				assert.Contains(t, job.Needs, string(constants.DetectionJobName))
 			}
