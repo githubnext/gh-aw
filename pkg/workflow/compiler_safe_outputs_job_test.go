@@ -12,14 +12,14 @@ import (
 // TestBuildConsolidatedSafeOutputsJob tests the main job builder function
 func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 	tests := []struct {
-		name              string
-		safeOutputs       *SafeOutputsConfig
-		threatDetection   bool
-		expectedJobName   string
-		expectedSteps     int
-		expectNil         bool
-		checkPermissions  bool
-		expectedPerms     []string
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		threatDetection  bool
+		expectedJobName  string
+		expectedSteps    int
+		expectNil        bool
+		checkPermissions bool
+		expectedPerms    []string
 	}{
 		{
 			name:          "no safe outputs configured",
@@ -162,12 +162,12 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 // TestBuildJobLevelSafeOutputEnvVars tests job-level environment variable generation
 func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 	tests := []struct {
-		name         string
-		workflowData *WorkflowData
-		workflowID   string
-		trialMode    bool
-		trialRepo    string
-		expectedVars map[string]string
+		name          string
+		workflowData  *WorkflowData
+		workflowID    string
+		trialMode     bool
+		trialRepo     string
+		expectedVars  map[string]string
 		checkContains bool
 	}{
 		{
@@ -343,7 +343,7 @@ func TestJobWithGitHubApp(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			App: &GitHubAppConfig{
-				AppID:         "12345",
+				AppID:      "12345",
 				PrivateKey: "test-key",
 			},
 			CreateIssues: &CreateIssuesConfig{

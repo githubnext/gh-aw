@@ -1,10 +1,10 @@
 package workflow
 
 import (
-"encoding/json"
-"fmt"
+	"encoding/json"
+	"fmt"
 
-"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var consolidatedSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")

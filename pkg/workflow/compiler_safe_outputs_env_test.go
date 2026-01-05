@@ -11,10 +11,10 @@ import (
 // TestAddAllSafeOutputConfigEnvVars tests environment variable generation for all safe output types
 func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 	tests := []struct {
-		name          string
-		safeOutputs   *SafeOutputsConfig
-		trialMode     bool
-		checkContains []string
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		trialMode        bool
+		checkContains    []string
 		checkNotContains []string
 	}{
 		{
@@ -70,7 +70,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "update issues with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged:       true,
 				UpdateIssues: &UpdateIssuesConfig{},
 			},
 			checkContains: []string{
@@ -80,7 +80,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "update discussions with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged:            true,
 				UpdateDiscussions: &UpdateDiscussionsConfig{},
 			},
 			checkContains: []string{
@@ -306,7 +306,7 @@ func TestEnvVarsWithMultipleSafeOutputTypes(t *testing.T) {
 			AddLabels: &AddLabelsConfig{
 				Allowed: []string{"bug", "enhancement"},
 			},
-			UpdateIssues: &UpdateIssuesConfig{},
+			UpdateIssues:      &UpdateIssuesConfig{},
 			UpdateDiscussions: &UpdateDiscussionsConfig{},
 		},
 	}

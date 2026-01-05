@@ -44,7 +44,7 @@ func TestIsAccessibleMode(t *testing.T) {
 			origAccessible := os.Getenv("ACCESSIBLE")
 			origTerm := os.Getenv("TERM")
 			origNoColor := os.Getenv("NO_COLOR")
-			
+
 			// Clean up after test
 			defer func() {
 				if origAccessible != "" {

@@ -8,7 +8,7 @@ import (
 // Returns true if the user confirms, false if they cancel or an error occurs
 func ConfirmAction(title, affirmative, negative string) (bool, error) {
 	var confirmed bool
-	
+
 	confirmForm := huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().

@@ -174,106 +174,106 @@ func TestActionPinResolutionWithStrictMode(t *testing.T) {
 // TestActionCacheDuplicateSHAWarning verifies that we log warnings when multiple
 // version references resolve to the same SHA, which can cause version comment flipping
 func TestActionCacheDuplicateSHAWarning(t *testing.T) {
-// Create a test cache with one entry
-cache := &ActionCache{
-Entries: map[string]ActionCacheEntry{
-"actions/github-script@v8": {
-Repo:    "actions/github-script",
-Version: "v8",
-SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
-},
-},
-path: "/tmp/test-cache.json",
-}
+	// Create a test cache with one entry
+	cache := &ActionCache{
+		Entries: map[string]ActionCacheEntry{
+			"actions/github-script@v8": {
+				Repo:    "actions/github-script",
+				Version: "v8",
+				SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+			},
+		},
+		path: "/tmp/test-cache.json",
+	}
 
-// Add a second entry with the same SHA but different version
-cache.Set("actions/github-script", "v8.0.0", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
+	// Add a second entry with the same SHA but different version
+	cache.Set("actions/github-script", "v8.0.0", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
 
-// Verify both entries are in the cache
-if len(cache.Entries) != 2 {
-t.Errorf("Expected 2 cache entries, got %d", len(cache.Entries))
-}
+	// Verify both entries are in the cache
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 cache entries, got %d", len(cache.Entries))
+	}
 
-// Verify both have the same SHA (this is what causes the issue)
-v8Entry := cache.Entries["actions/github-script@v8"]
-v800Entry := cache.Entries["actions/github-script@v8.0.0"]
-if v8Entry.SHA != v800Entry.SHA {
-t.Error("Expected both entries to have the same SHA")
-}
+	// Verify both have the same SHA (this is what causes the issue)
+	v8Entry := cache.Entries["actions/github-script@v8"]
+	v800Entry := cache.Entries["actions/github-script@v8.0.0"]
+	if v8Entry.SHA != v800Entry.SHA {
+		t.Error("Expected both entries to have the same SHA")
+	}
 
-t.Logf("Cache has duplicate SHA entries with different versions:")
-t.Logf("  v8: %s", v8Entry.SHA[:8])
-t.Logf("  v8.0.0: %s", v800Entry.SHA[:8])
-t.Logf("This configuration causes version comment flipping in lock files")
+	t.Logf("Cache has duplicate SHA entries with different versions:")
+	t.Logf("  v8: %s", v8Entry.SHA[:8])
+	t.Logf("  v8.0.0: %s", v800Entry.SHA[:8])
+	t.Logf("This configuration causes version comment flipping in lock files")
 }
 
 // TestDeduplicationRemovesLessPreciseVersions verifies that deduplication
 // keeps the most precise version and logs detailed information
 func TestDeduplicationRemovesLessPreciseVersions(t *testing.T) {
-tests := []struct {
-name                string
-entries             map[string]ActionCacheEntry
-expectedKeep        string
-expectedRemoveCount int
-}{
-{
-name: "v8.0.0 is kept over v8",
-entries: map[string]ActionCacheEntry{
-"actions/github-script@v8": {
-Repo:    "actions/github-script",
-Version: "v8",
-SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
-},
-"actions/github-script@v8.0.0": {
-Repo:    "actions/github-script",
-Version: "v8.0.0",
-SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
-},
-},
-expectedKeep:        "actions/github-script@v8.0.0",
-expectedRemoveCount: 1,
-},
-{
-name: "v6.1.0 is kept over v6",
-entries: map[string]ActionCacheEntry{
-"actions/setup-node@v6": {
-Repo:    "actions/setup-node",
-Version: "v6",
-SHA:     "395ad3262231945c25e8478fd5baf05154b1d79f",
-},
-"actions/setup-node@v6.1.0": {
-Repo:    "actions/setup-node",
-Version: "v6.1.0",
-SHA:     "395ad3262231945c25e8478fd5baf05154b1d79f",
-},
-},
-expectedKeep:        "actions/setup-node@v6.1.0",
-expectedRemoveCount: 1,
-},
-}
+	tests := []struct {
+		name                string
+		entries             map[string]ActionCacheEntry
+		expectedKeep        string
+		expectedRemoveCount int
+	}{
+		{
+			name: "v8.0.0 is kept over v8",
+			entries: map[string]ActionCacheEntry{
+				"actions/github-script@v8": {
+					Repo:    "actions/github-script",
+					Version: "v8",
+					SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+				},
+				"actions/github-script@v8.0.0": {
+					Repo:    "actions/github-script",
+					Version: "v8.0.0",
+					SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+				},
+			},
+			expectedKeep:        "actions/github-script@v8.0.0",
+			expectedRemoveCount: 1,
+		},
+		{
+			name: "v6.1.0 is kept over v6",
+			entries: map[string]ActionCacheEntry{
+				"actions/setup-node@v6": {
+					Repo:    "actions/setup-node",
+					Version: "v6",
+					SHA:     "395ad3262231945c25e8478fd5baf05154b1d79f",
+				},
+				"actions/setup-node@v6.1.0": {
+					Repo:    "actions/setup-node",
+					Version: "v6.1.0",
+					SHA:     "395ad3262231945c25e8478fd5baf05154b1d79f",
+				},
+			},
+			expectedKeep:        "actions/setup-node@v6.1.0",
+			expectedRemoveCount: 1,
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-cache := &ActionCache{
-Entries: tt.entries,
-path:    "/tmp/test-cache.json",
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cache := &ActionCache{
+				Entries: tt.entries,
+				path:    "/tmp/test-cache.json",
+			}
 
-initialCount := len(cache.Entries)
-cache.deduplicateEntries()
+			initialCount := len(cache.Entries)
+			cache.deduplicateEntries()
 
-if _, exists := cache.Entries[tt.expectedKeep]; !exists {
-t.Errorf("Expected entry %s to be kept, but it was removed", tt.expectedKeep)
-}
+			if _, exists := cache.Entries[tt.expectedKeep]; !exists {
+				t.Errorf("Expected entry %s to be kept, but it was removed", tt.expectedKeep)
+			}
 
-removed := initialCount - len(cache.Entries)
-if removed != tt.expectedRemoveCount {
-t.Errorf("Expected %d entries to be removed, but %d were removed",
-tt.expectedRemoveCount, removed)
-}
+			removed := initialCount - len(cache.Entries)
+			if removed != tt.expectedRemoveCount {
+				t.Errorf("Expected %d entries to be removed, but %d were removed",
+					tt.expectedRemoveCount, removed)
+			}
 
-t.Logf("Deduplication kept %s, removed %d less precise entries",
-tt.expectedKeep, removed)
-})
-}
+			t.Logf("Deduplication kept %s, removed %d less precise entries",
+				tt.expectedKeep, removed)
+		})
+	}
 }

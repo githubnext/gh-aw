@@ -40,7 +40,7 @@ func collectWorkflowFiles(workflowPath string, verbose bool) ([]string, error) {
 	lockFilePath := strings.TrimSuffix(absWorkflowPath, ".md") + ".lock.yml"
 	runPushLog.Printf("Checking lock file: %s", lockFilePath)
 	needsRecompile := false
-	
+
 	if lockStat, err := os.Stat(lockFilePath); err == nil {
 		runPushLog.Printf("Lock file exists: %s", lockFilePath)
 		// Lock file exists - check if it's outdated
@@ -104,7 +104,7 @@ func collectWorkflowFiles(workflowPath string, verbose bool) ([]string, error) {
 	for file := range files {
 		result = append(result, file)
 	}
-	
+
 	// Sort files for stable output
 	sort.Strings(result)
 	runPushLog.Printf("Sorted %d files for stable output", len(result))
@@ -116,7 +116,7 @@ func collectWorkflowFiles(workflowPath string, verbose bool) ([]string, error) {
 // recompileWorkflow compiles a workflow using CompileWorkflows
 func recompileWorkflow(workflowPath string, verbose bool) error {
 	runPushLog.Printf("Recompiling workflow: %s", workflowPath)
-	
+
 	config := CompileConfig{
 		MarkdownFiles:        []string{workflowPath},
 		Verbose:              verbose,
@@ -131,9 +131,9 @@ func recompileWorkflow(workflowPath string, verbose bool) error {
 		TrialLogicalRepoSlug: "",
 		Strict:               false,
 	}
-	
+
 	runPushLog.Printf("Compilation config: Validate=%v, NoEmit=%v", config.Validate, config.NoEmit)
-	
+
 	// Use background context for compilation
 	ctx := context.Background()
 	runPushLog.Printf("Starting compilation with CompileWorkflows")
@@ -141,7 +141,7 @@ func recompileWorkflow(workflowPath string, verbose bool) error {
 		runPushLog.Printf("Compilation failed: %v", err)
 		return fmt.Errorf("compilation failed: %w", err)
 	}
-	
+
 	runPushLog.Printf("Successfully recompiled workflow: %s", workflowPath)
 	return nil
 }
@@ -156,7 +156,7 @@ type LockFileStatus struct {
 // checkLockFileStatus checks the status of a workflow's lock file
 func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 	runPushLog.Printf("Checking lock file status for: %s", workflowPath)
-	
+
 	// Get absolute path for the workflow
 	absWorkflowPath, err := filepath.Abs(workflowPath)
 	if err != nil {
@@ -164,13 +164,13 @@ func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 		return nil, fmt.Errorf("failed to get absolute path for workflow: %w", err)
 	}
 	runPushLog.Printf("Resolved absolute path: %s", absWorkflowPath)
-	
+
 	lockFilePath := strings.TrimSuffix(absWorkflowPath, ".md") + ".lock.yml"
 	runPushLog.Printf("Expected lock file path: %s", lockFilePath)
 	status := &LockFileStatus{
 		LockPath: lockFilePath,
 	}
-	
+
 	// Check if lock file exists
 	lockStat, err := os.Stat(lockFilePath)
 	if err != nil {
@@ -183,7 +183,7 @@ func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 		return nil, fmt.Errorf("failed to stat lock file: %w", err)
 	}
 	runPushLog.Printf("Lock file exists: %s (modtime: %v)", lockFilePath, lockStat.ModTime())
-	
+
 	// Lock file exists - check if it's outdated
 	mdStat, err := os.Stat(absWorkflowPath)
 	if err != nil {
@@ -191,14 +191,14 @@ func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 		return nil, fmt.Errorf("failed to stat workflow file: %w", err)
 	}
 	runPushLog.Printf("Workflow file modtime: %v", mdStat.ModTime())
-	
+
 	if mdStat.ModTime().After(lockStat.ModTime()) {
 		status.Outdated = true
 		runPushLog.Printf("Lock file outdated (md: %v, lock: %v)", mdStat.ModTime(), lockStat.ModTime())
 	} else {
 		runPushLog.Printf("Lock file is up-to-date")
 	}
-	
+
 	return status, nil
 }
 
@@ -280,7 +280,7 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 	// Process each import
 	for i, importPath := range imports {
 		runPushLog.Printf("Processing import %d/%d: %s", i+1, len(imports), importPath)
-		
+
 		// Resolve the import path
 		resolvedPath := resolveImportPathLocal(importPath, workflowDir)
 		if resolvedPath == "" {
@@ -332,7 +332,7 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 // This is needed to avoid circular dependencies with imports.go
 func resolveImportPathLocal(importPath, baseDir string) string {
 	runPushLog.Printf("Resolving import path: %s (baseDir: %s)", importPath, baseDir)
-	
+
 	// Handle section references (file.md#Section) - strip the section part
 	if strings.Contains(importPath, "#") {
 		parts := strings.SplitN(importPath, "#", 2)
@@ -370,7 +370,7 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 // This is duplicated from imports.go to avoid circular dependencies
 func isWorkflowSpecFormatLocal(path string) bool {
 	runPushLog.Printf("Checking if workflowspec format: %s", path)
-	
+
 	// Check if it contains @ (ref separator) or looks like owner/repo/path
 	if strings.Contains(path, "@") {
 		runPushLog.Printf("Path contains @ - workflowspec format: %s", path)
@@ -440,7 +440,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		runPushLog.Print("No changes to commit")
 		return nil
 	}
-	
+
 	// Now that we know there are changes to commit, check that current branch matches --ref value if specified
 	// This happens after we've determined there are actual changes, so we don't fail unnecessarily
 	if refOverride != "" {
@@ -451,12 +451,12 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 			return fmt.Errorf("failed to determine current branch: %w", err)
 		}
 		runPushLog.Printf("Current branch: %s", currentBranch)
-		
+
 		if currentBranch != refOverride {
 			runPushLog.Printf("Current branch (%s) does not match --ref value (%s)", currentBranch, refOverride)
 			return fmt.Errorf("--push requires the current branch (%s) to match the --ref value (%s). Switching branches is not supported. Please checkout the target branch first", currentBranch, refOverride)
 		}
-		
+
 		runPushLog.Printf("Current branch matches --ref value: %s", currentBranch)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Verified current branch matches --ref: %s", currentBranch)))
@@ -466,7 +466,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 	// Get the list of staged files
 	stagedFiles := strings.Split(strings.TrimSpace(string(statusOutput)), "\n")
 	runPushLog.Printf("Found %d staged files: %v", len(stagedFiles), stagedFiles)
-	
+
 	// Check if there are staged files beyond what we just staged
 	// Convert our files list to a map for quick lookup
 	runPushLog.Printf("Building map of our files for comparison")
@@ -483,7 +483,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		ourFiles[file] = true
 		runPushLog.Printf("Added to our files map: %s", file)
 	}
-	
+
 	// Check if there are any staged files that aren't in our list
 	runPushLog.Printf("Checking for extra staged files not in our list")
 	var extraStagedFiles []string
@@ -502,11 +502,11 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		runPushLog.Printf("Extra staged file detected: %s", stagedFile)
 		extraStagedFiles = append(extraStagedFiles, stagedFile)
 	}
-	
+
 	// If there are extra staged files that we didn't stage, give up
 	if len(extraStagedFiles) > 0 {
 		runPushLog.Printf("Found %d extra staged files not in our list, refusing to proceed: %v", len(extraStagedFiles), extraStagedFiles)
-		
+
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Cannot proceed: there are already staged files in git that are not part of this workflow"))
 		fmt.Fprintln(os.Stderr, "")
@@ -517,7 +517,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please commit or unstage these files before using --push"))
 		fmt.Fprintln(os.Stderr, "")
-		
+
 		return fmt.Errorf("git has staged files not part of workflow - commit or unstage them before using --push")
 	}
 	runPushLog.Printf("No extra staged files detected - all staged files are part of our workflow")
