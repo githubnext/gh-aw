@@ -138,7 +138,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Fetching ready beads..."
-          READY_BEADS=$(bd ready --json --no-daemon 2>/dev/null || echo "[]")
+          READY_BEADS=$(bd ready --json --no-db --no-daemon 2>/dev/null || echo "[]")
           BEAD_COUNT=$(echo "$READY_BEADS" | jq 'length')          
           echo "✓ Found $BEAD_COUNT ready beads"          
           if [ "$BEAD_COUNT" -gt 0 ]; then
@@ -160,12 +160,12 @@ jobs:
             
             # Claim the bead by updating to in_progress
             echo "Claiming bead (updating to in_progress)..."
-            bd update "$BEAD_ID" --status in_progress
+            bd --no-db update "$BEAD_ID" --status in_progress
             echo "✓ Bead claimed successfully"
             
             # Show bead details
             echo "Bead details:"
-            bd show "$BEAD_ID" --json
+            bd --no-db show "$BEAD_ID" --json
           else
             echo "id=" >> "$GITHUB_OUTPUT"
             echo "title=" >> "$GITHUB_OUTPUT"
@@ -207,11 +207,7 @@ jobs:
       - name: Install beads CLI
         run: |
           # Install beads CLI
-          curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-          
-          # Verify installation
-          bd --version
-      
+          curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash      
       - name: Release the claimed bead if still in progress
         env:
           BEAD_ID: ${{ needs.bead.outputs.id }}
@@ -222,20 +218,15 @@ jobs:
           echo "Claimed bead ID: $BEAD_ID"
           echo "Agent result: $AGENT_RESULT"
           
-          # Sync beads data from repository
-          echo "Syncing beads data..."
-          bd --no-db sync
-          echo "✓ Beads data synced"
-          
           # Check if the claimed bead is still in_progress
           echo "Checking bead status..."
-          BEAD_STATUS=$(bd show "$BEAD_ID" --json 2>/dev/null | jq -r '.status')
+          BEAD_STATUS=$(bd --no-db --no-daemon show "$BEAD_ID" --json 2>/dev/null | jq -r '.status')
           
           echo "Current bead status: $BEAD_STATUS"
           
           if [ "$BEAD_STATUS" = "in_progress" ]; then
             echo "⚠️  Bead is still in progress - releasing it back to open state"
-            bd update "$BEAD_ID" --status open --comment "Released by workflow (agent result: $AGENT_RESULT)"
+            bd --no-db update "$BEAD_ID" --status open --comment "Released by workflow (agent result: $AGENT_RESULT)"
             echo "✓ Bead released successfully"
             
             # Sync changes
