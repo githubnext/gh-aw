@@ -22,17 +22,13 @@ Read the ENTIRE content of this file carefully before proceeding. Follow the ins
 - `fix` → apply automatic codemods to fix deprecated fields
 - `compile` → compile all workflows
 - `compile <workflow-name>` → compile a specific workflow
-- `compile --validate` → compile with validation enabled
-- `compile --strict` → compile with strict mode validation
-- `status` → show status of agentic workflows in the repository
 
 :::note[Command Execution]
 When running in GitHub Copilot Cloud, you don't have direct access to `gh aw` CLI commands. Instead, use the **agentic-workflows** MCP tool:
 - `fix` tool → apply automatic codemods to fix deprecated fields
 - `compile` tool → compile workflows
-- `status` tool → show workflow status
 
-When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw compile`, `gh aw version`).
+When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw compile`).
 
 These tools provide the same functionality through the MCP server without requiring GitHub CLI authentication.
 :::
@@ -43,11 +39,7 @@ These tools provide the same functionality through the MCP server without requir
 
 Before upgrading, always review what's new:
 
-1. **Check Current Version (if available)**
-   
-   If running with CLI access, you can check the current gh-aw version with `gh aw version`. When using MCP tools in GitHub Copilot Cloud, proceed directly to fetching release information.
-
-2. **Fetch Latest Release Information**
+1. **Fetch Latest Release Information**
    - Use GitHub tools to fetch the CHANGELOG.md from the `githubnext/gh-aw` repository
    - Review and understand:
      - Breaking changes
@@ -77,30 +69,20 @@ Before attempting to compile, apply automatic codemods:
    - Note which workflows were updated by the codemods
    - These automatic fixes handle common deprecations
 
-### 3. Prepare for Compilation
-
-Clean up existing lock files before recompiling:
-
-```bash
-find .github/workflows -name "*.lock.yml" -type f -delete
-```
-   
-   This ensures fresh compilation with the new version.
-
-### 4. Attempt Recompilation
+### 3. Attempt Recompilation
 
 Try to compile all workflows:
 
-1. **Run Compilation with Validation**
+1. **Run Compilation**
    
-   Use the `compile` tool with the `--validate` flag to compile all workflows.
+   Use the `compile` tool to compile all workflows.
 
 2. **Analyze Results**
    - Note any compilation errors or warnings
    - Group errors by type (schema validation, breaking changes, missing features)
    - Identify patterns in the errors
 
-### 5. Fix Compilation Errors
+### 4. Fix Compilation Errors
 
 If compilation fails, work through errors systematically:
 
@@ -138,7 +120,7 @@ If compilation fails, work through errors systematically:
 
 3. **Apply Fixes Incrementally**
    - Fix one workflow or one error type at a time
-   - After each fix, use the `compile` tool with `<workflow-name> --validate` to verify
+   - After each fix, use the `compile` tool with `<workflow-name>` to verify
    - Verify the fix works before moving to the next error
 
 4. **Document Changes**
@@ -146,21 +128,17 @@ If compilation fails, work through errors systematically:
    - Note which breaking changes affected which workflows
    - Document any manual migration steps taken
 
-### 6. Verify All Workflows
+### 5. Verify All Workflows
 
 After fixing all errors:
 
 1. **Final Compilation Check**
    
-   Use the `compile` tool with the `--validate` flag to ensure all workflows compile successfully.
+   Use the `compile` tool to ensure all workflows compile successfully.
 
 2. **Review Generated Lock Files**
    - Ensure all workflows have corresponding `.lock.yml` files
    - Check that lock files are valid GitHub Actions YAML
-
-3. **Status Check**
-   
-   Use the `status` tool to verify all workflows are listed and compiled successfully.
 
 ## Creating Outputs
 
@@ -200,7 +178,7 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 - [Reference specific breaking changes that required fixes]
 
 ### Testing
-- ✅ All workflows compile successfully with the `compile --validate` tool
+- ✅ All workflows compile successfully
 - ✅ All `.lock.yml` files generated
 - ✅ No compilation errors or warnings
 
@@ -274,7 +252,7 @@ Attempted to upgrade workflows to gh-aw version [VERSION] but encountered compil
    - Group similar errors and fix them together
 
 3. **Test Thoroughly**
-   - Compile with `--validate` flag
+   - Compile workflows to verify fixes
    - Check that all lock files are generated
    - Review the generated YAML for correctness
 
@@ -292,6 +270,5 @@ Attempted to upgrade workflows to gh-aw version [VERSION] but encountered compil
 
 - When running in GitHub Copilot Cloud, use the **agentic-workflows** MCP tool for all commands
 - When running in environments with `gh aw` CLI access, prefix commands with `gh aw` 
-- Always compile with `--validate` to catch issues early
 - Breaking changes are inevitable - expect to make manual fixes
 - If stuck, create an issue with detailed information for the maintainers
