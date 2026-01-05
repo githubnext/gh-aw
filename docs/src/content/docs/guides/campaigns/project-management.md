@@ -45,6 +45,56 @@ update-project:
 
 To add custom fields: Open your project board, click the **+** button, select the field type, name it (use Title Case), add option values for single-select fields, and save. Orchestrator workflows can then populate these fields using the `fields:` parameter in `update-project` safe outputs.
 
+## Campaign Epic Issue
+
+Each campaign automatically creates and manages an Epic issue that serves as the campaign's parent and narrative hub.
+
+### Epic Issue Structure
+
+**Created automatically on first orchestrator run:**
+- **Title:** Campaign name (or "Campaign: {id}" if name not specified)
+- **Labels:** `epic`, `type:epic`
+- **Body contains:**
+  - Campaign objective
+  - Project board URL
+  - Worker workflow list
+  - Campaign ID marker for discovery: `campaign_id: {id}`
+- **Added to project board** with campaign_id field set
+
+**Purpose:**
+- Narrative context for the entire campaign
+- Parent issue for all campaign work items
+- Central place for campaign-level discussions
+- Discovery anchor via campaign_id marker
+
+### Work Item Hierarchy
+
+**Issues:**
+- All campaign work issues should be created as **sub-issues** of the Epic
+- Sub-issue relationship maintained via GitHub's native sub-issues feature
+- Worker workflows create sub-issues using the Epic as parent
+
+**Pull Requests:**
+- Cannot be sub-issues (GitHub limitation)
+- Must reference related issue via standard GitHub linking (e.g., "Closes #123")
+- Linked to project board via campaign_id field
+
+**Field-Based Grouping:**
+- Worker grouping uses the `worker_workflow` project field
+- Do NOT re-parent issues based on worker assignment
+- Epic remains the single parent for all campaign work items
+
+### Finding the Epic
+
+Search for issues with:
+- Label: `epic` or `type:epic`
+- Body contains: `campaign_id: {campaign-id}`
+
+Example:
+```bash
+gh issue list --label epic --search "campaign_id: framework-upgrade"
+```
+
 ## Using Project Roadmap Views with Custom Date Fields
 
 GitHub Projects [Roadmap view](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/customizing-the-roadmap-layout) visualizes work items along a timeline. Create `Start Date` and `End Date` fields (type: Date), then create a Roadmap view and configure it to use these fields. Orchestrator workflows can automatically populate them.

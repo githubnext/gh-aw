@@ -70,12 +70,22 @@ This validates the spec. When the spec has meaningful details (tracker label, wo
 
 ## 4) Run the orchestrator
 
-Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the dashboard in sync:
+Trigger the orchestrator workflow from GitHub Actions. The orchestrator runs in two phases:
 
+**Phase 0 - Discovery (before agent):**
+- Precomputes discovery using JavaScript step
 - Finds tracker-labeled issues/PRs
-- Adds them to the Project
-- Updates fields/status
-- Posts a short report
+- Writes discovery manifest to `./.gh-aw/campaign.discovery.json`
+- Updates cursor in repo-memory for resumption
+
+**Phase 1+ - Orchestration (agent):**
+- Reads discovery manifest
+- Adds new items to the Project board
+- Updates fields/status based on GitHub state
+- Posts progress report
+- Writes metrics snapshot to repo-memory
+
+The discovery phase eliminates the need for agents to perform GitHub-wide searches, making orchestration more efficient and deterministic.
 
 ## 5) Add work items
 
