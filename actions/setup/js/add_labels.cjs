@@ -47,38 +47,26 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const item = message;
-
     // Determine target issue/PR number
-    let itemNumber;
-    if (item.item_number !== undefined) {
-      itemNumber = parseInt(String(item.item_number), 10);
-      if (isNaN(itemNumber)) {
-        core.warning(`Invalid item number: ${item.item_number}`);
-        return {
-          success: false,
-          error: `Invalid item number: ${item.item_number}`,
-        };
-      }
-    } else {
-      // Use context issue or PR if available
-      const contextIssue = context.payload?.issue?.number;
-      const contextPR = context.payload?.pull_request?.number;
-      itemNumber = contextIssue || contextPR;
+    const itemNumber = message.item_number !== undefined
+      ? parseInt(String(message.item_number), 10)
+      : context.payload?.issue?.number || context.payload?.pull_request?.number;
 
-      if (!itemNumber) {
-        core.warning("No item_number provided and not in issue/PR context");
-        return {
-          success: false,
-          error: "No issue/PR number available",
-        };
-      }
+    if (!itemNumber || isNaN(itemNumber)) {
+      const errorMsg = message.item_number !== undefined
+        ? `Invalid item number: ${message.item_number}`
+        : "No item_number provided and not in issue/PR context";
+      core.warning(errorMsg);
+      return {
+        success: false,
+        error: message.item_number !== undefined
+          ? `Invalid item number: ${message.item_number}`
+          : "No issue/PR number available",
+      };
     }
 
-    // Determine context type
     const contextType = context.payload?.pull_request ? "pull request" : "issue";
-
-    const requestedLabels = item.labels ?? [];
+    const requestedLabels = message.labels ?? [];
     core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
 
     // Use validation helper to sanitize and validate labels
@@ -118,8 +106,7 @@ async function main(config = {}) {
 
     try {
       await github.rest.issues.addLabels({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
+        ...context.repo,
         issue_number: itemNumber,
         labels: uniqueLabels,
       });
@@ -130,7 +117,7 @@ async function main(config = {}) {
         success: true,
         number: itemNumber,
         labelsAdded: uniqueLabels,
-        contextType: contextType,
+        contextType,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
