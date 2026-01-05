@@ -373,11 +373,15 @@ When a run is still executing:
 
 ```bash
 # Poll until completion
-while ! gh aw audit <run-id> --json 2>&1 | grep -q '"status":\s*"\(completed\|failure\|cancelled\)"'; do
-   echo "⏳ Run still in progress. Waiting 45 seconds..."
-   sleep 45
+while true; do
+  output=$(gh aw audit <run-id> --json 2>&1)
+  if echo "$output" | grep -qE '"status":\s*"(completed|failure|cancelled)"'; then
+    echo "$output"
+    break
+  fi
+  echo "⏳ Run still in progress. Waiting 45 seconds..."
+  sleep 45
 done
-gh aw audit <run-id> --json
 ```
 
 ### Inspecting MCP Configuration
@@ -483,7 +487,7 @@ gh aw compile --actionlint --zizmor --poutine
 
 ## Additional Resources
 
-- [Workflow Health Monitoring Runbook](/.github/aw/runbooks/workflow-health.md) - Step-by-step investigation procedures
-- [Common Issues Reference](/docs/src/content/docs/troubleshooting/common-issues.md) - Frequently encountered issues
-- [Error Reference](/docs/src/content/docs/troubleshooting/errors.md) - Error codes and solutions
-- [GitHub MCP Server Documentation](/skills/github-mcp-server/SKILL.md) - Tool configuration reference
+- [Workflow Health Monitoring Runbook](../../aw/runbooks/workflow-health.md) - Step-by-step investigation procedures
+- [Common Issues Reference](../../../docs/src/content/docs/troubleshooting/common-issues.md) - Frequently encountered issues
+- [Error Reference](../../../docs/src/content/docs/troubleshooting/errors.md) - Error codes and solutions
+- [GitHub MCP Server Documentation](../../../skills/github-mcp-server/SKILL.md) - Tool configuration reference
