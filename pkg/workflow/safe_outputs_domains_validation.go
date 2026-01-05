@@ -90,10 +90,10 @@ func validateDomainPattern(domain string) error {
 		}
 		// Check for invalid characters
 		for _, char := range domain {
-			if !((char >= 'a' && char <= 'z') ||
-				(char >= 'A' && char <= 'Z') ||
-				(char >= '0' && char <= '9') ||
-				char == '-' || char == '.' || char == '*') {
+			if (char < 'a' || char > 'z') &&
+				(char < 'A' || char > 'Z') &&
+				(char < '0' || char > '9') &&
+				char != '-' && char != '.' && char != '*' {
 				return fmt.Errorf("domain pattern '%s' contains invalid character '%c', only alphanumeric, hyphens, dots, and wildcards are allowed", domain, char)
 			}
 		}

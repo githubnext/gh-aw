@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateSafeOutputsAllowedDomains(t *testing.T) {
@@ -183,7 +184,7 @@ func TestValidateSafeOutputsAllowedDomains(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateSafeOutputsAllowedDomains(tt.config)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected an error but got none")
+				require.Error(t, err, "Expected an error but got none")
 				if tt.errMsg != "" {
 					assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain expected text")
 				}
@@ -342,7 +343,7 @@ func TestValidateDomainPattern(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateDomainPattern(tt.domain)
 			if tt.wantErr {
-				assert.Error(t, err, "Expected an error for domain: %s", tt.domain)
+				require.Error(t, err, "Expected an error for domain: %s", tt.domain)
 				if tt.errMsg != "" {
 					assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain expected text")
 				}
