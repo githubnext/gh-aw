@@ -18,6 +18,15 @@ tools:
     - "*"
   edit:
 safe-outputs:
+  create-issue:
+    title-prefix: "[beads] "
+    labels: [automation, beads]
+  create-pull-request:
+    title-prefix: "[beads] "
+    labels: [automation, beads]
+    draft: true
+  push-to-pull-request-branch:
+    target: "*"
   jobs:
     bead-update-state:
       description: "Update bead state (completed, failed, or released)"
@@ -333,17 +342,31 @@ Workflow:
   - Use `state: closed` with `reason: "Task completed: [description]"` when work is done successfully
   - Use `state: open` with `reason: "Failed: [reason]"` if you cannot complete the work
 
+- **create_issue**: Create GitHub issues for tracking work or reporting findings
+  - Use to document bugs, feature requests, or work items discovered while executing a bead
+  - Issues will be automatically labeled with `automation` and `beads` and prefixed with `[beads]`
+
+- **create_pull_request**: Create pull requests with code changes
+  - Use when the bead task involves code modifications that should be reviewed
+  - PRs will be created as drafts by default, labeled with `automation` and `beads`, and prefixed with `[beads]`
+
+- **push_to_pull_request_branch**: Push additional changes to an existing pull request
+  - Use to update or refine changes in a PR that was previously created
+  - Can target any open pull request in the repository
+
 ## Execution Guidelines
 
 1. Start by examining the bead details thoroughly
 2. If the task involves code changes:
    - Make the necessary changes
    - Test your changes if possible
-   - Document significant work appropriately
-3. If the task is complete, call `bead-update-state` with:
+   - Consider creating a pull request using `create_pull_request` for review
+3. If you discover bugs or work items while executing:
+   - Use `create_issue` to document them for future action
+4. If the task is complete, call `bead-update-state` with:
    - `state`: "closed"
    - `reason`: Brief description of what was completed
-4. If you cannot complete the task, call `bead-update-state` with:
+5. If you cannot complete the task, call `bead-update-state` with:
    - `state`: "open"
    - `reason`: Explanation of why the task couldn't be completed
 
@@ -352,6 +375,8 @@ Workflow:
 - The bead has been claimed as `in_progress` in the bead job
 - If you don't explicitly close or reopen the bead, the release_bead job will automatically release it back to `open` state
 - Always provide a clear reason when updating bead state
-- Document any significant work in a GitHub issue for tracking
+- Use `create_issue` to document any significant work, bugs, or follow-up items
+- Use `create_pull_request` when code changes require review before merging
+- Use `push_to_pull_request_branch` to update existing PRs with additional changes
 
 Begin by examining the bead and executing the work!
