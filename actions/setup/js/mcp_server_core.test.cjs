@@ -580,10 +580,7 @@ process.stdin.on('end', () => {
 
       // Create a handler that exits with error code (separate process)
       const handlerPath = path.join(tempDir, "error_handler.cjs");
-      fs.writeFileSync(
-        handlerPath,
-        `process.exit(1);`
-      );
+      fs.writeFileSync(handlerPath, `process.exit(1);`);
 
       const tools = [
         {
@@ -695,10 +692,7 @@ process.stdin.on('end', () => {
 
       // Create a handler - in separate process, we just output string directly
       const handlerPath = path.join(tempDir, "circular_handler.cjs");
-      fs.writeFileSync(
-        handlerPath,
-        `console.log("[object Object]");`
-      );
+      fs.writeFileSync(handlerPath, `console.log("[object Object]");`);
 
       const tools = [
         {
