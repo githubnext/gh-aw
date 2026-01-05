@@ -148,32 +148,32 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 
 	// Test console output
 	t.Run("Console Output", func(t *testing.T) {
-		// Capture console output
-		oldStdout := os.Stdout
+		// Capture console output - renderConsole now writes to stderr
+		oldStderr := os.Stderr
 		r, w, _ := os.Pipe()
-		os.Stdout = w
+		os.Stderr = w
 
 		renderConsole(auditData, run.LogsPath)
 
 		w.Close()
 		var buf bytes.Buffer
 		io.Copy(&buf, r)
-		os.Stdout = oldStdout
+		os.Stderr = oldStderr
 
 		output := buf.String()
 
-		// Verify key sections
+		// Verify key sections - now without markdown-style headers
 		expectedSections := []string{
-			"# Workflow Run Audit Report",
-			"## Overview",
-			"## Key Findings",
-			"## Recommendations",
-			"## Performance Metrics",
-			"## Metrics",
-			"## Jobs",
-			"## Firewall Analysis",
-			"## Tool Usage",
-			"## Errors and Warnings",
+			"Workflow Run Audit Report",
+			"Overview",
+			"Key Findings",
+			"Recommendations",
+			"Performance Metrics",
+			"Metrics",
+			"Jobs",
+			"Firewall Analysis",
+			"Tool Usage",
+			"Errors and Warnings",
 		}
 
 		for _, section := range expectedSections {
