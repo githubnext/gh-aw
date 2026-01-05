@@ -20,7 +20,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 			name: "basic step with inline script",
 			config: SafeOutputStepConfig{
 				StepName:   "Test Step",
-				StepAppID:     "test_step",
+				StepID:     "test_step",
 				Script:     "console.log('test');",
 				Token:      "${{ github.token }}",
 			},
@@ -37,7 +37,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 			name: "step with script name (file mode)",
 			config: SafeOutputStepConfig{
 				StepName:   "Create Issue",
-				StepAppID:     "create_issue",
+				StepID:     "create_issue",
 				ScriptName: "create_issue_handler",
 				Token:      "${{ github.token }}",
 			},
@@ -56,7 +56,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 			name: "step with condition",
 			config: SafeOutputStepConfig{
 				StepName:   "Conditional Step",
-				StepAppID:     "conditional",
+				StepID:     "conditional",
 				Script:     "console.log('test');",
 				Token:      "${{ github.token }}",
 				Condition:  BuildEquals(BuildStringLiteral("test"), BuildStringLiteral("test")),
@@ -69,7 +69,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 			name: "step with custom env vars",
 			config: SafeOutputStepConfig{
 				StepName: "Step with Env",
-				StepAppID:   "env_step",
+				StepID:   "env_step",
 				Script:   "console.log('test');",
 				Token:    "${{ github.token }}",
 				CustomEnvVars: []string{
@@ -86,7 +86,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 			name: "step with copilot token",
 			config: SafeOutputStepConfig{
 				StepName:        "Copilot Step",
-				StepAppID:          "copilot",
+				StepID:          "copilot",
 				Script:          "console.log('test');",
 				Token:           "${{ secrets.COPILOT_TOKEN }}",
 				UseCopilotToken: true,
@@ -99,7 +99,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 			name: "step with agent token",
 			config: SafeOutputStepConfig{
 				StepName:      "Agent Step",
-				StepAppID:        "agent",
+				StepID:        "agent",
 				Script:        "console.log('test');",
 				Token:         "${{ secrets.AGENT_TOKEN }}",
 				UseAgentToken: true,
@@ -407,7 +407,7 @@ func TestStepWithoutCondition(t *testing.T) {
 
 	config := SafeOutputStepConfig{
 		StepName: "Test Step",
-		StepAppID:   "test",
+		StepID:   "test",
 		Script:   "console.log('test');",
 		Token:    "${{ github.token }}",
 	}
@@ -463,7 +463,7 @@ func TestGitHubTokenPrecedence(t *testing.T) {
 
 			config := SafeOutputStepConfig{
 				StepName:        "Test Step",
-				StepAppID:          "test",
+				StepID:          "test",
 				Script:          "console.log('test');",
 				Token:           tt.token,
 				UseCopilotToken: tt.useCopilotToken,
@@ -497,7 +497,7 @@ func TestScriptNameVsInlineScript(t *testing.T) {
 	t.Run("inline script", func(t *testing.T) {
 		config := SafeOutputStepConfig{
 			StepName: "Inline Test",
-			StepAppID:   "inline",
+			StepID:   "inline",
 			Script:   "console.log('inline script');",
 			Token:    "${{ github.token }}",
 		}
@@ -515,7 +515,7 @@ func TestScriptNameVsInlineScript(t *testing.T) {
 	t.Run("file mode", func(t *testing.T) {
 		config := SafeOutputStepConfig{
 			StepName:   "File Test",
-			StepAppID:     "file",
+			StepID:     "file",
 			ScriptName: "test_handler",
 			Token:      "${{ github.token }}",
 		}

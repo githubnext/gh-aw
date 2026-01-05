@@ -99,7 +99,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			name: "with GitHub App token",
 			safeOutputs: &SafeOutputsConfig{
 				App: &GitHubAppConfig{
-					AppAppID:      "12345",
+					AppID:      "12345",
 					PrivateKey: "test-key",
 				},
 				CreateIssues: &CreateIssuesConfig{
@@ -173,9 +173,10 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 		{
 			name: "basic env vars",
 			workflowData: &WorkflowData{
-				Name: "Test Workflow",
+				Name:        "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{},
 			},
-			workflowAppID: "test-workflow",
+			workflowID: "test-workflow",
 			expectedVars: map[string]string{
 				"GH_AW_WORKFLOW_ID":   `"test-workflow"`,
 				"GH_AW_WORKFLOW_NAME": `"Test Workflow"`,
@@ -185,10 +186,11 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 		{
 			name: "with source metadata",
 			workflowData: &WorkflowData{
-				Name:   "Test Workflow",
-				Source: "user/repo",
+				Name:        "Test Workflow",
+				Source:      "user/repo",
+				SafeOutputs: &SafeOutputsConfig{},
 			},
-			workflowAppID: "test-workflow",
+			workflowID: "test-workflow",
 			expectedVars: map[string]string{
 				"GH_AW_WORKFLOW_SOURCE": `"user/repo"`,
 			},
@@ -197,10 +199,11 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 		{
 			name: "with tracker ID",
 			workflowData: &WorkflowData{
-				Name:      "Test Workflow",
-				TrackerAppID: "tracker-123",
+				Name:        "Test Workflow",
+				TrackerID:   "tracker-123",
+				SafeOutputs: &SafeOutputsConfig{},
 			},
-			workflowAppID: "test-workflow",
+			workflowID: "test-workflow",
 			expectedVars: map[string]string{
 				"GH_AW_TRACKER_ID": `"tracker-123"`,
 			},
@@ -211,12 +214,13 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			workflowData: &WorkflowData{
 				Name: "Test Workflow",
 				EngineConfig: &EngineConfig{
-					AppID:      "copilot",
+					ID:      "copilot",
 					Version: "0.0.374",
 					Model:   "gpt-4",
 				},
+				SafeOutputs: &SafeOutputsConfig{},
 			},
-			workflowAppID: "test-workflow",
+			workflowID: "test-workflow",
 			expectedVars: map[string]string{
 				"GH_AW_ENGINE_ID":      `"copilot"`,
 				"GH_AW_ENGINE_VERSION": `"0.0.374"`,
@@ -232,7 +236,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 					Staged: true,
 				},
 			},
-			workflowAppID: "test-workflow",
+			workflowID: "test-workflow",
 			expectedVars: map[string]string{
 				"GH_AW_SAFE_OUTPUTS_STAGED": `"true"`,
 			},
@@ -244,7 +248,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 				Name:        "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{},
 			},
-			workflowAppID: "test-workflow",
+			workflowID: "test-workflow",
 			trialMode:  true,
 			trialRepo:  "org/test-repo",
 			expectedVars: map[string]string{
@@ -262,7 +266,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 					},
 				},
 			},
-			workflowAppID:    "test-workflow",
+			workflowID:    "test-workflow",
 			checkContains: true,
 		},
 	}
