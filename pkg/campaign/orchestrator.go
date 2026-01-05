@@ -96,8 +96,8 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 				"GH_AW_WORKFLOWS":           strings.Join(spec.Workflows, ","),
 				"GH_AW_TRACKER_LABEL":       spec.TrackerLabel,
 				"GH_AW_PROJECT_URL":         spec.ProjectURL,
-				"GH_AW_MAX_DISCOVERY_ITEMS": getMaxDiscoveryItems(spec),
-				"GH_AW_MAX_DISCOVERY_PAGES": getMaxDiscoveryPages(spec),
+				"GH_AW_MAX_DISCOVERY_ITEMS": fmt.Sprintf("%d", getMaxDiscoveryItems(spec)),
+				"GH_AW_MAX_DISCOVERY_PAGES": fmt.Sprintf("%d", getMaxDiscoveryPages(spec)),
 				"GH_AW_CURSOR_PATH":         getCursorPath(spec),
 			},
 			"with": map[string]any{

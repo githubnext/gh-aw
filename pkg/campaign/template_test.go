@@ -39,8 +39,8 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 			data: CampaignPromptData{},
 			shouldContain: []string{
 				"Read current GitHub Project board state",
-				"Normalize discovered items",
-				"Respect read budgets and cursor",
+				"Parse discovered items from the manifest",
+				"Discovery cursor is maintained automatically",
 				"Determine desired `status`",
 			},
 		},

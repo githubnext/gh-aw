@@ -113,6 +113,8 @@ jobs:
       - env:
           GH_AW_CAMPAIGN_ID: file-size-reduction-project71
           GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/file-size-reduction-project71/cursor.json
+          GH_AW_MAX_DISCOVERY_ITEMS: "50"
+          GH_AW_MAX_DISCOVERY_PAGES: "5"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/71
           GH_AW_TRACKER_LABEL: campaign:file-size-reduction-project71
           GH_AW_WORKFLOWS: daily-file-diet
