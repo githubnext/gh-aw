@@ -26,10 +26,6 @@ safe-outputs:
       permissions:
         contents: write
       inputs:
-        bead_id:
-          description: "The bead ID to update"
-          required: true
-          type: string
         state:
           description: "The new state (open, in_progress, closed)"
           required: true
@@ -39,24 +35,6 @@ safe-outputs:
           required: false
           type: string
       steps:
-        - name: Validate bead ID
-          env:
-            INPUT_BEAD_ID: ${{ inputs.bead_id }}
-            CLAIMED_BEAD_ID: ${{ needs.bead.outputs.id }}
-          run: |
-            echo "=== Starting bead ID validation ==="
-            echo "Input bead ID: $INPUT_BEAD_ID"
-            echo "Claimed bead ID: $CLAIMED_BEAD_ID"
-            
-            # Ensure the bead_id matches the claimed bead
-            if [ "$INPUT_BEAD_ID" != "$CLAIMED_BEAD_ID" ]; then
-              echo "❌ Error: Cannot update bead '$INPUT_BEAD_ID'"
-              echo "This workflow can only update the claimed bead: '$CLAIMED_BEAD_ID'"
-              exit 1
-            fi
-            echo "✓ Validation passed: Updating claimed bead $CLAIMED_BEAD_ID"
-            echo "=== Bead ID validation completed ==="
-        
         - name: Checkout repository
           uses: actions/checkout@v5
           with:
@@ -73,12 +51,12 @@ safe-outputs:
         
         - name: Update bead state
           env:
-            BEAD_ID: ${{ inputs.bead_id }}
+            BEAD_ID: ${{ needs.bead.outputs.id }}
             STATE: ${{ inputs.state }}
             REASON: ${{ inputs.reason }}
           run: |
             echo "=== Starting bead state update ==="
-            echo "Bead ID: $BEAD_ID"
+            echo "Bead ID: $BEAD_ID (claimed bead)"
             echo "New state: $STATE"
             echo "Reason: $REASON"
             
@@ -293,7 +271,7 @@ Workflow:
 
 ## Tools Available
 
-- **bead-update-state**: Update bead state after completing work
+- **bead-update-state**: Update bead state after completing work (automatically uses the claimed bead)
   - Use `state: closed` with `reason: "Task completed: [description]"` when work is done successfully
   - Use `state: open` with `reason: "Failed: [reason]"` if you cannot complete the work
 
@@ -305,11 +283,9 @@ Workflow:
    - Test your changes if possible
    - Document significant work appropriately
 3. If the task is complete, call `bead-update-state` with:
-   - `bead_id`: "${{ needs.bead.outputs.id }}"
    - `state`: "closed"
    - `reason`: Brief description of what was completed
 4. If you cannot complete the task, call `bead-update-state` with:
-   - `bead_id`: "${{ needs.bead.outputs.id }}"
    - `state`: "open"
    - `reason`: Explanation of why the task couldn't be completed
 

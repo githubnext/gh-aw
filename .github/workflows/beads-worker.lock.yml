@@ -171,7 +171,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"bead-update-state":{"description":"Update bead state (completed, failed, or released)","inputs":{"bead_id":{"default":null,"description":"The bead ID to update","required":true,"type":"string"},"reason":{"default":null,"description":"Reason for the state change","required":false,"type":"string"},"state":{"default":null,"description":"The new state (open, in_progress, closed)","required":true,"type":"string"}},"output":"Bead state updated successfully"},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"bead-update-state":{"description":"Update bead state (completed, failed, or released)","inputs":{"reason":{"default":null,"description":"Reason for the state change","required":false,"type":"string"},"state":{"default":null,"description":"The new state (open, in_progress, closed)","required":true,"type":"string"}},"output":"Bead state updated successfully"},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -223,10 +223,6 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "bead_id": {
-                    "description": "The bead ID to update",
-                    "type": "string"
-                  },
                   "reason": {
                     "description": "Reason for the state change",
                     "type": "string"
@@ -237,7 +233,6 @@ jobs:
                   }
                 },
                 "required": [
-                  "bead_id",
                   "state"
                 ],
                 "type": "object"
@@ -432,7 +427,7 @@ jobs:
           
           ## Tools Available
           
-          - **bead-update-state**: Update bead state after completing work
+          - **bead-update-state**: Update bead state after completing work (automatically uses the claimed bead)
             - Use `state: closed` with `reason: "Task completed: [description]"` when work is done successfully
             - Use `state: open` with `reason: "Failed: [reason]"` if you cannot complete the work
           
@@ -444,11 +439,9 @@ jobs:
              - Test your changes if possible
              - Document significant work appropriately
           3. If the task is complete, call `bead-update-state` with:
-             - `bead_id`: "__GH_AW_NEEDS_BEAD_OUTPUTS_ID__"
              - `state`: "closed"
              - `reason`: Brief description of what was completed
           4. If you cannot complete the task, call `bead-update-state` with:
-             - `bead_id`: "__GH_AW_NEEDS_BEAD_OUTPUTS_ID__"
              - `state`: "open"
              - `reason`: Explanation of why the task couldn't be completed
           
@@ -845,23 +838,6 @@ jobs:
         run: |
           find "/tmp/gh-aw/safe-jobs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent-output" >> "$GITHUB_ENV"
-      - name: Validate bead ID
-        run: |
-          echo "=== Starting bead ID validation ==="
-          echo "Input bead ID: $INPUT_BEAD_ID"
-          echo "Claimed bead ID: $CLAIMED_BEAD_ID"
-
-          # Ensure the bead_id matches the claimed bead
-          if [ "$INPUT_BEAD_ID" != "$CLAIMED_BEAD_ID" ]; then
-            echo "❌ Error: Cannot update bead '$INPUT_BEAD_ID'"
-            echo "This workflow can only update the claimed bead: '$CLAIMED_BEAD_ID'"
-            exit 1
-          fi
-          echo "✓ Validation passed: Updating claimed bead $CLAIMED_BEAD_ID"
-          echo "=== Bead ID validation completed ==="
-        env:
-          CLAIMED_BEAD_ID: ${{ needs.bead.outputs.id }}
-          INPUT_BEAD_ID: ${{ inputs.bead_id }}
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -877,7 +853,7 @@ jobs:
       - name: Update bead state
         run: |
           echo "=== Starting bead state update ==="
-          echo "Bead ID: $BEAD_ID"
+          echo "Bead ID: $BEAD_ID (claimed bead)"
           echo "New state: $STATE"
           echo "Reason: $REASON"
 
@@ -895,7 +871,7 @@ jobs:
           bd show "$BEAD_ID" --json
           echo "=== Bead state update completed ==="
         env:
-          BEAD_ID: ${{ inputs.bead_id }}
+          BEAD_ID: ${{ needs.bead.outputs.id }}
           REASON: ${{ inputs.reason }}
           STATE: ${{ inputs.state }}
       - name: Sync bead changes
