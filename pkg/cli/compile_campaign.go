@@ -95,7 +95,7 @@ func validateCampaigns(workflowDir string, verbose bool, campaignFiles []string)
 				campaignFileMap[absPath] = true
 			}
 		}
-		
+
 		for _, spec := range specs {
 			// Get absolute path of the spec's config file
 			specPath := spec.ConfigPath
