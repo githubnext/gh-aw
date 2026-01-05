@@ -13,7 +13,7 @@ engine: copilot
 tools:
   github:
     toolsets: [default]
-if: startsWith(github.event.issue.title, '[Campaign]') || startsWith(github.event.issue.title, '[Agentic Campaign]')
+if: startsWith(github.event.issue.title, '[Campaign]') || startsWith(github.event.issue.title, '[Agentic Campaign]') || startsWith(github.event.issue.title, '[New Agentic Campaign]')
 safe-outputs:
   add-comment:
     max: 5

@@ -1,6 +1,6 @@
 name: 🚀 Start an Agentic Campaign
 description: Create a new agentic campaign with AI assistance - describe your goal and we'll generate the details
-title: "[Agentic Campaign]"
+title: "[New Agentic Campaign]"
 labels: ["campaign", "campaign-tracker"]
 body:
   - type: markdown
