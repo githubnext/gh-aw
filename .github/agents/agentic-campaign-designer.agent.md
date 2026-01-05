@@ -19,8 +19,7 @@ This agent operates in two distinct modes:
 When triggered from a GitHub issue created via a "Create a Campaign" issue form:
 
 1. **Parse the Issue Form Data** - Extract campaign requirements from the issue body:
-   - **Agentic Campaign Goal**: The `campaign_goal` field describing what the campaign should accomplish
-   - **Additional Context**: The optional `additional_context` field with extra requirements
+   - **Campaign Goal**: The `campaign_goal` field describing what the campaign should accomplish
    - **Project Board Assignment**: Query the issue's project assignments to get the project URL
 
 2. **Generate the Campaign Specification** - Create a complete `.campaign.md` file without interaction:
@@ -125,17 +124,13 @@ When processing a GitHub issue created via the campaign creation form, follow th
 ### Step 1: Parse the Issue Form and Retrieve Project Assignment
 
 Extract the following fields from the issue body:
-- **Agentic Campaign Goal** (required): Look for the "Agentic Campaign Goal" section
-- **Additional Context** (optional): Look for the "Additional Context" section
+- **Campaign Goal** (required): Look for the "What should this campaign accomplish?" section
 - **Project Board Assignment** (required): Query the issue's project board assignments using GitHub CLI
 
 Example issue body format:
 ```
-### Agentic Campaign Goal
+### What should this campaign accomplish?
 Automated security improvements and vulnerability remediation
-
-### Additional Context (Optional)
-Should allow creating issues and PRs
 ```
 
 **Important: Retrieve the Project Board URL from Issue Assignments**

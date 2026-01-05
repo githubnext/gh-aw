@@ -15,20 +15,15 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 
 ## 1) Create the dashboard (GitHub Project)
 
-In GitHub: your org → **Projects** → **New project**.
+In GitHub: your org → **Projects** → **New project**. Start with a **Table** view, add a **Board** view grouped by `Status`, and optionally a **Roadmap** view for timelines.
 
-**Quick start setup**:
-- Start with a **Table** view (simplest option)
-- Add a **Board** view grouped by `Status` for kanban-style tracking
-- Consider a **Roadmap** view for timeline visualization (requires Start Date/End Date fields)
-
-**Recommended custom fields** (see [Project Management](/gh-aw/guides/campaigns/project-management/) for details):
+Recommended custom fields (see [Project Management](/gh-aw/guides/campaigns/project-management/)):
 - **Status** (Single select): Todo, In Progress, Blocked, Done
 - **Worker/Workflow** (Single select): Names of your worker workflows
 - **Priority** (Single select): High, Medium, Low
-- **Start Date** / **End Date** (Date): For roadmap timeline views
+- **Start Date** / **End Date** (Date): For roadmap views
 
-Copy the Project URL (it must be a full URL like `https://github.com/orgs/myorg/projects/42`).
+Copy the Project URL (e.g., `https://github.com/orgs/myorg/projects/42`).
 
 ## 2) Create the campaign spec
 
@@ -86,12 +81,7 @@ Apply the tracker label (for example `campaign:framework-upgrade`) to issues/PRs
 
 ## Optional: repo-memory for durable state
 
-If you enable repo-memory for campaigns, use a stable layout:
-
-- `memory/campaigns/<campaign-id>/cursor.json`
-- `memory/campaigns/<campaign-id>/metrics/<date>.json`
-
-Campaign tooling enforces that a campaign repo-memory write includes a cursor and at least one metrics snapshot.
+Enable repo-memory for campaigns using this layout: `memory/campaigns/<campaign-id>/cursor.json` and `memory/campaigns/<campaign-id>/metrics/<date>.json`. Campaign writes must include a cursor and at least one metrics snapshot.
 
 ## Start an agentic campaign with GitHub Issue Forms
 
@@ -99,34 +89,12 @@ This repo also includes a "🚀 Start an Agentic Campaign" issue form. Use it wh
 
 ### Creating the Campaign Issue
 
-**Option A (Recommended):** Create from your project board:
-1. Open your GitHub Project board
-2. Click "Add item" → "Create new issue"  
-3. Select this repository and choose the "🚀 Start an Agentic Campaign" template
-4. The project will be automatically assigned to the issue ✅
+**Recommended:** Create from your project board (Open board → "Add item" → "Create new issue" → Select "🚀 Start an Agentic Campaign" template). The project will be automatically assigned.
 
-**Option B:** Create from the repository's Issues page:
-1. Navigate to Issues → New Issue
-2. Select "🚀 Start an Agentic Campaign"
-3. **Important:** Before submitting, scroll down and use the project selector to assign the issue to your project board
+**Alternative:** Create from Issues → New Issue → Select "🚀 Start an Agentic Campaign". Remember to assign the project manually before submitting.
 
-Creating the issue from the project board (Option A) is recommended as it ensures the project is automatically assigned and reduces the chance of forgetting this required step.
+Submitting the form creates a campaign issue (your campaign hub), validates the project board, generates the campaign spec (`.github/workflows/<id>.campaign.md`) in a PR, and configures tracking. Manage your campaign from the issue—workflow files are implementation details.
 
-When you submit the issue form:
+### Benefits
 
-1. **an agentic campaign issue is created** - This becomes your campaign's central hub with the `campaign` and `campaign-tracker` labels
-2. **An agent validates your project board** - Ensures the project assignment exists and is accessible
-3. **an agentic campaign spec is generated** - Creates `.github/workflows/<id>.campaign.md` with your inputs as a PR
-4. **The spec is linked to the issue** - So you can track the technical implementation
-5. **Your project board is configured** - The agent sets up tracking labels and fields
-
-You manage the agentic campaign from the issue. The generated workflow files are implementation details and should not be edited directly.
-
-### Benefits of the issue form approach
-
-- **Captures intent, not YAML**: Focus on what you want to accomplish, not technical syntax
-- **Structured validation**: Form fields ensure required information is provided
-- **Lower barrier to entry**: No need to understand campaign spec file format
-- **Traceable**: Issue serves as the agentic campaign's command center with full history
-- **Agent-assisted scaffolding**: Automated generation of spec files and workflows
-- **Automatic project assignment**: When created from project board, the project is automatically linked
+Using issue forms captures intent over syntax, validates required fields, lowers the barrier to entry, provides a traceable command center, automates spec generation, and handles project assignment automatically.

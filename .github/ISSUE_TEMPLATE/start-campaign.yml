@@ -1,58 +1,23 @@
 name: 🚀 Start an Agentic Campaign
 description: Create a new agentic campaign with AI assistance - describe your goal and we'll generate the details
-title: "[Agentic Campaign] "
+title: "[New Agentic Campaign]"
 labels: ["campaign", "campaign-tracker"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Start an Agentic Campaign
-        
-        **Project Board Required:** Campaigns must be assigned to a GitHub Project for tracking.
-        
-        **Create from project board** (recommended):
-        1. Open your Project board
-        2. Click "Add item" → "Create new issue"
-        3. Select this repository and template
-        
-        **Create from issues page:** Use the project selector at bottom to assign a project board before submitting.
-        
-        The AI detects the assigned project and generates campaign spec with correct project URL.
+        **Project Board Required:** Assign this issue to a GitHub Project for tracking (use project selector below or create from project board).
 
   - type: textarea
     id: campaign_goal
     attributes:
-      label: Agentic Campaign Goal
-      description: |
-        What should this campaign accomplish? Be specific. (~125 words recommended)
-        
-        Examples:
-        - "Migrate services from Node.js 16 to 20"
-        - "Fix critical security vulnerabilities"
-        - "Refactor legacy auth code"
+      label: What should this campaign accomplish?
       placeholder: |
-        Describe your campaign goal...
+        Examples:
+        - Migrate services from Node.js 16 to 20
+        - Fix critical security vulnerabilities
+        - Refactor legacy auth code
     validations:
       required: true
 
-  - type: textarea
-    id: additional_context
-    attributes:
-      label: Additional Context (Optional)
-      description: Constraints, deadlines, requirements, prior learnings
-      placeholder: |
-        Add relevant context...
-    validations:
-      required: false
 
-  - type: markdown
-    attributes:
-      value: |
-        ---
-        
-        ### How it works
-        
-        1. Issue becomes campaign hub
-        2. AI generates spec with workflows, governance, metrics
-        3. PR created automatically
-        4. Review and merge to activate

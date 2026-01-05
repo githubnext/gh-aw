@@ -30,9 +30,10 @@ Start here! These commands cover the essential workflow lifecycle from setup to 
 ### After creating a new workflow
 
 ```bash wrap
-gh aw compile my-workflow      # Validate markdown and generate .lock.yml
-gh aw run my-workflow           # Test it manually (requires workflow_dispatch)
-gh aw logs my-workflow          # Download and analyze execution logs
+gh aw compile my-workflow           # Validate markdown and generate .lock.yml
+gh aw run my-workflow                # Test it manually (requires workflow_dispatch)
+gh aw run my-workflow --push         # Auto-commit, push, and run (all-in-one)
+gh aw logs my-workflow               # Download and analyze execution logs
 ```
 
 ### Troubleshooting
@@ -234,9 +235,25 @@ gh aw run workflow                          # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat 3 times
 gh aw run workflow --use-local-secrets      # Use local API keys
+gh aw run workflow --push                   # Auto-commit, push, and dispatch workflow
+gh aw run workflow --push --ref main        # Push to specific branch
 ```
 
-**Options:** `--repeat`, `--use-local-secrets`
+**Options:** `--repeat`, `--use-local-secrets`, `--push`, `--ref`
+
+##### `--push` Flag
+
+The `--push` flag automatically handles workflow updates before execution:
+
+1. **Auto-recompilation**: Detects when `.lock.yml` is outdated and recompiles workflow
+2. **Transitive imports**: Collects and stages all imported files recursively
+3. **Confirmation prompt**: Interactive confirmation dialog before commit
+4. **Smart staging**: Stages workflow `.md` and `.lock.yml` files plus dependencies
+5. **Automatic commit**: Creates commit with message "Updated agentic workflow"
+6. **Branch validation**: Verifies specified branch with `--ref` exists before pushing
+7. **Workflow dispatch**: Triggers workflow run after successful push
+
+When `--push` is not used, warnings are displayed for missing or outdated lock files.
 
 :::note[Codespaces Permissions]
 Requires `workflows:write` permission. In Codespaces, either configure custom permissions in `devcontainer.json` ([docs](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces)) or authenticate manually: `unset GH_TOKEN && gh auth login`

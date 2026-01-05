@@ -29,6 +29,7 @@ type ActionCacheEntry struct {
 type ActionCache struct {
 	Entries map[string]ActionCacheEntry `json:"entries"` // key: "repo@version"
 	path    string
+	dirty   bool // tracks if cache has unsaved changes
 }
 
 // NewActionCache creates a new action cache instance
@@ -38,6 +39,7 @@ func NewActionCache(repoRoot string) *ActionCache {
 	return &ActionCache{
 		Entries: make(map[string]ActionCacheEntry),
 		path:    cachePath,
+		// dirty is initialized to false (zero value)
 	}
 }
 
@@ -60,6 +62,9 @@ func (c *ActionCache) Load() error {
 		return err
 	}
 
+	// Mark cache as clean after successful load (it matches disk state)
+	c.dirty = false
+
 	actionCacheLog.Printf("Successfully loaded cache with %d entries", len(c.Entries))
 	return nil
 }
@@ -67,7 +72,14 @@ func (c *ActionCache) Load() error {
 // Save saves the cache to disk with sorted entries
 // If the cache is empty, the file is not created or is deleted if it exists
 // Deduplicates entries by keeping only the most precise version reference for each repo+SHA combination
+// Only saves if the cache has been modified (dirty flag is true)
 func (c *ActionCache) Save() error {
+	// Skip saving if cache hasn't been modified
+	if !c.dirty {
+		actionCacheLog.Printf("Cache is clean (no changes), skipping save")
+		return nil
+	}
+
 	actionCacheLog.Printf("Saving action cache to: %s with %d entries", c.path, len(c.Entries))
 
 	// If cache is empty, skip saving and delete the file if it exists
@@ -81,6 +93,7 @@ func (c *ActionCache) Save() error {
 				return err
 			}
 		}
+		c.dirty = false
 		return nil
 	}
 
@@ -110,6 +123,7 @@ func (c *ActionCache) Save() error {
 	}
 
 	actionCacheLog.Print("Successfully saved action cache")
+	c.dirty = false
 	return nil
 }
 
@@ -187,6 +201,7 @@ func (c *ActionCache) Set(repo, version, sha string) {
 		Version: version,
 		SHA:     sha,
 	}
+	c.dirty = true // Mark cache as modified
 }
 
 // GetCachePath returns the path to the cache file
