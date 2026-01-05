@@ -238,7 +238,54 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	}
 }
 
+// isValidToolName checks if a tool name appears to be valid
+// Filters out single words, common words, and other garbage that shouldn't be tools
+func isValidToolName(toolName string) bool {
+	name := strings.TrimSpace(toolName)
+	
+	// Filter out empty names
+	if name == "" || name == "-" {
+		return false
+	}
+	
+	// Filter out single character names
+	if len(name) == 1 {
+		return false
+	}
+	
+	// Filter out common English words that are likely from error messages
+	commonWords := map[string]bool{
+		"calls": true, "to": true, "for": true, "the": true, "a": true, "an": true,
+		"is": true, "are": true, "was": true, "were": true, "be": true, "been": true,
+		"have": true, "has": true, "had": true, "do": true, "does": true, "did": true,
+		"will": true, "would": true, "could": true, "should": true, "may": true, "might": true,
+		"Testing": true, "multiple": true, "launches": true, "command": true, "invocation": true,
+		"with": true, "from": true, "by": true, "at": true, "in": true, "on": true,
+	}
+	
+	if commonWords[name] {
+		return false
+	}
+	
+	// Tool names should typically contain underscores, hyphens, or be camelCase
+	// or be all lowercase. Single words without these patterns are suspect.
+	hasUnderscore := strings.Contains(name, "_")
+	hasHyphen := strings.Contains(name, "-")
+	hasCapital := strings.ToLower(name) != name
+	
+	// If it's a single word with no underscores/hyphens and is lowercase and short, 
+	// it's likely a fragment
+	words := strings.Fields(name)
+	if len(words) == 1 && !hasUnderscore && !hasHyphen && len(name) < 10 && !hasCapital {
+		// Could be a fragment - be conservative and reject if it's a common word
+		return false
+	}
+	
+	return true
+}
+
 // buildToolUsageSummary aggregates tool usage across all runs
+// Filters out invalid tool names that appear to be fragments or garbage
 func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 	toolStats := make(map[string]*ToolUsageSummary)
 
@@ -251,6 +298,12 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 
 		for _, toolCall := range metrics.ToolCalls {
 			displayKey := workflow.PrettifyToolName(toolCall.Name)
+			
+			// Filter out invalid tool names
+			if !isValidToolName(displayKey) {
+				continue
+			}
+			
 			toolRunTracker[displayKey] = true
 
 			if existing, exists := toolStats[displayKey]; exists {
@@ -677,7 +730,71 @@ func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []
 	return results
 }
 
+// isActionableError checks if an error message is actionable (user-relevant)
+// Returns false for internal debug messages, validation logs, JSON fragments, etc.
+func isActionableError(message string) bool {
+	msg := strings.ToLower(message)
+	
+	// Filter out internal validation/debug messages
+	debugPatterns := []string{
+		"validation completed",
+		"executePromptDirectly",
+		"starting validate_errors",
+		"loaded", "error patterns",
+		"pattern ", "/16:", // Pattern testing logs
+		"validation completed in",
+		"starting error validation",
+		"error validation completed",
+		"const { main }",
+		"require(",
+		"perfect! the",
+		"failed as expected",
+	}
+	
+	for _, pattern := range debugPatterns {
+		if strings.Contains(msg, pattern) {
+			return false
+		}
+	}
+	
+	// Filter out JSON fragments and data structures
+	jsonPatterns := []string{
+		`"errorCodesToRetry"`,
+		`"description":`,
+		`"statement":`,
+		`"content":`,
+		`"onRequestError"`,
+		`[{`, `}]`, `"[`,
+	}
+	
+	for _, pattern := range jsonPatterns {
+		if strings.Contains(message, pattern) {
+			return false
+		}
+	}
+	
+	// Filter out MCP server logs (stderr output)
+	if strings.Contains(msg, "[mcp server") || 
+	   strings.Contains(msg, "[safeoutputs]") ||
+	   strings.Contains(msg, "send: {\"jsonrpc\"") {
+		return false
+	}
+	
+	// Filter out Squid proxy logs
+	if strings.Contains(msg, "::1:") && strings.Contains(msg, "NONE_NONE:HIER_NONE") {
+		return false
+	}
+	
+	// Filter out tool invocation result logs (these are outputs, not errors)
+	if strings.HasPrefix(msg, "tool invocation result:") {
+		return false
+	}
+	
+	return true
+}
+
 // buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
+// Filters out non-actionable errors like debug logs, JSON fragments, and internal messages
 func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
 	agg := logErrorAggregator{
 		generateKey: func(logErr workflow.LogError) string {
@@ -697,7 +814,17 @@ func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
 		},
 	}
 
-	return aggregateLogErrors(processedRuns, agg)
+	allErrors := aggregateLogErrors(processedRuns, agg)
+	
+	// Filter out non-actionable errors
+	var actionableErrors []ErrorSummary
+	for _, err := range allErrors {
+		if isActionableError(err.Message) {
+			actionableErrors = append(actionableErrors, err)
+		}
+	}
+	
+	return actionableErrors
 }
 
 // buildErrorsSummary aggregates errors and warnings across all runs
