@@ -10,6 +10,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -184,5 +185,5 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 
 	logsDisplayLog.Printf("Rendering table: total_tokens=%d, total_cost=%.3f, total_duration=%s", totalTokens, totalCost, totalDuration)
 
-	fmt.Print(console.RenderTable(tableConfig))
+	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 }

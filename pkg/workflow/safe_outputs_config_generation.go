@@ -23,312 +23,175 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	// Handle safe-outputs configuration if present
 	if data.SafeOutputs != nil {
 		if data.SafeOutputs.CreateIssues != nil {
-			issueConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.CreateIssues.Max > 0 {
-				maxValue = data.SafeOutputs.CreateIssues.Max
-			}
-			issueConfig["max"] = maxValue
-			if len(data.SafeOutputs.CreateIssues.AllowedLabels) > 0 {
-				issueConfig["allowed_labels"] = data.SafeOutputs.CreateIssues.AllowedLabels
-			}
-			safeOutputsConfig["create_issue"] = issueConfig
+			safeOutputsConfig["create_issue"] = generateMaxWithAllowedLabelsConfig(
+				data.SafeOutputs.CreateIssues.Max,
+				1, // default max
+				data.SafeOutputs.CreateIssues.AllowedLabels,
+			)
 		}
 		if data.SafeOutputs.CreateAgentTasks != nil {
-			agentTaskConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.CreateAgentTasks.Max > 0 {
-				maxValue = data.SafeOutputs.CreateAgentTasks.Max
-			}
-			agentTaskConfig["max"] = maxValue
-			safeOutputsConfig["create_agent_task"] = agentTaskConfig
+			safeOutputsConfig["create_agent_task"] = generateMaxConfig(
+				data.SafeOutputs.CreateAgentTasks.Max,
+				1, // default max
+			)
 		}
 		if data.SafeOutputs.AddComments != nil {
-			commentConfig := map[string]any{}
-			if data.SafeOutputs.AddComments.Target != "" {
-				commentConfig["target"] = data.SafeOutputs.AddComments.Target
-			}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.AddComments.Max > 0 {
-				maxValue = data.SafeOutputs.AddComments.Max
-			}
-			commentConfig["max"] = maxValue
-			safeOutputsConfig["add_comment"] = commentConfig
+			safeOutputsConfig["add_comment"] = generateMaxWithTargetConfig(
+				data.SafeOutputs.AddComments.Max,
+				1, // default max
+				data.SafeOutputs.AddComments.Target,
+			)
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
-			discussionConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.CreateDiscussions.Max > 0 {
-				maxValue = data.SafeOutputs.CreateDiscussions.Max
-			}
-			discussionConfig["max"] = maxValue
-			if len(data.SafeOutputs.CreateDiscussions.AllowedLabels) > 0 {
-				discussionConfig["allowed_labels"] = data.SafeOutputs.CreateDiscussions.AllowedLabels
-			}
-			safeOutputsConfig["create_discussion"] = discussionConfig
+			safeOutputsConfig["create_discussion"] = generateMaxWithAllowedLabelsConfig(
+				data.SafeOutputs.CreateDiscussions.Max,
+				1, // default max
+				data.SafeOutputs.CreateDiscussions.AllowedLabels,
+			)
 		}
 		if data.SafeOutputs.CloseDiscussions != nil {
-			closeDiscussionConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.CloseDiscussions.Max > 0 {
-				maxValue = data.SafeOutputs.CloseDiscussions.Max
-			}
-			closeDiscussionConfig["max"] = maxValue
-			if data.SafeOutputs.CloseDiscussions.RequiredCategory != "" {
-				closeDiscussionConfig["required_category"] = data.SafeOutputs.CloseDiscussions.RequiredCategory
-			}
-			if len(data.SafeOutputs.CloseDiscussions.RequiredLabels) > 0 {
-				closeDiscussionConfig["required_labels"] = data.SafeOutputs.CloseDiscussions.RequiredLabels
-			}
-			if data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix != "" {
-				closeDiscussionConfig["required_title_prefix"] = data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix
-			}
-			safeOutputsConfig["close_discussion"] = closeDiscussionConfig
+			safeOutputsConfig["close_discussion"] = generateMaxWithDiscussionFieldsConfig(
+				data.SafeOutputs.CloseDiscussions.Max,
+				1, // default max
+				data.SafeOutputs.CloseDiscussions.RequiredCategory,
+				data.SafeOutputs.CloseDiscussions.RequiredLabels,
+				data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix,
+			)
 		}
 		if data.SafeOutputs.CloseIssues != nil {
-			closeIssueConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.CloseIssues.Max > 0 {
-				maxValue = data.SafeOutputs.CloseIssues.Max
-			}
-			closeIssueConfig["max"] = maxValue
-			if len(data.SafeOutputs.CloseIssues.RequiredLabels) > 0 {
-				closeIssueConfig["required_labels"] = data.SafeOutputs.CloseIssues.RequiredLabels
-			}
-			if data.SafeOutputs.CloseIssues.RequiredTitlePrefix != "" {
-				closeIssueConfig["required_title_prefix"] = data.SafeOutputs.CloseIssues.RequiredTitlePrefix
-			}
-			safeOutputsConfig["close_issue"] = closeIssueConfig
+			safeOutputsConfig["close_issue"] = generateMaxWithRequiredFieldsConfig(
+				data.SafeOutputs.CloseIssues.Max,
+				1, // default max
+				data.SafeOutputs.CloseIssues.RequiredLabels,
+				data.SafeOutputs.CloseIssues.RequiredTitlePrefix,
+			)
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
-			prConfig := map[string]any{}
-			// Note: max is always 1 for pull requests, not configurable
-			if len(data.SafeOutputs.CreatePullRequests.AllowedLabels) > 0 {
-				prConfig["allowed_labels"] = data.SafeOutputs.CreatePullRequests.AllowedLabels
-			}
-			// Pass allow_empty flag to MCP server so it can skip patch generation
-			if data.SafeOutputs.CreatePullRequests.AllowEmpty {
-				prConfig["allow_empty"] = true
-			}
-			safeOutputsConfig["create_pull_request"] = prConfig
+			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
+				data.SafeOutputs.CreatePullRequests.AllowedLabels,
+				data.SafeOutputs.CreatePullRequests.AllowEmpty,
+			)
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-			prReviewCommentConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 10 // default
-			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
-				maxValue = data.SafeOutputs.CreatePullRequestReviewComments.Max
-			}
-			prReviewCommentConfig["max"] = maxValue
-			safeOutputsConfig["create_pull_request_review_comment"] = prReviewCommentConfig
+			safeOutputsConfig["create_pull_request_review_comment"] = generateMaxConfig(
+				data.SafeOutputs.CreatePullRequestReviewComments.Max,
+				10, // default max
+			)
 		}
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-			// Security reports typically have unlimited max, but check if configured
-			securityReportConfig := map[string]any{}
-			// Always include max (use configured value or default of 0 for unlimited)
-			maxValue := 0 // default: unlimited
-			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-				maxValue = data.SafeOutputs.CreateCodeScanningAlerts.Max
-			}
-			securityReportConfig["max"] = maxValue
-			safeOutputsConfig["create_code_scanning_alert"] = securityReportConfig
+			safeOutputsConfig["create_code_scanning_alert"] = generateMaxConfig(
+				data.SafeOutputs.CreateCodeScanningAlerts.Max,
+				0, // default: unlimited
+			)
 		}
 		if data.SafeOutputs.AddLabels != nil {
-			labelConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 3 // default
-			if data.SafeOutputs.AddLabels.Max > 0 {
-				maxValue = data.SafeOutputs.AddLabels.Max
-			}
-			labelConfig["max"] = maxValue
-			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
-				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
-			}
-			safeOutputsConfig["add_labels"] = labelConfig
+			safeOutputsConfig["add_labels"] = generateMaxWithAllowedConfig(
+				data.SafeOutputs.AddLabels.Max,
+				3, // default max
+				data.SafeOutputs.AddLabels.Allowed,
+			)
 		}
 		if data.SafeOutputs.AddReviewer != nil {
-			reviewerConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 3 // default
-			if data.SafeOutputs.AddReviewer.Max > 0 {
-				maxValue = data.SafeOutputs.AddReviewer.Max
-			}
-			reviewerConfig["max"] = maxValue
-			if len(data.SafeOutputs.AddReviewer.Reviewers) > 0 {
-				reviewerConfig["reviewers"] = data.SafeOutputs.AddReviewer.Reviewers
-			}
-			safeOutputsConfig["add_reviewer"] = reviewerConfig
+			safeOutputsConfig["add_reviewer"] = generateMaxWithReviewersConfig(
+				data.SafeOutputs.AddReviewer.Max,
+				3, // default max
+				data.SafeOutputs.AddReviewer.Reviewers,
+			)
 		}
 		if data.SafeOutputs.AssignMilestone != nil {
-			assignMilestoneConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.AssignMilestone.Max > 0 {
-				maxValue = data.SafeOutputs.AssignMilestone.Max
-			}
-			assignMilestoneConfig["max"] = maxValue
-			if len(data.SafeOutputs.AssignMilestone.Allowed) > 0 {
-				assignMilestoneConfig["allowed"] = data.SafeOutputs.AssignMilestone.Allowed
-			}
-			safeOutputsConfig["assign_milestone"] = assignMilestoneConfig
+			safeOutputsConfig["assign_milestone"] = generateMaxWithAllowedConfig(
+				data.SafeOutputs.AssignMilestone.Max,
+				1, // default max
+				data.SafeOutputs.AssignMilestone.Allowed,
+			)
 		}
 		if data.SafeOutputs.AssignToAgent != nil {
-			assignToAgentConfig := map[string]any{}
-			if data.SafeOutputs.AssignToAgent.Max > 0 {
-				assignToAgentConfig["max"] = data.SafeOutputs.AssignToAgent.Max
-			}
-			if data.SafeOutputs.AssignToAgent.DefaultAgent != "" {
-				assignToAgentConfig["default_agent"] = data.SafeOutputs.AssignToAgent.DefaultAgent
-			}
-			safeOutputsConfig["assign_to_agent"] = assignToAgentConfig
+			safeOutputsConfig["assign_to_agent"] = generateAssignToAgentConfig(
+				data.SafeOutputs.AssignToAgent.Max,
+				data.SafeOutputs.AssignToAgent.DefaultAgent,
+			)
 		}
 		if data.SafeOutputs.AssignToUser != nil {
-			assignToUserConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.AssignToUser.Max > 0 {
-				maxValue = data.SafeOutputs.AssignToUser.Max
-			}
-			assignToUserConfig["max"] = maxValue
-			if len(data.SafeOutputs.AssignToUser.Allowed) > 0 {
-				assignToUserConfig["allowed"] = data.SafeOutputs.AssignToUser.Allowed
-			}
-			safeOutputsConfig["assign_to_user"] = assignToUserConfig
+			safeOutputsConfig["assign_to_user"] = generateMaxWithAllowedConfig(
+				data.SafeOutputs.AssignToUser.Max,
+				1, // default max
+				data.SafeOutputs.AssignToUser.Allowed,
+			)
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
-			updateConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.UpdateIssues.Max > 0 {
-				maxValue = data.SafeOutputs.UpdateIssues.Max
-			}
-			updateConfig["max"] = maxValue
-			safeOutputsConfig["update_issue"] = updateConfig
+			safeOutputsConfig["update_issue"] = generateMaxConfig(
+				data.SafeOutputs.UpdateIssues.Max,
+				1, // default max
+			)
 		}
 		if data.SafeOutputs.UpdateDiscussions != nil {
-			updateDiscussionConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.UpdateDiscussions.Max > 0 {
-				maxValue = data.SafeOutputs.UpdateDiscussions.Max
-			}
-			updateDiscussionConfig["max"] = maxValue
-			if len(data.SafeOutputs.UpdateDiscussions.AllowedLabels) > 0 {
-				updateDiscussionConfig["allowed_labels"] = data.SafeOutputs.UpdateDiscussions.AllowedLabels
-			}
-			safeOutputsConfig["update_discussion"] = updateDiscussionConfig
+			safeOutputsConfig["update_discussion"] = generateMaxWithAllowedLabelsConfig(
+				data.SafeOutputs.UpdateDiscussions.Max,
+				1, // default max
+				data.SafeOutputs.UpdateDiscussions.AllowedLabels,
+			)
 		}
 		if data.SafeOutputs.UpdatePullRequests != nil {
-			updatePRConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.UpdatePullRequests.Max > 0 {
-				maxValue = data.SafeOutputs.UpdatePullRequests.Max
-			}
-			updatePRConfig["max"] = maxValue
-			safeOutputsConfig["update_pull_request"] = updatePRConfig
+			safeOutputsConfig["update_pull_request"] = generateMaxConfig(
+				data.SafeOutputs.UpdatePullRequests.Max,
+				1, // default max
+			)
 		}
 		if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
-			markPRReadyConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 10 // default
-			if data.SafeOutputs.MarkPullRequestAsReadyForReview.Max > 0 {
-				maxValue = data.SafeOutputs.MarkPullRequestAsReadyForReview.Max
-			}
-			markPRReadyConfig["max"] = maxValue
-			safeOutputsConfig["mark_pull_request_as_ready_for_review"] = markPRReadyConfig
+			safeOutputsConfig["mark_pull_request_as_ready_for_review"] = generateMaxConfig(
+				data.SafeOutputs.MarkPullRequestAsReadyForReview.Max,
+				10, // default max
+			)
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
-			pushToBranchConfig := map[string]any{}
-			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
-				pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
-			}
-			// Always include max (use configured value or default of 0 for unlimited)
-			maxValue := 0 // default: unlimited
-			if data.SafeOutputs.PushToPullRequestBranch.Max > 0 {
-				maxValue = data.SafeOutputs.PushToPullRequestBranch.Max
-			}
-			pushToBranchConfig["max"] = maxValue
-			safeOutputsConfig["push_to_pull_request_branch"] = pushToBranchConfig
+			safeOutputsConfig["push_to_pull_request_branch"] = generateMaxWithTargetConfig(
+				data.SafeOutputs.PushToPullRequestBranch.Max,
+				0, // default: unlimited
+				data.SafeOutputs.PushToPullRequestBranch.Target,
+			)
 		}
 		if data.SafeOutputs.UploadAssets != nil {
-			uploadConfig := map[string]any{}
-			// Always include max (use configured value or default of 0 for unlimited)
-			maxValue := 0 // default: unlimited
-			if data.SafeOutputs.UploadAssets.Max > 0 {
-				maxValue = data.SafeOutputs.UploadAssets.Max
-			}
-			uploadConfig["max"] = maxValue
-			safeOutputsConfig["upload_asset"] = uploadConfig
+			safeOutputsConfig["upload_asset"] = generateMaxConfig(
+				data.SafeOutputs.UploadAssets.Max,
+				0, // default: unlimited
+			)
 		}
 		if data.SafeOutputs.MissingTool != nil {
-			missingToolConfig := map[string]any{}
-			// Always include max (use configured value or default of 0 for unlimited)
-			maxValue := 0 // default: unlimited
-			if data.SafeOutputs.MissingTool.Max > 0 {
-				maxValue = data.SafeOutputs.MissingTool.Max
-			}
-			missingToolConfig["max"] = maxValue
-			safeOutputsConfig["missing_tool"] = missingToolConfig
+			safeOutputsConfig["missing_tool"] = generateMaxConfig(
+				data.SafeOutputs.MissingTool.Max,
+				0, // default: unlimited
+			)
 		}
 		if data.SafeOutputs.UpdateProjects != nil {
-			updateProjectConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 10 // default
-			if data.SafeOutputs.UpdateProjects.Max > 0 {
-				maxValue = data.SafeOutputs.UpdateProjects.Max
-			}
-			updateProjectConfig["max"] = maxValue
-			safeOutputsConfig["update_project"] = updateProjectConfig
+			safeOutputsConfig["update_project"] = generateMaxConfig(
+				data.SafeOutputs.UpdateProjects.Max,
+				10, // default max
+			)
 		}
 		if data.SafeOutputs.UpdateRelease != nil {
-			updateReleaseConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.UpdateRelease.Max > 0 {
-				maxValue = data.SafeOutputs.UpdateRelease.Max
-			}
-			updateReleaseConfig["max"] = maxValue
-			safeOutputsConfig["update_release"] = updateReleaseConfig
+			safeOutputsConfig["update_release"] = generateMaxConfig(
+				data.SafeOutputs.UpdateRelease.Max,
+				1, // default max
+			)
 		}
 		if data.SafeOutputs.LinkSubIssue != nil {
-			linkSubIssueConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 5 // default
-			if data.SafeOutputs.LinkSubIssue.Max > 0 {
-				maxValue = data.SafeOutputs.LinkSubIssue.Max
-			}
-			linkSubIssueConfig["max"] = maxValue
-			safeOutputsConfig["link_sub_issue"] = linkSubIssueConfig
+			safeOutputsConfig["link_sub_issue"] = generateMaxConfig(
+				data.SafeOutputs.LinkSubIssue.Max,
+				5, // default max
+			)
 		}
 		if data.SafeOutputs.NoOp != nil {
-			noopConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 1 // default
-			if data.SafeOutputs.NoOp.Max > 0 {
-				maxValue = data.SafeOutputs.NoOp.Max
-			}
-			noopConfig["max"] = maxValue
-			safeOutputsConfig["noop"] = noopConfig
+			safeOutputsConfig["noop"] = generateMaxConfig(
+				data.SafeOutputs.NoOp.Max,
+				1, // default max
+			)
 		}
 		if data.SafeOutputs.HideComment != nil {
-			hideCommentConfig := map[string]any{}
-			// Always include max (use configured value or default)
-			maxValue := 5 // default
-			if data.SafeOutputs.HideComment.Max > 0 {
-				maxValue = data.SafeOutputs.HideComment.Max
-			}
-			hideCommentConfig["max"] = maxValue
-			if len(data.SafeOutputs.HideComment.AllowedReasons) > 0 {
-				hideCommentConfig["allowed_reasons"] = data.SafeOutputs.HideComment.AllowedReasons
-			}
-			safeOutputsConfig["hide_comment"] = hideCommentConfig
+			safeOutputsConfig["hide_comment"] = generateHideCommentConfig(
+				data.SafeOutputs.HideComment.Max,
+				5, // default max
+				data.SafeOutputs.HideComment.AllowedReasons,
+			)
 		}
 	}
 

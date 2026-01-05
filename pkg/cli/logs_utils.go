@@ -27,7 +27,7 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 	workflowsDir := ".github/workflows"
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
 		if verbose {
-			fmt.Println(console.FormatWarningMessage("No .github/workflows directory found"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No .github/workflows directory found"))
 		}
 		return workflowNames, nil
 	}
@@ -39,13 +39,13 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 
 	for _, file := range files {
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Reading workflow file: %s", file)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading workflow file: %s", file)))
 		}
 
 		content, err := os.ReadFile(file)
 		if err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", file, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", file, err)))
 			}
 			continue
 		}
@@ -64,7 +64,7 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 					if name != "" {
 						workflowNames = append(workflowNames, name)
 						if verbose {
-							fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic workflow: %s", name)))
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found agentic workflow: %s", name)))
 						}
 						break
 					}
@@ -74,7 +74,7 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d agentic workflows", len(workflowNames))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d agentic workflows", len(workflowNames))))
 	}
 
 	return workflowNames, nil

@@ -30,13 +30,6 @@ var commonWorkflowNames = []string{
 	"documentation-check",
 }
 
-// isAccessibleMode detects if accessibility mode should be enabled based on environment variables
-func isAccessibleMode() bool {
-	return os.Getenv("ACCESSIBLE") != "" ||
-		os.Getenv("TERM") == "dumb" ||
-		os.Getenv("NO_COLOR") != ""
-}
-
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
 type InteractiveWorkflowBuilder struct {
 	WorkflowName  string
@@ -102,7 +95,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 				Value(&b.WorkflowName).
 				Validate(ValidateWorkflowName),
 		),
-	).WithAccessible(isAccessibleMode())
+	).WithAccessible(console.IsAccessibleMode())
 
 	return form.Run()
 }
@@ -225,7 +218,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		).
 			Title("Instructions").
 			Description("Describe what you want this workflow to accomplish"),
-	).WithAccessible(isAccessibleMode())
+	).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return err
@@ -268,7 +261,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 					Negative("No, cancel").
 					Value(&overwrite),
 			),
-		).WithAccessible(isAccessibleMode())
+		).WithAccessible(console.IsAccessibleMode())
 
 		if err := confirmForm.Run(); err != nil {
 			return fmt.Errorf("confirmation failed: %w", err)

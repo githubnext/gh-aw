@@ -305,7 +305,8 @@ Examples:
   gh aw run daily-perf-improver --repeat 3  # Run 3 times total
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution
-  gh aw run daily-perf-improver -f name=value -f env=prod  # Pass workflow inputs`,
+  gh aw run daily-perf-improver -f name=value -f env=prod  # Pass workflow inputs
+  gh aw run daily-perf-improver --push  # Commit and push workflow files before running`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
@@ -316,12 +317,13 @@ Examples:
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
 		inputs, _ := cmd.Flags().GetStringArray("raw-field")
+		push, _ := cmd.Flags().GetBool("push")
 
 		if err := validateEngine(engineOverride); err != nil {
 			return err
 		}
 
-		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, inputs, verboseFlag)
+		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, inputs, verboseFlag)
 	},
 }
 
@@ -512,6 +514,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
+	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)
