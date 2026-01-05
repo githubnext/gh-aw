@@ -114,7 +114,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.UpdatePullRequests != nil ||
 		data.SafeOutputs.ClosePullRequests != nil ||
 		data.SafeOutputs.MarkPullRequestAsReadyForReview != nil ||
-		data.SafeOutputs.HideComment != nil
+		data.SafeOutputs.HideComment != nil ||
+		data.SafeOutputs.DispatchWorkflow != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -178,6 +179,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.HideComment != nil {
 			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		}
+		if data.SafeOutputs.DispatchWorkflow != nil {
+			permissions.Merge(NewPermissionsActionsWrite())
 		}
 	}
 
@@ -1030,6 +1034,18 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
 		config["hide_comment"] = handlerConfig
+	}
+
+	if data.SafeOutputs.DispatchWorkflow != nil {
+		cfg := data.SafeOutputs.DispatchWorkflow
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.Workflows) > 0 {
+			handlerConfig["workflows"] = cfg.Workflows
+		}
+		config["dispatch_workflow"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure

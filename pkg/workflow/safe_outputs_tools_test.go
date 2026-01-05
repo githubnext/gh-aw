@@ -182,7 +182,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			result, err := generateFilteredToolsJSON(workflowData)
+			result, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test-workflow.md")
 			require.NoError(t, err, "generateFilteredToolsJSON should not error")
 
 			// Parse the JSON result
@@ -219,7 +219,7 @@ func TestGenerateFilteredToolsJSONValidStructure(t *testing.T) {
 		},
 	}
 
-	result, err := generateFilteredToolsJSON(workflowData)
+	result, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test-workflow.md")
 	require.NoError(t, err)
 
 	// Parse the JSON result
@@ -478,7 +478,7 @@ func TestGenerateFilteredToolsJSONWithEnhancedDescriptions(t *testing.T) {
 		},
 	}
 
-	result, err := generateFilteredToolsJSON(workflowData)
+	result, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test-workflow.md")
 	require.NoError(t, err)
 
 	// Parse the JSON result
@@ -591,7 +591,7 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			result, err := generateFilteredToolsJSON(workflowData)
+			result, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test-workflow.md")
 			require.NoError(t, err)
 
 			// Parse the JSON result

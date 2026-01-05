@@ -38,6 +38,9 @@ var githubWorkflowSchema string
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
+	// Store markdownPath for use in dynamic tool generation
+	c.markdownPath = markdownPath
+
 	// Parse the markdown file
 	log.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
@@ -278,6 +281,21 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				},
 				Type:    "error",
 				Message: message,
+			})
+			return errors.New(formattedErr)
+		}
+
+		// Validate dispatch-workflow configuration
+		log.Print("Validating dispatch-workflow configuration")
+		if err := c.validateDispatchWorkflow(workflowData, markdownPath); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("dispatch-workflow validation failed: %v", err),
 			})
 			return errors.New(formattedErr)
 		}

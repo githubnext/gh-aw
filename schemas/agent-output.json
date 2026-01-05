@@ -50,7 +50,8 @@
         { "$ref": "#/$defs/AssignToAgentOutput" },
         { "$ref": "#/$defs/NoOpOutput" },
         { "$ref": "#/$defs/LinkSubIssueOutput" },
-        { "$ref": "#/$defs/HideCommentOutput" }
+        { "$ref": "#/$defs/HideCommentOutput" },
+        { "$ref": "#/$defs/DispatchWorkflowOutput" }
       ]
     },
     "CreateIssueOutput": {
@@ -654,6 +655,28 @@
         }
       },
       "required": ["type", "comment_id"],
+      "additionalProperties": false
+    },
+    "DispatchWorkflowOutput": {
+      "title": "Dispatch Workflow Output",
+      "description": "Output for dispatching a workflow_dispatch event to trigger another workflow",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "dispatch_workflow"
+        },
+        "workflow_name": {
+          "type": "string",
+          "description": "Name of the workflow to dispatch (without .md or .lock.yml extension)",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Input parameters for the workflow_dispatch event, matching the workflow's input schema",
+          "additionalProperties": true
+        }
+      },
+      "required": ["type", "workflow_name"],
       "additionalProperties": false
     }
   }

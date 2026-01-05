@@ -1,6 +1,8 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // buildAssignToAgentStepConfig builds the configuration for assigning to an agent
 func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {

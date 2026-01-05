@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
 )
 
@@ -405,6 +406,33 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
+	// Add dispatch-workflow configuration
+	if data.SafeOutputs.DispatchWorkflow != nil {
+		dispatchWorkflowConfig := map[string]any{}
+
+		// Include workflows list
+		if len(data.SafeOutputs.DispatchWorkflow.Workflows) > 0 {
+			dispatchWorkflowConfig["workflows"] = data.SafeOutputs.DispatchWorkflow.Workflows
+		}
+
+		// Include workflow files mapping (file extension for each workflow)
+		if len(data.SafeOutputs.DispatchWorkflow.WorkflowFiles) > 0 {
+			dispatchWorkflowConfig["workflow_files"] = data.SafeOutputs.DispatchWorkflow.WorkflowFiles
+		}
+
+		// Include max count
+		maxValue := 1 // default
+		if data.SafeOutputs.DispatchWorkflow.Max > 0 {
+			maxValue = data.SafeOutputs.DispatchWorkflow.Max
+		}
+		dispatchWorkflowConfig["max"] = maxValue
+
+		// Only add if it has fields
+		if len(dispatchWorkflowConfig) > 0 {
+			safeOutputsConfig["dispatch_workflow"] = dispatchWorkflowConfig
+		}
+	}
+
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	return string(configJSON)
 }
@@ -501,7 +529,7 @@ func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) m
 
 // generateFilteredToolsJSON filters the ALL_TOOLS array based on enabled safe outputs
 // Returns a JSON string containing only the tools that are enabled in the workflow
-func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
+func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string, error) {
 	if data.SafeOutputs == nil {
 		return "[]", nil
 	}
@@ -602,6 +630,7 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true
 	}
+	// Note: dispatch_workflow tools are generated dynamically below, not from the static tools list
 
 	// Filter tools to only include enabled ones and enhance descriptions
 	var filteredTools []map[string]any
@@ -656,6 +685,58 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 
 	if safeOutputsConfigLog.Enabled() {
 		safeOutputsConfigLog.Printf("Filtered %d tools from %d total tools (including %d custom jobs)", len(filteredTools), len(allTools), len(data.SafeOutputs.Jobs))
+	}
+
+	// Add dynamic dispatch_workflow tools
+	if data.SafeOutputs.DispatchWorkflow != nil && len(data.SafeOutputs.DispatchWorkflow.Workflows) > 0 {
+		safeOutputsConfigLog.Printf("Adding %d dispatch_workflow tools", len(data.SafeOutputs.DispatchWorkflow.Workflows))
+
+		// Get workflows directory from markdownPath
+		workflowsDir := filepath.Dir(markdownPath)
+
+		// Initialize WorkflowFiles map if not already initialized
+		if data.SafeOutputs.DispatchWorkflow.WorkflowFiles == nil {
+			data.SafeOutputs.DispatchWorkflow.WorkflowFiles = make(map[string]string)
+		}
+
+		for _, workflowName := range data.SafeOutputs.DispatchWorkflow.Workflows {
+			// Try to find the workflow file - priority: .lock.yml > .yml
+			// .lock.yml is used for compiled agentic workflows
+			// .yml is used for standard GitHub Actions workflows
+			lockFilePath := filepath.Join(workflowsDir, workflowName+".lock.yml")
+			ymlFilePath := filepath.Join(workflowsDir, workflowName+".yml")
+
+			var workflowPath string
+			var extension string
+			if fileExists(lockFilePath) {
+				workflowPath = lockFilePath
+				extension = ".lock.yml"
+			} else if fileExists(ymlFilePath) {
+				workflowPath = ymlFilePath
+				extension = ".yml"
+			} else {
+				safeOutputsConfigLog.Printf("Warning: workflow file not found for %s (tried %s and %s)", workflowName, lockFilePath, ymlFilePath)
+				// Continue with empty inputs
+				tool := generateDispatchWorkflowTool(workflowName, make(map[string]any))
+				filteredTools = append(filteredTools, tool)
+				continue
+			}
+
+			// Store the file extension for runtime use
+			data.SafeOutputs.DispatchWorkflow.WorkflowFiles[workflowName] = extension
+
+			// Extract workflow_dispatch inputs
+			workflowInputs, err := extractWorkflowDispatchInputs(workflowPath)
+			if err != nil {
+				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s from %s: %v", workflowName, workflowPath, err)
+				// Continue with empty inputs
+				workflowInputs = make(map[string]any)
+			}
+
+			// Generate tool schema
+			tool := generateDispatchWorkflowTool(workflowName, workflowInputs)
+			filteredTools = append(filteredTools, tool)
+		}
 	}
 
 	// Marshal the filtered tools back to JSON with indentation for better readability
@@ -810,4 +891,101 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 	}
 
 	safeOutputsConfigLog.Printf("Added repo parameter to tool: %s (has allowed-repos)", toolName)
+}
+
+// generateDispatchWorkflowTool generates an MCP tool definition for a specific workflow
+// The tool will be named after the workflow and accept the workflow's defined inputs
+func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
+	// Normalize workflow name to use underscores for tool name
+	toolName := normalizeSafeOutputIdentifier(workflowName)
+
+	// Build the description
+	description := fmt.Sprintf("Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.", workflowName)
+
+	// Build input schema properties
+	properties := make(map[string]any)
+	required := []string{} // No required fields by default
+
+	// Convert GitHub Actions workflow_dispatch inputs to MCP tool schema
+	for inputName, inputDef := range workflowInputs {
+		inputDefMap, ok := inputDef.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Extract input properties
+		inputType := "string" // Default type
+		inputDescription := fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, workflowName)
+		inputRequired := false
+
+		if desc, ok := inputDefMap["description"].(string); ok && desc != "" {
+			inputDescription = desc
+		}
+
+		if req, ok := inputDefMap["required"].(bool); ok {
+			inputRequired = req
+		}
+
+		// GitHub Actions workflow_dispatch supports: string, number, boolean, choice, environment
+		// Map these to JSON schema types
+		if typeStr, ok := inputDefMap["type"].(string); ok {
+			switch typeStr {
+			case "number":
+				inputType = "number"
+			case "boolean":
+				inputType = "boolean"
+			case "choice":
+				inputType = "string"
+				// Add enum if options are provided
+				if options, ok := inputDefMap["options"].([]any); ok && len(options) > 0 {
+					properties[inputName] = map[string]any{
+						"type":        inputType,
+						"description": inputDescription,
+						"enum":        options,
+					}
+					if inputRequired {
+						required = append(required, inputName)
+					}
+					continue
+				}
+			case "environment":
+				inputType = "string"
+			}
+		}
+
+		properties[inputName] = map[string]any{
+			"type":        inputType,
+			"description": inputDescription,
+		}
+
+		// Add default value if provided
+		if defaultVal, ok := inputDefMap["default"]; ok {
+			properties[inputName].(map[string]any)["default"] = defaultVal
+		}
+
+		if inputRequired {
+			required = append(required, inputName)
+		}
+	}
+
+	// Add internal workflow_name parameter (hidden from description but used internally)
+	// This will be injected by the safe output handler
+
+	// Build the complete tool definition
+	tool := map[string]any{
+		"name":           toolName,
+		"description":    description,
+		"_workflow_name": workflowName, // Internal metadata for handler routing
+		"inputSchema": map[string]any{
+			"type":                 "object",
+			"properties":           properties,
+			"additionalProperties": false,
+		},
+	}
+
+	if len(required) > 0 {
+		tool["inputSchema"].(map[string]any)["required"] = required
+	}
+
+	return tool
 }

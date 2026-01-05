@@ -26,6 +26,7 @@ type Compiler struct {
 	trialMode            bool                // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug string              // If set in trial mode, the logical repository to checkout
 	refreshStopTime      bool                // If true, regenerate stop-after times instead of preserving existing ones
+	markdownPath         string              // Path to the markdown file being compiled (for context in dynamic tool generation)
 	actionMode           ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
 	actionTag            string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
 	jobManager           *JobManager         // Manages jobs and dependencies
@@ -336,6 +337,7 @@ type SafeOutputsConfig struct {
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
 	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`    // Link issues as sub-issues
 	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`      // Hide comments
+	DispatchWorkflow                *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"` // Dispatch workflow_dispatch events to other workflows
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
