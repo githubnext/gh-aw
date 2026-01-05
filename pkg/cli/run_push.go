@@ -119,6 +119,53 @@ func recompileWorkflow(workflowPath string, verbose bool) error {
 	return nil
 }
 
+// checkLockFileStatus checks if a lock file is missing or outdated and returns status info
+type LockFileStatus struct {
+	Missing  bool
+	Outdated bool
+	LockPath string
+}
+
+// checkLockFileStatus checks the status of a workflow's lock file
+func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
+	runPushLog.Printf("Checking lock file status for: %s", workflowPath)
+	
+	// Get absolute path for the workflow
+	absWorkflowPath, err := filepath.Abs(workflowPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for workflow: %w", err)
+	}
+	
+	lockFilePath := strings.TrimSuffix(absWorkflowPath, ".md") + ".lock.yml"
+	status := &LockFileStatus{
+		LockPath: lockFilePath,
+	}
+	
+	// Check if lock file exists
+	lockStat, err := os.Stat(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			status.Missing = true
+			runPushLog.Printf("Lock file missing: %s", lockFilePath)
+			return status, nil
+		}
+		return nil, fmt.Errorf("failed to stat lock file: %w", err)
+	}
+	
+	// Lock file exists - check if it's outdated
+	mdStat, err := os.Stat(absWorkflowPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat workflow file: %w", err)
+	}
+	
+	if mdStat.ModTime().After(lockStat.ModTime()) {
+		status.Outdated = true
+		runPushLog.Printf("Lock file outdated (md: %v, lock: %v)", mdStat.ModTime(), lockStat.ModTime())
+	}
+	
+	return status, nil
+}
+
 // collectImports recursively collects all imported files (transitive closure)
 func collectImports(workflowPath string, files map[string]bool, visited map[string]bool, verbose bool) error {
 	// Avoid processing the same file multiple times

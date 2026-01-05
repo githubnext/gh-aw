@@ -225,6 +225,20 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		fmt.Printf("Using lock file: %s\n", lockFileName)
 	}
 
+	// Check for missing or outdated lock files (when not using --push)
+	if !push && repoOverride == "" {
+		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
+		if status, err := checkLockFileStatus(workflowMarkdownPath); err == nil {
+			if status.Missing {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file is missing"))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run 'gh aw compile %s' to create the lock file", workflowIdOrName)))
+			} else if status.Outdated {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file is outdated (workflow file is newer)"))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run 'gh aw compile %s' to update the lock file", workflowIdOrName)))
+			}
+		}
+	}
+
 	// Handle --push flag: commit and push workflow files before running
 	if push {
 		// Only valid for local workflows
