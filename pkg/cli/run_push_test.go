@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -330,4 +331,54 @@ assert.True(t, mdStat.ModTime().After(lockStat.ModTime()), "Workflow file should
 // Note: We can't actually test recompilation here without a full compilation setup,
 // but we can verify the detection logic works
 // The actual compilation would happen in an integration test
+}
+
+func TestPushWorkflowFiles_WithStagedFiles(t *testing.T) {
+// Create a temporary directory for testing
+tmpDir := t.TempDir()
+
+// Initialize a git repo
+cmd := exec.Command("git", "init")
+cmd.Dir = tmpDir
+err := cmd.Run()
+require.NoError(t, err)
+
+// Configure git
+cmd = exec.Command("git", "config", "user.email", "test@example.com")
+cmd.Dir = tmpDir
+err = cmd.Run()
+require.NoError(t, err)
+
+cmd = exec.Command("git", "config", "user.name", "Test User")
+cmd.Dir = tmpDir
+err = cmd.Run()
+require.NoError(t, err)
+
+// Create a test file and stage it
+testFile := filepath.Join(tmpDir, "test-file.txt")
+err = os.WriteFile(testFile, []byte("test content"), 0644)
+require.NoError(t, err)
+
+cmd = exec.Command("git", "add", "test-file.txt")
+cmd.Dir = tmpDir
+err = cmd.Run()
+require.NoError(t, err)
+
+// Save current directory and change to tmpDir
+originalDir, err := os.Getwd()
+require.NoError(t, err)
+err = os.Chdir(tmpDir)
+require.NoError(t, err)
+defer os.Chdir(originalDir)
+
+// Try to push workflow files - should fail due to staged files
+workflowFile := filepath.Join(tmpDir, "workflow.md")
+err = os.WriteFile(workflowFile, []byte("# Test"), 0644)
+require.NoError(t, err)
+
+err = pushWorkflowFiles("test-workflow", []string{workflowFile}, false)
+
+// Should return an error about staged files
+assert.Error(t, err)
+assert.Contains(t, err.Error(), "staged files")
 }
