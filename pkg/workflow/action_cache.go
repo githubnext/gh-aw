@@ -177,6 +177,18 @@ func (c *ActionCache) Get(repo, version string) (string, bool) {
 	return entry.SHA, true
 }
 
+// FindEntryBySHA finds a cache entry with the given repo and SHA
+// Returns the entry and true if found, or empty entry and false if not found
+func (c *ActionCache) FindEntryBySHA(repo, sha string) (ActionCacheEntry, bool) {
+	for key, entry := range c.Entries {
+		if entry.Repo == repo && entry.SHA == sha {
+			actionCacheLog.Printf("Found cache entry for %s with SHA %s: %s", repo, sha[:8], key)
+			return entry, true
+		}
+	}
+	return ActionCacheEntry{}, false
+}
+
 // Set stores a new cache entry
 func (c *ActionCache) Set(repo, version, sha string) {
 	key := repo + "@" + version
