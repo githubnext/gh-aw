@@ -231,6 +231,26 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 				}
 			}
 		}
+
+		// Fallback: search recursively in logDir for session*.log files
+		// This handles cases where the artifact structure is different than expected
+		logsParsingLog.Printf("Searching recursively in %s for session*.log files", logDir)
+		var foundFile string
+		_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info == nil {
+				return nil
+			}
+			// Look for session*.log files
+			if !info.IsDir() && strings.HasPrefix(info.Name(), "session") && strings.HasSuffix(info.Name(), ".log") && foundFile == "" {
+				foundFile = path
+				logsParsingLog.Printf("Found session log file via recursive search: %s", path)
+				return errors.New("stop") // sentinel to stop walking early
+			}
+			return nil
+		})
+		if foundFile != "" {
+			return foundFile, true
+		}
 	}
 
 	// Default to agent-stdio.log

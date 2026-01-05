@@ -89,6 +89,80 @@ func TestCopilotLogParsingAfterFlattening(t *testing.T) {
 	assert.Contains(t, string(foundContent), "Test session log with token usage data")
 }
 
+// TestCopilotLogParsingDirectFlattening tests that the Copilot parser can find session logs
+// when they're flattened directly to the root directory (actual gh run download behavior)
+func TestCopilotLogParsingDirectFlattening(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "copilot-direct-flatten-*")
+
+	// When gh run download downloads the agent_outputs artifact,
+	// it puts the contents directly in agent_outputs/ without preserving the full path
+	// So if we upload /tmp/gh-aw/sandbox/agent/logs/session-*.log,
+	// it ends up as agent_outputs/session-*.log (not agent_outputs/sandbox/agent/logs/session-*.log)
+	
+	// Step 1: Simulate downloaded artifacts structure (before flattening)
+	agentOutputsDir := filepath.Join(tmpDir, "agent_outputs")
+	err := os.MkdirAll(agentOutputsDir, 0755)
+	require.NoError(t, err)
+
+	// Create session log directly in agent_outputs
+	sessionLogPath := filepath.Join(agentOutputsDir, "session-copilot-direct.log")
+	sessionLogContent := `2025-01-05T10:00:00Z [DEBUG] Direct flatten test
+2025-01-05T10:00:01Z [DEBUG] data:
+{
+  "choices": [
+    {
+      "message": {
+        "tool_calls": [
+          {
+            "function": {
+              "name": "bash",
+              "arguments": "{\"command\": \"ls\"}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "total_tokens": 100,
+    "prompt_tokens": 50,
+    "completion_tokens": 50
+  }
+}
+2025-01-05T10:00:02Z [DEBUG] Done`
+	err = os.WriteFile(sessionLogPath, []byte(sessionLogContent), 0644)
+	require.NoError(t, err)
+
+	// Step 2: Flatten the artifact
+	err = flattenAgentOutputsArtifact(tmpDir, false)
+	require.NoError(t, err, "flattenAgentOutputsArtifact should succeed")
+
+	// Verify agent_outputs was removed
+	_, err = os.Stat(agentOutputsDir)
+	assert.True(t, os.IsNotExist(err), "agent_outputs directory should be removed after flattening")
+
+	// Verify session log is now directly in tmpDir
+	flattenedLogPath := filepath.Join(tmpDir, "session-copilot-direct.log")
+	_, err = os.Stat(flattenedLogPath)
+	require.NoError(t, err, "Session log should exist at flattened location")
+
+	// Verify content is intact
+	content, err := os.ReadFile(flattenedLogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "Direct flatten test")
+
+	// Step 3: Test that findAgentLogFile can find the session log via recursive search
+	copilotEngine := workflow.NewCopilotEngine()
+	found, ok := findAgentLogFile(tmpDir, copilotEngine)
+	require.True(t, ok, "findAgentLogFile should find the session log via recursive search")
+	assert.Equal(t, flattenedLogPath, found, "findAgentLogFile should return the correct path")
+
+	// Verify the log file is readable and contains expected content
+	foundContent, err := os.ReadFile(found)
+	require.NoError(t, err)
+	assert.Contains(t, string(foundContent), "Direct flatten test")
+}
+
 // TestCopilotLogParsingMultipleSessionFiles tests that the parser finds the first session log
 // when multiple session log files exist in the flattened location
 func TestCopilotLogParsingMultipleSessionFiles(t *testing.T) {

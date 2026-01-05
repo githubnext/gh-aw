@@ -1303,6 +1303,42 @@ func TestFindAgentLogFile(t *testing.T) {
 		}
 	})
 
+	// Test Copilot engine with session log directly in run directory (recursive search)
+	// This handles cases where artifact structure differs from expected
+	t.Run("copilot_engine_recursive_search", func(t *testing.T) {
+		copilotDir := filepath.Join(tmpDir, "copilot_recursive_test")
+		err := os.MkdirAll(copilotDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create test directory: %v", err)
+		}
+
+		// Create session log directly in the run directory
+		// This simulates the case where the artifact was flattened differently
+		sessionLog := filepath.Join(copilotDir, "session-direct-456.log")
+		err = os.WriteFile(sessionLog, []byte("test session log content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create session log file: %v", err)
+		}
+
+		copilotEngine := workflow.NewCopilotEngine()
+
+		// Test findAgentLogFile - should find via recursive search
+		found, ok := findAgentLogFile(copilotDir, copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file via recursive search")
+		}
+
+		// Should find the session log file
+		if !strings.HasSuffix(found, "session-direct-456.log") {
+			t.Errorf("Expected to find session-direct-456.log, but found %s", found)
+		}
+
+		// Verify the path is correct
+		if found != sessionLog {
+			t.Errorf("Expected path %s, got %s", sessionLog, found)
+		}
+	})
+
 	// Test 2: Claude engine with agent-stdio.log
 	t.Run("Claude engine uses agent-stdio.log", func(t *testing.T) {
 		claudeEngine := workflow.NewClaudeEngine()
