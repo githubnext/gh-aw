@@ -70,7 +70,7 @@ async function main() {
     let matchedCommand = null;
     for (const command of commands) {
       const expectedCommand = `/${command}`;
-      
+
       if (firstWord === expectedCommand) {
         matchedCommand = command;
         break;
