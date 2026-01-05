@@ -169,46 +169,46 @@ func TestCopilotTokenExtractionWithNoUsageData(t *testing.T) {
 // TestCopilotTokenExtractionWithRealLogData tests token extraction with actual log data
 // from workflow run 20696085597 (Smoke Copilot test)
 func TestCopilotTokenExtractionWithRealLogData(t *testing.T) {
-// This test validates real log data if available
-realLogPath := "/tmp/run-20696085597/sandbox/agent/logs/session-dd1eedf4-2b6d-4373-942c-1447d5a6e00a.log"
+	// This test validates real log data if available
+	realLogPath := "/tmp/run-20696085597/sandbox/agent/logs/session-dd1eedf4-2b6d-4373-942c-1447d5a6e00a.log"
 
-// Skip if real log is not available
-if _, err := os.Stat(realLogPath); os.IsNotExist(err) {
-t.Skip("Real log file from run 20696085597 not available")
-}
+	// Skip if real log is not available
+	if _, err := os.Stat(realLogPath); os.IsNotExist(err) {
+		t.Skip("Real log file from run 20696085597 not available")
+	}
 
-tempDir := t.TempDir()
+	tempDir := t.TempDir()
 
-// Create aw_info.json with copilot engine
-awInfoContent := `{"engine_id": "copilot"}`
-awInfoPath := filepath.Join(tempDir, "aw_info.json")
-err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644)
-require.NoError(t, err)
+	// Create aw_info.json with copilot engine
+	awInfoContent := `{"engine_id": "copilot"}`
+	awInfoPath := filepath.Join(tempDir, "aw_info.json")
+	err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644)
+	require.NoError(t, err)
 
-// Copy real log to temp directory structure
-logDir := filepath.Join(tempDir, "sandbox", "agent", "logs")
-err = os.MkdirAll(logDir, 0755)
-require.NoError(t, err)
+	// Copy real log to temp directory structure
+	logDir := filepath.Join(tempDir, "sandbox", "agent", "logs")
+	err = os.MkdirAll(logDir, 0755)
+	require.NoError(t, err)
 
-realLogContent, err := os.ReadFile(realLogPath)
-require.NoError(t, err)
+	realLogContent, err := os.ReadFile(realLogPath)
+	require.NoError(t, err)
 
-logPath := filepath.Join(logDir, "session-test.log")
-err = os.WriteFile(logPath, realLogContent, 0644)
-require.NoError(t, err)
+	logPath := filepath.Join(logDir, "session-test.log")
+	err = os.WriteFile(logPath, realLogContent, 0644)
+	require.NoError(t, err)
 
-// Extract metrics
-metrics, err := extractLogMetrics(tempDir, false)
-require.NoError(t, err, "extractLogMetrics should succeed with real log data")
+	// Extract metrics
+	metrics, err := extractLogMetrics(tempDir, false)
+	require.NoError(t, err, "extractLogMetrics should succeed with real log data")
 
-// Verify token extraction from real log
-// The real log from run 20696085597 contains approximately 530k tokens
-// (528.7k input + 1.9k output based on the summary in agent-stdio.log)
-assert.Greater(t, metrics.TokenUsage, 500000,
-"Should extract at least 500k tokens from real Smoke Copilot log")
+	// Verify token extraction from real log
+	// The real log from run 20696085597 contains approximately 530k tokens
+	// (528.7k input + 1.9k output based on the summary in agent-stdio.log)
+	assert.Greater(t, metrics.TokenUsage, 500000,
+		"Should extract at least 500k tokens from real Smoke Copilot log")
 
-assert.Less(t, metrics.TokenUsage, 600000,
-"Should extract less than 600k tokens (reasonable upper bound)")
+	assert.Less(t, metrics.TokenUsage, 600000,
+		"Should extract less than 600k tokens (reasonable upper bound)")
 
-t.Logf("Successfully extracted %d tokens from real workflow run 20696085597", metrics.TokenUsage)
+	t.Logf("Successfully extracted %d tokens from real workflow run 20696085597", metrics.TokenUsage)
 }
