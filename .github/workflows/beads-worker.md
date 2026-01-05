@@ -17,6 +17,24 @@ tools:
   bash:
     - "*"
   edit:
+post-steps:
+  - name: Save bead ID for cleanup job
+    run: |
+      # Save the bead_id to a file that release_bead can read
+      BEAD_ID="${{ steps.check_and_claim_bead.outputs.bead_id }}"
+      if [ -n "$BEAD_ID" ]; then
+        mkdir -p /tmp/gh-aw/bead-context
+        echo "$BEAD_ID" > /tmp/gh-aw/bead-context/claimed-bead-id.txt
+        echo "Saved claimed bead ID for cleanup: $BEAD_ID"
+      fi
+  
+  - name: Upload bead context
+    uses: actions/upload-artifact@v6
+    if: always()
+    with:
+      name: bead-context
+      path: /tmp/gh-aw/bead-context/
+      if-no-files-found: ignore
 steps:
   - name: Check for ready beads and claim one
     id: check_and_claim_bead
@@ -145,13 +163,36 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Download bead context
+        uses: actions/download-artifact@v6
+        continue-on-error: true
+        with:
+          name: bead-context
+          path: /tmp/gh-aw/bead-context/
+      
+      - name: Check if bead was claimed
+        id: check_bead_id
+        run: |
+          # Read the claimed bead ID from the artifact
+          if [ -f "/tmp/gh-aw/bead-context/claimed-bead-id.txt" ]; then
+            BEAD_ID=$(cat /tmp/gh-aw/bead-context/claimed-bead-id.txt)
+            echo "Bead claimed by workflow: $BEAD_ID"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "bead_id=$BEAD_ID" >> "$GITHUB_OUTPUT"
+          else
+            echo "No bead was claimed by this workflow - skipping release"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+      
       - name: Checkout repository
+        if: steps.check_bead_id.outputs.should_release == 'true'
         uses: actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
       - name: Install beads
+        if: steps.check_bead_id.outputs.should_release == 'true'
         run: |
           # Install beads CLI
           curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
@@ -159,24 +200,21 @@ jobs:
           # Verify installation
           bd --version
       
-      - name: Find and release in-progress bead
+      - name: Release the claimed bead if still in progress
+        if: steps.check_bead_id.outputs.should_release == 'true'
         env:
+          BEAD_ID: ${{ steps.check_bead_id.outputs.bead_id }}
           AGENT_RESULT: ${{ needs.agent.result }}
         run: |
-          # Find any bead that is currently in_progress
-          IN_PROGRESS_BEADS=$(bd list --status in_progress --json 2>/dev/null || echo "[]")
-          BEAD_COUNT=$(echo "$IN_PROGRESS_BEADS" | jq 'length')
+          # Check if the claimed bead is still in_progress
+          BEAD_STATUS=$(bd show "$BEAD_ID" --json 2>/dev/null | jq -r '.status')
           
-          echo "Found $BEAD_COUNT in-progress beads"
+          echo "Claimed bead: $BEAD_ID"
+          echo "Current status: $BEAD_STATUS"
+          echo "Agent result: $AGENT_RESULT"
           
-          if [ "$BEAD_COUNT" -gt 0 ]; then
-            # Get the first in-progress bead
-            BEAD_ID=$(echo "$IN_PROGRESS_BEADS" | jq -r '.[0].id')
-            
-            echo "Found in-progress bead: $BEAD_ID"
-            echo "Agent result: $AGENT_RESULT"
-            echo "Releasing bead back to open state"
-            
+          if [ "$BEAD_STATUS" = "in_progress" ]; then
+            echo "Bead is still in progress - releasing it back to open state"
             bd update "$BEAD_ID" --status open --comment "Released by workflow (agent result: $AGENT_RESULT)"
             
             # Commit the state change
@@ -191,7 +229,7 @@ jobs:
               git push
             fi
           else
-            echo "No in-progress beads found - nothing to release"
+            echo "Bead is no longer in progress (status: $BEAD_STATUS) - no need to release"
           fi
 ---
 

@@ -780,6 +780,16 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');
             await main();
+      - name: Save bead ID for cleanup job
+        run: "# Save the bead_id to a file that release_bead can read\nBEAD_ID=\"${{ steps.check_and_claim_bead.outputs.bead_id }}\"\nif [ -n \"$BEAD_ID\" ]; then\n  mkdir -p /tmp/gh-aw/bead-context\n  echo \"$BEAD_ID\" > /tmp/gh-aw/bead-context/claimed-bead-id.txt\n  echo \"Saved claimed bead ID for cleanup: $BEAD_ID\"\nfi\n"
+      - if: always()
+        name: Upload bead context
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          if-no-files-found: ignore
+          name: bead-context
+          path: /tmp/gh-aw/bead-context/
+
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1119,34 +1129,51 @@ jobs:
       contents: write
 
     steps:
+      - name: Download bead context
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: bead-context
+          path: /tmp/gh-aw/bead-context/
+        continue-on-error: true
+      - name: Check if bead was claimed
+        id: check_bead_id
+        run: |
+          # Read the claimed bead ID from the artifact
+          if [ -f "/tmp/gh-aw/bead-context/claimed-bead-id.txt" ]; then
+            BEAD_ID=$(cat /tmp/gh-aw/bead-context/claimed-bead-id.txt)
+            echo "Bead claimed by workflow: $BEAD_ID"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "bead_id=$BEAD_ID" >> "$GITHUB_OUTPUT"
+          else
+            echo "No bead was claimed by this workflow - skipping release"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Checkout repository
+        if: steps.check_bead_id.outputs.should_release == 'true'
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install beads
+        if: steps.check_bead_id.outputs.should_release == 'true'
         run: |
           # Install beads CLI
           curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
 
           # Verify installation
           bd --version
-      - name: Find and release in-progress bead
+      - name: Release the claimed bead if still in progress
+        if: steps.check_bead_id.outputs.should_release == 'true'
         run: |-
-          # Find any bead that is currently in_progress
-          IN_PROGRESS_BEADS=$(bd list --status in_progress --json 2>/dev/null || echo "[]")
-          BEAD_COUNT=$(echo "$IN_PROGRESS_BEADS" | jq 'length')
+          # Check if the claimed bead is still in_progress
+          BEAD_STATUS=$(bd show "$BEAD_ID" --json 2>/dev/null | jq -r '.status')
 
-          echo "Found $BEAD_COUNT in-progress beads"
+          echo "Claimed bead: $BEAD_ID"
+          echo "Current status: $BEAD_STATUS"
+          echo "Agent result: $AGENT_RESULT"
 
-          if [ "$BEAD_COUNT" -gt 0 ]; then
-            # Get the first in-progress bead
-            BEAD_ID=$(echo "$IN_PROGRESS_BEADS" | jq -r '.[0].id')
-
-            echo "Found in-progress bead: $BEAD_ID"
-            echo "Agent result: $AGENT_RESULT"
-            echo "Releasing bead back to open state"
-
+          if [ "$BEAD_STATUS" = "in_progress" ]; then
+            echo "Bead is still in progress - releasing it back to open state"
             bd update "$BEAD_ID" --status open --comment "Released by workflow (agent result: $AGENT_RESULT)"
 
             # Commit the state change
@@ -1161,10 +1188,11 @@ jobs:
               git push
             fi
           else
-            echo "No in-progress beads found - nothing to release"
+            echo "Bead is no longer in progress (status: $BEAD_STATUS) - no need to release"
           fi
         env:
           AGENT_RESULT: ${{ needs.agent.result }}
+          BEAD_ID: ${{ steps.check_bead_id.outputs.bead_id }}
 
   safe_outputs:
     needs:
