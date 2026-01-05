@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
@@ -295,7 +296,7 @@ func pushWorkflowFiles(workflowName string, files []string, verbose bool) error 
 	commitMessage := fmt.Sprintf("Updated agentic workflow %s", workflowName)
 	runPushLog.Printf("Creating commit with message: %s", commitMessage)
 
-	// Show what will be committed and ask for confirmation
+	// Show what will be committed and ask for confirmation using huh
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Ready to commit and push the following files:"))
 	for _, file := range files {
@@ -305,17 +306,24 @@ func pushWorkflowFiles(workflowName string, files []string, verbose bool) error 
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Commit message: %s\n"), commitMessage)
 	fmt.Fprintln(os.Stderr, "")
 
-	// Ask for confirmation
-	fmt.Fprint(os.Stderr, console.FormatPromptMessage("Do you want to commit and push these changes? [y/N]: "))
+	// Ask for confirmation using huh
+	var confirmed bool
+	confirmForm := huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Do you want to commit and push these changes?").
+				Affirmative("Yes, commit and push").
+				Negative("No, cancel").
+				Value(&confirmed),
+		),
+	).WithAccessible(isAccessibleMode())
 
-	var response string
-	_, err := fmt.Scanln(&response)
-	if err != nil {
-		response = "n" // Default to no on error
+	if err := confirmForm.Run(); err != nil {
+		runPushLog.Printf("Confirmation failed: %v", err)
+		return fmt.Errorf("confirmation failed: %w", err)
 	}
 
-	response = strings.ToLower(strings.TrimSpace(response))
-	if response != "y" && response != "yes" {
+	if !confirmed {
 		runPushLog.Print("Push cancelled by user")
 		return fmt.Errorf("push cancelled by user")
 	}
