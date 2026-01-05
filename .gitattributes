@@ -7,3 +7,6 @@ pkg/workflow/js/*.js linguist-generated=true
 pkg/workflow/js/*.cjs linguist-generated=true
 pkg/workflow/sh/*.sh linguist-generated=true
 actions/*/index.js linguist-generated=true
+
+# Use bd merge for beads JSONL files
+.beads/issues.jsonl merge=beads
