@@ -4,6 +4,7 @@ on:
   issues:
     types: [opened, labeled]
     lock-for-agent: true
+  reaction: "eyes"
 permissions:
   contents: read
   issues: read
