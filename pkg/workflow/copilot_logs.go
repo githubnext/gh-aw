@@ -72,11 +72,15 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 						// Try to parse the accumulated JSON
 						if len(currentJSONLines) > 0 {
 							jsonStr := strings.Join(currentJSONLines, "\n")
+							copilotLogsLog.Printf("Parsing JSON block with %d lines (%d bytes)", len(currentJSONLines), len(jsonStr))
 							jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
 							// Accumulate token usage from all responses (not just max)
 							// This matches the JavaScript parser behavior in parse_copilot_log.cjs
 							if jsonMetrics.TokenUsage > 0 {
+								copilotLogsLog.Printf("Extracted %d tokens from JSON block", jsonMetrics.TokenUsage)
 								totalTokenUsage += jsonMetrics.TokenUsage
+							} else {
+								copilotLogsLog.Printf("No tokens extracted from JSON block (possible format issue)")
 							}
 							if jsonMetrics.EstimatedCost > 0 {
 								metrics.EstimatedCost += jsonMetrics.EstimatedCost
@@ -115,10 +119,14 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	// Process any remaining JSON block at the end of file
 	if inDataBlock && len(currentJSONLines) > 0 {
 		jsonStr := strings.Join(currentJSONLines, "\n")
+		copilotLogsLog.Printf("Parsing final JSON block at EOF with %d lines (%d bytes)", len(currentJSONLines), len(jsonStr))
 		jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
 		// Accumulate token usage from all responses (not just max)
 		if jsonMetrics.TokenUsage > 0 {
+			copilotLogsLog.Printf("Extracted %d tokens from final JSON block", jsonMetrics.TokenUsage)
 			totalTokenUsage += jsonMetrics.TokenUsage
+		} else {
+			copilotLogsLog.Printf("No tokens extracted from final JSON block (possible format issue)")
 		}
 		if jsonMetrics.EstimatedCost > 0 {
 			metrics.EstimatedCost += jsonMetrics.EstimatedCost
@@ -129,6 +137,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	}
 
 	// Finalize metrics using shared helper
+	copilotLogsLog.Printf("Finalized metrics: totalTokenUsage=%d, turns=%d, toolCalls=%d", totalTokenUsage, turns, len(toolCallMap))
 	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, totalTokenUsage, logContent, e.GetErrorPatterns())
 
 	return metrics
