@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.34.5 - 2026-01-05
+
+### Bug Fixes
+
+#### Cleaned `add_labels.cjs` to make the implementation more concise and maintainable, and added a comprehensive test file `add_labels.test.cjs` covering 13 test cases.
+
+No behavior changes expected; tests added to validate functionality.
+
+
 ## v0.34.4 - 2026-01-04
 
 ### Bug Fixes
