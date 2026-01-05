@@ -43,9 +43,15 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 		}
 
 		// Check if the workflow file exists - support .md, .lock.yml, or .yml files
-		workflowFilePath := filepath.Join(workflowsDir, workflowName+".md")
-		lockFilePath := filepath.Join(workflowsDir, workflowName+".lock.yml")
-		ymlFilePath := filepath.Join(workflowsDir, workflowName+".yml")
+		// Use filepath.Clean to sanitize paths and prevent path traversal attacks
+		workflowFilePath := filepath.Clean(filepath.Join(workflowsDir, workflowName+".md"))
+		lockFilePath := filepath.Clean(filepath.Join(workflowsDir, workflowName+".lock.yml"))
+		ymlFilePath := filepath.Clean(filepath.Join(workflowsDir, workflowName+".yml"))
+
+		// Validate that all paths are within the workflows directory to prevent path traversal
+		if !isPathWithinDir(workflowFilePath, workflowsDir) || !isPathWithinDir(lockFilePath, workflowsDir) || !isPathWithinDir(ymlFilePath, workflowsDir) {
+			return fmt.Errorf("dispatch-workflow: invalid workflow name '%s' (path traversal not allowed)", workflowName)
+		}
 
 		// Check if any workflow file exists
 		mdExists := fileExists(workflowFilePath)
@@ -64,13 +70,13 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 
 		if lockExists {
 			workflowFile = lockFilePath
-			workflowContent, err = os.ReadFile(lockFilePath)
+			workflowContent, err = os.ReadFile(lockFilePath) // #nosec G304 -- Path is validated above via isPathWithinDir
 			if err != nil {
 				return fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", lockFilePath, err)
 			}
 		} else if ymlExists {
 			workflowFile = ymlFilePath
-			workflowContent, err = os.ReadFile(ymlFilePath)
+			workflowContent, err = os.ReadFile(ymlFilePath) // #nosec G304 -- Path is validated above via isPathWithinDir
 			if err != nil {
 				return fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", ymlFilePath, err)
 			}
@@ -126,7 +132,13 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 // extractWorkflowDispatchInputs parses a workflow file and extracts the workflow_dispatch inputs schema
 // Returns a map of input definitions that can be used to generate MCP tool schemas
 func extractWorkflowDispatchInputs(workflowPath string) (map[string]any, error) {
-	workflowContent, err := os.ReadFile(workflowPath)
+	// Sanitize the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(workflowPath)
+	if !filepath.IsAbs(cleanPath) {
+		return nil, fmt.Errorf("workflow path must be absolute: %s", workflowPath)
+	}
+
+	workflowContent, err := os.ReadFile(cleanPath) // #nosec G304 -- Path is sanitized above
 	if err != nil {
 		return nil, fmt.Errorf("failed to read workflow file %s: %w", workflowPath, err)
 	}
@@ -183,4 +195,27 @@ func getCurrentWorkflowName(workflowPath string) string {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// isPathWithinDir checks if a path is within a given directory (prevents path traversal)
+func isPathWithinDir(path, dir string) bool {
+	// Get absolute paths
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+
+	// Get the relative path from dir to path
+	rel, err := filepath.Rel(absDir, absPath)
+	if err != nil {
+		return false
+	}
+
+	// Check if the relative path tries to go outside the directory
+	// If it starts with "..", it's trying to escape
+	return !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != ".."
 }
