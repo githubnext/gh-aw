@@ -61,11 +61,19 @@ gh aw compile
 
 This validates the spec. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `compile` also generates an orchestrator and compiles it to `.campaign.lock.yml`.
 
+The orchestrator workflow consists of:
+1. **Discovery precomputation step**: Queries GitHub for candidate items and writes a normalized manifest
+2. **Agent coordination job**: Reads the manifest and updates the project board
+
 **Note:** A `.campaign.g.md` file is generated locally as a debug artifact to help you understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
 
 ## 4) Run the orchestrator
 
-Trigger the orchestrator workflow from GitHub Actions to keep the dashboard in sync. It finds tracker-labeled issues/PRs, adds them to the Project, updates fields/status, and posts a report.
+Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the dashboard in sync:
+
+1. **Discovery precomputation**: Queries GitHub for items with the tracker label and writes a manifest
+2. **Agent coordination**: Reads the manifest, determines what needs updating, and updates the project board
+3. **Reporting**: Reports counts of items discovered, processed, and deferred
 
 ## 5) Add work items
 
