@@ -135,6 +135,12 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 			compileOrchestratorLog.Printf("Failed to render tools for generated campaign orchestrator: %v", err)
 		}
 	}
+	// Render custom steps if present (e.g., discovery precomputation)
+	if strings.TrimSpace(data.CustomSteps) != "" {
+		// CustomSteps is already YAML-formatted, just write it as is
+		b.WriteString("steps:\n")
+		b.WriteString(data.CustomSteps)
+	}
 	b.WriteString("---\n\n")
 	// Include version for released builds only (not "dev", "dirty", or "test")
 	version := workflow.GetVersion()

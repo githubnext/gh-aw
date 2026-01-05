@@ -34,6 +34,11 @@ type CampaignSpec struct {
 	// (basename of the Markdown file without .md).
 	Workflows []string `yaml:"workflows,omitempty" json:"workflows,omitempty" console:"header:Workflows,omitempty,maxlen:40"`
 
+	// TrackerLabel is an optional label used to discover worker-created issues/PRs
+	// (for example: campaign:security-q1-2025). When set, the discovery precomputation
+	// step will search for items with this label.
+	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty,maxlen:40"`
+
 	// MemoryPaths documents where this campaign writes its repo-memory
 	// (for example: memory/campaigns/incident-response/**).
 	MemoryPaths []string `yaml:"memory-paths,omitempty" json:"memory_paths,omitempty" console:"header:Memory Paths,omitempty,maxlen:40"`
@@ -210,10 +215,10 @@ type CampaignRuntimeStatus struct {
 //	  "estimated_completion": "2025-02-12"
 //	}
 type CampaignMetricsSnapshot struct {
-	Date                string  `json:"date,omitempty"`
-	CampaignID          string  `json:"campaign_id,omitempty"`
-	TasksTotal          int     `json:"tasks_total,omitempty"`
-	TasksCompleted      int     `json:"tasks_completed,omitempty"`
+	Date                string  `json:"date"`            // Required: YYYY-MM-DD format
+	CampaignID          string  `json:"campaign_id"`     // Required: campaign identifier
+	TasksTotal          int     `json:"tasks_total"`     // Required: total task count (>= 0)
+	TasksCompleted      int     `json:"tasks_completed"` // Required: completed task count (>= 0)
 	TasksInProgress     int     `json:"tasks_in_progress,omitempty"`
 	TasksBlocked        int     `json:"tasks_blocked,omitempty"`
 	VelocityPerDay      float64 `json:"velocity_per_day,omitempty"`

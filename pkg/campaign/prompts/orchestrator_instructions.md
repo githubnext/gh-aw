@@ -18,6 +18,7 @@ and synchronizing campaign state into a GitHub Project board.
 
 {{ if .CursorGlob }}
 **Cursor file (repo-memory)**: `{{ .CursorGlob }}`  
+**File system path**: `/tmp/gh-aw/repo-memory/campaigns/{{.CampaignID}}/cursor.json`  
 - If it exists: read first and continue from its boundary.  
 - If it does not exist: create it by end of run.  
 - Always write the updated cursor back to the same path.
@@ -25,9 +26,24 @@ and synchronizing campaign state into a GitHub Project board.
 
 {{ if .MetricsGlob }}
 **Metrics snapshots (repo-memory)**: `{{ .MetricsGlob }}`  
+**File system path**: `/tmp/gh-aw/repo-memory/campaigns/{{.CampaignID}}/metrics/*.json`  
 - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
 - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
-- Each snapshot MUST include `campaign_id` and `date` (UTC).
+- Each snapshot MUST include ALL required fields (even if zero):
+  - `campaign_id` (string): The campaign identifier
+  - `date` (string): UTC date in YYYY-MM-DD format
+  - `tasks_total` (number): Total number of tasks (>= 0, even if 0)
+  - `tasks_completed` (number): Completed task count (>= 0, even if 0)
+- Optional fields (include only if available): `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`, `estimated_completion`
+- Example minimum valid snapshot:
+  ```json
+  {
+    "campaign_id": "{{.CampaignID}}",
+    "date": "2025-12-22",
+    "tasks_total": 0,
+    "tasks_completed": 0
+  }
+  ```
 {{ end }}
 
 {{ if gt .MaxDiscoveryItemsPerRun 0 }}
@@ -123,22 +139,26 @@ and synchronizing campaign state into a GitHub Project board.
 
 ### Phase 1 — Read State (Discovery) [NO WRITES]
 
-1) Read current GitHub Project board state (items + required fields).
+**IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
 
-2) Discover worker outputs (if workers are configured):
-{{ if .Workflows }}
-- Perform separate discovery per worker workflow:
-{{ range .Workflows }}
-  - Search for tracker-id `{{ . }}` across issues/PRs/discussions/comments (parent issue/PR is the unit of work).
-{{ end }}
-{{ end }}
+1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
+   - This manifest contains all discovered worker outputs with normalized metadata
+   - Schema version: v1
+   - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
 
-3) Normalize discovered items into a single list with:
-- URL, `content_type` (issue/pull_request/discussion), `content_number`
-- `repo` (owner/repo), `created_at`, `updated_at`
-- `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
+2) Read current GitHub Project board state (items + required fields).
 
-4) Respect read budgets and cursor; stop early if needed and persist cursor.
+3) Parse discovered items from the manifest:
+   - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
+   - Closed items have: closed_at (for issues) or merged_at (for PRs)
+   - Items are pre-sorted by updated_at for deterministic processing
+
+4) Check the manifest summary for work counts:
+   - `needs_add_count`: Number of items that need to be added to the project
+   - `needs_update_count`: Number of items that need status updates
+   - If both are 0, you may skip to reporting phase
+
+5) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
 
 ### Phase 2 — Make Decisions (Planning) [NO WRITES]
 

@@ -105,34 +105,24 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 		t.Fatalf("expected non-nil WorkflowData")
 	}
 
-	// Verify each workflow is mentioned (both in the header list and in discovery instructions).
+	// Verify each workflow is mentioned in the header list
 	for _, workflow := range spec.Workflows {
 		if !strings.Contains(data.MarkdownContent, workflow) {
 			t.Errorf("expected markdown to mention workflow %q, got: %q", workflow, data.MarkdownContent)
 		}
 	}
 
-	// Governed invariant: discovery is explicitly per-worker.
-	if !strings.Contains(data.MarkdownContent, "Perform separate discovery per worker workflow") {
-		t.Errorf("expected markdown to require per-worker discovery, got: %q", data.MarkdownContent)
+	// Verify that discovery is now precomputed (not agent-side)
+	if !strings.Contains(data.MarkdownContent, "Discovery has been precomputed") {
+		t.Errorf("expected markdown to indicate precomputed discovery, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "./.gh-aw/campaign.discovery.json") {
+		t.Errorf("expected markdown to reference discovery manifest, got: %q", data.MarkdownContent)
 	}
 
-	// Verify that each workflow has an explicit search query enumerated
-	for _, workflow := range spec.Workflows {
-		expectedSearchLine := "Search for tracker-id `" + workflow + "`"
-		if !strings.Contains(data.MarkdownContent, expectedSearchLine) {
-			t.Errorf("expected markdown to have tracker-id search instruction for %q, got: %q", workflow, data.MarkdownContent)
-		}
-	}
-
-	// Verify the orchestrator's discovery uses issues/PRs/discussions/comments as the search surface.
-	if !strings.Contains(data.MarkdownContent, "across issues/PRs/discussions/comments") {
-		t.Errorf("expected markdown to mention issues/PRs/discussions/comments discovery surface, got: %q", data.MarkdownContent)
-	}
-
-	// Verify that discovered results are normalized into a single list (combining across workers and types).
-	if !strings.Contains(data.MarkdownContent, "Normalize discovered items") {
-		t.Errorf("expected markdown to mention normalizing discovered items, got: %q", data.MarkdownContent)
+	// Verify that discovered results reference normalized items from manifest
+	if !strings.Contains(data.MarkdownContent, "Parse discovered items from the manifest") {
+		t.Errorf("expected markdown to mention parsing items from manifest, got: %q", data.MarkdownContent)
 	}
 }
 
@@ -193,12 +183,15 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 		t.Fatalf("expected non-nil WorkflowData")
 	}
 
-	// Verify that the orchestrator uses tracker-id for monitoring
+	// Verify that the orchestrator uses manifest-based discovery (not agent-side search)
 	if !strings.Contains(data.MarkdownContent, "Correlation is explicit (tracker-id)") {
 		t.Errorf("expected markdown to mention tracker-id correlation rule, got: %q", data.MarkdownContent)
 	}
-	if !strings.Contains(data.MarkdownContent, "Search for tracker-id") {
-		t.Errorf("expected markdown to include tracker-id discovery instructions, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Read the precomputed discovery manifest") {
+		t.Errorf("expected markdown to include manifest-based discovery instructions, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "./.gh-aw/campaign.discovery.json") {
+		t.Errorf("expected markdown to reference discovery manifest file, got: %q", data.MarkdownContent)
 	}
 
 	// Verify that orchestrator does NOT monitor workflow runs by file name
