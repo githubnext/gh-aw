@@ -104,9 +104,9 @@ func GenerateActionMetadataCommand() error {
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
 
-		// Copy source file
+		// Copy source file with owner-only read/write permissions (0600) for security best practices
 		srcPath := filepath.Join(srcDir, "index.js")
-		if err := os.WriteFile(srcPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(srcPath, []byte(content), 0600); err != nil {
 			return fmt.Errorf("failed to write source file: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Copied source to src/index.js"))
@@ -321,9 +321,9 @@ func generateActionYml(actionDir string, metadata *ActionMetadata) error {
 	content.WriteString("  icon: 'package'\n")
 	content.WriteString("  color: 'blue'\n")
 
-	// Write to file
+	// Write to file with owner-only read/write permissions (0600) for security best practices
 	ymlPath := filepath.Join(actionDir, "action.yml")
-	if err := os.WriteFile(ymlPath, []byte(content.String()), 0644); err != nil {
+	if err := os.WriteFile(ymlPath, []byte(content.String()), 0600); err != nil {
 		return fmt.Errorf("failed to write action.yml: %w", err)
 	}
 
@@ -407,9 +407,9 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	content.WriteString("## License\n\n")
 	content.WriteString("MIT\n")
 
-	// Write to file
+	// Write to file with owner-only read/write permissions (0600) for security best practices
 	readmePath := filepath.Join(actionDir, "README.md")
-	if err := os.WriteFile(readmePath, []byte(content.String()), 0644); err != nil {
+	if err := os.WriteFile(readmePath, []byte(content.String()), 0600); err != nil {
 		return fmt.Errorf("failed to write README.md: %w", err)
 	}
 
