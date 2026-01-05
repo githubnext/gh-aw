@@ -419,8 +419,8 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 				}
 				return os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0644)
 			},
-			expectedDirs:  []string{"subdir"},
-			expectedFiles: []string{"file.txt", "subdir/nested.txt"},
+			expectedDirs:    []string{"subdir"},
+			expectedFiles:   []string{"file.txt", "subdir/nested.txt"},
 			unexpectedFiles: []string{"agent-artifacts/file.txt"},
 		},
 	}
