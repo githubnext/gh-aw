@@ -73,7 +73,7 @@ safe-outputs:
             bd --version
             
             # Sync beads data from repository
-            bd sync
+            bd --no-db sync
             echo "✓ Beads data synced"
         
         - name: Update bead state
@@ -105,7 +105,7 @@ safe-outputs:
           run: |
             echo "=== Starting bead sync ==="
             echo "Syncing changes to repository..."
-            bd sync
+            bd --no-db sync
             echo "✓ Sync completed successfully"
             echo "=== Bead sync completed ==="
 jobs:
@@ -151,7 +151,7 @@ jobs:
           
           # Sync beads data from repository
           echo "Syncing beads data..."
-          bd sync
+          bd --no-db sync
           echo "✓ Beads data synced"
           
           # Check if beads are initialized
@@ -214,7 +214,7 @@ jobs:
           echo "=== Starting bead sync ==="
           echo "Syncing changes to repository..."
           
-          bd sync
+          bd --no-db sync
           echo "✓ Sync completed successfully"
           echo "=== Bead sync completed ==="
   
@@ -258,7 +258,7 @@ jobs:
           
           # Sync beads data from repository
           echo "Syncing beads data..."
-          bd sync
+          bd --no-db sync
           echo "✓ Beads data synced"
           
           # Check if the claimed bead is still in_progress
@@ -274,7 +274,7 @@ jobs:
             
             # Sync changes
             echo "Syncing changes to repository..."
-            bd sync
+            bd --no-db sync
             echo "✓ Sync completed successfully"
           else
             echo "ℹ️  Bead is no longer in progress (status: $BEAD_STATUS) - no need to release"
