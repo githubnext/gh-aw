@@ -666,20 +666,23 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			shouldFallback: true,
 		},
 		{
-			name:           "fallback to highest version for upload-artifact when requesting v4",
+			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v4",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4",
-			expectedVer:    "v6.0.0", // Falls back to v6.0.0, crossing major version boundary
+			expectedVer:    "v4.6.2", // Falls back to highest v4.x.x (semver-compatible)
 			strictMode:     false,
 			shouldFallback: true,
-			// Note: This behavior matches GetActionPin and GetActionPinByRepo which return
-			// "the latest version by semver" without regard to major version boundaries.
-			// When requesting v4, the system returns v6.0.0 (the highest available version),
-			// which crosses a major version boundary. This ensures consistency across all
-			// action pin lookup functions and matches the requirement to "always pick the
-			// highest release according to semver". Users expecting semver-compatible
-			// resolution within the same major version should request specific versions
-			// (e.g., v4.6.2) instead of generic major versions (v4).
+			// Note: When requesting v4, the system returns v4.6.2 (the highest v4.x.x version),
+			// respecting semver compatibility and not crossing major version boundaries.
+			// This ensures that users get compatible upgrades within the same major version.
+		},
+		{
+			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v5",
+			repo:           "actions/upload-artifact",
+			requestedVer:   "v5",
+			expectedVer:    "v5.0.0", // Falls back to highest v5.x.x (semver-compatible), not v6.0.0
+			strictMode:     false,
+			shouldFallback: true,
 		},
 		{
 			name:           "exact match for upload-artifact v4",
@@ -1076,5 +1079,35 @@ func TestActionPinsCaching(t *testing.T) {
 		if pins1[i].SHA != pins2[i].SHA {
 			t.Errorf("Pin %d SHA mismatch: first=%s, second=%s", i, pins1[i].SHA, pins2[i].SHA)
 		}
+	}
+}
+
+// TestGetActionPinWithData_V5ExactMatch verifies that v5.0.0 resolves to its exact SHA
+func TestGetActionPinWithData_V5ExactMatch(t *testing.T) {
+	data := &WorkflowData{
+		StrictMode: false,
+	}
+
+	result, err := GetActionPinWithData("actions/upload-artifact", "v5.0.0", data)
+
+	if err != nil {
+		t.Fatalf("GetActionPinWithData returned error: %v", err)
+	}
+
+	if result == "" {
+		t.Fatalf("GetActionPinWithData returned empty string")
+	}
+
+	t.Logf("Result: %s", result)
+
+	// Should match v5.0.0 exactly, not fall back to v6.0.0
+	if !strings.Contains(result, "# v5.0.0") {
+		t.Errorf("Expected v5.0.0 in result, got: %s", result)
+	}
+
+	// Check the SHA matches v5.0.0
+	expectedSHA := "330a01c490aca151604b8cf639adc76d48f6c5d4"
+	if !strings.Contains(result, expectedSHA) {
+		t.Errorf("Expected SHA %s in result, got: %s", expectedSHA, result)
 	}
 }

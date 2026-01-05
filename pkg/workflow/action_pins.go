@@ -232,23 +232,38 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		}
 
 		// No exact match found
-		// In non-strict mode, use the first pin we found (which is the highest due to sorting above)
-		// This matches the behavior of GetActionPin and GetActionPinByRepo, which return
-		// "the latest version by semver" without regard to major version boundaries.
-		// This ensures consistency across all action pin lookup functions and satisfies
-		// the requirement to "always pick the highest release according to semver".
+		// In non-strict mode, find the highest semver-compatible version
+		// Semver compatibility means respecting major version boundaries
+		// (e.g., v5 -> highest v5.x.x, not v6.x.x)
 		if !data.StrictMode && len(matchingPins) > 0 {
-			highestPin := matchingPins[0]
-			actionPinsLog.Printf("No exact match for version %s, using highest available: %s", version, highestPin.Version)
+			// Filter for semver-compatible pins (matching major version)
+			var compatiblePins []ActionPin
+			for _, pin := range matchingPins {
+				if isSemverCompatible(pin.Version, version) {
+					compatiblePins = append(compatiblePins, pin)
+				}
+			}
+
+			// If we found compatible pins, use the highest one (first after sorting)
+			// Otherwise fall back to the highest overall pin
+			var selectedPin ActionPin
+			if len(compatiblePins) > 0 {
+				selectedPin = compatiblePins[0]
+				actionPinsLog.Printf("No exact match for version %s, using highest semver-compatible version: %s", version, selectedPin.Version)
+			} else {
+				selectedPin = matchingPins[0]
+				actionPinsLog.Printf("No exact match for version %s, no semver-compatible versions found, using highest available: %s", version, selectedPin.Version)
+			}
+
 			// Only emit warning if the version is not a SHA (SHAs shouldn't generate warnings)
 			if !isAlreadySHA {
 				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-					actionRepo, version, actionRepo, highestPin.Version)
+					actionRepo, version, actionRepo, selectedPin.Version)
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 			}
-			actionPinsLog.Printf("Using highest version in non-strict mode: %s@%s (requested) → %s@%s (used)",
-				actionRepo, version, actionRepo, highestPin.Version)
-			return actionRepo + "@" + highestPin.SHA + " # " + highestPin.Version, nil
+			actionPinsLog.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
+				actionRepo, version, actionRepo, selectedPin.Version)
+			return actionRepo + "@" + selectedPin.SHA + " # " + selectedPin.Version, nil
 		}
 	}
 
