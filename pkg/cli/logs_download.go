@@ -294,7 +294,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 	defer os.RemoveAll(tmpZip)
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Downloading workflow run logs for run %d...", runID)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading workflow run logs for run %d...", runID)))
 	}
 
 	// Use gh api to download the logs zip file
@@ -309,7 +309,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 		// If logs are not found or run has no logs, this is not a critical error
 		if strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No logs found for run %d (may be expired or unavailable)", runID)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No logs found for run %d (may be expired or unavailable)", runID)))
 			}
 			return nil
 		}
@@ -333,7 +333,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 	}
 
 	if verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", workflowLogsDir)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", workflowLogsDir)))
 	}
 
 	return nil
@@ -369,7 +369,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Extracting: %s", f.Name)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Extracting: %s", f.Name)))
 	}
 
 	// Create directory if it's a directory entry
@@ -463,11 +463,11 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		return fmt.Errorf("failed to create run output directory: %w", err)
 	}
 	if verbose {
-		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Created output directory %s", outputDir)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Created output directory %s", outputDir)))
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Executing: gh run download %s --dir %s", strconv.FormatInt(runID, 10), outputDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh run download %s --dir %s", strconv.FormatInt(runID, 10), outputDir)))
 	}
 
 	// Start spinner for network operation
@@ -485,7 +485,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 			spinner.Stop()
 		}
 		if verbose {
-			fmt.Println(console.FormatVerboseMessage(string(output)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 		}
 
 		// Check if it's because there are no artifacts
@@ -495,7 +495,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, err)))
 			}
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (gh run download reported none)", runID)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (gh run download reported none)", runID)))
 			}
 			return ErrNoArtifacts
 		}
@@ -531,12 +531,12 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		// Log the error but don't fail the entire download process
 		// Logs may not be available for all runs (e.g., expired or deleted)
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", err)))
 		}
 	}
 
 	if verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", runID, outputDir)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", runID, outputDir)))
 		// Enumerate created files (shallow + summary) for immediate visibility
 		var fileCount int
 		var firstFiles []string
@@ -557,14 +557,14 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 			return nil
 		})
 		if fileCount == 0 {
-			fmt.Println(console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
 		} else {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Artifact file count: %d", fileCount)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Artifact file count: %d", fileCount)))
 			for _, f := range firstFiles {
-				fmt.Println(console.FormatVerboseMessage("  • " + f))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("  • " + f))
 			}
 			if fileCount > len(firstFiles) {
-				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("  … %d more files omitted", fileCount-len(firstFiles))))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("  … %d more files omitted", fileCount-len(firstFiles))))
 			}
 		}
 	}
