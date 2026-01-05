@@ -83,10 +83,10 @@ func generateMaintenanceWorkflowWrapper(
 }
 
 // validateCampaignsWrapper validates campaign specs if they exist
-func validateCampaignsWrapper(workflowDir string, verbose bool, strict bool) error {
+func validateCampaignsWrapper(workflowDir string, verbose bool, strict bool, campaignFiles []string) error {
 	compilePostProcessingLog.Print("Validating campaign specs")
 
-	if err := validateCampaigns(workflowDir, verbose); err != nil {
+	if err := validateCampaigns(workflowDir, verbose, campaignFiles); err != nil {
 		if strict {
 			return fmt.Errorf("campaign validation failed: %w", err)
 		}
