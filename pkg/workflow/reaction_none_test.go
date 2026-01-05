@@ -253,3 +253,96 @@ Test command workflow with explicit rocket reaction.
 		t.Error("conclusion job should be created when reaction is enabled and add-comment is configured")
 	}
 }
+
+func TestIssueTemplateWorkflowWithReaction(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "reaction-issue-template-test")
+
+	// Create a test markdown file that mimics workflow-generator and campaign-generator
+	testContent := `---
+description: Test workflow generator with issue template trigger
+on:
+  issues:
+    types: [opened, labeled]
+    lock-for-agent: true
+  reaction: "eyes"
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+tools:
+  github:
+    toolsets: [default]
+if: startsWith(github.event.issue.title, '[Test]')
+safe-outputs:
+  update-issue:
+    status:
+    body:
+    target: "${{ github.event.issue.number }}"
+  assign-to-agent:
+timeout-minutes: 5
+---
+
+# Test Issue Template Workflow
+
+Test workflow triggered by issue template with "eyes" reaction.
+`
+
+	testFile := filepath.Join(tmpDir, "test-issue-template.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify AIReaction is set to "eyes"
+	if workflowData.AIReaction != "eyes" {
+		t.Errorf("Expected AIReaction to be 'eyes', got '%s'", workflowData.AIReaction)
+	}
+
+	// Verify lock-for-agent is set
+	if !workflowData.LockForAgent {
+		t.Error("Expected LockForAgent to be true")
+	}
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	lockFile := filepath.Join(tmpDir, "test-issue-template.lock.yml")
+	compiledBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+	compiled := string(compiledBytes)
+
+	// Verify that activation job HAS eyes reaction step
+	if !strings.Contains(compiled, "Add eyes reaction to the triggering item") {
+		t.Error("Activation job should have eyes reaction step for issue template workflow")
+	}
+
+	// Verify that activation job HAS reaction permissions
+	activationJobSection := extractJobSection(compiled, string(constants.ActivationJobName))
+	if !strings.Contains(activationJobSection, "issues: write") {
+		t.Error("Activation job should have 'issues: write' permission when reaction is enabled")
+	}
+
+	// Verify that lock issue step is present (due to lock-for-agent: true)
+	if !strings.Contains(compiled, "Lock issue for agent workflow") {
+		t.Error("Activation job should have lock issue step when lock-for-agent is enabled")
+	}
+
+	// Verify that conclusion job IS created (for safe-outputs)
+	if !strings.Contains(compiled, "conclusion:") {
+		t.Error("conclusion job should be created when safe-outputs exist")
+	}
+}
