@@ -83,9 +83,14 @@ Provide a comprehensive summary with key findings and recommendations.
 
 Run workflows on a recurring schedule using human-friendly expressions or [cron syntax](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
 
-**Fuzzy Scheduling (Recommended for Daily Workflows):**
+**Fuzzy Scheduling (Recommended):**
 
 To distribute workflow execution times and prevent load spikes, use fuzzy schedules that let the compiler automatically scatter execution times:
+
+```yaml wrap
+on:
+  schedule: hourly  # Compiler scatters minute offset deterministically
+```
 
 ```yaml wrap
 on:
@@ -105,7 +110,7 @@ on:
   schedule: daily around 14:00  # Scatters within ±1 hour (13:00-15:00)
 ```
 
-The compiler deterministically assigns each workflow a unique time throughout the day based on the workflow file path. This ensures:
+The compiler deterministically assigns each workflow a unique execution time based on the workflow file path. This ensures:
 - **Load distribution**: Workflows run at different times, reducing server load spikes
 - **Consistency**: The same workflow always gets the same execution time across recompiles
 - **Simplicity**: No need to manually coordinate schedules across multiple workflows
@@ -126,13 +131,14 @@ on:
 ```
 
 :::caution[Fixed Times Create Load Spikes]
-Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. Similarly, hourly intervals with fixed minute offsets like `0 */2 * * *` synchronize all workflows to run at the same minute of each hour, and weekly schedules with fixed times like `weekly on monday at 09:00` cause all workflows to run at the same time each week. The compiler will warn you about these patterns. Use fuzzy schedules (`daily`, `every Nh`, `weekly`, or `weekly on <day>`) instead.
+Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. Similarly, hourly intervals with fixed minute offsets like `0 */2 * * *` synchronize all workflows to run at the same minute of each hour, and weekly schedules with fixed times like `weekly on monday at 09:00` cause all workflows to run at the same time each week. The compiler will warn you about these patterns. Use fuzzy schedules (`hourly`, `daily`, `every Nh`, `weekly`, or `weekly on <day>`) instead.
 :::
 
 **Supported Formats:**
 
 | Format | Example | Result | Notes |
 |--------|---------|--------|-------|
+| **Hourly (Fuzzy)** | `hourly` | `58 */1 * * *` | Compiler assigns scattered minute |
 | **Daily (Fuzzy)** | `daily` | `43 5 * * *` | Compiler assigns scattered time |
 | | `daily around 14:00` | `20 14 * * *` | Scattered within ±1 hour (13:00-15:00) |
 | | `daily around 3pm utc-5` | `33 19 * * *` | With UTC offset (3 PM EST → 8 PM UTC) |
