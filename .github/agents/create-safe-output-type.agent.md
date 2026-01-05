@@ -270,97 +270,147 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 
 **Flow**: Workflow config → parse to struct → filter tools → write JSON → MCP server exposes to agents.
 
-### 7. Create JavaScript Implementation (`pkg/workflow/js/your_new_type.cjs`)
+### 7. Create Handler Implementation (`actions/setup/js/your_new_type.cjs`)
+
+Create a handler factory that returns a message processing function. The handler manager will call this factory once during initialization and use the returned function to process each message.
 
 ```javascript
-async function main() {
-  // Check if we're in staged mode
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { generateTemporaryId } = require("./temporary_id.cjs");
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "your_new_type";
+
+/**
+ * Main handler factory for your_new_type
+ * Returns a message handler function that processes individual your_new_type messages
+ * @type {HandlerFactoryFunction}
+ */
+async function main(config = {}) {
+  // Extract and log configuration
+  const customOption = config.custom_option || "";
+  const maxCount = config.max || 10;
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  // Read the validated output content from environment variable
-  const outputContent = process.env.GH_AW_AGENT_OUTPUT;
-  if (!outputContent) {
-    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-    return;
-  }
+  core.info(`Custom option: ${customOption}`);
+  core.info(`Max count: ${maxCount}`);
+  core.info(`Staged mode: ${isStaged}`);
 
-  if (outputContent.trim() === "") {
-    core.info("Agent output content is empty");
-    return;
-  }
+  // Track handler state
+  let processedCount = 0;
+  const processedItems = [];
 
-  core.info(`Agent output content length: ${outputContent.length}`);
-
-  // Parse the validated output JSON
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
-    return;
-  }
-
-  // Find all your-new-type items
-  const items = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "your-new-type");
-  if (items.length === 0) {
-    core.info("No your-new-type items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${items.length} your-new-type item(s)`);
-
-  // If in staged mode, emit step summary instead of performing actions
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Your New Type Preview\n\n";
-    summaryContent += "The following actions would be performed if staged mode was disabled:\n\n";
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      summaryContent += `### Action ${i + 1}\n`;
-      summaryContent += `**Required Field**: ${item.required_field}\n`;
-      if (item.optional_field) {
-        summaryContent += `**Optional Field**: ${item.optional_field}\n`;
-      }
-      summaryContent += "\n";
+  /**
+   * Message handler function that processes a single your_new_type message
+   * @param {Object} message - The your_new_type message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleYourNewType(message, resolvedTemporaryIds) {
+    // Check max count
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping your_new_type: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
     }
 
-    core.summary.addRaw(summaryContent).write();
-    return;
-  }
+    processedCount++;
 
-  // Process each item
-  for (const item of items) {
+    const item = message;
+
+    // Validate required fields
+    if (!item.required_field) {
+      core.warning("Skipping your_new_type: required_field is missing");
+      return {
+        success: false,
+        error: "required_field is required",
+      };
+    }
+
+    // Generate temporary ID if not provided
+    const temporaryId = item.temporary_id || generateTemporaryId();
+    core.info(`Processing your_new_type: required_field=${item.required_field}, temporaryId=${temporaryId}`);
+
+    // Staged mode: collect for preview
+    if (isStaged) {
+      processedItems.push({
+        required_field: item.required_field,
+        optional_field: item.optional_field,
+        temporaryId,
+      });
+
+      return {
+        success: true,
+        staged: true,
+        temporaryId,
+      };
+    }
+
+    // Process the message
     try {
-      // Implement your actual logic here
+      // Implement your GitHub API call or custom logic here
       core.info(`Processing your-new-type: ${item.required_field}`);
       
-      // Example GitHub API call pattern:
+      // Example GitHub API pattern:
       // const result = await github.rest.yourApi.yourMethod({
       //   owner: context.repo.owner,
       //   repo: context.repo.repo,
       //   your_field: item.required_field,
       // });
       
-      core.info("Successfully processed your-new-type item");
+      // Simulate successful processing
+      const resultId = 123; // Replace with actual result ID
+      const resultUrl = `https://github.com/example/result/${resultId}`;
+
+      core.info(`✓ Successfully processed your-new-type: ${resultUrl}`);
+
+      return {
+        success: true,
+        temporaryId,
+        resultId,
+        resultUrl,
+      };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      core.error(`Failed to process your-new-type: ${errorMessage}`);
-      core.setFailed(`Failed to process your-new-type: ${errorMessage}`);
-      return;
+      const errorMessage = getErrorMessage(error);
+      core.error(`✗ Failed to process your-new-type: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage,
+      };
     }
-  }
+  };
 }
 
-// Call the main function
-await main();
+module.exports = { main };
 ```
 
-**Guidelines**: Check staged mode, use `core.*` methods (not console.log), use `core.summary` for previews, handle errors with try/catch.
+**Key Handler Factory Patterns**:
+
+1. **Factory Function**: `main(config)` is called once during initialization
+2. **Closure State**: Variables in factory scope persist across messages (e.g., `processedCount`)
+3. **Message Handler**: Factory returns an async function that processes individual messages
+4. **Handler Signature**: `async (message, resolvedTemporaryIds) => { success, error?, ... }`
+5. **Max Count Enforcement**: Check `processedCount` before processing each message
+6. **Staged Mode**: Collect items for preview instead of executing operations
+7. **Temporary IDs**: Generate or use provided temporary IDs for cross-referencing
+8. **Error Handling**: Return `{ success: false, error }` instead of throwing
+9. **Result Object**: Include fields needed for outputs or temporary ID resolution
+
+**Available Helper Modules**:
+- `error_helpers.cjs` - `getErrorMessage(error)` for consistent error formatting
+- `temporary_id.cjs` - `generateTemporaryId()`, `isTemporaryId()`, `normalizeTemporaryId()`
+- `repo_helpers.cjs` - `parseRepoSlug()`, `validateRepo()`, `getDefaultTargetRepo()`
+- `sanitize_label_content.cjs` - `sanitizeLabelContent()` for label validation
+- `generate_footer.cjs` - `generateFooter()` for AI-generated message footers
 
 ### 8. Create Tests
 
@@ -399,67 +449,97 @@ Create a your-new-type output with:
 Output as JSONL format.
 ```
 
-### 10. Create Go Step Config Builder (`pkg/workflow/compiler_safe_outputs_consolidated.go`)
+### 10. Integrate with Handler Manager
 
-Create a step config builder function that will be called from `buildConsolidatedSafeOutputsJob()`. All safe outputs now run as steps within a single consolidated job instead of individual jobs.
+Most safe output types are now processed through the **handler manager** architecture, which provides centralized message dispatching, temporary ID resolution, and consistent error handling. The handler manager loads individual message handlers for each enabled safe output type and orchestrates their execution.
 
-**Step 1: Add Config Type** (if not already defined in `pkg/workflow/frontmatter_types.go` or `pkg/workflow/safe_output_builder.go`):
+#### Architecture Overview
+
+The handler manager (`actions/setup/js/safe_output_handler_manager.cjs`) acts as a dispatcher:
+1. Loads configuration from `GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG` environment variable
+2. Initializes handler factories for enabled safe output types
+3. Reads and validates agent output messages
+4. Dispatches messages to appropriate handlers
+5. Manages temporary ID resolution across handlers
+6. Collects results and outputs
+
+#### Handler Factory Pattern
+
+Each safe output type implements a **factory function** that returns a message handler:
+
+```javascript
+/**
+ * Main handler factory for your_new_type
+ * Returns a message handler function that processes individual your_new_type messages
+ * @param {Object} config - Configuration object from workflow YAML
+ * @returns {Promise<Function>} Message handler function
+ */
+async function main(config = {}) {
+  // 1. Extract and log configuration
+  const customOption = config.custom_option || "";
+  const maxCount = config.max || 10;
+  
+  core.info(`Custom option: ${customOption}`);
+  core.info(`Max count: ${maxCount}`);
+  
+  // 2. Initialize handler state (if needed)
+  let processedCount = 0;
+  const temporaryIdMap = new Map();
+  
+  // 3. Return the message handler function
+  return async function handleYourNewType(message, resolvedTemporaryIds) {
+    // Check max count
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping your_new_type: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+    
+    processedCount++;
+    
+    // Process the message
+    try {
+      // Your implementation here
+      const result = await processYourNewType(message);
+      
+      // Return success with any outputs
+      return {
+        success: true,
+        // Add any outputs needed for temporary ID resolution or step outputs
+        temporaryId: message.temporary_id,
+        // ... other fields
+      };
+    } catch (error) {
+      core.error(`Failed to process your_new_type: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  };
+}
+
+module.exports = { main };
+```
+
+#### Integration Steps
+
+**Step 1: Add Config Type** in `pkg/workflow/frontmatter_types.go` or create a new file (e.g., `pkg/workflow/your_new_type.go`):
 
 ```go
 // YourNewTypeConfig holds configuration for your new type from agent output
-// Embed shared config types for common fields to reduce duplication
 type YourNewTypeConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"` // Provides Target and TargetRepoSlug fields
-	CustomOption           string           `yaml:"custom-option,omitempty"`  // Custom configuration option
-	AnotherOption          *bool            `yaml:"another-option,omitempty"` // Another optional configuration
+	BaseSafeOutputConfig `yaml:",inline"`
+	CustomOption         string `yaml:"custom-option,omitempty"`
 }
 ```
 
-**Step 2: Add Step Config Builder** in `pkg/workflow/compiler_safe_outputs_consolidated.go`:
+**Step 2: Add Config Parser** (in the same file as the config type):
 
 ```go
-// buildYourNewTypeStepConfig creates the step configuration for your_new_type
-func (c *Compiler) buildYourNewTypeStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.YourNewType
-
-	// Build custom environment variables specific to your-new-type
-	var customEnvVars []string
-	
-	// Add your custom configuration options as environment variables
-	if cfg.CustomOption != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CUSTOM_OPTION: %q\n", cfg.CustomOption))
-	}
-	
-	if cfg.AnotherOption != nil && *cfg.AnotherOption {
-		customEnvVars = append(customEnvVars, "          GH_AW_ANOTHER_OPTION: \"true\"\n")
-	}
-
-	// Use shared env var builders for common fields
-	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_YOUR_NEW_TYPE_TARGET", cfg.Target)...)
-	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_YOUR_NEW_TYPE_MAX_COUNT", cfg.Max)...)
-
-	// Add standard safe output environment variables
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
-	// Build step condition - step only runs when there are your_new_type items in the JSONL
-	condition := BuildSafeOutputType("your_new_type")
-
-	return SafeOutputStepConfig{
-		StepName:      "Execute Your New Type",
-		StepID:        "your_new_type",
-		ScriptName:    "your_new_type",       // For file mode (references your_new_type.cjs)
-		Script:        getYourNewTypeScript(), // For inline mode fallback
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-	}
-}
-
-**Step 3: Add Config Parser** (typically in `pkg/workflow/safe_outputs.go` or alongside the step config builder):
-
-```go
-// parseYourNewTypeConfig handles your-new-type configuration using shared parsers
+// parseYourNewTypeConfig handles your-new-type configuration
 func (c *Compiler) parseYourNewTypeConfig(outputMap map[string]any) *YourNewTypeConfig {
 	if configData, exists := outputMap["your-new-type"]; exists {
 		yourNewTypeConfig := &YourNewTypeConfig{}
@@ -469,23 +549,8 @@ func (c *Compiler) parseYourNewTypeConfig(outputMap map[string]any) *YourNewType
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &yourNewTypeConfig.BaseSafeOutputConfig)
 
-			// Parse target config using shared helper (handles target and target-repo)
-			targetConfig, isInvalid := ParseTargetConfig(configMap)
-			if isInvalid {
-				// target-repo validation error (wildcard not allowed)
-				return nil
-			}
-			yourNewTypeConfig.SafeOutputTargetConfig = targetConfig
-
-			// Parse custom-option using generic string parser
+			// Parse custom fields
 			yourNewTypeConfig.CustomOption = ParseStringFromConfig(configMap, "custom-option")
-
-			// Parse another-option (boolean example - no shared helper for booleans yet)
-			if anotherOption, exists := configMap["another-option"]; exists {
-				if anotherOptionBool, ok := anotherOption.(bool); ok {
-					yourNewTypeConfig.AnotherOption = &anotherOptionBool
-				}
-			}
 		}
 
 		return yourNewTypeConfig
@@ -493,109 +558,133 @@ func (c *Compiler) parseYourNewTypeConfig(outputMap map[string]any) *YourNewType
 
 	return nil
 }
-
-// getYourNewTypeScript returns the JavaScript implementation
-func getYourNewTypeScript() string {
-	return embedJavaScript("your_new_type.cjs")
-}
 ```
 
-**Step 4: Register Script** (in `pkg/workflow/scripts.go` if using file mode):
+**Step 3: Register in Handler Manager** in `actions/setup/js/safe_output_handler_manager.cjs`:
 
-```go
-// In pkg/workflow/scripts.go, add to script registry:
-registry.Register("your_new_type", ScriptInfo{
-	Source:     getYourNewTypeScript(),
-	ActionPath: "", // Leave empty if not using custom action
-})
+Add your handler to the `HANDLER_MAP`:
+
+```javascript
+const HANDLER_MAP = {
+  create_issue: "./create_issue.cjs",
+  add_comment: "./add_comment.cjs",
+  // ... existing handlers ...
+  your_new_type: "./your_new_type.cjs",  // Add your handler here
+};
 ```
 
-**Step 5: Integrate into Consolidated Job** (in `pkg/workflow/compiler_safe_outputs_consolidated.go`):
+**Step 4: Add Handler Config to Compiler** in `pkg/workflow/compiler_safe_outputs_config.go`:
 
-Add your step to the `buildConsolidatedSafeOutputsJob()` function:
+Update `addHandlerManagerConfigEnvVar()` to include your config:
 
 ```go
-// Add to script collection section (around line 62-128)
 if data.SafeOutputs.YourNewType != nil {
-	scriptNames = append(scriptNames, "your_new_type")
+	handlerConfig := map[string]any{
+		"custom_option": data.SafeOutputs.YourNewType.CustomOption,
+		"max":           data.SafeOutputs.YourNewType.Max,
+	}
+	config["your_new_type"] = handlerConfig
 }
+```
 
-// Add step building section (around line 163-435)
-// N. Your New Type step
+**Step 5: Add to Consolidated Job Check** in `pkg/workflow/compiler_safe_outputs_job.go`:
+
+Update `hasHandlerManagerTypes` condition:
+
+```go
+hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
+	data.SafeOutputs.AddComments != nil ||
+	// ... existing checks ...
+	data.SafeOutputs.YourNewType != nil
+```
+
+Add permissions:
+
+```go
+if data.SafeOutputs.YourNewType != nil {
+	permissions.Merge(NewPermissionsContentsReadYourPermissions())
+}
+```
+
+#### Standalone Step Alternative
+
+If your safe output type requires operations **before or after** message processing (e.g., git checkout, file operations), use a standalone step instead:
+
+```go
+// In pkg/workflow/compiler_safe_outputs_specialized.go or a new file
+func (c *Compiler) buildYourNewTypeStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.YourNewType
+
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+	condition := BuildSafeOutputType("your_new_type")
+
+	return SafeOutputStepConfig{
+		StepName:      "Execute Your New Type",
+		StepID:        "your_new_type",
+		ScriptName:    "your_new_type",
+		Script:        getYourNewTypeScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}
+```
+
+Then integrate in `buildConsolidatedSafeOutputsJob()`:
+
+```go
 if data.SafeOutputs.YourNewType != nil {
 	stepConfig := c.buildYourNewTypeStepConfig(data, mainJobName, threatDetectionEnabled)
 	stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
 	steps = append(steps, stepYAML...)
 	safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
-	// Add outputs if needed
-	outputs["your_new_type_result_id"] = "${{ steps.your_new_type.outputs.result_id }}"
-	outputs["your_new_type_result_url"] = "${{ steps.your_new_type.outputs.result_url }}"
-
-	// Merge permissions - adjust as needed for your use case
+	outputs["your_new_type_result"] = "${{ steps.your_new_type.outputs.result }}"
 	permissions.Merge(NewPermissionsContentsReadYourPermissions())
 }
 ```
 
+Add to `STANDALONE_STEP_TYPES` in handler manager:
 
-**Key Points**:
-
-1. **Single Job Architecture** - All safe outputs now run as steps within a single `safe_outputs` job instead of individual jobs
-
-2. **Step Config Pattern** - Use `SafeOutputStepConfig` struct to define step metadata, environment variables, conditions, and scripts
-
-3. **File Mode** - JavaScript files are written to `/tmp/gh-aw/scripts/` once and required by each step, maximizing code reuse
-
-4. **Step Conditions** - Each step uses `BuildSafeOutputType("your_new_type")` to only run when relevant JSONL items exist
-
-5. **Integration Points**:
-   - Add config type to `SafeOutputsConfig` in `pkg/workflow/frontmatter_types.go`
-   - Add parser call in `extractSafeOutputsConfig()` in `pkg/workflow/safe_outputs.go`
-   - Add script name to collection in `buildConsolidatedSafeOutputsJob()`
-   - Add step config builder function
-   - Integrate step into consolidated job build
-   - Merge required permissions into job permissions
-
-6. **Shared Helpers Available**:
-   - Config types: `BaseSafeOutputConfig`, `SafeOutputTargetConfig`, `SafeOutputFilterConfig`, `SafeOutputDiscussionFilterConfig`, `CloseJobConfig`, `ListJobConfig`
-   - Parsers: `ParseTargetConfig()`, `ParseFilterConfig()`, `ParseCloseJobConfig()`, `ParseListJobConfig()`, `ParseStringFromConfig()`
-   - Env builders: `BuildTargetEnvVar()`, `BuildRequiredLabelsEnvVar()`, `BuildCloseJobEnvVars()`, `BuildListJobEnvVars()`, `buildStandardSafeOutputEnvVars()`
-   - Conditions: `BuildSafeOutputType()`, `BuildAnd()`, `BuildOr()`, `BuildNot()`
-   - Permissions: `NewPermissionsContentsRead()`, `NewPermissionsContentsReadIssuesWrite()`, etc.
-
-7. **SafeOutputStepConfig Struct Fields**:
-   - `StepName` - Human-readable step name (e.g., "Create Issue")
-   - `StepID` - Step ID for referencing outputs (e.g., "create_issue")
-   - `ScriptName` - Name for file mode (e.g., "create_issue")
-   - `Script` - JavaScript for inline mode fallback
-   - `CustomEnvVars` - Step-specific environment variables
-   - `Condition` - Step-level condition (when to run)
-   - `Token` - GitHub token for this step
-   - `UseCopilotToken` - Use Copilot token preference chain
-   - `UseAgentToken` - Use agent token preference chain
-   - `PreSteps` - Optional steps before the script
-   - `PostSteps` - Optional steps after the script
-   - `Outputs` - Not used in step config (added to job outputs separately)
-
-**Close Operations Example**:
-```go
-type CloseYourTypeConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	CloseJobConfig       `yaml:",inline"`
-}
-closeConfig, isInvalid := ParseCloseJobConfig(configMap)
-customEnvVars = append(customEnvVars, BuildCloseJobEnvVars("GH_AW_CLOSE_YOUR_TYPE", config.CloseJobConfig)...)
+```javascript
+const STANDALONE_STEP_TYPES = new Set([
+  "assign_to_agent",
+  "create_agent_task", 
+  "update_project",
+  "upload_asset",
+  "your_new_type",  // Add if using standalone step
+]);
 ```
 
-**List Operations Example**:
-```go
-type AddYourTypeConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	ListJobConfig        `yaml:",inline"`
-}
-listConfig, isInvalid := ParseListJobConfig(configMap, "allowed")
-customEnvVars = append(customEnvVars, BuildListJobEnvVars("GH_AW_ADD_YOUR_TYPE", config.ListJobConfig, config.Max)...)
-```
+#### Key Integration Points
+
+1. **Config Type**: Define in `pkg/workflow/*.go` with `BaseSafeOutputConfig` embedding
+2. **Config Parser**: Parse YAML config and extract typed fields
+3. **Handler Registration**: Add to `HANDLER_MAP` in handler manager
+4. **Handler Config**: Add to `addHandlerManagerConfigEnvVar()` for runtime configuration
+5. **Job Integration**: Add to `hasHandlerManagerTypes` check and permissions
+6. **Handler Implementation**: Create factory function in `actions/setup/js/your_new_type.cjs`
+
+#### Shared Helpers
+
+**Config Types**:
+- `BaseSafeOutputConfig` - Common fields (max, github-token, staged)
+- `SafeOutputTargetConfig` - Target repo configuration
+
+**Parsers**:
+- `ParseStringFromConfig()` - Parse string field
+- `ParseTargetConfig()` - Parse target/target-repo
+- `parseBaseSafeOutputConfig()` - Parse base fields
+
+**Handler Helpers** (in `actions/setup/js/`):
+- `load_agent_output.cjs` - Load and parse agent output
+- `temporary_id.cjs` - Temporary ID generation and resolution
+- `repo_helpers.cjs` - Repository parsing and validation
+- `error_helpers.cjs` - Error message formatting
+- `sanitize_label_content.cjs` - Label sanitization
+- `generate_footer.cjs` - AI-generated message footer
 
 
 ### 11. Build and Test
