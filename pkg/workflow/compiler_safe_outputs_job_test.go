@@ -360,7 +360,7 @@ func TestJobWithGitHubApp(t *testing.T) {
 	stepsContent := strings.Join(job.Steps, "")
 
 	// Should include app token minting step
-	assert.Contains(t, stepsContent, "Mint GitHub App token")
+	assert.Contains(t, stepsContent, "Generate GitHub App token")
 
 	// Should include app token invalidation step
 	assert.Contains(t, stepsContent, "Invalidate GitHub App token")
