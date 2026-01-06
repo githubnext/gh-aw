@@ -121,6 +121,9 @@ mcp-servers:
   tavily:
     url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
     allowed: ["*"]
+network:
+  allowed:
+    - mcp.tavily.com
 ---
 ```
 
@@ -136,11 +139,64 @@ imports:
 tools:
   github:
     toolsets: [issues]
+permissions:
+  contents: read
+  issues: write
 ---
 
 # Research Agent
 Perform web research using Tavily and respond to issues.
 ```
+
+**Result**: The compiled workflow includes both the Tavily MCP server from the import and the GitHub tools from the main workflow, with network permissions automatically merged to allow access to both `mcp.tavily.com` and GitHub API endpoints.
+
+## Real-World Scenario: Team-Wide Configuration
+
+A development team can create a shared configuration repository with reusable components:
+
+```
+acme-org/workflow-library/
+├── shared/
+│   ├── tools/
+│   │   ├── github-standard.md     # Standard GitHub API toolsets
+│   │   └── code-analysis.md        # Code quality tools
+│   ├── mcp/
+│   │   ├── tavily.md               # Web search
+│   │   └── database.md             # Database access
+│   └── config/
+│       ├── security-policies.md    # Security constraints
+│       └── notification-setup.md   # Notification settings
+└── workflows/
+    ├── issue-triage.md
+    ├── pr-review.md
+    └── release-automation.md
+```
+
+Individual workflows import required components:
+
+```yaml wrap
+---
+on: pull_request
+engine: copilot
+imports:
+  - acme-org/workflow-library/shared/tools/github-standard.md@v2.0.0
+  - acme-org/workflow-library/shared/tools/code-analysis.md@v2.0.0
+  - acme-org/workflow-library/shared/config/security-policies.md@v2.0.0
+safe-outputs:
+  create-pull-request-review-comment:
+    max: 10
+---
+
+# Code Review Agent
+Automated code review with security policy enforcement.
+```
+
+**Benefits**:
+- **Consistency**: All workflows use same tool configurations
+- **Maintainability**: Update imports once, affects all workflows
+- **Versioning**: Pin to stable versions with semantic tags
+- **Modularity**: Mix and match components as needed
+- **Governance**: Security policies enforced through imports
 
 ## Specification Formats and Validation
 

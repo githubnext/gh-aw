@@ -476,6 +476,107 @@ permissions:
 
 **Manifest Generation**: Every compilation records imported files in the lock file's manifest section, enabling accurate dependency tracking.
 
+## Common Pitfalls and Best Practices
+
+### ❌ Avoid: Conflicting Safe Output Definitions
+
+```yaml wrap
+# shared-1.md
+safe-outputs:
+  create-issue:
+    title-prefix: "[bot] "
+
+# shared-2.md  
+safe-outputs:
+  create-issue:  # ERROR: Conflict!
+    labels: [automated]
+
+# main.md
+imports:
+  - shared-1.md
+  - shared-2.md
+```
+
+**Fix**: Define in main workflow (overrides both) or consolidate into one shared file.
+
+### ✅ Best Practice: Layer Configurations by Scope
+
+```yaml wrap
+# shared/base-tools.md - Core tools everyone needs
+tools:
+  github:
+    toolsets: [repos, issues]
+  bash:
+    allowed: [read, list]
+
+# shared/advanced-tools.md - Extended capabilities
+imports:
+  - base-tools.md  # Nested import
+tools:
+  web-fetch: {}
+  web-search: {}
+
+# workflow.md - Specific needs
+imports:
+  - shared/advanced-tools.md
+tools:
+  bash:
+    allowed: [write]  # Extends base
+```
+
+### ❌ Avoid: Assuming Permission Inheritance
+
+```yaml wrap
+# shared.md
+permissions:
+  contents: read
+  issues: write
+
+# main.md
+on: issues
+imports:
+  - shared.md
+# ERROR: Permissions not automatically inherited
+```
+
+**Fix**: Explicitly declare all required permissions in main workflow:
+
+```yaml wrap
+on: issues
+imports:
+  - shared.md
+permissions:
+  contents: read
+  issues: write
+```
+
+### ✅ Best Practice: Use Semantic Versioning for Stability
+
+```yaml wrap
+# Development workflow - uses latest
+imports:
+  - acme-org/shared/tools.md@main
+
+# Production workflow - uses stable version
+imports:
+  - acme-org/shared/tools.md@v2.1.0
+```
+
+### ❌ Avoid: Deeply Nested Import Chains
+
+```yaml wrap
+# Creates brittle dependency chain
+workflow.md → shared-a.md → shared-b.md → shared-c.md → shared-d.md
+```
+
+**Fix**: Flatten structure and use direct imports:
+
+```yaml wrap
+workflow.md → shared-tools.md
+            → shared-config.md
+            → shared-mcp.md
+```
+
 ## Related Documentation
 
 - [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to managing workflow imports
