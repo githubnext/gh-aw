@@ -7,7 +7,15 @@ on:
     - cron: "0 7 * * 1-5"
   workflow_dispatch:
 
-permissions: read-all
+# Minimal permissions: only what's needed for the workflow
+# - contents: read - to read repository files and analyze workflows
+# - issues: read - required by GitHub toolsets (default includes issues)
+# - pull-requests: read - required by GitHub toolsets (default includes pull_requests)
+# Note: PR creation handled by safe-outputs job with its own write permissions
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 
 tracker-id: layout-spec-maintainer
 engine: copilot

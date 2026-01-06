@@ -80,7 +80,27 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	// Add gateway configuration if MCP gateway is enabled
 	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.MCP != nil {
 		copilotMCPLog.Print("MCP gateway is enabled, adding gateway config to MCP config")
-		options.GatewayConfig = workflowData.SandboxConfig.MCP
+
+		// Copy the gateway config to avoid modifying the original
+		gatewayConfig := *workflowData.SandboxConfig.MCP
+
+		// Set the domain based on whether sandbox.agent is enabled
+		// If no domain is explicitly configured, determine it based on firewall status
+		if gatewayConfig.Domain == "" {
+			// Check if sandbox.agent is enabled (firewall running)
+			// When firewall is running, awmg runs in a container and needs host.docker.internal
+			// When firewall is disabled, awmg runs on host and uses localhost
+			isFirewallEnabled := !isFirewallDisabledBySandboxAgent(workflowData)
+			if isFirewallEnabled {
+				gatewayConfig.Domain = "host.docker.internal"
+				copilotMCPLog.Print("Firewall enabled: using host.docker.internal for gateway domain")
+			} else {
+				gatewayConfig.Domain = "localhost"
+				copilotMCPLog.Print("Firewall disabled: using localhost for gateway domain")
+			}
+		}
+
+		options.GatewayConfig = &gatewayConfig
 	}
 
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, options)
