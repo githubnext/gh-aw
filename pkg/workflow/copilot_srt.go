@@ -234,6 +234,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	stepLines := []string{
 		"      - name: Firewall summary",
 		"        if: always()",
+		"        continue-on-error: true",
 		"        run: awf logs summary >> $GITHUB_STEP_SUMMARY",
 	}
 

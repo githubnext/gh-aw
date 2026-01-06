@@ -1294,6 +1294,7 @@ jobs:
             await main();
       - name: Firewall summary
         if: always()
+        continue-on-error: true
         run: awf logs summary >> $GITHUB_STEP_SUMMARY
       # Upload repo memory as artifacts for push job
       - name: Upload repo-memory artifact (campaigns)
