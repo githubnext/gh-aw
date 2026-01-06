@@ -10,6 +10,35 @@ import (
 
 var safeOutputsDomainsValidationLog = logger.New("workflow:safe_outputs_domains_validation")
 
+// validateNetworkAllowedDomains validates the allowed domains in network configuration
+func validateNetworkAllowedDomains(network *NetworkPermissions) error {
+	if network == nil || len(network.Allowed) == 0 {
+		return nil
+	}
+
+	safeOutputsDomainsValidationLog.Printf("Validating %d network allowed domains", len(network.Allowed))
+
+	for i, domain := range network.Allowed {
+		// Skip ecosystem identifiers - they don't need domain pattern validation
+		if isEcosystemIdentifier(domain) {
+			continue
+		}
+
+		if err := validateDomainPattern(domain); err != nil {
+			return fmt.Errorf("network.allowed[%d]: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+// isEcosystemIdentifier checks if a domain string is actually an ecosystem identifier
+func isEcosystemIdentifier(domain string) bool {
+	// Ecosystem identifiers don't contain dots and don't have protocol prefixes
+	// They are simple identifiers like "defaults", "node", "python", etc.
+	return !strings.Contains(domain, ".") && !strings.Contains(domain, "://")
+}
+
 // domainPattern validates domain patterns including wildcards
 // Valid patterns:
 // - Plain domains: github.com, api.github.com
@@ -42,6 +71,14 @@ func validateDomainPattern(domain string) error {
 	// Check for empty domain
 	if domain == "" {
 		return fmt.Errorf("domain cannot be empty")
+	}
+
+	// Check for invalid protocol prefixes
+	// Only http:// and https:// are allowed
+	if strings.Contains(domain, "://") {
+		if !strings.HasPrefix(domain, "https://") && !strings.HasPrefix(domain, "http://") {
+			return fmt.Errorf("domain pattern '%s' has invalid protocol, only 'http://' and 'https://' are allowed", domain)
+		}
 	}
 
 	// Strip protocol prefix if present (http:// or https://)
