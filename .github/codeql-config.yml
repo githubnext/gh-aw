@@ -1,0 +1,11 @@
+name: "CodeQL Configuration"
+
+# Paths to exclude from CodeQL analysis
+paths-ignore:
+  # Exclude compiled workflow files (.lock.yml) as they are generated files
+  # and can contain extremely long lines that cause StackOverflow errors
+  # in CodeQL's regex pattern matching. These files are compiled outputs
+  # from source .md files and don't need security scanning.
+  - '**/*.lock.yml'
+  - '.github/workflows/**/*.lock.yml'
+
