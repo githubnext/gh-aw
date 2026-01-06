@@ -97,7 +97,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.ClosePullRequests != nil ||
 		data.SafeOutputs.MarkPullRequestAsReadyForReview != nil ||
 		data.SafeOutputs.HideComment != nil ||
-		data.SafeOutputs.DispatchWorkflow != nil
+		data.SafeOutputs.DispatchWorkflow != nil ||
+		data.SafeOutputs.CreateCodeScanningAlerts != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
