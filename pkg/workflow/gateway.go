@@ -152,23 +152,25 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 			"            curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-awmg.sh -o /tmp/install-awmg.sh",
 			"            chmod +x /tmp/install-awmg.sh",
 			"            ",
-			"            # Detect release tag from GITHUB_REF at runtime",
-			"            RELEASE_TAG=\"\"",
-			"            if [[ \"$GITHUB_REF\" == refs/tags/* ]]; then",
-			"              RELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"",
-			"              echo \"Detected release tag: $RELEASE_TAG\"",
-			"            else",
-			"              echo 'No release tag detected, will use latest release'",
-			"            fi",
-			"            ",
-			"            # Run install script with version if available",
-			"            if [ -n \"$RELEASE_TAG\" ]; then",
-			"              echo \"Downloading awmg for release tag: $RELEASE_TAG\"",
-			"              /tmp/install-awmg.sh \"$RELEASE_TAG\"",
-			"            else",
-			"              echo 'Downloading latest awmg release'",
-			"              /tmp/install-awmg.sh",
-			"            fi",
+		)
+
+		// Use the release tag from the CLI version if this is a release build
+		version := GetVersion()
+		if IsRelease() && version != "" && version != "dev" {
+			gatewayLog.Printf("Using CLI release version: %s", version)
+			stepLines = append(stepLines,
+				"            # Download awmg for CLI release version: "+version,
+				fmt.Sprintf("            /tmp/install-awmg.sh %s", version),
+			)
+		} else {
+			gatewayLog.Print("CLI is not a release build, downloading latest awmg")
+			stepLines = append(stepLines,
+				"            # Download latest awmg release (CLI is not a release build)",
+				"            /tmp/install-awmg.sh",
+			)
+		}
+
+		stepLines = append(stepLines,
 			"            ",
 			"            # Set AWMG_CMD to installed binary location",
 			"            if [ -f \"$HOME/.local/bin/awmg\" ]; then",
