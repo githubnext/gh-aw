@@ -183,6 +183,44 @@ Examples:
 	validateCmd.Flags().Bool("strict", true, "Exit with non-zero status if any problems are found")
 	cmd.AddCommand(validateCmd)
 
+	// Subcommand: campaign improvements
+	improvementsCmd := &cobra.Command{
+		Use:   "improvements",
+		Short: "Analyze which campaign improvements have been implemented",
+		Long: `Analyze the current campaign implementation to determine which improvements
+from the improvements guide have been implemented.
+
+This command checks for implementation of five key improvements:
+  1. Summarized Campaign Reports (High Priority)
+  2. Campaign Learning System (Medium Priority)
+  3. Enhanced Metrics Integration (High Priority)
+  4. Campaign Retrospectives (Medium Priority)
+  5. Cross-Campaign Analytics (Low Priority)
+
+Each improvement is classified as:
+  • Implemented - Feature is fully implemented
+  • Partial - Some components exist but feature is incomplete
+  • Not Implemented - Feature has not been started
+
+See https://githubnext.github.io/gh-aw/guides/campaigns/improvements/
+for detailed improvement descriptions.
+
+Examples:
+  ` + string(constants.CLIExtensionPrefix) + ` campaign improvements       # Show improvement status
+  ` + string(constants.CLIExtensionPrefix) + ` campaign improvements --json # JSON output
+  ` + string(constants.CLIExtensionPrefix) + ` campaign improvements -v     # Verbose output with evidence`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			jsonOutput, _ := cmd.Flags().GetBool("json")
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			return runImprovementsAnalysis(jsonOutput, verbose)
+		},
+	}
+
+	improvementsCmd.Flags().Bool("json", false, "Output improvements analysis in JSON format")
+	improvementsCmd.Flags().BoolP("verbose", "v", false, "Show evidence for each improvement status")
+	cmd.AddCommand(improvementsCmd)
+
 	return cmd
 }
 
@@ -321,6 +359,65 @@ func runValidate(pattern string, jsonOutput bool, strict bool) error {
 
 	if strict && totalProblems > 0 {
 		return fmt.Errorf("campaign validation failed: %d problem(s) found across %d campaign(s)", totalProblems, len(results))
+	}
+
+	return nil
+}
+
+// runImprovementsAnalysis analyzes which campaign improvements have been implemented.
+func runImprovementsAnalysis(jsonOutput bool, verbose bool) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %w", err)
+	}
+
+	specs, err := LoadSpecs(cwd)
+	if err != nil {
+		return err
+	}
+
+	analysis, err := AnalyzeImprovements(cwd, specs)
+	if err != nil {
+		return fmt.Errorf("failed to analyze improvements: %w", err)
+	}
+
+	if jsonOutput {
+		jsonBytes, err := json.MarshalIndent(analysis, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal improvements analysis as JSON: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
+	}
+
+	// Print summary
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Campaign Improvements Analysis"))
+	fmt.Fprintf(os.Stderr, "\nTotal Improvements: %d\n", analysis.TotalImprovements)
+	fmt.Fprintf(os.Stderr, "Implementation Progress: %.1f%%\n\n", analysis.ImplementationProgress)
+
+	// Print status breakdown
+	fmt.Fprintf(os.Stderr, "Status Breakdown:\n")
+	fmt.Fprintf(os.Stderr, "  ✓ Implemented:     %d\n", analysis.ImplementedCount)
+	fmt.Fprintf(os.Stderr, "  ◐ Partial:         %d\n", analysis.PartialCount)
+	fmt.Fprintf(os.Stderr, "  ✗ Not Implemented: %d\n\n", analysis.NotImplementedCount)
+
+	// Print improvement details as a table
+	output := console.RenderStruct(analysis.Improvements)
+	fmt.Print(output)
+
+	// Print evidence if verbose
+	if verbose {
+		fmt.Fprintln(os.Stderr, "\nEvidence:")
+		for _, imp := range analysis.Improvements {
+			fmt.Fprintf(os.Stderr, "\n%d. %s:\n", imp.ID, imp.Name)
+			if len(imp.Evidence) == 0 {
+				fmt.Fprintln(os.Stderr, "  No evidence found")
+			} else {
+				for _, ev := range imp.Evidence {
+					fmt.Fprintf(os.Stderr, "  • %s\n", ev)
+				}
+			}
+		}
 	}
 
 	return nil
