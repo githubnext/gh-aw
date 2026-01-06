@@ -40,6 +40,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var bundlerSafetyLog = logger.New("workflow:bundler_safety_validation")
@@ -184,7 +185,7 @@ func ValidateEmbeddedResourceRequires(sources map[string]string) error {
 			}
 
 			// Normalize the path (remove ./ and ../)
-			resolvedPath = normalizePath(resolvedPath)
+			resolvedPath = stringutil.NormalizePath(resolvedPath)
 
 			// Check if the required file exists in sources
 			if _, ok := sources[resolvedPath]; !ok {
@@ -206,28 +207,4 @@ func ValidateEmbeddedResourceRequires(sources map[string]string) error {
 
 	bundlerSafetyLog.Printf("Validation successful: all local requires are available in sources")
 	return nil
-}
-
-// normalizePath normalizes a file path by resolving . and .. components
-func normalizePath(path string) string {
-	// Split path into parts
-	parts := strings.Split(path, "/")
-	var result []string
-
-	for _, part := range parts {
-		if part == "" || part == "." {
-			// Skip empty parts and current directory references
-			continue
-		}
-		if part == ".." {
-			// Go up one directory
-			if len(result) > 0 {
-				result = result[:len(result)-1]
-			}
-		} else {
-			result = append(result, part)
-		}
-	}
-
-	return strings.Join(result, "/")
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // SafeInputsToolJSON represents a tool configuration for the tools.json file
@@ -201,7 +202,7 @@ func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) stri
 	if len(toolConfig.Inputs) > 0 {
 		var paramNames []string
 		for paramName := range toolConfig.Inputs {
-			safeName := sanitizeParameterName(paramName)
+			safeName := stringutil.SanitizeParameterName(paramName)
 			if safeName != paramName {
 				// If sanitized, use alias
 				paramNames = append(paramNames, fmt.Sprintf("%s: %s", paramName, safeName))
@@ -275,7 +276,7 @@ func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 				defaultValue = fmt.Sprintf(", default=%v", param.Default)
 			}
 			fmt.Fprintf(&sb, "# %s = inputs.get('%s'%s)  # %s\n",
-				sanitizePythonVariableName(paramName), paramName, defaultValue, param.Description)
+				stringutil.SanitizePythonVariableName(paramName), paramName, defaultValue, param.Description)
 		}
 		sb.WriteString("\n")
 	}
@@ -328,7 +329,7 @@ func generateSafeInputGoToolScript(toolConfig *SafeInputToolConfig) string {
 		sort.Strings(inputNames)
 		for _, paramName := range inputNames {
 			param := toolConfig.Inputs[paramName]
-			fmt.Fprintf(&sb, "\t// %s := inputs[\"%s\"]  // %s\n", sanitizePythonVariableName(paramName), paramName, param.Description)
+			fmt.Fprintf(&sb, "\t// %s := inputs[\"%s\"]  // %s\n", stringutil.SanitizePythonVariableName(paramName), paramName, param.Description)
 		}
 		sb.WriteString("\n")
 	}
