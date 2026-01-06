@@ -88,7 +88,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 				StepName:        "Copilot Step",
 				StepID:          "copilot",
 				Script:          "console.log('test');",
-				Token:           "${{ secrets.COPILOT_TOKEN }}",
+				Token:           "${{ secrets.COPILOT_GITHUB_TOKEN }}",
 				UseCopilotToken: true,
 			},
 			checkContains: []string{
@@ -445,7 +445,7 @@ func TestGitHubTokenPrecedence(t *testing.T) {
 			name:              "copilot token",
 			useAgentToken:     false,
 			useCopilotToken:   true,
-			token:             "${{ secrets.COPILOT_TOKEN }}",
+			token:             "${{ secrets.COPILOT_GITHUB_TOKEN }}",
 			expectedInContent: "github-token:",
 		},
 		{

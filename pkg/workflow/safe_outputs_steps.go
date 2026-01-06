@@ -63,7 +63,7 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 // addCustomActionGitHubToken adds a GitHub token as action input.
 // The token precedence depends on the tokenType flags:
 // - UseAgentToken: customToken > GH_AW_AGENT_TOKEN
-// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > COPILOT_TOKEN || GITHUB_TOKEN
+// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > COPILOT_GITHUB_TOKEN || GH_AW_GITHUB_TOKEN
 // - Default: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GITHUB_TOKEN
 func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string, useAgentToken, useCopilotToken bool) {
 	token := customToken
@@ -83,9 +83,9 @@ func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowDat
 		if token == "" {
 			if useCopilotToken {
 				// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
-				// "${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}" that GitHub Actions runtime substitutes
+				// "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}" that GitHub Actions runtime substitutes
 				// with the actual secret value at workflow execution time. The string is a placeholder, not a credential.
-				token = "${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}" // #nosec G101
+				token = "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}" // #nosec G101
 			} else {
 				// Standard mode: use safe output token chain (data.GitHubToken, then GITHUB_TOKEN)
 				token = getEffectiveSafeOutputGitHubToken("", data.GitHubToken)
