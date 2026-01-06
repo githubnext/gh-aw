@@ -211,13 +211,13 @@ func TestMissingToolConfigParsing(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name             string
-		configData       map[string]any
-		expectMax        int
+		name              string
+		configData        map[string]any
+		expectMax         int
 		expectCreateIssue bool
 		expectTitlePrefix string
-		expectLabels     []string
-		expectError      bool
+		expectLabels      []string
+		expectError       bool
 	}{
 		{
 			name:              "Empty config - defaults",
