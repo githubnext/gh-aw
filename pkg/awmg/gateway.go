@@ -405,7 +405,7 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	if port == 0 {
 		port = 8080
 	}
-	
+
 	// Determine the domain for the gateway URL
 	// Use the configured domain, or default to localhost
 	domain := config.Gateway.Domain
@@ -413,7 +413,7 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 		domain = "localhost"
 		gatewayLog.Print("No domain configured, defaulting to localhost")
 	}
-	
+
 	// Use configured domain since the rewritten config is consumed by Copilot CLI
 	// Domain is either localhost (firewall disabled) or host.docker.internal (firewall enabled)
 	gatewayURL := fmt.Sprintf("http://%s:%d", domain, port)

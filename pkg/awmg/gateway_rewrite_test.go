@@ -302,9 +302,9 @@ func TestRewriteMCPConfigForGateway_NoGatewaySection(t *testing.T) {
 // field from the gateway config is used when rewriting server URLs
 func TestRewriteMCPConfigForGateway_UsesDomainFromConfig(t *testing.T) {
 	tests := []struct {
-		name           string
-		domain         string
-		expectedURL    string
+		name        string
+		domain      string
+		expectedURL string
 	}{
 		{
 			name:        "host.docker.internal domain",
@@ -396,4 +396,3 @@ func TestRewriteMCPConfigForGateway_UsesDomainFromConfig(t *testing.T) {
 		})
 	}
 }
-
