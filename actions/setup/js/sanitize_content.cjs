@@ -11,9 +11,12 @@ const {
   clearRedactedDomains,
   writeRedactedDomainsLog,
   buildAllowedDomains,
+  buildAllowedGitHubReferences,
+  getCurrentRepoSlug,
   sanitizeUrlProtocols,
   sanitizeUrlDomains,
   neutralizeCommands,
+  neutralizeGitHubReferences,
   removeXmlComments,
   convertXmlTags,
   neutralizeBotTriggers,
@@ -62,6 +65,9 @@ function sanitizeContent(content, maxLengthOrOptions) {
   // Build list of allowed domains (shared with core)
   const allowedDomains = buildAllowedDomains();
 
+  // Build list of allowed GitHub references from environment
+  const allowedGitHubRefs = buildAllowedGitHubReferences();
+
   let sanitized = content;
 
   // Remove ANSI escape sequences and control characters early
@@ -86,6 +92,9 @@ function sanitizeContent(content, maxLengthOrOptions) {
 
   // Apply truncation limits (shared with core)
   sanitized = applyTruncation(sanitized, maxLength);
+
+  // Neutralize GitHub references if restrictions are configured
+  sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
 
   // Neutralize bot triggers
   sanitized = neutralizeBotTriggers(sanitized);
