@@ -1,11 +1,5 @@
 package cli
 
-import (
-	"github.com/githubnext/gh-aw/pkg/logger"
-)
-
-var runLog = logger.New("cli:run_command")
-
 // This file now serves as a compatibility bridge.
 // The main functionality has been refactored into:
 // - run_workflow_validation.go: Input validation, workflow checks (IsRunnable, validateWorkflowInputs, validateRemoteWorkflow)

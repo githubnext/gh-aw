@@ -7,11 +7,8 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
-
-var trackingLog = logger.New("cli:run_workflow_tracking")
 
 // WorkflowRunInfo contains information about a workflow run
 type WorkflowRunInfo struct {
