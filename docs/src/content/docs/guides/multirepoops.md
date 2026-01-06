@@ -178,12 +178,12 @@ engine:
   id: custom
   steps:
     - name: Checkout main repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         path: main-repo
 
     - name: Checkout secondary repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: org/secondary-repo
         token: ${{ secrets.CROSS_REPO_PAT }}

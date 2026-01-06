@@ -173,7 +173,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_pull_request":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -454,6 +454,27 @@ jobs:
           - **Repository**: __GH_AW_GITHUB_REPOSITORY__
           - **Run Date**: $(date +%Y-%m-%d)
           - **Target File**: `specs/ubuntulatest.md`
+          
+          ## Tools Usage Guide
+          
+          **IMPORTANT**: Different tools must be used for different operations:
+          
+          ### GitHub MCP Tools (Read-Only)
+          Use these tools to read data from GitHub:
+          - `list_workflow_runs` - List workflow runs to find logs
+          - `get_job_logs` - Download workflow logs
+          - `get_file_contents` - Read files from GitHub repositories
+          
+          **Note**: GitHub MCP is in READ-ONLY mode. Do NOT attempt to create, update, or modify GitHub resources (issues, PRs, etc.) using GitHub MCP tools.
+          
+          ### File Editing Tools
+          Use these tools to create or modify local files:
+          - `write` tool - Create new files
+          - `edit` tool - Modify existing files
+          
+          ### Safe-Outputs Tools (GitHub Write Operations)
+          Use these tools to create GitHub resources:
+          - `create_pull_request` - Create pull requests (this is the ONLY way to create PRs in this workflow)
           
           ## Task Steps
           
@@ -797,9 +818,11 @@ jobs:
           
           ### 5. Create Pull Request
           
-          After creating or updating `specs/ubuntulatest.md`:
+          **CRITICAL**: After creating or updating `specs/ubuntulatest.md`, you MUST use the safe-outputs tool to create a pull request.
           
-          1. Use the **safe-outputs create-pull-request** to submit changes
+          **DO NOT** attempt to create a pull request using GitHub MCP tools - they are in read-only mode and will fail.
+          
+          1. Use the **safe-outputs `create_pull_request` tool** (this is the ONLY way to create PRs)
           2. Include a clear PR description:
           
           ```markdown
@@ -891,11 +914,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/tmp/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/tmp/gh-aw/prompts/edit_tool_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

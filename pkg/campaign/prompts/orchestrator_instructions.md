@@ -124,7 +124,7 @@ and synchronizing campaign state into a GitHub Project board.
        status: "In Progress"
        campaign_id: "{{.CampaignID}}"
        worker_workflow: "unknown"
-       repo: "<OWNER/REPO>"
+       repository: "<OWNER/REPO>"
        priority: "High"
        size: "Large"
        start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
@@ -191,9 +191,84 @@ and synchronizing campaign state into a GitHub Project board.
 
 10) Record per-item outcome: success/failure + error details.
 
-### Phase 4 — Report
+### Phase 4 — Report & Status Update
 
-11) Report:
+11) **REQUIRED: Create a project status update summarizing this run**
+
+Every campaign run MUST create a status update using `create-project-status-update` safe output. This is the primary communication mechanism for conveying campaign progress to stakeholders.
+
+**Required Sections:**
+
+- **Most Important Findings**: Highlight the 2-3 most critical discoveries, insights, or blockers from this run
+- **What Was Learned**: Document key learnings, patterns observed, or insights gained during this run
+- **KPI Trends**: Report progress on EACH campaign KPI{{ if .KPIs }} ({{ range $i, $kpi := .KPIs }}{{if $i}}, {{end}}{{ $kpi.Name }}{{end}}){{ end }} with baseline → current → target format, including direction and velocity
+- **Campaign Summary**: Tasks completed, in progress, blocked, and overall completion percentage
+- **Next Steps**: Clear action items and priorities for the next run
+
+**Configuration:**
+- Set appropriate status: ON_TRACK, AT_RISK, OFF_TRACK, or COMPLETE
+- Use today's date for start_date and target_date (or appropriate future date for target)
+- Body must be comprehensive yet concise (target: 200-400 words)
+
+{{ if .KPIs }}
+**Campaign KPIs to Report:**
+{{ range .KPIs }}
+- **{{ .Name }}**{{ if .Priority }} ({{ .Priority }}){{ end }}: baseline {{ .Baseline }}{{ if .Unit }} {{ .Unit }}{{ end }} → target {{ .Target }}{{ if .Unit }} {{ .Unit }}{{ end }} over {{ .TimeWindowDays }} days{{ if .Direction }} ({{ .Direction }}){{ end }}
+{{ end }}
+{{ end }}
+
+Example status update:
+```yaml
+create-project-status-update:
+  project: "{{.ProjectURL}}"
+  status: "ON_TRACK"
+  start_date: "2026-01-06"
+  target_date: "2026-01-31"
+  body: |
+    ## Campaign Run Summary
+
+    **Discovered:** 25 items (15 issues, 10 PRs)
+    **Processed:** 10 items added to project, 5 updated
+    **Completion:** 60% (30/50 total tasks)
+
+    ## Most Important Findings
+
+    1. **Critical accessibility gaps identified**: 3 high-severity accessibility issues discovered in mobile navigation, requiring immediate attention
+    2. **Documentation coverage acceleration**: Achieved 5% improvement in one week (best velocity so far)
+    3. **Worker efficiency improving**: daily-doc-updater now processing 40% more items per run
+
+    ## What Was Learned
+
+    - Multi-device testing reveals issues that desktop-only testing misses - should be prioritized
+    - Documentation updates tied to code changes have higher accuracy and completeness
+    - Users report fewer issues when examples include error handling patterns
+
+    ## KPI Trends
+
+    **Documentation Coverage** (Primary KPI):
+    - Baseline: 85% → Current: 88% → Target: 95%
+    - Direction: ↑ Increasing (+3% this week, +1% velocity/week)
+    - Status: ON TRACK - At current velocity, will reach 95% in 7 weeks
+
+    **Accessibility Score** (Supporting KPI):
+    - Baseline: 90% → Current: 91% → Target: 98%
+    - Direction: ↑ Increasing (+1% this month)
+    - Status: AT RISK - Slower progress than expected, may need dedicated focus
+
+    **User-Reported Issues** (Supporting KPI):
+    - Baseline: 15/month → Current: 12/month → Target: 5/month
+    - Direction: ↓ Decreasing (-3 this month, -20% velocity)
+    - Status: ON TRACK - Trending toward target
+
+    ## Next Steps
+
+    1. Address 3 critical accessibility issues identified this run (high priority)
+    2. Continue processing remaining 15 discovered items
+    3. Focus on accessibility improvements to accelerate supporting KPI
+    4. Maintain current documentation coverage velocity
+```
+
+12) Report:
 - counts discovered (by type)
 - counts processed this run (by action: add/status_update/backfill/noop/failed)
 - counts deferred due to budgets

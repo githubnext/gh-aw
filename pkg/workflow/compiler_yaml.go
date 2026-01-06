@@ -276,9 +276,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add playwright output directory instructions if playwright tool is enabled
 	c.generatePlaywrightPromptStep(yaml, data)
 
-	// Add edit tool accessibility instructions if edit tool is enabled
-	c.generateEditToolPromptStep(yaml, data)
-
 	// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 	// if len(trialTargetRepoName) == 2 {
 	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))

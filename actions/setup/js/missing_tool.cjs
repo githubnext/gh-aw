@@ -9,10 +9,17 @@ async function main() {
   // Get environment variables
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
   const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
+  const createIssue = process.env.GH_AW_MISSING_TOOL_CREATE_ISSUE === "true";
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
 
   core.info("Processing missing-tool reports...");
   if (maxReports) {
     core.info(`Maximum reports allowed: ${maxReports}`);
+  }
+  if (createIssue) {
+    core.info(`Issue creation enabled - will output create_missing_tool_issue message`);
   }
 
   /** @type {any[]} */
@@ -128,6 +135,42 @@ async function main() {
     });
 
     core.summary.write();
+
+    // If issue creation is enabled, append a create_missing_tool_issue message to the output
+    if (createIssue) {
+      const runId = context.runId;
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+      // Append to the validated output file so the safe outputs handler can pick it up
+      const createIssueMessage = {
+        type: "create_missing_tool_issue",
+        workflow_name: workflowName,
+        workflow_source: workflowSource,
+        workflow_source_url: workflowSourceURL,
+        run_url: runUrl,
+        missing_tools: missingTools,
+      };
+
+      core.info(`Appending create_missing_tool_issue message to agent output`);
+
+      try {
+        // Read current validated output
+        const currentOutput = JSON.parse(agentOutput);
+
+        // Append the new message
+        if (!currentOutput.items) {
+          currentOutput.items = [];
+        }
+        currentOutput.items.push(createIssueMessage);
+
+        // Write back to the file
+        fs.writeFileSync(agentOutputFile, JSON.stringify(currentOutput, null, 2));
+        core.info(`✓ Appended create_missing_tool_issue message to ${agentOutputFile}`);
+      } catch (error) {
+        core.warning(`Failed to append create_missing_tool_issue message: ${getErrorMessage(error)}`);
+      }
+    }
   } else {
     core.info("No missing tools reported in this workflow execution.");
     core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();

@@ -56,6 +56,8 @@ Most safe output types support cross-repository operations. Exceptions are noted
 ### Projects, Releases & Assets
 
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) — Manage GitHub Projects boards (max: 10, same-repo only)
+- [**Copy Project**](#project-board-copy-copy-project) (`copy-project`) — Copy GitHub Projects boards (max: 1, cross-repo)
+- [**Create Project Status Update**](#project-status-updates-create-project-status-update) (`create-project-status-update`) — Create project status updates
 - [**Update Release**](#release-updates-update-release) (`update-release`) — Update GitHub release descriptions (max: 1)
 - [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) — Upload files to orphaned git branch (max: 10, same-repo only)
 
@@ -286,6 +288,118 @@ fields:
 :::note
 Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
 :::
+
+
+
+### Project Board Copy (`copy-project:`)
+
+Copies GitHub Projects v2 boards to create new projects with the same structure, fields, and views. Useful for duplicating project templates or migrating projects between organizations. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access.
+
+```yaml wrap
+safe-outputs:
+  copy-project:
+    max: 1                          # max operations (default: 1)
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    source-project: "https://github.com/orgs/myorg/projects/42"  # default source (optional)
+    target-owner: "myorg"           # default target owner (optional)
+```
+
+The `source-project` and `target-owner` fields are optional defaults. When configured, the agent can omit these fields in tool calls, and the defaults will be used. The agent can still override these defaults by providing explicit values.
+
+**Without defaults** (agent must provide all fields):
+```javascript
+copy_project({
+  sourceProject: "https://github.com/orgs/myorg/projects/42",
+  owner: "myorg",
+  title: "Q1 Sprint Template",
+  includeDraftIssues: false  // Optional, default: false
+});
+```
+
+**With defaults configured** (agent only needs to provide title):
+```javascript
+copy_project({
+  title: "Q1 Sprint Template"
+  // sourceProject and owner use configured defaults
+  // Can still override: sourceProject: "...", owner: "..."
+});
+```
+
+Optionally include `includeDraftIssues: true` to copy draft issues (default: false). Exposes outputs: `project-id`, `project-title`, `project-url`.
+
+:::note
+Custom fields, views, and workflows are copied. Draft issues are excluded by default but can be included by setting `includeDraftIssues: true`.
+:::
+
+
+### Project Status Updates (`create-project-status-update:`)
+
+Creates status updates on GitHub Projects boards to communicate campaign progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access.
+
+```yaml wrap
+safe-outputs:
+  create-project-status-update:
+    max: 1                          # max updates per run (default: 1)
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+```
+
+Agent provides full project URL, status update body (markdown), status indicator, and date fields. Typically used by [Campaign Workflows](/gh-aw/guides/campaigns/) to automatically post run summaries.
+
+#### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `project` | URL | Full GitHub project URL (e.g., `https://github.com/orgs/myorg/projects/73`) |
+| `body` | Markdown | Status update content with campaign summary, findings, and next steps |
+
+#### Optional Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `status` | Enum | `ON_TRACK` | Status indicator: `ON_TRACK`, `AT_RISK`, `OFF_TRACK`, `COMPLETE`, `INACTIVE` |
+| `start_date` | Date | Today | Run start date (format: `YYYY-MM-DD`) |
+| `target_date` | Date | Today | Projected completion or milestone date (format: `YYYY-MM-DD`) |
+
+#### Example Usage
+
+```yaml
+create-project-status-update:
+  project: "https://github.com/orgs/myorg/projects/73"
+  status: "ON_TRACK"
+  start_date: "2026-01-06"
+  target_date: "2026-01-31"
+  body: |
+    ## Campaign Run Summary
+
+    **Discovered:** 25 items (15 issues, 10 PRs)
+    **Processed:** 10 items added to project, 5 updated
+    **Completion:** 60% (30/50 total tasks)
+
+    ### Key Findings
+    - Documentation coverage improved to 88%
+    - 3 critical accessibility issues identified
+    - Worker velocity: 1.2 items/day
+
+    ### Trends
+    - Velocity stable at 8-10 items/week
+    - Blocked items decreased from 5 to 2
+    - On track for end-of-month completion
+
+    ### Next Steps
+    - Continue processing remaining 15 items
+    - Address 2 blocked items in next run
+    - Target 95% documentation coverage by end of month
+```
+
+#### Status Indicators
+
+- **`ON_TRACK`**: Campaign progressing as planned, meeting velocity targets
+- **`AT_RISK`**: Potential issues identified (blocked items, slower velocity, dependencies)
+- **`OFF_TRACK`**: Campaign behind schedule, requires intervention or re-planning
+- **`COMPLETE`**: All campaign objectives met, no further work needed
+- **`INACTIVE`**: Campaign paused or not actively running
+
+Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 
 ### Pull Request Creation (`create-pull-request:`)
@@ -521,7 +635,29 @@ Auto-sanitization: XML escaped, HTTPS only, domain allowlist (GitHub by default)
 ```yaml wrap
 safe-outputs:
   allowed-domains: [api.github.com]  # GitHub domains always included
+  allowed-github-references: []      # Escape all GitHub references
 ```
+
+**Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`.
+
+**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [SideRepoOps](/gh-aw/guides/siderepoops/) workflows to prevent automation from cluttering your main repository's timeline.
+
+Configuration options:
+- `[]` — Escape all references (prevents all timeline items)
+- `["repo"]` — Allow only the target repository's references
+- `["repo", "owner/other-repo"]` — Allow specific repositories
+- Not specified (default) — All references allowed
+
+Example for clean automation:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape all references
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+With `[]`, references like `#123` become `` `#123` `` and `other/repo#456` becomes `` `other/repo#456` ``, preventing timeline clutter while preserving the information.
 
 ## Global Configuration Options
 

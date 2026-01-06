@@ -72,7 +72,7 @@ type SandboxRuntimeConfig struct {
 // SRTNetworkConfig represents network configuration for SRT
 type SRTNetworkConfig struct {
 	AllowedDomains      []string `yaml:"allowedDomains,omitempty" json:"allowedDomains,omitempty"`
-	DeniedDomains       []string `yaml:"deniedDomains,omitempty" json:"deniedDomains"`
+	BlockedDomains      []string `yaml:"blockedDomains,omitempty" json:"blockedDomains"`
 	AllowUnixSockets    []string `yaml:"allowUnixSockets,omitempty" json:"allowUnixSockets,omitempty"`
 	AllowLocalBinding   bool     `yaml:"allowLocalBinding" json:"allowLocalBinding"`
 	AllowAllUnixSockets bool     `yaml:"allowAllUnixSockets" json:"allowAllUnixSockets"`
@@ -175,7 +175,7 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 	srtConfig := &SandboxRuntimeConfig{
 		Network: &SRTNetworkConfig{
 			AllowedDomains:      allowedDomains,
-			DeniedDomains:       []string{},
+			BlockedDomains:      []string{},
 			AllowUnixSockets:    []string{"/var/run/docker.sock"},
 			AllowLocalBinding:   false,
 			AllowAllUnixSockets: true,

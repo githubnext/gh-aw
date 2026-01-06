@@ -454,9 +454,9 @@ func ValidateWorkflowsExist(spec *CampaignSpec, workflowsDir string) []string {
 		}
 
 		if !mdExists && !lockExists {
-			problems = append(problems, fmt.Sprintf("workflow '%s' not found (expected %s.md or %s.lock.yml)", workflowID, workflowID, workflowID))
+			problems = append(problems, fmt.Sprintf("workflow '%s' not found", workflowID))
 		} else if !mdExists {
-			problems = append(problems, fmt.Sprintf("workflow '%s' has lock file but missing source .md file", workflowID))
+			problems = append(problems, fmt.Sprintf("workflow '%s' missing source .md file", workflowID))
 		}
 	}
 

@@ -204,7 +204,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-copilot-no-firewall"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-copilot-no-firewall"],"max":3},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -440,8 +440,10 @@ jobs:
           PORT=3000
           
           # Set outputs for next steps
-          echo "safe_inputs_api_key=${API_KEY}" >> "$GITHUB_OUTPUT"
-          echo "safe_inputs_port=${PORT}" >> "$GITHUB_OUTPUT"
+          {
+            echo "safe_inputs_api_key=${API_KEY}"
+            echo "safe_inputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
           
           echo "Safe Inputs MCP server will run on port ${PORT}"
           
@@ -720,11 +722,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/tmp/gh-aw/prompts/playwright_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/tmp/gh-aw/prompts/edit_tool_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

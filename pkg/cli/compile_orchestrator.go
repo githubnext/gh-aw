@@ -11,7 +11,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
-	"go.yaml.in/yaml/v3"
+	"github.com/goccy/go-yaml"
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
@@ -100,6 +100,34 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 				updateProjectConfig["github-token"] = data.SafeOutputs.UpdateProjects.GitHubToken
 			}
 			outputs["update-project"] = updateProjectConfig
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			statusUpdateConfig := map[string]any{
+				"max": data.SafeOutputs.CreateProjectStatusUpdates.Max,
+			}
+			// Include github-token if specified
+			if strings.TrimSpace(data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken) != "" {
+				statusUpdateConfig["github-token"] = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
+			}
+			outputs["create-project-status-update"] = statusUpdateConfig
+		}
+		if data.SafeOutputs.CopyProjects != nil {
+			copyProjectConfig := map[string]any{
+				"max": data.SafeOutputs.CopyProjects.Max,
+			}
+			// Include source-project if specified
+			if strings.TrimSpace(data.SafeOutputs.CopyProjects.SourceProject) != "" {
+				copyProjectConfig["source-project"] = data.SafeOutputs.CopyProjects.SourceProject
+			}
+			// Include target-owner if specified
+			if strings.TrimSpace(data.SafeOutputs.CopyProjects.TargetOwner) != "" {
+				copyProjectConfig["target-owner"] = data.SafeOutputs.CopyProjects.TargetOwner
+			}
+			// Include github-token if specified
+			if strings.TrimSpace(data.SafeOutputs.CopyProjects.GitHubToken) != "" {
+				copyProjectConfig["github-token"] = data.SafeOutputs.CopyProjects.GitHubToken
+			}
+			outputs["copy-project"] = copyProjectConfig
 		}
 		if len(outputs) > 0 {
 			payload := map[string]any{"safe-outputs": outputs}

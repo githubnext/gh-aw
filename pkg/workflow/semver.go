@@ -55,7 +55,7 @@ func extractMajorVersion(version string) int {
 	parts := strings.Split(v, ".")
 	if len(parts) > 0 {
 		var major int
-		fmt.Sscanf(parts[0], "%d", &major)
+		_, _ = fmt.Sscanf(parts[0], "%d", &major) // Ignore error, defaults to 0 for non-numeric parts
 		return major
 	}
 

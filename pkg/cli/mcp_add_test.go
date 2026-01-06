@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestAddMCPTool_BasicFunctionality(t *testing.T) {
@@ -566,9 +567,9 @@ func TestCleanMCPToolID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := cleanMCPToolID(tt.input)
+			result := stringutil.SanitizeToolID(tt.input)
 			if result != tt.expected {
-				t.Errorf("cleanMCPToolID(%s) = %s, expected %s", tt.input, result, tt.expected)
+				t.Errorf("stringutil.SanitizeToolID(%s) = %s, expected %s", tt.input, result, tt.expected)
 			}
 		})
 	}

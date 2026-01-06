@@ -48,8 +48,8 @@ tools:
 # Pre-download GitHub data in steps to avoid excessive MCP calls
 # Uses repo-memory to persist data across runs and avoid re-fetching
 steps:
-  - name: Download repository activity data
-    id: download-data
+  - name: Setup directories and check cache
+    id: check-cache
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,149 +77,202 @@ steps:
         echo "ℹ No cached data found, will fetch fresh data"
       fi
       
-      # Use cached data if valid, otherwise fetch fresh data
+      # Use cached data if valid
       if [ "$CACHE_VALID" = true ]; then
         echo "📦 Using cached data from previous run"
         cp -r /tmp/gh-aw/repo-memory/default/daily-news-data/* /tmp/gh-aw/daily-news-data/
         echo "✅ Cached data restored to working directory"
+        echo "cache_valid=true" >> "$GITHUB_OUTPUT"
       else
-        echo "🔄 Fetching fresh data from GitHub API..."
+        echo "🔄 Will fetch fresh data from GitHub API..."
+        echo "cache_valid=false" >> "$GITHUB_OUTPUT"
         
         # Calculate date range (last 30 days)
         END_DATE=$(date -u +%Y-%m-%d)
         START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)
-        
         echo "Fetching data from $START_DATE to $END_DATE"
-        
-        # Fetch issues (open and recently closed)
-        echo "Fetching issues..."
-        gh api graphql -f query="
-          query(\$owner: String!, \$repo: String!) {
-            repository(owner: \$owner, name: \$repo) {
-              openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                nodes {
-                  number
-                  title
-                  state
-                  createdAt
-                  updatedAt
-                  author { login }
-                  labels(first: 10) { nodes { name } }
-                  comments { totalCount }
-                }
-              }
-              closedIssues: issues(first: 100, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                nodes {
-                  number
-                  title
-                  state
-                  createdAt
-                  updatedAt
-                  closedAt
-                  author { login }
-                  labels(first: 10) { nodes { name } }
-                }
-              }
-            }
-          }
-        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
-        
-        # Fetch pull requests (open and recently merged/closed)
-        echo "Fetching pull requests..."
-        gh api graphql -f query="
-          query(\$owner: String!, \$repo: String!) {
-            repository(owner: \$owner, name: \$repo) {
-              openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                nodes {
-                  number
-                  title
-                  state
-                  createdAt
-                  updatedAt
-                  author { login }
-                  additions
-                  deletions
-                  changedFiles
-                  reviews(first: 10) { totalCount }
-                }
-              }
-              mergedPRs: pullRequests(first: 50, states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                nodes {
-                  number
-                  title
-                  state
-                  createdAt
-                  updatedAt
-                  mergedAt
-                  author { login }
-                  additions
-                  deletions
-                }
-              }
-              closedPRs: pullRequests(first: 30, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                nodes {
-                  number
-                  title
-                  state
-                  createdAt
-                  closedAt
-                  author { login }
-                }
-              }
-            }
-          }
-        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
-        
-        # Fetch recent commits (last 100)
-        echo "Fetching commits..."
-        gh api "repos/${GITHUB_REPOSITORY}/commits" \
-          --paginate \
-          --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \
-          > /tmp/gh-aw/daily-news-data/commits.json
-        
-        # Fetch releases
-        echo "Fetching releases..."
-        gh api "repos/${GITHUB_REPOSITORY}/releases" \
-          --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \
-          > /tmp/gh-aw/daily-news-data/releases.json
-        
-        # Fetch discussions
-        echo "Fetching discussions..."
-        gh api graphql -f query="
-          query(\$owner: String!, \$repo: String!) {
-            repository(owner: \$owner, name: \$repo) {
-              discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                nodes {
-                  number
-                  title
-                  createdAt
-                  updatedAt
-                  author { login }
-                  category { name }
-                  comments { totalCount }
-                  url
-                }
-              }
-            }
-          }
-        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
-        
-        # Check for changesets
-        echo "Checking for changesets..."
-        if [ -d ".changeset" ]; then
-          find .changeset -name "*.md" -type f ! -name "README.md" > /tmp/gh-aw/daily-news-data/changesets.txt
-        else
-          echo "No changeset directory" > /tmp/gh-aw/daily-news-data/changesets.txt
-        fi
-        
-        # Cache the freshly downloaded data for next run
-        echo "💾 Caching data for future runs..."
-        cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/repo-memory/default/daily-news-data/
-        date +%s > "$CACHE_TIMESTAMP_FILE"
-        
-        echo "✅ Data download and caching complete"
       fi
-      
+
+  - name: Fetch issues data
+    if: steps.check-cache.outputs.cache_valid != 'true'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -e
+      echo "Fetching issues..."
+      gh api graphql -f query="
+        query(\$owner: String!, \$repo: String!) {
+          repository(owner: \$owner, name: \$repo) {
+            openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                author { login }
+                labels(first: 10) { nodes { name } }
+                comments { totalCount }
+              }
+            }
+            closedIssues: issues(first: 100, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                closedAt
+                author { login }
+                labels(first: 10) { nodes { name } }
+              }
+            }
+          }
+        }
+      " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
+      echo "✅ Issues data fetched"
+
+  - name: Fetch pull requests data
+    if: steps.check-cache.outputs.cache_valid != 'true'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -e
+      echo "Fetching pull requests..."
+      gh api graphql -f query="
+        query(\$owner: String!, \$repo: String!) {
+          repository(owner: \$owner, name: \$repo) {
+            openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                author { login }
+                additions
+                deletions
+                changedFiles
+                reviews(first: 10) { totalCount }
+              }
+            }
+            mergedPRs: pullRequests(first: 50, states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                mergedAt
+                author { login }
+                additions
+                deletions
+              }
+            }
+            closedPRs: pullRequests(first: 30, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                closedAt
+                author { login }
+              }
+            }
+          }
+        }
+      " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
+      echo "✅ Pull requests data fetched"
+
+  - name: Fetch commits data
+    if: steps.check-cache.outputs.cache_valid != 'true'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -e
+      echo "Fetching commits..."
+      gh api "repos/${GITHUB_REPOSITORY}/commits" \
+        --paginate \
+        --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \
+        > /tmp/gh-aw/daily-news-data/commits.json
+      echo "✅ Commits data fetched"
+
+  - name: Fetch releases data
+    if: steps.check-cache.outputs.cache_valid != 'true'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -e
+      echo "Fetching releases..."
+      gh api "repos/${GITHUB_REPOSITORY}/releases" \
+        --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \
+        > /tmp/gh-aw/daily-news-data/releases.json
+      echo "✅ Releases data fetched"
+
+  - name: Fetch discussions data
+    if: steps.check-cache.outputs.cache_valid != 'true'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -e
+      echo "Fetching discussions..."
+      gh api graphql -f query="
+        query(\$owner: String!, \$repo: String!) {
+          repository(owner: \$owner, name: \$repo) {
+            discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                createdAt
+                updatedAt
+                author { login }
+                category { name }
+                comments { totalCount }
+                url
+              }
+            }
+          }
+        }
+      " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
+      echo "✅ Discussions data fetched"
+
+  - name: Check for changesets
+    if: steps.check-cache.outputs.cache_valid != 'true'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -e
+      echo "Checking for changesets..."
+      if [ -d ".changeset" ]; then
+        find .changeset -name "*.md" -type f ! -name "README.md" > /tmp/gh-aw/daily-news-data/changesets.txt
+      else
+        echo "No changeset directory" > /tmp/gh-aw/daily-news-data/changesets.txt
+      fi
+      echo "✅ Changeset check complete"
+
+  - name: Cache downloaded data
+    if: steps.check-cache.outputs.cache_valid != 'true'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -e
+      echo "💾 Caching data for future runs..."
+      cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/repo-memory/default/daily-news-data/
+      date +%s > "/tmp/gh-aw/repo-memory/default/daily-news-data/.timestamp"
+      echo "✅ Data caching complete"
+
+  - name: List downloaded data
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
       find /tmp/gh-aw/daily-news-data/ -maxdepth 1 -ls
 
 imports:
