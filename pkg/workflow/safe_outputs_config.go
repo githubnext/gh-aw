@@ -38,6 +38,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UpdateProjects = updateProjectConfig
 			}
 
+			// Handle copy-project
+			copyProjectConfig := c.parseCopyProjectsConfig(outputMap)
+			if copyProjectConfig != nil {
+				config.CopyProjects = copyProjectConfig
+			}
+
 			// Handle create-project-status-update (project status updates)
 			createProjectStatusUpdateConfig := c.parseCreateProjectStatusUpdateConfig(outputMap)
 			if createProjectStatusUpdateConfig != nil {
