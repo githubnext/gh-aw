@@ -69,3 +69,33 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 		Token:         cfg.GitHubToken,
 	}
 }
+
+// buildCopyProjectStepConfig builds the configuration for copying a project
+func (c *Compiler) buildCopyProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.CopyProjects
+
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+	// Add source-project default if configured
+	if cfg.SourceProject != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COPY_PROJECT_SOURCE: %q\n", cfg.SourceProject))
+	}
+
+	// Add target-owner default if configured
+	if cfg.TargetOwner != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COPY_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
+	}
+
+	condition := BuildSafeOutputType("copy_project")
+
+	return SafeOutputStepConfig{
+		StepName:      "Copy Project",
+		StepID:        "copy_project",
+		ScriptName:    "copy_project",
+		Script:        getCopyProjectScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}

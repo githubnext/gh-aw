@@ -194,6 +194,10 @@ const ExpressionBreakThreshold LineLength = 100
 // DefaultMCPRegistryURL is the default MCP registry URL.
 const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 
+// DefaultCampaignTemplateProjectURL is the default source project URL for copying campaign templates.
+// This points to the githubnext "[TEMPLATE: Agentic Campaign]" project (Project 74).
+const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
+
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
 const DefaultClaudeCodeVersion Version = "2.0.76"
 
@@ -222,13 +226,13 @@ const (
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.77.0"
+const DefaultCodexVersion Version = "0.78.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.27.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.8.1"
+const DefaultFirewallVersion Version = "v0.8.2"
 
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
 const DefaultSandboxRuntimeVersion Version = "0.0.23"
@@ -419,6 +423,7 @@ const StopTimeOkOutput = "stop_time_ok"
 const SkipCheckOkOutput = "skip_check_ok"
 const SkipNoMatchCheckOkOutput = "skip_no_match_check_ok"
 const CommandPositionOkOutput = "command_position_ok"
+const MatchedCommandOutput = "matched_command"
 const ActivatedOutput = "activated"
 
 var AgenticEngines = []string{"claude", "codex", "copilot"}

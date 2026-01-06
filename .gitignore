@@ -47,12 +47,6 @@ Thumbs.db
 /gh-aw-darwin-arm64
 /gh-aw-linux-amd64
 /gh-aw-linux-arm64
-/awmg
-/awmg-darwin-amd64
-/awmg-darwin-arm64
-/awmg-linux-amd64
-/awmg-linux-arm64
-/awmg-windows-amd64.exe
 
 # credentials
 .credentials/
@@ -170,3 +164,4 @@ test-inline-*.lock.yml
 *.txt
 conclusion/
 detection/
+

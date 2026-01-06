@@ -55,9 +55,12 @@ Please use the markitdown MCP server to convert HTML to markdown.
 		t.Fatalf("Failed to parse workflow file: %v", err)
 	}
 
-	// Verify that both github (default) and markitdown tools are recognized
-	if len(workflowData.Tools) != 2 {
-		t.Errorf("Expected 2 tools, got %d", len(workflowData.Tools))
+	// Verify that github (default), edit, bash, and markitdown tools are recognized
+	if len(workflowData.Tools) != 4 {
+		t.Errorf("Expected 4 tools (github, edit, bash, markitdown), got %d", len(workflowData.Tools))
+		for toolName := range workflowData.Tools {
+			t.Logf("  Tool: %s", toolName)
+		}
 	}
 
 	// Verify markitdown tool exists in tools

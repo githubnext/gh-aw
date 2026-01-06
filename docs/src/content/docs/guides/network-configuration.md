@@ -85,13 +85,13 @@ network:
 2. **Use ecosystem identifiers** - Don't list individual domains (use `python` instead of `pypi.org`, `files.pythonhosted.org`, etc.)
 3. **Add incrementally** - Start with `defaults`, add ecosystems as needed based on firewall denials
 
-## Troubleshooting Firewall Denials
+## Troubleshooting Firewall Blocking
 
 View firewall activity with `gh aw logs --run-id <run-id>` to identify blocked domains:
 
 ```text
 🔥 Firewall Log Analysis
-Denied Domains:
+Blocked Domains:
   ✗ registry.npmjs.org:443 (3 requests) → Add `node` ecosystem
   ✗ pypi.org:443 (2 requests) → Add `python` ecosystem
 ```

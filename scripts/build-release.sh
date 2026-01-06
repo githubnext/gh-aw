@@ -47,12 +47,13 @@ for p in "${platforms[@]}"; do
     ext=".exe"
   fi
   
-  echo "Building $p..."
+  echo "Building gh-aw for $p..."
   GOOS="$goos" GOARCH="$goarch" go build \
     -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.isRelease=true" \
     -o "dist/${p}${ext}" \
     ./cmd/gh-aw
+  
 done
 
 echo "Build complete. Binaries:"

@@ -90,10 +90,6 @@ issues:
       path: _test\.go
     - linters:
         - gosec
-      text: "^G204:" # Allow exec.Command in controlled contexts
-      path: pkg/awmg/gateway\.go
-    - linters:
-        - gosec
       text: "^G204:" # Allow docker commands in actionlint
       path: pkg/cli/actionlint\.go
     - linters:

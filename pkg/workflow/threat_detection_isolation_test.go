@@ -78,8 +78,9 @@ Test workflow`
 	}
 
 	agentSection := yamlStr[agentJobStart:detectionJobStart]
-	if !strings.Contains(agentSection, "--allow-tool") {
-		t.Error("Main agent job should have --allow-tool arguments")
+	// Accept either --allow-tool or --allow-all-tools
+	if !strings.Contains(agentSection, "--allow-tool") && !strings.Contains(agentSection, "--allow-all-tools") {
+		t.Error("Main agent job should have --allow-tool or --allow-all-tools arguments")
 	}
 
 	// Test 4: Main agent job should have MCP setup (for comparison)

@@ -400,6 +400,36 @@ safe-outputs:
     target-repo: "my-org/main-repo"
 ```
 
+### Unwanted Timeline Items
+
+If automation creates unwanted cross-references in your main repository's timelines (e.g., `#123` references creating "mentioned in..." entries), use `allowed-github-references` to control reference escaping:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape all references
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+This prevents GitHub from auto-linking issue numbers and creating timeline entries. See [Controlling GitHub References](#controlling-github-references) for details.
+
+## Controlling GitHub References
+
+When workflows create issues or comments in the main repository, GitHub automatically converts text like `#123` or `owner/repo#456` into clickable links. While useful for organic development, these automatic links can clutter the main repository's timeline with unwanted cross-references from automation—a particular concern for SideRepoOps where automation runs from a separate repository.
+
+Use the `allowed-github-references` field to control which repository references are allowed in workflow output. For SideRepoOps, we recommend setting this to an empty array to prevent all timeline clutter:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape all references
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+This escapes references like `#123` to `` `#123` ``, preventing timeline entries while preserving the information. You can also configure it to allow only specific repositories.
+
+See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#security-and-sanitization) for complete configuration options and examples.
+
 ## Advanced Topics
 
 ### Multi-Target SideRepoOps

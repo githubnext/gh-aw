@@ -68,9 +68,9 @@ func TestFirewallLogIntegration(t *testing.T) {
 		t.Errorf("AllowedRequests: got %d, want %d", analysis.AllowedRequests, expectedAllowedRequests)
 	}
 
-	expectedDeniedRequests := 3
-	if analysis.DeniedRequests != expectedDeniedRequests {
-		t.Errorf("DeniedRequests: got %d, want %d", analysis.DeniedRequests, expectedDeniedRequests)
+	expectedBlockedRequests := 3
+	if analysis.BlockedRequests != expectedBlockedRequests {
+		t.Errorf("BlockedRequests: got %d, want %d", analysis.BlockedRequests, expectedBlockedRequests)
 	}
 
 	// Verify allowed domains
@@ -92,20 +92,20 @@ func TestFirewallLogIntegration(t *testing.T) {
 		}
 	}
 
-	// Verify denied domains
-	expectedDeniedDomains := []string{
+	// Verify blocked domains
+	expectedBlockedDomains := []string{
 		"blocked-domain.example.com:443",
 		"denied.malicious.site:443",
 	}
-	if len(analysis.DeniedDomains) != len(expectedDeniedDomains) {
-		t.Errorf("DeniedDomains count: got %d, want %d", len(analysis.DeniedDomains), len(expectedDeniedDomains))
+	if len(analysis.BlockedDomains) != len(expectedBlockedDomains) {
+		t.Errorf("BlockedDomains count: got %d, want %d", len(analysis.BlockedDomains), len(expectedBlockedDomains))
 	}
-	for i, domain := range expectedDeniedDomains {
-		if i >= len(analysis.DeniedDomains) {
+	for i, domain := range expectedBlockedDomains {
+		if i >= len(analysis.BlockedDomains) {
 			break
 		}
-		if analysis.DeniedDomains[i] != domain {
-			t.Errorf("DeniedDomains[%d]: got %q, want %q", i, analysis.DeniedDomains[i], domain)
+		if analysis.BlockedDomains[i] != domain {
+			t.Errorf("BlockedDomains[%d]: got %q, want %q", i, analysis.BlockedDomains[i], domain)
 		}
 	}
 
@@ -115,8 +115,8 @@ func TestFirewallLogIntegration(t *testing.T) {
 		if stats.Allowed != 2 {
 			t.Errorf("api.github.com:443 Allowed: got %d, want 2", stats.Allowed)
 		}
-		if stats.Denied != 0 {
-			t.Errorf("api.github.com:443 Denied: got %d, want 0", stats.Denied)
+		if stats.Blocked != 0 {
+			t.Errorf("api.github.com:443 Blocked: got %d, want 0", stats.Blocked)
 		}
 	} else {
 		t.Error("api.github.com:443 not found in RequestsByDomain")
@@ -127,8 +127,8 @@ func TestFirewallLogIntegration(t *testing.T) {
 		if stats.Allowed != 0 {
 			t.Errorf("blocked-domain.example.com:443 Allowed: got %d, want 0", stats.Allowed)
 		}
-		if stats.Denied != 2 {
-			t.Errorf("blocked-domain.example.com:443 Denied: got %d, want 2", stats.Denied)
+		if stats.Blocked != 2 {
+			t.Errorf("blocked-domain.example.com:443 Blocked: got %d, want 2", stats.Blocked)
 		}
 	} else {
 		t.Error("blocked-domain.example.com:443 not found in RequestsByDomain")
@@ -146,15 +146,15 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 			FirewallAnalysis: &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
-					DeniedDomains:  []string{"blocked.example.com:443"},
+					BlockedDomains: []string{"blocked.example.com:443"},
 				},
 				TotalRequests:   10,
 				AllowedRequests: 8,
-				DeniedRequests:  2,
+				BlockedRequests: 2,
 				RequestsByDomain: map[string]DomainRequestStats{
-					"api.github.com:443":      {Allowed: 5, Denied: 0},
-					"api.npmjs.org:443":       {Allowed: 3, Denied: 0},
-					"blocked.example.com:443": {Allowed: 0, Denied: 2},
+					"api.github.com:443":      {Allowed: 5, Blocked: 0},
+					"api.npmjs.org:443":       {Allowed: 3, Blocked: 0},
+					"blocked.example.com:443": {Allowed: 0, Blocked: 2},
 				},
 			},
 		},
@@ -165,14 +165,14 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 			FirewallAnalysis: &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"api.github.com:443"},
-					DeniedDomains:  []string{"denied.site:443"},
+					BlockedDomains: []string{"denied.site:443"},
 				},
 				TotalRequests:   5,
 				AllowedRequests: 3,
-				DeniedRequests:  2,
+				BlockedRequests: 2,
 				RequestsByDomain: map[string]DomainRequestStats{
-					"api.github.com:443": {Allowed: 3, Denied: 0},
-					"denied.site:443":    {Allowed: 0, Denied: 2},
+					"api.github.com:443": {Allowed: 3, Blocked: 0},
+					"denied.site:443":    {Allowed: 0, Blocked: 2},
 				},
 			},
 		},
@@ -196,9 +196,9 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 		t.Errorf("AllowedRequests: got %d, want %d", summary.AllowedRequests, expectedAllowedRequests)
 	}
 
-	expectedDeniedRequests := 4
-	if summary.DeniedRequests != expectedDeniedRequests {
-		t.Errorf("DeniedRequests: got %d, want %d", summary.DeniedRequests, expectedDeniedRequests)
+	expectedBlockedRequests := 4
+	if summary.BlockedRequests != expectedBlockedRequests {
+		t.Errorf("BlockedRequests: got %d, want %d", summary.BlockedRequests, expectedBlockedRequests)
 	}
 
 	// Verify unique domains
@@ -207,9 +207,9 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 		t.Errorf("AllowedDomains count: got %d, want %d", len(summary.AllowedDomains), expectedAllowedCount)
 	}
 
-	expectedDeniedCount := 2
-	if len(summary.DeniedDomains) != expectedDeniedCount {
-		t.Errorf("DeniedDomains count: got %d, want %d", len(summary.DeniedDomains), expectedDeniedCount)
+	expectedBlockedCount := 2
+	if len(summary.BlockedDomains) != expectedBlockedCount {
+		t.Errorf("BlockedDomains count: got %d, want %d", len(summary.BlockedDomains), expectedBlockedCount)
 	}
 
 	// Verify aggregated per-domain stats

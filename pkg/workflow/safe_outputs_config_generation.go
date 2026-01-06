@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // ========================================
@@ -157,15 +159,48 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.MissingTool != nil {
-			safeOutputsConfig["missing_tool"] = generateMaxConfig(
-				data.SafeOutputs.MissingTool.Max,
-				0, // default: unlimited
-			)
+			// Generate config for missing_tool with issue creation support
+			missingToolConfig := make(map[string]any)
+
+			// Add max if set
+			if data.SafeOutputs.MissingTool.Max > 0 {
+				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			}
+
+			// Add issue creation config if enabled
+			if data.SafeOutputs.MissingTool.CreateIssue {
+				createIssueConfig := make(map[string]any)
+				createIssueConfig["max"] = 1 // Only create one issue per workflow run
+
+				if data.SafeOutputs.MissingTool.TitlePrefix != "" {
+					createIssueConfig["title_prefix"] = data.SafeOutputs.MissingTool.TitlePrefix
+				}
+
+				if len(data.SafeOutputs.MissingTool.Labels) > 0 {
+					createIssueConfig["labels"] = data.SafeOutputs.MissingTool.Labels
+				}
+
+				safeOutputsConfig["create_missing_tool_issue"] = createIssueConfig
+			}
+
+			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}
 		if data.SafeOutputs.UpdateProjects != nil {
 			safeOutputsConfig["update_project"] = generateMaxConfig(
 				data.SafeOutputs.UpdateProjects.Max,
 				10, // default max
+			)
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			safeOutputsConfig["create_project_status_update"] = generateMaxConfig(
+				data.SafeOutputs.CreateProjectStatusUpdates.Max,
+				10, // default max
+			)
+		}
+		if data.SafeOutputs.CopyProjects != nil {
+			safeOutputsConfig["copy_project"] = generateMaxConfig(
+				data.SafeOutputs.CopyProjects.Max,
+				1, // default max
 			)
 		}
 		if data.SafeOutputs.UpdateRelease != nil {
@@ -493,6 +528,12 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true
 	}
+	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+		enabledTools["create_project_status_update"] = true
+	}
+	if data.SafeOutputs.CopyProjects != nil {
+		enabledTools["copy_project"] = true
+	}
 	// Note: dispatch_workflow tools are generated dynamically below, not from the static tools list
 
 	// Filter tools to only include enabled ones and enhance descriptions
@@ -538,7 +579,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		for _, jobName := range jobNames {
 			jobConfig := data.SafeOutputs.Jobs[jobName]
 			// Normalize job name to use underscores for consistency
-			normalizedJobName := normalizeSafeOutputIdentifier(jobName)
+			normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(jobName)
 
 			// Create the tool definition for this custom job
 			customTool := generateCustomJobToolDefinition(normalizedJobName, jobConfig)
@@ -760,7 +801,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 // The tool will be named after the workflow and accept the workflow's defined inputs
 func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
 	// Normalize workflow name to use underscores for tool name
-	toolName := normalizeSafeOutputIdentifier(workflowName)
+	toolName := stringutil.NormalizeSafeOutputIdentifier(workflowName)
 
 	// Build the description
 	description := fmt.Sprintf("Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.", workflowName)

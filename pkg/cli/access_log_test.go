@@ -40,8 +40,8 @@ func TestAccessLogParsing(t *testing.T) {
 		t.Errorf("Expected 2 allowed requests, got %d", analysis.AllowedCount)
 	}
 
-	if analysis.DeniedCount != 2 {
-		t.Errorf("Expected 2 denied requests, got %d", analysis.DeniedCount)
+	if analysis.BlockedCount != 2 {
+		t.Errorf("Expected 2 denied requests, got %d", analysis.BlockedCount)
 	}
 
 	// Check allowed domains
@@ -95,8 +95,8 @@ func TestMultipleAccessLogAnalysis(t *testing.T) {
 		t.Errorf("Expected 2 allowed requests, got %d", analysis.AllowedCount)
 	}
 
-	if analysis.DeniedCount != 2 {
-		t.Errorf("Expected 2 denied requests, got %d", analysis.DeniedCount)
+	if analysis.BlockedCount != 2 {
+		t.Errorf("Expected 2 denied requests, got %d", analysis.BlockedCount)
 	}
 
 	// Check allowed domains
@@ -105,10 +105,10 @@ func TestMultipleAccessLogAnalysis(t *testing.T) {
 		t.Errorf("Expected %d allowed domains, got %d", len(expectedAllowed), len(analysis.AllowedDomains))
 	}
 
-	// Check denied domains
+	// Check blocked domains
 	expectedDenied := []string{"github.com", "malicious.site"}
-	if len(analysis.DeniedDomains) != len(expectedDenied) {
-		t.Errorf("Expected %d denied domains, got %d", len(expectedDenied), len(analysis.DeniedDomains))
+	if len(analysis.BlockedDomains) != len(expectedDenied) {
+		t.Errorf("Expected %d blocked domains, got %d", len(expectedDenied), len(analysis.BlockedDomains))
 	}
 }
 

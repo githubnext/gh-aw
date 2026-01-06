@@ -77,12 +77,6 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		},
 	}
 
-	// Add gateway configuration if MCP gateway is enabled
-	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.MCP != nil {
-		copilotMCPLog.Print("MCP gateway is enabled, adding gateway config to MCP config")
-		options.GatewayConfig = workflowData.SandboxConfig.MCP
-	}
-
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, options)
 	//GITHUB_COPILOT_CLI_MODE
 	yaml.WriteString("          echo \"HOME: $HOME\"\n")

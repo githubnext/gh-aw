@@ -402,7 +402,7 @@ jobs:
   my-job:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Workflow Scripts
         uses: ./actions/setup

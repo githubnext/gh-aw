@@ -12,8 +12,8 @@ func TestDomainBucketsAccessors(t *testing.T) {
 	if buckets.GetAllowedDomains() != nil {
 		t.Errorf("Expected nil allowed domains initially, got %v", buckets.GetAllowedDomains())
 	}
-	if buckets.GetDeniedDomains() != nil {
-		t.Errorf("Expected nil denied domains initially, got %v", buckets.GetDeniedDomains())
+	if buckets.GetBlockedDomains() != nil {
+		t.Errorf("Expected nil blocked domains initially, got %v", buckets.GetBlockedDomains())
 	}
 
 	// Test SetAllowedDomains
@@ -23,11 +23,11 @@ func TestDomainBucketsAccessors(t *testing.T) {
 		t.Errorf("Expected allowed domains %v, got %v", allowedDomains, buckets.GetAllowedDomains())
 	}
 
-	// Test SetDeniedDomains
-	deniedDomains := []string{"blocked.com", "malicious.com"}
-	buckets.SetDeniedDomains(deniedDomains)
-	if !reflect.DeepEqual(buckets.GetDeniedDomains(), deniedDomains) {
-		t.Errorf("Expected denied domains %v, got %v", deniedDomains, buckets.GetDeniedDomains())
+	// Test SetBlockedDomains
+	blockedDomains := []string{"blocked.com", "malicious.com"}
+	buckets.SetBlockedDomains(blockedDomains)
+	if !reflect.DeepEqual(buckets.GetBlockedDomains(), blockedDomains) {
+		t.Errorf("Expected blocked domains %v, got %v", blockedDomains, buckets.GetBlockedDomains())
 	}
 }
 
@@ -43,12 +43,12 @@ func TestDomainBucketsWithEmbedding(t *testing.T) {
 
 	// Test that we can call accessor methods through embedding
 	analysis.SetAllowedDomains([]string{"test.com"})
-	analysis.SetDeniedDomains([]string{"bad.com"})
+	analysis.SetBlockedDomains([]string{"bad.com"})
 
 	if len(analysis.GetAllowedDomains()) != 1 {
 		t.Errorf("Expected 1 allowed domain, got %d", len(analysis.GetAllowedDomains()))
 	}
-	if len(analysis.GetDeniedDomains()) != 1 {
-		t.Errorf("Expected 1 denied domain, got %d", len(analysis.GetDeniedDomains()))
+	if len(analysis.GetBlockedDomains()) != 1 {
+		t.Errorf("Expected 1 blocked domain, got %d", len(analysis.GetBlockedDomains()))
 	}
 }

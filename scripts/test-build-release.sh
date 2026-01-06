@@ -67,7 +67,7 @@ for p in "${platforms[@]}"; do
     ext=".exe"
   fi
   
-  echo "Building $p..."
+  echo "Building gh-aw for $p..."
   GOOS="$goos" GOARCH="$goarch" go build \
     -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.isRelease=true" \
@@ -86,25 +86,25 @@ TEST_VERSION="v1.2.3-test"
 
 # Check that binary was created
 if [ ! -f "dist/linux-amd64" ]; then
-  echo "FAIL: Binary was not created"
+  echo "FAIL: gh-aw binary was not created"
   exit 1
 fi
 
-# Check that version is embedded in binary
+# Check that version is embedded in gh-aw binary
 BINARY_VERSION=$(./dist/linux-amd64 version 2>&1 | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+-test" || echo "")
 if [ "$BINARY_VERSION" != "$TEST_VERSION" ]; then
-  echo "FAIL: Binary version is '$BINARY_VERSION', expected '$TEST_VERSION'"
+  echo "FAIL: gh-aw binary version is '$BINARY_VERSION', expected '$TEST_VERSION'"
   ./dist/linux-amd64 version
   exit 1
 fi
 
-echo "PASS: Binary built with correct version: $BINARY_VERSION"
+echo "PASS: gh-aw binary built with correct version: $BINARY_VERSION"
 
 # Test 3: Verify version is not "dev"
 echo ""
 echo "Test 3: Verify version is not 'dev'"
 if echo "$BINARY_VERSION" | grep -q "dev"; then
-  echo "FAIL: Binary version should not contain 'dev'"
+  echo "FAIL: gh-aw binary version should not contain 'dev'"
   exit 1
 fi
 echo "PASS: Binary version does not contain 'dev'"
