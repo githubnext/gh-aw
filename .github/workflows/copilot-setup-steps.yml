@@ -30,6 +30,8 @@ jobs:
       with:
         cache: true
         go-version-file: go.mod
+    - name: Install JavaScript dependencies
+      run: cd actions/setup/js && npm ci
     - name: Install development dependencies
       run: make deps-dev
     - name: Build code
