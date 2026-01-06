@@ -109,11 +109,15 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Step 2: Configure Git credentials
 	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
 
-	// Note: Assets artifact is now included in agent-output artifact
-	// The buildSafeOutputJob() function will automatically download agent-output via buildAgentOutputDownloadSteps()
-	// which includes both agent_output.json and /tmp/gh-aw/safeoutputs/assets/
+	// Step 3: Download assets artifact if it exists
+	preSteps = append(preSteps, "      - name: Download assets\n")
+	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          name: safe-outputs-assets\n")
+	preSteps = append(preSteps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")
 
-	// Step 3: List downloaded asset files
+	// Step 4: List files
 	preSteps = append(preSteps, "      - name: List downloaded asset files\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	preSteps = append(preSteps, "        run: |\n")
@@ -161,4 +165,24 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
 		Needs:         needs,
 	})
+}
+
+// generateSafeOutputsAssetsArtifactUpload generates a step to upload safe-outputs assets as a separate artifact
+// This artifact is then downloaded by the upload_assets job to publish files to orphaned branches
+func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
+		return
+	}
+
+	publishAssetsLog.Print("Generating safe-outputs assets artifact upload step")
+
+	builder.WriteString("      # Upload safe-outputs assets for upload_assets job\n")
+	builder.WriteString("      - name: Upload safe-outputs assets\n")
+	builder.WriteString("        if: always()\n")
+	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+	builder.WriteString("        with:\n")
+	builder.WriteString("          name: safe-outputs-assets\n")
+	builder.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
+	builder.WriteString("          retention-days: 1\n")
+	builder.WriteString("          if-no-files-found: ignore\n")
 }

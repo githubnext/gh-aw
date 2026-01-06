@@ -570,16 +570,14 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            await main();\n")
 
 	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }} ", "/tmp/gh-aw/safeoutputs/assets/"})
+	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})
 
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GH_AW_AGENT_OUTPUT\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", constants.AgentOutputArtifactName)
-	yaml.WriteString("          path: |\n")
-	yaml.WriteString("            ${{ env.GH_AW_AGENT_OUTPUT }}\n")
-	yaml.WriteString("            /tmp/gh-aw/safeoutputs/assets/\n")
+	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 }
