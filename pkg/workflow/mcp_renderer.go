@@ -713,10 +713,12 @@ func RenderJSONMCPConfig(
 		if options.GatewayConfig.APIKey != "" {
 			yaml.WriteString(",\n")
 			fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
-			yaml.WriteString("\n")
-		} else {
-			yaml.WriteString("\n")
 		}
+		if options.GatewayConfig.Domain != "" {
+			yaml.WriteString(",\n")
+			fmt.Fprintf(yaml, "              \"domain\": \"%s\"", options.GatewayConfig.Domain)
+		}
+		yaml.WriteString("\n")
 		yaml.WriteString("            }\n")
 	}
 

@@ -69,6 +69,28 @@ func TestParseMCPGatewayTool(t *testing.T) {
 				Port: 8888,
 			},
 		},
+		{
+			name: "config with domain",
+			input: map[string]any{
+				"port":   8080,
+				"domain": "host.docker.internal",
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:   8080,
+				Domain: "host.docker.internal",
+			},
+		},
+		{
+			name: "config with localhost domain",
+			input: map[string]any{
+				"port":   8080,
+				"domain": "localhost",
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:   8080,
+				Domain: "localhost",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -82,6 +104,7 @@ func TestParseMCPGatewayTool(t *testing.T) {
 				assert.Equal(t, tt.expected.Version, result.Version)
 				assert.Equal(t, tt.expected.Port, result.Port)
 				assert.Equal(t, tt.expected.APIKey, result.APIKey)
+				assert.Equal(t, tt.expected.Domain, result.Domain)
 				assert.Equal(t, tt.expected.Args, result.Args)
 				assert.Equal(t, tt.expected.EntrypointArgs, result.EntrypointArgs)
 				assert.Equal(t, tt.expected.Env, result.Env)
