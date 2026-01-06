@@ -110,7 +110,10 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
 
     if (project) return project;
   } catch (error) {
+    // If GraphQL returned an error (e.g., insufficient permissions/scopes), surface it
+    // instead of masking it as "not found".
     core.warning(`Direct projectV2(number) query failed: ${getErrorMessage(error)}`);
+    throw error;
   }
 
   throw new Error(`Project #${projectNumberInt} not found or not accessible for ${projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`}`);
