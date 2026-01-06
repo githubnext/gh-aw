@@ -478,6 +478,9 @@ func parseMCPGatewayTool(val any) *MCPGatewayRuntimeConfig {
 	if apiKey, ok := configMap["api-key"].(string); ok {
 		config.APIKey = apiKey
 	}
+	if domain, ok := configMap["domain"].(string); ok {
+		config.Domain = domain
+	}
 
 	return config
 }
