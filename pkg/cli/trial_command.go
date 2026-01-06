@@ -745,16 +745,17 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
 	fmt.Fprintln(os.Stderr, "")
 
-	fmt.Fprint(os.Stderr, console.FormatPromptMessage("Do you want to continue? [y/N]: "))
-
-	var response string
-	_, err := fmt.Scanln(&response)
+	// Ask for confirmation using console helper
+	confirmed, err := console.ConfirmAction(
+		"Do you want to continue?",
+		"Yes, proceed",
+		"No, cancel",
+	)
 	if err != nil {
-		response = "n" // Default to no on error
+		return fmt.Errorf("confirmation failed: %w", err)
 	}
 
-	response = strings.ToLower(strings.TrimSpace(response))
-	if response != "y" && response != "yes" {
+	if !confirmed {
 		return fmt.Errorf("trial cancelled by user")
 	}
 
