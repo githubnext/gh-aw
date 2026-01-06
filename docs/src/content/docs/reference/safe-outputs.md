@@ -300,11 +300,13 @@ safe-outputs:
   copy-project:
     max: 1                          # max operations (default: 1)
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    source-project: "https://github.com/orgs/myorg/projects/42"  # default source (optional)
+    target-owner: "myorg"           # default target owner (optional)
 ```
 
-Agent must provide full source project URL, target owner login, and new project title. Optionally include `includeDraftIssues: true` to copy draft issues (default: false). Exposes outputs: `project-id`, `project-title`, `project-url`.
+The `source-project` and `target-owner` fields are optional defaults. When configured, the agent can omit these fields in tool calls, and the defaults will be used. The agent can still override these defaults by providing explicit values.
 
-**Example usage:**
+**Without defaults** (agent must provide all fields):
 ```javascript
 copy_project({
   sourceProject: "https://github.com/orgs/myorg/projects/42",
@@ -313,6 +315,17 @@ copy_project({
   includeDraftIssues: false  // Optional, default: false
 });
 ```
+
+**With defaults configured** (agent only needs to provide title):
+```javascript
+copy_project({
+  title: "Q1 Sprint Template"
+  // sourceProject and owner use configured defaults
+  // Can still override: sourceProject: "...", owner: "..."
+});
+```
+
+Optionally include `includeDraftIssues: true` to copy draft issues (default: false). Exposes outputs: `project-id`, `project-title`, `project-url`.
 
 :::note
 Custom fields, views, and workflows are copied. Draft issues are excluded by default but can be included by setting `includeDraftIssues: true`.
