@@ -294,11 +294,14 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				run.WarningCount = workflow.CountWarnings(result.Metrics.Errors)
 				run.LogsPath = result.LogsPath
 
-				// Add failed jobs to error count
-				if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
-					run.ErrorCount += failedJobCount
-					if verbose && failedJobCount > 0 {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
+				// Add failed jobs to error count, but skip cancelled runs
+				// Cancelled runs have all jobs cancelled, which inflates error counts
+				if run.Conclusion != "cancelled" {
+					if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
+						run.ErrorCount += failedJobCount
+						if verbose && failedJobCount > 0 {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
+						}
 					}
 				}
 
@@ -588,9 +591,12 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 						// Just use empty metrics
 						result.Metrics = LogMetrics{}
 
-						// Try to fetch job details to get error count
-						if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
-							run.ErrorCount = failedJobCount
+						// Try to fetch job details to get error count, but skip cancelled runs
+						// Cancelled runs have all jobs cancelled, which inflates error counts
+						if run.Conclusion != "cancelled" {
+							if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
+								run.ErrorCount = failedJobCount
+							}
 						}
 					} else {
 						// For other runs (success, neutral, etc.) without artifacts, skip them
