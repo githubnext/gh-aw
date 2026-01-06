@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -34,7 +34,7 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 	resolveLog.Printf("Resolving workflow name for input: %s", workflowInput)
 
 	// Normalize the workflow name by removing extensions
-	normalizedName := normalizeWorkflowName(workflowInput)
+	normalizedName := stringutil.NormalizeWorkflowName(workflowInput)
 	resolveLog.Printf("Normalized workflow name: %s", normalizedName)
 
 	// Get the workflows directory
@@ -100,52 +100,4 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 
 	resolveLog.Printf("Successfully resolved workflow name: %s", workflow.Name)
 	return workflow.Name, nil
-}
-
-// normalizeWorkflowName removes .md and .lock.yml extensions from workflow names
-// to get the base workflow identifier.
-//
-// This is a NORMALIZE function (format standardization pattern). Use this when
-// converting between workflow file names and workflow IDs. Do NOT use this for
-// character validation - use SanitizeWorkflowName or SanitizeIdentifier instead.
-//
-// The function standardizes input by removing file extensions, allowing users to
-// reference workflows by any of these equivalent forms:
-//   - "weekly-research"           (base identifier)
-//   - "weekly-research.md"        (markdown file)
-//   - "weekly-research.lock.yml"  (compiled workflow)
-//
-// This normalization enables flexible workflow references while maintaining a
-// canonical base identifier for file lookups and resolution.
-//
-// Example inputs and outputs:
-//
-//	normalizeWorkflowName("weekly-research")           // returns "weekly-research"
-//	normalizeWorkflowName("weekly-research.md")        // returns "weekly-research"
-//	normalizeWorkflowName("weekly-research.lock.yml")  // returns "weekly-research"
-//
-// Note: This function assumes the input is already a valid identifier. It does NOT
-// perform character validation or sanitization. If the input might contain invalid
-// characters, sanitize it first with SanitizeWorkflowName.
-//
-// See package documentation for guidance on when to use sanitize vs normalize patterns.
-func normalizeWorkflowName(name string) string {
-	resolveLog.Printf("Normalizing workflow name: %s", name)
-
-	// Remove .lock.yml extension first (longer extension)
-	if strings.HasSuffix(name, ".lock.yml") {
-		normalized := strings.TrimSuffix(name, ".lock.yml")
-		resolveLog.Printf("Removed .lock.yml extension: %s", normalized)
-		return normalized
-	}
-
-	// Remove .md extension
-	if strings.HasSuffix(name, ".md") {
-		normalized := strings.TrimSuffix(name, ".md")
-		resolveLog.Printf("Removed .md extension: %s", normalized)
-		return normalized
-	}
-
-	resolveLog.Printf("No extension removed, using as-is: %s", name)
-	return name
 }

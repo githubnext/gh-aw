@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -71,43 +70,6 @@ func IsSafeInputsHTTPMode(safeInputs *SafeInputsConfig) bool {
 // The workflowData parameter is kept for backward compatibility but is not used.
 func IsSafeInputsEnabled(safeInputs *SafeInputsConfig, workflowData *WorkflowData) bool {
 	return HasSafeInputs(safeInputs)
-}
-
-// sanitizeParameterName converts a parameter name to a safe JavaScript identifier
-// by replacing non-alphanumeric characters with underscores
-func sanitizeParameterName(name string) string {
-	// Replace dashes and other non-alphanumeric chars with underscores
-	result := strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '$' {
-			return r
-		}
-		return '_'
-	}, name)
-
-	// Ensure it doesn't start with a number
-	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
-		result = "_" + result
-	}
-
-	return result
-}
-
-// sanitizePythonVariableName converts a parameter name to a valid Python identifier
-func sanitizePythonVariableName(name string) string {
-	// Replace dashes and other non-alphanumeric chars with underscores
-	result := strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
-			return r
-		}
-		return '_'
-	}, name)
-
-	// Ensure it doesn't start with a number
-	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
-		result = "_" + result
-	}
-
-	return result
 }
 
 // parseSafeInputsMap parses safe-inputs configuration from a map.

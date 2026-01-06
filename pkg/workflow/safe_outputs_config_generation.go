@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // ========================================
@@ -568,7 +570,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		for _, jobName := range jobNames {
 			jobConfig := data.SafeOutputs.Jobs[jobName]
 			// Normalize job name to use underscores for consistency
-			normalizedJobName := normalizeSafeOutputIdentifier(jobName)
+			normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(jobName)
 
 			// Create the tool definition for this custom job
 			customTool := generateCustomJobToolDefinition(normalizedJobName, jobConfig)
@@ -790,7 +792,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 // The tool will be named after the workflow and accept the workflow's defined inputs
 func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
 	// Normalize workflow name to use underscores for tool name
-	toolName := normalizeSafeOutputIdentifier(workflowName)
+	toolName := stringutil.NormalizeSafeOutputIdentifier(workflowName)
 
 	// Build the description
 	description := fmt.Sprintf("Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.", workflowName)
