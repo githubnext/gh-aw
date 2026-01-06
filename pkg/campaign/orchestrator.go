@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
@@ -359,7 +360,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Default source project is the githubnext "[TEMPLATE: Agentic Campaign]" project.
 	copyProjectConfig := &workflow.CopyProjectsConfig{
 		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1},
-		SourceProject:        "https://github.com/orgs/githubnext/projects/74",
+		SourceProject:        string(constants.DefaultCampaignTemplateProjectURL),
 	}
 	// Use the same custom GitHub token for copy-project as for other project operations.
 	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
