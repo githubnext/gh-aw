@@ -617,6 +617,25 @@ The YAML frontmatter supports these fields:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
+  - `allowed-domains:` - Allowed domains for URLs in safe output content (array)
+    - URLs from unlisted domains are replaced with `(redacted)`
+    - GitHub domains are always included by default
+  - `allowed-github-references:` - Allowed repositories for GitHub-style references (array)
+    - Controls which GitHub references (`#123`, `owner/repo#456`) are allowed in workflow output
+    - References to unlisted repositories are escaped with backticks to prevent timeline items
+    - Configuration options:
+      - `[]` - Escape all references (prevents all timeline items)
+      - `["repo"]` - Allow only the target repository's references
+      - `["repo", "owner/other-repo"]` - Allow specific repositories
+      - Not specified (default) - All references allowed
+    - Example:
+      ```yaml
+      safe-outputs:
+        allowed-github-references: []  # Escape all references
+        create-issue:
+          target-repo: "my-org/main-repo"
+      ```
+      With `[]`, references like `#123` become `` `#123` `` and `other/repo#456` becomes `` `other/repo#456` ``, preventing timeline clutter while preserving information.
 
 - **`safe-inputs:`** - Define custom lightweight MCP tools as JavaScript, shell, or Python scripts (object)
   - Tools mounted in MCP server with access to specified secrets
