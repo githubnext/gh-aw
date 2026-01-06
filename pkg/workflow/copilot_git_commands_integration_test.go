@@ -120,7 +120,7 @@ func (c *Compiler) parseCopilotWorkflowMarkdownContentWithToolArgs(content strin
 
 	// Extract and process tools
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
-	topTools = c.applyDefaultTools(topTools, safeOutputs)
+	topTools = c.applyDefaultTools(topTools, safeOutputs, nil)
 
 	// Build basic workflow data for testing
 	workflowData := &WorkflowData{

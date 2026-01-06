@@ -79,7 +79,7 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Apply default tools
-			result := compiler.applyDefaultTools(tt.tools, tt.safeOutputs)
+			result := compiler.applyDefaultTools(tt.tools, tt.safeOutputs, nil)
 
 			// Check the bash tools
 			bashTools, exists := result["bash"]

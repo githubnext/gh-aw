@@ -252,7 +252,7 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
+func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig, sandboxConfig *SandboxConfig) map[string]any {
 	compilerSafeOutputsLog.Printf("Applying default tools: existingToolCount=%d", len(tools))
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
@@ -302,6 +302,23 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			githubConfig["allowed"] = existingAllowed
 		}
 		tools["github"] = githubConfig
+	}
+
+	// Enable edit and bash tools by default when sandbox.agent is enabled (not false)
+	if isSandboxAgentEnabled(sandboxConfig) {
+		compilerSafeOutputsLog.Print("Sandbox agent enabled, applying default edit and bash tools")
+		
+		// Add edit tool if not present
+		if _, exists := tools["edit"]; !exists {
+			tools["edit"] = true
+			compilerSafeOutputsLog.Print("Added edit tool (sandbox.agent enabled)")
+		}
+		
+		// Add bash tool with wildcard if not present
+		if _, exists := tools["bash"]; !exists {
+			tools["bash"] = []any{"*"}
+			compilerSafeOutputsLog.Print("Added bash tool with wildcard (sandbox.agent enabled)")
+		}
 	}
 
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
@@ -423,4 +440,30 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 		return false
 	}
 	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
+}
+
+// isSandboxAgentEnabled checks if the sandbox agent is enabled (not explicitly disabled)
+// Returns true when:
+// - sandbox.agent is set to a sandbox type (awf, srt, etc.)
+// - sandbox.agent is an object with id/type
+// Returns false when:
+// - sandbox.agent is false (explicitly disabled)
+// - sandbox.agent is not configured
+func isSandboxAgentEnabled(sandboxConfig *SandboxConfig) bool {
+	if sandboxConfig == nil {
+		return false
+	}
+	
+	if sandboxConfig.Agent == nil {
+		return false
+	}
+	
+	// If explicitly disabled, return false
+	if sandboxConfig.Agent.Disabled {
+		return false
+	}
+	
+	// Check if a sandbox type is configured
+	agentType := getAgentType(sandboxConfig.Agent)
+	return isSupportedSandboxType(agentType)
 }
