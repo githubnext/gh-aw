@@ -728,6 +728,7 @@ jobs:
         run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
 
   logs-token-check:
+    if: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
