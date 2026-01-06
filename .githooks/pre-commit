@@ -1,0 +1,49 @@
+#!/bin/bash
+# Pre-commit hook to validate changed workflows
+
+set -euo pipefail
+
+# Check if gh-aw is available
+if ! command -v gh &> /dev/null || ! gh aw --help &> /dev/null 2>&1; then
+  echo "⚠ Warning: gh-aw not installed, skipping workflow validation"
+  exit 0
+fi
+
+# Get list of changed workflow files
+workflows=$(git diff --cached --name-only --diff-filter=ACM | grep '^\.github/workflows/.*\.md$' || true)
+
+if [ -z "$workflows" ]; then
+  # No workflow files changed
+  exit 0
+fi
+
+echo "Validating changed workflows..."
+
+failed=0
+for workflow in $workflows; do
+  echo ""
+  echo "Checking $workflow..."
+  
+  # Validate using script if available
+  if [ -x "./scripts/validate-workflow.sh" ]; then
+    if ! ./scripts/validate-workflow.sh "$workflow"; then
+      failed=1
+    fi
+  else
+    # Fallback to direct compilation
+    if ! gh aw compile "$workflow"; then
+      failed=1
+    fi
+  fi
+done
+
+if [ $failed -eq 1 ]; then
+  echo ""
+  echo "✗ Workflow validation failed"
+  echo "Fix the issues above or use 'git commit --no-verify' to skip validation"
+  exit 1
+fi
+
+echo ""
+echo "✅ All workflows validated successfully"
+exit 0
