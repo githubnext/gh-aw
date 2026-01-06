@@ -65,15 +65,14 @@ async function main(config = {}) {
       }
     } else {
       // Use context PR if available
-      const contextPR = context.payload?.pull_request?.number;
-      if (!contextPR) {
+      prNumber = context.payload?.pull_request?.number;
+      if (!prNumber) {
         core.warning("No pull_request_number provided and not in PR context");
         return {
           success: false,
           error: "No PR number available",
         };
       }
-      prNumber = contextPR;
     }
 
     const requestedReviewers = reviewerItem.reviewers || [];
@@ -95,15 +94,14 @@ async function main(config = {}) {
     core.info(`Adding ${uniqueReviewers.length} reviewers to PR #${prNumber}: ${JSON.stringify(uniqueReviewers)}`);
 
     try {
-      // Special handling for "copilot" reviewer - separate it from other reviewers in a single pass
+      // Separate copilot from other reviewers
       const hasCopilot = uniqueReviewers.includes("copilot");
-      const otherReviewers = hasCopilot ? uniqueReviewers.filter(r => r !== "copilot") : uniqueReviewers;
+      const otherReviewers = uniqueReviewers.filter(r => r !== "copilot");
 
       // Add non-copilot reviewers first
       if (otherReviewers.length > 0) {
         await github.rest.pulls.requestReviewers({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          ...context.repo,
           pull_number: prNumber,
           reviewers: otherReviewers,
         });
@@ -114,22 +112,20 @@ async function main(config = {}) {
       if (hasCopilot) {
         try {
           await github.rest.pulls.requestReviewers({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            ...context.repo,
             pull_number: prNumber,
             reviewers: [COPILOT_REVIEWER_BOT],
           });
           core.info(`Successfully added copilot as reviewer to PR #${prNumber}`);
         } catch (copilotError) {
-          const copilotErrorMsg = copilotError instanceof Error ? copilotError.message : String(copilotError);
-          core.warning(`Failed to add copilot as reviewer: ${copilotErrorMsg}`);
+          core.warning(`Failed to add copilot as reviewer: ${getErrorMessage(copilotError)}`);
           // Don't fail the whole step if copilot reviewer fails
         }
       }
 
       return {
         success: true,
-        prNumber: prNumber,
+        prNumber,
         reviewersAdded: uniqueReviewers,
       };
     } catch (error) {
