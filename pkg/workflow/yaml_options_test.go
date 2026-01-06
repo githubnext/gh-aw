@@ -82,6 +82,7 @@ func TestDefaultMarshalOptionsConsistency(t *testing.T) {
 	result2, err := yaml.MarshalWithOptions(testData,
 		yaml.Indent(2),
 		yaml.UseLiteralStyleIfMultiline(true),
+		yaml.Flow(false),
 	)
 	if err != nil {
 		t.Fatalf("MarshalWithOptions with inline options failed: %v", err)

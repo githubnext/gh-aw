@@ -404,3 +404,37 @@ func TestExtractTopLevelYAMLSectionWithOrdering(t *testing.T) {
 		})
 	}
 }
+package workflow
+
+import (
+"strings"
+"testing"
+)
+
+func TestConvertLongQuotedStringsToLiteralStyle(t *testing.T) {
+tests := []struct{
+name     string
+input    string
+expected string
+}{
+{
+name:     "simple multiline quoted string",
+input:    `        run: "line1\nline2\nline3"`,
+expected: "        run: |\n          line1\n          line2\n          line3",
+},
+{
+name:     "string with no newlines stays quoted",
+input:    `        run: "single line"`,
+expected: `        run: "single line"`,
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+result := ConvertLongQuotedStringsToLiteralStyle(tt.input)
+if result != tt.expected {
+t.Errorf("Expected:\n%s\n\nGot:\n%s", tt.expected, result)
+}
+})
+}
+}

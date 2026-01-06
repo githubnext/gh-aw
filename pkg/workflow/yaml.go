@@ -188,7 +188,18 @@ func MarshalWithFieldOrder(data map[string]any, priorityFields []string) ([]byte
 	orderedData := OrderMapFields(data, priorityFields)
 
 	// Marshal the ordered data with proper options for GitHub Actions
-	return yaml.MarshalWithOptions(orderedData, DefaultMarshalOptions...)
+	yamlBytes, err := yaml.MarshalWithOptions(orderedData, DefaultMarshalOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Post-process to convert long quoted strings with \n escapes to literal block scalars
+	// This handles cases where goccy/go-yaml's UseLiteralStyleIfMultiline doesn't apply
+	// due to very long string content (>1024 chars)
+	yamlStr := string(yamlBytes)
+	yamlStr = ConvertLongQuotedStringsToLiteralStyle(yamlStr)
+
+	return []byte(yamlStr), nil
 }
 
 // OrderMapFields converts a map to yaml.MapSlice with fields in a specific order.
@@ -307,4 +318,97 @@ func CleanYAMLNullValues(yamlStr string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// ConvertLongQuotedStringsToLiteralStyle converts long quoted strings with escaped
+// newlines to YAML literal block scalar style (|) for improved readability.
+//
+// The goccy/go-yaml library's UseLiteralStyleIfMultiline option has a threshold where
+// very long strings (>1024 chars) are rendered as quoted strings with \n escapes instead
+// of literal block scalars. This function post-processes the YAML to convert these back
+// to the more readable literal style.
+//
+// This is particularly important for GitHub Actions workflows where long shell scripts
+// in "run:" fields should be rendered as multiline blocks for maintainability.
+//
+// Parameters:
+//   - yamlStr: The YAML string to process
+//
+// Returns:
+//   - The YAML string with long quoted strings converted to literal block scalars
+//
+// Example:
+//
+//	input := `run: "line1\nline2\nline3"`
+//	result := ConvertLongQuotedStringsToLiteralStyle(input)
+//	// result: "run: |\n  line1\n  line2\n  line3"
+func ConvertLongQuotedStringsToLiteralStyle(yamlStr string) string {
+	yamlLog.Print("Converting long quoted strings to literal block scalar style")
+
+	lines := strings.Split(yamlStr, "\n")
+	result := make([]string, 0, len(lines))
+	
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		
+		// Check if this line has a quoted string value with escaped newlines
+		colonIdx := strings.Index(line, ":")
+		if colonIdx == -1 {
+			result = append(result, line)
+			continue
+		}
+		
+		// Get the indentation
+		indent := ""
+		trimmedLine := strings.TrimLeft(line, " \t")
+		if len(line) > len(trimmedLine) {
+			indent = line[:len(line)-len(trimmedLine)]
+		}
+		
+		// Get the value part after the colon
+		valuePart := strings.TrimSpace(line[colonIdx+1:])
+		
+		// Check if it's a quoted string with escaped newlines
+		if !strings.HasPrefix(valuePart, "\"") || !strings.Contains(valuePart, "\\n") {
+			result = append(result, line)
+			continue
+		}
+		
+		// Extract the quoted string content
+		// Find the closing quote (accounting for escaped quotes)
+		if !strings.HasSuffix(valuePart, "\"") {
+			result = append(result, line)
+			continue
+		}
+		
+		// Remove surrounding quotes
+		quotedContent := valuePart[1 : len(valuePart)-1]
+		
+		// Unescape the content
+		unescaped := strings.ReplaceAll(quotedContent, "\\n", "\n")
+		unescaped = strings.ReplaceAll(unescaped, "\\t", "\t")
+		unescaped = strings.ReplaceAll(unescaped, "\\\"", "\"")
+		unescaped = strings.ReplaceAll(unescaped, "\\\\", "\\")
+		
+		// Check if the unescaped content has newlines (making it multiline)
+		if !strings.Contains(unescaped, "\n") {
+			result = append(result, line)
+			continue
+		}
+		
+		// Get the key part (between indent and colon)
+		keyPart := strings.TrimSpace(trimmedLine[:strings.Index(trimmedLine, ":")])
+		
+		// Convert to literal block scalar format
+		result = append(result, indent+keyPart+": |")
+		
+		// Add each line of the unescaped content with proper indentation
+		contentLines := strings.Split(unescaped, "\n")
+		contentIndent := indent + "  "
+		for _, contentLine := range contentLines {
+			result = append(result, contentIndent+contentLine)
+		}
+	}
+	
+	return strings.Join(result, "\n")
 }

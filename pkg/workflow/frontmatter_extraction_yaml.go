@@ -94,6 +94,9 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// Remove the trailing newline
 	yamlStr = strings.TrimSuffix(yamlStr, "\n")
 
+	// Post-process to convert long quoted strings with \n escapes to literal block scalars
+	yamlStr = ConvertLongQuotedStringsToLiteralStyle(yamlStr)
+
 	// Post-process YAML to ensure cron expressions are quoted
 	// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5"
 	// which causes validation errors since they start with numbers but contain spaces
