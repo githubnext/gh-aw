@@ -393,6 +393,101 @@ services:
 - Duplicate service names cause compilation error
 - All services are available to workflow jobs
 
+#### Steps (`steps:`)
+
+**Merge Strategy**: Array prepend - imported steps run before main workflow steps
+
+```aw wrap
+# shared/setup.md
+---
+steps:
+  - name: Configure environment
+    run: echo "Setting up environment"
+  - uses: actions/checkout@v4
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/setup.md
+steps:
+  - name: Run custom action
+    run: echo "Main workflow step"
+---
+# Result: Imported steps run first, then main workflow steps
+```
+
+**Merge rules**:
+- Imported steps are **prepended** to main workflow steps
+- Steps execute in order: imported steps → main workflow steps
+- Action pinning is applied to all steps (both imported and main)
+- Steps from multiple imports are concatenated in import order
+
+#### Jobs (`jobs:`)
+
+**Merge Strategy**: No merging - jobs field is not importable
+
+```yaml wrap
+# shared/jobs.md
+---
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Notification"
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/jobs.md  # jobs field is ignored
+jobs:
+  build:
+    runs-on: ubuntu-latest
+---
+```
+
+**Important**: The `jobs:` field in imported files is **not merged**. Custom jobs can only be defined in the main workflow's frontmatter. Use `safe-outputs.jobs` for importable job definitions.
+
+#### Safe Output Jobs (`safe-outputs.jobs`)
+
+**Merge Strategy**: Conflict detection - job names must be unique
+
+```aw wrap
+# shared/notification.md
+---
+safe-outputs:
+  jobs:
+    notify:
+      name: Send notification
+      steps:
+        - run: echo "Notifying team"
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/notification.md
+safe-outputs:
+  jobs:
+    cleanup:
+      name: Cleanup resources
+      steps:
+        - run: echo "Cleaning up"
+---
+# Result: Both notify and cleanup jobs available
+```
+
+**Merge rules**:
+- Safe-job names must be **unique** across main workflow and all imports
+- Duplicate job names fail compilation with clear error
+- Main workflow jobs and imported jobs are both included
+- Job execution order determined by `needs:` dependencies
+- Each safe-job can access safe-output artifacts and GitHub token
+
 ### Import Processing Order
 
 Imports are processed in **breadth-first order** to ensure consistent and predictable merging:

@@ -77,8 +77,11 @@ Main Workflow
 | `network:` | Union of allowed domains | ✅ Mode and firewall settings |
 | `permissions:` | Validation only | ✅ Main must explicitly declare |
 | `safe-outputs:` | Type-level override | ✅ Main overrides imported types |
+| `safe-outputs.jobs:` | Conflict detection | Neither (names must be unique) |
 | `runtimes:` | Version override | ✅ Main versions override |
 | `services:` | Conflict detection | Neither (must be unique) |
+| `steps:` | Array prepend | Imported first, then main |
+| `jobs:` | Not importable | ✅ Main only (ignored in imports) |
 
 **Example: Tool merging**
 ```yaml wrap
