@@ -124,7 +124,7 @@ and synchronizing campaign state into a GitHub Project board.
        status: "In Progress"
        campaign_id: "{{.CampaignID}}"
        worker_workflow: "unknown"
-       repo: "<OWNER/REPO>"
+       repository: "<OWNER/REPO>"
        priority: "High"
        size: "Large"
        start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
