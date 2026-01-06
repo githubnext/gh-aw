@@ -143,8 +143,8 @@ jobs:
           echo "System configuration applied successfully"
       - name: Install Sandbox Runtime
         run: |
-          echo "Installing @anthropic-ai/sandbox-runtime locally"
-          npm install @anthropic-ai/sandbox-runtime
+          echo "Installing @anthropic-ai/sandbox-runtime@0.0.23 locally"
+          npm install @anthropic-ai/sandbox-runtime@0.0.23
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
         run: npm install --silent @github/copilot@0.0.374
