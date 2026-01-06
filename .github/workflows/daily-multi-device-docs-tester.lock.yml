@@ -927,6 +927,8 @@ jobs:
       - name: Firewall summary
         if: always()
         continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: awf logs summary >> $GITHUB_STEP_SUMMARY
       # Upload safe-outputs assets for upload_assets job
       - name: Upload safe-outputs assets

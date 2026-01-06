@@ -231,10 +231,15 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary.
 func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
+	// Firewall logs are at a known location in the sandbox folder structure
+	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs"
+
 	stepLines := []string{
 		"      - name: Firewall summary",
 		"        if: always()",
 		"        continue-on-error: true",
+		"        env:",
+		fmt.Sprintf("          AWF_LOGS_DIR: %s", firewallLogsDir),
 		"        run: awf logs summary >> $GITHUB_STEP_SUMMARY",
 	}
 
