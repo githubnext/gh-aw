@@ -118,37 +118,37 @@ async function main() {
 
     // Process each asset
     for (const asset of uploadItems) {
+      const { fileName, sha, size, targetFileName } = asset;
+
+      if (!fileName || !sha || !targetFileName) {
+        core.setFailed(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+        return;
+      }
+
+      // Check if file exists in artifacts
+      const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+      if (!fs.existsSync(assetSourcePath)) {
+        core.setFailed(`Asset file not found: ${assetSourcePath}`);
+        return;
+      }
+
+      // Verify SHA matches
+      const fileContent = fs.readFileSync(assetSourcePath);
+      const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+
+      if (computedSha !== sha) {
+        core.setFailed(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+        return;
+      }
+
+      // Check if file already exists in the branch
+      if (fs.existsSync(targetFileName)) {
+        core.info(`Asset ${targetFileName} already exists, skipping`);
+        continue;
+      }
+
+      // Copy file to branch with target filename
       try {
-        const { fileName, sha, size, targetFileName } = asset;
-
-        if (!fileName || !sha || !targetFileName) {
-          core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
-          continue;
-        }
-
-        // Check if file exists in artifacts
-        const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
-        if (!fs.existsSync(assetSourcePath)) {
-          core.warning(`Asset file not found: ${assetSourcePath}`);
-          continue;
-        }
-
-        // Verify SHA matches
-        const fileContent = fs.readFileSync(assetSourcePath);
-        const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-
-        if (computedSha !== sha) {
-          core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
-          continue;
-        }
-
-        // Check if file already exists in the branch
-        if (fs.existsSync(targetFileName)) {
-          core.info(`Asset ${targetFileName} already exists, skipping`);
-          continue;
-        }
-
-        // Copy file to branch with target filename
         fs.copyFileSync(assetSourcePath, targetFileName);
 
         // Add to git
@@ -159,7 +159,8 @@ async function main() {
 
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
       } catch (error) {
-        core.warning(`Failed to process asset ${asset.fileName}: ${getErrorMessage(error)}`);
+        core.setFailed(`Failed to process asset ${fileName}: ${getErrorMessage(error)}`);
+        return;
       }
     }
 
