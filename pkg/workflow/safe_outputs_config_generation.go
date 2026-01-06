@@ -157,10 +157,31 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.MissingTool != nil {
-			safeOutputsConfig["missing_tool"] = generateMaxConfig(
-				data.SafeOutputs.MissingTool.Max,
-				0, // default: unlimited
-			)
+			// Generate config for missing_tool with issue creation support
+			missingToolConfig := make(map[string]any)
+
+			// Add max if set
+			if data.SafeOutputs.MissingTool.Max > 0 {
+				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			}
+
+			// Add issue creation config if enabled
+			if data.SafeOutputs.MissingTool.CreateIssue {
+				createIssueConfig := make(map[string]any)
+				createIssueConfig["max"] = 1 // Only create one issue per workflow run
+
+				if data.SafeOutputs.MissingTool.TitlePrefix != "" {
+					createIssueConfig["title_prefix"] = data.SafeOutputs.MissingTool.TitlePrefix
+				}
+
+				if len(data.SafeOutputs.MissingTool.Labels) > 0 {
+					createIssueConfig["labels"] = data.SafeOutputs.MissingTool.Labels
+				}
+
+				safeOutputsConfig["create_missing_tool_issue"] = createIssueConfig
+			}
+
+			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}
 		if data.SafeOutputs.UpdateProjects != nil {
 			safeOutputsConfig["update_project"] = generateMaxConfig(
