@@ -229,6 +229,9 @@ Examples:
 	RegisterEngineFlagCompletion(logsCmd)
 	RegisterDirFlagCompletion(logsCmd, "output")
 
+	// Add subcommands
+	logsCmd.AddCommand(NewLogsSummaryCommand())
+
 	return logsCmd
 }
 
