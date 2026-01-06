@@ -23,15 +23,13 @@ jobs:
       uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
       with:
         cache: npm
-        cache-dependency-path: pkg/workflow/js/package-lock.json
+        cache-dependency-path: actions/setup/js/package-lock.json
         node-version: "24"
     - name: Set up Go
       uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
       with:
         cache: true
         go-version-file: go.mod
-    - name: Install JavaScript dependencies
-      run: cd pkg/workflow/js && npm ci
     - name: Install development dependencies
       run: make deps-dev
     - name: Build code
