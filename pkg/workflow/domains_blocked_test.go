@@ -64,7 +64,7 @@ func TestGetBlockedDomains(t *testing.T) {
 					domainMap[d] = true
 				}
 				domainMap["tracker.example.com"] = true
-				
+
 				domains := make([]string, 0, len(domainMap))
 				for d := range domainMap {
 					domains = append(domains, d)
@@ -157,11 +157,11 @@ func TestBlockedDomainsWithEngines(t *testing.T) {
 		assert.NotEmpty(t, blockedStr, "blocked domains string should not be empty")
 		assert.Contains(t, blockedStr, "tracker.example.com", "should contain tracker.example.com")
 		assert.Contains(t, blockedStr, "analytics.example.com", "should contain analytics.example.com")
-		
+
 		// Verify comma-separated format
 		blockedDomains := strings.Split(blockedStr, ",")
-		assert.Equal(t, 2, len(blockedDomains), "should have 2 blocked domains")
-		
+		assert.Len(t, blockedDomains, 2, "should have 2 blocked domains")
+
 		// Verify sorted order
 		assert.Equal(t, "analytics.example.com", blockedDomains[0], "first domain should be analytics.example.com (sorted)")
 		assert.Equal(t, "tracker.example.com", blockedDomains[1], "second domain should be tracker.example.com")
