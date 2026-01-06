@@ -101,6 +101,16 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 			}
 			outputs["update-project"] = updateProjectConfig
 		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			statusUpdateConfig := map[string]any{
+				"max": data.SafeOutputs.CreateProjectStatusUpdates.Max,
+			}
+			// Include github-token if specified
+			if strings.TrimSpace(data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken) != "" {
+				statusUpdateConfig["github-token"] = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
+			}
+			outputs["create-project-status-update"] = statusUpdateConfig
+		}
 		if len(outputs) > 0 {
 			payload := map[string]any{"safe-outputs": outputs}
 			if out, err := yaml.Marshal(payload); err == nil {
