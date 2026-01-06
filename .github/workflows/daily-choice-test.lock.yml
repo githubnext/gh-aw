@@ -982,9 +982,11 @@ jobs:
           if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
             ENVIRONMENT=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "test_environment") | .environment')
             TEST_TYPE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "test_environment") | .test_type')
-            echo "### Test Configuration" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Environment: $ENVIRONMENT" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Test Type: $TEST_TYPE" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### Test Configuration"
+              echo "- Environment: $ENVIRONMENT"
+              echo "- Test Type: $TEST_TYPE"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Test would be executed on $ENVIRONMENT environment with $TEST_TYPE tests"
           else
             echo "No agent output found"
