@@ -201,10 +201,15 @@ async function main(config = {}) {
         core.info(`Fetched discussion categories for ${itemRepo}`);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
-        core.error(`Failed to fetch repo info: ${errorMessage}`);
+        // Provide enhanced error message with troubleshooting hints
+        const enhancedError =
+          `Failed to fetch repository information for '${itemRepo}': ${errorMessage}. ` +
+          `This may indicate that discussions are not enabled for this repository. ` +
+          `Please verify that discussions are enabled in the repository settings at https://github.com/${itemRepo}/settings.`;
+        core.error(enhancedError);
         return {
           success: false,
-          error: errorMessage,
+          error: enhancedError,
         };
       }
     }
@@ -309,10 +314,16 @@ async function main(config = {}) {
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      core.error(`Failed to create discussion: ${errorMessage}`);
+      // Provide enhanced error message with troubleshooting hints
+      const enhancedError =
+        `Failed to create discussion in '${itemRepo}': ${errorMessage}. ` +
+        `Common causes: (1) Discussions not enabled in repository settings, ` +
+        `(2) Invalid category ID, or (3) Insufficient permissions. ` +
+        `Verify discussions are enabled at https://github.com/${itemRepo}/settings and check the category configuration.`;
+      core.error(enhancedError);
       return {
         success: false,
-        error: errorMessage,
+        error: enhancedError,
       };
     }
   };
