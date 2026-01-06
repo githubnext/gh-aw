@@ -640,7 +640,24 @@ safe-outputs:
 
 **Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`.
 
-**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (#123, owner/repo#456) are allowed. References to other repositories are escaped with backticks to prevent timeline items. Use `[]` to escape all references, `["repo"]` for current repo only, or specific repo names. If not specified, all references are allowed. See [SideRepoOps Guide](/gh-aw/guides/siderepoops/#controlling-github-references) for details.
+**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [SideRepoOps](/gh-aw/guides/siderepoops/) workflows to prevent automation from cluttering your main repository's timeline.
+
+Configuration options:
+- `[]` — Escape all references (prevents all timeline items)
+- `["repo"]` — Allow only the target repository's references
+- `["repo", "owner/other-repo"]` — Allow specific repositories
+- Not specified (default) — All references allowed
+
+Example for clean automation:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape all references
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+With `[]`, references like `#123` become `` `#123` `` and `other/repo#456` becomes `` `other/repo#456` ``, preventing timeline clutter while preserving the information.
 
 ## Global Configuration Options
 
