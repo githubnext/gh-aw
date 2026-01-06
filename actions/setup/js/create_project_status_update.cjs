@@ -124,12 +124,12 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
 function validateStatus(status) {
   const validStatuses = ["INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"];
   const statusStr = String(status || "ON_TRACK").toUpperCase();
-  
+
   if (!validStatuses.includes(statusStr)) {
     core.warning(`Invalid status "${status}", using ON_TRACK. Valid values: ${validStatuses.join(", ")}`);
     return "ON_TRACK";
   }
-  
+
   return statusStr;
 }
 
@@ -142,7 +142,7 @@ function formatDate(date) {
   if (!date) {
     return new Date().toISOString().split("T")[0];
   }
-  
+
   if (typeof date === "string") {
     // If already in YYYY-MM-DD format, return as-is
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -156,11 +156,11 @@ function formatDate(date) {
     }
     return parsed.toISOString().split("T")[0];
   }
-  
+
   if (date instanceof Date) {
     return date.toISOString().split("T")[0];
   }
-  
+
   core.warning(`Invalid date type ${typeof date}, using today`);
   return new Date().toISOString().split("T")[0];
 }
@@ -172,15 +172,15 @@ function formatDate(date) {
  */
 async function main(config = {}) {
   const maxCount = config.max || 10;
-  
+
   core.info(`Max count: ${maxCount}`);
-  
+
   // Track how many items we've processed for max limit
   let processedCount = 0;
-  
+
   // Track created status updates for outputs
   const createdStatusUpdates = [];
-  
+
   /**
    * Message handler function that processes a single create_project_status_update message
    * @param {Object} message - The create_project_status_update message to process
@@ -196,11 +196,11 @@ async function main(config = {}) {
         error: `Max count of ${maxCount} reached`,
       };
     }
-    
+
     processedCount++;
-    
+
     const output = message;
-    
+
     // Validate required fields
     if (!output.project) {
       core.error("Missing required field: project (GitHub project URL)");
@@ -209,7 +209,7 @@ async function main(config = {}) {
         error: "Missing required field: project",
       };
     }
-    
+
     if (!output.body) {
       core.error("Missing required field: body (status update content)");
       return {
@@ -217,32 +217,32 @@ async function main(config = {}) {
         error: "Missing required field: body",
       };
     }
-    
+
     try {
       core.info(`Creating status update for project: ${output.project}`);
-      
+
       // Parse project URL and resolve project ID
       const projectInfo = parseProjectUrl(output.project);
       const projectNumberInt = parseInt(projectInfo.projectNumber, 10);
-      
+
       if (!Number.isFinite(projectNumberInt)) {
         throw new Error(`Invalid project number parsed from URL: ${projectInfo.projectNumber}`);
       }
-      
+
       const project = await resolveProjectV2(projectInfo, projectNumberInt);
       const projectId = project.id;
-      
+
       core.info(`✓ Resolved project #${project.number} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
-      
+
       // Validate and format inputs
       const status = validateStatus(output.status);
       const startDate = formatDate(output.start_date);
       const targetDate = formatDate(output.target_date);
       const body = String(output.body);
-      
+
       core.info(`Creating status update: ${status} (${startDate} → ${targetDate})`);
       core.info(`Body preview: ${body.substring(0, 100)}${body.length > 100 ? "..." : ""}`);
-      
+
       // Create the status update using GraphQL mutation
       const mutation = `
         mutation($projectId: ID!, $body: String!, $startDate: Date, $targetDate: Date, $status: ProjectV2StatusUpdateStatus!) {
@@ -267,7 +267,7 @@ async function main(config = {}) {
           }
         }
       `;
-      
+
       const result = await github.graphql(mutation, {
         projectId,
         body,
@@ -275,15 +275,15 @@ async function main(config = {}) {
         targetDate,
         status,
       });
-      
+
       const statusUpdate = result.createProjectV2StatusUpdate.statusUpdate;
-      
+
       core.info(`✓ Created status update: ${statusUpdate.id}`);
       core.info(`  Status: ${statusUpdate.status}`);
       core.info(`  Start: ${statusUpdate.startDate}`);
       core.info(`  Target: ${statusUpdate.targetDate}`);
       core.info(`  Created: ${statusUpdate.createdAt}`);
-      
+
       // Track created status update
       createdStatusUpdates.push({
         id: statusUpdate.id,
@@ -294,11 +294,11 @@ async function main(config = {}) {
         target_date: statusUpdate.targetDate,
         created_at: statusUpdate.createdAt,
       });
-      
+
       // Set output for step
       core.setOutput("status-update-id", statusUpdate.id);
       core.setOutput("created-status-updates", JSON.stringify(createdStatusUpdates));
-      
+
       return {
         success: true,
         status_update_id: statusUpdate.id,
@@ -306,10 +306,10 @@ async function main(config = {}) {
         status: statusUpdate.status,
       };
     } catch (err) {
-      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ err;
       core.error(`Failed to create project status update: ${getErrorMessage(error)}`);
       logGraphQLError(error, "Creating project status update");
-      
+
       return {
         success: false,
         error: getErrorMessage(error),

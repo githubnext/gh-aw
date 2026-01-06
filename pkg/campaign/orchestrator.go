@@ -346,6 +346,15 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	}
 	safeOutputs.UpdateProjects = updateProjectConfig
 
+	// Allow creating project status updates for campaign summaries.
+	statusUpdateConfig := &workflow.CreateProjectStatusUpdateConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1}}
+	// Use the same custom GitHub token for status updates as for project operations.
+	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
+		statusUpdateConfig.GitHubToken = strings.TrimSpace(spec.ProjectGitHubToken)
+		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for create-project-status-update", spec.ID)
+	}
+	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
+
 	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
 
 	// Extract file-glob patterns from memory-paths or metrics-glob to support
