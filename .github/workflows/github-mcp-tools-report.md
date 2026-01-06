@@ -36,6 +36,21 @@ imports:
 
 You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.
 
+## Important: Safe Outputs Configuration
+
+This workflow uses safe-outputs to automatically create pull requests and discussions based on your output:
+
+- **create-pull-request**: Configured to create PRs with title prefix `[mcp-tools]`, labels `[documentation, automation]`, reviewer `copilot`, not draft
+- **create-discussion**: Configured to create discussions in the "audits" category (max 1, closes older discussions)
+
+**How to use safe-outputs**: Write a single JSON line per request to the file `$GH_AW_SAFE_OUTPUTS` (use append mode `>>`). Format:
+```bash
+echo '{"type": "create_pull_request", "title": "Your title", "body": "Your markdown body", "branch": "your-branch-name"}' >> "$GH_AW_SAFE_OUTPUTS"
+echo '{"type": "create_discussion", "title": "Discussion title", "body": "Discussion body in markdown"}' >> "$GH_AW_SAFE_OUTPUTS"
+```
+
+These will be processed automatically after your job completes. The configured title-prefix, labels, and reviewers are applied automatically.
+
 ## Mission
 
 Generate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.
@@ -127,13 +142,19 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
 
 3. **Create Pull Request with Changes**:
    - **CRITICAL**: If you updated the JSON file, you MUST create a pull request with your changes:
-     1. Create a local branch with a descriptive name (e.g., `update-github-mcp-tools-mapping`)
-     2. Add and commit the updated `pkg/workflow/data/github_toolsets_permissions.json` file
-     3. **Use the create-pull-request tool from safe-outputs** to create the PR with:
-        - A clear title describing the changes (e.g., "Update GitHub MCP toolsets mapping with latest tools")
-        - A detailed body explaining what was added, removed, or moved between toolsets
-        - The configured title prefix `[mcp-tools]`, labels, and reviewers will be applied automatically
-   - **IMPORTANT**: After creating the PR, continue with the documentation update in Phase 3
+     1. Use the `edit` tool to update `pkg/workflow/data/github_toolsets_permissions.json`
+     2. Use `git add`, `git commit` with a clear commit message (e.g., "Update GitHub MCP toolsets mapping with latest tools")
+     3. Create a new branch with a descriptive name using `git checkout -b update-github-mcp-tools-mapping-YYYYMMDD`
+     4. Push the branch using `git push origin <branch-name>`
+     5. **Output the PR request using safe-outputs**: Write a single line to `$GH_AW_SAFE_OUTPUTS` (append mode) with this JSON format:
+        ```json
+        {"type": "create_pull_request", "title": "Update GitHub MCP toolsets mapping with latest tools", "body": "## Changes\n\nThis PR updates...", "branch": "update-github-mcp-tools-mapping-YYYYMMDD"}
+        ```
+        - The `title` should clearly describe the changes (title prefix `[mcp-tools]` will be added automatically)
+        - The `body` should explain what was added, removed, or moved between toolsets in markdown format
+        - The `branch` should match the branch name you created
+        - Labels and reviewers configured in frontmatter will be applied automatically
+   - **IMPORTANT**: After outputting the PR request, continue with the documentation update in Phase 3
 
 ### Phase 3: Tool Documentation
 
@@ -381,7 +402,9 @@ Your output MUST:
    - Edit `pkg/workflow/data/github_toolsets_permissions.json`
    - Add missing tools, remove extra entries, fix moved tools
    - Preserve JSON structure and alphabetical ordering
-   - **Create a pull request using the create-pull-request tool from safe-outputs** with your changes (branch, commit, then call the tool)
+   - **Create a pull request using safe-outputs** by:
+     1. Creating a branch and committing your changes
+     2. Writing a single JSON line to `$GH_AW_SAFE_OUTPUTS` with the PR details (see Phase 2, step 3 for format)
 7. Compare current tools with previous tools (if available) and identify:
    - New tools added
    - Removed tools
@@ -461,7 +484,7 @@ Begin your tool discovery now. Follow these steps:
 5. **Update JSON mapping if needed**: If discrepancies are found:
    - Edit `pkg/workflow/data/github_toolsets_permissions.json` to fix them
    - Create a branch and commit your changes
-   - **Use the create-pull-request tool from safe-outputs** to create a PR with your updates
+   - **Output a PR request to `$GH_AW_SAFE_OUTPUTS`** (see Phase 2, step 3 for exact format)
 6. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools
 7. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)
 8. **Analyze and recommend default toolsets**: 
