@@ -973,4 +973,54 @@ describe("updateProject", () => {
     const updateFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
     expect(updateFieldCall).toBeUndefined();
   });
+
+  it("creates campaign_id field as TEXT type (not SINGLE_SELECT)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 100,
+      fields: {
+        campaign_id: "my-campaign-123",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-campaign-id"),
+      issueResponse("issue-id-100"),
+      existingItemResponse("issue-id-100", "item-campaign-id"),
+      // No existing fields - will need to create campaign_id as TEXT
+      fieldsResponse([]),
+      // Response for creating campaign_id field as TEXT type (not SINGLE_SELECT)
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-campaign-id",
+            name: "Campaign Id",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify that campaign_id field was created with TEXT type (not SINGLE_SELECT)
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+
+    // Check that the field was created with TEXT dataType
+    expect(createCalls[0][1].dataType).toBe("TEXT");
+    expect(createCalls[0][1].name).toBe("Campaign Id");
+    // Verify that singleSelectOptions was NOT provided (which would indicate SINGLE_SELECT)
+    expect(createCalls[0][1].singleSelectOptions).toBeUndefined();
+
+    // Verify the field value was set using text format
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0][1].value).toEqual({ text: "my-campaign-123" });
+  });
 });

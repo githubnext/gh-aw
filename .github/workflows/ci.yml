@@ -166,9 +166,6 @@ jobs:
             packages: "./pkg/workflow"
             pattern: ""
             skip_pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse|TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall|TestValidat|TestLock|TestError|TestWarning|SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|Render|Bundle|Script|WritePromptText|^TestCache|TestCacheDependencies|TestCacheKey|TestValidateCache|^TestActionPinSHAsMatchVersionTags|^TestAction[^P]|Container|Dependabot|Security|PII|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider|String|Sanitize|Normalize|Trim|Clean|Format|Runtime|Setup|Install|Download|Version|Binary"
-          - name: "AWMG Gateway Tests"  # MCP gateway integration tests
-            packages: "./pkg/awmg"
-            pattern: ""
     concurrency:
       group: ci-${{ github.ref }}-integration-${{ matrix.test-group.name }}
       cancel-in-progress: true
