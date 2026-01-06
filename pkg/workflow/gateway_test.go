@@ -70,6 +70,96 @@ func TestParseMCPGatewayTool(t *testing.T) {
 			},
 		},
 		{
+			name: "uint64 port (YAML parser default)",
+			input: map[string]any{
+				"port": uint64(8000),
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port: 8000,
+			},
+		},
+		{
+			name: "int64 port",
+			input: map[string]any{
+				"port": int64(9000),
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port: 9000,
+			},
+		},
+		{
+			name: "container mode with full configuration",
+			input: map[string]any{
+				"container": "ghcr.io/githubnext/gh-aw-mcpg:latest",
+				"args": []any{
+					"--rm",
+					"-i",
+					"-v",
+					"/var/run/docker.sock:/var/run/docker.sock",
+					"-p",
+					"8000:8000",
+				},
+				"entrypointArgs": []any{
+					"--routed",
+					"--listen",
+					"0.0.0.0:8000",
+					"--config-stdin",
+				},
+				"port": uint64(8000),
+				"env": map[string]any{
+					"DOCKER_API_VERSION": "1.44",
+					"GITHUB_TOKEN":       "${{ secrets.GITHUB_TOKEN }}",
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
+				Args: []string{
+					"--rm",
+					"-i",
+					"-v",
+					"/var/run/docker.sock:/var/run/docker.sock",
+					"-p",
+					"8000:8000",
+				},
+				EntrypointArgs: []string{
+					"--routed",
+					"--listen",
+					"0.0.0.0:8000",
+					"--config-stdin",
+				},
+				Port: 8000,
+				Env: map[string]string{
+					"DOCKER_API_VERSION": "1.44",
+					"GITHUB_TOKEN":       "${{ secrets.GITHUB_TOKEN }}",
+				},
+			},
+		},
+		{
+			name: "command mode with full configuration",
+			input: map[string]any{
+				"command": "./custom-gateway",
+				"args": []any{
+					"--port",
+					"9000",
+				},
+				"port": uint64(9000),
+				"env": map[string]any{
+					"LOG_LEVEL": "debug",
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Command: "./custom-gateway",
+				Args: []string{
+					"--port",
+					"9000",
+				},
+				Port: 9000,
+				Env: map[string]string{
+					"LOG_LEVEL": "debug",
+				},
+			},
+		},
+		{
 			name: "config with domain",
 			input: map[string]any{
 				"port":   8080,
@@ -230,11 +320,12 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 			expectSteps: 0,
 		},
 		{
-			name: "gateway enabled returns three steps",
+			name: "gateway enabled returns two steps",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayRuntimeConfig{
-						Port: 8080,
+						Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
+						Port:      8080,
 					},
 				},
 				Features: map[string]any{
@@ -242,7 +333,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 				},
 			},
 			mcpEnvVars:  map[string]string{},
-			expectSteps: 3,
+			expectSteps: 2,
 		},
 	}
 
@@ -252,36 +343,6 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 			assert.Len(t, steps, tt.expectSteps)
 		})
 	}
-}
-
-func TestGenerateMCPGatewayStartStep(t *testing.T) {
-	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
-	}
-	mcpEnvVars := map[string]string{}
-
-	step := generateMCPGatewayStartStep(config, mcpEnvVars)
-	stepStr := strings.Join(step, "\n")
-
-	assert.Contains(t, stepStr, "Start MCP Gateway")
-	assert.Contains(t, stepStr, "AWMG_CMD")
-	assert.Contains(t, stepStr, "--config")
-	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
-	assert.Contains(t, stepStr, "--port 8080")
-	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
-}
-
-func TestGenerateMCPGatewayDownloadStep(t *testing.T) {
-	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
-	}
-
-	step := generateMCPGatewayDownloadStep(config)
-	stepStr := strings.Join(step, "\n")
-
-	assert.Contains(t, stepStr, "Download MCP Gateway Binary")
-	assert.Contains(t, stepStr, "AWMG_CMD")
-	assert.Contains(t, stepStr, "$GITHUB_ENV")
 }
 
 func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
@@ -535,24 +596,6 @@ func TestGenerateCommandStartCommands(t *testing.T) {
 	assert.Contains(t, output, MCPGatewayLogsFolder)
 }
 
-func TestGenerateDefaultAWMGCommands(t *testing.T) {
-	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
-	}
-
-	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
-	lines := generateDefaultAWMGCommands(config, mcpConfigPath, 8080)
-	output := strings.Join(lines, "\n")
-
-	// Verify awmg binary handling - AWMG_CMD is set by download step
-	assert.Contains(t, output, "AWMG_CMD")
-
-	// Verify config file and port
-	assert.Contains(t, output, "--config /home/runner/.copilot/mcp-config.json")
-	assert.Contains(t, output, "--port 8080")
-	assert.Contains(t, output, MCPGatewayLogsFolder)
-}
-
 func TestGenerateMCPGatewayStartStep_ContainerMode(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Container:      "ghcr.io/githubnext/gh-aw-mcpg:latest",
@@ -590,7 +633,7 @@ func TestGenerateMCPGatewayStartStep_CommandMode(t *testing.T) {
 	assert.NotContains(t, stepStr, "awmg")       // Should not use awmg
 }
 
-func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
+func TestGenerateMCPGatewayStartStep_NoContainerOrCommand(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
@@ -599,9 +642,9 @@ func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
 	step := generateMCPGatewayStartStep(config, mcpEnvVars)
 	stepStr := strings.Join(step, "\n")
 
-	// Should use default awmg mode (AWMG_CMD is set by download step)
+	// Should error when neither container nor command is specified
 	assert.Contains(t, stepStr, "Start MCP Gateway")
-	assert.Contains(t, stepStr, "AWMG_CMD")
+	assert.Contains(t, stepStr, "ERROR: sandbox.mcp must specify either container or command")
 	assert.NotContains(t, stepStr, "docker run")                    // Should not use docker
 	assert.NotContains(t, stepStr, "/usr/local/bin/custom-gateway") // Should not use custom command
 }
@@ -699,7 +742,8 @@ func TestGenerateMCPGatewayStartStepWithInvalidPort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := &MCPGatewayRuntimeConfig{
-				Port: tt.port,
+				Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
+				Port:      tt.port,
 			}
 			mcpEnvVars := map[string]string{}
 
@@ -708,7 +752,7 @@ func TestGenerateMCPGatewayStartStepWithInvalidPort(t *testing.T) {
 
 			// Should still generate valid step with default port
 			assert.Contains(t, stepStr, "Start MCP Gateway")
-			assert.Contains(t, stepStr, fmt.Sprintf("--port %d", DefaultMCPGatewayPort))
+			assert.Contains(t, stepStr, "docker run")
 		})
 	}
 }
@@ -789,7 +833,8 @@ func TestGetMCPGatewayURLWithInvalidPort(t *testing.T) {
 
 func TestGenerateMCPGatewayStartStep_WithEnvVars(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
+		Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
+		Port:      8080,
 	}
 	mcpEnvVars := map[string]string{
 		"GITHUB_MCP_SERVER_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
@@ -817,7 +862,8 @@ func TestGenerateMCPGatewayStartStep_WithEnvVars(t *testing.T) {
 
 func TestGenerateMCPGatewayStartStep_WithoutEnvVars(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
+		Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
+		Port:      8080,
 	}
 	mcpEnvVars := map[string]string{}
 

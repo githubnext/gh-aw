@@ -110,6 +110,15 @@ jobs:
           output-file: sbom.cdx.json
           format: cyclonedx-json
 
+      - name: Audit SBOM files for secrets
+        run: |
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
+          fi
+          echo "✓ No secrets detected in SBOM files"
+
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v5
         with:
@@ -117,7 +126,7 @@ jobs:
           path: |
             sbom.spdx.json
             sbom.cdx.json
-          retention-days: 90
+          retention-days: 7  # Minimize exposure window
 
       - name: Attach SBOM to release
         env:
