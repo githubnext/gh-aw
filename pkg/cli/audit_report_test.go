@@ -334,7 +334,7 @@ func TestGenerateFindings(t *testing.T) {
 				pr := createTestProcessedRun()
 				pr.FirewallAnalysis = &FirewallAnalysis{
 					TotalRequests:   10,
-					DeniedRequests:  5,
+					BlockedRequests:  5,
 					AllowedRequests: 5,
 				}
 				return pr
@@ -503,7 +503,7 @@ func TestGenerateRecommendations(t *testing.T) {
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()
 				pr.FirewallAnalysis = &FirewallAnalysis{
-					DeniedRequests: 15, // > 10 threshold
+					BlockedRequests: 15, // > 10 threshold
 				}
 				return pr
 			}(),
@@ -681,7 +681,7 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 				return pr
 			}(),
 			errors: []ErrorInfo{
-				{Type: "error", Message: "Permission denied: cannot access file"},
+				{Type: "error", Message: "Permission blocked: cannot access file"},
 			},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
 				if analysis.RootCause != "Permission denied" {
@@ -980,14 +980,14 @@ func TestBuildAuditDataComplete(t *testing.T) {
 		FirewallAnalysis: &FirewallAnalysis{
 			DomainBuckets: DomainBuckets{
 				AllowedDomains: []string{"api.github.com"},
-				DeniedDomains:  []string{"blocked.example.com"},
+				BlockedDomains:  []string{"blocked.example.com"},
 			},
 			TotalRequests:   15,
 			AllowedRequests: 10,
-			DeniedRequests:  5,
+			BlockedRequests:  5,
 			RequestsByDomain: map[string]DomainRequestStats{
-				"api.github.com":      {Allowed: 10, Denied: 0},
-				"blocked.example.com": {Allowed: 0, Denied: 5},
+				"api.github.com":      {Allowed: 10, Blocked: 0},
+				"blocked.example.com": {Allowed: 0, Blocked: 5},
 			},
 		},
 		RedactedDomainsAnalysis: &RedactedDomainsAnalysis{
@@ -1379,7 +1379,7 @@ func TestRecommendationPriorityOrdering(t *testing.T) {
 			{Tool: "missing", Reason: "Not available"},
 		},
 		FirewallAnalysis: &FirewallAnalysis{
-			DeniedRequests: 20, // Many blocked requests
+			BlockedRequests: 20, // Many blocked requests
 		},
 	}
 

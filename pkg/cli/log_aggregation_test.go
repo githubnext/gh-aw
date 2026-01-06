@@ -22,7 +22,7 @@ func TestDomainAnalysisGettersSetters(t *testing.T) {
 	analysis := &DomainAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{"example.com", "test.com"},
-			DeniedDomains:  []string{"blocked.com"},
+			BlockedDomains:  []string{"blocked.com"},
 		},
 	}
 
@@ -32,9 +32,9 @@ func TestDomainAnalysisGettersSetters(t *testing.T) {
 		t.Errorf("Expected 2 allowed domains, got %d", len(allowed))
 	}
 
-	denied := analysis.GetDeniedDomains()
+	denied := analysis.GetBlockedDomains()
 	if len(denied) != 1 {
-		t.Errorf("Expected 1 denied domain, got %d", len(denied))
+		t.Errorf("Expected 1 blocked domain, got %d", len(denied))
 	}
 
 	// Test setters
@@ -45,9 +45,9 @@ func TestDomainAnalysisGettersSetters(t *testing.T) {
 	}
 
 	newDenied := []string{"denied1.com", "denied2.com"}
-	analysis.SetDeniedDomains(newDenied)
-	if len(analysis.DeniedDomains) != 2 {
-		t.Errorf("Expected 2 denied domains after set, got %d", len(analysis.DeniedDomains))
+	analysis.SetBlockedDomains(newDenied)
+	if len(analysis.BlockedDomains) != 2 {
+		t.Errorf("Expected 2 blocked domains after set, got %d", len(analysis.BlockedDomains))
 	}
 }
 
@@ -55,13 +55,13 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 	analysis1 := &DomainAnalysis{
 		TotalRequests: 10,
 		AllowedCount:  6,
-		DeniedCount:   4,
+		BlockedCount:   4,
 	}
 
 	analysis2 := &DomainAnalysis{
 		TotalRequests: 5,
 		AllowedCount:  3,
-		DeniedCount:   2,
+		BlockedCount:   2,
 	}
 
 	analysis1.AddMetrics(analysis2)
@@ -72,8 +72,8 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 	if analysis1.AllowedCount != 9 {
 		t.Errorf("Expected AllowedCount 9, got %d", analysis1.AllowedCount)
 	}
-	if analysis1.DeniedCount != 6 {
-		t.Errorf("Expected DeniedCount 6, got %d", analysis1.DeniedCount)
+	if analysis1.BlockedCount != 6 {
+		t.Errorf("Expected BlockedCount 6, got %d", analysis1.BlockedCount)
 	}
 }
 
@@ -81,7 +81,7 @@ func TestFirewallAnalysisGettersSetters(t *testing.T) {
 	analysis := &FirewallAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
-			DeniedDomains:  []string{"blocked.example.com:443"},
+			BlockedDomains:  []string{"blocked.example.com:443"},
 		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
@@ -92,9 +92,9 @@ func TestFirewallAnalysisGettersSetters(t *testing.T) {
 		t.Errorf("Expected 2 allowed domains, got %d", len(allowed))
 	}
 
-	denied := analysis.GetDeniedDomains()
+	denied := analysis.GetBlockedDomains()
 	if len(denied) != 1 {
-		t.Errorf("Expected 1 denied domain, got %d", len(denied))
+		t.Errorf("Expected 1 blocked domain, got %d", len(denied))
 	}
 
 	// Test setters
@@ -105,9 +105,9 @@ func TestFirewallAnalysisGettersSetters(t *testing.T) {
 	}
 
 	newDenied := []string{"denied1.com:443"}
-	analysis.SetDeniedDomains(newDenied)
-	if len(analysis.DeniedDomains) != 1 {
-		t.Errorf("Expected 1 denied domain after set, got %d", len(analysis.DeniedDomains))
+	analysis.SetBlockedDomains(newDenied)
+	if len(analysis.BlockedDomains) != 1 {
+		t.Errorf("Expected 1 blocked domain after set, got %d", len(analysis.BlockedDomains))
 	}
 }
 
@@ -115,19 +115,19 @@ func TestFirewallAnalysisAddMetrics(t *testing.T) {
 	analysis1 := &FirewallAnalysis{
 		TotalRequests:   10,
 		AllowedRequests: 6,
-		DeniedRequests:  4,
+		BlockedRequests:  4,
 		RequestsByDomain: map[string]DomainRequestStats{
-			"api.github.com:443": {Allowed: 3, Denied: 1},
+			"api.github.com:443": {Allowed: 3, Blocked: 1},
 		},
 	}
 
 	analysis2 := &FirewallAnalysis{
 		TotalRequests:   5,
 		AllowedRequests: 3,
-		DeniedRequests:  2,
+		BlockedRequests:  2,
 		RequestsByDomain: map[string]DomainRequestStats{
-			"api.github.com:443": {Allowed: 2, Denied: 0},
-			"api.npmjs.org:443":  {Allowed: 1, Denied: 2},
+			"api.github.com:443": {Allowed: 2, Blocked: 0},
+			"api.npmjs.org:443":  {Allowed: 1, Blocked: 2},
 		},
 	}
 
@@ -139,8 +139,8 @@ func TestFirewallAnalysisAddMetrics(t *testing.T) {
 	if analysis1.AllowedRequests != 9 {
 		t.Errorf("Expected AllowedRequests 9, got %d", analysis1.AllowedRequests)
 	}
-	if analysis1.DeniedRequests != 6 {
-		t.Errorf("Expected DeniedRequests 6, got %d", analysis1.DeniedRequests)
+	if analysis1.BlockedRequests != 6 {
+		t.Errorf("Expected BlockedRequests 6, got %d", analysis1.BlockedRequests)
 	}
 
 	// Check merged domain stats
@@ -148,16 +148,16 @@ func TestFirewallAnalysisAddMetrics(t *testing.T) {
 	if stats.Allowed != 5 {
 		t.Errorf("Expected api.github.com:443 Allowed 5, got %d", stats.Allowed)
 	}
-	if stats.Denied != 1 {
-		t.Errorf("Expected api.github.com:443 Denied 1, got %d", stats.Denied)
+	if stats.Blocked != 1 {
+		t.Errorf("Expected api.github.com:443 Denied 1, got %d", stats.Blocked)
 	}
 
 	npmStats := analysis1.RequestsByDomain["api.npmjs.org:443"]
 	if npmStats.Allowed != 1 {
 		t.Errorf("Expected api.npmjs.org:443 Allowed 1, got %d", npmStats.Allowed)
 	}
-	if npmStats.Denied != 2 {
-		t.Errorf("Expected api.npmjs.org:443 Denied 2, got %d", npmStats.Denied)
+	if npmStats.Blocked != 2 {
+		t.Errorf("Expected api.npmjs.org:443 Denied 2, got %d", npmStats.Blocked)
 	}
 }
 
@@ -200,7 +200,7 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 			return &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					DeniedDomains:  []string{},
+					BlockedDomains:  []string{},
 				},
 			}
 		},
@@ -219,8 +219,8 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 		t.Errorf("Expected 2 allowed requests, got %d", analysis.AllowedCount)
 	}
 
-	if analysis.DeniedCount != 2 {
-		t.Errorf("Expected 2 denied requests, got %d", analysis.DeniedCount)
+	if analysis.BlockedCount != 2 {
+		t.Errorf("Expected 2 denied requests, got %d", analysis.BlockedCount)
 	}
 
 	// Check allowed domains
@@ -229,10 +229,10 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 		t.Errorf("Expected %d allowed domains, got %d", expectedAllowed, len(analysis.AllowedDomains))
 	}
 
-	// Check denied domains
+	// Check blocked domains
 	expectedDenied := 2
-	if len(analysis.DeniedDomains) != expectedDenied {
-		t.Errorf("Expected %d denied domains, got %d", expectedDenied, len(analysis.DeniedDomains))
+	if len(analysis.BlockedDomains) != expectedDenied {
+		t.Errorf("Expected %d blocked domains, got %d", expectedDenied, len(analysis.BlockedDomains))
 	}
 }
 
@@ -275,7 +275,7 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 			return &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					DeniedDomains:  []string{},
+					BlockedDomains:  []string{},
 				},
 				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
@@ -295,8 +295,8 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
 	}
 
-	if analysis.DeniedRequests != 2 {
-		t.Errorf("DeniedRequests: got %d, want 2", analysis.DeniedRequests)
+	if analysis.BlockedRequests != 2 {
+		t.Errorf("BlockedRequests: got %d, want 2", analysis.BlockedRequests)
 	}
 
 	// Check domains
@@ -306,8 +306,8 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 	}
 
 	expectedDenied := 2
-	if len(analysis.DeniedDomains) != expectedDenied {
-		t.Errorf("DeniedDomains count: got %d, want %d", len(analysis.DeniedDomains), expectedDenied)
+	if len(analysis.BlockedDomains) != expectedDenied {
+		t.Errorf("BlockedDomains count: got %d, want %d", len(analysis.BlockedDomains), expectedDenied)
 	}
 }
 
@@ -325,7 +325,7 @@ func TestAggregateLogFilesNoFiles(t *testing.T) {
 			return &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					DeniedDomains:  []string{},
+					BlockedDomains:  []string{},
 				},
 			}
 		},
@@ -374,7 +374,7 @@ func TestAggregateLogFilesWithParseErrors(t *testing.T) {
 			return &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					DeniedDomains:  []string{},
+					BlockedDomains:  []string{},
 				},
 			}
 		},

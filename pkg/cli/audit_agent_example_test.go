@@ -86,18 +86,18 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 				"search.brave.com:443",
 				"npmjs.org:443",
 			},
-			DeniedDomains: []string{
+			BlockedDomains: []string{
 				"tracking.example.com:443",
 			},
 		},
 		TotalRequests:   42,
 		AllowedRequests: 40,
-		DeniedRequests:  2,
+		BlockedRequests:  2,
 		RequestsByDomain: map[string]DomainRequestStats{
-			"api.github.com:443":       {Allowed: 25, Denied: 0},
-			"search.brave.com:443":     {Allowed: 10, Denied: 0},
-			"npmjs.org:443":            {Allowed: 5, Denied: 0},
-			"tracking.example.com:443": {Allowed: 0, Denied: 2},
+			"api.github.com:443":       {Allowed: 25, Blocked: 0},
+			"search.brave.com:443":     {Allowed: 10, Blocked: 0},
+			"npmjs.org:443":            {Allowed: 5, Blocked: 0},
+			"tracking.example.com:443": {Allowed: 0, Blocked: 2},
 		},
 	}
 

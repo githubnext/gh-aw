@@ -73,14 +73,14 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
           const analysis = {
               totalRequests: 5,
               allowedRequests: 3,
-              deniedRequests: 2,
+              blockedRequests: 2,
               allowedDomains: ["api.github.com:443", "api.npmjs.org:443"],
-              deniedDomains: ["blocked.example.com:443", "denied.test.com:443"],
+              blockedDomains: ["blocked.example.com:443", "denied.test.com:443"],
               requestsByDomain: new Map([
-                ["api.github.com:443", { allowed: 2, denied: 0 }],
-                ["api.npmjs.org:443", { allowed: 1, denied: 0 }],
-                ["blocked.example.com:443", { allowed: 0, denied: 1 }],
-                ["denied.test.com:443", { allowed: 0, denied: 1 }],
+                ["api.github.com:443", { allowed: 2, blocked: 0 }],
+                ["api.npmjs.org:443", { allowed: 1, blocked: 0 }],
+                ["blocked.example.com:443", { allowed: 0, blocked: 1 }],
+                ["denied.test.com:443", { allowed: 0, blocked: 1 }],
               ]),
             },
             summary = generateFirewallSummary(analysis);
@@ -101,13 +101,13 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
             const analysis = {
                 totalRequests: 5,
                 allowedRequests: 2,
-                deniedRequests: 3,
+                blockedRequests: 3,
                 allowedDomains: ["api.github.com:443"],
-                deniedDomains: ["-", "example.com:443"],
+                blockedDomains: ["-", "example.com:443"],
                 requestsByDomain: new Map([
-                  ["-", { allowed: 0, denied: 2 }],
-                  ["api.github.com:443", { allowed: 2, denied: 0 }],
-                  ["example.com:443", { allowed: 0, denied: 1 }],
+                  ["-", { allowed: 0, blocked: 2 }],
+                  ["api.github.com:443", { allowed: 2, blocked: 0 }],
+                  ["example.com:443", { allowed: 0, blocked: 1 }],
                 ]),
               },
               summary = generateFirewallSummary(analysis);
@@ -119,7 +119,7 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
               expect(summary).not.toContain("| - |"));
           }),
           test("should show appropriate message when no firewall activity", () => {
-            const analysis = { totalRequests: 3, allowedRequests: 3, deniedRequests: 0, allowedDomains: ["api.github.com:443"], deniedDomains: [], requestsByDomain: new Map([["api.github.com:443", { allowed: 3, denied: 0 }]]) },
+            const analysis = { totalRequests: 3, allowedRequests: 3, blockedRequests: 0, allowedDomains: ["api.github.com:443"], blockedDomains: [], requestsByDomain: new Map([["api.github.com:443", { allowed: 3, blocked: 0 }]]) },
               summary = generateFirewallSummary(analysis);
             (expect(summary).toContain("sandbox agent:"),
               expect(summary).toContain("3 requests"),
@@ -132,19 +132,19 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
             const analysis = {
                 totalRequests: 3,
                 allowedRequests: 2,
-                deniedRequests: 1,
+                blockedRequests: 1,
                 allowedDomains: ["api.github.com:443"],
-                deniedDomains: ["-"],
+                blockedDomains: ["-"],
                 requestsByDomain: new Map([
-                  ["-", { allowed: 0, denied: 1 }],
-                  ["api.github.com:443", { allowed: 2, denied: 0 }],
+                  ["-", { allowed: 0, blocked: 1 }],
+                  ["api.github.com:443", { allowed: 2, blocked: 0 }],
                 ]),
               },
               summary = generateFirewallSummary(analysis);
             (expect(summary).toContain("1 unique domain"), expect(summary).toContain("2 allowed"), expect(summary).toContain("0 blocked"), expect(summary).toContain("| api.github.com:443 | 2 | 0 |"));
           }),
           test("should show appropriate message when no valid domains", () => {
-            const analysis = { totalRequests: 0, allowedRequests: 0, deniedRequests: 0, allowedDomains: [], deniedDomains: [], requestsByDomain: new Map() },
+            const analysis = { totalRequests: 0, allowedRequests: 0, blockedRequests: 0, allowedDomains: [], blockedDomains: [], requestsByDomain: new Map() },
               summary = generateFirewallSummary(analysis);
             (expect(summary).toContain("sandbox agent:"),
               expect(summary).toContain("0 requests"),

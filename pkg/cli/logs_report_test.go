@@ -477,22 +477,22 @@ func TestAggregateDomainStats(t *testing.T) {
 				AccessAnalysis: &DomainAnalysis{
 					DomainBuckets: DomainBuckets{
 						AllowedDomains: []string{"example.com", "api.github.com"},
-						DeniedDomains:  []string{"blocked.com"},
+						BlockedDomains:  []string{"blocked.com"},
 					},
 					TotalRequests: 10,
 					AllowedCount:  8,
-					DeniedCount:   2,
+					BlockedCount:   2,
 				},
 			},
 			{
 				AccessAnalysis: &DomainAnalysis{
 					DomainBuckets: DomainBuckets{
 						AllowedDomains: []string{"api.github.com", "docs.github.com"},
-						DeniedDomains:  []string{"spam.com"},
+						BlockedDomains:  []string{"spam.com"},
 					},
 					TotalRequests: 5,
 					AllowedCount:  4,
-					DeniedCount:   1,
+					BlockedCount:   1,
 				},
 			},
 		}
@@ -502,10 +502,10 @@ func TestAggregateDomainStats(t *testing.T) {
 				return nil, nil, 0, 0, 0, false
 			}
 			return pr.AccessAnalysis.AllowedDomains,
-				pr.AccessAnalysis.DeniedDomains,
+				pr.AccessAnalysis.BlockedDomains,
 				pr.AccessAnalysis.TotalRequests,
 				pr.AccessAnalysis.AllowedCount,
-				pr.AccessAnalysis.DeniedCount,
+				pr.AccessAnalysis.BlockedCount,
 				true
 		})
 
@@ -515,16 +515,16 @@ func TestAggregateDomainStats(t *testing.T) {
 		if agg.allowedCount != 12 {
 			t.Errorf("Expected allowedCount = 12, got %d", agg.allowedCount)
 		}
-		if agg.deniedCount != 3 {
-			t.Errorf("Expected deniedCount = 3, got %d", agg.deniedCount)
+		if agg.blockedCount != 3 {
+			t.Errorf("Expected blockedCount = 3, got %d", agg.blockedCount)
 		}
 
 		// Check unique domains
 		if len(agg.allAllowedDomains) != 3 {
 			t.Errorf("Expected 3 unique allowed domains, got %d", len(agg.allAllowedDomains))
 		}
-		if len(agg.allDeniedDomains) != 2 {
-			t.Errorf("Expected 2 unique denied domains, got %d", len(agg.allDeniedDomains))
+		if len(agg.allBlockedDomains) != 2 {
+			t.Errorf("Expected 2 unique blocked domains, got %d", len(agg.allBlockedDomains))
 		}
 
 		// Verify specific domains
@@ -534,8 +534,8 @@ func TestAggregateDomainStats(t *testing.T) {
 		if !agg.allAllowedDomains["api.github.com"] {
 			t.Error("Expected api.github.com in allowed domains")
 		}
-		if !agg.allDeniedDomains["blocked.com"] {
-			t.Error("Expected blocked.com in denied domains")
+		if !agg.allBlockedDomains["blocked.com"] {
+			t.Error("Expected blocked.com in blocked domains")
 		}
 	})
 
@@ -551,7 +551,7 @@ func TestAggregateDomainStats(t *testing.T) {
 					},
 					TotalRequests: 5,
 					AllowedCount:  5,
-					DeniedCount:   0,
+					BlockedCount:   0,
 				},
 			},
 		}
@@ -561,10 +561,10 @@ func TestAggregateDomainStats(t *testing.T) {
 				return nil, nil, 0, 0, 0, false
 			}
 			return pr.AccessAnalysis.AllowedDomains,
-				pr.AccessAnalysis.DeniedDomains,
+				pr.AccessAnalysis.BlockedDomains,
 				pr.AccessAnalysis.TotalRequests,
 				pr.AccessAnalysis.AllowedCount,
-				pr.AccessAnalysis.DeniedCount,
+				pr.AccessAnalysis.BlockedCount,
 				true
 		})
 
@@ -620,7 +620,7 @@ func TestConvertDomainsToSortedSlices(t *testing.T) {
 
 		expectedDenied := []string{"b.com", "y.com"}
 		if len(denied) != len(expectedDenied) {
-			t.Errorf("Expected %d denied domains, got %d", len(expectedDenied), len(denied))
+			t.Errorf("Expected %d blocked domains, got %d", len(expectedDenied), len(denied))
 		}
 		for i, domain := range expectedDenied {
 			if denied[i] != domain {
@@ -639,7 +639,7 @@ func TestConvertDomainsToSortedSlices(t *testing.T) {
 			t.Errorf("Expected 0 allowed domains, got %d", len(allowed))
 		}
 		if len(denied) != 0 {
-			t.Errorf("Expected 0 denied domains, got %d", len(denied))
+			t.Errorf("Expected 0 blocked domains, got %d", len(denied))
 		}
 	})
 }
@@ -654,11 +654,11 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 			AccessAnalysis: &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"example.com", "api.github.com"},
-					DeniedDomains:  []string{"blocked.com"},
+					BlockedDomains:  []string{"blocked.com"},
 				},
 				TotalRequests: 10,
 				AllowedCount:  8,
-				DeniedCount:   2,
+				BlockedCount:   2,
 			},
 		},
 		{
@@ -668,11 +668,11 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 			AccessAnalysis: &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"docs.github.com"},
-					DeniedDomains:  []string{},
+					BlockedDomains:  []string{},
 				},
 				TotalRequests: 5,
 				AllowedCount:  5,
-				DeniedCount:   0,
+				BlockedCount:   0,
 			},
 		},
 	}
@@ -689,8 +689,8 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 	if summary.AllowedCount != 13 {
 		t.Errorf("Expected AllowedCount = 13, got %d", summary.AllowedCount)
 	}
-	if summary.DeniedCount != 2 {
-		t.Errorf("Expected DeniedCount = 2, got %d", summary.DeniedCount)
+	if summary.BlockedCount != 2 {
+		t.Errorf("Expected BlockedCount = 2, got %d", summary.BlockedCount)
 	}
 
 	// Check sorted domains
@@ -704,8 +704,8 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 		}
 	}
 
-	if len(summary.DeniedDomains) != 1 || summary.DeniedDomains[0] != "blocked.com" {
-		t.Errorf("Expected DeniedDomains = [blocked.com], got %v", summary.DeniedDomains)
+	if len(summary.BlockedDomains) != 1 || summary.BlockedDomains[0] != "blocked.com" {
+		t.Errorf("Expected BlockedDomains = [blocked.com], got %v", summary.BlockedDomains)
 	}
 
 	// Check by workflow
@@ -724,14 +724,14 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 			FirewallAnalysis: &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"example.com"},
-					DeniedDomains:  []string{"blocked.com"},
+					BlockedDomains:  []string{"blocked.com"},
 				},
 				TotalRequests:   10,
 				AllowedRequests: 8,
-				DeniedRequests:  2,
+				BlockedRequests:  2,
 				RequestsByDomain: map[string]DomainRequestStats{
-					"example.com": {Allowed: 8, Denied: 0},
-					"blocked.com": {Allowed: 0, Denied: 2},
+					"example.com": {Allowed: 8, Blocked: 0},
+					"blocked.com": {Allowed: 0, Blocked: 2},
 				},
 			},
 		},
@@ -742,14 +742,14 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 			FirewallAnalysis: &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"example.com", "api.github.com"},
-					DeniedDomains:  []string{},
+					BlockedDomains:  []string{},
 				},
 				TotalRequests:   5,
 				AllowedRequests: 5,
-				DeniedRequests:  0,
+				BlockedRequests:  0,
 				RequestsByDomain: map[string]DomainRequestStats{
-					"example.com":    {Allowed: 3, Denied: 0},
-					"api.github.com": {Allowed: 2, Denied: 0},
+					"example.com":    {Allowed: 3, Blocked: 0},
+					"api.github.com": {Allowed: 2, Blocked: 0},
 				},
 			},
 		},
@@ -767,8 +767,8 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 	if summary.AllowedRequests != 13 {
 		t.Errorf("Expected AllowedRequests = 13, got %d", summary.AllowedRequests)
 	}
-	if summary.DeniedRequests != 2 {
-		t.Errorf("Expected DeniedRequests = 2, got %d", summary.DeniedRequests)
+	if summary.BlockedRequests != 2 {
+		t.Errorf("Expected BlockedRequests = 2, got %d", summary.BlockedRequests)
 	}
 
 	// Check RequestsByDomain aggregation (firewall-specific)
@@ -778,8 +778,8 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 		if stats.Allowed != 11 {
 			t.Errorf("Expected example.com Allowed = 11, got %d", stats.Allowed)
 		}
-		if stats.Denied != 0 {
-			t.Errorf("Expected example.com Denied = 0, got %d", stats.Denied)
+		if stats.Blocked != 0 {
+			t.Errorf("Expected example.com Denied = 0, got %d", stats.Blocked)
 		}
 	}
 
@@ -789,8 +789,8 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 		if stats.Allowed != 0 {
 			t.Errorf("Expected blocked.com Allowed = 0, got %d", stats.Allowed)
 		}
-		if stats.Denied != 2 {
-			t.Errorf("Expected blocked.com Denied = 2, got %d", stats.Denied)
+		if stats.Blocked != 2 {
+			t.Errorf("Expected blocked.com Denied = 2, got %d", stats.Blocked)
 		}
 	}
 }

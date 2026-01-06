@@ -744,7 +744,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 		fw := processedRun.FirewallAnalysis
 		fmt.Fprintf(&report, "- **Total Requests**: %d\n", fw.TotalRequests)
 		fmt.Fprintf(&report, "- **Allowed Requests**: %d\n", fw.AllowedRequests)
-		fmt.Fprintf(&report, "- **Denied Requests**: %d\n", fw.DeniedRequests)
+		fmt.Fprintf(&report, "- **Blocked Requests**: %d\n", fw.BlockedRequests)
 		report.WriteString("\n")
 
 		if len(fw.AllowedDomains) > 0 {

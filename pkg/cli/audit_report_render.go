@@ -264,7 +264,7 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 	// Summary statistics
 	fmt.Fprintf(os.Stderr, "  Total Requests : %d\n", analysis.TotalRequests)
 	fmt.Fprintf(os.Stderr, "  Allowed        : %d\n", analysis.AllowedRequests)
-	fmt.Fprintf(os.Stderr, "  Denied         : %d\n", analysis.DeniedRequests)
+	fmt.Fprintf(os.Stderr, "  Blocked        : %d\n", analysis.BlockedRequests)
 	fmt.Fprintln(os.Stderr)
 
 	// Allowed domains

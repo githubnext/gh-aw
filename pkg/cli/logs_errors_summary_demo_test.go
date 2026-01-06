@@ -33,7 +33,7 @@ func TestErrorsSummaryDemo(t *testing.T) {
 	// Test the structure of ErrorSummary
 	demoSummary := ErrorSummary{
 		Type:         "Error",
-		Message:      "Permission denied: Unable to access resource",
+		Message:      "Permission blocked: Unable to access resource",
 		Count:        15,
 		PatternID:    "common-generic-error",
 		Engine:       "copilot",

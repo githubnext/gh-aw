@@ -1021,15 +1021,15 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 	firewallAnalysis := &FirewallAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{"api.github.com:443", "npmjs.org:443"},
-			DeniedDomains:  []string{"blocked.example.com:443"},
+			BlockedDomains:  []string{"blocked.example.com:443"},
 		},
 		TotalRequests:   10,
 		AllowedRequests: 7,
-		DeniedRequests:  3,
+		BlockedRequests:  3,
 		RequestsByDomain: map[string]DomainRequestStats{
-			"api.github.com:443":      {Allowed: 5, Denied: 0},
-			"npmjs.org:443":           {Allowed: 2, Denied: 0},
-			"blocked.example.com:443": {Allowed: 0, Denied: 3},
+			"api.github.com:443":      {Allowed: 5, Blocked: 0},
+			"npmjs.org:443":           {Allowed: 2, Blocked: 0},
+			"blocked.example.com:443": {Allowed: 0, Blocked: 3},
 		},
 	}
 
@@ -1055,14 +1055,14 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 	if auditData.FirewallAnalysis.AllowedRequests != 7 {
 		t.Errorf("Expected 7 allowed requests, got %d", auditData.FirewallAnalysis.AllowedRequests)
 	}
-	if auditData.FirewallAnalysis.DeniedRequests != 3 {
-		t.Errorf("Expected 3 denied requests, got %d", auditData.FirewallAnalysis.DeniedRequests)
+	if auditData.FirewallAnalysis.BlockedRequests != 3 {
+		t.Errorf("Expected 3 denied requests, got %d", auditData.FirewallAnalysis.BlockedRequests)
 	}
 	if len(auditData.FirewallAnalysis.AllowedDomains) != 2 {
 		t.Errorf("Expected 2 allowed domains, got %d", len(auditData.FirewallAnalysis.AllowedDomains))
 	}
-	if len(auditData.FirewallAnalysis.DeniedDomains) != 1 {
-		t.Errorf("Expected 1 denied domain, got %d", len(auditData.FirewallAnalysis.DeniedDomains))
+	if len(auditData.FirewallAnalysis.BlockedDomains) != 1 {
+		t.Errorf("Expected 1 blocked domain, got %d", len(auditData.FirewallAnalysis.BlockedDomains))
 	}
 }
 
@@ -1094,15 +1094,15 @@ func TestGenerateAuditReportWithFirewall(t *testing.T) {
 	firewallAnalysis := &FirewallAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{"api.github.com:443", "npmjs.org:443"},
-			DeniedDomains:  []string{"blocked.example.com:443"},
+			BlockedDomains:  []string{"blocked.example.com:443"},
 		},
 		TotalRequests:   10,
 		AllowedRequests: 7,
-		DeniedRequests:  3,
+		BlockedRequests:  3,
 		RequestsByDomain: map[string]DomainRequestStats{
-			"api.github.com:443":      {Allowed: 5, Denied: 0},
-			"npmjs.org:443":           {Allowed: 2, Denied: 0},
-			"blocked.example.com:443": {Allowed: 0, Denied: 3},
+			"api.github.com:443":      {Allowed: 5, Blocked: 0},
+			"npmjs.org:443":           {Allowed: 2, Blocked: 0},
+			"blocked.example.com:443": {Allowed: 0, Blocked: 3},
 		},
 	}
 
@@ -1146,7 +1146,7 @@ func TestGenerateAuditReportWithFirewall(t *testing.T) {
 		t.Error("Report should list allowed domain api.github.com:443")
 	}
 	if !strings.Contains(report, "blocked.example.com:443") {
-		t.Error("Report should list denied domain blocked.example.com:443")
+		t.Error("Report should list blocked domain blocked.example.com:443")
 	}
 }
 
@@ -1155,14 +1155,14 @@ func TestRenderJSONWithFirewall(t *testing.T) {
 	firewallAnalysis := &FirewallAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{"api.github.com:443"},
-			DeniedDomains:  []string{"blocked.example.com:443"},
+			BlockedDomains:  []string{"blocked.example.com:443"},
 		},
 		TotalRequests:   10,
 		AllowedRequests: 7,
-		DeniedRequests:  3,
+		BlockedRequests:  3,
 		RequestsByDomain: map[string]DomainRequestStats{
-			"api.github.com:443":      {Allowed: 7, Denied: 0},
-			"blocked.example.com:443": {Allowed: 0, Denied: 3},
+			"api.github.com:443":      {Allowed: 7, Blocked: 0},
+			"blocked.example.com:443": {Allowed: 0, Blocked: 3},
 		},
 	}
 
@@ -1229,14 +1229,14 @@ func TestRenderJSONWithFirewall(t *testing.T) {
 	if parsed.FirewallAnalysis.AllowedRequests != 7 {
 		t.Errorf("Expected 7 allowed requests, got %d", parsed.FirewallAnalysis.AllowedRequests)
 	}
-	if parsed.FirewallAnalysis.DeniedRequests != 3 {
-		t.Errorf("Expected 3 denied requests, got %d", parsed.FirewallAnalysis.DeniedRequests)
+	if parsed.FirewallAnalysis.BlockedRequests != 3 {
+		t.Errorf("Expected 3 denied requests, got %d", parsed.FirewallAnalysis.BlockedRequests)
 	}
 	if len(parsed.FirewallAnalysis.AllowedDomains) != 1 {
 		t.Errorf("Expected 1 allowed domain, got %d", len(parsed.FirewallAnalysis.AllowedDomains))
 	}
-	if len(parsed.FirewallAnalysis.DeniedDomains) != 1 {
-		t.Errorf("Expected 1 denied domain, got %d", len(parsed.FirewallAnalysis.DeniedDomains))
+	if len(parsed.FirewallAnalysis.BlockedDomains) != 1 {
+		t.Errorf("Expected 1 blocked domain, got %d", len(parsed.FirewallAnalysis.BlockedDomains))
 	}
 }
 
