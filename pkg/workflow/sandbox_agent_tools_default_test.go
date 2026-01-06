@@ -128,11 +128,11 @@ Test workflow to verify sandbox.agent: false does not enable tools by default.
 		// Verify that edit tool is NOT present (unless explicitly added)
 		// We check that edit is not in the tools list by looking for the edit tool configuration
 		// Since we're not setting tools explicitly, edit should not be added when agent is disabled
-		
+
 		// Count occurrences of "edit" to see if it's actually configured as a tool
 		// (edit might appear in comments or other contexts)
 		editCount := strings.Count(strings.ToLower(lockStr), "edit")
-		
+
 		// If edit appears very few times, it's likely just in comments
 		// A proper tool configuration would have multiple references
 		if editCount > 10 {
@@ -173,7 +173,7 @@ Test workflow without sandbox config.
 		// Without sandbox config, edit and bash should not be added by our new logic
 		// They might still be added by other default logic, but we're specifically testing
 		// that our sandbox.agent logic doesn't activate
-		
+
 		// We just verify compilation succeeded - the actual tool presence depends on other defaults
 		assert.NotEmpty(t, lockStr, "Lock file should not be empty")
 	})
@@ -216,7 +216,7 @@ Test workflow where explicit tools.bash should take precedence over default.
 		// The explicit bash configuration should be preserved
 		// We verify the workflow compiled successfully
 		assert.NotEmpty(t, lockStr, "Lock file should not be empty")
-		
+
 		// Verify bash tool is present (explicit configuration)
 		assert.Contains(t, lockStr, "bash", "Expected bash tool with explicit configuration")
 	})
@@ -260,7 +260,7 @@ Test workflow where firewall is auto-enabled via network restrictions.
 
 		// Verify that bash tool is present
 		assert.Contains(t, lockStr, "bash", "Expected bash tool to be enabled when firewall is auto-enabled")
-		
+
 		// Verify AWF is present
 		assert.Contains(t, lockStr, "gh-aw-firewall", "Expected AWF to be present when auto-enabled")
 	})
@@ -370,7 +370,7 @@ func TestIsSandboxEnabled(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "firewall disabled even with network permissions",
+			name:          "firewall disabled even with network permissions",
 			sandboxConfig: nil,
 			networkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{

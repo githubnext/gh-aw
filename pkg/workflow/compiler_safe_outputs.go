@@ -310,13 +310,13 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// 2. Auto-enabled by firewall default enablement (when network restrictions are present)
 	if isSandboxEnabled(sandboxConfig, networkPermissions) {
 		compilerSafeOutputsLog.Print("Sandbox enabled, applying default edit and bash tools")
-		
+
 		// Add edit tool if not present
 		if _, exists := tools["edit"]; !exists {
 			tools["edit"] = true
 			compilerSafeOutputsLog.Print("Added edit tool (sandbox enabled)")
 		}
-		
+
 		// Add bash tool with wildcard if not present
 		if _, exists := tools["bash"]; !exists {
 			tools["bash"] = []any{"*"}
@@ -458,7 +458,7 @@ func isSandboxEnabled(sandboxConfig *SandboxConfig, networkPermissions *NetworkP
 	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
 		return false
 	}
-	
+
 	// Check if sandbox.agent is explicitly configured with a type
 	if sandboxConfig != nil && sandboxConfig.Agent != nil {
 		agentType := getAgentType(sandboxConfig.Agent)
@@ -466,16 +466,16 @@ func isSandboxEnabled(sandboxConfig *SandboxConfig, networkPermissions *NetworkP
 			return true
 		}
 	}
-	
+
 	// Check if SRT is enabled via legacy Type field
 	if sandboxConfig != nil && (sandboxConfig.Type == SandboxTypeSRT || sandboxConfig.Type == SandboxTypeRuntime) {
 		return true
 	}
-	
+
 	// Check if firewall is auto-enabled (AWF)
 	if networkPermissions != nil && networkPermissions.Firewall != nil && networkPermissions.Firewall.Enabled {
 		return true
 	}
-	
+
 	return false
 }
