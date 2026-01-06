@@ -280,6 +280,7 @@ jobs:
       - name: Setup MCPs
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -297,7 +298,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
+                  "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.27.0"
@@ -982,9 +983,11 @@ jobs:
           if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
             ENVIRONMENT=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "test_environment") | .environment')
             TEST_TYPE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "test_environment") | .test_type')
-            echo "### Test Configuration" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Environment: $ENVIRONMENT" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Test Type: $TEST_TYPE" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### Test Configuration"
+              echo "- Environment: $ENVIRONMENT"
+              echo "- Test Type: $TEST_TYPE"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Test would be executed on $ENVIRONMENT environment with $TEST_TYPE tests"
           else
             echo "No agent output found"

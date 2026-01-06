@@ -105,9 +105,6 @@ Standard job names across workflows (using snake_case convention):
 | `check_ci_status` | CI status verification | Checks CI pipeline status |
 | `check_external_user` | External contributor check | Validates external contributors |
 | `ast_grep` | AST-based code search | Structural code analysis |
-| `bead` | Bead workflow execution | Beads-based agent workflow |
-| `bead_update_state` | Bead state update | Updates bead execution state |
-| `release_bead` | Bead release workflow | Releases bead artifacts |
 
 ## File Paths
 
