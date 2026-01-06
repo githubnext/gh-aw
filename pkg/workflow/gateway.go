@@ -133,10 +133,21 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 			"          fi",
 		)
 	} else {
-		// Release mode: download from GitHub releases using gh CLI
-		gatewayLog.Print("Using release mode - will download awmg from releases")
+		// Release mode: download awmg using install-awmg.sh script from main branch
+		gatewayLog.Print("Using release mode - will download awmg using install-awmg.sh script")
+		
+		// Detect current release tag (if available)
+		releaseTag := GetCurrentGitTag()
+		var versionArg string
+		if releaseTag != "" {
+			versionArg = releaseTag
+			gatewayLog.Printf("Detected release tag: %s", releaseTag)
+		} else {
+			gatewayLog.Print("No release tag detected, will use latest release")
+		}
+		
 		stepLines = append(stepLines,
-			"          # Release mode: Download awmg from releases",
+			"          # Release mode: Download awmg using install-awmg.sh script",
 			"          # Check if awmg is already in PATH",
 			"          if command -v awmg &> /dev/null; then",
 			"            echo 'awmg is already available in PATH'",
@@ -146,29 +157,34 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 			"            echo 'Using existing local awmg build'",
 			"            echo \"AWMG_CMD=./awmg\" >> $GITHUB_ENV",
 			"          else",
-			"            # Download awmg from releases using gh CLI",
-			"            echo 'Downloading awmg from GitHub releases...'",
+			"            # Download install-awmg.sh script from main branch",
+			"            echo 'Downloading install-awmg.sh from main branch...'",
+			"            curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-awmg.sh -o /tmp/install-awmg.sh",
+			"            chmod +x /tmp/install-awmg.sh",
 			"            ",
-			"            # Detect platform",
-			"            OS=$(uname -s | tr '[:upper:]' '[:lower:]')",
-			"            ARCH=$(uname -m)",
-			"            if [ \"$ARCH\" = \"x86_64\" ]; then ARCH=\"amd64\"; fi",
-			"            if [ \"$ARCH\" = \"aarch64\" ]; then ARCH=\"arm64\"; fi",
+		)
+		
+		// Add version argument if release tag is available
+		if versionArg != "" {
+			stepLines = append(stepLines,
+				"            # Download awmg for release tag: "+versionArg,
+				fmt.Sprintf("            /tmp/install-awmg.sh %s", versionArg),
+			)
+		} else {
+			stepLines = append(stepLines,
+				"            # Download latest awmg release",
+				"            /tmp/install-awmg.sh",
+			)
+		}
+		
+		stepLines = append(stepLines,
 			"            ",
-			"            AWMG_BINARY=\"awmg-${OS}-${ARCH}\"",
-			"            if [ \"$OS\" = \"windows\" ]; then AWMG_BINARY=\"${AWMG_BINARY}.exe\"; fi",
-			"            ",
-			"            # Use gh CLI to download the release binary",
-			"            # gh CLI has access to GH_TOKEN for authenticated API requests",
-			"            echo \"Downloading $AWMG_BINARY using gh CLI...\"",
-			"            if gh release download --repo githubnext/gh-aw --pattern \"$AWMG_BINARY\" --dir /tmp --clobber; then",
-			"              chmod +x \"/tmp/$AWMG_BINARY\"",
-			"              echo \"AWMG_CMD=/tmp/$AWMG_BINARY\" >> $GITHUB_ENV",
-			"              echo 'Downloaded awmg successfully'",
+			"            # Set AWMG_CMD to installed binary location",
+			"            if [ -f \"$HOME/.local/bin/awmg\" ]; then",
+			"              echo \"AWMG_CMD=$HOME/.local/bin/awmg\" >> $GITHUB_ENV",
+			"              echo 'awmg installed successfully'",
 			"            else",
-			"              echo 'ERROR: Could not download awmg binary using gh CLI'",
-			"              echo 'Please ensure awmg is available or download it from:'",
-			"              echo 'https://github.com/githubnext/gh-aw/releases'",
+			"              echo 'ERROR: awmg binary not found after installation'",
 			"              exit 1",
 			"            fi",
 			"          fi",
