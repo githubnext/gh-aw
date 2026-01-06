@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
@@ -41,37 +40,4 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 	}
 
 	return tools
-}
-
-// normalizeSafeOutputIdentifier converts dashes to underscores for safe output identifiers.
-//
-// This is a NORMALIZE function (format standardization pattern). Use this when ensuring
-// consistency across the system while remaining resilient to LLM-generated variations.
-//
-// Safe output identifiers may appear in different formats:
-//   - YAML configuration: "create-issue" (dash-separated)
-//   - JavaScript code: "create_issue" (underscore-separated)
-//   - Internal usage: can vary based on source
-//
-// This function normalizes all variations to a canonical underscore-separated format,
-// ensuring consistent internal representation regardless of input format.
-//
-// Example inputs and outputs:
-//
-//	normalizeSafeOutputIdentifier("create-issue")      // returns "create_issue"
-//	normalizeSafeOutputIdentifier("create_issue")      // returns "create_issue" (unchanged)
-//	normalizeSafeOutputIdentifier("add-comment")       // returns "add_comment"
-//
-// Note: This function assumes the input is already a valid identifier. It does NOT
-// perform character validation or sanitization - it only converts between naming
-// conventions. Both dash-separated and underscore-separated formats are valid;
-// this function simply standardizes to the internal representation.
-//
-// See package documentation for guidance on when to use sanitize vs normalize patterns.
-func normalizeSafeOutputIdentifier(identifier string) string {
-	normalized := strings.ReplaceAll(identifier, "-", "_")
-	if safeOutputsConfigLog.Enabled() {
-		safeOutputsConfigLog.Printf("Normalized safe output identifier: %s -> %s", identifier, normalized)
-	}
-	return normalized
 }
