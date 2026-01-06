@@ -166,3 +166,23 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		Needs:         needs,
 	})
 }
+
+// generateSafeOutputsAssetsArtifactUpload generates a step to upload safe-outputs assets as a separate artifact
+// This artifact is then downloaded by the upload_assets job to publish files to orphaned branches
+func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
+		return
+	}
+
+	publishAssetsLog.Print("Generating safe-outputs assets artifact upload step")
+
+	builder.WriteString("      # Upload safe-outputs assets for upload_assets job\n")
+	builder.WriteString("      - name: Upload safe-outputs assets\n")
+	builder.WriteString("        if: always()\n")
+	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+	builder.WriteString("        with:\n")
+	builder.WriteString("          name: safe-outputs-assets\n")
+	builder.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
+	builder.WriteString("          retention-days: 1\n")
+	builder.WriteString("          if-no-files-found: ignore\n")
+}
