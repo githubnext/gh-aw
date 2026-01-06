@@ -68,6 +68,12 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		customGitHubToken := getGitHubToken(githubTool)
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
 		envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		
+		// Add lockdown value if it's determined from step output
+		// Security: Pass step output through environment variable to prevent template injection
+		if !hasGitHubLockdownExplicitlySet(githubTool) {
+			envVars["GITHUB_MCP_LOCKDOWN"] = "${{ steps.determine-automatic-lockdown.outputs.lockdown }}"
+		}
 	}
 
 	// Check for safe-outputs env vars
@@ -394,10 +400,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("      - name: Start Safe Inputs MCP HTTP Server\n")
 		yaml.WriteString("        id: safe-inputs-start\n")
 
-		// Add env block with tool-specific secrets so they're available to the Node.js MCP server process
+		// Add env block with step outputs and tool-specific secrets
+		// Security: Pass step outputs through environment variables to prevent template injection
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
+		yaml.WriteString("          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
+		
 		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
 		if len(safeInputsSecrets) > 0 {
-			yaml.WriteString("        env:\n")
 			// Sort env var names for consistent output
 			envVarNames := make([]string, 0, len(safeInputsSecrets))
 			for envVarName := range safeInputsSecrets {
@@ -412,9 +422,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          # Set environment variables for the server\n")
-		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
-		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
+		yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
+		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT\n")
+		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY\n")
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
