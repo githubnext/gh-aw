@@ -15,11 +15,11 @@ func (c *Compiler) parseCopyProjectsConfig(outputMap map[string]any) *CopyProjec
 	if configData, exists := outputMap["copy-project"]; exists {
 		copyProjectLog.Print("Parsing copy-project configuration")
 		copyProjectsConfig := &CopyProjectsConfig{}
-		copyProjectsConfig.Max = 10 // Default max is 10
+		copyProjectsConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base config (max, github-token)
-			c.parseBaseSafeOutputConfig(configMap, &copyProjectsConfig.BaseSafeOutputConfig, 10)
+			c.parseBaseSafeOutputConfig(configMap, &copyProjectsConfig.BaseSafeOutputConfig, 1)
 
 			// Parse github-token override if specified
 			if token, exists := configMap["github-token"]; exists {

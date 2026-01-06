@@ -639,7 +639,7 @@
   },
   {
     "name": "copy_project",
-    "description": "Copy a GitHub Projects v2 board to create a new project with the same structure, fields, and views. Useful for duplicating project templates or migrating projects between organizations. Does not copy draft issues from the source project.",
+    "description": "Copy a GitHub Projects v2 board to create a new project with the same structure, fields, and views. Useful for duplicating project templates or migrating projects between organizations. By default, draft issues are not copied unless includeDraftIssues is set to true.",
     "inputSchema": {
       "type": "object",
       "required": ["sourceProject", "owner", "title"],
@@ -656,6 +656,10 @@
         "title": {
           "type": "string",
           "description": "Title for the new project. Should be descriptive and unique within the owner's projects."
+        },
+        "includeDraftIssues": {
+          "type": "boolean",
+          "description": "Whether to copy draft issues from the source project. Default: false."
         }
       },
       "additionalProperties": false

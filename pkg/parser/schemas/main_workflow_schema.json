@@ -3684,11 +3684,11 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for copying GitHub Projects v2 boards. Creates a new project with the same structure, fields, and views as the source project. Draft issues are NOT copied. Requires a Personal Access Token (PAT) or GitHub App token with Projects permissions; the GITHUB_TOKEN cannot be used. Safe output items use type=copy_project and include: sourceProject (URL), owner (org/user login), and title (new project name).",
+              "description": "Configuration for copying GitHub Projects v2 boards. Creates a new project with the same structure, fields, and views as the source project. By default, draft issues are NOT copied unless explicitly requested with includeDraftIssues=true in the tool call. Requires a Personal Access Token (PAT) or GitHub App token with Projects permissions; the GITHUB_TOKEN cannot be used. Safe output items use type=copy_project and include: sourceProject (URL), owner (org/user login), title (new project name), and optional includeDraftIssues (boolean).",
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of copy operations to perform (default: 10).",
+                  "description": "Maximum number of copy operations to perform (default: 1).",
                   "minimum": 1,
                   "maximum": 100
                 },
@@ -3700,17 +3700,17 @@
               "additionalProperties": false,
               "examples": [
                 {
-                  "max": 5
+                  "max": 1
                 },
                 {
                   "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
-                  "max": 5
+                  "max": 1
                 }
               ]
             },
             {
               "type": "null",
-              "description": "Enable project copying with default configuration (max=10)"
+              "description": "Enable project copying with default configuration (max=1)"
             }
           ]
         },

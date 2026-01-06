@@ -136,7 +136,7 @@ async function getProjectId(scope, ownerLogin, projectNumber) {
  * @returns {Promise<{ projectId: string, projectTitle: string, projectUrl: string }>}
  */
 async function copyProject(output) {
-  const { sourceProject, owner, title } = output;
+  const { sourceProject, owner, title, includeDraftIssues } = output;
 
   if (!sourceProject) {
     throw new Error('The "sourceProject" field is required. It must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).');
@@ -150,9 +150,13 @@ async function copyProject(output) {
     throw new Error('The "title" field is required. It specifies the title of the new project.');
   }
 
+  // Default to false if not specified
+  const shouldIncludeDraftIssues = includeDraftIssues === true;
+
   core.info(`Copying project from: ${sourceProject}`);
   core.info(`New project owner: ${owner}`);
   core.info(`New project title: ${title}`);
+  core.info(`Include draft issues: ${shouldIncludeDraftIssues}`);
 
   // Parse source project URL
   const sourceProjectInfo = parseProjectUrl(sourceProject);
@@ -188,12 +192,12 @@ async function copyProject(output) {
   // Execute the copyProjectV2 mutation
   try {
     const result = await github.graphql(
-      `mutation CopyProject($sourceProjectId: ID!, $ownerId: ID!, $title: String!) {
+      `mutation CopyProject($sourceProjectId: ID!, $ownerId: ID!, $title: String!, $includeDraftIssues: Boolean!) {
         copyProjectV2(input: {
           projectId: $sourceProjectId
           ownerId: $ownerId
           title: $title
-          includeDraftIssues: false
+          includeDraftIssues: $includeDraftIssues
         }) {
           projectV2 {
             id
@@ -206,6 +210,7 @@ async function copyProject(output) {
         sourceProjectId,
         ownerId: targetOwnerId,
         title,
+        includeDraftIssues: shouldIncludeDraftIssues,
       }
     );
 

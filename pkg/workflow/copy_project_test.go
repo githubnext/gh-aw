@@ -24,7 +24,7 @@ func TestCopyProjectConfiguration(t *testing.T) {
 				},
 			},
 			expectedConfigured: true,
-			expectedMaxDefault: 10,
+			expectedMaxDefault: 1,
 		},
 		{
 			name: "copy-project with custom max",
@@ -50,7 +50,7 @@ func TestCopyProjectConfiguration(t *testing.T) {
 				},
 			},
 			expectedConfigured:  true,
-			expectedMaxDefault:  10,
+			expectedMaxDefault:  1,
 			expectedCustomToken: true,
 		},
 		{

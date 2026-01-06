@@ -56,6 +56,7 @@ Most safe output types support cross-repository operations. Exceptions are noted
 ### Projects, Releases & Assets
 
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) — Manage GitHub Projects boards (max: 10, same-repo only)
+- [**Copy Project**](#project-board-copy-copy-project) (`copy-project`) — Copy GitHub Projects boards (max: 1, cross-repo)
 - [**Update Release**](#release-updates-update-release) (`update-release`) — Update GitHub release descriptions (max: 1)
 - [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) — Upload files to orphaned git branch (max: 10, same-repo only)
 
@@ -285,6 +286,34 @@ fields:
 
 :::note
 Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
+:::
+
+
+### Project Board Copy (`copy-project:`)
+
+Copies GitHub Projects v2 boards to create new projects with the same structure, fields, and views. Useful for duplicating project templates or migrating projects between organizations. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access.
+
+```yaml wrap
+safe-outputs:
+  copy-project:
+    max: 1                          # max operations (default: 1)
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+```
+
+Agent must provide full source project URL, target owner login, and new project title. Optionally include `includeDraftIssues: true` to copy draft issues (default: false). Exposes outputs: `project-id`, `project-title`, `project-url`.
+
+**Example usage:**
+```javascript
+copy_project({
+  sourceProject: "https://github.com/orgs/myorg/projects/42",
+  owner: "myorg",
+  title: "Q1 Sprint Template",
+  includeDraftIssues: false  // Optional, default: false
+});
+```
+
+:::note
+Custom fields, views, and workflows are copied. Draft issues are excluded by default but can be included by setting `includeDraftIssues: true`.
 :::
 
 
