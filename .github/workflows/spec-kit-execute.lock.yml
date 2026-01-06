@@ -25,7 +25,6 @@ name: "Spec-Kit Execute"
 "on":
   schedule:
   - cron: "0 */6 * * *"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions:
