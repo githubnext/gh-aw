@@ -11,11 +11,11 @@ func TestRunWorkflowOnGitHub_InputValidation(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name           string
-		workflowName   string
-		inputs         []string
-		expectError    bool
-		errorContains  string
+		name          string
+		workflowName  string
+		inputs        []string
+		expectError   bool
+		errorContains string
 	}{
 		{
 			name:          "empty workflow name",
@@ -42,7 +42,7 @@ func TestRunWorkflowOnGitHub_InputValidation(t *testing.T) {
 			name:          "valid input format - workflow resolution fails",
 			workflowName:  "test-workflow",
 			inputs:        []string{"key=value"},
-			expectError:   true, // Will error on workflow resolution
+			expectError:   true,       // Will error on workflow resolution
 			errorContains: "workflow", // Generic check - could be "not found" or "GitHub CLI"
 		},
 		{

@@ -1,7 +1,7 @@
 package cli
 
 import (
-"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var runLog = logger.New("cli:run_command")
