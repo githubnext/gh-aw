@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goccy/go-yaml"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 )
 
 var orchestratorLog = logger.New("campaign:orchestrator")

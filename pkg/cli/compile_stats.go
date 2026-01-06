@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/goccy/go-yaml"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/githubnext/gh-aw/pkg/tty"
+	"github.com/goccy/go-yaml"
 )
 
 var compileStatsLog = logger.New("cli:compile_stats")
