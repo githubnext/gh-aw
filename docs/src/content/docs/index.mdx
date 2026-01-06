@@ -46,19 +46,15 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 
 **GitHub Agentic Workflows is a CLI extension that lets you write AI-powered automation workflows in natural language that compile to GitHub Actions.**
 
-Install it with `gh extension install githubnext/gh-aw`, write workflows in markdown (`.md` files), compile them with `gh aw compile`, and GitHub Actions runs the generated workflows (`.lock.yml` files). Instead of writing complex YAML configurations, you describe your automation goals in plain markdown. AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can understand and execute instructions) then execute these workflows safely with built-in security controls, making intelligent decisions based on context.
+Instead of writing complex YAML configurations, you describe your automation goals in plain markdown. AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can understand and execute instructions) then execute these workflows safely with built-in security controls, making intelligent decisions based on context.
 
 **How it works:**
 1. **Write** - Create a `.md` file with your automation instructions in natural language
 2. **Compile** - Run `gh aw compile` to transform it into a secure GitHub Actions workflow (`.lock.yml`)
 3. **Run** - GitHub Actions executes your workflow automatically based on your triggers
 
-**Perfect for:**
-- 🤖 **Issue triage** - Automatically categorize, label, and respond to new issues
-- 🔍 **PR reviews** - Get AI-powered code reviews and suggestions
-- 🔧 **Repository maintenance** - Automate dependency updates, documentation, and cleanup tasks
+### Security Built-In
 
-**Security built-in:**  
 Workflows run with read-only permissions by default. Write operations require explicit approval through sanitized [safe outputs](/gh-aw/reference/glossary/#safe-outputs) (pre-approved GitHub operations), with sandboxed execution, tool allowlisting, and network isolation ensuring AI agents operate safely within controlled boundaries.
 
 ## Key Features

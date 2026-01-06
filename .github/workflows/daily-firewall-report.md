@@ -59,7 +59,7 @@ Collect data for the past 30 days (or available data) from cache memory and fire
 
 1. **Firewall Request Data**:
    - Count of allowed requests per day
-   - Count of denied/blocked requests per day
+   - Count of blocked requests per day
    - Total requests per day
 
 2. **Top Blocked Domains Data**:
@@ -69,7 +69,7 @@ Collect data for the past 30 days (or available data) from cache memory and fire
 **Phase 2: Data Preparation**
 
 1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-   - `firewall_requests.csv` - Daily allowed/denied request counts
+   - `firewall_requests.csv` - Daily allowed/blocked request counts
    - `blocked_domains.csv` - Top blocked domains with frequencies
 
 2. Each CSV should have a date column and metric columns with appropriate headers
@@ -81,7 +81,7 @@ Generate exactly **2 high-quality trend charts**:
 **Chart 1: Firewall Request Trends**
 - Stacked area chart or multi-line chart showing:
   - Allowed requests (area/line, green)
-  - Denied requests (area/line, red)
+  - Blocked requests (area/line, red)
   - Total requests trend line
 - X-axis: Date (last 30 days)
 - Y-axis: Request count
@@ -214,17 +214,17 @@ Call the `audit` tool with the run_id parameter for each run from Step 1.
 ```
 
 The audit tool returns structured firewall analysis data including:
-- Total requests, allowed requests, denied requests
-- Lists of allowed and denied domains
+- Total requests, allowed requests, blocked requests
+- Lists of allowed and blocked domains
 - Request statistics per domain
 
 **Example of extracting firewall data from audit result:**
 ```javascript
 // From the audit tool result, access:
-result.firewall_analysis.denied_domains  // Array of denied domain names
+result.firewall_analysis.blocked_domains  // Array of blocked domain names
 result.firewall_analysis.allowed_domains  // Array of allowed domain names
 result.firewall_analysis.total_requests   // Total number of network requests
-result.firewall_analysis.denied_requests  // Number of denied requests
+result.firewall_analysis.blocked_requests  // Number of blocked requests
 ```
 
 **Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data.
@@ -234,22 +234,22 @@ result.firewall_analysis.denied_requests  // Number of denied requests
 Use the JSON output from the `audit` tool to extract firewall information. The `firewall_analysis` field in the audit JSON contains:
 - `total_requests` - Total number of network requests
 - `allowed_requests` - Count of allowed requests
-- `denied_requests` - Count of denied/blocked requests
+- `blocked_requests` - Count of blocked requests
 - `allowed_domains` - Array of unique allowed domains
-- `denied_domains` - Array of unique denied/blocked domains
-- `requests_by_domain` - Object mapping domains to request statistics (allowed/denied counts)
+- `blocked_domains` - Array of unique blocked domains
+- `requests_by_domain` - Object mapping domains to request statistics (allowed/blocked counts)
 
-**Example jq filter for aggregating denied domains:**
+**Example jq filter for aggregating blocked domains:**
 ```bash
-# Get only denied domains across multiple runs
-gh aw audit <run-id> --json | jq -r '.firewall_analysis.denied_domains[]? // empty'
+# Get only blocked domains across multiple runs
+gh aw audit <run-id> --json | jq -r '.firewall_analysis.blocked_domains[]? // empty'
 
-# Get denied domain statistics with counts
+# Get blocked domain statistics with counts
 gh aw audit <run-id> --json | jq -r '
   .firewall_analysis.requests_by_domain // {} | 
   to_entries[] | 
-  select(.value.denied > 0) | 
-  "\(.key): \(.value.denied) denied, \(.value.allowed) allowed"
+  select(.value.blocked > 0) | 
+  "\(.key): \(.value.blocked) blocked, \(.value.allowed) allowed"
 '
 ```
 
@@ -258,21 +258,21 @@ For each workflow run with firewall data:
 2. Track the following metrics per workflow:
    - Total requests (from `total_requests`)
    - Allowed requests count (from `allowed_requests`)
-   - Denied requests count (from `denied_requests`)
-   - List of unique denied domains (from `denied_domains`)
+   - Blocked requests count (from `blocked_requests`)
+   - List of unique blocked domains (from `blocked_domains`)
    - Domain-level statistics (from `requests_by_domain`)
 
 ### Step 4: Aggregate Results
 
 Combine data from all workflows:
-1. Create a master list of all denied domains across all workflows
+1. Create a master list of all blocked domains across all workflows
 2. Track how many times each domain was blocked
 3. Track which workflows blocked which domains
 4. Calculate overall statistics:
    - Total workflows analyzed
    - Total runs analyzed
-   - Total denied domains (unique)
-   - Total denied requests
+   - Total blocked domains (unique)
+   - Total blocked requests
 
 ### Step 5: Generate Report
 
@@ -282,9 +282,17 @@ Create a comprehensive markdown report with the following sections:
 - Date of report (today's date)
 - Total workflows analyzed
 - Total runs analyzed  
-- Total unique denied domains
-- Total denied requests
-- Percentage of denied vs allowed traffic
+- Total network requests monitored
+  - ✅ **Allowed**: Count of successful requests
+  - 🚫 **Blocked**: Count of blocked requests
+- **Block rate**: Percentage of blocked requests (blocked / total * 100)
+- Total unique blocked domains
+
+> **Terminology Note**: 
+> - **Allowed requests** = Requests that successfully reached their destination
+> - **Blocked requests** = Requests that were prevented by the firewall
+> - A 0% block rate with listed blocked domains indicates domains that would 
+>   be blocked if accessed, but weren't actually accessed during this period
 
 #### 2. Top Blocked Domains
 A table showing the most frequently blocked domains:
@@ -300,7 +308,7 @@ For each workflow that had blocked domains:
 - Workflow name
 - Number of unique blocked domains
 - List of blocked domains
-- Total denied requests for this workflow
+- Total blocked requests for this workflow
 
 #### 4. Complete Blocked Domains List
 An alphabetically sorted list of all unique blocked domains with:

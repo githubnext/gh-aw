@@ -275,6 +275,7 @@ Based on the parsed requirements, determine:
    - Creating PRs → `safe-outputs: create-pull-request:`
    - **Daily reporting workflows** (creates issues/discussions): Add `close-older-issues: true` or `close-older-discussions: true` to prevent clutter
    - **Daily improver workflows** (creates PRs): Add `skip-if-match:` with a filter to avoid opening duplicate PRs (e.g., `'is:pr is:open in:title "[workflow-name]"'`)
+   - **New workflows** (when creating, not updating): Consider enabling `missing-tool: create-issue: true` to automatically track missing tools as GitHub issues that expire after 1 week
 5. **Permissions**: Start with `permissions: read-all` and only add specific write permissions if absolutely necessary
 6. **Prompt Body**: Write clear, actionable instructions for the AI agent
 
@@ -304,6 +305,8 @@ tools:
 safe-outputs:
   add-comment:
     max: 1
+  missing-tool:
+    create-issue: true
 timeout-minutes: 5
 ---
 

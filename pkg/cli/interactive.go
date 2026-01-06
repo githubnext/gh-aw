@@ -275,8 +275,8 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 	// Generate workflow content
 	content := b.generateWorkflowContent()
 
-	// Write the workflow to file
-	if err := os.WriteFile(destFile, []byte(content), 0644); err != nil {
+	// Write the workflow to file with owner-only read/write permissions (0600) for security best practices
+	if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 

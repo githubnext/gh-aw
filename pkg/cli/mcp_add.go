@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -84,7 +85,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	// Determine tool ID (use custom if provided, otherwise use cleaned server name)
-	toolID := cleanMCPToolID(selectedServer.Name)
+	toolID := stringutil.SanitizeToolID(selectedServer.Name)
 	if customToolID != "" {
 		toolID = customToolID
 	}

@@ -97,7 +97,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.ClosePullRequests != nil ||
 		data.SafeOutputs.MarkPullRequestAsReadyForReview != nil ||
 		data.SafeOutputs.HideComment != nil ||
-		data.SafeOutputs.DispatchWorkflow != nil
+		data.SafeOutputs.DispatchWorkflow != nil ||
+		data.SafeOutputs.CreateCodeScanningAlerts != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -245,6 +246,18 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
 		// Update project requires organization-projects permission (via GitHub App token)
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
+
+	// 24. Copy Project step
+	if data.SafeOutputs.CopyProjects != nil {
+		stepConfig := c.buildCopyProjectStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		// Copy project requires organization-projects permission (via GitHub App token)
 		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 	}

@@ -146,7 +146,10 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(tt.trialMode, "", "test")
+			compiler := NewCompiler(false, "", "test")
+			if tt.trialMode {
+				compiler.SetTrialMode(true)
+			}
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
@@ -266,7 +269,9 @@ func TestStagedFlagWithTargetRepo(t *testing.T) {
 
 // TestTrialModeOverridesStagedFlag tests that trial mode prevents staged flag
 func TestTrialModeOverridesStagedFlag(t *testing.T) {
-	compiler := NewCompiler(true, "org/trial-repo", "test")
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetTrialMode(true)
+	compiler.SetTrialLogicalRepoSlug("org/trial-repo")
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -428,7 +433,10 @@ func TestStagedFlagPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(tt.trialMode, "", "test")
+			compiler := NewCompiler(false, "", "test")
+			if tt.trialMode {
+				compiler.SetTrialMode(true)
+			}
 
 			workflowData := &WorkflowData{
 				Name: "Test Workflow",
@@ -490,6 +498,9 @@ func TestAddLabelsTargetRepoStagedBehavior(t *testing.T) {
 			Staged: true,
 			AddLabels: &AddLabelsConfig{
 				Allowed: []string{"bug"},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					TargetRepoSlug: "org/target",
+				},
 			},
 		},
 	}

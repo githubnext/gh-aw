@@ -273,7 +273,13 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(tt.trialMode, tt.trialRepo, "test")
+			compiler := NewCompiler(false, "", "test")
+			if tt.trialMode {
+				compiler.SetTrialMode(true)
+			}
+			if tt.trialRepo != "" {
+				compiler.SetTrialLogicalRepoSlug(tt.trialRepo)
+			}
 
 			envVars := compiler.buildJobLevelSafeOutputEnvVars(tt.workflowData, tt.workflowID)
 
@@ -360,7 +366,7 @@ func TestJobWithGitHubApp(t *testing.T) {
 	stepsContent := strings.Join(job.Steps, "")
 
 	// Should include app token minting step
-	assert.Contains(t, stepsContent, "Mint GitHub App token")
+	assert.Contains(t, stepsContent, "Generate GitHub App token")
 
 	// Should include app token invalidation step
 	assert.Contains(t, stepsContent, "Invalidate GitHub App token")

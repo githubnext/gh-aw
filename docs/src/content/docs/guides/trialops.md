@@ -242,7 +242,7 @@ jobs:
   trial:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install gh-aw
         run: gh extension install githubnext/gh-aw
       - name: Trial workflow

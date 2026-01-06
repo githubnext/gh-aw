@@ -29,6 +29,8 @@ var safeOutputFieldMapping = map[string]string{
 	"UploadAssets":                    "upload_asset",
 	"UpdateRelease":                   "update_release",
 	"UpdateProjects":                  "update_project",
+	"CopyProjects":                    "copy_project",
+	"CreateProjectStatusUpdates":      "create_project_status_update",
 	"LinkSubIssue":                    "link_sub_issue",
 	"HideComment":                     "hide_comment",
 	"DispatchWorkflow":                "dispatch_workflow",

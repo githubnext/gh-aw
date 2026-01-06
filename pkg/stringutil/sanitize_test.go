@@ -258,3 +258,248 @@ func BenchmarkSanitizeErrorMessage_ManySecrets(b *testing.B) {
 		SanitizeErrorMessage(message)
 	}
 }
+
+func TestSanitizeParameterName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "dash-separated",
+			input:    "my-param",
+			expected: "my_param",
+		},
+		{
+			name:     "dot-separated",
+			input:    "my.param",
+			expected: "my_param",
+		},
+		{
+			name:     "starts with number",
+			input:    "123param",
+			expected: "_123param",
+		},
+		{
+			name:     "already valid",
+			input:    "valid_name",
+			expected: "valid_name",
+		},
+		{
+			name:     "with dollar sign",
+			input:    "$special",
+			expected: "$special",
+		},
+		{
+			name:     "mixed special chars",
+			input:    "param-name.test",
+			expected: "param_name_test",
+		},
+		{
+			name:     "spaces",
+			input:    "my param",
+			expected: "my_param",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "only special chars",
+			input:    "---",
+			expected: "___",
+		},
+		{
+			name:     "number with underscore",
+			input:    "123_param",
+			expected: "_123_param",
+		},
+		{
+			name:     "camelCase preserved",
+			input:    "myParam",
+			expected: "myParam",
+		},
+		{
+			name:     "with at sign",
+			input:    "my@param",
+			expected: "my_param",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeParameterName(tt.input)
+			if result != tt.expected {
+				t.Errorf("SanitizeParameterName(%q) = %q; want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizePythonVariableName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "dash-separated",
+			input:    "my-param",
+			expected: "my_param",
+		},
+		{
+			name:     "dot-separated",
+			input:    "my.param",
+			expected: "my_param",
+		},
+		{
+			name:     "starts with number",
+			input:    "123param",
+			expected: "_123param",
+		},
+		{
+			name:     "already valid",
+			input:    "valid_name",
+			expected: "valid_name",
+		},
+		{
+			name:     "with dollar sign (invalid in Python)",
+			input:    "$special",
+			expected: "_special",
+		},
+		{
+			name:     "mixed special chars",
+			input:    "param-name.test",
+			expected: "param_name_test",
+		},
+		{
+			name:     "spaces",
+			input:    "my param",
+			expected: "my_param",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "only special chars",
+			input:    "---",
+			expected: "___",
+		},
+		{
+			name:     "number with underscore",
+			input:    "123_param",
+			expected: "_123_param",
+		},
+		{
+			name:     "camelCase preserved",
+			input:    "myParam",
+			expected: "myParam",
+		},
+		{
+			name:     "with at sign",
+			input:    "my@param",
+			expected: "my_param",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizePythonVariableName(tt.input)
+			if result != tt.expected {
+				t.Errorf("SanitizePythonVariableName(%q) = %q; want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizeToolID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "mcp suffix",
+			input:    "notion-mcp",
+			expected: "notion",
+		},
+		{
+			name:     "mcp prefix",
+			input:    "mcp-notion",
+			expected: "notion",
+		},
+		{
+			name:     "mcp in middle",
+			input:    "some-mcp-server",
+			expected: "some-mcp-server",
+		},
+		{
+			name:     "no mcp",
+			input:    "github",
+			expected: "github",
+		},
+		{
+			name:     "only mcp",
+			input:    "mcp",
+			expected: "mcp",
+		},
+		{
+			name:     "mcp both prefix and suffix",
+			input:    "mcp-server-mcp",
+			expected: "server",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "multiple mcp patterns",
+			input:    "mcp-mcp-mcp",
+			expected: "mcp",
+		},
+		{
+			name:     "mcp as part of word",
+			input:    "mcpserver",
+			expected: "mcpserver",
+		},
+		{
+			name:     "uppercase MCP",
+			input:    "MCP-notion",
+			expected: "MCP-notion",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeToolID(tt.input)
+			if result != tt.expected {
+				t.Errorf("SanitizeToolID(%q) = %q; want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func BenchmarkSanitizeParameterName(b *testing.B) {
+	name := "my-complex-parameter.name"
+	for i := 0; i < b.N; i++ {
+		SanitizeParameterName(name)
+	}
+}
+
+func BenchmarkSanitizePythonVariableName(b *testing.B) {
+	name := "my-complex-parameter.name"
+	for i := 0; i < b.N; i++ {
+		SanitizePythonVariableName(name)
+	}
+}
+
+func BenchmarkSanitizeToolID(b *testing.B) {
+	toolID := "mcp-notion-server-mcp"
+	for i := 0; i < b.N; i++ {
+		SanitizeToolID(toolID)
+	}
+}

@@ -29,14 +29,14 @@
 // when converting between different representations of the same logical entity.
 //
 // Functions:
-//   - normalizeWorkflowName (resolve.go): Removes file extensions (.md, .lock.yml)
-//   - normalizeSafeOutputIdentifier (safe_outputs.go): Converts dashes to underscores
+//   - stringutil.NormalizeWorkflowName: Removes file extensions (.md, .lock.yml)
+//   - stringutil.NormalizeSafeOutputIdentifier: Converts dashes to underscores
 //
 // Example:
 //
 //	// File name to base identifier
 //	input := "weekly-research.md"
-//	result := normalizeWorkflowName(input)
+//	result := stringutil.NormalizeWorkflowName(input)
 //	// Returns: "weekly-research"
 //
 // ## String Truncation
@@ -227,7 +227,7 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 //
 // This is a SANITIZE function (character validity pattern). Use this when processing
 // user input or workflow names that may contain invalid characters. Do NOT use this
-// for removing file extensions - use normalizeWorkflowName (resolve.go) instead.
+// for removing file extensions - use stringutil.NormalizeWorkflowName instead.
 //
 // The function performs the following transformations:
 //   - Converts to lowercase

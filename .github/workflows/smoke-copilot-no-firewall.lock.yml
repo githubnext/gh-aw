@@ -204,7 +204,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-copilot-no-firewall"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-copilot-no-firewall"],"max":3},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -440,20 +440,24 @@ jobs:
           PORT=3000
           
           # Set outputs for next steps
-          echo "safe_inputs_api_key=${API_KEY}" >> "$GITHUB_OUTPUT"
-          echo "safe_inputs_port=${PORT}" >> "$GITHUB_OUTPUT"
+          {
+            echo "safe_inputs_api_key=${API_KEY}"
+            echo "safe_inputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
           
           echo "Safe Inputs MCP server will run on port ${PORT}"
           
       - name: Start Safe Inputs MCP HTTP Server
         id: safe-inputs-start
         env:
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_DEBUG: 1
         run: |
-          # Set environment variables for the server
-          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
-          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          # Environment variables are set above to prevent template injection
+          export GH_AW_SAFE_INPUTS_PORT
+          export GH_AW_SAFE_INPUTS_API_KEY
           
           bash /tmp/gh-aw/actions/start_safe_inputs_server.sh
           
@@ -464,6 +468,7 @@ jobs:
           GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_DEBUG: 1
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -483,7 +488,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
+                  "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.27.0"
@@ -538,10 +543,6 @@ jobs:
                 "tools": ["*"]
               }
             }
-            ,
-            "gateway": {
-              "port": 8080
-            }
           }
           EOF
           echo "-------START MCP CONFIG-----------"
@@ -551,52 +552,6 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
-      - name: Start MCP Gateway
-        env:
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
-          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_DEBUG: 1
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-gateway-logs
-          echo 'Starting MCP Gateway...'
-          
-          # Development mode: Build awmg from sources
-          if [ -f "cmd/awmg/main.go" ] && [ -f "Makefile" ]; then
-            echo 'Building awmg from sources (development mode)...'
-            make build-awmg
-            if [ -f "./awmg" ]; then
-              echo 'Built awmg successfully'
-              AWMG_CMD="./awmg"
-            else
-              echo 'ERROR: Failed to build awmg from sources'
-              exit 1
-            fi
-          # Check if awmg is already in PATH
-          elif command -v awmg &> /dev/null; then
-            echo 'awmg is already available in PATH'
-            AWMG_CMD="awmg"
-          # Check for local awmg build
-          elif [ -f "./awmg" ]; then
-            echo 'Using existing local awmg build'
-            AWMG_CMD="./awmg"
-          else
-            echo 'ERROR: Could not find awmg binary or source files'
-            echo 'Please build awmg with: make build-awmg'
-            exit 1
-          fi
-          
-          # Start MCP gateway in background with config file
-          $AWMG_CMD --config /home/runner/.copilot/mcp-config.json --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
-          GATEWAY_PID=$!
-          echo "MCP Gateway started with PID $GATEWAY_PID"
-          
-          # Give the gateway a moment to start
-          sleep 2
-      - name: Verify MCP Gateway Health
-        run: bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh "http://localhost:8080" "/home/runner/.copilot/mcp-config.json" "/tmp/gh-aw/mcp-gateway-logs"
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -717,11 +672,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/tmp/gh-aw/prompts/playwright_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/tmp/gh-aw/prompts/edit_tool_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

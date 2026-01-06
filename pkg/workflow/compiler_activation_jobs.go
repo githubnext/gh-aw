@@ -200,6 +200,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		"activated": activatedExpression,
 	}
 
+	// Add matched_command output if this is a command workflow
+	// This allows the activation job to access the matched command via needs.pre_activation.outputs.matched_command
+	if len(data.Command) > 0 {
+		outputs[constants.MatchedCommandOutput] = fmt.Sprintf("${{ steps.%s.outputs.%s }}", constants.CheckCommandPositionStepID, constants.MatchedCommandOutput)
+	}
+
 	// Merge custom outputs from jobs.pre-activation if present
 	if len(customOutputs) > 0 {
 		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
@@ -452,7 +458,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add slash_command output if this is a command workflow
 	// This output contains the matched command name from check_command_position step
 	if len(data.Command) > 0 {
-		outputs["slash_command"] = fmt.Sprintf("${{ steps.%s.outputs.matched_command }}", constants.CheckCommandPositionStepID)
+		if preActivationJobCreated {
+			// Reference the matched_command output from pre_activation job
+			outputs["slash_command"] = fmt.Sprintf("${{ needs.%s.outputs.%s }}", string(constants.PreActivationJobName), constants.MatchedCommandOutput)
+		} else {
+			// Fallback to steps reference if pre_activation doesn't exist (shouldn't happen for command workflows)
+			outputs["slash_command"] = fmt.Sprintf("${{ steps.%s.outputs.%s }}", constants.CheckCommandPositionStepID, constants.MatchedCommandOutput)
+		}
 	}
 
 	// If no steps have been added, add a placeholder step to make the job valid

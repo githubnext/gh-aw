@@ -2,7 +2,6 @@
 
 # Variables
 BINARY_NAME=gh-aw
-AWMG_BINARY_NAME=awmg
 VERSION ?= $(shell git describe --tags --always --dirty)
 
 # Build flags
@@ -10,17 +9,12 @@ LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
 
 # Default target
 .PHONY: all
-all: build build-awmg
+all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
 build: sync-templates sync-action-pins
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
-
-# Build the awmg (MCP gateway) binary
-.PHONY: build-awmg
-build-awmg:
-	go build $(LDFLAGS) -o $(AWMG_BINARY_NAME) ./cmd/awmg
 
 # Build for all platforms
 .PHONY: build-all
@@ -30,20 +24,15 @@ build-all: build-linux build-darwin build-windows
 build-linux:
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-amd64 ./cmd/gh-aw
 	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-arm64 ./cmd/gh-aw
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-linux-amd64 ./cmd/awmg
-	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-linux-arm64 ./cmd/awmg
 
 .PHONY: build-darwin
 build-darwin:
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-amd64 ./cmd/gh-aw
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-arm64 ./cmd/gh-aw
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-darwin-amd64 ./cmd/awmg
-	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-darwin-arm64 ./cmd/awmg
 
 .PHONY: build-windows
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
-	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-windows-amd64.exe ./cmd/awmg
 
 # Test the code (runs both unit and integration tests)
 .PHONY: test

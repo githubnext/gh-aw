@@ -159,15 +159,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .vscode/settings.json"))
 	}
 
-	// Update .vscode/extensions.json
-	if err := ensureVSCodeExtensions(verbose); err != nil {
-		initLog.Printf("Failed to update VSCode extensions: %v", err)
-		return fmt.Errorf("failed to update VSCode extensions: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .vscode/extensions.json"))
-	}
-
 	// Validate tokens if requested
 	if tokens {
 		initLog.Print("Validating repository secrets for agentic workflows")

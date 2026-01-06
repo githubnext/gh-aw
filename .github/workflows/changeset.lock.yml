@@ -184,11 +184,11 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.77.0
+        run: npm install -g --silent @openai/codex@0.78.0
       - name: Install awf binary
         uses: githubnext/gh-aw-firewall@main
         with:
-          version: v0.8.1
+          version: v0.8.2
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -206,7 +206,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{"max":0},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_pull_request":{"max":1}}
+          {"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_pull_request":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -404,6 +404,7 @@ jobs:
       - name: Setup MCPs
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -453,7 +454,7 @@ jobs:
               engine_name: "Codex",
               model: "gpt-5-mini",
               version: "",
-              agent_version: "0.77.0",
+              agent_version: "0.78.0",
               workflow_name: "Changeset Generator",
               experimental: true,
               supports_tools_allowlist: true,
@@ -470,7 +471,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["defaults","node"],
               firewall_enabled: true,
-              awf_version: "v0.8.1",
+              awf_version: "v0.8.2",
               steps: {
                 firewall: "squid"
               },
@@ -750,11 +751,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/tmp/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/tmp/gh-aw/prompts/edit_tool_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -868,7 +864,7 @@ jobs:
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p "$CODEX_HOME/logs"
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains api.npms.io,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.1 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains api.npms.io,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
             -- NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && codex -c model=gpt-5-mini exec --full-auto --skip-git-repo-check "$INSTRUCTION" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:

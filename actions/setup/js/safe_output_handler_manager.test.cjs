@@ -387,6 +387,35 @@ describe("Safe Output Handler Manager", () => {
       expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("create_agent_task"));
     });
 
+    it("should track skipped message types for logging", async () => {
+      const messages = [
+        { type: "create_issue", title: "Issue" },
+        { type: "update_project", project: "https://github.com/orgs/myorg/projects/42" },
+        { type: "create_agent_task", title: "Task" },
+        { type: "unknown_type", data: "test" },
+        { type: "another_unknown", data: "test2" },
+      ];
+
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
+
+      // Only create_issue handler is available
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+
+      // Collect skipped standalone types
+      const skippedStandaloneResults = result.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
+      const standaloneTypes = [...new Set(skippedStandaloneResults.map(r => r.type))];
+      expect(standaloneTypes).toEqual(expect.arrayContaining(["update_project", "create_agent_task"]));
+
+      // Collect skipped no-handler types
+      const skippedNoHandlerResults = result.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
+      const noHandlerTypes = [...new Set(skippedNoHandlerResults.map(r => r.type))];
+      expect(noHandlerTypes).toEqual(expect.arrayContaining(["unknown_type", "another_unknown"]));
+    });
+
     it("should register temporary IDs from deferred messages on retry", async () => {
       const messages = [
         {

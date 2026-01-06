@@ -32,12 +32,11 @@ const (
 )
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
-// New format: { agent: "awf"|"srt"|{type, config}, mcp: {...} }
+// New format: { agent: "awf"|"srt"|{type, config} }
 // Legacy format: "default"|"sandbox-runtime" or { type, config }
 type SandboxConfig struct {
 	// New fields
-	Agent *AgentSandboxConfig      `yaml:"agent,omitempty"` // Agent sandbox configuration
-	MCP   *MCPGatewayRuntimeConfig `yaml:"mcp,omitempty"`   // MCP gateway configuration
+	Agent *AgentSandboxConfig `yaml:"agent,omitempty"` // Agent sandbox configuration
 
 	// Legacy fields (for backward compatibility)
 	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "default" or "sandbox-runtime"
@@ -72,7 +71,7 @@ type SandboxRuntimeConfig struct {
 // SRTNetworkConfig represents network configuration for SRT
 type SRTNetworkConfig struct {
 	AllowedDomains      []string `yaml:"allowedDomains,omitempty" json:"allowedDomains,omitempty"`
-	DeniedDomains       []string `yaml:"deniedDomains,omitempty" json:"deniedDomains"`
+	BlockedDomains      []string `yaml:"blockedDomains,omitempty" json:"blockedDomains"`
 	AllowUnixSockets    []string `yaml:"allowUnixSockets,omitempty" json:"allowUnixSockets,omitempty"`
 	AllowLocalBinding   bool     `yaml:"allowLocalBinding" json:"allowLocalBinding"`
 	AllowAllUnixSockets bool     `yaml:"allowAllUnixSockets" json:"allowAllUnixSockets"`
@@ -175,7 +174,7 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 	srtConfig := &SandboxRuntimeConfig{
 		Network: &SRTNetworkConfig{
 			AllowedDomains:      allowedDomains,
-			DeniedDomains:       []string{},
+			BlockedDomains:      []string{},
 			AllowUnixSockets:    []string{"/var/run/docker.sock"},
 			AllowLocalBinding:   false,
 			AllowAllUnixSockets: true,

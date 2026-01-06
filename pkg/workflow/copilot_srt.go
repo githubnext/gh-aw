@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -67,11 +68,12 @@ func generateSRTSystemConfigStep() GitHubActionStep {
 
 // generateSRTInstallationStep creates a GitHub Actions step to install Sandbox Runtime.
 func generateSRTInstallationStep() GitHubActionStep {
+	srtVersion := string(constants.DefaultSandboxRuntimeVersion)
 	stepLines := []string{
 		"      - name: Install Sandbox Runtime",
 		"        run: |",
-		"          echo \"Installing @anthropic-ai/sandbox-runtime locally\"",
-		"          npm install @anthropic-ai/sandbox-runtime",
+		fmt.Sprintf("          echo \"Installing @anthropic-ai/sandbox-runtime@%s locally\"", srtVersion),
+		fmt.Sprintf("          npm install @anthropic-ai/sandbox-runtime@%s", srtVersion),
 		"          echo \"Sandbox Runtime installed successfully\"",
 	}
 

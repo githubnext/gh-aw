@@ -45,6 +45,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var bundlerRuntimeLog = logger.New("workflow:bundler_runtime_validation")
@@ -89,7 +90,7 @@ func validateRuntimeModeRecursive(content string, currentPath string, sources ma
 		}
 
 		// Normalize the path
-		fullPath = normalizePath(fullPath)
+		fullPath = stringutil.NormalizePath(fullPath)
 
 		// Skip if already checked
 		if checked[fullPath] {
