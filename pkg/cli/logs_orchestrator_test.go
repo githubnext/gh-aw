@@ -437,21 +437,23 @@ func TestDownloadRunArtifactsConcurrent_PanicRecovery(t *testing.T) {
 	}
 }
 
-// TestCancelledRunsSkipJobFetching tests that cancelled runs don't have their job statuses fetched
-// This prevents inflated error counts from cancelled jobs when entire workflow runs are cancelled
+// TestCancelledRunsSkipJobFetching tests that runs with cancelled agent jobs are skipped entirely
+// This prevents processing runs where the agent was cancelled during execution
 func TestCancelledRunsSkipJobFetching(t *testing.T) {
-	// This test documents the behavior that cancelled workflow runs should not
-	// have their job statuses fetched. This is important because when a run is
-	// cancelled, all its jobs are also cancelled, which would inflate error counts
-	// if counted as failures.
+	// This test documents the behavior that workflow runs with a cancelled "agent" job
+	// should be skipped entirely from processing. This is important because when an agent
+	// job is cancelled, the workflow run is not useful for analysis.
 	//
 	// The actual implementation in logs_orchestrator.go checks:
-	//   if run.Conclusion != "cancelled" {
-	//       fetchJobStatuses(...)
+	//   if isAgentJobCancelled(run.DatabaseID, verbose) {
+	//       continue  // skip the run
 	//   }
 	//
 	// This test verifies the logic at the orchestrator level where the decision
-	// is made whether to fetch job statuses.
+	// is made whether to skip runs based on agent job status.
+	//
+	// Note: Without actual GitHub API access, this test documents the expected behavior
+	// but cannot fully verify that runs with cancelled agent jobs are filtered out.
 
 	ctx := context.Background()
 
@@ -466,20 +468,7 @@ func TestCancelledRunsSkipJobFetching(t *testing.T) {
 
 	require.Len(t, results, 3, "Should process all 3 runs")
 
-	// Find the cancelled run
-	var cancelledRun *DownloadResult
-	for i := range results {
-		if results[i].Run.DatabaseID == 1 {
-			cancelledRun = &results[i]
-			break
-		}
-	}
-
-	require.NotNil(t, cancelledRun, "Should find the cancelled run")
-	assert.Equal(t, "cancelled", cancelledRun.Run.Conclusion, "Run should have cancelled conclusion")
-
-	// The key assertion: cancelled runs should not have additional error counts from job fetching
-	// Note: Without actual GitHub API access, we can't verify the job fetching was skipped,
-	// but the ErrorCount should only come from parsed logs, not from job status API calls
-	// This test documents the expected behavior
+	// The test documents expected behavior: if any of these runs had a cancelled agent job,
+	// they would be filtered out in the main orchestration loop before being processed.
+	// Without mocking the GitHub API, we cannot verify this filtering in unit tests.
 }

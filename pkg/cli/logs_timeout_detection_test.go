@@ -181,3 +181,24 @@ func TestStatusDisplayForTimedOut(t *testing.T) {
 		})
 	}
 }
+
+// TestAgentJobCancelledDetection documents the behavior of isAgentJobCancelled
+// This function checks if a workflow run has a cancelled "agent" job
+func TestAgentJobCancelledDetection(t *testing.T) {
+	// Note: This test documents the expected behavior of isAgentJobCancelled
+	// The actual function requires GitHub API access via gh CLI, so we cannot
+	// fully test it without mocking. The function:
+	// 1. Fetches jobs for a workflow run
+	// 2. Checks if there's a job named "agent"
+	// 3. Returns true if that job has conclusion "cancelled"
+	//
+	// Expected behavior:
+	// - Run with cancelled agent job → returns true
+	// - Run with successful agent job → returns false
+	// - Run with failed agent job → returns false
+	// - Run without agent job → returns false
+	// - API error → returns false (don't skip on errors)
+
+	// This test serves as documentation of the expected behavior
+	// Integration tests with actual GitHub API would validate the implementation
+}

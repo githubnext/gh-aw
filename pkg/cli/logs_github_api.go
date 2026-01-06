@@ -292,3 +292,41 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 
 	return agenticRuns, totalFetched, nil
 }
+
+// isAgentJobCancelled checks if a workflow run has a cancelled "agent" job
+// Returns true if the agent job exists and is cancelled, false otherwise
+func isAgentJobCancelled(runID int64, verbose bool) bool {
+	logsGitHubAPILog.Printf("Checking agent job status: runID=%d", runID)
+
+	cmd := workflow.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, conclusion: .conclusion}")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// If we can't fetch jobs, don't skip the run
+		logsGitHubAPILog.Printf("Failed to fetch jobs for agent check: %v", err)
+		return false
+	}
+
+	// Parse each line as a separate JSON object
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		var job JobInfo
+		if err := json.Unmarshal([]byte(line), &job); err != nil {
+			continue
+		}
+
+		// Check if this is the agent job and it's cancelled
+		if job.Name == "agent" && job.Conclusion == "cancelled" {
+			logsGitHubAPILog.Printf("Found cancelled agent job in run %d", runID)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Agent job is cancelled for run %d", runID)))
+			}
+			return true
+		}
+	}
+
+	return false
+}
