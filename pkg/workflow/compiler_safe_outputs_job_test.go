@@ -273,7 +273,13 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(tt.trialMode, tt.trialRepo, "test")
+			compiler := NewCompiler(false, "", "test")
+			if tt.trialMode {
+				compiler.SetTrialMode(true)
+			}
+			if tt.trialRepo != "" {
+				compiler.SetTrialLogicalRepoSlug(tt.trialRepo)
+			}
 
 			envVars := compiler.buildJobLevelSafeOutputEnvVars(tt.workflowData, tt.workflowID)
 

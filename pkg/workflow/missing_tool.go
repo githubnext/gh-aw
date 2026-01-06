@@ -97,15 +97,16 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 			return nil
 		}
 
-		missingToolConfig := &MissingToolConfig{
-			CreateIssue: true,                // Default: enabled
-			TitlePrefix: "[missing tool]",    // Default prefix
-			Labels:      []string{},          // Default: no labels
-		}
+		// Create config with no defaults - they will be applied in JavaScript
+		missingToolConfig := &MissingToolConfig{}
 
 		// Handle the case where configData is nil (missing-tool: with no value)
 		if configData == nil {
 			missingToolLog.Print("Missing-tool configuration enabled with defaults")
+			// Set create-issue to true as default when missing-tool is enabled
+			missingToolConfig.CreateIssue = true
+			missingToolConfig.TitlePrefix = "[missing tool]"
+			missingToolConfig.Labels = []string{}
 			return missingToolConfig
 		}
 
@@ -114,23 +115,29 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &missingToolConfig.BaseSafeOutputConfig, 0)
 
-			// Parse create-issue field
+			// Parse create-issue field, default to true if not specified
 			if createIssue, exists := configMap["create-issue"]; exists {
 				if createIssueBool, ok := createIssue.(bool); ok {
 					missingToolConfig.CreateIssue = createIssueBool
 					missingToolLog.Printf("create-issue: %v", createIssueBool)
 				}
+			} else {
+				// Default to true when config map exists but create-issue not specified
+				missingToolConfig.CreateIssue = true
 			}
 
-			// Parse title-prefix field
+			// Parse title-prefix field, default to "[missing tool]" if not specified
 			if titlePrefix, exists := configMap["title-prefix"]; exists {
 				if titlePrefixStr, ok := titlePrefix.(string); ok {
 					missingToolConfig.TitlePrefix = titlePrefixStr
 					missingToolLog.Printf("title-prefix: %s", titlePrefixStr)
 				}
+			} else {
+				// Default title prefix
+				missingToolConfig.TitlePrefix = "[missing tool]"
 			}
 
-			// Parse labels field
+			// Parse labels field, default to empty array if not specified
 			if labels, exists := configMap["labels"]; exists {
 				if labelsArray, ok := labels.([]any); ok {
 					var labelStrings []string
@@ -142,6 +149,9 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 					missingToolConfig.Labels = labelStrings
 					missingToolLog.Printf("labels: %v", labelStrings)
 				}
+			} else {
+				// Default to empty labels
+				missingToolConfig.Labels = []string{}
 			}
 		}
 
