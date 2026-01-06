@@ -99,9 +99,9 @@ func TestCopyProjectConfiguration(t *testing.T) {
 // is passed correctly to the copy_project step
 func TestCopyProjectGitHubTokenEnvVar(t *testing.T) {
 	tests := []struct {
-		name                string
-		frontmatter         map[string]any
-		expectedTokenValue  string
+		name               string
+		frontmatter        map[string]any
+		expectedTokenValue string
 	}{
 		{
 			name: "copy-project with custom github-token",

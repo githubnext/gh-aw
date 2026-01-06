@@ -102,7 +102,7 @@ async function getOwnerId(scope, ownerLogin) {
  */
 async function getProjectId(scope, ownerLogin, projectNumber) {
   const projectNumberInt = parseInt(projectNumber, 10);
-  
+
   if (scope === "orgs") {
     const result = await github.graphql(
       `query($login: String!, $number: Int!) {
@@ -246,7 +246,7 @@ async function main() {
 
       try {
         const result = await copyProject(output);
-        
+
         // Set step outputs
         core.setOutput("project_id", result.projectId);
         core.setOutput("project_title", result.projectTitle);
