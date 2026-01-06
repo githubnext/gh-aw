@@ -68,17 +68,19 @@ func TestRepositoryFeaturesValidationIntegration(t *testing.T) {
 		compiler := NewCompiler(true, "", "test")
 		err := compiler.validateRepositoryFeatures(workflowData)
 
+		// After the fix, validation should never return an error for discussions
+		// It should only issue warnings and let runtime handle the actual creation
+		if err != nil {
+			t.Errorf("Expected no error (validation should only warn), got: %v", err)
+		}
+
+		// Log the discussion status for debugging
 		hasDiscussions, checkErr := checkRepositoryHasDiscussions(repo, false)
 		if checkErr != nil {
 			t.Logf("Could not verify discussions status: %v", checkErr)
 			return
 		}
-
-		if hasDiscussions && err != nil {
-			t.Errorf("Expected no error when discussions are enabled, got: %v", err)
-		} else if !hasDiscussions && err == nil {
-			t.Error("Expected error when discussions are disabled, got none")
-		}
+		t.Logf("Repository %s has discussions enabled: %v", repo, hasDiscussions)
 	})
 
 	// Test full validation with issues
@@ -156,23 +158,17 @@ Test workflow for discussions validation.
 
 	err = compiler.CompileWorkflow(workflowPath)
 
-	// Check if discussions are enabled
+	// After the fix, compilation should always succeed for discussions
+	// Validation now only issues warnings and lets runtime handle creation attempts
+	if err != nil {
+		t.Errorf("Expected compilation to succeed (validation should only warn), got error: %v", err)
+	}
+
+	// Log the discussion status for debugging
 	hasDiscussions, checkErr := checkRepositoryHasDiscussions(repo, false)
 	if checkErr != nil {
 		t.Logf("Could not verify discussions status: %v", checkErr)
-		t.Logf("Compilation result: %v", err)
 		return
 	}
-
-	if hasDiscussions {
-		if err != nil {
-			t.Errorf("Expected compilation to succeed when discussions are enabled, got error: %v", err)
-		}
-	} else {
-		if err == nil {
-			t.Error("Expected compilation to fail when discussions are disabled, but it succeeded")
-		} else {
-			t.Logf("Compilation correctly failed: %v", err)
-		}
-	}
+	t.Logf("Repository %s has discussions enabled: %v", repo, hasDiscussions)
 }
