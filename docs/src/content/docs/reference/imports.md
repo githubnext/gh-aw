@@ -90,33 +90,396 @@ Only one agent file can be imported per workflow. See [Custom Agent Files](/gh-a
 
 ## Frontmatter Merging
 
-Imported files can define `tools:`, `mcp-servers:`, `services:`, and `safe-outputs:` frontmatter (other fields trigger warnings). Agent files can also define `name` and `description`. These fields merge with the main workflow's configuration.
+Imported files can define specific frontmatter fields that merge with the main workflow's configuration. The merge behavior varies by field type and follows specific precedence rules detailed below.
 
-**MCP Servers:** Import MCP server configurations that merge into the final workflow:
+### Allowed Import Fields
+
+Shared workflow files (without `on:` field) can define:
+- `tools:` - Tool configurations (bash, web-fetch, github, mcp-*, etc.)
+- `mcp-servers:` - Model Context Protocol server configurations
+- `services:` - Docker services for workflow execution
+- `safe-outputs:` - Safe output handlers and configuration
+- `safe-inputs:` - Safe input configurations
+- `network:` - Network permission specifications
+- `permissions:` - GitHub Actions permissions (validated, not merged)
+- `runtimes:` - Runtime version overrides (node, python, go, etc.)
+- `secret-masking:` - Secret masking steps
+
+Agent files (`.github/agents/*.md`) can additionally define:
+- `name` - Agent name
+- `description` - Agent description
+
+Other fields in imported files generate warnings and are ignored.
+
+### Merge Algorithm Overview
+
+The compiler processes imports using a **breadth-first search (BFS) traversal** to ensure deterministic ordering and cycle detection:
+
+1. **Queue initialization**: Main workflow's imports are added to processing queue
+2. **BFS traversal**: Each import is processed in order
+3. **Nested imports**: Imported files' own imports are added to queue
+4. **Cycle detection**: Prevents circular import chains
+5. **Configuration merging**: Accumulated configurations are merged into main workflow
+6. **Validation**: Final configuration is validated for conflicts and requirements
+
+**Visual representation of BFS processing**:
+
+```
+Processing Queue (left to right):
+┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+│  import-a   │ → │  import-b   │ → │  nested-1   │ → │  nested-2   │
+│  (direct)   │   │  (direct)   │   │  (from a)   │   │  (from b)   │
+└─────────────┘   └─────────────┘   └─────────────┘   └─────────────┘
+      ↓                  ↓                  ↓                  ↓
+   Parse &           Parse &           Parse &           Parse &
+   Extract           Extract           Extract           Extract
+      ↓                  ↓                  ↓                  ↓
+   Add to            Add to            Add to            Add to
+   Merged            Merged            Merged            Merged
+   Config            Config            Config            Config
+```
+
+**Data flow through merge stages**:
+
+```
+Main Workflow      Import-A         Import-B         Final Config
+─────────────      ────────         ────────         ────────────
+tools:             tools:           tools:           tools:
+  bash:              github:          web-fetch:       bash:
+    allowed: [w]       toolsets: [i]    {}               allowed: [w,r]
+                       │                                github:
+                       └─ bash:                           toolsets: [i]
+                            allowed: [r]                web-fetch: {}
+                            
+mcp-servers:       mcp-servers:                      mcp-servers:
+  local:             remote:                           remote:
+    url: x             url: y                            url: y (override)
+                                                       local:
+                                                         url: x
+
+network:           network:         network:         network:
+  allowed:           allowed:         allowed:         allowed:
+    - github.com       - api.com        - cdn.com        - api.com
+                                                         - cdn.com
+                                                         - github.com
+```
+
+### Field-Specific Merge Semantics
+
+#### Tools (`tools:`)
+
+**Merge Strategy**: Deep merge with array concatenation and deduplication
 
 ```aw wrap
-# Base workflow imports shared/mcp/tavily.md
+# shared/tools.md
+---
+tools:
+  bash:
+    allowed: [read, list]
+  github:
+    toolsets: [issues]
+---
+
+# main.md
 ---
 on: issues
 engine: copilot
 imports:
-  - shared/mcp/tavily.md
+  - shared/tools.md
+tools:
+  bash:
+    allowed: [write]  # Merges with imported, becomes [read, list, write]
+  web-fetch: {}       # Added alongside imported tools
 ---
 ```
 
-**Safe Outputs:** Import safe output configurations and jobs. Conflicts between main and imported safe outputs fail compilation. Meta fields from the main workflow take precedence:
+**Merge rules**:
+- New tool keys are added
+- Duplicate tool keys trigger deep merge
+- `allowed` arrays are concatenated and deduplicated
+- Map properties are recursively merged
+- MCP tools detect conflicts (except for `allowed` arrays)
+
+#### MCP Servers (`mcp-servers:`)
+
+**Merge Strategy**: Imported servers override top-level servers with same name
 
 ```aw wrap
-# Main workflow inherits create-issue config and notify job
+# shared/mcp.md
+---
+mcp-servers:
+  tavily:
+    url: "https://mcp.tavily.com/..."
+    allowed: ["*"]
+---
+
+# main.md
 ---
 on: issues
 imports:
-  - shared-config.md  # defines create-issue, allowed-domains, jobs.notify
+  - shared/mcp.md
+mcp-servers:
+  tavily:  # Imported definition takes precedence
+    # This definition is discarded
+    url: "https://old-url.com"
+  github:  # New server, kept
+    mode: remote
 ---
 ```
+
+**Merge rules**:
+- Imported MCP servers **override** top-level servers with identical names
+- Main workflow servers are kept if not defined in imports
+- Multiple imports defining same server use first-wins ordering
+
+#### Network Permissions (`network:`)
+
+**Merge Strategy**: Union of allowed domains, deduplicated and sorted
+
+```aw wrap
+# shared/network.md
+---
+network:
+  allowed:
+    - example.com
+    - api.example.com
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/network.md
+network:
+  allowed:
+    - github.com
+    - example.com  # Deduplicated
+  firewall: true
+---
+# Result: allowed = [api.example.com, example.com, github.com] (sorted)
+```
+
+**Merge rules**:
+- All `allowed` domains are accumulated across main and imports
+- Duplicates are removed
+- Final list is sorted alphabetically for consistency
+- Network `mode` and `firewall` from main workflow take precedence
+
+#### Permissions (`permissions:`)
+
+**Merge Strategy**: Validation only - main workflow must satisfy imported requirements
+
+```aw wrap
+# shared/permissions.md
+---
+permissions:
+  issues: write
+  contents: read
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/permissions.md
+permissions:
+  issues: write    # Satisfies imported requirement
+  contents: write  # write >= read, satisfies imported requirement
+  actions: read    # Additional permission, allowed
+---
+```
+
+**Validation rules**:
+- Imported permissions are **not merged** into main workflow
+- Main workflow must explicitly declare all imported permissions
+- Permission levels must be sufficient: `write` >= `read` >= `none`
+- Missing or insufficient permissions cause compilation to fail with detailed error
+
+#### Safe Outputs (`safe-outputs:`)
+
+**Merge Strategy**: Main workflow overrides imported types; conflicts fail compilation
+
+```aw wrap
+# shared/outputs.md
+---
+safe-outputs:
+  create-issue:
+    title-prefix: "[shared] "
+    labels: [imported]
+  add-comment:
+    max: 3
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/outputs.md
+safe-outputs:
+  create-issue:  # Main workflow overrides imported definition
+    title-prefix: "[main] "
+    labels: [local]
+  # add-comment is inherited from import
+---
+```
+
+**Merge rules**:
+- Each safe-output type (create-issue, add-comment, etc.) can be defined **once** across all imports
+- Main workflow definitions **override** imported definitions for same type
+- Multiple imports defining same type cause compilation error
+- Meta fields (allowed-domains, staged, env, github-token, max-patch-size, runs-on) use first-wins merging (main > imports)
+- Messages configuration merges at field level with main taking precedence
+- Jobs are merged separately with conflict detection
+
+#### Runtimes (`runtimes:`)
+
+**Merge Strategy**: Main workflow versions override imported versions
+
+```aw wrap
+# shared/runtimes.md
+---
+runtimes:
+  node:
+    version: "18"
+  python:
+    version: "3.11"
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/runtimes.md
+runtimes:
+  node:
+    version: "20"  # Overrides imported version
+  # python 3.11 is inherited
+---
+```
+
+**Merge rules**:
+- Runtime versions from main workflow override imported versions
+- Imported runtimes are used if not specified in main workflow
+- Each runtime can only have one version in final configuration
+
+#### Services (`services:`)
+
+**Merge Strategy**: Deep merge with conflict detection
+
+```aw wrap
+# shared/services.md
+---
+services:
+  redis:
+    image: redis:alpine
+    ports: [6379:6379]
+---
+
+# main.md
+---
+on: issues
+imports:
+  - shared/services.md
+services:
+  postgres:
+    image: postgres:15
+    ports: [5432:5432]
+---
+# Result: Both redis and postgres services available
+```
+
+**Merge rules**:
+- Service names must be unique across main and imports
+- Duplicate service names cause compilation error
+- All services are available to workflow jobs
+
+### Import Processing Order
+
+Imports are processed in **breadth-first order** to ensure consistent and predictable merging:
+
+```
+Main Workflow
+├── import-a.md (processed 1st)
+│   ├── nested-1.md (processed 3rd)
+│   └── nested-2.md (processed 4th)
+└── import-b.md (processed 2nd)
+    └── nested-3.md (processed 5th)
+```
+
+This ordering ensures:
+- Earlier imports in the main workflow's list take precedence over later ones
+- Nested imports are processed after their parent import
+- Circular imports are detected and prevented
+- Deterministic results regardless of file system order
+
+### Error Handling and Edge Cases
+
+#### Circular Import Detection
+
+The compiler detects and prevents circular import chains:
+
+```aw wrap
+# workflow-a.md imports workflow-b.md
+# workflow-b.md imports workflow-a.md
+# Result: ERROR - Circular import detected
+```
+
+#### Missing Import Files
+
+Optional imports use `?` suffix to gracefully handle missing files:
+
+```markdown wrap
+{{#import? optional-config.md}}  # No error if file doesn't exist
+```
+
+Required imports (frontmatter or without `?`) fail compilation if file is missing.
+
+#### Conflicting Configurations
+
+Some conflicts cause compilation to fail:
+
+```aw wrap
+# import-1.md defines safe-outputs: create-issue
+# import-2.md also defines safe-outputs: create-issue
+# Result: ERROR - Safe output type defined in multiple imports
+```
+
+To resolve: Define the configuration in main workflow (overrides both imports) or remove from one import.
+
+#### Permission Validation Failures
+
+Insufficient permissions produce detailed error messages:
+
+```
+ERROR: Imported workflows require permissions that are not granted.
+
+Missing permissions:
+  - actions: read
+
+Insufficient permissions:
+  - contents: has read, requires write
+
+Suggested fix:
+permissions:
+  actions: read
+  contents: write
+```
+
+### Performance Considerations
+
+**Import Caching**: Remote imports are cached in `.github/aw/imports/` by commit SHA. First compilation downloads the file; subsequent compilations use the cache even if referencing the same commit via different refs (tags, branches).
+
+**Compilation Time**: Each import adds parsing overhead. For optimal performance:
+- Keep import chains shallow (avoid deep nesting)
+- Use shared workflows for genuinely reusable configurations
+- Consider consolidating related imports into single files
+
+**Manifest Generation**: Every compilation records imported files in the lock file's manifest section, enabling accurate dependency tracking.
 
 ## Related Documentation
 
 - [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to managing workflow imports
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output configuration details
+- [Network Configuration](/gh-aw/reference/network/) - Network permission management

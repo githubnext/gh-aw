@@ -26,8 +26,44 @@ The compilation process reads the markdown file and:
 - Extracts YAML frontmatter
 - Parses workflow configuration
 - Validates against the workflow schema
-- Resolves imports from `imports:` field
+- **Resolves imports** using breadth-first search (BFS) traversal
+- **Merges configurations** from imported files according to field-specific rules
 - Validates expression safety (only allowed GitHub Actions expressions)
+
+#### Import Resolution Algorithm
+
+Import processing follows a deterministic BFS algorithm:
+
+1. **Queue initialization**: Parse main workflow's `imports:` field and add entries to queue
+2. **Iterative processing**: For each import in queue:
+   - Resolve path (local file or remote repository reference)
+   - Load and parse import file
+   - Extract mergeable configurations (tools, mcp-servers, network, etc.)
+   - Add import's own imports to end of queue (nested imports)
+   - Track visited files to detect circular imports
+3. **Configuration accumulation**: Collect all configurations by field type
+4. **Merge execution**: Apply field-specific merge strategies
+5. **Validation**: Check for conflicts and permission requirements
+
+**Merge strategies**:
+- **Tools**: Deep merge with array concatenation and deduplication
+- **MCP servers**: Imported servers override main workflow servers with same name
+- **Network**: Union of allowed domains, deduplicated and sorted
+- **Permissions**: Validation only - main must satisfy imported requirements
+- **Safe outputs**: Main workflow overrides imported configurations per type
+- **Runtimes**: Main workflow versions override imported versions
+
+**Example processing order**:
+```
+Main Workflow
+├── import-a.md          → Processed 1st
+│   ├── nested-1.md      → Processed 3rd (after import-b)
+│   └── nested-2.md      → Processed 4th
+└── import-b.md          → Processed 2nd
+    └── nested-3.md      → Processed 5th
+```
+
+See [Imports Reference](/gh-aw/reference/imports/) for complete merge semantics.
 
 ### Phase 2: Job Construction
 
