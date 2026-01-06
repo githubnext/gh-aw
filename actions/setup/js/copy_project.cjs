@@ -167,7 +167,9 @@ async function copyProject(output) {
   try {
     sourceProjectId = await getProjectId(sourceProjectInfo.scope, sourceProjectInfo.ownerLogin, sourceProjectInfo.projectNumber);
     core.info(`Source project ID: ${sourceProjectId}`);
-  } catch (error) {
+  } catch (err) {
+    // prettier-ignore
+    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
     logGraphQLError(error, "getting source project ID");
     throw new Error(`Failed to get source project ID: ${getErrorMessage(error)}`);
   }
@@ -225,7 +227,9 @@ async function copyProject(output) {
       projectTitle: newProject.title,
       projectUrl: newProject.url,
     };
-  } catch (error) {
+  } catch (err) {
+    // prettier-ignore
+    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
     logGraphQLError(error, "copying project");
     throw new Error(`Failed to copy project: ${getErrorMessage(error)}`);
   }
@@ -235,43 +239,34 @@ async function copyProject(output) {
  * Main execution function
  */
 async function main() {
-  try {
-    const outputs = await loadAgentOutput();
-    core.info(`Loaded ${outputs.length} safe output(s)`);
+  const result = loadAgentOutput();
+  if (!result.success) return;
 
-    let processedCount = 0;
+  const copyProjectItems = result.items.filter(item => item.type === "copy_project");
+  if (copyProjectItems.length === 0) return;
 
-    for (const output of outputs) {
-      if (output.type !== "copy_project") {
-        core.info(`Skipping output with type: ${output.type}`);
-        continue;
-      }
+  for (let i = 0; i < copyProjectItems.length; i++) {
+    const output = copyProjectItems[i];
+    try {
+      const projectResult = await copyProject(output);
 
-      core.info(`Processing copy_project output (${processedCount + 1}/${outputs.length})`);
+      // Set step outputs
+      core.setOutput("project_id", projectResult.projectId);
+      core.setOutput("project_title", projectResult.projectTitle);
+      core.setOutput("project_url", projectResult.projectUrl);
 
-      try {
-        const result = await copyProject(output);
-
-        // Set step outputs
-        core.setOutput("project_id", result.projectId);
-        core.setOutput("project_title", result.projectTitle);
-        core.setOutput("project_url", result.projectUrl);
-
-        processedCount++;
-        core.info(`Successfully processed copy_project output`);
-      } catch (error) {
-        core.error(`Failed to process copy_project output: ${getErrorMessage(error)}`);
-        throw error;
-      }
+      core.info(`Successfully processed copy_project item ${i + 1}`);
+      core.info(`Successfully processed copy_project item ${i + 1}`);
+    } catch (err) {
+      // prettier-ignore
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+      core.error(`Failed to process item ${i + 1}`);
+      logGraphQLError(error, `Processing copy_project item ${i + 1}`);
     }
-
-    core.info(`Processed ${processedCount} copy_project output(s)`);
-    core.setOutput("processed_count", processedCount.toString());
-  } catch (error) {
-    core.setFailed(`copy_project failed: ${getErrorMessage(error)}`);
-    throw error;
   }
 }
+
+module.exports = { copyProject, parseProjectUrl, getProjectId, getOwnerId, main };
 
 // Execute main function
 main();
