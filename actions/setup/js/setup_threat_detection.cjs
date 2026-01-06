@@ -6,9 +6,10 @@
  *
  * This module sets up the threat detection analysis by:
  * 1. Checking for existence of artifact files (prompt, agent output, patch)
- * 2. Creating a threat detection prompt from the embedded template
- * 3. Writing the prompt to a file for the AI engine to process
- * 4. Adding the rendered prompt to the workflow summary
+ * 2. Reading the threat detection prompt template from /tmp/gh-aw/prompts/
+ * 3. Creating a threat detection prompt by replacing placeholders
+ * 4. Writing the prompt to a file for the AI engine to process
+ * 5. Adding the rendered prompt to the workflow summary
  */
 
 const fs = require("fs");
@@ -17,10 +18,9 @@ const { checkFileExists } = require("./file_helpers.cjs");
 
 /**
  * Main entry point for setting up threat detection
- * @param {string} templateContent - The threat detection prompt template
  * @returns {Promise<void>}
  */
-async function main(templateContent) {
+async function main() {
   // Check if prompt file exists
   // The agent-artifacts artifact is downloaded to /tmp/gh-aw/threat-detection/
   // GitHub Actions preserves the directory structure from the uploaded artifact
@@ -59,7 +59,15 @@ async function main(templateContent) {
     patchFileInfo = patchPath + " (" + fs.statSync(patchPath).size + " bytes)";
   }
 
-  // Create threat detection prompt with embedded template
+  // Read threat detection prompt template from file
+  const templatePath = "/tmp/gh-aw/prompts/threat_detection.md";
+  if (!fs.existsSync(templatePath)) {
+    core.setFailed("Threat detection template not found at " + templatePath);
+    return;
+  }
+  const templateContent = fs.readFileSync(templatePath, "utf8");
+
+  // Create threat detection prompt by replacing placeholders
   let promptContent = templateContent
     .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || "Unnamed Workflow")
     .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || "No description provided")

@@ -1,9 +1,19 @@
 package workflow
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
+
+// readFile is a helper to read file contents
+func readFile(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
 
 // TestThreatDetectionUsesFilePathNotInline verifies that the threat detection job
 // references the agent output file path instead of inlining the full content
@@ -27,19 +37,14 @@ func TestThreatDetectionUsesFilePathNotInline(t *testing.T) {
 		t.Error("Expected threat detection to require setup_threat_detection.cjs file")
 	}
 
-	// Verify that the template content is passed to the main function
-	if !strings.Contains(stepsString, "const templateContent = `# Threat Detection Analysis") {
-		t.Error("Expected threat detection to pass template content to main function")
+	// Verify that we call main without parameters (template is read from file)
+	if !strings.Contains(stepsString, "await main()") {
+		t.Error("Expected to call main function without parameters")
 	}
 
-	// Verify the prompt template references file path
-	if !strings.Contains(stepsString, "{AGENT_OUTPUT_FILE}") {
-		t.Error("Expected threat detection prompt to use {AGENT_OUTPUT_FILE} placeholder")
-	}
-
-	// Verify we call main with the template
-	if !strings.Contains(stepsString, "await main(templateContent)") {
-		t.Error("Expected to call main function with templateContent parameter")
+	// Verify that the template content is NOT passed inline anymore
+	if strings.Contains(stepsString, "const templateContent = `# Threat Detection Analysis") {
+		t.Error("Template content should not be passed inline - it should be read from file")
 	}
 
 	// Verify we DON'T inline the agent output content via environment variable
@@ -86,25 +91,32 @@ func TestThreatDetectionHasBashReadTools(t *testing.T) {
 
 // TestThreatDetectionTemplateUsesFilePath verifies the template markdown is updated
 func TestThreatDetectionTemplateUsesFilePath(t *testing.T) {
-	// Check that the embedded template uses file path reference
-	if !strings.Contains(defaultThreatDetectionPrompt, "Agent Output File") {
+	// Read the threat detection template from the file
+	templatePath := "../../actions/setup/md/threat_detection.md"
+	templateContent, err := readFile(templatePath)
+	if err != nil {
+		t.Fatalf("Failed to read threat detection template: %v", err)
+	}
+
+	// Check that the template uses file path reference
+	if !strings.Contains(templateContent, "Agent Output File") {
 		t.Error("Expected template to have 'Agent Output File' section")
 	}
 
-	if !strings.Contains(defaultThreatDetectionPrompt, "{AGENT_OUTPUT_FILE}") {
+	if !strings.Contains(templateContent, "{AGENT_OUTPUT_FILE}") {
 		t.Error("Expected template to use {AGENT_OUTPUT_FILE} placeholder")
 	}
 
-	if !strings.Contains(defaultThreatDetectionPrompt, "Read and analyze this file") {
+	if !strings.Contains(templateContent, "Read and analyze this file") {
 		t.Error("Expected template to instruct agent to read the file")
 	}
 
 	// Verify the old inline approach is removed
-	if strings.Contains(defaultThreatDetectionPrompt, "{AGENT_OUTPUT}") {
+	if strings.Contains(templateContent, "{AGENT_OUTPUT}") {
 		t.Error("Template should not use {AGENT_OUTPUT} placeholder anymore")
 	}
 
-	if strings.Contains(defaultThreatDetectionPrompt, "<agent-output>") {
+	if strings.Contains(templateContent, "<agent-output>") {
 		t.Error("Template should not have <agent-output> tag for inline content")
 	}
 }

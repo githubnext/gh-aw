@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	_ "embed"
 	"fmt"
 	"strings"
 
@@ -10,9 +9,6 @@ import (
 )
 
 var threatLog = logger.New("workflow:threat_detection")
-
-//go:embed prompts/threat_detection.md
-var defaultThreatDetectionPrompt string
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
@@ -269,14 +265,14 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 
 // buildSetupScriptRequire creates the setup script that requires the .cjs module
 func (c *Compiler) buildSetupScriptRequire() string {
-	// Build a simple require statement that calls the main function with the template
+	// Build a simple require statement that calls the main function
+	// The threat detection template is now read from /tmp/gh-aw/prompts/threat_detection.md at runtime
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io);
 const { main } = require('` + SetupActionDestination + `/setup_threat_detection.cjs');
-const templateContent = %s;
-await main(templateContent);`
+await main();`
 
-	return fmt.Sprintf(script, c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
+	return script
 }
 
 // buildEngineSteps creates the engine execution steps
