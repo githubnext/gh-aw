@@ -189,11 +189,9 @@ jobs:
       - name: Install Codex
         run: npm install -g --silent @openai/codex@0.78.0
       - name: Install awf binary
-        run: |
-          echo "Installing awf via installer script (requested version: v0.8.2)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.8.2 bash
-          which awf
-          awf --version
+        uses: githubnext/gh-aw-firewall@main
+        with:
+          version: v0.8.2
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
