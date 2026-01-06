@@ -191,9 +191,43 @@ and synchronizing campaign state into a GitHub Project board.
 
 10) Record per-item outcome: success/failure + error details.
 
-### Phase 4 — Report
+### Phase 4 — Report & Status Update
 
-11) Report:
+11) Create a project status update summarizing this run:
+- Use `create-project-status-update` safe output
+- Include campaign summary (tasks completed, in progress, blocked)
+- Highlight key findings from the discovery phase
+- Document trends and velocity metrics
+- Outline next steps and remaining work
+- Set appropriate status: ON_TRACK, AT_RISK, OFF_TRACK, or COMPLETE
+- Use today's date for start_date and target_date (or appropriate future date for target)
+
+Example status update:
+```yaml
+create-project-status-update:
+  project: "{{.ProjectURL}}"
+  status: "ON_TRACK"
+  start_date: "2026-01-06"
+  target_date: "2026-01-31"
+  body: |
+    ## Campaign Run Summary
+
+    **Discovered:** 25 items (15 issues, 10 PRs)
+    **Processed:** 10 items added to project, 5 updated
+    **Completion:** 60% (30/50 total tasks)
+
+    ### Key Findings
+    - Documentation coverage improved to 88%
+    - 3 critical accessibility issues identified
+    - Worker velocity: 1.2 items/day
+
+    ### Next Steps
+    - Continue processing remaining 15 items
+    - Address blocked items in next run
+    - Target 95% documentation coverage by end of month
+```
+
+12) Report:
 - counts discovered (by type)
 - counts processed this run (by action: add/status_update/backfill/noop/failed)
 - counts deferred due to budgets

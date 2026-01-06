@@ -3473,7 +3473,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, copy-project, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -3711,6 +3711,40 @@
             {
               "type": "null",
               "description": "Enable project copying with default configuration (max=1)"
+            }
+          ]
+        },
+        "create-project-status-update": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub Project status updates. Status updates provide stakeholder communication and historical record of project progress. Requires a Personal Access Token (PAT) or GitHub App token with Projects: Read+Write permission. The GITHUB_TOKEN cannot be used for Projects v2. Status updates are created on the specified project board and appear in the Updates tab. Typically used by campaign orchestrators to post run summaries with progress, findings, and next steps.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of status updates to create (default: 1). Typically 1 per orchestrator run.",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified. Must have Projects: Read+Write permission."
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "max": 1
+                },
+                {
+                  "github-token": "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+                  "max": 1
+                }
+              ]
+            },
+            {
+              "type": "null",
+              "description": "Enable project status updates with default configuration (max=1)"
             }
           ]
         },

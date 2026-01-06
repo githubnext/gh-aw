@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goccy/go-yaml"
 	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
@@ -100,6 +100,16 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 				updateProjectConfig["github-token"] = data.SafeOutputs.UpdateProjects.GitHubToken
 			}
 			outputs["update-project"] = updateProjectConfig
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			statusUpdateConfig := map[string]any{
+				"max": data.SafeOutputs.CreateProjectStatusUpdates.Max,
+			}
+			// Include github-token if specified
+			if strings.TrimSpace(data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken) != "" {
+				statusUpdateConfig["github-token"] = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
+			}
+			outputs["create-project-status-update"] = statusUpdateConfig
 		}
 		if len(outputs) > 0 {
 			payload := map[string]any{"safe-outputs": outputs}

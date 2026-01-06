@@ -3473,7 +3473,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, copy-project, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -3680,21 +3680,21 @@
             }
           ]
         },
-        "copy-project": {
+        "create-project-status-update": {
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for copying GitHub Projects v2 boards. Creates a new project with the same structure, fields, and views as the source project. By default, draft issues are NOT copied unless explicitly requested with includeDraftIssues=true in the tool call. Requires a Personal Access Token (PAT) or GitHub App token with Projects permissions; the GITHUB_TOKEN cannot be used. Safe output items use type=copy_project and include: sourceProject (URL), owner (org/user login), title (new project name), and optional includeDraftIssues (boolean).",
+              "description": "Configuration for creating GitHub Project status updates. Status updates provide stakeholder communication and historical record of project progress. Requires a Personal Access Token (PAT) or GitHub App token with Projects: Read+Write permission. The GITHUB_TOKEN cannot be used for Projects v2. Status updates are created on the specified project board and appear in the Updates tab. Typically used by campaign orchestrators to post run summaries with progress, findings, and next steps.",
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of copy operations to perform (default: 1).",
+                  "description": "Maximum number of status updates to create (default: 1). Typically 1 per orchestrator run.",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 10
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
-                  "description": "GitHub token to use for this specific output type. Must have Projects write permission. Overrides global github-token if specified."
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified. Must have Projects: Read+Write permission."
                 }
               },
               "additionalProperties": false,
@@ -3703,14 +3703,14 @@
                   "max": 1
                 },
                 {
-                  "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
+                  "github-token": "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
                   "max": 1
                 }
               ]
             },
             {
               "type": "null",
-              "description": "Enable project copying with default configuration (max=1)"
+              "description": "Enable project status updates with default configuration (max=1)"
             }
           ]
         },
