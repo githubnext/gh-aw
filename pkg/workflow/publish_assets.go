@@ -109,15 +109,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Step 2: Configure Git credentials
 	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
 
-	// Step 3: Download assets artifact if it exists (from agent-output artifact)
-	preSteps = append(preSteps, "      - name: Download assets\n")
-	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
-	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
-	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, fmt.Sprintf("          name: %s\n", constants.AgentOutputArtifactName))
-	preSteps = append(preSteps, "          path: /tmp/gh-aw/safeoutputs/\n")
-
-	// Step 4: List files
+	// Step 3: List files (agent-output artifact is downloaded automatically by buildGitHubScriptStep)
 	preSteps = append(preSteps, "      - name: List downloaded asset files\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	preSteps = append(preSteps, "        run: |\n")
