@@ -252,7 +252,7 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
+func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig, sandboxConfig *SandboxConfig, networkPermissions *NetworkPermissions) map[string]any {
 	compilerSafeOutputsLog.Printf("Applying default tools: existingToolCount=%d", len(tools))
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
@@ -302,6 +302,26 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			githubConfig["allowed"] = existingAllowed
 		}
 		tools["github"] = githubConfig
+	}
+
+	// Enable edit and bash tools by default when sandbox is enabled
+	// The sandbox is enabled when:
+	// 1. Explicitly configured via sandbox.agent (awf/srt)
+	// 2. Auto-enabled by firewall default enablement (when network restrictions are present)
+	if isSandboxEnabled(sandboxConfig, networkPermissions) {
+		compilerSafeOutputsLog.Print("Sandbox enabled, applying default edit and bash tools")
+		
+		// Add edit tool if not present
+		if _, exists := tools["edit"]; !exists {
+			tools["edit"] = true
+			compilerSafeOutputsLog.Print("Added edit tool (sandbox enabled)")
+		}
+		
+		// Add bash tool with wildcard if not present
+		if _, exists := tools["bash"]; !exists {
+			tools["bash"] = []any{"*"}
+			compilerSafeOutputsLog.Print("Added bash tool with wildcard (sandbox enabled)")
+		}
 	}
 
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
@@ -423,4 +443,39 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 		return false
 	}
 	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
+}
+
+// isSandboxEnabled checks if the sandbox is enabled (either explicitly or auto-enabled)
+// Returns true when:
+// - sandbox.agent is explicitly set to a sandbox type (awf, srt, etc.)
+// - Firewall is auto-enabled (networkPermissions.Firewall is set and enabled)
+// - SRT sandbox is enabled
+// Returns false when:
+// - sandbox.agent is false (explicitly disabled)
+// - No sandbox configuration and no auto-enabled firewall
+func isSandboxEnabled(sandboxConfig *SandboxConfig, networkPermissions *NetworkPermissions) bool {
+	// Check if sandbox.agent is explicitly disabled
+	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		return false
+	}
+	
+	// Check if sandbox.agent is explicitly configured with a type
+	if sandboxConfig != nil && sandboxConfig.Agent != nil {
+		agentType := getAgentType(sandboxConfig.Agent)
+		if isSupportedSandboxType(agentType) {
+			return true
+		}
+	}
+	
+	// Check if SRT is enabled via legacy Type field
+	if sandboxConfig != nil && (sandboxConfig.Type == SandboxTypeSRT || sandboxConfig.Type == SandboxTypeRuntime) {
+		return true
+	}
+	
+	// Check if firewall is auto-enabled (AWF)
+	if networkPermissions != nil && networkPermissions.Firewall != nil && networkPermissions.Firewall.Enabled {
+		return true
+	}
+	
+	return false
 }
