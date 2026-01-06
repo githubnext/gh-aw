@@ -109,7 +109,7 @@ func TestApplyDefaultToolsNoLongerAddsDefaults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.applyDefaultTools(tt.tools, nil)
+			result := compiler.applyDefaultTools(tt.tools, nil, nil, nil)
 
 			// Get the github configuration
 			githubConfig, ok := result["github"].(map[string]any)

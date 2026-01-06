@@ -79,10 +79,14 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	var checkoutToken string
 	var gitRemoteToken string
 	if data.SafeOutputs.App != nil {
+		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		checkoutToken = "${{ steps.app-token.outputs.token }}"
+		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		gitRemoteToken = "${{ steps.app-token.outputs.token }}"
 	} else {
+		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		checkoutToken = "${{ github.token }}"
+		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		gitRemoteToken = "${{ github.token }}"
 	}
 

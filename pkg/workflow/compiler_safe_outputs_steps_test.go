@@ -210,7 +210,13 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(tt.trialMode, tt.trialRepo, "test")
+			compiler := NewCompiler(false, "", "test")
+			if tt.trialMode {
+				compiler.SetTrialMode(true)
+			}
+			if tt.trialRepo != "" {
+				compiler.SetTrialLogicalRepoSlug(tt.trialRepo)
+			}
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
@@ -507,7 +513,9 @@ func TestScriptNameVsInlineScript(t *testing.T) {
 
 		assert.Contains(t, stepsContent, "setupGlobals")
 		assert.Contains(t, stepsContent, "console.log")
-		assert.NotContains(t, stepsContent, "require")
+		// Inline scripts now include setupGlobals require statement
+		assert.Contains(t, stepsContent, "require")
+		// Inline scripts should not call await main()
 		assert.NotContains(t, stepsContent, "await main()")
 	})
 

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/testutil"
-
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // shouldSkipFirewallWorkflow returns true if the workflow filename contains ".firewall"
@@ -59,9 +59,9 @@ func TestNormalizeWorkflowName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := normalizeWorkflowName(tt.input)
+			result := stringutil.NormalizeWorkflowName(tt.input)
 			if result != tt.expected {
-				t.Errorf("normalizeWorkflowName(%q) = %q, expected %q", tt.input, result, tt.expected)
+				t.Errorf("stringutil.NormalizeWorkflowName(%q) = %q, expected %q", tt.input, result, tt.expected)
 			}
 		})
 	}

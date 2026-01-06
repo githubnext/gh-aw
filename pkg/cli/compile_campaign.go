@@ -136,8 +136,10 @@ func validateCampaigns(workflowDir string, verbose bool, campaignFiles []string)
 
 		if len(problems) > 0 {
 			hasErrors = true
+			// Extract just the filename from the config path for more concise messages
+			configFile := filepath.Base(spec.ConfigPath)
 			for _, problem := range problems {
-				msg := fmt.Sprintf("Campaign '%s' (%s): %s", spec.ID, spec.ConfigPath, problem)
+				msg := fmt.Sprintf("%s: %s", configFile, problem)
 				allProblems = append(allProblems, msg)
 				// Always display problems, not just in verbose mode
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(msg))

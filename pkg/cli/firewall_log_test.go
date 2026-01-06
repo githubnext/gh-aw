@@ -268,8 +268,8 @@ func TestParseFirewallLog(t *testing.T) {
 		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
 	}
 
-	if analysis.DeniedRequests != 2 {
-		t.Errorf("DeniedRequests: got %d, want 2", analysis.DeniedRequests)
+	if analysis.BlockedRequests != 2 {
+		t.Errorf("BlockedRequests: got %d, want 2", analysis.BlockedRequests)
 	}
 
 	// Check allowed domains
@@ -278,10 +278,10 @@ func TestParseFirewallLog(t *testing.T) {
 		t.Errorf("AllowedDomains count: got %d, want %d", len(analysis.AllowedDomains), len(expectedAllowed))
 	}
 
-	// Check denied domains
+	// Check blocked domains
 	expectedDenied := []string{"blocked.example.com:443", "denied.test.com:443"}
-	if len(analysis.DeniedDomains) != len(expectedDenied) {
-		t.Errorf("DeniedDomains count: got %d, want %d", len(analysis.DeniedDomains), len(expectedDenied))
+	if len(analysis.BlockedDomains) != len(expectedDenied) {
+		t.Errorf("BlockedDomains count: got %d, want %d", len(analysis.BlockedDomains), len(expectedDenied))
 	}
 
 	// Check request stats by domain
@@ -289,8 +289,8 @@ func TestParseFirewallLog(t *testing.T) {
 		if stats.Allowed != 1 {
 			t.Errorf("api.github.com:443 Allowed: got %d, want 1", stats.Allowed)
 		}
-		if stats.Denied != 0 {
-			t.Errorf("api.github.com:443 Denied: got %d, want 0", stats.Denied)
+		if stats.Blocked != 0 {
+			t.Errorf("api.github.com:443 Blocked: got %d, want 0", stats.Blocked)
 		}
 	} else {
 		t.Error("api.github.com:443 not found in RequestsByDomain")
@@ -300,8 +300,8 @@ func TestParseFirewallLog(t *testing.T) {
 		if stats.Allowed != 0 {
 			t.Errorf("blocked.example.com:443 Allowed: got %d, want 0", stats.Allowed)
 		}
-		if stats.Denied != 1 {
-			t.Errorf("blocked.example.com:443 Denied: got %d, want 1", stats.Denied)
+		if stats.Blocked != 1 {
+			t.Errorf("blocked.example.com:443 Blocked: got %d, want 1", stats.Blocked)
 		}
 	} else {
 		t.Error("blocked.example.com:443 not found in RequestsByDomain")
@@ -374,8 +374,8 @@ func TestParseFirewallLogPartialMissingFields(t *testing.T) {
 
 	// Check that placeholder domain "-" is tracked
 	if stats, ok := analysis.RequestsByDomain["-"]; ok {
-		if stats.Denied != 1 {
-			t.Errorf("Placeholder domain '-' Denied: got %d, want 1", stats.Denied)
+		if stats.Blocked != 1 {
+			t.Errorf("Placeholder domain '-' Blocked: got %d, want 1", stats.Blocked)
 		}
 	}
 }
@@ -424,8 +424,8 @@ func TestAnalyzeMultipleFirewallLogs(t *testing.T) {
 		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
 	}
 
-	if analysis.DeniedRequests != 2 {
-		t.Errorf("DeniedRequests: got %d, want 2", analysis.DeniedRequests)
+	if analysis.BlockedRequests != 2 {
+		t.Errorf("BlockedRequests: got %d, want 2", analysis.BlockedRequests)
 	}
 
 	// Check domains
@@ -435,8 +435,8 @@ func TestAnalyzeMultipleFirewallLogs(t *testing.T) {
 	}
 
 	expectedDenied := 2
-	if len(analysis.DeniedDomains) != expectedDenied {
-		t.Errorf("DeniedDomains count: got %d, want %d", len(analysis.DeniedDomains), expectedDenied)
+	if len(analysis.BlockedDomains) != expectedDenied {
+		t.Errorf("BlockedDomains count: got %d, want %d", len(analysis.BlockedDomains), expectedDenied)
 	}
 }
 
@@ -539,8 +539,8 @@ func TestAnalyzeFirewallLogsWithWorkflowSuffix(t *testing.T) {
 		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
 	}
 
-	if analysis.DeniedRequests != 1 {
-		t.Errorf("DeniedRequests: got %d, want 1", analysis.DeniedRequests)
+	if analysis.BlockedRequests != 1 {
+		t.Errorf("BlockedRequests: got %d, want 1", analysis.BlockedRequests)
 	}
 
 	// Verify allowed domains
@@ -554,8 +554,8 @@ func TestAnalyzeFirewallLogsWithWorkflowSuffix(t *testing.T) {
 		}
 	}
 
-	// Verify denied domains
-	if len(analysis.DeniedDomains) != 1 || analysis.DeniedDomains[0] != "blocked.example.com:443" {
-		t.Errorf("DeniedDomains: got %v, want [blocked.example.com:443]", analysis.DeniedDomains)
+	// Verify blocked domains
+	if len(analysis.BlockedDomains) != 1 || analysis.BlockedDomains[0] != "blocked.example.com:443" {
+		t.Errorf("BlockedDomains: got %v, want [blocked.example.com:443]", analysis.BlockedDomains)
 	}
 }

@@ -167,6 +167,95 @@ safe-outputs:
 
 **Cross-Team Campaign**: Use Roadmap grouped by Team for cross-team coordination, Table sliced by Status (Blocked) for identifying blockers.
 
+**Fallback to doing the task yourself only if the custom agent's response indicates the task was not performed adequately.
+* Custom agents have a user-defined prompt and their own private context window. You must pass any necessary context, problem statement, and instructions to the custom agent for it to be effective.
+* **CRITICAL: When a custom agent is done working, terminate immediately. NEVER review its work, validate its changes, or make additional modifications. ALWAYS accept the custom agent's work as final.**
+</custom_agents>
+
+## Project Status Updates
+
+Campaign orchestrators automatically create project status updates with every run, providing stakeholders with real-time campaign progress summaries. Status updates appear in the project's Updates tab and provide a historical record of campaign execution.
+
+### Automatic Status Update Creation
+
+The orchestrator creates one status update per run containing:
+
+- **Campaign Summary**: Tasks completed, in progress, and blocked
+- **Key Findings**: Important discoveries from the current run
+- **Trends & Velocity**: Progress metrics and completion rates
+- **Next Steps**: Remaining work and action items
+- **Status Indicator**: Current campaign health (ON_TRACK, AT_RISK, OFF_TRACK, COMPLETE)
+
+### Status Update Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| **project** | URL | GitHub project URL (automatically set by orchestrator) |
+| **body** | Markdown | Campaign summary with findings, trends, and next steps |
+| **status** | Enum | Current health: `ON_TRACK`, `AT_RISK`, `OFF_TRACK`, `COMPLETE` |
+| **start_date** | Date | Run start date (YYYY-MM-DD format) |
+| **target_date** | Date | Projected completion or next milestone date |
+
+### Example Status Update
+
+```yaml
+create-project-status-update:
+  project: "https://github.com/orgs/myorg/projects/73"
+  status: "ON_TRACK"
+  start_date: "2026-01-06"
+  target_date: "2026-01-31"
+  body: |
+    ## Campaign Run Summary
+
+    **Discovered:** 25 items (15 issues, 10 PRs)
+    **Processed:** 10 items added to project, 5 updated
+    **Completion:** 60% (30/50 total tasks)
+
+    ### Key Findings
+    - Documentation coverage improved to 88%
+    - 3 critical accessibility issues identified
+    - Worker velocity: 1.2 items/day
+
+    ### Trends
+    - Velocity stable at 8-10 items/week
+    - Blocked items decreased from 5 to 2
+    - On track for end-of-month completion
+
+    ### Next Steps
+    - Continue processing remaining 15 items
+    - Address 2 blocked items in next run
+    - Target 95% documentation coverage by end of month
+```
+
+### Status Indicators
+
+Choose appropriate status based on campaign progress:
+
+- **ON_TRACK**: Campaign is progressing as planned, meeting velocity targets
+- **AT_RISK**: Potential issues identified (blocked items, slower velocity, dependencies)
+- **OFF_TRACK**: Campaign behind schedule, requires intervention or re-planning
+- **COMPLETE**: All campaign objectives met, no further work needed
+
+### Viewing Status Updates
+
+Status updates appear in:
+1. **Project Updates Tab**: Click the "Updates" tab in your project to see all status updates
+2. **Project Overview**: Recent status update displayed on project home page
+3. **Timeline**: Status updates shown chronologically with other project activity
+
+### Configuration
+
+Campaign orchestrators automatically configure status update creation:
+
+```yaml
+safe-outputs:
+  create-project-status-update:
+    max: 1  # One status update per orchestrator run
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+```
+
+The orchestrator uses the same GitHub token configured for `update-project` operations. This token must have Projects: Read+Write permissions.
+
 ## Summary
 
-Effective campaign project management combines custom fields (Worker/Workflow, Priority, Status, dates) for rich filtering, Roadmap views with swimlanes for work distribution visualization, Task views with "Slice by" for dynamic filtering, strategic labeling for campaign tracking, and multiple saved views tailored to monitoring, planning, and reporting needs.
+Effective campaign project management combines custom fields (Worker/Workflow, Priority, Status, dates) for rich filtering, Roadmap views with swimlanes for work distribution visualization, Task views with "Slice by" for dynamic filtering, automatic status updates for stakeholder communication, strategic labeling for campaign tracking, and multiple saved views tailored to monitoring, planning, and reporting needs.

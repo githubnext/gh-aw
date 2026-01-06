@@ -110,11 +110,6 @@ func TestGenerateStaticPromptStepConsistencyWithOriginal(t *testing.T) {
 			description: "Append temporary folder instructions to prompt",
 			promptText:  "Use /tmp/gh-aw/agent/ directory",
 		},
-		{
-			name:        "edit tool style prompt",
-			description: "Append edit tool accessibility instructions to prompt",
-			promptText:  "File Editing Access\nYou have write access to files",
-		},
 	}
 
 	for _, tt := range tests {
@@ -186,46 +181,6 @@ func TestGenerateStaticPromptStepIntegration(t *testing.T) {
 		output := yaml.String()
 		if !strings.Contains(output, "Append temporary folder instructions to prompt") {
 			t.Error("Expected temp folder step to always be generated")
-		}
-	})
-
-	t.Run("edit tool prompt with tool enabled", func(t *testing.T) {
-		compiler := &Compiler{}
-		data := &WorkflowData{
-			Tools: map[string]any{
-				"edit": true,
-			},
-			ParsedTools: NewTools(map[string]any{
-				"edit": true,
-			}),
-		}
-
-		var yaml strings.Builder
-		compiler.generateEditToolPromptStep(&yaml, data)
-
-		output := yaml.String()
-		if !strings.Contains(output, "Append edit tool accessibility instructions to prompt") {
-			t.Error("Expected edit tool step to be generated when tool is enabled")
-		}
-	})
-
-	t.Run("edit tool prompt with tool disabled", func(t *testing.T) {
-		compiler := &Compiler{}
-		data := &WorkflowData{
-			Tools: map[string]any{
-				"github": true,
-			},
-			ParsedTools: NewTools(map[string]any{
-				"github": true,
-			}),
-		}
-
-		var yaml strings.Builder
-		compiler.generateEditToolPromptStep(&yaml, data)
-
-		output := yaml.String()
-		if output != "" {
-			t.Errorf("Expected no output when edit tool is disabled, got: %s", output)
 		}
 	})
 

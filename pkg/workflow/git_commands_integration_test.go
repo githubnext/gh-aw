@@ -197,7 +197,7 @@ func (c *Compiler) parseWorkflowMarkdownContentWithToolsString(content string) (
 
 	// Extract and process tools
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
-	topTools = c.applyDefaultTools(topTools, safeOutputs)
+	topTools = c.applyDefaultTools(topTools, safeOutputs, nil, nil)
 
 	// Extract cache-memory config
 	cacheMemoryConfig, _ := c.extractCacheMemoryConfigFromMap(topTools)

@@ -321,12 +321,12 @@ func (c *Compiler) extractSRTConfig(configVal any) *SandboxRuntimeConfig {
 				}
 			}
 
-			// Extract deniedDomains
-			if deniedDomains, hasDenied := networkObj["deniedDomains"]; hasDenied {
-				if domainsSlice, ok := deniedDomains.([]any); ok {
+			// Extract blockedDomains
+			if blockedDomains, hasBlocked := networkObj["blockedDomains"]; hasBlocked {
+				if domainsSlice, ok := blockedDomains.([]any); ok {
 					for _, domain := range domainsSlice {
 						if domainStr, ok := domain.(string); ok {
-							netConfig.DeniedDomains = append(netConfig.DeniedDomains, domainStr)
+							netConfig.BlockedDomains = append(netConfig.BlockedDomains, domainStr)
 						}
 					}
 				}

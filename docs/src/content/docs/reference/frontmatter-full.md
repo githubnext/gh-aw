@@ -1679,6 +1679,54 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for copying GitHub Projects v2 boards. Creates a new
+  # project with the same structure, fields, and views as the source project.
+  # Useful for duplicating project templates or migrating projects between
+  # organizations. Requires PAT or GitHub App token with Projects: Read+Write
+  # permissions; the GITHUB_TOKEN cannot be used for Projects v2. Safe output
+  # items use type=copy_project and must include: sourceProject (full project URL),
+  # owner (target org/user login), title (new project title), and optionally
+  # includeDraftIssues (default: false).
+  copy-project:
+    # Maximum number of copy operations to perform (default: 1).
+    # (optional)
+    max: 1
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified. Must have Projects: Read+Write permissions.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable project copying with default configuration (max=1)
+  copy-project: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for creating project status updates on GitHub Projects
+  # v2 boards. Status updates appear in the project's Updates tab and provide
+  # stakeholder communication about campaign progress, findings, and trends.
+  # Typically used by campaign orchestrators to post run summaries. Requires PAT or
+  # GitHub App token with Projects: Read+Write permissions; the GITHUB_TOKEN cannot
+  # be used for Projects v2. Safe output items use type=create_project_status_update
+  # and must include: project (full project URL), body (markdown summary), status
+  # (ON_TRACK/AT_RISK/OFF_TRACK/COMPLETE), and optionally start_date and target_date.
+  create-project-status-update:
+    # Maximum number of status updates per run (default: 1).
+    # (optional)
+    max: 1
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified. Must have Projects: Read+Write permissions.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable project status updates with default configuration (max=1)
+  create-project-status-update: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for creating GitHub discussions from agentic workflow
   # output
   create-discussion:

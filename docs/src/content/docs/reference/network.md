@@ -251,9 +251,9 @@ Follow the principle of least privilege by only allowing access to domains and e
 
 ## Troubleshooting
 
-If you encounter network access denied errors, verify that required domains or ecosystems are included in the `allowed` list. Start with `network: defaults` and add specific requirements incrementally. Network access violations are logged in workflow execution logs.
+If you encounter network access blocked errors, verify that required domains or ecosystems are included in the `allowed` list. Start with `network: defaults` and add specific requirements incrementally. Network access violations are logged in workflow execution logs.
 
-Use `gh aw logs --run-id <run-id>` to view firewall activity and identify denied domains. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-denials) for detailed troubleshooting steps and common solutions.
+Use `gh aw logs --run-id <run-id>` to view firewall activity and identify blocked domains. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-blocking) for detailed troubleshooting steps and common solutions.
 
 ## Related Documentation
 

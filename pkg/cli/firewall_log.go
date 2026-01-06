@@ -90,12 +90,12 @@ var (
 //   {
 //     "total_requests": 4,
 //     "allowed_requests": 2,
-//     "denied_requests": 2,
+//     "blocked_requests": 2,
 //     "allowed_domains": ["api.github.com:443", "api.npmjs.org:443"],
-//     "denied_domains": ["blocked.example.com:443", "denied.test.com:443"],
+//     "blocked_domains": ["blocked.example.com:443", "blocked.test.com:443"],
 //     "requests_by_domain": {
-//       "api.github.com:443": {"allowed": 1, "denied": 0},
-//       "blocked.example.com:443": {"allowed": 0, "denied": 1}
+//       "api.github.com:443": {"allowed": 1, "blocked": 0},
+//       "blocked.example.com:443": {"allowed": 0, "blocked": 1}
 //     }
 //   }
 
@@ -120,7 +120,7 @@ type FirewallAnalysis struct {
 	DomainBuckets
 	TotalRequests    int                           `json:"total_requests"`
 	AllowedRequests  int                           `json:"allowed_requests"`
-	DeniedRequests   int                           `json:"denied_requests"`
+	BlockedRequests  int                           `json:"blocked_requests"`
 	RequestsByDomain map[string]DomainRequestStats `json:"requests_by_domain,omitempty"`
 }
 
@@ -129,13 +129,13 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 	if otherFirewall, ok := other.(*FirewallAnalysis); ok {
 		f.TotalRequests += otherFirewall.TotalRequests
 		f.AllowedRequests += otherFirewall.AllowedRequests
-		f.DeniedRequests += otherFirewall.DeniedRequests
+		f.BlockedRequests += otherFirewall.BlockedRequests
 
 		// Merge request stats by domain
 		for domain, stats := range otherFirewall.RequestsByDomain {
 			existing := f.RequestsByDomain[domain]
 			existing.Allowed += stats.Allowed
-			existing.Denied += stats.Denied
+			existing.Blocked += stats.Blocked
 			f.RequestsByDomain[domain] = existing
 		}
 	}
@@ -144,7 +144,7 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 // DomainRequestStats tracks request statistics per domain
 type DomainRequestStats struct {
 	Allowed int `json:"allowed"`
-	Denied  int `json:"denied"`
+	Blocked int `json:"blocked"`
 }
 
 // parseFirewallLogLine parses a single firewall log line
@@ -268,13 +268,13 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 	analysis := &FirewallAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{},
-			DeniedDomains:  []string{},
+			BlockedDomains: []string{},
 		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
 
 	allowedDomainsSet := make(map[string]bool)
-	deniedDomainsSet := make(map[string]bool)
+	blockedDomainsSet := make(map[string]bool)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -287,7 +287,7 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 
 		analysis.TotalRequests++
 
-		// Determine if request was allowed or denied
+		// Determine if request was allowed or blocked
 		isAllowed := isRequestAllowed(entry.Decision, entry.Status)
 
 		// Extract domain (remove port)
@@ -299,9 +299,9 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 				allowedDomainsSet[domain] = true
 			}
 		} else {
-			analysis.DeniedRequests++
-			if !deniedDomainsSet[domain] {
-				deniedDomainsSet[domain] = true
+			analysis.BlockedRequests++
+			if !blockedDomainsSet[domain] {
+				blockedDomainsSet[domain] = true
 			}
 		}
 
@@ -310,7 +310,7 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 		if isAllowed {
 			stats.Allowed++
 		} else {
-			stats.Denied++
+			stats.Blocked++
 		}
 		analysis.RequestsByDomain[domain] = stats
 	}
@@ -323,17 +323,17 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 	for domain := range allowedDomainsSet {
 		analysis.AllowedDomains = append(analysis.AllowedDomains, domain)
 	}
-	for domain := range deniedDomainsSet {
-		analysis.DeniedDomains = append(analysis.DeniedDomains, domain)
+	for domain := range blockedDomainsSet {
+		analysis.BlockedDomains = append(analysis.BlockedDomains, domain)
 	}
 
 	sort.Strings(analysis.AllowedDomains)
-	sort.Strings(analysis.DeniedDomains)
+	sort.Strings(analysis.BlockedDomains)
 
 	if firewallLogLog.Enabled() {
-		firewallLogLog.Printf("Firewall log parsed: total=%d, allowed=%d, denied=%d, allowed_domains=%d, denied_domains=%d",
-			analysis.TotalRequests, analysis.AllowedRequests, analysis.DeniedRequests,
-			len(analysis.AllowedDomains), len(analysis.DeniedDomains))
+		firewallLogLog.Printf("Firewall log parsed: total=%d, allowed=%d, blocked=%d, allowed_domains=%d, blocked_domains=%d",
+			analysis.TotalRequests, analysis.AllowedRequests, analysis.BlockedRequests,
+			len(analysis.AllowedDomains), len(analysis.BlockedDomains))
 	}
 	return analysis, nil
 }
@@ -416,7 +416,7 @@ func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysi
 			return &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					DeniedDomains:  []string{},
+					BlockedDomains: []string{},
 				},
 				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
