@@ -168,6 +168,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				10, // default max
 			)
 		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			safeOutputsConfig["create_project_status_update"] = generateMaxConfig(
+				data.SafeOutputs.CreateProjectStatusUpdates.Max,
+				10, // default max
+			)
+		}
 		if data.SafeOutputs.UpdateRelease != nil {
 			safeOutputsConfig["update_release"] = generateMaxConfig(
 				data.SafeOutputs.UpdateRelease.Max,
@@ -492,6 +498,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	}
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true
+	}
+	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+		enabledTools["create_project_status_update"] = true
 	}
 	// Note: dispatch_workflow tools are generated dynamically below, not from the static tools list
 
