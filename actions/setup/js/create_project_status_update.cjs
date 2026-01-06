@@ -306,7 +306,8 @@ async function main(config = {}) {
         status: statusUpdate.status,
       };
     } catch (err) {
-      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ err;
+      // prettier-ignore
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
       core.error(`Failed to create project status update: ${getErrorMessage(error)}`);
       logGraphQLError(error, "Creating project status update");
 
