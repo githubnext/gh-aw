@@ -448,6 +448,18 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["dispatch_workflow"] = handlerConfig
 	}
 
+	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+		cfg := data.SafeOutputs.CreateProjectStatusUpdates
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["create_project_status_update"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)
