@@ -278,12 +278,12 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 		fmt.Fprintln(os.Stderr)
 	}
 
-	// Denied domains
-	if len(analysis.DeniedDomains) > 0 {
-		fmt.Fprintln(os.Stderr, "  Denied Domains:")
-		for _, domain := range analysis.DeniedDomains {
+	// Blocked domains
+	if len(analysis.BlockedDomains) > 0 {
+		fmt.Fprintln(os.Stderr, "  Blocked Domains:")
+		for _, domain := range analysis.BlockedDomains {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
-				fmt.Fprintf(os.Stderr, "    ✗ %s (%d requests)\n", domain, stats.Denied)
+				fmt.Fprintf(os.Stderr, "    ✗ %s (%d requests)\n", domain, stats.Blocked)
 			}
 		}
 		fmt.Fprintln(os.Stderr)

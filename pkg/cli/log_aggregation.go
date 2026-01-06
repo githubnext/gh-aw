@@ -16,12 +16,12 @@ var logAggregationLog = logger.New("cli:log_aggregation")
 type LogAnalysis interface {
 	// GetAllowedDomains returns the list of allowed domains
 	GetAllowedDomains() []string
-	// GetDeniedDomains returns the list of denied domains
-	GetDeniedDomains() []string
+	// GetBlockedDomains returns the list of blocked domains
+	GetBlockedDomains() []string
 	// SetAllowedDomains sets the list of allowed domains
 	SetAllowedDomains(domains []string)
-	// SetDeniedDomains sets the list of denied domains
-	SetDeniedDomains(domains []string)
+	// SetBlockedDomains sets the list of blocked domains
+	SetBlockedDomains(domains []string)
 	// AddMetrics adds metrics from another analysis
 	AddMetrics(other LogAnalysis)
 }
@@ -67,7 +67,7 @@ func aggregateLogFiles[T LogAnalysis](
 
 	// Track unique domains across all files
 	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
+	allBlockedDomains := make(map[string]bool)
 
 	// Parse each file and aggregate results
 	for _, file := range files {
@@ -90,8 +90,8 @@ func aggregateLogFiles[T LogAnalysis](
 		for _, domain := range analysis.GetAllowedDomains() {
 			allAllowedDomains[domain] = true
 		}
-		for _, domain := range analysis.GetDeniedDomains() {
-			allDeniedDomains[domain] = true
+		for _, domain := range analysis.GetBlockedDomains() {
+			allBlockedDomains[domain] = true
 		}
 	}
 
@@ -102,18 +102,18 @@ func aggregateLogFiles[T LogAnalysis](
 	}
 	sort.Strings(allowedDomains)
 
-	deniedDomains := make([]string, 0, len(allDeniedDomains))
-	for domain := range allDeniedDomains {
-		deniedDomains = append(deniedDomains, domain)
+	blockedDomains := make([]string, 0, len(allBlockedDomains))
+	for domain := range allBlockedDomains {
+		blockedDomains = append(blockedDomains, domain)
 	}
-	sort.Strings(deniedDomains)
+	sort.Strings(blockedDomains)
 
 	// Set the sorted domain lists
 	aggregated.SetAllowedDomains(allowedDomains)
-	aggregated.SetDeniedDomains(deniedDomains)
+	aggregated.SetBlockedDomains(blockedDomains)
 
-	logAggregationLog.Printf("Aggregation complete: processed %d files, found %d allowed and %d denied domains",
-		len(files), len(allowedDomains), len(deniedDomains))
+	logAggregationLog.Printf("Aggregation complete: processed %d files, found %d allowed and %d blocked domains",
+		len(files), len(allowedDomains), len(blockedDomains))
 
 	return aggregated, nil
 }

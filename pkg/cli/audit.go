@@ -757,11 +757,11 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 			report.WriteString("\n")
 		}
 
-		if len(fw.DeniedDomains) > 0 {
-			report.WriteString("### Denied Domains\n\n")
-			for _, domain := range fw.DeniedDomains {
+		if len(fw.BlockedDomains) > 0 {
+			report.WriteString("### Blocked Domains\n\n")
+			for _, domain := range fw.BlockedDomains {
 				if stats, ok := fw.RequestsByDomain[domain]; ok {
-					fmt.Fprintf(&report, "- %s (%d requests)\n", domain, stats.Denied)
+					fmt.Fprintf(&report, "- %s (%d requests)\n", domain, stats.Blocked)
 				}
 			}
 			report.WriteString("\n")
