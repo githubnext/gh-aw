@@ -646,8 +646,8 @@ async function main() {
     const successCount = processingResult.results.filter(r => r.success).length;
     const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
-    const skippedStandaloneCount = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step").length;
-    const skippedNoHandlerCount = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded")).length;
+    const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
+    const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
@@ -656,11 +656,15 @@ async function main() {
     if (deferredCount > 0) {
       core.info(`Deferred: ${deferredCount}`);
     }
-    if (skippedStandaloneCount > 0) {
-      core.info(`Skipped (standalone step): ${skippedStandaloneCount}`);
+    if (skippedStandaloneResults.length > 0) {
+      core.info(`Skipped (standalone step): ${skippedStandaloneResults.length}`);
+      const standaloneTypes = [...new Set(skippedStandaloneResults.map(r => r.type))];
+      core.info(`  Types: ${standaloneTypes.join(", ")}`);
     }
-    if (skippedNoHandlerCount > 0) {
-      core.warning(`Skipped (no handler): ${skippedNoHandlerCount}`);
+    if (skippedNoHandlerResults.length > 0) {
+      core.warning(`Skipped (no handler): ${skippedNoHandlerResults.length}`);
+      const noHandlerTypes = [...new Set(skippedNoHandlerResults.map(r => r.type))];
+      core.info(`  Types: ${noHandlerTypes.join(", ")}`);
     }
     core.info(`Temporary IDs registered: ${Object.keys(processingResult.temporaryIdMap).length}`);
     core.info(`Synthetic updates: ${syntheticUpdateCount}`);
@@ -668,8 +672,8 @@ async function main() {
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
     }
-    if (skippedNoHandlerCount > 0) {
-      core.warning(`${skippedNoHandlerCount} message(s) were skipped because no handler was loaded. Check your workflow's safe-outputs configuration.`);
+    if (skippedNoHandlerResults.length > 0) {
+      core.warning(`${skippedNoHandlerResults.length} message(s) were skipped because no handler was loaded. Check your workflow's safe-outputs configuration.`);
     }
 
     core.info("Safe Output Handler Manager completed");
