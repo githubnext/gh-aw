@@ -115,6 +115,11 @@
       "version": "v3.31.9",
       "sha": "70c165ac82ca0e33a10e9741508dd0ccb4dcf080"
     },
+    "github/stale-repos@v3": {
+      "repo": "github/stale-repos",
+      "version": "v3",
+      "sha": "3477b6488008d9411aaf22a0924ec7c1f6a69980"
+    },
     "github/stale-repos@v3.0.2": {
       "repo": "github/stale-repos",
       "version": "v3.0.2",

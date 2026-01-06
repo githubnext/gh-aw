@@ -470,6 +470,10 @@ func parseMCPGatewayTool(val any) *MCPGatewayRuntimeConfig {
 		config.Port = port
 	} else if portFloat, ok := configMap["port"].(float64); ok {
 		config.Port = int(portFloat)
+	} else if portUint, ok := configMap["port"].(uint64); ok {
+		config.Port = int(portUint)
+	} else if portInt64, ok := configMap["port"].(int64); ok {
+		config.Port = int(portInt64)
 	}
 	if apiKey, ok := configMap["api-key"].(string); ok {
 		config.APIKey = apiKey
