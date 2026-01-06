@@ -1,5 +1,5 @@
 ---
-description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser) for new versions
+description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, Sandbox Runtime) for new versions
 on:
   schedule: daily
   workflow_dispatch:
@@ -28,7 +28,7 @@ timeout-minutes: 45
 
 # CLI Version Checker
 
-Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, and Playwright Browser.
+Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, and Sandbox Runtime.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
@@ -62,6 +62,9 @@ For each CLI/MCP server:
 - **Playwright Browser**: `https://api.github.com/repos/microsoft/playwright/releases/latest`
   - Release Notes: https://github.com/microsoft/playwright/releases
   - Docker Image: `mcr.microsoft.com/playwright:v{VERSION}`
+- **Sandbox Runtime**: Use `npm view @anthropic-ai/sandbox-runtime version`
+  - Repository: https://github.com/anthropic-experimental/sandbox-runtime
+  - Package: https://www.npmjs.com/package/@anthropic-ai/sandbox-runtime
 
 **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
 
@@ -105,11 +108,13 @@ For each CLI tool update:
    - Copilot CLI: `npm install -g @github/copilot@<version>`
    - Codex: `npm install -g @openai/codex@<version>`
    - Playwright MCP: `npm install -g @playwright/mcp@<version>`
+   - Sandbox Runtime: `npm install -g @anthropic-ai/sandbox-runtime@<version>`
 2. Invoke help to discover commands and flags (compare with cached output if available):
    - Run `claude-code --help`
    - Run `copilot --help` or `copilot help copilot`
    - Run `codex --help`
    - Run `npx @playwright/mcp@<version> --help` (if available)
+   - Sandbox Runtime is a library, check NPM package metadata for API changes
 3. **Explore subcommand help** for each tool (especially Copilot CLI):
    - Identify all available subcommands from main help output
    - For each subcommand, run its help command (e.g., `copilot help config`, `copilot help environment`, `copilot config --help`)

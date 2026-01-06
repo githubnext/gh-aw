@@ -230,6 +230,9 @@ const DefaultGitHubMCPServerVersion Version = "v0.27.0"
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.8.1"
 
+// DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
+const DefaultSandboxRuntimeVersion Version = "0.0.23"
+
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.54"
 
