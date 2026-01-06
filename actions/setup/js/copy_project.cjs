@@ -136,14 +136,22 @@ async function getProjectId(scope, ownerLogin, projectNumber) {
  * @returns {Promise<{ projectId: string, projectTitle: string, projectUrl: string }>}
  */
 async function copyProject(output) {
+  // Use environment variables as defaults if fields are not provided
+  const defaultSourceProject = process.env.GH_AW_COPY_PROJECT_SOURCE;
+  const defaultTargetOwner = process.env.GH_AW_COPY_PROJECT_TARGET_OWNER;
+
   const { sourceProject, owner, title, includeDraftIssues } = output;
 
-  if (!sourceProject) {
-    throw new Error('The "sourceProject" field is required. It must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).');
+  // Use provided values or fall back to defaults
+  const effectiveSourceProject = sourceProject || defaultSourceProject;
+  const effectiveOwner = owner || defaultTargetOwner;
+
+  if (!effectiveSourceProject) {
+    throw new Error('The "sourceProject" field is required. It must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123). Provide it in the tool call or configure "source-project" in the workflow frontmatter.');
   }
 
-  if (!owner) {
-    throw new Error('The "owner" field is required. It must be the owner login name (org or user) where the new project will be created.');
+  if (!effectiveOwner) {
+    throw new Error('The "owner" field is required. It must be the owner login name (org or user) where the new project will be created. Provide it in the tool call or configure "target-owner" in the workflow frontmatter.');
   }
 
   if (!title) {
@@ -153,13 +161,13 @@ async function copyProject(output) {
   // Default to false if not specified
   const shouldIncludeDraftIssues = includeDraftIssues === true;
 
-  core.info(`Copying project from: ${sourceProject}`);
-  core.info(`New project owner: ${owner}`);
+  core.info(`Copying project from: ${effectiveSourceProject}`);
+  core.info(`New project owner: ${effectiveOwner}`);
   core.info(`New project title: ${title}`);
   core.info(`Include draft issues: ${shouldIncludeDraftIssues}`);
 
   // Parse source project URL
-  const sourceProjectInfo = parseProjectUrl(sourceProject);
+  const sourceProjectInfo = parseProjectUrl(effectiveSourceProject);
   core.info(`Source project - scope: ${sourceProjectInfo.scope}, owner: ${sourceProjectInfo.ownerLogin}, number: ${sourceProjectInfo.projectNumber}`);
 
   // Get source project ID
@@ -178,16 +186,16 @@ async function copyProject(output) {
   let targetOwnerId;
   let targetScope;
   try {
-    targetOwnerId = await getOwnerId("orgs", owner);
+    targetOwnerId = await getOwnerId("orgs", effectiveOwner);
     targetScope = "orgs";
     core.info(`Target owner ID (org): ${targetOwnerId}`);
   } catch (orgError) {
     try {
-      targetOwnerId = await getOwnerId("users", owner);
+      targetOwnerId = await getOwnerId("users", effectiveOwner);
       targetScope = "users";
       core.info(`Target owner ID (user): ${targetOwnerId}`);
     } catch (userError) {
-      throw new Error(`Failed to find owner "${owner}" as either an organization or user.`);
+      throw new Error(`Failed to find owner "${effectiveOwner}" as either an organization or user.`);
     }
   }
 
