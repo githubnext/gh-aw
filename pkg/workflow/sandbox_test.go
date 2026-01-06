@@ -292,67 +292,6 @@ func TestValidateSandboxConfig(t *testing.T) {
 			expectError: true,
 			errorMsg:    "sandbox-runtime and AWF firewall cannot be used together",
 		},
-		{
-			name: "MCP gateway with both command and container fails",
-			data: &WorkflowData{
-				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayRuntimeConfig{
-						Command:   "/usr/bin/gateway",
-						Container: "ghcr.io/gateway:latest",
-					},
-				},
-			},
-			expectError: true,
-			errorMsg:    "cannot specify both 'command' and 'container'",
-		},
-		{
-			name: "MCP gateway with entrypointArgs without container fails",
-			data: &WorkflowData{
-				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayRuntimeConfig{
-						Command:        "/usr/bin/gateway",
-						EntrypointArgs: []string{"--config-stdin"},
-					},
-				},
-			},
-			expectError: true,
-			errorMsg:    "'entrypointArgs' can only be used with 'container'",
-		},
-		{
-			name: "MCP gateway with container only is valid",
-			data: &WorkflowData{
-				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayRuntimeConfig{
-						Container:      "ghcr.io/gateway:latest",
-						EntrypointArgs: []string{"--config-stdin"},
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "MCP gateway with command only is valid",
-			data: &WorkflowData{
-				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayRuntimeConfig{
-						Command: "/usr/bin/gateway",
-						Args:    []string{"--port", "8080"},
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "MCP gateway with neither command nor container is valid",
-			data: &WorkflowData{
-				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayRuntimeConfig{
-						Port: 8080,
-					},
-				},
-			},
-			expectError: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -435,42 +374,6 @@ permissions:
 `
 
 	tmpDir := testutil.TempDir(t, "sandbox-network-toplevel-test")
-
-	testFile := filepath.Join(tmpDir, "test-workflow.md")
-	err := os.WriteFile(testFile, []byte(content), 0644)
-	require.NoError(t, err)
-
-	compiler := NewCompiler(false, "", "test")
-	compiler.SetStrictMode(false)
-	err = compiler.CompileWorkflow(testFile)
-	require.NoError(t, err)
-
-	// Verify the lock file was created
-	lockFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
-	_, err = os.Stat(lockFile)
-	require.NoError(t, err, "Lock file should be created")
-}
-
-func TestSandboxConfigWithMCPGateway(t *testing.T) {
-	content := `---
-on: workflow_dispatch
-engine: copilot
-sandbox:
-  agent: awf
-  mcp:
-    container: "ghcr.io/githubnext/mcp-gateway"
-    port: 9090
-    api-key: "${{ secrets.MCP_API_KEY }}"
-features:
-  mcp-gateway: true
-permissions:
-  contents: read
----
-
-# Test Workflow with MCP Gateway
-`
-
-	tmpDir := testutil.TempDir(t, "sandbox-mcp-gateway-test")
 
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
 	err := os.WriteFile(testFile, []byte(content), 0644)

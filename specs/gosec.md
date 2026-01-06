@@ -66,7 +66,6 @@ The following files have specific gosec rule exclusions with documented rational
 ### G204: Subprocess Execution with Variable Arguments
 - **CWE**: CWE-78 (OS Command Injection)
 - **Files**: 
-  - `pkg/awmg/gateway.go` - MCP gateway server commands
   - `pkg/cli/actionlint.go` - Docker commands for actionlint
   - `pkg/parser/remote_fetch.go` - Git commands for remote workflow fetching
   - `pkg/cli/download_workflow.go` - Git operations for workflow downloads

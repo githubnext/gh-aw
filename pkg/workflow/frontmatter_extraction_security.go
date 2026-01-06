@@ -161,15 +161,14 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	}
 
 	if mcpVal, hasMCP := sandboxObj["mcp"]; hasMCP {
-		frontmatterExtractionSecurityLog.Print("Extracting MCP sandbox configuration")
-		if mcpObj, ok := mcpVal.(map[string]any); ok {
-			config.MCP = parseMCPGatewayTool(mcpObj)
-		}
+		frontmatterExtractionSecurityLog.Print("Unsupported MCP gateway configuration (removed)")
+		// MCP gateway (awmg) has been removed - this configuration is no longer supported
+		_ = mcpVal // Silence unused variable warning
 	}
 
-	// If we found agent or mcp fields, return the new format config
-	if config.Agent != nil || config.MCP != nil {
-		frontmatterExtractionSecurityLog.Print("Sandbox configured with new format (agent/mcp)")
+	// If we found agent field, return the new format config
+	if config.Agent != nil {
+		frontmatterExtractionSecurityLog.Print("Sandbox configured with new format (agent)")
 		return config
 	}
 
