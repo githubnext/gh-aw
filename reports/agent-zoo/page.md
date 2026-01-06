@@ -202,7 +202,7 @@ Every agent in the zoo follows the same basic lifecycle:
 
 Agentic Workfows are defined in **Markdown files** using natural language prompts and declarative frontmatter:
 
-\`\`\`markdown
+```markdown
 ---
 description: Investigates failed CI workflows to identify root causes
 on:
@@ -218,13 +218,13 @@ tools:
 ---
 
 When a CI workflow fails, investigate the logs...
-\`\`\`
+```
 
 ### 2. **Compile** to Secure Workflows
 
 The natural language workflow compiles to a **locked YAML file** that runs on GitHub Actions:
 
-\`\`\`yaml
+```yaml
 # ci-doctor.lock.yml
 name: CI Doctor
 on:
@@ -232,7 +232,7 @@ on:
     workflows: ["CI"]
     types: [completed]
 # ... validated, locked execution plan
-\`\`\`
+```
 
 This compilation step ensures:
 - ✅ Permissions are minimal and explicit
