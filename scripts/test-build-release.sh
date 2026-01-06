@@ -73,13 +73,6 @@ for p in "${platforms[@]}"; do
     -ldflags="-s -w -X main.version=${VERSION} -X main.isRelease=true" \
     -o "dist/${p}${ext}" \
     ./cmd/gh-aw
-  
-  echo "Building awmg for $p..."
-  GOOS="$goos" GOARCH="$goarch" go build \
-    -trimpath \
-    -ldflags="-s -w -X main.version=${VERSION}" \
-    -o "dist/awmg-${p}${ext}" \
-    ./cmd/awmg
 done
 
 echo "Build complete."
@@ -97,12 +90,6 @@ if [ ! -f "dist/linux-amd64" ]; then
   exit 1
 fi
 
-# Check that awmg binary was created
-if [ ! -f "dist/awmg-linux-amd64" ]; then
-  echo "FAIL: awmg binary was not created"
-  exit 1
-fi
-
 # Check that version is embedded in gh-aw binary
 BINARY_VERSION=$(./dist/linux-amd64 version 2>&1 | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+-test" || echo "")
 if [ "$BINARY_VERSION" != "$TEST_VERSION" ]; then
@@ -112,16 +99,6 @@ if [ "$BINARY_VERSION" != "$TEST_VERSION" ]; then
 fi
 
 echo "PASS: gh-aw binary built with correct version: $BINARY_VERSION"
-
-# Check that version is embedded in awmg binary
-AWMG_VERSION=$(./dist/awmg-linux-amd64 --version 2>&1 | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+-test" || echo "")
-if [ "$AWMG_VERSION" != "$TEST_VERSION" ]; then
-  echo "FAIL: awmg binary version is '$AWMG_VERSION', expected '$TEST_VERSION'"
-  ./dist/awmg-linux-amd64 --version
-  exit 1
-fi
-
-echo "PASS: awmg binary built with correct version: $AWMG_VERSION"
 
 # Test 3: Verify version is not "dev"
 echo ""
