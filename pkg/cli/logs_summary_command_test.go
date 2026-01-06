@@ -81,9 +81,9 @@ func TestGenerateMarkdownFromLogsData(t *testing.T) {
 			TotalMissingTools: 2,
 		},
 		FirewallLog: &FirewallLogSummary{
-			TotalRequests:    150,
-			AllowedRequests:  140,
-			DeniedRequests:   10,
+			TotalRequests:   150,
+			AllowedRequests: 140,
+			DeniedRequests:  10,
 			RequestsByDomain: map[string]DomainRequestStats{
 				"api.github.com": {
 					Allowed: 50,
@@ -115,9 +115,9 @@ func TestGenerateMarkdownFromLogsData(t *testing.T) {
 		},
 		MissingTools: []MissingToolSummary{
 			{
-				Tool:              "web_search",
-				Count:             2,
-				WorkflowsDisplay:  "test-workflow",
+				Tool:             "web_search",
+				Count:            2,
+				WorkflowsDisplay: "test-workflow",
 			},
 		},
 	}

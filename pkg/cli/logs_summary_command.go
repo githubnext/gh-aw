@@ -147,22 +147,22 @@ func RunLogsSummary(ctx context.Context, config LogsSummaryConfig) error {
 		config.Count,
 		config.StartDate,
 		config.EndDate,
-		tmpDir,                 // outputDir
-		config.Engine,          // engine
-		config.Ref,             // ref
-		config.BeforeRunID,     // beforeRunID
-		config.AfterRunID,      // afterRunID
-		config.RepoOverride,    // repoOverride
-		false,                  // verbose - suppress output
-		false,                  // toolGraph
-		true,                   // noStaged - exclude staged runs from summary
-		config.FirewallOnly,    // firewallOnly
-		config.NoFirewall,      // noFirewall
-		false,                  // parse
-		false,                  // jsonOutput
-		0,                      // timeout
-		false,                  // campaignOnly
-		"summary.json",         // summaryFile
+		tmpDir,              // outputDir
+		config.Engine,       // engine
+		config.Ref,          // ref
+		config.BeforeRunID,  // beforeRunID
+		config.AfterRunID,   // afterRunID
+		config.RepoOverride, // repoOverride
+		false,               // verbose - suppress output
+		false,               // toolGraph
+		true,                // noStaged - exclude staged runs from summary
+		config.FirewallOnly, // firewallOnly
+		config.NoFirewall,   // noFirewall
+		false,               // parse
+		false,               // jsonOutput
+		0,                   // timeout
+		false,               // campaignOnly
+		"summary.json",      // summaryFile
 	)
 
 	if err != nil {
@@ -178,7 +178,7 @@ func RunLogsSummary(ctx context.Context, config LogsSummaryConfig) error {
 
 	// Generate markdown from logs data
 	markdown := generateMarkdownFromLogsData(logsData, config)
-	
+
 	// Output to stdout (not stderr) so it can be piped to $GITHUB_STEP_SUMMARY
 	fmt.Print(markdown)
 
@@ -289,7 +289,7 @@ func generateMarkdownFromLogsData(logsData LogsData, config LogsSummaryConfig) s
 				if i >= 10 {
 					break
 				}
-				md.WriteString(fmt.Sprintf("| %s | %d | %d | %d |\n", 
+				md.WriteString(fmt.Sprintf("| %s | %d | %d | %d |\n",
 					stat.domain, stat.allowed, stat.denied, stat.total))
 			}
 			md.WriteString("\n")
@@ -299,7 +299,7 @@ func generateMarkdownFromLogsData(logsData LogsData, config LogsSummaryConfig) s
 	// Errors and Warnings (if present)
 	if len(logsData.ErrorsAndWarnings) > 0 {
 		md.WriteString("## ⚠️ Errors and Warnings\n\n")
-		
+
 		// Separate errors and warnings
 		var errors []ErrorSummary
 		var warnings []ErrorSummary
@@ -348,7 +348,7 @@ func generateMarkdownFromLogsData(logsData LogsData, config LogsSummaryConfig) s
 		md.WriteString("| Tool | Count | Workflows |\n")
 		md.WriteString("|------|-------|----------|\n")
 		for _, tool := range logsData.MissingTools {
-			md.WriteString(fmt.Sprintf("| %s | %d | %s |\n", 
+			md.WriteString(fmt.Sprintf("| %s | %d | %s |\n",
 				tool.Tool, tool.Count, tool.WorkflowsDisplay))
 		}
 		md.WriteString("\n")
@@ -360,7 +360,7 @@ func generateMarkdownFromLogsData(logsData LogsData, config LogsSummaryConfig) s
 		md.WriteString("| Server | Count | Workflows |\n")
 		md.WriteString("|--------|-------|----------|\n")
 		for _, failure := range logsData.MCPFailures {
-			md.WriteString(fmt.Sprintf("| %s | %d | %s |\n", 
+			md.WriteString(fmt.Sprintf("| %s | %d | %s |\n",
 				failure.ServerName, failure.Count, failure.WorkflowsDisplay))
 		}
 		md.WriteString("\n")
