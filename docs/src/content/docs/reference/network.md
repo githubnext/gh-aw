@@ -37,6 +37,13 @@ network:
     - "api.example.com"      # Exact domain
     - "trusted.com"          # Includes all *.trusted.com subdomains
 
+# Protocol-specific domain filtering (Copilot engine only)
+network:
+  allowed:
+    - "https://secure.api.example.com"   # HTTPS-only access
+    - "http://legacy.example.com"        # HTTP-only access
+    - "example.org"                      # Both HTTP and HTTPS (default)
+
 # No network access
 network: {}
 ```
@@ -53,6 +60,55 @@ Network permissions follow the principle of least privilege with four access lev
 :::note
 AWF does not support wildcard syntax like `*.example.com`. Instead, listing a domain automatically includes all its subdomains. Use `example.com` to allow access to `example.com`, `api.example.com`, `sub.api.example.com`, etc.
 :::
+
+## Protocol-Specific Domain Filtering
+
+For fine-grained security control, you can restrict domains to specific protocols (HTTP or HTTPS only). This is particularly useful when:
+- Working with legacy systems that only support HTTP
+- Ensuring secure connections by restricting to HTTPS-only
+- Migrating from HTTP to HTTPS gradually
+
+:::tip[Copilot Engine Support]
+Protocol-specific filtering is currently supported by the Copilot engine with AWF firewall enabled. Domains without protocol prefixes allow both HTTP and HTTPS traffic (backward compatible).
+:::
+
+### Usage Examples
+
+```yaml wrap
+engine: copilot
+network:
+  allowed:
+    - "https://secure.api.example.com"   # HTTPS-only access
+    - "http://legacy.example.com"        # HTTP-only access  
+    - "example.org"                      # Both protocols (default)
+    - "https://*.api.example.com"        # HTTPS wildcard
+```
+
+**Compiled to AWF:**
+```bash
+--allow-domains ...,example.org,http://legacy.example.com,https://secure.api.example.com,...
+```
+
+### Supported Protocols
+
+- `https://` - HTTPS-only access
+- `http://` - HTTP-only access
+- No prefix - Both HTTP and HTTPS (backward compatible)
+
+:::caution[Protocol Validation]
+Invalid protocols (e.g., `ftp://`, `ws://`) are rejected at compile time with a clear error message:
+```
+error: network.allowed[0]: domain pattern 'ftp://invalid.example.com' 
+has invalid protocol, only 'http://' and 'https://' are allowed
+```
+:::
+
+### Best Practices
+
+- **Prefer HTTPS**: Use `https://` prefix for all external APIs and services
+- **Legacy Systems**: Only use `http://` for internal or legacy systems that don't support HTTPS
+- **Default Behavior**: Omit the protocol prefix for domains that should accept both protocols
+- **Gradual Migration**: Use protocol-specific filtering to migrate from HTTP to HTTPS incrementally
 
 ## Content Sanitization
 

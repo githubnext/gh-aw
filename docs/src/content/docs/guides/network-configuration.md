@@ -79,6 +79,31 @@ network:
     - "*.cdn.example.com"  # Wildcard for subdomains
 ```
 
+## Protocol-Specific Filtering
+
+Restrict domains to specific protocols for enhanced security (Copilot engine with AWF firewall):
+
+```yaml
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - "https://secure.api.example.com"   # HTTPS-only
+    - "http://legacy.internal.com"       # HTTP-only (legacy systems)
+    - "example.org"                      # Both protocols (default)
+sandbox:
+  agent: awf  # Firewall enabled
+```
+
+**Use Cases:**
+- **HTTPS-only**: External APIs, production services
+- **HTTP-only**: Legacy internal systems, development endpoints
+- **Mixed**: Gradual HTTP → HTTPS migration
+
+**Validation:** Invalid protocols (e.g., `ftp://`) are rejected at compile time.
+
+See [Network Permissions - Protocol-Specific Filtering](/gh-aw/reference/network/#protocol-specific-domain-filtering) for complete details.
+
 ## Security Best Practices
 
 1. **Start minimal** - Only add ecosystems you actually use
