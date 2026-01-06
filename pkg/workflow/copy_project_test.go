@@ -372,4 +372,3 @@ func TestCopyProjectSourceAndTargetConfiguration(t *testing.T) {
 		})
 	}
 }
-
