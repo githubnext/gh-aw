@@ -429,6 +429,8 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 	stepLines = append(stepLines, "        id: agentic_execution")
+	// Allow the step to continue on error so we can check for specific error patterns
+	stepLines = append(stepLines, "        continue-on-error: true")
 
 	// Add tool arguments comment before the run section
 	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData, "        ")
@@ -452,6 +454,25 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 
 	steps = append(steps, GitHubActionStep(stepLines))
+
+	// Add a step to check for known recoverable errors in the log output
+	// If the agentic_execution step failed but the error is recoverable, treat it as success
+	checkErrorStep := []string{
+		"      - name: Check for recoverable errors",
+		"        if: steps.agentic_execution.outcome == 'failure'",
+		"        run: |",
+		"          set -e",
+		fmt.Sprintf("          if grep -q \"Execution failed: Error: missing finish_reason for choice 0\" %s 2>/dev/null; then", shellEscapeArg(logFile)),
+		"            echo \"Found recoverable error: missing finish_reason for choice 0\"",
+		"            echo \"Treating execution as successful\"",
+		"            exit 0",
+		"          else",
+		"            echo \"Execution failed with non-recoverable error\"",
+		"            exit 1",
+		"          fi",
+	}
+
+	steps = append(steps, GitHubActionStep(checkErrorStep))
 
 	return steps
 }
