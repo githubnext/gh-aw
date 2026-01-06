@@ -73,7 +73,7 @@ func TestProtocolSpecificDomains(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test GetAllowedDomains
 			result := GetAllowedDomains(tt.network)
-			
+
 			// Check that all expected domains are present
 			for _, expected := range tt.expectedDomains {
 				found := false
@@ -101,7 +101,7 @@ func TestGetCopilotAllowedDomainsWithProtocol(t *testing.T) {
 	}
 
 	result := GetCopilotAllowedDomains(network)
-	
+
 	// Should contain protocol-specific domains
 	if !strings.Contains(result, "https://secure.example.com") {
 		t.Error("Expected result to contain https://secure.example.com")
@@ -109,7 +109,7 @@ func TestGetCopilotAllowedDomainsWithProtocol(t *testing.T) {
 	if !strings.Contains(result, "http://legacy.example.com") {
 		t.Error("Expected result to contain http://legacy.example.com")
 	}
-	
+
 	// Should also contain Copilot defaults (without protocol)
 	if !strings.Contains(result, "api.github.com") {
 		t.Error("Expected result to contain Copilot default domain api.github.com")
@@ -125,12 +125,12 @@ func TestGetClaudeAllowedDomainsWithProtocol(t *testing.T) {
 	}
 
 	result := GetClaudeAllowedDomains(network)
-	
+
 	// Should contain protocol-specific domain
 	if !strings.Contains(result, "https://api.example.com") {
 		t.Error("Expected result to contain https://api.example.com")
 	}
-	
+
 	// Should also contain Claude defaults
 	if !strings.Contains(result, "anthropic.com") {
 		t.Error("Expected result to contain Claude default domain anthropic.com")
@@ -148,7 +148,7 @@ func TestProtocolSpecificDomainsDeduplication(t *testing.T) {
 	}
 
 	result := GetAllowedDomains(network)
-	
+
 	// Count occurrences of each domain
 	httpsCount := 0
 	httpCount := 0
@@ -160,12 +160,12 @@ func TestProtocolSpecificDomainsDeduplication(t *testing.T) {
 			httpCount++
 		}
 	}
-	
+
 	// HTTPS should appear once (deduplicated)
 	if httpsCount != 1 {
 		t.Errorf("Expected https://example.com to appear once, got %d", httpsCount)
 	}
-	
+
 	// HTTP should appear once (different protocol)
 	if httpCount != 1 {
 		t.Errorf("Expected http://example.com to appear once, got %d", httpCount)
@@ -185,7 +185,7 @@ func TestProtocolSpecificDomainsSorting(t *testing.T) {
 
 	result := GetAllowedDomains(network)
 	resultStr := strings.Join(result, ",")
-	
+
 	// Verify the result is comma-separated and sorted
 	// The exact sort order depends on the SortStrings implementation,
 	// but we can verify that the domains are present
@@ -195,7 +195,7 @@ func TestProtocolSpecificDomainsSorting(t *testing.T) {
 		"https://api.example.com",
 		"https://example.com",
 	}
-	
+
 	for _, expected := range expectedDomains {
 		if !strings.Contains(resultStr, expected) {
 			t.Errorf("Expected result to contain %q", expected)
