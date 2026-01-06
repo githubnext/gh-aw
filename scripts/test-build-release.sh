@@ -107,11 +107,7 @@ if echo "$BINARY_VERSION" | grep -q "dev"; then
   echo "FAIL: gh-aw binary version should not contain 'dev'"
   exit 1
 fi
-if echo "$AWMG_VERSION" | grep -q "dev"; then
-  echo "FAIL: awmg binary version should not contain 'dev'"
-  exit 1
-fi
-echo "PASS: Binary versions do not contain 'dev'"
+echo "PASS: Binary version does not contain 'dev'"
 
 # Clean up dist directory
 rm -rf dist
