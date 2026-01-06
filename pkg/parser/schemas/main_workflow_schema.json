@@ -3722,7 +3722,7 @@
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of status updates to create (default: 1). Typically 1 per orchestrator run.",
+                  "description": "Maximum number of status updates to create (default: 10). Typically 1 per orchestrator run.",
                   "minimum": 1,
                   "maximum": 10
                 },
