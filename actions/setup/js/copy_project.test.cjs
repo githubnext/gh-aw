@@ -129,10 +129,7 @@ describe("getOwnerId", () => {
 
     const result = await getOwnerId("orgs", "myorg");
     expect(result).toBe("org123");
-    expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining("organization(login: $login)"),
-      { login: "myorg" }
-    );
+    expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("organization(login: $login)"), { login: "myorg" });
   });
 
   it("should get user ID", async () => {
@@ -144,10 +141,7 @@ describe("getOwnerId", () => {
 
     const result = await getOwnerId("users", "username");
     expect(result).toBe("user123");
-    expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining("user(login: $login)"),
-      { login: "username" }
-    );
+    expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("user(login: $login)"), { login: "username" });
   });
 });
 
