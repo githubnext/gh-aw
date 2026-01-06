@@ -55,7 +55,12 @@ The AI agent reads your repository context, analyzes issues, generates visualiza
 
 ## Safe Agentic Workflows
 
-Security is foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allowlisting, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. See the [Security Guide](https://githubnext.github.io/gh-aw/guides/security/) for comprehensive details on threat modeling, implementation guidelines, and best practices.
+Security is foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allowlisting, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. 
+
+See our security documentation:
+- [Security Guide](https://githubnext.github.io/gh-aw/guides/security/) - Comprehensive threat modeling and implementation guidelines
+- [Secure Workflow Authoring](https://githubnext.github.io/gh-aw/guides/workflow-security-guide/) - Best practices for writing secure workflows
+- [Validation Rules](https://githubnext.github.io/gh-aw/reference/validation-rules/) - Complete validation reference
 
 ## Documentation
 

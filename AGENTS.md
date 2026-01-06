@@ -763,6 +763,17 @@ make minor-release  # Automated via GitHub Actions
 For investigating and resolving workflow issues:
 - **[Workflow Health Monitoring](.github/aw/runbooks/workflow-health.md)** - Comprehensive runbook for diagnosing missing-tool errors, authentication failures, MCP configuration issues, and safe-input/output problems. Includes step-by-step investigation procedures, resolution examples, and case studies from real incidents.
 
+## Security and Workflow Authoring
+
+For secure workflow development and validation:
+- **[Secure Workflow Authoring Guide](https://githubnext.github.io/gh-aw/guides/workflow-security-guide/)** - Comprehensive guide covering template injection prevention, permission scoping, safe artifact handling, expression best practices, input validation, and secret handling
+- **[Validation Rules Reference](https://githubnext.github.io/gh-aw/reference/validation-rules/)** - Complete reference for actionlint, zizmor, and shellcheck rules with examples and fixes
+- **[CI Validation Setup](https://githubnext.github.io/gh-aw/guides/ci-validation-setup/)** - Guide for integrating validation into local development and CI/CD pipelines
+- **[Workflow Templates](.github/workflow-templates/)** - Secure workflow templates for common patterns (slash commands, PR handlers, artifact uploads)
+- **Internal Specs**:
+  - `specs/template-injection-prevention.md` - Template injection prevention patterns
+  - `specs/github-actions-security-best-practices.md` - GitHub Actions security best practices
+
 ## Available Skills Reference
 
 Skills provide specialized, detailed knowledge on specific topics. **Use them only when needed** - don't load skills preemptively.
