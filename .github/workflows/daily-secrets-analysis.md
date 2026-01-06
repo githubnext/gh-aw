@@ -7,7 +7,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  discussions: write
+  discussions: read
 engine: copilot
 strict: true
 tracker-id: daily-secrets-analysis
