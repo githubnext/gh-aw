@@ -77,6 +77,16 @@ func (c *Compiler) buildCopyProjectStepConfig(data *WorkflowData, mainJobName st
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
+	// Add source-project default if configured
+	if cfg.SourceProject != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COPY_PROJECT_SOURCE: %q\n", cfg.SourceProject))
+	}
+
+	// Add target-owner default if configured
+	if cfg.TargetOwner != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COPY_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
+	}
+
 	condition := BuildSafeOutputType("copy_project")
 
 	return SafeOutputStepConfig{

@@ -230,3 +230,146 @@ func TestCopyProjectStepCondition(t *testing.T) {
 			expectedCondition, yamlStr)
 	}
 }
+
+// TestCopyProjectSourceAndTargetConfiguration verifies that source-project and target-owner
+// configuration is parsed correctly and passed as environment variables
+func TestCopyProjectSourceAndTargetConfiguration(t *testing.T) {
+	tests := []struct {
+		name                  string
+		frontmatter           map[string]any
+		expectedSourceProject string
+		expectedTargetOwner   string
+		shouldHaveSource      bool
+		shouldHaveTarget      bool
+	}{
+		{
+			name: "copy-project with source-project configured",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"copy-project": map[string]any{
+						"source-project": "https://github.com/orgs/myorg/projects/42",
+					},
+				},
+			},
+			expectedSourceProject: "https://github.com/orgs/myorg/projects/42",
+			shouldHaveSource:      true,
+			shouldHaveTarget:      false,
+		},
+		{
+			name: "copy-project with target-owner configured",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"copy-project": map[string]any{
+						"target-owner": "myorg",
+					},
+				},
+			},
+			expectedTargetOwner: "myorg",
+			shouldHaveSource:    false,
+			shouldHaveTarget:    true,
+		},
+		{
+			name: "copy-project with both source-project and target-owner configured",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"copy-project": map[string]any{
+						"source-project": "https://github.com/orgs/myorg/projects/99",
+						"target-owner":   "targetorg",
+					},
+				},
+			},
+			expectedSourceProject: "https://github.com/orgs/myorg/projects/99",
+			expectedTargetOwner:   "targetorg",
+			shouldHaveSource:      true,
+			shouldHaveTarget:      true,
+		},
+		{
+			name: "copy-project without source-project and target-owner",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"copy-project": nil,
+				},
+			},
+			shouldHaveSource: false,
+			shouldHaveTarget: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+
+			// Parse frontmatter
+			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
+
+			if config == nil || config.CopyProjects == nil {
+				t.Fatalf("Expected copy-project to be configured, but it was not")
+			}
+
+			// Check source-project parsing
+			if tt.shouldHaveSource {
+				if config.CopyProjects.SourceProject != tt.expectedSourceProject {
+					t.Errorf("Expected source-project to be %q, got %q",
+						tt.expectedSourceProject, config.CopyProjects.SourceProject)
+				}
+			} else {
+				if config.CopyProjects.SourceProject != "" {
+					t.Errorf("Expected source-project to be empty, got %q", config.CopyProjects.SourceProject)
+				}
+			}
+
+			// Check target-owner parsing
+			if tt.shouldHaveTarget {
+				if config.CopyProjects.TargetOwner != tt.expectedTargetOwner {
+					t.Errorf("Expected target-owner to be %q, got %q",
+						tt.expectedTargetOwner, config.CopyProjects.TargetOwner)
+				}
+			} else {
+				if config.CopyProjects.TargetOwner != "" {
+					t.Errorf("Expected target-owner to be empty, got %q", config.CopyProjects.TargetOwner)
+				}
+			}
+
+			// Build the consolidated safe outputs job and check environment variables
+			workflowData := &WorkflowData{
+				Name:        "test-workflow",
+				SafeOutputs: config,
+			}
+
+			job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+			if err != nil {
+				t.Fatalf("Failed to build consolidated safe outputs job: %v", err)
+			}
+
+			if job == nil {
+				t.Fatalf("Expected consolidated safe outputs job to be created, but it was nil")
+			}
+
+			// Convert job to YAML to check for environment variables
+			yamlStr := strings.Join(job.Steps, "")
+
+			// Check for source-project environment variable
+			if tt.shouldHaveSource {
+				expectedEnvVar := `GH_AW_COPY_PROJECT_SOURCE: "` + tt.expectedSourceProject + `"`
+				if !strings.Contains(yamlStr, expectedEnvVar) {
+					t.Errorf("Expected environment variable %q to be set, but it was not found.\nGenerated YAML:\n%s",
+						expectedEnvVar, yamlStr)
+				}
+			}
+
+			// Check for target-owner environment variable
+			if tt.shouldHaveTarget {
+				expectedEnvVar := `GH_AW_COPY_PROJECT_TARGET_OWNER: "` + tt.expectedTargetOwner + `"`
+				if !strings.Contains(yamlStr, expectedEnvVar) {
+					t.Errorf("Expected environment variable %q to be set, but it was not found.\nGenerated YAML:\n%s",
+						expectedEnvVar, yamlStr)
+				}
+			}
+		})
+	}
+}
+

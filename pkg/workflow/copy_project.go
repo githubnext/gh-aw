@@ -8,6 +8,8 @@ var copyProjectLog = logger.New("workflow:copy_project")
 type CopyProjectsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	GitHubToken          string `yaml:"github-token,omitempty"`
+	SourceProject        string `yaml:"source-project,omitempty"` // Default source project URL to copy from
+	TargetOwner          string `yaml:"target-owner,omitempty"`   // Default target owner (org/user) for the new project
 }
 
 // parseCopyProjectsConfig handles copy-project configuration
@@ -28,10 +30,26 @@ func (c *Compiler) parseCopyProjectsConfig(outputMap map[string]any) *CopyProjec
 					copyProjectLog.Print("Using custom GitHub token for copy-project")
 				}
 			}
+
+			// Parse source-project if specified
+			if sourceProject, exists := configMap["source-project"]; exists {
+				if sourceProjectStr, ok := sourceProject.(string); ok {
+					copyProjectsConfig.SourceProject = sourceProjectStr
+					copyProjectLog.Printf("Default source project configured: %s", sourceProjectStr)
+				}
+			}
+
+			// Parse target-owner if specified
+			if targetOwner, exists := configMap["target-owner"]; exists {
+				if targetOwnerStr, ok := targetOwner.(string); ok {
+					copyProjectsConfig.TargetOwner = targetOwnerStr
+					copyProjectLog.Printf("Default target owner configured: %s", targetOwnerStr)
+				}
+			}
 		}
 
-		copyProjectLog.Printf("Parsed copy-project config: max=%d, hasCustomToken=%v",
-			copyProjectsConfig.Max, copyProjectsConfig.GitHubToken != "")
+		copyProjectLog.Printf("Parsed copy-project config: max=%d, hasCustomToken=%v, hasSourceProject=%v, hasTargetOwner=%v",
+			copyProjectsConfig.Max, copyProjectsConfig.GitHubToken != "", copyProjectsConfig.SourceProject != "", copyProjectsConfig.TargetOwner != "")
 		return copyProjectsConfig
 	}
 	copyProjectLog.Print("No copy-project configuration found")
