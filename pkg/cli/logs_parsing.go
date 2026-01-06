@@ -523,9 +523,9 @@ const originalMain = function() {
     // Parse all log files and aggregate results
     let totalRequests = 0;
     let allowedRequests = 0;
-    let deniedRequests = 0;
+    let blockedRequests = 0;
     const allowedDomains = new Set();
-    const deniedDomains = new Set();
+    const blockedDomains = new Set();
     const requestsByDomain = new Map();
 
     for (const file of files) {
@@ -543,26 +543,26 @@ const originalMain = function() {
 
         totalRequests++;
 
-        // Determine if request was allowed or denied
+        // Determine if request was allowed or blocked
         const isAllowed = isRequestAllowed(entry.decision, entry.status);
 
         if (isAllowed) {
           allowedRequests++;
           allowedDomains.add(entry.domain);
         } else {
-          deniedRequests++;
-          deniedDomains.add(entry.domain);
+          blockedRequests++;
+          blockedDomains.add(entry.domain);
         }
 
         // Track request count per domain
         if (!requestsByDomain.has(entry.domain)) {
-          requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+          requestsByDomain.set(entry.domain, { allowed: 0, blocked: 0 });
         }
         const domainStats = requestsByDomain.get(entry.domain);
         if (isAllowed) {
           domainStats.allowed++;
         } else {
-          domainStats.denied++;
+          domainStats.blocked++;
         }
       }
     }
@@ -571,9 +571,9 @@ const originalMain = function() {
     const summary = generateFirewallSummary({
       totalRequests,
       allowedRequests,
-      deniedRequests,
+      blockedRequests,
       allowedDomains: Array.from(allowedDomains).sort(),
-      deniedDomains: Array.from(deniedDomains).sort(),
+      blockedDomains: Array.from(blockedDomains).sort(),
       requestsByDomain,
     });
 

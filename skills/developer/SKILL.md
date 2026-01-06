@@ -1542,7 +1542,7 @@ Allowed Domains:
   ✓ api.enterprise.githubcopilot.com:443 (1 requests)
   ✓ api.github.com:443 (2 requests)
 
-Denied Domains:
+Blocked Domains:
   ✗ blocked-domain.example.com:443 (2 requests)
 ```
 
@@ -1553,18 +1553,18 @@ Denied Domains:
   "firewall_log": {
     "total_requests": 8,
     "allowed_requests": 5,
-    "denied_requests": 3,
+    "blocked_requests": 3,
     "allowed_domains": [
       "api.enterprise.githubcopilot.com:443",
       "api.github.com:443"
     ],
-    "denied_domains": [
+    "blocked_domains": [
       "blocked-domain.example.com:443"
     ],
     "requests_by_domain": {
       "api.github.com:443": {
         "allowed": 2,
-        "denied": 0
+        "blocked": 0
       }
     }
   }

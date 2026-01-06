@@ -34,7 +34,7 @@ type DomainAnalysis struct {
 	DomainBuckets
 	TotalRequests int `json:"total_requests"`
 	AllowedCount  int `json:"allowed_count"`
-	DeniedCount   int `json:"denied_count"`
+	BlockedCount  int `json:"blocked_count"`
 }
 
 // AddMetrics adds metrics from another analysis
@@ -42,7 +42,7 @@ func (d *DomainAnalysis) AddMetrics(other LogAnalysis) {
 	if otherDomain, ok := other.(*DomainAnalysis); ok {
 		d.TotalRequests += otherDomain.TotalRequests
 		d.AllowedCount += otherDomain.AllowedCount
-		d.DeniedCount += otherDomain.DeniedCount
+		d.BlockedCount += otherDomain.BlockedCount
 	}
 }
 
@@ -60,12 +60,12 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 	analysis := &DomainAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{},
-			DeniedDomains:  []string{},
+			BlockedDomains: []string{},
 		},
 	}
 
 	allowedDomainsSet := make(map[string]bool)
-	deniedDomainsSet := make(map[string]bool)
+	blockedDomainsSet := make(map[string]bool)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -90,10 +90,10 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 			continue
 		}
 
-		// Determine if request was allowed or denied based on status code
+		// Determine if request was allowed or blocked based on status code
 		// Squid typically returns:
 		// - 200, 206, 304: Allowed/successful
-		// - 403: Forbidden (denied by ACL)
+		// - 403: Forbidden (blocked by ACL)
 		// - 407: Proxy authentication required
 		// - 502, 503: Connection/upstream errors
 		statusCode := entry.Status
@@ -109,10 +109,10 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 				analysis.AllowedDomains = append(analysis.AllowedDomains, domain)
 			}
 		} else {
-			analysis.DeniedCount++
-			if !deniedDomainsSet[domain] {
-				deniedDomainsSet[domain] = true
-				analysis.DeniedDomains = append(analysis.DeniedDomains, domain)
+			analysis.BlockedCount++
+			if !blockedDomainsSet[domain] {
+				blockedDomainsSet[domain] = true
+				analysis.BlockedDomains = append(analysis.BlockedDomains, domain)
 			}
 		}
 	}
@@ -123,10 +123,10 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 
 	// Sort domains for consistent output
 	sort.Strings(analysis.AllowedDomains)
-	sort.Strings(analysis.DeniedDomains)
+	sort.Strings(analysis.BlockedDomains)
 
-	accessLogLog.Printf("Parsed access log: total_requests=%d, allowed=%d, denied=%d, unique_allowed_domains=%d, unique_denied_domains=%d",
-		analysis.TotalRequests, analysis.AllowedCount, analysis.DeniedCount, len(analysis.AllowedDomains), len(analysis.DeniedDomains))
+	accessLogLog.Printf("Parsed access log: total_requests=%d, allowed=%d, blocked=%d, unique_allowed_domains=%d, unique_blocked_domains=%d",
+		analysis.TotalRequests, analysis.AllowedCount, analysis.BlockedCount, len(analysis.AllowedDomains), len(analysis.BlockedDomains))
 
 	return analysis, nil
 }
@@ -207,7 +207,7 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 			return &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					DeniedDomains:  []string{},
+					BlockedDomains: []string{},
 				},
 			}
 		},

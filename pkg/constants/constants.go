@@ -419,6 +419,7 @@ const StopTimeOkOutput = "stop_time_ok"
 const SkipCheckOkOutput = "skip_check_ok"
 const SkipNoMatchCheckOkOutput = "skip_no_match_check_ok"
 const CommandPositionOkOutput = "command_position_ok"
+const MatchedCommandOutput = "matched_command"
 const ActivatedOutput = "activated"
 
 var AgenticEngines = []string{"claude", "codex", "copilot"}

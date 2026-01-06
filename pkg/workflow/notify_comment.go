@@ -112,6 +112,24 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
 		}
 
+		// Add create-issue configuration
+		if data.SafeOutputs.MissingTool.CreateIssue {
+			missingToolEnvVars = append(missingToolEnvVars, "          GH_AW_MISSING_TOOL_CREATE_ISSUE: \"true\"\n")
+		}
+
+		// Add title-prefix configuration
+		if data.SafeOutputs.MissingTool.TitlePrefix != "" {
+			missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_TITLE_PREFIX: %q\n", data.SafeOutputs.MissingTool.TitlePrefix))
+		}
+
+		// Add labels configuration
+		if len(data.SafeOutputs.MissingTool.Labels) > 0 {
+			labelsJSON, err := json.Marshal(data.SafeOutputs.MissingTool.Labels)
+			if err == nil {
+				missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_LABELS: %q\n", string(labelsJSON)))
+			}
+		}
+
 		// Add workflow metadata for consistency
 		missingToolEnvVars = append(missingToolEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 

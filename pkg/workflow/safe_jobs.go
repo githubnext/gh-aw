@@ -6,6 +6,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var safeJobsLog = logger.New("workflow:safe_jobs")
@@ -166,7 +167,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	var safeJobNames []string
 	for jobName, jobConfig := range data.SafeOutputs.Jobs {
 		// Normalize job name to use underscores for consistency
-		normalizedJobName := normalizeSafeOutputIdentifier(jobName)
+		normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(jobName)
 
 		job := &Job{
 			Name: normalizedJobName,

@@ -135,11 +135,11 @@ func getLogsDataSchema() LogsDataSchema {
 			},
 			"access_log": {
 				Type:        "object",
-				Description: "Access log analysis (total_requests, allowed_count, denied_count, allowed_domains, denied_domains, by_workflow)",
+				Description: "Access log analysis (total_requests, allowed_count, blocked_count, allowed_domains, blocked_domains, by_workflow)",
 			},
 			"firewall_log": {
 				Type:        "object",
-				Description: "Firewall log analysis (total_requests, allowed_requests, denied_requests, allowed_domains, denied_domains, requests_by_domain, by_workflow)",
+				Description: "Firewall log analysis (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains, requests_by_domain, by_workflow)",
 			},
 			"continuation": {
 				Type:        "object",
