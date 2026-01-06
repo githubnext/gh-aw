@@ -3,16 +3,153 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+/**
+ * Create or update an issue for a missing tool
+ * @param {any} github - GitHub API client
+ * @param {any} context - GitHub Actions context
+ * @param {string} workflowName - Name of the workflow
+ * @param {string} workflowSource - Source path of the workflow
+ * @param {string} workflowSourceURL - URL to the workflow source
+ * @param {string} runUrl - URL to the workflow run
+ * @param {string} titlePrefix - Prefix for the issue title
+ * @param {string[]} labels - Labels to add to the issue
+ * @param {any[]} missingTools - Array of missing tool objects
+ */
+async function createOrUpdateIssue(github, context, workflowName, workflowSource, workflowSourceURL, runUrl, titlePrefix, labels, missingTools) {
+  const { owner, repo } = context.repo;
+
+  // Create issue title
+  const issueTitle = `${titlePrefix} ${workflowName}`;
+
+  core.info(`Checking for existing issue with title: "${issueTitle}"`);
+
+  // Search for existing open issue with this title
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${issueTitle}"`;
+
+  try {
+    const searchResult = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 1,
+    });
+
+    if (searchResult.data.total_count > 0) {
+      // Issue exists, add a comment
+      const existingIssue = searchResult.data.items[0];
+      core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
+
+      // Build comment body
+      const commentLines = [`## Missing Tools Reported (${new Date().toISOString()})`, ``, `The following tools were reported as missing during [workflow run](${runUrl}):`, ``];
+
+      missingTools.forEach((tool, index) => {
+        commentLines.push(`### ${index + 1}. \`${tool.tool}\``);
+        commentLines.push(`**Reason:** ${tool.reason}`);
+        if (tool.alternatives) {
+          commentLines.push(`**Alternatives:** ${tool.alternatives}`);
+        }
+        commentLines.push(``);
+      });
+
+      commentLines.push(`---`);
+      commentLines.push(`> Workflow: [${workflowName}](${workflowSourceURL})`);
+      commentLines.push(`> Run: ${runUrl}`);
+
+      const commentBody = commentLines.join("\n");
+
+      await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: existingIssue.number,
+        body: commentBody,
+      });
+
+      core.info(`✓ Added comment to existing issue #${existingIssue.number}`);
+    } else {
+      // No existing issue, create a new one
+      core.info("No existing issue found, creating a new one");
+
+      // Build issue body with agentic task description
+      const bodyLines = [`## Problem`, ``, `The workflow **${workflowName}** reported missing tools during execution. These tools are needed for the agent to complete its tasks effectively.`, ``, `### Missing Tools`, ``];
+
+      missingTools.forEach((tool, index) => {
+        bodyLines.push(`#### ${index + 1}. \`${tool.tool}\``);
+        bodyLines.push(`**Reason:** ${tool.reason}`);
+        if (tool.alternatives) {
+          bodyLines.push(`**Alternatives:** ${tool.alternatives}`);
+        }
+        bodyLines.push(`**Reported at:** ${tool.timestamp}`);
+        bodyLines.push(``);
+      });
+
+      bodyLines.push(`## Action Required`);
+      bodyLines.push(``);
+      bodyLines.push(`Please investigate why these tools are missing and either:`);
+      bodyLines.push(`1. Add the missing tools to the agent's configuration`);
+      bodyLines.push(`2. Update the workflow to use available alternatives`);
+      bodyLines.push(`3. Document why these tools are intentionally unavailable`);
+      bodyLines.push(``);
+      bodyLines.push(`## Debugging`);
+      bodyLines.push(``);
+      bodyLines.push(`To debug this issue, use the **debug-agentic-workflow** agent by running:`);
+      bodyLines.push(`\`\`\``);
+      bodyLines.push(`gh copilot --agent debug-agentic-workflow`);
+      bodyLines.push(`\`\`\``);
+      bodyLines.push(``);
+      bodyLines.push(`Or in GitHub Copilot Chat, type \`/agent\` and select **debug-agentic-workflow**.`);
+      bodyLines.push(``);
+      bodyLines.push(`## References`);
+      bodyLines.push(``);
+      bodyLines.push(`- **Workflow:** [${workflowName}](${workflowSourceURL})`);
+      bodyLines.push(`- **Failed Run:** ${runUrl}`);
+      bodyLines.push(`- **Source:** ${workflowSource}`);
+
+      const issueBody = bodyLines.join("\n");
+
+      const newIssue = await github.rest.issues.create({
+        owner,
+        repo,
+        title: issueTitle,
+        body: issueBody,
+        labels: labels,
+      });
+
+      core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+    }
+  } catch (error) {
+    core.warning(`Failed to create or update issue: ${getErrorMessage(error)}`);
+    core.warning("Continuing with workflow execution...");
+  }
+}
+
 async function main() {
   const fs = require("fs");
 
   // Get environment variables
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
   const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
+  const createIssue = process.env.GH_AW_MISSING_TOOL_CREATE_ISSUE === "true";
+  const titlePrefix = process.env.GH_AW_MISSING_TOOL_TITLE_PREFIX || "[missing tool]";
+  const labelsJSON = process.env.GH_AW_MISSING_TOOL_LABELS || "[]";
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+
+  // Parse labels
+  let labels = [];
+  try {
+    labels = JSON.parse(labelsJSON);
+  } catch (error) {
+    core.warning(`Failed to parse labels JSON: ${getErrorMessage(error)}`);
+  }
 
   core.info("Processing missing-tool reports...");
   if (maxReports) {
     core.info(`Maximum reports allowed: ${maxReports}`);
+  }
+  if (createIssue) {
+    core.info(`Issue creation enabled with title prefix: "${titlePrefix}"`);
+    if (labels.length > 0) {
+      core.info(`Issue labels: ${labels.join(", ")}`);
+    }
   }
 
   /** @type {any[]} */
@@ -128,6 +265,15 @@ async function main() {
     });
 
     core.summary.write();
+
+    // Create or update issue if configured
+    if (createIssue) {
+      const runId = context.runId;
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+      await createOrUpdateIssue(github, context, workflowName, workflowSource, workflowSourceURL, runUrl, titlePrefix, labels, missingTools);
+    }
   } else {
     core.info("No missing tools reported in this workflow execution.");
     core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
