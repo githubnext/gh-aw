@@ -33,9 +33,9 @@ async function main() {
     // Parse all log files and aggregate results
     let totalRequests = 0;
     let allowedRequests = 0;
-    let deniedRequests = 0;
+    let blockedRequests = 0;
     const allowedDomains = new Set();
-    const deniedDomains = new Set();
+    const blockedDomains = new Set();
     const requestsByDomain = new Map();
 
     for (const file of files) {
@@ -53,26 +53,26 @@ async function main() {
 
         totalRequests++;
 
-        // Determine if request was allowed or denied
+        // Determine if request was allowed or blocked
         const isAllowed = isRequestAllowed(entry.decision, entry.status);
 
         if (isAllowed) {
           allowedRequests++;
           allowedDomains.add(entry.domain);
         } else {
-          deniedRequests++;
-          deniedDomains.add(entry.domain);
+          blockedRequests++;
+          blockedDomains.add(entry.domain);
         }
 
         // Track request count per domain
         if (!requestsByDomain.has(entry.domain)) {
-          requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+          requestsByDomain.set(entry.domain, { allowed: 0, blocked: 0 });
         }
         const domainStats = requestsByDomain.get(entry.domain);
         if (isAllowed) {
           domainStats.allowed++;
         } else {
-          domainStats.denied++;
+          domainStats.blocked++;
         }
       }
     }
@@ -81,9 +81,9 @@ async function main() {
     const summary = generateFirewallSummary({
       totalRequests,
       allowedRequests,
-      deniedRequests,
+      blockedRequests,
       allowedDomains: Array.from(allowedDomains).sort(),
-      deniedDomains: Array.from(deniedDomains).sort(),
+      blockedDomains: Array.from(blockedDomains).sort(),
       requestsByDomain,
     });
 
@@ -173,13 +173,13 @@ function generateFirewallSummary(analysis) {
     .sort();
   const uniqueDomainCount = validDomains.length;
 
-  // Calculate valid allowed and denied requests in a single pass
+  // Calculate valid allowed and blocked requests in a single pass
   let validAllowedRequests = 0;
-  let validDeniedRequests = 0;
+  let validBlockedRequests = 0;
   for (const domain of validDomains) {
     const stats = requestsByDomain.get(domain);
     validAllowedRequests += stats.allowed;
-    validDeniedRequests += stats.denied;
+    validBlockedRequests += stats.blocked;
   }
 
   let summary = "";
@@ -188,16 +188,16 @@ function generateFirewallSummary(analysis) {
   summary += "<details>\n";
   summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
   summary += `${validAllowedRequests} allowed | `;
-  summary += `${validDeniedRequests} blocked | `;
+  summary += `${validBlockedRequests} blocked | `;
   summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
 
   if (uniqueDomainCount > 0) {
-    summary += "| Domain | Allowed | Denied |\n";
+    summary += "| Domain | Allowed | Blocked |\n";
     summary += "|--------|---------|--------|\n";
 
     for (const domain of validDomains) {
       const stats = requestsByDomain.get(domain);
-      summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
+      summary += `| ${domain} | ${stats.allowed} | ${stats.blocked} |\n`;
     }
   } else {
     summary += "No firewall activity detected.\n";
