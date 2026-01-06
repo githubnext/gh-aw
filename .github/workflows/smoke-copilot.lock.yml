@@ -492,6 +492,10 @@ jobs:
                 }
               }
             }
+            ,
+            "gateway": {
+              "port": 8080
+            }
           }
           EOF
           echo "-------START MCP CONFIG-----------"
@@ -501,6 +505,48 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+      - name: Start MCP Gateway
+        env:
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/gh-aw/mcp-gateway-logs
+          echo 'Starting MCP Gateway...'
+          
+          # Development mode: Build awmg from sources
+          if [ -f "cmd/awmg/main.go" ] && [ -f "Makefile" ]; then
+            echo 'Building awmg from sources (development mode)...'
+            make build-awmg
+            if [ -f "./awmg" ]; then
+              echo 'Built awmg successfully'
+              AWMG_CMD="./awmg"
+            else
+              echo 'ERROR: Failed to build awmg from sources'
+              exit 1
+            fi
+          # Check if awmg is already in PATH
+          elif command -v awmg &> /dev/null; then
+            echo 'awmg is already available in PATH'
+            AWMG_CMD="awmg"
+          # Check for local awmg build
+          elif [ -f "./awmg" ]; then
+            echo 'Using existing local awmg build'
+            AWMG_CMD="./awmg"
+          else
+            echo 'ERROR: Could not find awmg binary or source files'
+            echo 'Please build awmg with: make build-awmg'
+            exit 1
+          fi
+          
+          # Start MCP gateway in background with config file
+          $AWMG_CMD --config /home/runner/.copilot/mcp-config.json --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
+          GATEWAY_PID=$!
+          echo "MCP Gateway started with PID $GATEWAY_PID"
+          
+          # Give the gateway a moment to start
+          sleep 2
+      - name: Verify MCP Gateway Health
+        run: bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh "http://localhost:8080" "/home/runner/.copilot/mcp-config.json" "/tmp/gh-aw/mcp-gateway-logs"
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
