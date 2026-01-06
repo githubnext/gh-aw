@@ -462,14 +462,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
-
-	// Generate MCP gateway steps if configured (after Setup MCPs completes)
-	gatewaySteps := generateMCPGatewaySteps(workflowData, mcpEnvVars)
-	for _, step := range gatewaySteps {
-		for _, line := range step {
-			yaml.WriteString(line + "\n")
-		}
-	}
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

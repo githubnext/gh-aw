@@ -235,34 +235,22 @@ The MCP Gateway routes all MCP server calls through a unified HTTP gateway, enab
 | `env` | `object` | No | Environment variables for the gateway |
 
 :::note[Execution Modes]
-The MCP gateway supports three execution modes:
+The MCP gateway supports two execution modes:
 1. **Custom command** - Use `command` field to specify a custom binary or script
 2. **Container** - Use `container` field for Docker-based execution
-3. **Default** - If neither `command` nor `container` is specified, uses the standalone `awmg` binary
 
 The `command` and `container` fields are mutually exclusive - only one can be specified.
+You must specify either `command` or `container` to use the MCP gateway feature.
 :::
 
 ### How It Works
 
-When MCP gateway is enabled:
+When MCP gateway is configured:
 
-1. The gateway starts using one of three execution modes (command, container, or default awmg binary)
+1. The gateway starts using the specified execution mode (command or container)
 2. A health check verifies the gateway is ready
 3. All MCP server configurations are transformed to route through the gateway
 4. The gateway receives server configs via a configuration file
-
-### Example: Default Mode (awmg binary)
-
-```yaml wrap
-features:
-  mcp-gateway: true
-
-sandbox:
-  mcp:
-    port: 8080
-    api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
-```
 
 ### Example: Custom Command Mode
 
