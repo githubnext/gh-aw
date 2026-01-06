@@ -235,12 +235,22 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Check if safe-inputs is enabled to include host.docker.internal in allowed domains
 		hasSafeInputs := IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
 
+		// Check if MCP gateway is enabled
+		hasMCPGateway := IsMCPGatewayEnabled(workflowData)
+
 		// Get allowed domains (Claude defaults + network permissions + host.docker.internal if safe-inputs enabled)
 		allowedDomains := GetClaudeAllowedDomainsWithSafeInputs(workflowData.NetworkPermissions, hasSafeInputs)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
+
+		// Add --enable-host-access when MCP gateway is enabled
+		// This allows AWF containers to reach gh-aw-mcpg running on the host
+		if hasMCPGateway {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			claudeLog.Print("Added --enable-host-access for MCP gateway access")
+		}
 
 		// TTY is required for Claude Code CLI
 		awfArgs = append(awfArgs, "--tty")

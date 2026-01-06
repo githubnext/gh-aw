@@ -156,9 +156,19 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Get allowed domains (Codex defaults + network permissions)
 		allowedDomains := GetCodexAllowedDomains(workflowData.NetworkPermissions)
 
+		// Check if MCP gateway is enabled
+		hasMCPGateway := IsMCPGatewayEnabled(workflowData)
+
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
+
+		// Add --enable-host-access when MCP gateway is enabled
+		// This allows AWF containers to reach gh-aw-mcpg running on the host
+		if hasMCPGateway {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			codexEngineLog.Print("Added --enable-host-access for MCP gateway access")
+		}
 
 		// Set container working directory to match GITHUB_WORKSPACE
 		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")

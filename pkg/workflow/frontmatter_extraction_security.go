@@ -161,9 +161,8 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	}
 
 	if mcpVal, hasMCP := sandboxObj["mcp"]; hasMCP {
-		frontmatterExtractionSecurityLog.Print("Unsupported MCP gateway configuration (removed)")
-		// MCP gateway (awmg) has been removed - this configuration is no longer supported
-		_ = mcpVal // Silence unused variable warning
+		frontmatterExtractionSecurityLog.Print("Extracting MCP gateway configuration (gh-aw-mcpg)")
+		config.MCP = c.extractMCPGatewayConfig(mcpVal)
 	}
 
 	// If we found agent field, return the new format config
@@ -281,6 +280,81 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 	}
 
 	return agentConfig
+}
+
+// extractMCPGatewayConfig extracts MCP gateway configuration from sandbox.mcp
+func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig {
+	mcpObj, ok := mcpVal.(map[string]any)
+	if !ok {
+		// If mcp is just "true" or some non-object, use defaults
+		return &MCPGatewayRuntimeConfig{}
+	}
+
+	config := &MCPGatewayRuntimeConfig{}
+
+	// Extract version (MUST be pinned, not "latest")
+	if version, ok := mcpObj["version"].(string); ok {
+		if version == "latest" {
+			frontmatterExtractionSecurityLog.Print("Warning: MCP gateway version 'latest' is not allowed, using default pinned version")
+			config.Version = DefaultMCPGatewayVersion
+		} else {
+			config.Version = version
+		}
+	}
+
+	// Extract port
+	if port, ok := mcpObj["port"].(int); ok {
+		config.Port = port
+	} else if portFloat, ok := mcpObj["port"].(float64); ok {
+		config.Port = int(portFloat)
+	}
+
+	// Extract session-token
+	if sessionToken, ok := mcpObj["session-token"].(string); ok {
+		config.SessionToken = sessionToken
+	}
+
+	// Extract api-key (for backward compatibility)
+	if apiKey, ok := mcpObj["api-key"].(string); ok {
+		config.APIKey = apiKey
+	}
+
+	// Extract domain
+	if domain, ok := mcpObj["domain"].(string); ok {
+		config.Domain = domain
+	}
+
+	// Extract custom container image
+	if container, ok := mcpObj["container"].(string); ok {
+		config.Container = container
+	}
+
+	// Extract command (for custom gateway binary)
+	if command, ok := mcpObj["command"].(string); ok {
+		config.Command = command
+	}
+
+	// Extract args
+	if args, ok := mcpObj["args"].([]any); ok {
+		for _, arg := range args {
+			if argStr, ok := arg.(string); ok {
+				config.Args = append(config.Args, argStr)
+			}
+		}
+	}
+
+	// Extract env
+	if env, ok := mcpObj["env"].(map[string]any); ok {
+		config.Env = make(map[string]string)
+		for key, val := range env {
+			if valStr, ok := val.(string); ok {
+				config.Env[key] = valStr
+			}
+		}
+	}
+
+	frontmatterExtractionSecurityLog.Printf("Extracted MCP gateway config: version=%s, port=%d", config.Version, config.Port)
+	return config
 }
 
 // extractSRTConfig extracts Sandbox Runtime configuration from a map

@@ -302,16 +302,19 @@ type MCPServerConfig struct {
 
 // MCPGatewayRuntimeConfig represents the configuration for the MCP gateway runtime execution
 // The gateway routes MCP server calls through a unified HTTP endpoint
+// When using gh-aw-mcpg, the gateway runs as a Docker container and AWF containers
+// connect to it via host.docker.internal
 type MCPGatewayRuntimeConfig struct {
 	Command        string            `yaml:"command,omitempty"`        // Custom command to execute (mutually exclusive with Container)
 	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway (mutually exclusive with Command)
-	Version        string            `yaml:"version,omitempty"`        // Optional version/tag for the container
+	Version        string            `yaml:"version,omitempty"`        // Version/tag for the container (MUST be pinned, not "latest")
 	Args           []string          `yaml:"args,omitempty"`           // Arguments for command or docker run
 	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint (container only)
 	Env            map[string]string `yaml:"env,omitempty"`            // Environment variables for the gateway
-	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
+	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 80)
 	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
 	Domain         string            `yaml:"domain,omitempty"`         // Domain for gateway URL (localhost or host.docker.internal)
+	SessionToken   string            `yaml:"session-token,omitempty"`  // Bearer token for MCP client auth (default: awf-session)
 }
 
 // HasTool checks if a tool is present in the configuration

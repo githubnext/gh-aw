@@ -33,6 +33,7 @@ var CopilotDefaultDomains = []string{
 // CodexDefaultDomains are the minimal default domains required for Codex CLI operation
 var CodexDefaultDomains = []string{
 	"api.openai.com",
+	"host.docker.internal",
 	"openai.com",
 }
 

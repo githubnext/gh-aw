@@ -434,7 +434,7 @@ type JSONMCPConfigOptions struct {
 	// PostEOFCommands is an optional function to add commands after the EOF (e.g., debug output)
 	PostEOFCommands func(yaml *strings.Builder)
 	// GatewayConfig is an optional gateway configuration to include in the MCP config
-	// When set, adds a "gateway" section with port and apiKey for awmg to use
+	// When set, adds a "gateway" section with port and apiKey for gh-aw-mcpg to use
 	GatewayConfig *MCPGatewayRuntimeConfig
 }
 
@@ -708,7 +708,7 @@ func RenderJSONMCPConfig(
 	// Write config file footer
 	yaml.WriteString("            }\n")
 
-	// Add gateway section if configured (needed for awmg to rewrite config)
+	// Add gateway section if configured (needed for gh-aw-mcpg to rewrite config)
 	if options.GatewayConfig != nil {
 		yaml.WriteString("            ,\n")
 		yaml.WriteString("            \"gateway\": {\n")

@@ -193,7 +193,6 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@# Remove main binary and platform-specific binaries
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-*
-	rm -f $(AWMG_BINARY_NAME) $(AWMG_BINARY_NAME)-*
 	@# Remove bundle-js binary
 	rm -f bundle-js
 	@# Remove coverage files
@@ -563,8 +562,7 @@ agent-finish: deps-dev fmt lint build test-all fix recompile dependabot generate
 help:
 	@echo "Available targets:"
 	@echo "  build            - Build the binary for current platform"
-	@echo "  build-awmg       - Build the awmg (MCP gateway) binary for current platform"
-	@echo "  build-all        - Build binaries for all platforms (gh-aw and awmg)"
+	@echo "  build-all        - Build binaries for all platforms"
 	@echo "  test             - Run Go tests (unit + integration)"
 	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-security    - Run security regression tests"

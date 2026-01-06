@@ -225,12 +225,22 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Check if safe-inputs is enabled to include host.docker.internal in allowed domains
 		hasSafeInputs := IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
 
+		// Check if MCP gateway is enabled
+		hasMCPGateway := IsMCPGatewayEnabled(workflowData)
+
 		// Get allowed domains (copilot defaults + network permissions + host.docker.internal if safe-inputs enabled)
 		allowedDomains := GetCopilotAllowedDomainsWithSafeInputs(workflowData.NetworkPermissions, hasSafeInputs)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
+
+		// Add --enable-host-access when MCP gateway is enabled
+		// This allows AWF containers to reach gh-aw-mcpg running on the host
+		if hasMCPGateway {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			copilotExecLog.Print("Added --enable-host-access for MCP gateway access")
+		}
 
 		// Set container working directory to match GITHUB_WORKSPACE
 		// This ensures pwd inside the container matches what the prompt tells the AI
