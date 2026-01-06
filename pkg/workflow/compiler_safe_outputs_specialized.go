@@ -69,3 +69,23 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 		Token:         cfg.GitHubToken,
 	}
 }
+
+// buildCopyProjectStepConfig builds the configuration for copying a project
+func (c *Compiler) buildCopyProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.CopyProjects
+
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+	condition := BuildSafeOutputType("copy_project")
+
+	return SafeOutputStepConfig{
+		StepName:      "Copy Project",
+		StepID:        "copy_project",
+		ScriptName:    "copy_project",
+		Script:        getCopyProjectScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}

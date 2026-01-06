@@ -507,7 +507,9 @@ func TestScriptNameVsInlineScript(t *testing.T) {
 
 		assert.Contains(t, stepsContent, "setupGlobals")
 		assert.Contains(t, stepsContent, "console.log")
-		assert.NotContains(t, stepsContent, "require")
+		// Inline scripts now include setupGlobals require statement
+		assert.Contains(t, stepsContent, "require")
+		// Inline scripts should not call await main()
 		assert.NotContains(t, stepsContent, "await main()")
 	})
 
