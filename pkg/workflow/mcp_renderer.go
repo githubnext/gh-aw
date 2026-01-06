@@ -486,9 +486,11 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	}
 
 	if options.LockdownFromStep {
-		// Use lockdown value from step output (determined based on repository visibility)
+		// Security: Use environment variable instead of template expression to prevent template injection
+		// The GITHUB_MCP_LOCKDOWN env var is set in Setup MCPs step from step output
+		// Value is already converted to "1" or "0" in the environment variable
 		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}\",\n")
+		yaml.WriteString("                  \"GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN\",\n")
 	} else if options.Lockdown {
 		// Use explicit lockdown value from configuration
 		yaml.WriteString("                  \"-e\",\n")
@@ -584,8 +586,9 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 
 	// Add X-MCP-Lockdown header if lockdown mode is enabled
 	if options.LockdownFromStep {
-		// Use lockdown value from step output (determined based on repository visibility)
-		headers["X-MCP-Lockdown"] = "${{ steps.determine-automatic-lockdown.outputs.lockdown }}"
+		// Security: Use environment variable instead of template expression to prevent template injection
+		// The GITHUB_MCP_LOCKDOWN env var contains "1" or "0", convert to "true" or "false" for header
+		headers["X-MCP-Lockdown"] = "$([ \"$GITHUB_MCP_LOCKDOWN\" = \"1\" ] && echo true || echo false)"
 	} else if options.Lockdown {
 		// Use explicit lockdown value from configuration
 		headers["X-MCP-Lockdown"] = "true"

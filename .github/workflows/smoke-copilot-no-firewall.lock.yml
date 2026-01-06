@@ -450,12 +450,14 @@ jobs:
       - name: Start Safe Inputs MCP HTTP Server
         id: safe-inputs-start
         env:
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_DEBUG: 1
         run: |
-          # Set environment variables for the server
-          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
-          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          # Environment variables are set above to prevent template injection
+          export GH_AW_SAFE_INPUTS_PORT
+          export GH_AW_SAFE_INPUTS_API_KEY
           
           bash /tmp/gh-aw/actions/start_safe_inputs_server.sh
           
@@ -466,6 +468,7 @@ jobs:
           GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_DEBUG: 1
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -485,7 +488,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
+                  "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.27.0"
@@ -587,6 +590,7 @@ jobs:
           GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_DEBUG: 1
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-gateway-logs
