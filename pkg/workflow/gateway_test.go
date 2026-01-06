@@ -207,7 +207,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 			expectSteps: 0,
 		},
 		{
-			name: "gateway enabled returns two steps",
+			name: "gateway enabled returns three steps",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayRuntimeConfig{
@@ -219,7 +219,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 				},
 			},
 			mcpEnvVars:  map[string]string{},
-			expectSteps: 2,
+			expectSteps: 3,
 		},
 	}
 
@@ -241,11 +241,24 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Start MCP Gateway")
-	assert.Contains(t, stepStr, "awmg")
+	assert.Contains(t, stepStr, "AWMG_CMD")
 	assert.Contains(t, stepStr, "--config")
 	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
 	assert.Contains(t, stepStr, "--port 8080")
 	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
+}
+
+func TestGenerateMCPGatewayDownloadStep(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+
+	step := generateMCPGatewayDownloadStep(config)
+	stepStr := strings.Join(step, "\n")
+
+	assert.Contains(t, stepStr, "Download MCP Gateway Binary")
+	assert.Contains(t, stepStr, "AWMG_CMD")
+	assert.Contains(t, stepStr, "$GITHUB_ENV")
 }
 
 func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
@@ -508,8 +521,7 @@ func TestGenerateDefaultAWMGCommands(t *testing.T) {
 	lines := generateDefaultAWMGCommands(config, mcpConfigPath, 8080)
 	output := strings.Join(lines, "\n")
 
-	// Verify awmg binary handling
-	assert.Contains(t, output, "awmg")
+	// Verify awmg binary handling - AWMG_CMD is set by download step
 	assert.Contains(t, output, "AWMG_CMD")
 
 	// Verify config file and port
@@ -564,9 +576,9 @@ func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
 	step := generateMCPGatewayStartStep(config, mcpEnvVars)
 	stepStr := strings.Join(step, "\n")
 
-	// Should use default awmg mode
+	// Should use default awmg mode (AWMG_CMD is set by download step)
 	assert.Contains(t, stepStr, "Start MCP Gateway")
-	assert.Contains(t, stepStr, "awmg")
+	assert.Contains(t, stepStr, "AWMG_CMD")
 	assert.NotContains(t, stepStr, "docker run")                    // Should not use docker
 	assert.NotContains(t, stepStr, "/usr/local/bin/custom-gateway") // Should not use custom command
 }

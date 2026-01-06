@@ -551,6 +551,32 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+      - name: Download MCP Gateway Binary
+        run: |
+          # Development mode: Build awmg from sources
+          if [ -f "cmd/awmg/main.go" ] && [ -f "Makefile" ]; then
+            echo 'Building awmg from sources (development mode)...'
+            make build-awmg
+            if [ -f "./awmg" ]; then
+              echo 'Built awmg successfully'
+              echo "AWMG_CMD=./awmg" >> $GITHUB_ENV
+            else
+              echo 'ERROR: Failed to build awmg from sources'
+              exit 1
+            fi
+          # Check if awmg is already in PATH
+          elif command -v awmg &> /dev/null; then
+            echo 'awmg is already available in PATH'
+            echo "AWMG_CMD=awmg" >> $GITHUB_ENV
+          # Check for local awmg build
+          elif [ -f "./awmg" ]; then
+            echo 'Using existing local awmg build'
+            echo "AWMG_CMD=./awmg" >> $GITHUB_ENV
+          else
+            echo 'ERROR: Could not find awmg binary or source files'
+            echo 'Please build awmg with: make build-awmg'
+            exit 1
+          fi
       - name: Start MCP Gateway
         env:
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -563,32 +589,9 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-gateway-logs
           echo 'Starting MCP Gateway...'
           
-          # Development mode: Build awmg from sources
-          if [ -f "cmd/awmg/main.go" ] && [ -f "Makefile" ]; then
-            echo 'Building awmg from sources (development mode)...'
-            make build-awmg
-            if [ -f "./awmg" ]; then
-              echo 'Built awmg successfully'
-              AWMG_CMD="./awmg"
-            else
-              echo 'ERROR: Failed to build awmg from sources'
-              exit 1
-            fi
-          # Check if awmg is already in PATH
-          elif command -v awmg &> /dev/null; then
-            echo 'awmg is already available in PATH'
-            AWMG_CMD="awmg"
-          # Check for local awmg build
-          elif [ -f "./awmg" ]; then
-            echo 'Using existing local awmg build'
-            AWMG_CMD="./awmg"
-          else
-            echo 'ERROR: Could not find awmg binary or source files'
-            echo 'Please build awmg with: make build-awmg'
-            exit 1
-          fi
           
           # Start MCP gateway in background with config file
+          # AWMG_CMD is set by the download step
           $AWMG_CMD --config /home/runner/.copilot/mcp-config.json --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
           GATEWAY_PID=$!
           echo "MCP Gateway started with PID $GATEWAY_PID"
