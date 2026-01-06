@@ -195,9 +195,11 @@ jobs:
           # Verify installation
           copilot --version
       - name: Install awf binary
-        uses: githubnext/gh-aw-firewall@main
-        with:
-          version: v0.8.2
+        run: |
+          echo "Installing awf via installer script (requested version: v0.8.2)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.8.2 bash
+          which awf
+          awf --version
       - name: Downloading container images
         run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0
       - name: Write Safe Outputs Config
