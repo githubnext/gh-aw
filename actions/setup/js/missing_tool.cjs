@@ -102,6 +102,12 @@ async function createOrUpdateIssue(github, context, workflowName, workflowSource
       bodyLines.push(`- **Failed Run:** ${runUrl}`);
       bodyLines.push(`- **Source:** ${workflowSource}`);
 
+      // Add expiration marker (1 week from now)
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + 7);
+      bodyLines.push(``);
+      bodyLines.push(`<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`);
+
       const issueBody = bodyLines.join("\n");
 
       const newIssue = await github.rest.issues.create({
