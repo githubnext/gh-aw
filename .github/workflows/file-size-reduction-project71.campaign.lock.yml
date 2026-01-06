@@ -203,7 +203,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":10},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":10}}
+          {"add_comment":{"max":10},"create_issue":{"max":1},"create_project_status_update":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -412,6 +412,45 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 128
+                }
+              }
+            },
+            "create_project_status_update": {
+              "defaultMax": 10,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65536
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                },
+                "start_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "patternError": "must be in YYYY-MM-DD format"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "INACTIVE",
+                    "ON_TRACK",
+                    "AT_RISK",
+                    "OFF_TRACK",
+                    "COMPLETE"
+                  ]
+                },
+                "target_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "patternError": "must be in YYYY-MM-DD format"
                 }
               }
             },
@@ -1066,13 +1105,13 @@ jobs:
           - Pull requests cannot be sub-issues:
             - PRs MUST reference their related issue via standard GitHub linking (e.g. “Closes #123”).
           
+          - Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          - Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
           
           - The Epic issue is narrative only.
           - The project board is the sole authoritative source of campaign state.
@@ -1151,7 +1190,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, create_issue, missing_tool, noop, update_project
+          **Available tools**: add_comment, create_issue, create_project_status_update, missing_tool, noop, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
