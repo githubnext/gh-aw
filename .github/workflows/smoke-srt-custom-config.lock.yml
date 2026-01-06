@@ -380,6 +380,7 @@ jobs:
         # --allow-tool shell(uniq)
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
+        # --allow-tool write
         timeout-minutes: 5
         run: |
           set -o pipefail
@@ -584,7 +585,7 @@ jobs:
                 .join(' ');
 
               // The command to run
-              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"}';
+              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --allow-tool write --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"}';
 
               // Prepend environment variables to the command
               const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
