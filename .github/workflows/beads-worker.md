@@ -54,7 +54,7 @@ safe-outputs:
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
         - name: Checkout .beads folder
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             ref: beads-sync
             sparse-checkout: |
@@ -126,7 +126,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
       
       - name: Checkout .beads folder
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: beads-sync
           sparse-checkout: |
@@ -231,7 +231,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
       
       - name: Checkout .beads folder
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: beads-sync
           sparse-checkout: |
