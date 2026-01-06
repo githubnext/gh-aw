@@ -543,11 +543,6 @@ jobs:
                 "tools": ["*"]
               }
             }
-            ,
-            "gateway": {
-              "port": 8080,
-              "domain": "localhost"
-            }
           }
           EOF
           echo "-------START MCP CONFIG-----------"
@@ -557,25 +552,6 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
-      - name: Start MCP Gateway
-        env:
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
-          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_DEBUG: 1
-          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-gateway-logs
-          echo 'Starting MCP Gateway...'
-          
-          echo 'ERROR: sandbox.mcp must specify either container or command'
-          echo 'Example container mode: sandbox.mcp.container: "ghcr.io/githubnext/gh-aw-mcpg:latest"'
-          echo 'Example command mode: sandbox.mcp.command: "./custom-gateway"'
-          exit 1
-      - name: Verify MCP Gateway Health
-        run: bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh "http://localhost:8080" "/home/runner/.copilot/mcp-config.json" "/tmp/gh-aw/mcp-gateway-logs"
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
