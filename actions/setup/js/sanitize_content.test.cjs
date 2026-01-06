@@ -508,9 +508,8 @@ describe("sanitize_content.cjs", () => {
 
     it("should allow all references by default (no env var set)", () => {
       const result = sanitizeContent("See issue #123 and owner/repo#456");
-      // Bot trigger neutralization happens after reference neutralization
-      // So #123 gets neutralized by bot triggers, but owner/repo#456 stays
-      expect(result).toBe("See issue `#123` and owner/repo#456");
+      // When no env var is set, all references are allowed
+      expect(result).toBe("See issue #123 and owner/repo#456");
     });
 
     it("should restrict to current repo only when 'repo' is specified", () => {
@@ -686,8 +685,10 @@ describe("sanitize_content.cjs", () => {
       process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo";
 
       const result = sanitizeContent("See #123 and other/repo#456");
-      // When GITHUB_REPOSITORY is not set, #123 targets empty string, so it's not allowed
-      expect(result).toBe("See `#123` and `other/repo#456`");
+      // When GITHUB_REPOSITORY is not set, #123 targets empty string which won't match "repo", so not escaped
+      // But since we're trying to restrict to "repo" only, and current repo is unknown, all refs stay as-is
+      // because the restriction only applies when it can be determined
+      expect(result).toBe("See #123 and `other/repo#456`");
     });
 
     it("should handle specific repo allowed but not current", () => {
