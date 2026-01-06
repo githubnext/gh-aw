@@ -635,7 +635,12 @@ Auto-sanitization: XML escaped, HTTPS only, domain allowlist (GitHub by default)
 ```yaml wrap
 safe-outputs:
   allowed-domains: [api.github.com]  # GitHub domains always included
+  allowed-github-references: []      # Escape all GitHub references
 ```
+
+**Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`.
+
+**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (#123, owner/repo#456) are allowed. References to other repositories are escaped with backticks to prevent timeline items. Use `[]` to escape all references, `["repo"]` for current repo only, or specific repo names. If not specified, all references are allowed. See [SideRepoOps Guide](/gh-aw/guides/siderepoops/#controlling-github-references) for details.
 
 ## Global Configuration Options
 

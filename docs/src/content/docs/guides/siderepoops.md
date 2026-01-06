@@ -400,6 +400,114 @@ safe-outputs:
     target-repo: "my-org/main-repo"
 ```
 
+### Unwanted Timeline Items
+
+If automation creates unwanted cross-references in your main repository's timelines (e.g., `#123` references creating "mentioned in..." entries), use `allowed-github-references` to control reference escaping:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape all references
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+This prevents GitHub from auto-linking issue numbers and creating timeline entries. See [Controlling GitHub References](#controlling-github-references) for details.
+
+## Controlling GitHub References
+
+When workflows create issues or comments in the main repository, GitHub automatically converts text like `#123` or `owner/repo#456` into clickable links to issues and pull requests. While useful for organic development, these automatic links can clutter the main repository's timeline with unwanted cross-references from automation.
+
+### Preventing Timeline Items
+
+The `allowed-github-references` field controls which repository references are allowed in workflow output. When configured, references to other repositories are automatically escaped with backticks, preventing GitHub from creating timeline items.
+
+**Disable All References** (Recommended for SideRepoOps):
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape ALL references
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+With an empty array, references like `#123` become `` `#123` `` and `other/repo#456` becomes `` `other/repo#456` ``. This prevents:
+- Timeline clutter in issues/PRs
+- Unintended notifications to other repositories
+- Accidental cross-repo linking from automation
+
+**Allow Current Repository Only**:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: ["repo"]  # Allow only target repo
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+References to the target repository (`#123`) work normally, but other repositories (`other/repo#456`) are escaped.
+
+**Allow Specific Repositories**:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: 
+    - "repo"                    # Current repository
+    - "my-org/dependency-repo"  # Specific allowed repo
+  create-issue:
+    target-repo: "my-org/main-repo"
+```
+
+Only references to listed repositories create clickable links. All others are escaped.
+
+**Default Behavior** (No Configuration):
+
+If `allowed-github-references` is not specified, all repository references are allowed and create timeline items. This is fine for workflows running in the same repository as their targets but can be problematic for SideRepoOps.
+
+### When to Use Each Option
+
+| Configuration | Use Case | References Allowed |
+|---------------|----------|-------------------|
+| `[]` | Clean automation; no timeline items | None |
+| `["repo"]` | Allow target repo only | Target repository only |
+| `["repo", "org/repo2"]` | Allow specific repos | Target + listed repos |
+| Not specified | Standard workflows (same repo) | All references |
+
+### Example: Clean Automation Workflow
+
+```aw wrap
+---
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+
+engine: copilot
+
+permissions:
+  contents: read
+
+safe-outputs:
+  github-token: ${{ secrets.MAIN_REPO_PAT }}
+  allowed-github-references: []  # Prevent timeline clutter
+  create-issue:
+    target-repo: "my-org/main-repo"
+    labels: [automation, weekly-check]
+    max: 5
+
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues]
+---
+
+# Weekly Repository Health Check
+
+Analyze my-org/main-repo for stale PRs, failed CI, and outdated dependencies.
+
+Create issues for findings. Mention issue numbers and PR numbers as needed for context, but they won't create timeline items due to reference escaping.
+```
+
+In this example, if the agent's output mentions `#123` or `owner/other-repo#456`, they'll be escaped as `` `#123` `` and `` `owner/other-repo#456` ``, keeping the main repository's timelines clean while preserving the information.
+
 ## Advanced Topics
 
 ### Multi-Target SideRepoOps
