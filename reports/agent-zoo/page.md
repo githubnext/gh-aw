@@ -2,10 +2,7 @@
 
 **Exploring the landscape of automated agentic workflows in software development**
 
-The automated use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "zoo" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this zoo, the patterns we explored, and the lessons for the future of repo-level automated agentic development.
-
-The information in this report is up to date as of January 2026. Most of it is highly subjective, based on our experiences running these agentic workflows over several months. We welcome feedback and contributions to improve this living document.
----
+_The automated use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "zoo" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this zoo, the patterns we explored, and the lessons for the future of repo-level automated agentic development._
 
 ## What is the Agent Zoo?
 
@@ -26,6 +23,8 @@ Over the course of this research project, we built and operated **over 100 auton
 Think of it as a real zoo: each "species" of agent has its own habitat (triggers and permissions), diet (tools and data sources), and behavior patterns (what it produces). Some are friendly herbivores that just read and report. Others are more assertive, proposing changes through pull requests. And a few are the zookeepers themselves - meta-agents that monitor the health of all the other agents.
 
 We know we're taking things to an extreme here. Most repositories won't need dozens of agents. No one can read all these outputs. But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust.
+
+The information in this report is up to date as of January 2026. Most of it is highly subjective, based on our experiences running these agentic workflows over several months. We welcome feedback and contributions to improve this living document.
 
 ### By the Numbers
 
