@@ -203,8 +203,8 @@ jobs:
           copilot --version
       - name: Install awf binary
         run: |
-          echo "Installing awf via installer script (requested version: v0.7.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.7.0 bash
+          echo "Installing awf via installer script (requested version: v0.8.1)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.8.1 bash
           which awf
           awf --version
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -669,7 +669,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["accounts.google.com","android.clients.google.com","api.github.com","clients2.google.com","defaults","github","node","playwright","www.google.com"],
               firewall_enabled: true,
-              awf_version: "v0.7.0",
+              awf_version: "v0.8.1",
               steps: {
                 firewall: "squid"
               },
@@ -908,7 +908,7 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains '*.githubusercontent.com,accounts.google.com,android.clients.google.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.playwright.dev,clients2.google.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.google.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains '*.githubusercontent.com,accounts.google.com,android.clients.google.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.playwright.dev,clients2.google.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.google.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.1 \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -1030,7 +1030,7 @@ jobs:
         run: "echo \"📋 Collecting Playwright MCP logs...\"\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/playwright-debug-logs\n\n# Copy any playwright logs from the MCP logs directory\nif [ -d \"/tmp/gh-aw/mcp-logs/playwright\" ]; then\n  echo \"Found Playwright MCP logs directory\"\n  cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true\n  find /tmp/gh-aw/playwright-debug-logs/ -maxdepth 1 -ls\nelse\n  echo \"No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright\"\nfi\n\n# List all trace files if any\necho \"Looking for trace files...\"\nfind /tmp -name \"*.zip\" -o -name \"trace*\" 2>/dev/null | head -20 || true\n\n# Show docker container logs if any containers are still running\necho \"Checking for running Docker containers...\"\ndocker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\" 2>/dev/null || true\n"
       - if: always()
         name: Upload Playwright Debug Logs
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           if-no-files-found: ignore
           name: playwright-debug-logs-${{ github.run_id }}
