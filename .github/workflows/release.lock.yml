@@ -178,7 +178,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{"max":0},"noop":{"max":1},"update_release":{"max":1}}
+          {"missing_tool":{},"noop":{"max":1},"update_release":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -1105,6 +1105,14 @@ jobs:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
           output-file: sbom.cdx.json
+      - name: Audit SBOM files for secrets
+        run: |
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
+          fi
+          echo "✓ No secrets detected in SBOM files"
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
@@ -1112,7 +1120,7 @@ jobs:
           path: |
             sbom.spdx.json
             sbom.cdx.json
-          retention-days: 90
+          retention-days: 7
       - name: Attach SBOM to release
         run: |
           echo "Attaching SBOM files to release: $RELEASE_TAG"
