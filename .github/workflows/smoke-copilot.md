@@ -18,6 +18,8 @@ network:
     - defaults
     - node
     - github
+    - "https://api.github.com"  # Test HTTPS-only protocol filtering
+    - "http://httpbin.org"       # Test HTTP-only protocol filtering
 sandbox:
   agent: awf  # Firewall enabled
 tools:
@@ -55,7 +57,8 @@ strict: true
 4. **GitHub MCP Default Toolset Testing**: Verify that the `get_me` tool is NOT available with default toolsets. Try to use it and confirm it fails with a tool not found error.
 5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
 6. **Web Fetch Testing**: Use the web_fetch tool to fetch content from https://api.github.com/repos/githubnext/gh-aw (verify the tool is available and returns valid JSON)
-7. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
+7. **Protocol Filtering Testing**: Verify that the AWF command includes protocol-specific domains in the --allow-domains flag. Check `/tmp/gh-aw/agent-stdio.log` for entries like `https://api.github.com` and `http://httpbin.org` to confirm protocol prefixes are preserved
+8. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
 
 ## Output
 
