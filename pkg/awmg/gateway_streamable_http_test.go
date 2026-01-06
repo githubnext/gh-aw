@@ -152,6 +152,38 @@ func TestStreamableHTTPTransport_GatewayConnection(t *testing.T) {
 
 	t.Logf("✓ Found %d tools from backend via gateway", len(toolsResult.Tools))
 
+	// Test listing resources
+	resourcesCtx, resourcesCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer resourcesCancel()
+
+	resourcesResult, err := session.ListResources(resourcesCtx, &mcp.ListResourcesParams{})
+	if err != nil {
+		t.Fatalf("Failed to list resources: %v", err)
+	}
+
+	t.Logf("✓ Found %d resources from backend via gateway", len(resourcesResult.Resources))
+
+	// If there are resources, test reading one
+	if len(resourcesResult.Resources) > 0 {
+		firstResource := resourcesResult.Resources[0]
+		t.Logf("Testing read resource: %s", firstResource.URI)
+
+		readCtx, readCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer readCancel()
+
+		readResult, err := session.ReadResource(readCtx, &mcp.ReadResourceParams{
+			URI: firstResource.URI,
+		})
+		if err != nil {
+			t.Logf("Note: Failed to read resource (may not be readable in test environment): %v", err)
+		} else {
+			t.Logf("✓ Successfully read resource via gateway")
+			if len(readResult.Contents) > 0 {
+				t.Logf("  Resource returned %d content items", len(readResult.Contents))
+			}
+		}
+	}
+
 	t.Log("✓ All streamable HTTP transport tests completed successfully")
 
 	// Clean up
@@ -197,7 +229,8 @@ func TestStreamableHTTPTransport_GoSDKClient(t *testing.T) {
 			result = map[string]any{
 				"protocolVersion": "2024-11-05",
 				"capabilities": map[string]any{
-					"tools": map[string]any{},
+					"tools":     map[string]any{},
+					"resources": map[string]any{},
 				},
 				"serverInfo": map[string]any{
 					"name":    "test-server",
@@ -218,6 +251,29 @@ func TestStreamableHTTPTransport_GoSDKClient(t *testing.T) {
 							"type":       "object",
 							"properties": map[string]any{},
 						},
+					},
+				},
+			}
+		case "resources/list":
+			result = map[string]any{
+				"resources": []map[string]any{
+					{
+						"uri":         "file:///test/resource.txt",
+						"name":        "test_resource",
+						"description": "A test resource",
+						"mimeType":    "text/plain",
+					},
+				},
+			}
+		case "resources/read":
+			params, _ := request["params"].(map[string]any)
+			uri, _ := params["uri"].(string)
+			result = map[string]any{
+				"contents": []map[string]any{
+					{
+						"uri":      uri,
+						"mimeType": "text/plain",
+						"text":     "This is test resource content",
 					},
 				},
 			}
@@ -277,6 +333,41 @@ func TestStreamableHTTPTransport_GoSDKClient(t *testing.T) {
 	}
 
 	t.Logf("✓ Successfully listed tools: %v", toolsResult.Tools)
+
+	// Test listing resources
+	resourcesResult, err := session.ListResources(ctx, &mcp.ListResourcesParams{})
+	if err != nil {
+		t.Fatalf("Failed to list resources: %v", err)
+	}
+
+	if len(resourcesResult.Resources) != 1 {
+		t.Errorf("Expected 1 resource, got %d", len(resourcesResult.Resources))
+	}
+
+	if resourcesResult.Resources[0].Name != "test_resource" {
+		t.Errorf("Expected resource name 'test_resource', got '%s'", resourcesResult.Resources[0].Name)
+	}
+
+	t.Logf("✓ Successfully listed resources: %v", resourcesResult.Resources)
+
+	// Test reading a resource
+	readResult, err := session.ReadResource(ctx, &mcp.ReadResourceParams{
+		URI: "file:///test/resource.txt",
+	})
+	if err != nil {
+		t.Fatalf("Failed to read resource: %v", err)
+	}
+
+	if len(readResult.Contents) != 1 {
+		t.Errorf("Expected 1 content item, got %d", len(readResult.Contents))
+	}
+
+	if readResult.Contents[0].Text != "This is test resource content" {
+		t.Errorf("Expected content 'This is test resource content', got '%s'", readResult.Contents[0].Text)
+	}
+
+	t.Logf("✓ Successfully read resource content")
+
 	t.Log("✓ StreamableClientTransport go-sdk test completed successfully")
 }
 
@@ -560,6 +651,43 @@ func TestStreamableHTTPTransport_GatewayWithSDKClient(t *testing.T) {
 		t.Logf("✓ Successfully called status tool via gateway")
 		if len(callResult.Content) > 0 {
 			t.Logf("  Tool returned %d content items", len(callResult.Content))
+		}
+	}
+
+	// Test listing resources
+	resourcesCtx, resourcesCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer resourcesCancel()
+
+	resourcesResult, err := session.ListResources(resourcesCtx, &mcp.ListResourcesParams{})
+	if err != nil {
+		t.Fatalf("Failed to list resources: %v", err)
+	}
+
+	t.Logf("✓ Successfully listed %d resources from backend via gateway", len(resourcesResult.Resources))
+	for i, resource := range resourcesResult.Resources {
+		if i < 3 { // Log first 3 resources
+			t.Logf("  - %s: %s", resource.Name, resource.Description)
+		}
+	}
+
+	// If there are resources, test reading one
+	if len(resourcesResult.Resources) > 0 {
+		firstResource := resourcesResult.Resources[0]
+		t.Logf("Testing read resource: %s", firstResource.URI)
+
+		readCtx, readCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer readCancel()
+
+		readResult, err := session.ReadResource(readCtx, &mcp.ReadResourceParams{
+			URI: firstResource.URI,
+		})
+		if err != nil {
+			t.Logf("Note: Failed to read resource (may not be readable in test environment): %v", err)
+		} else {
+			t.Logf("✓ Successfully read resource via gateway")
+			if len(readResult.Contents) > 0 {
+				t.Logf("  Resource returned %d content items", len(readResult.Contents))
+			}
 		}
 	}
 
