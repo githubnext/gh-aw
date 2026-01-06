@@ -2,6 +2,115 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.35.0 - 2026-01-06
+
+### Features
+
+#### Rename firewall terminology from "denied" to "blocked" across code, JSON fields,
+
+interfaces, JavaScript variables, table headers, and documentation. This updates
+struct fields, JSON tags, method names, and user-facing text to use "blocked".
+
+
+### Bug Fixes
+
+#### Add `allowed-github-references` safe-output field to restrict and escape unauthorized GitHub-style markdown references (e.g. `#123`, `owner/repo#456`). Includes backend parsing, JS sanitizer, schema validation, and tests.
+
+#### Add `allowed-github-references` safe-output configuration to restrict which
+
+GitHub-style markdown references (e.g. `#123` or `owner/repo#456`) are
+allowed when rendering safe outputs. Unauthorized references are escaped with
+backticks. This change adds backend parsing, a JS sanitizer, schema
+validation, and comprehensive tests.
+
+#### Bump AWF (gh-aw-firewall) to `v0.8.1`.
+
+Updated the embedded default firewall version, adjusted tests and documentation, and recompiled workflow lock files to use the new AWF version.
+
+This is an internal dependency/tooling update (non-breaking).
+
+#### Update the default GitHub MCP Server Docker image to `ghcr.io/github/github-mcp-server:v0.27.0`.
+
+This updates the `DefaultGitHubMCPServerVersion` constant in `pkg/constants/constants.go`,
+adjusts hardcoded version strings in tests and documentation, and recompiles workflow lock
+files so workflows use the new MCP server image. The upstream release includes improvements
+to `get_file_contents` (better error handling and default-branch fallback), `push_files`
+(non-initialized repo support), and fixes for `get_job_logs`.
+
+Note: The upstream `experiments` toolset was removed (experimental); this is unlikely to
+affect production workflows.
+
+
+### Migration Guide
+
+`````markdown
+The following breaking changes require code updates:
+
+### Rename firewall terminology from "denied" to "blocked" across code, JSON fields,
+
+Update JSON payloads and workflow outputs using these before/after examples:
+
+Before:
+
+```json
+{
+  "firewall_log": {
+    "denied_requests": 3,
+    "denied_domains": ["blocked.example.com:443"],
+    "requests_by_domain": {
+      "blocked.example.com:443": {"allowed": 0, "denied": 2}
+    }
+  }
+}
+```
+
+After:
+
+```json
+{
+  "firewall_log": {
+    "blocked_requests": 3,
+    "blocked_domains": ["blocked.example.com:443"],
+    "requests_by_domain": {
+      "blocked.example.com:443": {"allowed": 0, "blocked": 2}
+    }
+  }
+}
+```
+
+Update Go types and interfaces (examples):
+
+Before:
+
+```go
+type FirewallLog struct {
+    DeniedDomains []string `json:"denied_domains"`
+}
+
+func (f *FirewallLog) GetDeniedDomains() []string { ... }
+```
+
+After:
+
+```go
+type FirewallLog struct {
+    BlockedDomains []string `json:"blocked_domains"`
+}
+
+func (f *FirewallLog) GetBlockedDomains() []string { ... }
+```
+
+Update JavaScript variables and table headers (examples):
+
+Before: `deniedRequests`, `deniedDomains`, table header `| Domain | Allowed | Denied |`
+
+After: `blockedRequests`, `blockedDomains`, table header `| Domain | Allowed | Blocked |`
+
+This is a breaking change for any code that relied on the previous field names or
+JSON tags; update integrations to use the new `blocked_*` fields and `blocked` in
+per-domain stats.
+`````
+
 ## v0.34.5 - 2026-01-05
 
 ### Bug Fixes
