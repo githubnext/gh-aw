@@ -63,7 +63,7 @@ jobs:
       comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
-      slash_command: ${{ steps.check_command_position.outputs.matched_command }}
+      slash_command: ${{ needs.pre_activation.outputs.matched_command }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1514,6 +1514,7 @@ jobs:
       contents: read
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
+      matched_command: ${{ steps.check_command_position.outputs.matched_command }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
