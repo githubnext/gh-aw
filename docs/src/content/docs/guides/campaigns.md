@@ -110,4 +110,3 @@ Optional fields include `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`
 - [Campaign specs](/gh-aw/guides/campaigns/specs/) – spec fields (objective/KPIs, governance, memory)
 - [Project management](/gh-aw/guides/campaigns/project-management/) – project board setup tips
 - [CLI commands](/gh-aw/guides/campaigns/cli-commands/) – CLI reference
-- [Improvements & future directions](/gh-aw/guides/campaigns/improvements/) – enhancement opportunities for reporting and learning systems
