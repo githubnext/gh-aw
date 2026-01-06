@@ -66,31 +66,26 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 // - UseCopilotToken: customToken > SafeOutputs.GitHubToken > COPILOT_GITHUB_TOKEN || GH_AW_GITHUB_TOKEN
 // - Default: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GITHUB_TOKEN
 func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string, useAgentToken, useCopilotToken bool) {
-	token := customToken
+	var token string
 
 	// Agent token mode: simple fallback to GH_AW_AGENT_TOKEN
 	if useAgentToken {
-		if token == "" {
-			token = "${{ env.GH_AW_AGENT_TOKEN }}"
+		token = getEffectiveAgentGitHubToken(customToken)
+	} else if useCopilotToken {
+		// Copilot mode: use getEffectiveCopilotGitHubToken with safe-outputs token precedence
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
+		// Precedence: customToken > safeOutputsToken > data.GitHubToken > default Copilot fallback
+		token = getEffectiveCopilotGitHubToken(customToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
 	} else {
-		// Standard and Copilot modes: check SafeOutputs.GitHubToken first
-		if token == "" && data.SafeOutputs != nil {
-			token = data.SafeOutputs.GitHubToken
+		// Standard mode: use safe output token chain (data.GitHubToken, then GITHUB_TOKEN)
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
-
-		// Final fallback depends on mode
-		if token == "" {
-			if useCopilotToken {
-				// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
-				// "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}" that GitHub Actions runtime substitutes
-				// with the actual secret value at workflow execution time. The string is a placeholder, not a credential.
-				token = "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}" // #nosec G101
-			} else {
-				// Standard mode: use safe output token chain (data.GitHubToken, then GITHUB_TOKEN)
-				token = getEffectiveSafeOutputGitHubToken("", data.GitHubToken)
-			}
-		}
+		token = getEffectiveSafeOutputGitHubToken(customToken, getEffectiveSafeOutputGitHubToken(safeOutputsToken, data.GitHubToken))
 	}
 
 	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
