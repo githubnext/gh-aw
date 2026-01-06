@@ -22,9 +22,9 @@ func TestCustomAWFConfiguration(t *testing.T) {
 			t.Error("Expected installation step to be skipped when custom command is specified")
 		}
 
-		// Verify no composite action usage
-		if strings.Contains(stepStr, "githubnext/gh-aw-firewall") {
-			t.Error("Should not use composite action when custom command is specified")
+		// Verify no curl commands
+		if strings.Contains(stepStr, "curl") {
+			t.Error("Should not contain curl command when custom command is specified")
 		}
 	})
 
@@ -37,9 +37,9 @@ func TestCustomAWFConfiguration(t *testing.T) {
 			t.Error("Expected installation step to be generated when no agent config is provided")
 		}
 
-		// Should contain composite action
-		if !strings.Contains(stepStr, "uses: githubnext/gh-aw-firewall@main") {
-			t.Error("Should contain composite action for standard installation")
+		// Should contain standard installation
+		if !strings.Contains(stepStr, "curl") {
+			t.Error("Should contain curl command for standard installation")
 		}
 	})
 
@@ -56,9 +56,9 @@ func TestCustomAWFConfiguration(t *testing.T) {
 			t.Error("Expected installation step to be generated when command is not specified")
 		}
 
-		// Should contain composite action
-		if !strings.Contains(stepStr, "uses: githubnext/gh-aw-firewall@main") {
-			t.Error("Should contain composite action for standard installation")
+		// Should contain standard installation
+		if !strings.Contains(stepStr, "curl") {
+			t.Error("Should contain curl command for standard installation")
 		}
 	})
 }
@@ -178,7 +178,7 @@ sandbox:
 			t.Error("Expected custom env 'CUSTOM_VAR: custom_value' in compiled workflow")
 		}
 
-		// Verify installation step was skipped (no composite action for AWF)
+		// Verify installation step was skipped (no curl command for AWF)
 		if strings.Contains(lockStr, "Install awf binary") {
 			t.Error("Expected AWF installation step to be skipped when custom command is specified")
 		}

@@ -14,15 +14,14 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		stepStr := strings.Join(step, "\n")
 
 		expectedVersion := string(constants.DefaultFirewallVersion)
+		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + expectedVersion + " bash"
 
-		// Check for composite action usage
-		if !strings.Contains(stepStr, "uses: githubnext/gh-aw-firewall@main") {
-			t.Error("Expected to use composite action githubnext/gh-aw-firewall@main")
+		if !strings.Contains(stepStr, expectedInstaller) {
+			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
 		}
 
-		// Check version is passed as input
-		if !strings.Contains(stepStr, "version: "+expectedVersion) {
-			t.Errorf("Expected to pass version %s as input to composite action", expectedVersion)
+		if !strings.Contains(stepStr, expectedVersion) {
+			t.Errorf("Expected to log requested version %s in installation step, but it was not found", expectedVersion)
 		}
 	})
 
@@ -31,14 +30,14 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		step := generateAWFInstallationStep(customVersion, nil)
 		stepStr := strings.Join(step, "\n")
 
-		// Check for composite action usage
-		if !strings.Contains(stepStr, "uses: githubnext/gh-aw-firewall@main") {
-			t.Error("Expected to use composite action githubnext/gh-aw-firewall@main")
+		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + customVersion + " bash"
+
+		if !strings.Contains(stepStr, customVersion) {
+			t.Errorf("Expected to log custom version %s in installation step", customVersion)
 		}
 
-		// Check custom version is passed as input
-		if !strings.Contains(stepStr, "version: "+customVersion) {
-			t.Errorf("Expected to pass custom version %s as input to composite action", customVersion)
+		if !strings.Contains(stepStr, expectedInstaller) {
+			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
 		}
 	})
 }
@@ -77,14 +76,12 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
 		}
 
-		// Verify it uses the composite action
-		if !strings.Contains(awfStepStr, "uses: githubnext/gh-aw-firewall@main") {
-			t.Error("AWF installation should use composite action githubnext/gh-aw-firewall@main")
+		// Verify it logs the default version and uses installer script
+		if !strings.Contains(awfStepStr, string(constants.DefaultFirewallVersion)) {
+			t.Errorf("AWF installation step should reference default version %s", string(constants.DefaultFirewallVersion))
 		}
-
-		// Verify it passes the default version
-		if !strings.Contains(awfStepStr, "version: "+string(constants.DefaultFirewallVersion)) {
-			t.Errorf("AWF installation step should pass default version %s", string(constants.DefaultFirewallVersion))
+		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
+			t.Error("AWF installation should use the installer script")
 		}
 	})
 
@@ -122,14 +119,13 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
 		}
 
-		// Verify it uses the composite action
-		if !strings.Contains(awfStepStr, "uses: githubnext/gh-aw-firewall@main") {
-			t.Error("AWF installation should use composite action githubnext/gh-aw-firewall@main")
+		// Verify it logs the custom version
+		if !strings.Contains(awfStepStr, customVersion) {
+			t.Errorf("AWF installation step should use custom version %s", customVersion)
 		}
 
-		// Verify it passes the custom version
-		if !strings.Contains(awfStepStr, "version: "+customVersion) {
-			t.Errorf("AWF installation step should pass custom version %s", customVersion)
+		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
+			t.Error("AWF installation should use the installer script")
 		}
 	})
 

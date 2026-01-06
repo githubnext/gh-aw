@@ -135,8 +135,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	return steps
 }
 
-// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
-// using a composite GitHub Action instead of a shell script.
+// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary.
 // If a custom command is specified in the agent config, the installation is skipped
 // as the custom command replaces the AWF binary.
 func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig) GitHubActionStep {
@@ -147,18 +146,18 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		return GitHubActionStep([]string{})
 	}
 
-	// Use default version when not specified
+	// Use default version for logging when not specified
 	if version == "" {
 		version = string(constants.DefaultFirewallVersion)
 	}
 
-	copilotInstallLog.Printf("Generating AWF installation step using composite action: version=%s", version)
-
 	stepLines := []string{
 		"      - name: Install awf binary",
-		"        uses: githubnext/gh-aw-firewall@main",
-		"        with:",
-		fmt.Sprintf("          version: %s", version),
+		"        run: |",
+		fmt.Sprintf("          echo \"Installing awf via installer script (requested version: %s)\"", version),
+		fmt.Sprintf("          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=%s bash", version),
+		"          which awf",
+		"          awf --version",
 	}
 
 	return GitHubActionStep(stepLines)
