@@ -55,8 +55,38 @@ for p in "${platforms[@]}"; do
     ./cmd/gh-aw
 done
 
-echo "Build complete. Binaries:"
+echo "Build complete. gh-aw binaries:"
 ls -lh dist/
+
+# Build awmg (MCP Gateway) binaries
+echo ""
+echo "Building awmg (MCP Gateway) binaries with version: $VERSION"
+
+for p in "${platforms[@]}"; do
+  goos="${p%-*}"
+  goarch="${p#*-}"
+  
+  # Check if platform is supported
+  if [[ " ${supported_platforms[*]} " != *" ${goos}/${goarch} "* ]]; then
+    echo "warning: skipping unsupported platform $p for awmg" >&2
+    continue
+  fi
+  
+  ext=""
+  if [ "$goos" = "windows" ]; then
+    ext=".exe"
+  fi
+  
+  echo "Building awmg-$p..."
+  GOOS="$goos" GOARCH="$goarch" go build \
+    -trimpath \
+    -ldflags="-s -w -X main.version=${VERSION}" \
+    -o "dist/awmg-${p}${ext}" \
+    ./cmd/awmg
+done
+
+echo "awmg binaries:"
+ls -lh dist/awmg-*
 
 # Generate checksums file
 echo ""
