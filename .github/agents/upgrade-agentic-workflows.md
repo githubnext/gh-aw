@@ -140,6 +140,13 @@ After fixing all errors:
    - Ensure all workflows have corresponding `.lock.yml` files
    - Check that lock files are valid GitHub Actions YAML
 
+3. **Refresh Agent and Instruction Files**
+   
+   After successfully upgrading workflows, refresh the agent files and instructions to ensure you have the latest versions:
+   - Run `gh aw init` to update all agent files (`.github/agents/*.md`) and instruction files (`.github/aw/github-agentic-workflows.md`)
+   - This ensures that agents and instructions are aligned with the new gh-aw version
+   - The command will preserve your existing configuration while updating to the latest templates
+
 ## Creating Outputs
 
 After completing the upgrade:
@@ -182,9 +189,13 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 - ✅ All `.lock.yml` files generated
 - ✅ No compilation errors or warnings
 
+### Post-Upgrade Steps
+- ✅ Refreshed agent files and instructions with `gh aw init`
+
 ## Files Changed
 - Updated `.md` workflow files: [LIST]
 - Generated `.lock.yml` files: [LIST]
+- Updated agent files: [LIST] (if `gh aw init` was run)
 ```
 
 ### If Compilation Errors Cannot Be Fixed

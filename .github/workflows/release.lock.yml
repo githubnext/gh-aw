@@ -324,6 +324,7 @@ jobs:
       - name: Setup MCPs
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -343,7 +344,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_LOCKDOWN_MODE=${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}",
+                  "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.27.0"
@@ -1105,6 +1106,14 @@ jobs:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
           output-file: sbom.cdx.json
+      - name: Audit SBOM files for secrets
+        run: |
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
+          fi
+          echo "✓ No secrets detected in SBOM files"
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
@@ -1112,7 +1121,7 @@ jobs:
           path: |
             sbom.spdx.json
             sbom.cdx.json
-          retention-days: 90
+          retention-days: 7
       - name: Attach SBOM to release
         run: |
           echo "Attaching SBOM files to release: $RELEASE_TAG"

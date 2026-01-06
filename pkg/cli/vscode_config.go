@@ -19,11 +19,6 @@ type VSCodeSettings struct {
 	Other map[string]any `json:"-"`
 }
 
-// VSCodeExtensions represents the structure of .vscode/extensions.json
-type VSCodeExtensions struct {
-	Recommendations []string `json:"recommendations"`
-}
-
 // UnmarshalJSON custom unmarshaler for VSCodeSettings to preserve unknown fields
 func (s *VSCodeSettings) UnmarshalJSON(data []byte) error {
 	// First unmarshal into a generic map to capture all fields
@@ -139,50 +134,6 @@ func ensureVSCodeSettings(verbose bool) error {
 		return fmt.Errorf("failed to write settings.json: %w", err)
 	}
 	vscodeConfigLog.Printf("Wrote settings to: %s", settingsPath)
-
-	return nil
-}
-
-// ensureVSCodeExtensions creates or updates .vscode/extensions.json
-func ensureVSCodeExtensions(verbose bool) error {
-	vscodeConfigLog.Print("Creating or updating .vscode/extensions.json")
-
-	// Create .vscode directory if it doesn't exist
-	vscodeDir := ".vscode"
-	if err := os.MkdirAll(vscodeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .vscode directory: %w", err)
-	}
-
-	extensionsPath := filepath.Join(vscodeDir, "extensions.json")
-
-	// Check if extensions.json already exists
-	if _, err := os.Stat(extensionsPath); err == nil {
-		vscodeConfigLog.Print("Extensions file already exists, skipping creation")
-		if verbose {
-			fmt.Fprintf(os.Stderr, "Extensions file already exists at %s\n", extensionsPath)
-		}
-		return nil
-	}
-
-	// Create minimal extensions file with common recommendations
-	extensions := VSCodeExtensions{
-		Recommendations: []string{
-			"astro-build.astro-vscode",
-			"davidanson.vscode-markdownlint",
-		},
-	}
-	vscodeConfigLog.Print("Creating new extensions file with basic recommendations")
-
-	// Write extensions file with proper indentation
-	data, err := json.MarshalIndent(extensions, "", "    ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal extensions.json: %w", err)
-	}
-
-	if err := os.WriteFile(extensionsPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write extensions.json: %w", err)
-	}
-	vscodeConfigLog.Printf("Wrote extensions to: %s", extensionsPath)
 
 	return nil
 }
