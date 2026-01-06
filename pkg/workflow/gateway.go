@@ -135,7 +135,7 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 	} else {
 		// Release mode: download awmg using install-awmg.sh script from main branch
 		gatewayLog.Print("Using release mode - will download awmg using install-awmg.sh script")
-		
+
 		// Detect current release tag (if available)
 		releaseTag := GetCurrentGitTag()
 		var versionArg string
@@ -145,7 +145,7 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 		} else {
 			gatewayLog.Print("No release tag detected, will use latest release")
 		}
-		
+
 		stepLines = append(stepLines,
 			"          # Release mode: Download awmg using install-awmg.sh script",
 			"          # Check if awmg is already in PATH",
@@ -163,7 +163,7 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 			"            chmod +x /tmp/install-awmg.sh",
 			"            ",
 		)
-		
+
 		// Add version argument if release tag is available
 		if versionArg != "" {
 			stepLines = append(stepLines,
@@ -176,7 +176,7 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 				"            /tmp/install-awmg.sh",
 			)
 		}
-		
+
 		stepLines = append(stepLines,
 			"            ",
 			"            # Set AWMG_CMD to installed binary location",
