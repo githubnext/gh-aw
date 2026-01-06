@@ -68,7 +68,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		customGitHubToken := getGitHubToken(githubTool)
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
 		envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
-		
+
 		// Add lockdown value if it's determined from step output
 		// Security: Pass step output through environment variable to prevent template injection
 		if !hasGitHubLockdownExplicitlySet(githubTool) {
@@ -405,7 +405,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
 		yaml.WriteString("          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
-		
+
 		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
 		if len(safeInputsSecrets) > 0 {
 			// Sort env var names for consistent output
