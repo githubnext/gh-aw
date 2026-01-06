@@ -4773,6 +4773,24 @@
                   "description": "Maximum number of missing tool reports (default: unlimited)",
                   "minimum": 1
                 },
+                "create-issue": {
+                  "type": "boolean",
+                  "description": "Whether to create or update GitHub issues when tools are missing (default: true)",
+                  "default": true
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Prefix for issue titles when creating issues for missing tools (default: '[missing tool]')",
+                  "default": "[missing tool]"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Labels to add to created issues for missing tools",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

@@ -223,7 +223,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"create_agent_task":{"max":1},"create_discussion":{"max":2},"create_issue":{"max":2},"create_pull_request":{},"create_pull_request_review_comment":{"max":2},"link_sub_issue":{"max":3},"missing_tool":{"max":0},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_issue":{"max":2},"upload_asset":{"max":0}}
+          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"create_agent_task":{"max":1},"create_discussion":{"max":2},"create_issue":{"max":2},"create_missing_tool_issue":{"max":1,"title_prefix":"[missing tool]"},"create_pull_request":{},"create_pull_request_review_comment":{"max":2},"link_sub_issue":{"max":3},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_issue":{"max":2},"upload_asset":{"max":0}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -1450,6 +1450,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
+          GH_AW_MISSING_TOOL_TITLE_PREFIX: "[missing tool]"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

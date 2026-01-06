@@ -212,7 +212,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-codex"],"max":3},"create_issue":{"max":1},"hide_comment":{"max":5},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-codex"],"max":3},"create_issue":{"max":1},"hide_comment":{"max":5},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
