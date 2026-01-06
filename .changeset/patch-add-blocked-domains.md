@@ -2,7 +2,12 @@
 "gh-aw": patch
 ---
 
-Add domain blocklist support via `--block-domains` flag; updates frontmatter parsing, engines, tests, and documentation.
+Add domain blocklist support via the `--block-domains` flag and the
+`blocked` frontmatter field. This enables specifying domains or ecosystem
+identifiers to block in workflows and ensures the flag is only added when
+blocked domains are present.
 
-This change adds the `blocked` network frontmatter field and ensures the engines pass `--block-domains` to the AWF binary when blocked domains are configured.
+Supported engines: Copilot, Claude, Codex.
+
+Ref: githubnext/gh-aw#9063
 
