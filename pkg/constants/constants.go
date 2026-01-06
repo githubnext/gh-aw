@@ -194,6 +194,10 @@ const ExpressionBreakThreshold LineLength = 100
 // DefaultMCPRegistryURL is the default MCP registry URL.
 const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 
+// DefaultCampaignTemplateProjectURL is the default source project URL for copying campaign templates.
+// This points to the githubnext "[TEMPLATE: Agentic Campaign]" project (Project 74).
+const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
+
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
 const DefaultClaudeCodeVersion Version = "2.0.76"
 

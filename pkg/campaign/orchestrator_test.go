@@ -322,6 +322,82 @@ func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
 	}
 }
 
+func TestBuildOrchestrator_CopyProjectSafeOutput(t *testing.T) {
+	t.Run("copy-project enabled by default with template source", func(t *testing.T) {
+		spec := &CampaignSpec{
+			ID:          "test-campaign",
+			Name:        "Test Campaign",
+			Description: "A test campaign",
+			ProjectURL:  "https://github.com/orgs/test/projects/1",
+			Workflows:   []string{"test-workflow"},
+		}
+
+		mdPath := ".github/workflows/test-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		// Verify that SafeOutputs is configured
+		if data.SafeOutputs == nil {
+			t.Fatalf("expected SafeOutputs to be configured")
+		}
+
+		// Verify that CopyProjects is configured
+		if data.SafeOutputs.CopyProjects == nil {
+			t.Fatalf("expected CopyProjects to be configured")
+		}
+
+		// Verify that the max is 1
+		if data.SafeOutputs.CopyProjects.Max != 1 {
+			t.Errorf("expected CopyProjects max to be 1, got %d", data.SafeOutputs.CopyProjects.Max)
+		}
+
+		// Verify that the default source project is set to the template project
+		expectedSourceProject := "https://github.com/orgs/githubnext/projects/74"
+		if data.SafeOutputs.CopyProjects.SourceProject != expectedSourceProject {
+			t.Errorf("expected CopyProjects source-project to be %q, got %q",
+				expectedSourceProject, data.SafeOutputs.CopyProjects.SourceProject)
+		}
+	})
+
+	t.Run("copy-project with custom github token", func(t *testing.T) {
+		spec := &CampaignSpec{
+			ID:                 "test-campaign-with-token",
+			Name:               "Test Campaign",
+			Description:        "A test campaign with custom GitHub token",
+			ProjectURL:         "https://github.com/orgs/test/projects/1",
+			Workflows:          []string{"test-workflow"},
+			ProjectGitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+		}
+
+		mdPath := ".github/workflows/test-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		// Verify that SafeOutputs is configured
+		if data.SafeOutputs == nil {
+			t.Fatalf("expected SafeOutputs to be configured")
+		}
+
+		// Verify that CopyProjects is configured
+		if data.SafeOutputs.CopyProjects == nil {
+			t.Fatalf("expected CopyProjects to be configured")
+		}
+
+		// Verify that the GitHubToken is set
+		if data.SafeOutputs.CopyProjects.GitHubToken != "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}" {
+			t.Errorf("expected CopyProjects GitHubToken to be %q, got %q",
+				"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+				data.SafeOutputs.CopyProjects.GitHubToken)
+		}
+	})
+}
+
 func TestExtractFileGlobPatterns(t *testing.T) {
 	tests := []struct {
 		name           string

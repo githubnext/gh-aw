@@ -18,16 +18,12 @@ tools:
   github:
     toolsets: [default]
   edit:
-  bash:
-    - "find *"
-    - "find * -maxdepth 1"
-    - "cat *"
-    - "wc *"
-    - "head *"
-    - "tail *"
-    - "grep *"
-    - "git *"
+  bash: ["*"]
   cache-memory: true
+steps:
+  - name: Install Node.js dependencies
+    working-directory: actions/setup/js
+    run: npm install
 safe-outputs:
   create-pull-request:
     title-prefix: "[jsweep] "
