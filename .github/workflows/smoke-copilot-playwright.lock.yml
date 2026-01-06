@@ -147,7 +147,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Pre-flight Playwright MCP Test
-        run: "echo \"🧪 Testing Playwright MCP Docker container startup...\"\n\n# Pull the Playwright MCP Docker image\necho \"Pulling Playwright MCP Docker image...\"\ndocker pull mcr.microsoft.com/playwright/mcp\n\n# Test container startup with a simple healthcheck\necho \"Testing container startup...\"\ntimeout 30 docker run --rm -i mcr.microsoft.com/playwright/mcp --help || {\n  echo \"❌ Playwright MCP container failed to start\"\n  exit 1\n}\n\necho \"✅ Playwright MCP container pre-flight check passed\"\n"
+        run: "echo \"🧪 Testing Playwright MCP Docker container startup...\"\n\n# Pull the Playwright MCP Docker image\necho \"Pulling Playwright MCP Docker image...\"\ndocker pull mcr.microsoft.com/playwright/mcp\n\n# Test container startup with a simple healthcheck\necho \"Testing container startup...\"\ntimeout 30 docker run --rm -i mcr.microsoft.com/playwright/mcp --help || {\n  echo \"❌ Playwright MCP container failed to start\"\n  exit 1\n}\n\necho \"✅ Playwright MCP container pre-flight check passed\""
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -766,11 +766,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/tmp/gh-aw/prompts/playwright_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/tmp/gh-aw/prompts/edit_tool_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append cache memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
