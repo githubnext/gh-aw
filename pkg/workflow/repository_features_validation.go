@@ -131,11 +131,21 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 		}
 
 		if !hasDiscussions {
+			// Changed to warning instead of error per issue feedback
+			// Strategy: Always try to create the discussion at runtime and investigate if it fails
+			// The runtime create_discussion handler will provide better error messages if creation fails
+			var warningMsg string
 			if workflowData.SafeOutputs.CreateDiscussions != nil {
-				return fmt.Errorf("workflow uses safe-outputs.create-discussion but repository %s does not have discussions enabled. Enable discussions in repository settings or remove create-discussion from safe-outputs", repo)
+				warningMsg = fmt.Sprintf("Repository %s may not have discussions enabled. The workflow will attempt to create discussions at runtime. If creation fails, enable discussions in repository settings.", repo)
+			} else {
+				// For add-comment with discussion: true
+				warningMsg = fmt.Sprintf("Repository %s may not have discussions enabled for add-comment with discussion: true. The workflow will attempt to add comments at runtime. If this fails, enable discussions in repository settings.", repo)
 			}
-			// For add-comment with discussion: true
-			return fmt.Errorf("workflow uses safe-outputs.add-comment with discussion: true but repository %s does not have discussions enabled. Enable discussions in repository settings or change add-comment configuration", repo)
+			repositoryFeaturesLog.Printf("Warning: %s", warningMsg)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			}
+			// Don't return error - allow compilation to proceed and let runtime handle the actual attempt
 		}
 	}
 
