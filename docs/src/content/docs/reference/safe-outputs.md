@@ -56,6 +56,7 @@ Most safe output types support cross-repository operations. Exceptions are noted
 ### Projects, Releases & Assets
 
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) — Manage GitHub Projects boards (max: 10, same-repo only)
+- [**Create Project Status Update**](#project-status-updates-create-project-status-update) (`create-project-status-update`) — Create project status updates (max: 1, same-repo only)
 - [**Update Release**](#release-updates-update-release) (`update-release`) — Update GitHub release descriptions (max: 1)
 - [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) — Upload files to orphaned git branch (max: 10, same-repo only)
 
@@ -286,6 +287,76 @@ fields:
 :::note
 Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
 :::
+
+
+### Project Status Updates (`create-project-status-update:`)
+
+Creates status updates on GitHub Projects boards to communicate campaign progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access.
+
+```yaml wrap
+safe-outputs:
+  create-project-status-update:
+    max: 1                          # max updates per run (default: 1)
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+```
+
+Agent provides full project URL, status update body (markdown), status indicator, and date fields. Typically used by [Campaign Workflows](/gh-aw/guides/campaigns/) to automatically post run summaries.
+
+#### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `project` | URL | Full GitHub project URL (e.g., `https://github.com/orgs/myorg/projects/73`) |
+| `body` | Markdown | Status update content with campaign summary, findings, and next steps |
+
+#### Optional Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `status` | Enum | `ON_TRACK` | Status indicator: `ON_TRACK`, `AT_RISK`, `OFF_TRACK`, `COMPLETE`, `INACTIVE` |
+| `start_date` | Date | Today | Run start date (format: `YYYY-MM-DD`) |
+| `target_date` | Date | Today | Projected completion or milestone date (format: `YYYY-MM-DD`) |
+
+#### Example Usage
+
+```yaml
+create-project-status-update:
+  project: "https://github.com/orgs/myorg/projects/73"
+  status: "ON_TRACK"
+  start_date: "2026-01-06"
+  target_date: "2026-01-31"
+  body: |
+    ## Campaign Run Summary
+
+    **Discovered:** 25 items (15 issues, 10 PRs)
+    **Processed:** 10 items added to project, 5 updated
+    **Completion:** 60% (30/50 total tasks)
+
+    ### Key Findings
+    - Documentation coverage improved to 88%
+    - 3 critical accessibility issues identified
+    - Worker velocity: 1.2 items/day
+
+    ### Trends
+    - Velocity stable at 8-10 items/week
+    - Blocked items decreased from 5 to 2
+    - On track for end-of-month completion
+
+    ### Next Steps
+    - Continue processing remaining 15 items
+    - Address 2 blocked items in next run
+    - Target 95% documentation coverage by end of month
+```
+
+#### Status Indicators
+
+- **`ON_TRACK`**: Campaign progressing as planned, meeting velocity targets
+- **`AT_RISK`**: Potential issues identified (blocked items, slower velocity, dependencies)
+- **`OFF_TRACK`**: Campaign behind schedule, requires intervention or re-planning
+- **`COMPLETE`**: All campaign objectives met, no further work needed
+- **`INACTIVE`**: Campaign paused or not actively running
+
+Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 
 ### Pull Request Creation (`create-pull-request:`)
