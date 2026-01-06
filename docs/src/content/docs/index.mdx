@@ -53,11 +53,6 @@ Instead of writing complex YAML configurations, you describe your automation goa
 2. **Compile** - Run `gh aw compile` to transform it into a secure GitHub Actions workflow (`.lock.yml`)
 3. **Run** - GitHub Actions executes your workflow automatically based on your triggers
 
-**Perfect for:**
-- 🤖 **Issue triage** - Automatically categorize, label, and respond to new issues
-- 🔍 **PR reviews** - Get AI-powered code reviews and suggestions
-- 🔧 **Repository maintenance** - Automate dependency updates, documentation, and cleanup tasks
-
 ### Security Built-In
 
 Workflows run with read-only permissions by default. Write operations require explicit approval through sanitized [safe outputs](/gh-aw/reference/glossary/#safe-outputs) (pre-approved GitHub operations), with sandboxed execution, tool allowlisting, and network isolation ensuring AI agents operate safely within controlled boundaries.
