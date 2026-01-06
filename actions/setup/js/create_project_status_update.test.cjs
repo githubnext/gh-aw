@@ -1,57 +1,38 @@
 // @ts-check
-const { describe, it, expect, beforeEach, vi } = require("vitest");
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+
+let main;
+
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setOutput: vi.fn(),
+};
+
+const mockGithub = {
+  graphql: vi.fn(),
+};
+
+const mockContext = {
+  repo: {
+    owner: "test-owner",
+    repo: "test-repo",
+  },
+};
+
+global.core = mockCore;
+global.github = mockGithub;
+global.context = mockContext;
+
+beforeAll(async () => {
+  const mod = await import("./create_project_status_update.cjs");
+  main = mod.main;
+});
 
 describe("create_project_status_update", () => {
-  let mockCore;
-  let mockGithub;
-  let mockContext;
-  let main;
-
   beforeEach(() => {
-    vi.resetModules();
-
-    // Mock core
-    mockCore = {
-      info: vi.fn(),
-      warning: vi.fn(),
-      error: vi.fn(),
-      setOutput: vi.fn(),
-    };
-
-    // Mock github with graphql
-    mockGithub = {
-      graphql: vi.fn(),
-    };
-
-    // Mock context
-    mockContext = {
-      repo: {
-        owner: "test-owner",
-        repo: "test-repo",
-      },
-    };
-
-    // Set up globals
-    global.core = mockCore;
-    global.github = mockGithub;
-    global.context = mockContext;
-
-    // Mock error helpers
-    vi.doMock("./error_helpers.cjs", () => ({
-      getErrorMessage: error => error.message || String(error),
-    }));
-
-    // Mock load agent output
-    vi.doMock("./load_agent_output.cjs", () => ({
-      loadAgentOutput: () => ({
-        success: true,
-        items: [],
-      }),
-    }));
-
-    // Get the module
-    const module = require("./create_project_status_update.cjs");
-    main = module.main;
+    vi.clearAllMocks();
   });
 
   it("should create a project status update with all fields", async () => {
