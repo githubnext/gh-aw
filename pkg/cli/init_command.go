@@ -23,6 +23,7 @@ This command:
 - Creates GitHub Copilot custom instructions at .github/aw/github-agentic-workflows.md
 - Creates the agent for workflow creation at .github/agents/create-agentic-workflow.agent.md
 - Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.agent.md
+- Creates the upgrade agentic workflow agent at .github/agents/upgrade-agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode YAML schema validation (.github/aw/schemas/agentic-workflow.json, .vscode/settings.json, .vscode/extensions.json)
 
@@ -56,6 +57,7 @@ With --completions flag:
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
 - Use GitHub Copilot Chat: type /agent and select debug-agentic-workflow to debug existing workflows
+- Use GitHub Copilot Chat: type /agent and select upgrade-agentic-workflows to upgrade workflows to the latest gh-aw version
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
 
