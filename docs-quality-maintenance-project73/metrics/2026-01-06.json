@@ -5,6 +5,14 @@
   "tasks_completed": 15,
   "tasks_in_progress": 1,
   "tasks_blocked": 0,
-  "velocity_per_day": 2.1,
-  "estimated_completion": "2026-01-10"
+  "velocity_per_day": 1.5,
+  "run_summary": {
+    "discovered_items": 16,
+    "processed_this_run": 15,
+    "deferred_items": 1,
+    "failures": 0,
+    "issues_discovered": 5,
+    "prs_discovered": 10,
+    "discussions_discovered": 0
+  }
 }
