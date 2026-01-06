@@ -36,6 +36,7 @@ tools:
       - github.com
   serena: ["go"]
 safe-outputs:
+    allowed-github-references: []
     add-comment:
       hide-older-comments: true
     add-labels:
