@@ -60,6 +60,12 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpEnvVars map[string]s
 
 	var steps []GitHubActionStep
 
+	// Step 0: Download awmg binary (only for default mode, not container/command mode)
+	if config.Container == "" && config.Command == "" {
+		downloadStep := generateMCPGatewayDownloadStep(config)
+		steps = append(steps, downloadStep)
+	}
+
 	// Step 1: Start MCP Gateway (background process)
 	startStep := generateMCPGatewayStartStep(config, mcpEnvVars)
 	steps = append(steps, startStep)
@@ -69,6 +75,107 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpEnvVars map[string]s
 	steps = append(steps, healthCheckStep)
 
 	return steps
+}
+
+// generateMCPGatewayDownloadStep generates the step that downloads the awmg binary
+func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActionStep {
+	gatewayLog.Print("Generating MCP gateway download step")
+
+	// Detect action mode at compile time
+	actionMode := DetectActionMode("dev")
+	gatewayLog.Printf("Generating download step for action mode: %s", actionMode)
+
+	stepLines := []string{
+		"      - name: Download MCP Gateway Binary",
+	}
+
+	// Download step needs GH_TOKEN to use gh CLI
+	// Only needed in release mode
+	if !actionMode.IsDev() {
+		stepLines = append(stepLines,
+			"        env:",
+			"          GH_TOKEN: ${{ github.token }}",
+		)
+	}
+
+	stepLines = append(stepLines,
+		"        run: |",
+	)
+
+	// Generate different installation code based on compile-time mode
+	if actionMode.IsDev() {
+		// Development mode: build from sources
+		gatewayLog.Print("Using development mode - will build awmg from sources")
+		stepLines = append(stepLines,
+			"          # Development mode: Build awmg from sources",
+			"          if [ -f \"cmd/awmg/main.go\" ] && [ -f \"Makefile\" ]; then",
+			"            echo 'Building awmg from sources (development mode)...'",
+			"            make build-awmg",
+			"            if [ -f \"./awmg\" ]; then",
+			"              echo 'Built awmg successfully'",
+			"              echo \"AWMG_CMD=./awmg\" >> $GITHUB_ENV",
+			"            else",
+			"              echo 'ERROR: Failed to build awmg from sources'",
+			"              exit 1",
+			"            fi",
+			"          # Check if awmg is already in PATH",
+			"          elif command -v awmg &> /dev/null; then",
+			"            echo 'awmg is already available in PATH'",
+			"            echo \"AWMG_CMD=awmg\" >> $GITHUB_ENV",
+			"          # Check for local awmg build",
+			"          elif [ -f \"./awmg\" ]; then",
+			"            echo 'Using existing local awmg build'",
+			"            echo \"AWMG_CMD=./awmg\" >> $GITHUB_ENV",
+			"          else",
+			"            echo 'ERROR: Could not find awmg binary or source files'",
+			"            echo 'Please build awmg with: make build-awmg'",
+			"            exit 1",
+			"          fi",
+		)
+	} else {
+		// Release mode: download from GitHub releases using gh CLI
+		gatewayLog.Print("Using release mode - will download awmg from releases")
+		stepLines = append(stepLines,
+			"          # Release mode: Download awmg from releases",
+			"          # Check if awmg is already in PATH",
+			"          if command -v awmg &> /dev/null; then",
+			"            echo 'awmg is already available in PATH'",
+			"            echo \"AWMG_CMD=awmg\" >> $GITHUB_ENV",
+			"          # Check for local awmg build",
+			"          elif [ -f \"./awmg\" ]; then",
+			"            echo 'Using existing local awmg build'",
+			"            echo \"AWMG_CMD=./awmg\" >> $GITHUB_ENV",
+			"          else",
+			"            # Download awmg from releases using gh CLI",
+			"            echo 'Downloading awmg from GitHub releases...'",
+			"            ",
+			"            # Detect platform",
+			"            OS=$(uname -s | tr '[:upper:]' '[:lower:]')",
+			"            ARCH=$(uname -m)",
+			"            if [ \"$ARCH\" = \"x86_64\" ]; then ARCH=\"amd64\"; fi",
+			"            if [ \"$ARCH\" = \"aarch64\" ]; then ARCH=\"arm64\"; fi",
+			"            ",
+			"            AWMG_BINARY=\"awmg-${OS}-${ARCH}\"",
+			"            if [ \"$OS\" = \"windows\" ]; then AWMG_BINARY=\"${AWMG_BINARY}.exe\"; fi",
+			"            ",
+			"            # Use gh CLI to download the release binary",
+			"            # gh CLI has access to GH_TOKEN for authenticated API requests",
+			"            echo \"Downloading $AWMG_BINARY using gh CLI...\"",
+			"            if gh release download --repo githubnext/gh-aw --pattern \"$AWMG_BINARY\" --dir /tmp --clobber; then",
+			"              chmod +x \"/tmp/$AWMG_BINARY\"",
+			"              echo \"AWMG_CMD=/tmp/$AWMG_BINARY\" >> $GITHUB_ENV",
+			"              echo 'Downloaded awmg successfully'",
+			"            else",
+			"              echo 'ERROR: Could not download awmg binary using gh CLI'",
+			"              echo 'Please ensure awmg is available or download it from:'",
+			"              echo 'https://github.com/githubnext/gh-aw/releases'",
+			"              exit 1",
+			"            fi",
+			"          fi",
+		)
+	}
+
+	return GitHubActionStep(stepLines)
 }
 
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
@@ -241,87 +348,10 @@ func generateCommandStartCommands(config *MCPGatewayRuntimeConfig, mcpConfigPath
 func generateDefaultAWMGCommands(config *MCPGatewayRuntimeConfig, mcpConfigPath string, port int) []string {
 	var lines []string
 
-	// Detect action mode at compile time
-	// Gateway steps use dev mode by default since they're generated at compile time
-	actionMode := DetectActionMode("dev")
-	gatewayLog.Printf("Generating gateway step for action mode: %s", actionMode)
-
-	// Generate different installation code based on compile-time mode
-	if actionMode.IsDev() {
-		// Development mode: build from sources
-		gatewayLog.Print("Using development mode - will build awmg from sources")
-		lines = append(lines,
-			"          # Development mode: Build awmg from sources",
-			"          if [ -f \"cmd/awmg/main.go\" ] && [ -f \"Makefile\" ]; then",
-			"            echo 'Building awmg from sources (development mode)...'",
-			"            make build-awmg",
-			"            if [ -f \"./awmg\" ]; then",
-			"              echo 'Built awmg successfully'",
-			"              AWMG_CMD=\"./awmg\"",
-			"            else",
-			"              echo 'ERROR: Failed to build awmg from sources'",
-			"              exit 1",
-			"            fi",
-			"          # Check if awmg is already in PATH",
-			"          elif command -v awmg &> /dev/null; then",
-			"            echo 'awmg is already available in PATH'",
-			"            AWMG_CMD=\"awmg\"",
-			"          # Check for local awmg build",
-			"          elif [ -f \"./awmg\" ]; then",
-			"            echo 'Using existing local awmg build'",
-			"            AWMG_CMD=\"./awmg\"",
-			"          else",
-			"            echo 'ERROR: Could not find awmg binary or source files'",
-			"            echo 'Please build awmg with: make build-awmg'",
-			"            exit 1",
-			"          fi",
-		)
-	} else {
-		// Release mode: download from GitHub releases
-		gatewayLog.Print("Using release mode - will download awmg from releases")
-		lines = append(lines,
-			"          # Release mode: Download awmg from releases",
-			"          # Check if awmg is already in PATH",
-			"          if command -v awmg &> /dev/null; then",
-			"            echo 'awmg is already available in PATH'",
-			"            AWMG_CMD=\"awmg\"",
-			"          # Check for local awmg build",
-			"          elif [ -f \"./awmg\" ]; then",
-			"            echo 'Using existing local awmg build'",
-			"            AWMG_CMD=\"./awmg\"",
-			"          else",
-			"            # Download awmg from releases",
-			"            echo 'Downloading awmg from GitHub releases...'",
-			"            ",
-			"            # Detect platform",
-			"            OS=$(uname -s | tr '[:upper:]' '[:lower:]')",
-			"            ARCH=$(uname -m)",
-			"            if [ \"$ARCH\" = \"x86_64\" ]; then ARCH=\"amd64\"; fi",
-			"            if [ \"$ARCH\" = \"aarch64\" ]; then ARCH=\"arm64\"; fi",
-			"            ",
-			"            AWMG_BINARY=\"awmg-${OS}-${ARCH}\"",
-			"            if [ \"$OS\" = \"windows\" ]; then AWMG_BINARY=\"${AWMG_BINARY}.exe\"; fi",
-			"            ",
-			"            # Download from releases using curl (no gh CLI dependency)",
-			"            RELEASE_URL=\"https://github.com/githubnext/gh-aw/releases/latest/download/$AWMG_BINARY\"",
-			"            echo \"Downloading from $RELEASE_URL\"",
-			"            if curl -L -f -o \"/tmp/$AWMG_BINARY\" \"$RELEASE_URL\"; then",
-			"              chmod +x \"/tmp/$AWMG_BINARY\"",
-			"              AWMG_CMD=\"/tmp/$AWMG_BINARY\"",
-			"              echo 'Downloaded awmg successfully'",
-			"            else",
-			"              echo 'ERROR: Could not download awmg binary'",
-			"              echo 'Please ensure awmg is available or download it from:'",
-			"              echo 'https://github.com/githubnext/gh-aw/releases'",
-			"              exit 1",
-			"            fi",
-			"          fi",
-		)
-	}
-
 	lines = append(lines,
 		"          ",
 		"          # Start MCP gateway in background with config file",
+		"          # AWMG_CMD is set by the download step",
 		fmt.Sprintf("          $AWMG_CMD --config %s --port %d --log-dir %s > %s/gateway.log 2>&1 &", mcpConfigPath, port, MCPGatewayLogsFolder, MCPGatewayLogsFolder),
 		"          GATEWAY_PID=$!",
 		"          echo \"MCP Gateway started with PID $GATEWAY_PID\"",
