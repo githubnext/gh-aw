@@ -91,7 +91,7 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
             expect(summary).toContain("3 allowed"),
             expect(summary).toContain("2 blocked"),
             expect(summary).toContain("4 unique domains</summary>"),
-            expect(summary).toContain("| Domain | Allowed | Denied |"),
+            expect(summary).toContain("| Domain | Allowed | Blocked |"),
             expect(summary).toContain("| api.github.com:443 | 2 | 0 |"),
             expect(summary).toContain("| api.npmjs.org:443 | 1 | 0 |"),
             expect(summary).toContain("| blocked.example.com:443 | 0 | 1 |"),
