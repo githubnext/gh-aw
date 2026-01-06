@@ -293,10 +293,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This ensures artifacts are uploaded after the agent has finished modifying the cache
 	generateCacheMemoryArtifactUpload(yaml, data)
 
-	// Collect safe-outputs assets path if upload-asset is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/safeoutputs/assets/")
-	}
+	// Note: Safe-outputs assets path is now included in the agent-output artifact
+	// See generateOutputCollectionStep() which includes /tmp/gh-aw/safeoutputs/assets/
+	// in the unified agent-output upload
 
 	// Add error validation for AI execution logs
 	c.generateErrorValidation(yaml, engine, data)

@@ -1185,7 +1185,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent-output
-          path: ${{ env.GH_AW_AGENT_OUTPUT }}
+          path: |
+            ${{ env.GH_AW_AGENT_OUTPUT }}
+            /tmp/gh-aw/safeoutputs/assets/
           if-no-files-found: warn
       - name: Parse agent logs for step summary
         if: always()
@@ -1237,7 +1239,6 @@ jobs:
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
-            /tmp/gh-aw/safeoutputs/assets/
             /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
@@ -1698,12 +1699,6 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Download assets
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
       - name: List downloaded asset files
         continue-on-error: true
         run: |
