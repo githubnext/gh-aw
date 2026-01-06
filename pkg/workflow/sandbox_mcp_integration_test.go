@@ -84,7 +84,7 @@ Test workflow for sandbox MCP container configuration.
 	// Check health check uses correct port
 	assert.Contains(t, lockFileStr, "Verify MCP Gateway Health")
 	assert.Contains(t, lockFileStr, "http://localhost:8000")
-	
+
 	// Ensure we're NOT using the default port
 	healthCheckLine := ""
 	for _, line := range strings.Split(lockFileStr, "\n") {
@@ -158,7 +158,7 @@ Test workflow for sandbox MCP command configuration.
 	// Check command start
 	assert.Contains(t, lockFileStr, "Start MCP Gateway")
 	assert.Contains(t, lockFileStr, "./custom-gateway --port 9000")
-	
+
 	// Check environment variables
 	assert.Contains(t, lockFileStr, `LOG_LEVEL="debug"`)
 
