@@ -285,6 +285,67 @@ func GetClaudeAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeI
 	return mergeDomainsWithNetwork(ClaudeDefaultDomains, network)
 }
 
+// GetBlockedDomains returns the blocked domains from network permissions
+// Returns empty slice if no network permissions configured or no domains blocked
+// The returned list is sorted and deduplicated
+// Supports ecosystem identifiers (same as allowed domains)
+func GetBlockedDomains(network *NetworkPermissions) []string {
+	if network == nil {
+		domainsLog.Print("No network permissions specified, no blocked domains")
+		return []string{}
+	}
+
+	// Handle empty blocked list
+	if len(network.Blocked) == 0 {
+		domainsLog.Print("Empty blocked list, no domains blocked")
+		return []string{}
+	}
+
+	domainsLog.Printf("Processing %d blocked domains/ecosystems", len(network.Blocked))
+
+	// Process the blocked list, expanding ecosystem identifiers if present
+	// Use a map to deduplicate domains
+	domainMap := make(map[string]bool)
+	for _, domain := range network.Blocked {
+		// Try to get domains for this ecosystem category
+		ecosystemDomains := getEcosystemDomains(domain)
+		if len(ecosystemDomains) > 0 {
+			// This was an ecosystem identifier, expand it
+			domainsLog.Printf("Expanded ecosystem '%s' to %d domains", domain, len(ecosystemDomains))
+			for _, d := range ecosystemDomains {
+				domainMap[d] = true
+			}
+		} else {
+			// Add the domain as-is (regular domain name)
+			domainMap[domain] = true
+		}
+	}
+
+	// Convert map to sorted slice
+	expandedDomains := make([]string, 0, len(domainMap))
+	for domain := range domainMap {
+		expandedDomains = append(expandedDomains, domain)
+	}
+	SortStrings(expandedDomains)
+
+	return expandedDomains
+}
+
+// formatBlockedDomains formats blocked domains as a comma-separated string suitable for AWF's --block-domains flag
+// Returns empty string if no blocked domains
+func formatBlockedDomains(network *NetworkPermissions) string {
+	if network == nil {
+		return ""
+	}
+
+	blockedDomains := GetBlockedDomains(network)
+	if len(blockedDomains) == 0 {
+		return ""
+	}
+
+	return strings.Join(blockedDomains, ",")
+}
+
 // computeAllowedDomainsForSanitization computes the allowed domains for sanitization
 // based on the engine and network configuration, matching what's provided to the firewall
 func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
