@@ -87,8 +87,8 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			}
 
 			// Apply default tools (this should add git commands when safe outputs require them)
-			claudeTools = compiler.applyDefaultTools(claudeTools, tt.safeOutputs, nil)
-			copilotTools = compiler.applyDefaultTools(copilotTools, tt.safeOutputs, nil)
+			claudeTools = compiler.applyDefaultTools(claudeTools, tt.safeOutputs, nil, nil)
+			copilotTools = compiler.applyDefaultTools(copilotTools, tt.safeOutputs, nil, nil)
 
 			// Extract cache-memory config for Claude
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(claudeTools)

@@ -220,25 +220,72 @@ Test workflow where explicit tools.bash should take precedence over default.
 		// Verify bash tool is present (explicit configuration)
 		assert.Contains(t, lockStr, "bash", "Expected bash tool with explicit configuration")
 	})
+
+	t.Run("auto-enabled firewall adds edit and bash tools", func(t *testing.T) {
+		// Create temp directory for test workflows
+		workflowsDir := t.TempDir()
+
+		// No explicit sandbox.agent, but network restrictions will auto-enable firewall
+		markdown := `---
+engine: copilot
+network:
+  allowed:
+    - github.com
+on: workflow_dispatch
+---
+
+Test workflow where firewall is auto-enabled via network restrictions.
+`
+
+		workflowPath := filepath.Join(workflowsDir, "test-auto-firewall.md")
+		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
+		require.NoError(t, err, "Failed to write workflow file")
+
+		// Compile the workflow
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetSkipValidation(true)
+
+		err = compiler.CompileWorkflow(workflowPath)
+		require.NoError(t, err, "Compilation failed")
+
+		// Read the compiled workflow
+		lockPath := filepath.Join(workflowsDir, "test-auto-firewall.lock.yml")
+		lockContent, err := os.ReadFile(lockPath)
+		require.NoError(t, err, "Failed to read compiled workflow")
+
+		lockStr := string(lockContent)
+
+		// Verify that edit tool is present (auto-enabled by firewall)
+		assert.Contains(t, lockStr, "edit", "Expected edit tool to be enabled when firewall is auto-enabled")
+
+		// Verify that bash tool is present
+		assert.Contains(t, lockStr, "bash", "Expected bash tool to be enabled when firewall is auto-enabled")
+		
+		// Verify AWF is present
+		assert.Contains(t, lockStr, "gh-aw-firewall", "Expected AWF to be present when auto-enabled")
+	})
 }
 
-func TestIsSandboxAgentEnabled(t *testing.T) {
+func TestIsSandboxEnabled(t *testing.T) {
 	tests := []struct {
-		name          string
-		sandboxConfig *SandboxConfig
-		expected      bool
+		name               string
+		sandboxConfig      *SandboxConfig
+		networkPermissions *NetworkPermissions
+		expected           bool
 	}{
 		{
-			name:          "nil sandbox config",
-			sandboxConfig: nil,
-			expected:      false,
+			name:               "nil sandbox config and no network permissions",
+			sandboxConfig:      nil,
+			networkPermissions: nil,
+			expected:           false,
 		},
 		{
-			name: "nil agent",
+			name: "nil agent and no firewall",
 			sandboxConfig: &SandboxConfig{
 				Agent: nil,
 			},
-			expected: false,
+			networkPermissions: nil,
+			expected:           false,
 		},
 		{
 			name: "agent disabled",
@@ -247,34 +294,38 @@ func TestIsSandboxAgentEnabled(t *testing.T) {
 					Disabled: true,
 				},
 			},
-			expected: false,
+			networkPermissions: nil,
+			expected:           false,
 		},
 		{
-			name: "agent awf",
+			name: "agent awf explicitly configured",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
 				},
 			},
-			expected: true,
+			networkPermissions: nil,
+			expected:           true,
 		},
 		{
-			name: "agent srt",
+			name: "agent srt explicitly configured",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeSRT,
 				},
 			},
-			expected: true,
+			networkPermissions: nil,
+			expected:           true,
 		},
 		{
-			name: "agent default",
+			name: "agent default explicitly configured",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeDefault,
 				},
 			},
-			expected: true,
+			networkPermissions: nil,
+			expected:           true,
 		},
 		{
 			name: "agent with ID awf",
@@ -283,7 +334,8 @@ func TestIsSandboxAgentEnabled(t *testing.T) {
 					ID: "awf",
 				},
 			},
-			expected: true,
+			networkPermissions: nil,
+			expected:           true,
 		},
 		{
 			name: "agent with ID srt",
@@ -292,14 +344,69 @@ func TestIsSandboxAgentEnabled(t *testing.T) {
 					ID: "srt",
 				},
 			},
+			networkPermissions: nil,
+			expected:           true,
+		},
+		{
+			name:          "firewall auto-enabled (no explicit agent config)",
+			sandboxConfig: nil,
+			networkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
 			expected: true,
+		},
+		{
+			name: "firewall auto-enabled with empty sandbox config",
+			sandboxConfig: &SandboxConfig{
+				Agent: nil,
+			},
+			networkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "firewall disabled even with network permissions",
+			sandboxConfig: nil,
+			networkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: false,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "agent disabled overrides auto-enabled firewall",
+			sandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Disabled: true,
+				},
+			},
+			networkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "legacy SRT via Type field",
+			sandboxConfig: &SandboxConfig{
+				Type: SandboxTypeSRT,
+			},
+			networkPermissions: nil,
+			expected:           true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isSandboxAgentEnabled(tt.sandboxConfig)
-			assert.Equal(t, tt.expected, result, "isSandboxAgentEnabled returned unexpected result")
+			result := isSandboxEnabled(tt.sandboxConfig, tt.networkPermissions)
+			assert.Equal(t, tt.expected, result, "isSandboxEnabled returned unexpected result")
 		})
 	}
 }
