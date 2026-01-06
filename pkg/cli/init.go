@@ -79,6 +79,16 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug agentic workflow agent"))
 	}
 
+	// Write upgrade agentic workflow agent
+	initLog.Print("Writing upgrade agentic workflow agent")
+	if err := ensureUpgradeAgenticWorkflowAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write upgrade agentic workflow agent: %v", err)
+		return fmt.Errorf("failed to write upgrade agentic workflow agent: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created upgrade agentic workflow agent"))
+	}
+
 	// Write agentic campaign designer agent if requested
 	if campaign {
 		initLog.Print("Writing agentic campaign designer agent")
