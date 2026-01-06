@@ -69,6 +69,96 @@ func TestParseMCPGatewayTool(t *testing.T) {
 				Port: 8888,
 			},
 		},
+		{
+			name: "uint64 port (YAML parser default)",
+			input: map[string]any{
+				"port": uint64(8000),
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port: 8000,
+			},
+		},
+		{
+			name: "int64 port",
+			input: map[string]any{
+				"port": int64(9000),
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port: 9000,
+			},
+		},
+		{
+			name: "container mode with full configuration",
+			input: map[string]any{
+				"container": "ghcr.io/githubnext/gh-aw-mcpg:latest",
+				"args": []any{
+					"--rm",
+					"-i",
+					"-v",
+					"/var/run/docker.sock:/var/run/docker.sock",
+					"-p",
+					"8000:8000",
+				},
+				"entrypointArgs": []any{
+					"--routed",
+					"--listen",
+					"0.0.0.0:8000",
+					"--config-stdin",
+				},
+				"port": uint64(8000),
+				"env": map[string]any{
+					"DOCKER_API_VERSION": "1.44",
+					"GITHUB_TOKEN":       "${{ secrets.GITHUB_TOKEN }}",
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
+				Args: []string{
+					"--rm",
+					"-i",
+					"-v",
+					"/var/run/docker.sock:/var/run/docker.sock",
+					"-p",
+					"8000:8000",
+				},
+				EntrypointArgs: []string{
+					"--routed",
+					"--listen",
+					"0.0.0.0:8000",
+					"--config-stdin",
+				},
+				Port: 8000,
+				Env: map[string]string{
+					"DOCKER_API_VERSION": "1.44",
+					"GITHUB_TOKEN":       "${{ secrets.GITHUB_TOKEN }}",
+				},
+			},
+		},
+		{
+			name: "command mode with full configuration",
+			input: map[string]any{
+				"command": "./custom-gateway",
+				"args": []any{
+					"--port",
+					"9000",
+				},
+				"port": uint64(9000),
+				"env": map[string]any{
+					"LOG_LEVEL": "debug",
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Command: "./custom-gateway",
+				Args: []string{
+					"--port",
+					"9000",
+				},
+				Port: 9000,
+				Env: map[string]string{
+					"LOG_LEVEL": "debug",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
