@@ -88,13 +88,14 @@ echo '=== MCP Configuration Content ==='
 cat "$mcp_config_path" || { echo 'ERROR: Failed to read MCP config file'; exit 1; }
 echo ''
 
-# Verify safeinputs and safeoutputs are present in config
+# Verify safeoutputs is present in config (required for all gateway-enabled workflows)
+# Note: safeinputs is optional and only present when safe-inputs is configured in the workflow
 echo '=== Verifying Required Servers ==='
-if ! grep -q '"safeinputs"' "$mcp_config_path"; then
-  echo '✗ ERROR: safeinputs server not found in MCP configuration'
-  exit 1
+if grep -q '"safeinputs"' "$mcp_config_path"; then
+  echo '✓ safeinputs server found in configuration'
+else
+  echo 'ℹ safeinputs server not configured (optional - only present when safe-inputs is enabled)'
 fi
-echo '✓ safeinputs server found in configuration'
 
 if ! grep -q '"safeoutputs"' "$mcp_config_path"; then
   echo '✗ ERROR: safeoutputs server not found in MCP configuration'
