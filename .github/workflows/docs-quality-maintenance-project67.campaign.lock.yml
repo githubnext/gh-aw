@@ -797,7 +797,7 @@ jobs:
                  status: "In Progress"
                  campaign_id: "docs-quality-maintenance-project73"
                  worker_workflow: "unknown"
-                 repo: "<OWNER/REPO>"
+                 repository: "<OWNER/REPO>"
                  priority: "High"
                  size: "Large"
                  start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
@@ -946,7 +946,7 @@ jobs:
           | `status` | single-select | `Todo` / `In Progress` / `Done` |
           | `campaign_id` | text | Must equal `docs-quality-maintenance-project73` |
           | `worker_workflow` | text | workflow ID or `"unknown"` |
-          | `repo` | text | `owner/repo` (Note: Do not use field name "repository" - it conflicts with GitHub's built-in REPOSITORY type) |
+          | `repository` | text | `owner/repo` |
           | `priority` | single-select | `High` / `Medium` / `Low` |
           | `size` | single-select | `Small` / `Medium` / `Large` |
           | `start_date` | date | `YYYY-MM-DD` |
@@ -1008,7 +1008,7 @@ jobs:
               status: "Todo"                   # "Done" if already closed/merged
               campaign_id: "docs-quality-maintenance-project73"
               worker_workflow: "unknown"
-              repo: "owner/repo"
+              repository: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
@@ -1051,7 +1051,7 @@ jobs:
               status: "Done"
               campaign_id: "docs-quality-maintenance-project73"
               worker_workflow: "WORKFLOW_ID"
-              repo: "owner/repo"
+              repository: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
@@ -1134,6 +1134,12 @@ jobs:
           - All project writes MUST comply with `project_update_instructions.md`.
           - State reads and state writes MUST NOT be interleaved.
           - Do NOT infer missing data or invent values.
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - Do NOT reorganize hierarchy.
           - Do NOT overwrite fields except as explicitly allowed.
           - Workers are immutable and campaign-agnostic.
