@@ -334,7 +334,7 @@ func TestGenerateFindings(t *testing.T) {
 				pr := createTestProcessedRun()
 				pr.FirewallAnalysis = &FirewallAnalysis{
 					TotalRequests:   10,
-					BlockedRequests:  5,
+					BlockedRequests: 5,
 					AllowedRequests: 5,
 				}
 				return pr
@@ -980,11 +980,11 @@ func TestBuildAuditDataComplete(t *testing.T) {
 		FirewallAnalysis: &FirewallAnalysis{
 			DomainBuckets: DomainBuckets{
 				AllowedDomains: []string{"api.github.com"},
-				BlockedDomains:  []string{"blocked.example.com"},
+				BlockedDomains: []string{"blocked.example.com"},
 			},
 			TotalRequests:   15,
 			AllowedRequests: 10,
-			BlockedRequests:  5,
+			BlockedRequests: 5,
 			RequestsByDomain: map[string]DomainRequestStats{
 				"api.github.com":      {Allowed: 10, Blocked: 0},
 				"blocked.example.com": {Allowed: 0, Blocked: 5},

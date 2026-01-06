@@ -92,7 +92,7 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		},
 		TotalRequests:   42,
 		AllowedRequests: 40,
-		BlockedRequests:  2,
+		BlockedRequests: 2,
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":       {Allowed: 25, Blocked: 0},
 			"search.brave.com:443":     {Allowed: 10, Blocked: 0},

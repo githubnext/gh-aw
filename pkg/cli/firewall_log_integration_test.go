@@ -146,11 +146,11 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 			FirewallAnalysis: &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
-					BlockedDomains:  []string{"blocked.example.com:443"},
+					BlockedDomains: []string{"blocked.example.com:443"},
 				},
 				TotalRequests:   10,
 				AllowedRequests: 8,
-				BlockedRequests:  2,
+				BlockedRequests: 2,
 				RequestsByDomain: map[string]DomainRequestStats{
 					"api.github.com:443":      {Allowed: 5, Blocked: 0},
 					"api.npmjs.org:443":       {Allowed: 3, Blocked: 0},
@@ -165,11 +165,11 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 			FirewallAnalysis: &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{"api.github.com:443"},
-					BlockedDomains:  []string{"denied.site:443"},
+					BlockedDomains: []string{"denied.site:443"},
 				},
 				TotalRequests:   5,
 				AllowedRequests: 3,
-				BlockedRequests:  2,
+				BlockedRequests: 2,
 				RequestsByDomain: map[string]DomainRequestStats{
 					"api.github.com:443": {Allowed: 3, Blocked: 0},
 					"denied.site:443":    {Allowed: 0, Blocked: 2},

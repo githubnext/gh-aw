@@ -22,7 +22,7 @@ func TestDomainAnalysisGettersSetters(t *testing.T) {
 	analysis := &DomainAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{"example.com", "test.com"},
-			BlockedDomains:  []string{"blocked.com"},
+			BlockedDomains: []string{"blocked.com"},
 		},
 	}
 
@@ -55,13 +55,13 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 	analysis1 := &DomainAnalysis{
 		TotalRequests: 10,
 		AllowedCount:  6,
-		BlockedCount:   4,
+		BlockedCount:  4,
 	}
 
 	analysis2 := &DomainAnalysis{
 		TotalRequests: 5,
 		AllowedCount:  3,
-		BlockedCount:   2,
+		BlockedCount:  2,
 	}
 
 	analysis1.AddMetrics(analysis2)
@@ -81,7 +81,7 @@ func TestFirewallAnalysisGettersSetters(t *testing.T) {
 	analysis := &FirewallAnalysis{
 		DomainBuckets: DomainBuckets{
 			AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
-			BlockedDomains:  []string{"blocked.example.com:443"},
+			BlockedDomains: []string{"blocked.example.com:443"},
 		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
@@ -115,7 +115,7 @@ func TestFirewallAnalysisAddMetrics(t *testing.T) {
 	analysis1 := &FirewallAnalysis{
 		TotalRequests:   10,
 		AllowedRequests: 6,
-		BlockedRequests:  4,
+		BlockedRequests: 4,
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443": {Allowed: 3, Blocked: 1},
 		},
@@ -124,7 +124,7 @@ func TestFirewallAnalysisAddMetrics(t *testing.T) {
 	analysis2 := &FirewallAnalysis{
 		TotalRequests:   5,
 		AllowedRequests: 3,
-		BlockedRequests:  2,
+		BlockedRequests: 2,
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443": {Allowed: 2, Blocked: 0},
 			"api.npmjs.org:443":  {Allowed: 1, Blocked: 2},
@@ -200,7 +200,7 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 			return &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					BlockedDomains:  []string{},
+					BlockedDomains: []string{},
 				},
 			}
 		},
@@ -275,7 +275,7 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 			return &FirewallAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					BlockedDomains:  []string{},
+					BlockedDomains: []string{},
 				},
 				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
@@ -325,7 +325,7 @@ func TestAggregateLogFilesNoFiles(t *testing.T) {
 			return &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					BlockedDomains:  []string{},
+					BlockedDomains: []string{},
 				},
 			}
 		},
@@ -374,7 +374,7 @@ func TestAggregateLogFilesWithParseErrors(t *testing.T) {
 			return &DomainAnalysis{
 				DomainBuckets: DomainBuckets{
 					AllowedDomains: []string{},
-					BlockedDomains:  []string{},
+					BlockedDomains: []string{},
 				},
 			}
 		},
