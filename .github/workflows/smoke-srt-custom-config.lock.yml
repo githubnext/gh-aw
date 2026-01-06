@@ -514,7 +514,7 @@ jobs:
                 "www.npmjs.org",
                 "yarnpkg.com"
               ],
-              "deniedDomains": [],
+              "blockedDomains": [],
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],

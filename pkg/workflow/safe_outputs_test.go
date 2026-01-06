@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // ========================================
@@ -256,9 +257,9 @@ func TestNormalizeSafeOutputIdentifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := normalizeSafeOutputIdentifier(tt.identifier)
+			result := stringutil.NormalizeSafeOutputIdentifier(tt.identifier)
 			if result != tt.expected {
-				t.Errorf("normalizeSafeOutputIdentifier(%q) = %q, want %q", tt.identifier, result, tt.expected)
+				t.Errorf("stringutil.NormalizeSafeOutputIdentifier(%q) = %q, want %q", tt.identifier, result, tt.expected)
 			}
 		})
 	}

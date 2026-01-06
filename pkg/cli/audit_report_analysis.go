@@ -123,12 +123,12 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 	}
 
 	// Firewall findings
-	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.DeniedRequests > 0 {
+	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.BlockedRequests > 0 {
 		findings = append(findings, Finding{
 			Category:    "network",
 			Severity:    "medium",
 			Title:       "Blocked Network Requests",
-			Description: fmt.Sprintf("%d network requests were blocked by firewall", processedRun.FirewallAnalysis.DeniedRequests),
+			Description: fmt.Sprintf("%d network requests were blocked by firewall", processedRun.FirewallAnalysis.BlockedRequests),
 			Impact:      "Blocked requests may indicate missing network permissions or unexpected behavior",
 		})
 	}
@@ -220,7 +220,7 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 	}
 
 	// Recommendations for firewall blocks
-	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.DeniedRequests > 10 {
+	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.BlockedRequests > 10 {
 		recommendations = append(recommendations, Recommendation{
 			Priority: "medium",
 			Action:   "Review network access configuration",

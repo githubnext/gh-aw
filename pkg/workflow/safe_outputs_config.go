@@ -220,8 +220,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingTool = missingToolConfig
 			} else {
 				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
+				// Auto-enabled missing-tool does NOT have create-issue enabled by default
 				if _, exists := outputMap["missing-tool"]; !exists {
-					config.MissingTool = &MissingToolConfig{} // Default: enabled with no max limit
+					config.MissingTool = &MissingToolConfig{
+						CreateIssue: false, // Auto-enabled missing-tool doesn't create issues by default
+						TitlePrefix: "",
+						Labels:      nil,
+					}
 				}
 			}
 

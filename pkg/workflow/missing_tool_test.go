@@ -211,36 +211,51 @@ func TestMissingToolConfigParsing(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name        string
-		configData  map[string]any
-		expectMax   int
-		expectError bool
+		name              string
+		configData        map[string]any
+		expectMax         int
+		expectCreateIssue bool
+		expectTitlePrefix string
+		expectLabels      []string
+		expectError       bool
 	}{
 		{
-			name:       "Empty config",
-			configData: map[string]any{"missing-tool": nil},
-			expectMax:  0,
+			name:              "Empty config - defaults",
+			configData:        map[string]any{"missing-tool": nil},
+			expectMax:         0,
+			expectCreateIssue: true,
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
 		},
 		{
 			name: "Config with max as int",
 			configData: map[string]any{
 				"missing-tool": map[string]any{"max": 5},
 			},
-			expectMax: 5,
+			expectMax:         5,
+			expectCreateIssue: true,
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
 		},
 		{
 			name: "Config with max as float64 (from YAML)",
 			configData: map[string]any{
 				"missing-tool": map[string]any{"max": float64(10)},
 			},
-			expectMax: 10,
+			expectMax:         10,
+			expectCreateIssue: true,
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
 		},
 		{
 			name: "Config with max as int64",
 			configData: map[string]any{
 				"missing-tool": map[string]any{"max": int64(15)},
 			},
-			expectMax: 15,
+			expectMax:         15,
+			expectCreateIssue: true,
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
 		},
 		{
 			name:       "No missing-tool key",
@@ -253,6 +268,57 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				"missing-tool": false,
 			},
 			expectMax: -1, // Indicates nil config (disabled)
+		},
+		{
+			name: "create-issue explicitly disabled",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"create-issue": false,
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: false,
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name: "Custom title-prefix",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"title-prefix": "🔧 Missing:",
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: true,
+			expectTitlePrefix: "🔧 Missing:",
+			expectLabels:      []string{},
+		},
+		{
+			name: "Custom labels",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"labels": []any{"bug", "enhancement", "missing-tool"},
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: true,
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{"bug", "enhancement", "missing-tool"},
+		},
+		{
+			name: "Full configuration",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"max":          3,
+					"create-issue": true,
+					"title-prefix": "[Tool Missing]",
+					"labels":       []any{"needs-triage", "missing-tool"},
+				},
+			},
+			expectMax:         3,
+			expectCreateIssue: true,
+			expectTitlePrefix: "[Tool Missing]",
+			expectLabels:      []string{"needs-triage", "missing-tool"},
 		},
 	}
 
@@ -270,6 +336,21 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				}
 				if config.Max != tt.expectMax {
 					t.Errorf("Expected max %d, got %d", tt.expectMax, config.Max)
+				}
+				if config.CreateIssue != tt.expectCreateIssue {
+					t.Errorf("Expected create-issue %v, got %v", tt.expectCreateIssue, config.CreateIssue)
+				}
+				if config.TitlePrefix != tt.expectTitlePrefix {
+					t.Errorf("Expected title-prefix %q, got %q", tt.expectTitlePrefix, config.TitlePrefix)
+				}
+				if len(config.Labels) != len(tt.expectLabels) {
+					t.Errorf("Expected %d labels, got %d", len(tt.expectLabels), len(config.Labels))
+				} else {
+					for i, label := range tt.expectLabels {
+						if config.Labels[i] != label {
+							t.Errorf("Expected label[%d] %q, got %q", i, label, config.Labels[i])
+						}
+					}
 				}
 			}
 		})

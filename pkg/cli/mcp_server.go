@@ -553,7 +553,7 @@ Returns JSON with the following structure:
 - errors: Error details (file, line, type, message)
 - warnings: Warning details (file, line, type, message)
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
-- firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, denied_requests, allowed_domains, denied_domains)
+- firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)
 
 Note: Output can be filtered using the jq parameter.`,
 		Icons: []mcp.Icon{

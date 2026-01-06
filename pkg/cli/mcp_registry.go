@@ -413,22 +413,3 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	mcpRegistryLog.Printf("MCP server not found: name=%s", serverName)
 	return nil, fmt.Errorf("MCP server '%s' not found in registry", serverName)
 }
-
-// cleanMCPToolID removes common MCP prefixes and suffixes from tool IDs
-// Examples: "notion-mcp" -> "notion", "mcp-notion" -> "notion", "some-mcp-server" -> "some-server"
-func cleanMCPToolID(toolID string) string {
-	cleaned := toolID
-
-	// Remove "mcp-" prefix
-	cleaned = strings.TrimPrefix(cleaned, "mcp-")
-
-	// Remove "-mcp" suffix
-	cleaned = strings.TrimSuffix(cleaned, "-mcp")
-
-	// If the result is empty, use the original
-	if cleaned == "" {
-		return toolID
-	}
-
-	return cleaned
-}
