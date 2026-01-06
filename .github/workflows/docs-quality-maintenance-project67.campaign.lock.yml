@@ -270,6 +270,50 @@ jobs:
               "name": "add_comment"
             },
             {
+              "description": "Create a status update on a GitHub Projects v2 board. Status updates provide stakeholder communication and historical record of project progress with a timeline. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Status update body in markdown format describing progress, findings, trends, and next steps. Should provide stakeholders with clear understanding of project state.",
+                    "type": "string"
+                  },
+                  "project": {
+                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  },
+                  "start_date": {
+                    "description": "Optional project start date in YYYY-MM-DD format (e.g., '2026-01-06').",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "description": "Status indicator for the project. Defaults to ON_TRACK. Values: ON_TRACK (progressing well), AT_RISK (has issues/blockers), OFF_TRACK (significantly behind), COMPLETE (finished), INACTIVE (paused/cancelled).",
+                    "enum": [
+                      "ON_TRACK",
+                      "AT_RISK",
+                      "OFF_TRACK",
+                      "COMPLETE",
+                      "INACTIVE"
+                    ],
+                    "type": "string"
+                  },
+                  "target_date": {
+                    "description": "Optional project target/end date in YYYY-MM-DD format (e.g., '2026-12-31').",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_project_status_update"
+            },
+            {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
                 "additionalProperties": false,
