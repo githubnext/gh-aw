@@ -133,9 +133,9 @@ Allowed Domains:
   ✓ pypi.org:443 (1 requests)
   ✓ registry.npmjs.org:443 (1 requests)
 
-Denied Domains:
+Blocked Domains:
   ✗ blocked-domain.example.com:443 (2 requests)
-  ✗ denied.malicious.site:443 (1 requests)
+  ✗ blocked.malicious.site:443 (1 requests)
 ```text
 
 ### JSON Output
@@ -145,32 +145,32 @@ Denied Domains:
   "firewall_log": {
     "total_requests": 8,
     "allowed_requests": 5,
-    "denied_requests": 3,
+    "blocked_requests": 3,
     "allowed_domains": [
       "api.enterprise.githubcopilot.com:443",
       "api.github.com:443",
       "pypi.org:443",
       "registry.npmjs.org:443"
     ],
-    "denied_domains": [
+    "blocked_domains": [
       "blocked-domain.example.com:443",
-      "denied.malicious.site:443"
+      "blocked.malicious.site:443"
     ],
     "requests_by_domain": {
       "api.github.com:443": {
         "allowed": 2,
-        "denied": 0
+        "blocked": 0
       },
       "blocked-domain.example.com:443": {
         "allowed": 0,
-        "denied": 2
+        "blocked": 2
       }
     },
     "by_workflow": {
       "workflow-1": {
         "total_requests": 8,
         "allowed_requests": 5,
-        "denied_requests": 3
+        "blocked_requests": 3
       }
     }
   }
