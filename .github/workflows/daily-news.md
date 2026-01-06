@@ -55,18 +55,12 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
-      
-      # Create directories
       mkdir -p /tmp/gh-aw/daily-news-data
       mkdir -p /tmp/gh-aw/repo-memory/default/daily-news-data
-      
-      # Check if cached data exists and is recent (< 24 hours old)
       CACHE_VALID=false
       CACHE_TIMESTAMP_FILE="/tmp/gh-aw/repo-memory/default/daily-news-data/.timestamp"
-      
       if [ -f "$CACHE_TIMESTAMP_FILE" ]; then
         CACHE_AGE=$(($(date +%s) - $(cat "$CACHE_TIMESTAMP_FILE")))
-        # 24 hours = 86400 seconds
         if [ $CACHE_AGE -lt 86400 ]; then
           echo "✅ Found valid cached data (age: ${CACHE_AGE}s, less than 24h)"
           CACHE_VALID=true
@@ -76,22 +70,15 @@ steps:
       else
         echo "ℹ No cached data found, will fetch fresh data"
       fi
-      
-      # Use cached data if valid, otherwise fetch fresh data
       if [ "$CACHE_VALID" = true ]; then
         echo "📦 Using cached data from previous run"
         cp -r /tmp/gh-aw/repo-memory/default/daily-news-data/* /tmp/gh-aw/daily-news-data/
         echo "✅ Cached data restored to working directory"
       else
         echo "🔄 Fetching fresh data from GitHub API..."
-        
-        # Calculate date range (last 30 days)
         END_DATE=$(date -u +%Y-%m-%d)
         START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)
-        
         echo "Fetching data from $START_DATE to $END_DATE"
-        
-        # Fetch issues (open and recently closed)
         echo "Fetching issues..."
         gh api graphql -f query="
           query(\$owner: String!, \$repo: String!) {
@@ -123,8 +110,6 @@ steps:
             }
           }
         " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
-        
-        # Fetch pull requests (open and recently merged/closed)
         echo "Fetching pull requests..."
         gh api graphql -f query="
           query(\$owner: String!, \$repo: String!) {
@@ -169,21 +154,15 @@ steps:
             }
           }
         " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
-        
-        # Fetch recent commits (last 100)
         echo "Fetching commits..."
         gh api "repos/${GITHUB_REPOSITORY}/commits" \
           --paginate \
           --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \
           > /tmp/gh-aw/daily-news-data/commits.json
-        
-        # Fetch releases
         echo "Fetching releases..."
         gh api "repos/${GITHUB_REPOSITORY}/releases" \
           --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \
           > /tmp/gh-aw/daily-news-data/releases.json
-        
-        # Fetch discussions
         echo "Fetching discussions..."
         gh api graphql -f query="
           query(\$owner: String!, \$repo: String!) {
@@ -203,23 +182,17 @@ steps:
             }
           }
         " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
-        
-        # Check for changesets
         echo "Checking for changesets..."
         if [ -d ".changeset" ]; then
           find .changeset -name "*.md" -type f ! -name "README.md" > /tmp/gh-aw/daily-news-data/changesets.txt
         else
           echo "No changeset directory" > /tmp/gh-aw/daily-news-data/changesets.txt
         fi
-        
-        # Cache the freshly downloaded data for next run
         echo "💾 Caching data for future runs..."
         cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/repo-memory/default/daily-news-data/
         date +%s > "$CACHE_TIMESTAMP_FILE"
-        
         echo "✅ Data download and caching complete"
       fi
-      
       find /tmp/gh-aw/daily-news-data/ -maxdepth 1 -ls
 
 imports:
