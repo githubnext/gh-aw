@@ -136,16 +136,6 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 		// Release mode: download awmg using install-awmg.sh script from main branch
 		gatewayLog.Print("Using release mode - will download awmg using install-awmg.sh script")
 
-		// Detect current release tag (if available)
-		releaseTag := GetCurrentGitTag()
-		var versionArg string
-		if releaseTag != "" {
-			versionArg = releaseTag
-			gatewayLog.Printf("Detected release tag: %s", releaseTag)
-		} else {
-			gatewayLog.Print("No release tag detected, will use latest release")
-		}
-
 		stepLines = append(stepLines,
 			"          # Release mode: Download awmg using install-awmg.sh script",
 			"          # Check if awmg is already in PATH",
@@ -162,22 +152,23 @@ func generateMCPGatewayDownloadStep(config *MCPGatewayRuntimeConfig) GitHubActio
 			"            curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-awmg.sh -o /tmp/install-awmg.sh",
 			"            chmod +x /tmp/install-awmg.sh",
 			"            ",
-		)
-
-		// Add version argument if release tag is available
-		if versionArg != "" {
-			stepLines = append(stepLines,
-				"            # Download awmg for release tag: "+versionArg,
-				fmt.Sprintf("            /tmp/install-awmg.sh %s", versionArg),
-			)
-		} else {
-			stepLines = append(stepLines,
-				"            # Download latest awmg release",
-				"            /tmp/install-awmg.sh",
-			)
-		}
-
-		stepLines = append(stepLines,
+			"            # Detect release tag from GITHUB_REF at runtime",
+			"            RELEASE_TAG=\"\"",
+			"            if [[ \"$GITHUB_REF\" == refs/tags/* ]]; then",
+			"              RELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"",
+			"              echo \"Detected release tag: $RELEASE_TAG\"",
+			"            else",
+			"              echo 'No release tag detected, will use latest release'",
+			"            fi",
+			"            ",
+			"            # Run install script with version if available",
+			"            if [ -n \"$RELEASE_TAG\" ]; then",
+			"              echo \"Downloading awmg for release tag: $RELEASE_TAG\"",
+			"              /tmp/install-awmg.sh \"$RELEASE_TAG\"",
+			"            else",
+			"              echo 'Downloading latest awmg release'",
+			"              /tmp/install-awmg.sh",
+			"            fi",
 			"            ",
 			"            # Set AWMG_CMD to installed binary location",
 			"            if [ -f \"$HOME/.local/bin/awmg\" ]; then",
