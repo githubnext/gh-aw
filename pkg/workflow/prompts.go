@@ -83,27 +83,6 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 }
 
 // ============================================================================
-// Tool Prompts - Edit Tool
-// ============================================================================
-
-// hasEditTool checks if the edit tool is enabled in the tools configuration
-func hasEditTool(parsedTools *Tools) bool {
-	if parsedTools == nil {
-		return false
-	}
-	return parsedTools.Edit != nil
-}
-
-// generateEditToolPromptStep generates a separate step for edit tool accessibility instructions
-// Only generates the step if edit tool is enabled in the workflow
-func (c *Compiler) generateEditToolPromptStep(yaml *strings.Builder, data *WorkflowData) {
-	generateStaticPromptStepFromFile(yaml,
-		"Append edit tool accessibility instructions to prompt",
-		editToolPromptFile,
-		hasEditTool(data.ParsedTools))
-}
-
-// ============================================================================
 // Tool Prompts - Playwright
 // ============================================================================
 
