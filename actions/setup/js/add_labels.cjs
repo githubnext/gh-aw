@@ -48,14 +48,21 @@ async function main(config = {}) {
     processedCount++;
 
     // Determine target issue/PR number
-    const itemNumber = message.item_number !== undefined ? parseInt(String(message.item_number), 10) : context.payload?.issue?.number || context.payload?.pull_request?.number;
+    const itemNumber = message.item_number !== undefined 
+      ? parseInt(String(message.item_number), 10) 
+      : context.payload?.issue?.number || context.payload?.pull_request?.number;
 
     if (!itemNumber || isNaN(itemNumber)) {
-      const errorMsg = message.item_number !== undefined ? `Invalid item number: ${message.item_number}` : "No item_number provided and not in issue/PR context";
+      const hasItemNumber = message.item_number !== undefined;
+      const errorMsg = hasItemNumber 
+        ? `Invalid item number: ${message.item_number}` 
+        : "No item_number provided and not in issue/PR context";
       core.warning(errorMsg);
       return {
         success: false,
-        error: message.item_number !== undefined ? `Invalid item number: ${message.item_number}` : "No issue/PR number available",
+        error: hasItemNumber 
+          ? `Invalid item number: ${message.item_number}` 
+          : "No issue/PR number available",
       };
     }
 
