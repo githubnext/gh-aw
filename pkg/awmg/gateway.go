@@ -45,6 +45,7 @@ type MCPGatewayServiceConfig struct {
 type GatewaySettings struct {
 	Port   int    `json:"port,omitempty"`
 	APIKey string `json:"apiKey,omitempty"`
+	Domain string `json:"domain,omitempty"` // Domain for gateway URL (localhost or host.docker.internal)
 }
 
 // MCPGatewayServer manages multiple MCP sessions and exposes them via HTTP
@@ -404,10 +405,20 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	if port == 0 {
 		port = 8080
 	}
-	// Use localhost since the rewritten config is consumed by Copilot CLI running on the host
-	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
+	
+	// Determine the domain for the gateway URL
+	// Use the configured domain, or default to localhost
+	domain := config.Gateway.Domain
+	if domain == "" {
+		domain = "localhost"
+		gatewayLog.Print("No domain configured, defaulting to localhost")
+	}
+	
+	// Use configured domain since the rewritten config is consumed by Copilot CLI
+	// Domain is either localhost (firewall disabled) or host.docker.internal (firewall enabled)
+	gatewayURL := fmt.Sprintf("http://%s:%d", domain, port)
 
-	gatewayLog.Printf("Gateway URL: %s", gatewayURL)
+	gatewayLog.Printf("Gateway URL: %s (domain: %s)", gatewayURL, domain)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Gateway URL: %s", gatewayURL)))
 
 	// Get original mcpServers to preserve non-proxied servers

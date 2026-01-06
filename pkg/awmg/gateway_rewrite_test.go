@@ -297,3 +297,103 @@ func TestRewriteMCPConfigForGateway_NoGatewaySection(t *testing.T) {
 		t.Errorf("Expected Authorization header 'Bearer test-key', got %v", authHeader)
 	}
 }
+
+// TestRewriteMCPConfigForGateway_UsesDomainFromConfig tests that the domain
+// field from the gateway config is used when rewriting server URLs
+func TestRewriteMCPConfigForGateway_UsesDomainFromConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		domain         string
+		expectedURL    string
+	}{
+		{
+			name:        "host.docker.internal domain",
+			domain:      "host.docker.internal",
+			expectedURL: "http://host.docker.internal:8080/mcp/github",
+		},
+		{
+			name:        "localhost domain",
+			domain:      "localhost",
+			expectedURL: "http://localhost:8080/mcp/github",
+		},
+		{
+			name:        "empty domain defaults to localhost",
+			domain:      "",
+			expectedURL: "http://localhost:8080/mcp/github",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configFile := filepath.Join(tmpDir, "test-config.json")
+
+			initialConfig := map[string]any{
+				"mcpServers": map[string]any{
+					"github": map[string]any{
+						"command": "gh",
+						"args":    []string{"aw", "mcp-server"},
+					},
+				},
+			}
+
+			initialJSON, _ := json.Marshal(initialConfig)
+			if err := os.WriteFile(configFile, initialJSON, 0644); err != nil {
+				t.Fatalf("Failed to write config file: %v", err)
+			}
+
+			gatewayConfig := &MCPGatewayServiceConfig{
+				MCPServers: map[string]parser.MCPServerConfig{
+					"github": {
+						BaseMCPServerConfig: types.BaseMCPServerConfig{
+							Command: "gh",
+							Args:    []string{"aw", "mcp-server"},
+						},
+					},
+				},
+				Gateway: GatewaySettings{
+					Port:   8080,
+					Domain: tt.domain,
+				},
+			}
+
+			// Rewrite the config
+			if err := rewriteMCPConfigForGateway(configFile, gatewayConfig); err != nil {
+				t.Fatalf("rewriteMCPConfigForGateway failed: %v", err)
+			}
+
+			// Read back the rewritten config
+			rewrittenData, err := os.ReadFile(configFile)
+			if err != nil {
+				t.Fatalf("Failed to read rewritten config: %v", err)
+			}
+
+			var rewrittenConfig map[string]any
+			if err := json.Unmarshal(rewrittenData, &rewrittenConfig); err != nil {
+				t.Fatalf("Failed to parse rewritten config: %v", err)
+			}
+
+			// Verify mcpServers exists
+			mcpServers, ok := rewrittenConfig["mcpServers"].(map[string]any)
+			if !ok {
+				t.Fatal("mcpServers not found or wrong type")
+			}
+
+			// Check the github server URL
+			github, ok := mcpServers["github"].(map[string]any)
+			if !ok {
+				t.Fatal("github server not found")
+			}
+
+			githubURL, ok := github["url"].(string)
+			if !ok {
+				t.Fatal("github server URL not found")
+			}
+
+			if githubURL != tt.expectedURL {
+				t.Errorf("Expected URL %s, got %s", tt.expectedURL, githubURL)
+			}
+		})
+	}
+}
+
