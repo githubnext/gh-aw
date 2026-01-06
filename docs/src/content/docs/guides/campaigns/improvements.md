@@ -5,6 +5,23 @@ description: "Recommendations for enhancing campaign reporting, learning systems
 
 This document outlines opportunities to improve campaign functionality, particularly around summarized reporting, learning from campaign outcomes, and better integration between orchestrators and metrics.
 
+:::tip[Track Implementation Progress]
+Use the `gh aw campaign improvements` command to analyze which improvements have been implemented:
+
+```bash
+# Show improvement status
+gh aw campaign improvements
+
+# Show with evidence
+gh aw campaign improvements -v
+
+# JSON output
+gh aw campaign improvements --json
+```
+
+See the [CLI Commands](/gh-aw/guides/campaigns/cli-commands/#analyze-campaign-improvements) documentation for details.
+:::
+
 ## Current State
 
 The campaign system provides:

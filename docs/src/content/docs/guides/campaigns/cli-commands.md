@@ -21,6 +21,10 @@ gh aw campaign status --json           # JSON status output
 gh aw campaign new my-campaign-id      # Scaffold a new agentic campaign spec
 gh aw campaign validate                # Validate agentic campaign specs (fails on problems)
 gh aw campaign validate --no-strict    # Report problems without failing
+
+gh aw campaign improvements            # Analyze improvement implementation status
+gh aw campaign improvements -v         # Show evidence for each improvement
+gh aw campaign improvements --json     # JSON improvements analysis
 ```
 
 ## List Campaigns
@@ -86,6 +90,51 @@ By default, validation fails if problems are found. For non-failing validation (
 ```bash
 gh aw campaign validate --no-strict
 ```
+
+## Analyze Campaign Improvements
+
+Analyze which campaign improvements from the [improvements guide](/gh-aw/guides/campaigns/improvements/) have been implemented:
+
+```bash
+gh aw campaign improvements
+```
+
+This command checks for implementation of five key improvements:
+
+1. **Summarized Campaign Reports** (High Priority) - Generate human-readable progress summaries with aggregated metrics and Epic issue updates
+2. **Campaign Learning System** (Medium Priority) - Capture and share learnings across runs and between campaigns
+3. **Enhanced Metrics Integration** (High Priority) - Enable orchestrators to read and act on historical metrics for decision-making
+4. **Campaign Retrospectives** (Medium Priority) - Add campaign completion workflow with retrospective reports
+5. **Cross-Campaign Analytics** (Low Priority) - Aggregate metrics across campaigns for portfolio-level visibility
+
+Each improvement is classified as:
+- **Implemented** - Feature is fully implemented
+- **Partial** - Some components exist but feature is incomplete
+- **Not Implemented** - Feature has not been started
+
+Show detailed evidence for each improvement status:
+
+```bash
+gh aw campaign improvements -v
+```
+
+Get machine-readable JSON output:
+
+```bash
+gh aw campaign improvements --json
+```
+
+The analysis examines the codebase for:
+- Presence of specific files (e.g., `pkg/campaign/report.go`, `pkg/campaign/learning.go`)
+- Code patterns and functionality (e.g., metrics fetching, adaptive logic)
+- Campaign configuration (e.g., governance policies, multiple campaigns)
+- Repository artifacts (e.g., learnings in repo-memory)
+
+Use this command to:
+- Track progress on implementing campaign improvements
+- Identify which features are partially implemented and need completion
+- Prioritize future development based on current implementation status
+- Generate reports on campaign system maturity
 
 ## Compilation and Orchestrators
 
