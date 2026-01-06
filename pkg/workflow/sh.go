@@ -17,7 +17,6 @@ const (
 	xpiaPromptFile       = "xpia_prompt.md"
 	tempFolderPromptFile = "temp_folder_prompt.md"
 	playwrightPromptFile = "playwright_prompt.md"
-	editToolPromptFile   = "edit_tool_prompt.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions
