@@ -112,7 +112,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Add --share flag to generate a markdown file of the conversation for step summary
 	// The markdown file will be used to create a preview of the agent log
-	shareFilePath := logsFolder + "/conversation.md"
+	shareFilePath := logsFolder + "conversation.md"
 	copilotArgs = append(copilotArgs, "--share", shareFilePath)
 	copilotExecLog.Printf("Added --share flag with path: %s", shareFilePath)
 
