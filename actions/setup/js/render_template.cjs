@@ -85,5 +85,4 @@ function main() {
   }
 }
 
-// Execute main function
-main();
+module.exports = { renderMarkdownTemplate, main };

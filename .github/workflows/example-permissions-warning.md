@@ -4,14 +4,16 @@ timeout-minutes: 5
 on:
   workflow_dispatch:
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     toolsets: [repos, issues, pull_requests]
     read-only: false
 strict: false
+features:
+  dangerous-permissions-write: true
 ---
 
 # Example: Properly Provisioned Permissions
