@@ -8,7 +8,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-  discussions: true
+  discussions: read
 engine: copilot
 tools:
   github:
