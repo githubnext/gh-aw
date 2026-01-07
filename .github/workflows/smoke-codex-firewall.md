@@ -18,6 +18,7 @@ network:
   allowed:
     - defaults
     - github
+    - "https://api.github.com"  # Test HTTPS-only protocol filtering
 safe-outputs:
     add-comment:
       hide-older-comments: true
@@ -51,6 +52,7 @@ This workflow validates that the Codex engine works correctly with AWF (Applicat
 3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-firewall-${{ github.run_id }}.txt` with content "Firewall smoke test passed for Codex at $(date)"
 4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 5. **Blocked Domain Testing**: Attempt to access a domain NOT in the allowed list (e.g., example.com) using curl - this should fail or be blocked
+6. **Protocol Filtering Testing**: Verify that the AWF command includes the protocol-specific domain `https://api.github.com` in the --allow-domains flag. Check logs to confirm HTTPS prefix is preserved
 
 ## Output
 
