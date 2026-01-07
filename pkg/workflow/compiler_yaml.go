@@ -578,12 +578,3 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 }
-
-// normalizePermissionsYAML converts boolean true values to "write" strings in permissions YAML
-// This allows users to write "discussions: true" as shorthand for "discussions: write"
-// while ensuring the generated YAML is valid for GitHub Actions
-func normalizePermissionsYAML(permissionsYAML string) string {
-	// Replace ": true" with ": write" in the permissions section
-	// This handles the case where boolean true is used as shorthand for write permission
-	return strings.ReplaceAll(permissionsYAML, ": true", ": write")
-}

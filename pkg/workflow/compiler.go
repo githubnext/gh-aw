@@ -147,12 +147,6 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
-	// Normalize boolean true permissions to "write" strings for YAML output
-	// This must happen after dangerous permissions validation but before job building
-	if workflowData.Permissions != "" {
-		workflowData.Permissions = normalizePermissionsYAML(workflowData.Permissions)
-	}
-
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {

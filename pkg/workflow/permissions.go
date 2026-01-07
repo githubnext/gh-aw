@@ -15,7 +15,6 @@ var permissionsLog = logger.New("workflow:permissions")
 type PermissionsParser struct {
 	rawPermissions string
 	parsedPerms    map[string]string
-	booleanPerms   map[string]bool // Tracks which permissions were specified as boolean true
 	isShorthand    bool
 	shorthandValue string
 	hasAll         bool
@@ -29,7 +28,6 @@ func NewPermissionsParser(permissionsYAML string) *PermissionsParser {
 	parser := &PermissionsParser{
 		rawPermissions: permissionsYAML,
 		parsedPerms:    make(map[string]string),
-		booleanPerms:   make(map[string]bool),
 	}
 	parser.parse()
 	return parser
@@ -143,15 +141,10 @@ func (p *PermissionsParser) parse() {
 					permissionsLog.Print("Set hasAll=true with level=read")
 				}
 			}
-		} // Convert any values to strings, handling boolean true as "write"
+		} // Convert any values to strings
 		for key, value := range perms {
 			if strValue, ok := value.(string); ok {
 				p.parsedPerms[key] = strValue
-			} else if boolValue, ok := value.(bool); ok && boolValue {
-				// Boolean true is a shorthand for "write" permission
-				p.parsedPerms[key] = "write"
-				p.booleanPerms[key] = true
-				permissionsLog.Printf("Converted boolean true to 'write' for permission: %s", key)
 			}
 		}
 		permissionsLog.Printf("Parsed %d permission entries", len(p.parsedPerms))
@@ -358,14 +351,6 @@ func (p *PermissionsParser) ToPermissions() *Permissions {
 	}
 
 	return NewPermissionsFromMap(permsMap)
-}
-
-// IsBooleanPermission returns true if the given permission scope was specified as boolean true
-func (p *PermissionsParser) IsBooleanPermission(scope string) bool {
-	if p == nil {
-		return false
-	}
-	return p.booleanPerms[scope]
 }
 
 // convertStringToPermissionScope converts a string key to a PermissionScope

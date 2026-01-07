@@ -37,15 +37,14 @@ func validateDangerousPermissions(workflowData *WorkflowData) error {
 		return nil
 	}
 
-	parser := NewPermissionsParser(workflowData.Permissions)
-	permissions := parser.ToPermissions()
+	permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
 	if permissions == nil {
 		dangerousPermissionsLog.Print("Could not parse permissions, validation passed")
 		return nil
 	}
 
-	// Check for write permissions (excluding boolean true permissions)
-	writePermissions := findWritePermissions(permissions, parser)
+	// Check for write permissions
+	writePermissions := findWritePermissions(permissions)
 	if len(writePermissions) > 0 {
 		dangerousPermissionsLog.Printf("Found %d write permissions without feature flag", len(writePermissions))
 		return formatDangerousPermissionsError(writePermissions)
@@ -56,8 +55,7 @@ func validateDangerousPermissions(workflowData *WorkflowData) error {
 }
 
 // findWritePermissions returns a list of permission scopes that have write access
-// Excludes permissions that were specified as boolean true, as these are considered safe
-func findWritePermissions(permissions *Permissions, parser *PermissionsParser) []PermissionScope {
+func findWritePermissions(permissions *Permissions) []PermissionScope {
 	if permissions == nil {
 		return nil
 	}
@@ -68,12 +66,6 @@ func findWritePermissions(permissions *Permissions, parser *PermissionsParser) [
 	for _, scope := range GetAllPermissionScopes() {
 		level, exists := permissions.Get(scope)
 		if exists && level == PermissionWrite {
-			// Skip permissions that were specified as boolean true (these are considered safe)
-			scopeStr := string(scope)
-			if parser != nil && parser.IsBooleanPermission(scopeStr) {
-				dangerousPermissionsLog.Printf("Skipping boolean true permission: %s", scopeStr)
-				continue
-			}
 			writePerms = append(writePerms, scope)
 		}
 	}
