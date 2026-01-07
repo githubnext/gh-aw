@@ -46,9 +46,72 @@ network:
 
 # No network access
 network: {}
+
+# Block specific domains
+network:
+  allowed:
+    - defaults              # Basic infrastructure
+    - python               # Python/PyPI ecosystem
+  blocked:
+    - "tracker.example.com" # Block specific tracking domain
+    - "analytics.example.com" # Block analytics
+
+# Block entire ecosystems
+network:
+  allowed:
+    - defaults
+    - github
+    - node
+  blocked:
+    - python               # Block Python/PyPI even if in defaults
 ```
 
-## Security Model
+## Blocking Domains
+
+Use the `blocked` field to block specific domains or ecosystems while allowing others. Blocked domains take precedence over allowed domains, enabling fine-grained control:
+
+```yaml wrap
+# Block specific tracking/analytics domains
+network:
+  allowed:
+    - defaults
+    - github
+  blocked:
+    - "tracker.example.com"
+    - "analytics.example.com"
+
+# Block entire ecosystem within broader allowed set
+network:
+  allowed:
+    - defaults              # Includes many ecosystems
+  blocked:
+    - python               # Block Python/PyPI specifically
+
+# Combine domain and ecosystem blocking
+network:
+  allowed:
+    - defaults
+    - github
+    - node
+  blocked:
+    - python               # Block Python ecosystem
+    - "cdn.example.com"    # Block specific CDN
+```
+
+:::tip[When to Use Blocked Domains]
+- **Privacy**: Block tracking and analytics domains while allowing legitimate services
+- **Security**: Block known malicious or compromised domains
+- **Compliance**: Enforce organizational network policies
+- **Fine-grained control**: Allow broad ecosystem access but block specific problematic domains
+:::
+
+**Key behaviors**:
+- Blocked domains are subtracted from the allowed list
+- Supports both individual domains and ecosystem identifiers
+- Blocked domains include all subdomains (like allowed domains)
+- Useful for blocking specific domains within broader ecosystem allowlists
+
+## Configuration
 
 Network permissions follow the principle of least privilege with four access levels:
 

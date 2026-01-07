@@ -62,6 +62,9 @@ The compiled GitHub Actions workflow file generated from a workflow markdown fil
 ### MCP (Model Context Protocol)
 A standardized protocol that allows AI agents to securely connect to external tools, databases, and services. MCP enables workflows to integrate with GitHub APIs, web services, file systems, and custom integrations while maintaining security controls.
 
+### MCP Gateway
+A transparent proxy service that enables unified HTTP access to multiple MCP servers using different transport mechanisms (stdio, HTTP). The gateway provides protocol translation, server isolation, authentication, and health monitoring capabilities. It serves as an intermediary layer between MCP clients expecting HTTP communication and MCP servers that may use various transports, allowing clients to interact with multiple backends through a single HTTP endpoint.
+
 ### MCP Server
 A service that implements the Model Context Protocol to provide specific capabilities to AI agents. Examples include the GitHub MCP server (for GitHub API operations), Playwright MCP server (for browser automation), or custom MCP servers for specialized tools.
 

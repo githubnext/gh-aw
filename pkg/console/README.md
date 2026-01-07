@@ -12,7 +12,8 @@ The `Spinner` component provides animated visual feedback during long-running op
 - **TTY detection**: Automatically disabled in pipes/redirects
 - **Accessibility support**: Respects `ACCESSIBLE` environment variable
 - **Color adaptation**: Uses adaptive colors for light/dark themes
-- **Thread-safe**: Safe for concurrent use with mutex protection
+- **Idiomatic Bubble Tea**: Uses `tea.NewProgram()` with proper message passing
+- **Thread-safe**: Safe for concurrent use via Bubble Tea's message handling
 
 ### Usage
 

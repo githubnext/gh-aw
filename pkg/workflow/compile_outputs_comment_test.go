@@ -23,6 +23,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -70,6 +72,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -117,6 +121,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -169,6 +175,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -229,6 +237,8 @@ tools:
   github:
     allowed: [issue_read]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -322,6 +332,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:

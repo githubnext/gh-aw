@@ -408,6 +408,8 @@ const (
 	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
 	// SandboxRuntimeFeatureFlag is the feature flag name for sandbox runtime
 	SandboxRuntimeFeatureFlag FeatureFlag = "sandbox-runtime"
+	// DangerousPermissionsWriteFeatureFlag is the feature flag name for allowing write permissions
+	DangerousPermissionsWriteFeatureFlag FeatureFlag = "dangerous-permissions-write"
 )
 
 // Step IDs for pre-activation job

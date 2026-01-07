@@ -29,6 +29,8 @@ on:
 permissions:
   issues: write
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]

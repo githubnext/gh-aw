@@ -38,6 +38,12 @@ steps:
       
       echo "CI runs data saved to /tmp/ci-runs.json"
       echo "Artifacts saved to /tmp/ci-artifacts/"
+      
+      # Summarize downloaded artifacts
+      echo "## Downloaded Artifacts" >> $GITHUB_STEP_SUMMARY
+      find /tmp/ci-artifacts -type f -name "*.txt" -o -name "*.html" -o -name "*.json" | head -20 | while read -r f; do
+        echo "- $(basename $f)" >> $GITHUB_STEP_SUMMARY
+      done
   
   - name: Set up Node.js
     uses: actions/setup-node@v6
@@ -91,6 +97,8 @@ Pre-downloaded CI run data and artifacts are available for analysis:
    
 2. **Artifacts**: `/tmp/ci-artifacts/`
    - Coverage reports and benchmark results from recent successful runs
+   - **Fuzz test results**: `*/fuzz-results/*.txt` - Output from fuzz tests
+   - **Fuzz corpus data**: `*/fuzz-results/corpus/*` - Input corpus for each fuzz test
    
 3. **CI Configuration**: `.github/workflows/ci.yml`
    - Current CI workflow configuration

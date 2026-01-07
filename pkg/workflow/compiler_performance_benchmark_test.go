@@ -21,6 +21,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 tools:
   bash: ["echo", "cat"]
 timeout-minutes: 5
@@ -121,6 +123,8 @@ permissions:
   contents: read
   pull-requests: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote
@@ -172,6 +176,8 @@ permissions:
   contents: read
   pull-requests: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote
@@ -222,6 +228,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 tools:
   bash: ["echo"]
 ---
@@ -259,6 +267,8 @@ permissions:
   contents: read
   pull-requests: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote

@@ -225,15 +225,15 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// 20. Link Sub Issue step - now handled by handler manager
 	// 21. Hide Comment step - now handled by handler manager
 
-	// 22. Create Agent Task step
-	if data.SafeOutputs.CreateAgentTasks != nil {
-		stepConfig := c.buildCreateAgentTaskStepConfig(data, mainJobName, threatDetectionEnabled)
+	// 22. Create Agent Session step
+	if data.SafeOutputs.CreateAgentSessions != nil {
+		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
-		outputs["create_agent_task_task_number"] = "${{ steps.create_agent_task.outputs.task_number }}"
-		outputs["create_agent_task_task_url"] = "${{ steps.create_agent_task.outputs.task_url }}"
+		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
+		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
 
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}

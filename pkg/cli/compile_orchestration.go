@@ -90,11 +90,18 @@ func compileSpecificFiles(
 		// Handle campaign spec files separately
 		if strings.HasSuffix(resolvedFile, ".campaign.md") {
 			campaignFiles = append(campaignFiles, resolvedFile)
-			campaignResult, success := processCampaignSpec(
-				compiler, resolvedFile, config.Verbose, config.JSONOutput,
-				config.NoEmit, false, false, false, // Disable per-file security tools
-				config.Strict, config.Validate,
-			)
+			campaignResult, success := processCampaignSpec(ProcessCampaignSpecOptions{
+				Compiler:     compiler,
+				ResolvedFile: resolvedFile,
+				Verbose:      config.Verbose,
+				JSONOutput:   config.JSONOutput,
+				NoEmit:       config.NoEmit,
+				Zizmor:       false,
+				Poutine:      false,
+				Actionlint:   false,
+				Strict:       config.Strict,
+				Validate:     config.Validate,
+			})
 			if !success {
 				errorCount++
 				stats.Errors++
@@ -252,11 +259,18 @@ func compileAllFilesInDirectory(
 
 		// Handle campaign spec files
 		if strings.HasSuffix(file, ".campaign.md") {
-			campaignResult, success := processCampaignSpec(
-				compiler, file, config.Verbose, config.JSONOutput,
-				config.NoEmit, false, false, false, // Disable per-file security tools
-				config.Strict, config.Validate,
-			)
+			campaignResult, success := processCampaignSpec(ProcessCampaignSpecOptions{
+				Compiler:     compiler,
+				ResolvedFile: file,
+				Verbose:      config.Verbose,
+				JSONOutput:   config.JSONOutput,
+				NoEmit:       config.NoEmit,
+				Zizmor:       false,
+				Poutine:      false,
+				Actionlint:   false,
+				Strict:       config.Strict,
+				Validate:     config.Validate,
+			})
 			if !success {
 				errorCount++
 				stats.Errors++

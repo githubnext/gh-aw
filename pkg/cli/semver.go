@@ -1,15 +1,9 @@
 package cli
 
 import (
-	"fmt"
-	"regexp"
 	"strings"
-)
 
-// Pre-compiled regexes for semantic version parsing (performance optimization)
-var (
-	semverPattern      = regexp.MustCompile(`^v?\d+(\.\d+)*(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$`)
-	semverParsePattern = regexp.MustCompile(`^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([a-zA-Z0-9.]+))?`)
+	"golang.org/x/mod/semver"
 )
 
 // semanticVersion represents a parsed semantic version
@@ -22,38 +16,65 @@ type semanticVersion struct {
 }
 
 // isSemanticVersionTag checks if a ref string looks like a semantic version tag
+// Uses golang.org/x/mod/semver for proper semantic version validation
 func isSemanticVersionTag(ref string) bool {
-	// Match v1.0.0, v1.0, 1.0.0, etc.
-	return semverPattern.MatchString(ref)
+	// Ensure ref has 'v' prefix for semver package
+	if !strings.HasPrefix(ref, "v") {
+		ref = "v" + ref
+	}
+	return semver.IsValid(ref)
 }
 
 // parseVersion parses a semantic version string
+// Uses golang.org/x/mod/semver for proper semantic version parsing
 func parseVersion(v string) *semanticVersion {
-	// Remove leading 'v' if present
-	v = strings.TrimPrefix(v, "v")
+	// Ensure version has 'v' prefix for semver package
+	if !strings.HasPrefix(v, "v") {
+		v = "v" + v
+	}
 
-	// Match semantic version pattern
-	matches := semverParsePattern.FindStringSubmatch(v)
-	if matches == nil {
+	// Check if valid semantic version
+	if !semver.IsValid(v) {
 		return nil
 	}
 
-	ver := &semanticVersion{raw: v}
+	ver := &semanticVersion{raw: strings.TrimPrefix(v, "v")}
 
-	if matches[1] != "" {
-		_, _ = fmt.Sscanf(matches[1], "%d", &ver.major)
+	// Use semver.Canonical to get normalized version
+	canonical := semver.Canonical(v)
+
+	// Parse major, minor, patch from canonical form
+	// Canonical format is always vMAJOR.MINOR.PATCH
+	parts := strings.Split(strings.TrimPrefix(canonical, "v"), ".")
+	if len(parts) >= 1 {
+		ver.major = parseInt(parts[0])
 	}
-	if matches[2] != "" {
-		_, _ = fmt.Sscanf(matches[2], "%d", &ver.minor)
+	if len(parts) >= 2 {
+		ver.minor = parseInt(parts[1])
 	}
-	if matches[3] != "" {
-		_, _ = fmt.Sscanf(matches[3], "%d", &ver.patch)
+	if len(parts) >= 3 {
+		ver.patch = parseInt(parts[2])
 	}
-	if matches[4] != "" {
-		ver.pre = matches[4]
-	}
+
+	// Get prerelease if any
+	prerelease := semver.Prerelease(v)
+	// semver.Prerelease includes the leading hyphen, strip it
+	ver.pre = strings.TrimPrefix(prerelease, "-")
 
 	return ver
+}
+
+// parseInt parses an integer from a string, returns 0 on error
+func parseInt(s string) int {
+	var result int
+	for _, ch := range s {
+		if ch >= '0' && ch <= '9' {
+			result = result*10 + int(ch-'0')
+		} else {
+			break
+		}
+	}
+	return result
 }
 
 // isPreciseVersion returns true if this version has explicit minor and patch components
@@ -70,23 +91,14 @@ func (v *semanticVersion) isPreciseVersion() bool {
 }
 
 // isNewer returns true if this version is newer than the other
+// Uses golang.org/x/mod/semver.Compare for proper semantic version comparison
 func (v *semanticVersion) isNewer(other *semanticVersion) bool {
-	if v.major != other.major {
-		return v.major > other.major
-	}
-	if v.minor != other.minor {
-		return v.minor > other.minor
-	}
-	if v.patch != other.patch {
-		return v.patch > other.patch
-	}
-	// If versions are equal but one has a prerelease tag, prefer the one without
-	if v.pre == "" && other.pre != "" {
-		return true
-	}
-	if v.pre != "" && other.pre == "" {
-		return false
-	}
-	// Both have prerelease or both don't - consider equal
-	return false
+	// Ensure versions have 'v' prefix for semver package
+	v1 := "v" + v.raw
+	v2 := "v" + other.raw
+
+	// Use semver.Compare for comparison
+	result := semver.Compare(v1, v2)
+
+	return result > 0
 }

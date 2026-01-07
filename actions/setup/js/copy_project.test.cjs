@@ -351,5 +351,10 @@ describe("copyProject", () => {
         title: "Test",
       })
     ).rejects.toThrow(/Failed to find owner/);
+
+    // Verify that error details were logged
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Failed to find "nonexistent" as organization'));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Failed to find "nonexistent" as user'));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GraphQL Error during"));
   });
 });
