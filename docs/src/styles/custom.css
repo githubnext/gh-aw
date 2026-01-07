@@ -1399,6 +1399,15 @@ main,
   max-width: 100%;
 }
 
+/* Mobile-specific: Enable text wrapping for code snippets */
+@media (max-width: 768px) {
+  .sl-markdown-content pre code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
 /* Additional tablet-specific fixes (iPad Pro 11 at 834px) */
 @media (min-width: 768px) and (max-width: 900px) {
   /* Ensure header doesn't overflow on tablets */

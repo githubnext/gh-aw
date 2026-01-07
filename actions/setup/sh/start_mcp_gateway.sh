@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# Start MCP Gateway
+# This script starts the MCP gateway process that proxies MCP servers through a unified HTTP endpoint
+# Following the MCP Gateway Specification: https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/reference/mcp-gateway.md
+
+set -e
+
+# Required environment variables:
+# - MCP_GATEWAY_PORT: Port for the gateway HTTP server
+# - MCP_GATEWAY_DOMAIN: Domain for gateway URL (localhost or host.docker.internal)
+# - MCP_GATEWAY_API_KEY: API key for gateway authentication
+# - MCP_GATEWAY_COMMAND: Command to execute (optional, mutually exclusive with CONTAINER)
+# - MCP_GATEWAY_CONTAINER: Container image to run (optional, mutually exclusive with COMMAND)
+
+# Validate required environment variables
+if [ -z "$MCP_GATEWAY_PORT" ]; then
+  echo "ERROR: MCP_GATEWAY_PORT environment variable is required"
+  exit 1
+fi
+
+if [ -z "$MCP_GATEWAY_DOMAIN" ]; then
+  echo "ERROR: MCP_GATEWAY_DOMAIN environment variable is required"
+  exit 1
+fi
+
+if [ -z "$MCP_GATEWAY_API_KEY" ]; then
+  echo "ERROR: MCP_GATEWAY_API_KEY environment variable is required"
+  exit 1
+fi
+
+# Create logs directory for gateway
+mkdir -p /tmp/gh-aw/mcp-logs/gateway
+
+# Build gateway configuration with runtime values
+echo "Building gateway configuration..."
+cat /home/runner/.copilot/mcp-config.json | jq --arg port "$MCP_GATEWAY_PORT" --arg apiKey "$MCP_GATEWAY_API_KEY" --arg domain "$MCP_GATEWAY_DOMAIN" \
+  '.gateway = { port: ($port | tonumber), apiKey: $apiKey, domain: $domain }' > /tmp/gh-aw/mcp-config/gateway-input.json
+
+echo "Gateway input configuration:"
+cat /tmp/gh-aw/mcp-config/gateway-input.json
+echo ""
+
+# Start gateway process (either command or container)
+if [ -n "$MCP_GATEWAY_COMMAND" ]; then
+  # Direct command execution
+  echo "Starting gateway with command: $MCP_GATEWAY_COMMAND"
+  cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_COMMAND \
+    > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
+elif [ -n "$MCP_GATEWAY_CONTAINER" ]; then
+  # Container execution
+  echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
+  cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
+    --network host \
+    -e MCP_GATEWAY_PORT \
+    -e MCP_GATEWAY_DOMAIN \
+    -e MCP_GATEWAY_API_KEY \
+    $MCP_GATEWAY_CONTAINER \
+    > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
+else
+  echo "ERROR: Either MCP_GATEWAY_COMMAND or MCP_GATEWAY_CONTAINER must be set"
+  exit 1
+fi
+
+GATEWAY_PID=$!
+echo "Gateway started with PID: $GATEWAY_PID"
+echo ""
+
+# Wait for gateway to be ready using /health endpoint
+echo "Waiting for gateway to be ready..."
+MAX_ATTEMPTS=30
+ATTEMPT=0
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+  if curl -f -s "http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health" > /dev/null 2>&1; then
+    echo "Gateway is ready!"
+    break
+  fi
+  ATTEMPT=$((ATTEMPT + 1))
+  if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet, waiting 1 second..."
+    sleep 1
+  fi
+done
+
+if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+  echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
+  echo "Gateway stderr logs:"
+  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  kill $GATEWAY_PID 2>/dev/null || true
+  exit 1
+fi
+echo ""
+
+# Wait for gateway output (rewritten configuration)
+echo "Reading gateway output configuration..."
+WAIT_ATTEMPTS=10
+WAIT_ATTEMPT=0
+while [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; do
+  if [ -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+    echo "Gateway output received!"
+    break
+  fi
+  WAIT_ATTEMPT=$((WAIT_ATTEMPT + 1))
+  if [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; then
+    sleep 1
+  fi
+done
+
+# Verify output was written
+if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+  echo "ERROR: Gateway did not write output configuration"
+  echo "Gateway stderr logs:"
+  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  kill $GATEWAY_PID 2>/dev/null || true
+  exit 1
+fi
+
+# Convert gateway output to agent-specific format
+echo "Converting gateway configuration to agent format..."
+export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json
+
+# Determine which agent-specific converter to use based on engine type
+# Check for engine-specific indicators and call appropriate converter
+if [ -n "$GH_AW_ENGINE" ]; then
+  ENGINE_TYPE="$GH_AW_ENGINE"
+elif [ -f "/home/runner/.copilot" ] || [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
+  ENGINE_TYPE="copilot"
+elif [ -f "/tmp/gh-aw/mcp-config/config.toml" ]; then
+  ENGINE_TYPE="codex"
+elif [ -f "/tmp/gh-aw/mcp-config/mcp-servers.json" ]; then
+  ENGINE_TYPE="claude"
+else
+  ENGINE_TYPE="unknown"
+fi
+
+echo "Detected engine type: $ENGINE_TYPE"
+
+case "$ENGINE_TYPE" in
+  copilot)
+    echo "Using Copilot converter..."
+    bash /tmp/gh-aw/actions/convert_gateway_config_copilot.sh
+    ;;
+  codex)
+    echo "Using Codex converter..."
+    bash /tmp/gh-aw/actions/convert_gateway_config_codex.sh
+    ;;
+  claude)
+    echo "Using Claude converter..."
+    bash /tmp/gh-aw/actions/convert_gateway_config_claude.sh
+    ;;
+  *)
+    echo "No agent-specific converter found for engine: $ENGINE_TYPE"
+    echo "Using gateway output directly"
+    # Default fallback - copy to most common location
+    mkdir -p /home/runner/.copilot
+    cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+    cat /home/runner/.copilot/mcp-config.json
+    ;;
+esac
+echo ""
+
+echo "MCP gateway is running on http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
+echo "Gateway PID: $GATEWAY_PID"
+
+# Store PID for cleanup
+echo $GATEWAY_PID > /tmp/gh-aw/mcp-logs/gateway/gateway.pid
