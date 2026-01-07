@@ -127,3 +127,88 @@ func TestSpinnerConcurrentAccess(t *testing.T) {
 		<-done
 	}
 }
+
+func TestSpinnerBubbleTeaModel(t *testing.T) {
+	// Test the Bubble Tea model directly
+	model := spinnerModel{
+		message: "Testing",
+	}
+
+	// Test Init returns a Cmd
+	cmd := model.Init()
+	if cmd == nil {
+		t.Error("Init should return a tick command")
+	}
+
+	// Test Update with updateMessageMsg
+	newModel, _ := model.Update(updateMessageMsg("New message"))
+	if m, ok := newModel.(spinnerModel); ok {
+		if m.message != "New message" {
+			t.Errorf("Expected message 'New message', got '%s'", m.message)
+		}
+	} else {
+		t.Error("Update should return spinnerModel")
+	}
+
+	// Test View returns a string
+	view := model.View()
+	if view == "" {
+		t.Error("View should return a non-empty string")
+	}
+}
+
+func TestSpinnerDisabledOperations(t *testing.T) {
+	// Save original environment
+	origAccessible := os.Getenv("ACCESSIBLE")
+	defer func() {
+		if origAccessible != "" {
+			os.Setenv("ACCESSIBLE", origAccessible)
+		} else {
+			os.Unsetenv("ACCESSIBLE")
+		}
+	}()
+
+	// Force spinner to be disabled
+	os.Setenv("ACCESSIBLE", "1")
+	spinner := NewSpinner("Test message")
+
+	// All operations should be safe when disabled
+	spinner.Start()
+	spinner.UpdateMessage("New message")
+	spinner.Stop()
+	spinner.StopWithMessage("Final message")
+
+	// Check that spinner is disabled
+	if spinner.IsEnabled() && os.Getenv("ACCESSIBLE") != "" {
+		t.Error("Spinner should be disabled when ACCESSIBLE is set")
+	}
+}
+
+func TestSpinnerRapidStartStop(t *testing.T) {
+	spinner := NewSpinner("Test message")
+
+	// Test rapid start/stop cycles
+	for i := 0; i < 10; i++ {
+		spinner.Start()
+		spinner.Stop()
+	}
+}
+
+func TestSpinnerUpdateMessageBeforeStart(t *testing.T) {
+	spinner := NewSpinner("Initial message")
+
+	// Update message before starting should not panic
+	spinner.UpdateMessage("Updated message")
+
+	spinner.Start()
+	time.Sleep(10 * time.Millisecond)
+	spinner.Stop()
+}
+
+func TestSpinnerStopWithoutStart(t *testing.T) {
+	spinner := NewSpinner("Test message")
+
+	// Stop without start should not panic
+	spinner.Stop()
+	spinner.StopWithMessage("Message")
+}
