@@ -193,6 +193,257 @@ These agents manage structured improvement campaigns:
 
 ---
 
+## Imports & Sharing: The Agent Zoo's Secret Weapon
+
+One of the most powerful features that enabled us to scale to 145 agents was the **imports system** - a mechanism for sharing and reusing workflow components across the entire zoo. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
+
+### Why Imports Matter at Scale
+
+Managing dozens of agents would be unsustainable without reuse. Imports provided several critical benefits:
+
+**🔄 DRY Principle for Agents**  
+When we improved report formatting or updated an MCP server configuration, the change automatically propagated to all workflows that imported it. No need to update 46 workflows individually.
+
+**🧩 Composable Agent Capabilities**  
+Workflows could mix and match capabilities by importing different shared components - like combining data visualization, trending analysis, and web search in a single import list.
+
+**🎯 Separation of Concerns**  
+Tools configuration, network permissions, data fetching logic, and agent instructions could be maintained independently by different experts, then composed together.
+
+**⚡ Rapid Experimentation**  
+Creating a new workflow often meant writing just the agent-specific prompt and importing 3-5 shared components. We could prototype new agents in minutes.
+
+### The Shared Component Library
+
+The zoo organized shared components into two main directories:
+
+#### `.github/workflows/shared/` - Core Capabilities (35+ components)
+
+These components provided fundamental capabilities that many workflows needed:
+
+**Most Popular Shared Components:**
+- **`reporting.md`** (46 imports) - Report formatting guidelines, workflow run references, footer standards
+- **`jqschema.md`** (17 imports) - JSON querying and schema validation utilities
+- **`python-dataviz.md`** (7 imports) - Python environment with NumPy, Pandas, Matplotlib, Seaborn
+- **`trending-charts-simple.md`** (6 imports) - Quick setup for creating trend visualizations
+- **`gh.md`** (4 imports) - Safe-input wrapper for GitHub CLI with authentication
+- **`copilot-pr-data-fetch.md`** (4 imports) - Fetch and cache GitHub Copilot PR data
+
+**Specialized Components:**
+- **`charts-with-trending.md`** - Comprehensive trending with cache-memory integration
+- **`ci-data-analysis.md`** - CI workflow analysis utilities
+- **`session-analysis-charts.md`** - Copilot session visualization patterns
+- **`keep-it-short.md`** - Prompt guidance for concise responses
+- **`safe-output-app.md`** - Safe output application patterns
+
+#### `.github/workflows/shared/mcp/` - MCP Server Configurations (20+ servers)
+
+These components configured Model Context Protocol servers for specialized capabilities:
+
+**Most Used MCP Servers:**
+- **`gh-aw.md`** (12 imports) - GitHub Agentic Workflows MCP server with `logs` command
+- **`tavily.md`** (5 imports) - Web search via Tavily API
+- **`markitdown.md`** (3 imports) - Document conversion (PDF, Office, images to Markdown)
+- **`ast-grep.md`** (2 imports) - Structural code search and analysis
+- **`brave.md`** (2 imports) - Alternative web search via Brave API
+- **`arxiv.md`** (2 imports) - Academic paper research
+- **`notion.md`** (2 imports) - Notion workspace integration
+
+**Infrastructure & Analysis:**
+- **`jupyter.md`** - Jupyter notebook environment with Docker services
+- **`skillz.md`** - Dynamic skill loading from `.github/skills/` directory
+- **`context7.md`**, **`deepwiki.md`**, **`microsoft-docs.md`** - Specialized search and documentation
+- **`slack.md`**, **`sentry.md`**, **`datadog.md`** - External service integrations
+
+### Import Patterns in Practice
+
+#### Pattern 1: Basic Reporting Setup
+
+The simplest pattern - just import reporting standards:
+
+```yaml
+imports:
+  - shared/reporting.md
+```
+
+Used by: `semantic-function-refactor`, `blog-auditor`, `daily-secrets-analysis` and others
+
+#### Pattern 2: Analysis with Tools
+
+Combine reporting with specialized analysis tools:
+
+```yaml
+imports:
+  - shared/reporting.md
+  - shared/jqschema.md
+  - shared/mcp/gh-aw.md
+```
+
+Used by: `audit-workflows`, `issue-arborist`, `smoke-detector` and others
+
+#### Pattern 3: Data Visualization Stack
+
+Full data analysis and visualization capabilities:
+
+```yaml
+imports:
+  - shared/reporting.md
+  - shared/jqschema.md
+  - shared/copilot-pr-data-fetch.md
+  - shared/trending-charts-simple.md
+```
+
+Used by: `audit-workflows`, `prompt-clustering-analysis`, `copilot-agent-analysis` and others
+
+#### Pattern 4: Research Agent
+
+Web search and knowledge gathering:
+
+```yaml
+imports:
+  - shared/reporting.md
+  - shared/mcp/arxiv.md
+  - shared/mcp/tavily.md
+  - shared/mcp/microsoft-docs.md
+  - shared/mcp/deepwiki.md
+  - shared/mcp/context7.md
+  - shared/mcp/markitdown.md
+  - shared/jqschema.md
+```
+
+Used by: `scout` (deep research agent with 8 imports!)
+
+#### Pattern 5: CI Analysis
+
+Specialized CI workflow analysis:
+
+```yaml
+imports:
+  - shared/ci-data-analysis.md
+  - shared/ci-optimization-strategies.md
+  - shared/reporting.md
+```
+
+Used by: `ci-coach`
+
+#### Pattern 6: Agent File Customization
+
+Import custom agent behavior files:
+
+```yaml
+imports:
+  - ../../skills/documentation/SKILL.md
+  - ../agents/technical-doc-writer.agent.md
+```
+
+Used by: `glossary-maintainer`, `technical-doc-writer`
+
+### Nested Imports: Shared Components Can Import Too
+
+Shared components themselves could import other shared components, creating a dependency graph that the compiler resolved automatically:
+
+```yaml
+# shared/charts-with-trending.md imports two other components
+imports:
+  - shared/python-dataviz.md
+  - shared/trends.md
+
+# shared/copilot-session-data-fetch.md imports jqschema
+imports:
+  - shared/jqschema.md
+```
+
+The compiler used **breadth-first traversal** to process imports deterministically, ensuring consistent behavior and detecting circular dependencies.
+
+### How Imports Merged Configuration
+
+The import system wasn't just textual inclusion - it performed **intelligent merging** of frontmatter configuration:
+
+**Tools** - Deep merge with array concatenation and deduplication
+```yaml
+# Main workflow gets both bash and github tools
+# Arrays like 'allowed' are concatenated and deduplicated
+```
+
+**MCP Servers** - Imported servers override top-level definitions
+```yaml
+# Importing shared/mcp/tavily.md provides the entire server config
+# No need to repeat URL, headers, or allowed patterns
+```
+
+**Network Permissions** - Union of all allowed domains
+```yaml
+# All imported network.allowed domains are accumulated
+# Duplicates removed, final list sorted alphabetically
+```
+
+**Steps** - Imported steps run before main workflow steps
+```yaml
+# shared/mcp/gh-aw.md includes setup steps that run first
+# Main workflow steps execute after imports
+```
+
+**Safe Outputs** - Main workflow overrides imported definitions
+```yaml
+# Provides defaults that workflows can selectively override
+```
+
+### Real-World Example: The `audit-workflows` Agent
+
+The audit-workflows agent demonstrates imports at their best - combining 5 shared components to create a sophisticated meta-analysis agent:
+
+```yaml
+imports:
+  - shared/mcp/gh-aw.md        # MCP server with logs command
+  - shared/jqschema.md          # JSON processing utilities
+  - shared/reporting.md         # Report formatting standards
+  - shared/trending-charts-simple.md  # Trending visualization
+```
+
+**What this provides:**
+- ✅ MCP server with `logs` command for downloading workflow runs
+- ✅ Full Go build environment and gh-aw CLI tools
+- ✅ JSON schema validation and jq query utilities  
+- ✅ Python data visualization with Matplotlib
+- ✅ Report formatting guidelines and standards
+- ✅ Trending chart generation capabilities
+- ✅ Network permissions for GitHub, Python, Node
+- ✅ Cache-memory for persistent data storage
+
+The workflow itself only needed to specify its unique logic - everything else came from imports.
+
+### Statistics: Imports by the Numbers
+
+- **84 workflows** (65% of zoo) use the imports feature
+- **46 workflows** import `reporting.md` (most popular component)
+- **17 workflows** import `jqschema.md` (JSON utilities)
+- **12 workflows** import `mcp/gh-aw.md` (meta-analysis server)
+- **35+ shared components** in `.github/workflows/shared/`
+- **20+ MCP server configs** in `.github/workflows/shared/mcp/`
+- **Average 2-3 imports** per workflow (some have 8+!)
+
+### Lessons Learned
+
+**✨ Imports Enabled Scale**  
+Without imports, maintaining 145 workflows would have been impossible. Updates that touched dozens of workflows became single-file changes.
+
+**🎯 Start with Shared Components**  
+We learned to ask "Can this be shared?" first. Components like `reporting.md` and `jqschema.md` emerged as universal patterns early on.
+
+**🔧 Layer by Abstraction Level**  
+The best shared components provided a single level of abstraction. Too generic meant workflows still needed boilerplate. Too specific meant limited reuse.
+
+**📦 MCP Configs are Perfect for Imports**  
+MCP server configurations with their network permissions, environment variables, and setup steps were ideal candidates for extraction into shared components.
+
+**⚠️ Version Control Matters**  
+For production workflows, we learned to pin shared component versions (via git refs) rather than always using latest. The import system supports `owner/repo/path@version` for stability.
+
+**🔄 Document What Gets Merged**  
+Clear documentation of merge semantics (tools merge, network unions, permissions validate) prevented confusion and made shared components predictable.
+
+---
+
 ## How Agentic Workfows Work
 
 Every agent in the zoo follows the same basic lifecycle:
