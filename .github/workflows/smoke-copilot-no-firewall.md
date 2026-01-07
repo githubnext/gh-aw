@@ -13,19 +13,12 @@ permissions:
   issues: read
 name: Smoke Copilot No Firewall
 engine: copilot
-network:
-  firewall: false
-  allowed:
-    - defaults
-    - node
-    - github
-    - playwright
 sandbox:
-  agent: false  # Firewall disabled (migrated from network.firewall)
-  mcp:
-    container: ghcr.io/githubnext/awmg
-    version: latest
-    port: 8080
+  agent: false
+  #mcp:
+  #  container: ghcr.io/githubnext/awmg
+  #  version: latest
+  #  port: 8080
 imports:
   - shared/gh.md
 tools:
