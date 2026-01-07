@@ -369,4 +369,3 @@ func TestWritePromptTextToYAML_WithExpressions(t *testing.T) {
 		}
 	}
 }
-

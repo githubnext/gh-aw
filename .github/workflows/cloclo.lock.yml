@@ -723,20 +723,20 @@ jobs:
           __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
           ```
           
-          {{#if ${{ github.event.issue.number }} }}
+          {{#if $${{ github.event.issue.number }} }}
           ## Issue Context
           
           - **Issue Number**: __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           - **Issue State**: __GH_AW_GITHUB_EVENT_ISSUE_STATE__
           {{/if}}
           
-          {{#if ${{ github.event.discussion.number }} }}
+          {{#if $${{ github.event.discussion.number }} }}
           ## Discussion Context
           
           - **Discussion Number**: __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
           
-          {{#if ${{ github.event.pull_request.number }} }}
+          {{#if $${{ github.event.pull_request.number }} }}
           ## Pull Request Context
           
           **IMPORTANT**: If this command was triggered from a pull request, you must capture and include the PR branch information in your processing:

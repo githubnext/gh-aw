@@ -565,14 +565,14 @@ jobs:
           
           Analyze the issue or discussion along with the comment content (which may contain additional guidance from the user), then:
           
-          {{#if ${{ github.event.issue.number }} }}
+          {{#if $${{ github.event.issue.number }} }}
           **When triggered from an issue comment** (current context):
           - Use the **current issue** (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) as the parent issue
           - Create actionable **sub-issues** (at most 5) as children of this issue
           - Do NOT create a new parent tracking issue
           {{/if}}
           
-          {{#if ${{ github.event.discussion.number }} }}
+          {{#if $${{ github.event.discussion.number }} }}
           **When triggered from a discussion** (current context):
           1. **First**: Create a **parent tracking issue** that links to the triggering discussion and summarizes the overall plan
           2. **Then**: Create actionable **sub-issues** (at most 5) as children of that parent issue
@@ -580,7 +580,7 @@ jobs:
           
           The comment text above may contain additional guidance or specific requirements from the user - integrate these when deciding which issues to create.
           
-          {{#if ${{ github.event.issue.number }} }}
+          {{#if $${{ github.event.issue.number }} }}
           ## Step 1: Create Sub-Issues (Using Current Issue as Parent)
           
           Since this was triggered from an issue comment, use the **current issue** (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) as the parent:
@@ -589,7 +589,7 @@ jobs:
           - Do NOT create a new parent tracking issue
           {{/if}}
           
-          {{#if ${{ github.event.discussion.number }} }}
+          {{#if $${{ github.event.discussion.number }} }}
           ## Step 1: Create the Parent Tracking Issue
           
           Create a parent issue first with:
@@ -639,7 +639,7 @@ jobs:
           
           ## Example: Creating Parent and Sub-Issues
           
-          {{#if ${{ github.event.discussion.number }} }}
+          {{#if $${{ github.event.discussion.number }} }}
           ### When Triggered from a Discussion
           
           #### Parent Issue (create first)
@@ -663,7 +663,7 @@ jobs:
           ```
           {{/if}}
           
-          {{#if ${{ github.event.issue.number }} }}
+          {{#if $${{ github.event.issue.number }} }}
           ### When Triggered from an Issue Comment
           
           Since this was triggered from issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__, use it as the parent for all sub-issues:
@@ -681,7 +681,7 @@ jobs:
           
           ## Important Notes
           
-          {{#if ${{ github.event.issue.number }} }}
+          {{#if $${{ github.event.issue.number }} }}
           - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues
           - **Use Current Issue as Parent**: All sub-issues should use `"parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"` to link to the current issue
           - **No Parent Issue Creation**: Do NOT create a new parent tracking issue - use the existing issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
@@ -691,7 +691,7 @@ jobs:
           - **Prioritize Clarity**: SWE agents need unambiguous instructions
           {{/if}}
           
-          {{#if ${{ github.event.discussion.number }} }}
+          {{#if $${{ github.event.discussion.number }} }}
           - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues (plus 1 parent issue = 6 total)
           - **Parent Issue First**: Always create the parent tracking issue first with a temporary_id
           - **Link Sub-Issues**: Use the parent's temporary_id in each sub-issue's `parent` field
@@ -708,13 +708,13 @@ jobs:
           
           ## Begin Planning
           
-          {{#if ${{ github.event.issue.number }} }}
+          {{#if $${{ github.event.issue.number }} }}
           1. First, analyze the current issue (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) and the user's comment for context and any additional guidance
           2. Create sub-issues as children of the current issue using `"parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"` (do NOT create a new parent issue)
           3. If this was triggered from a discussion in the "Ideas" category (it wasn't in this case), close the discussion with a comment
           {{/if}}
           
-          {{#if ${{ github.event.discussion.number }} }}
+          {{#if $${{ github.event.discussion.number }} }}
           1. First, analyze the discussion and the user's comment for context and any additional guidance
           2. Create the parent tracking issue with a temporary_id that links to the source discussion
           3. Create sub-issues as children of the parent issue using the temporary_id

@@ -55,9 +55,10 @@ func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string)
 // After GitHub Actions processes the YAML, $${{ becomes ${{ in the actual content.
 //
 // Example:
-//   Input:  grep '\${{ github.event'
-//   Output: grep '\$${{ github.event'
-//   Result after YAML parsing: grep '\${{ github.event'
+//
+//	Input:  grep '\${{ github.event'
+//	Output: grep '\$${{ github.event'
+//	Result after YAML parsing: grep '\${{ github.event'
 func escapeGitHubActionsExpressions(text string) string {
 	// Replace ${{ with $${{ to escape it for GitHub Actions YAML parser
 	return strings.ReplaceAll(text, "${{", "$${{")
