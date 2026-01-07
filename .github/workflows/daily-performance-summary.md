@@ -8,10 +8,12 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-  discussions: write
+  discussions: read
 engine: codex
 strict: true
 tracker-id: daily-performance-summary
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [default, discussions]
