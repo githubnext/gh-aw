@@ -215,7 +215,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 				Name: "Test Workflow",
 				EngineConfig: &EngineConfig{
 					ID:      "copilot",
-					Version: "0.0.374",
+					Version: "0.0.375",
 					Model:   "gpt-4",
 				},
 				SafeOutputs: &SafeOutputsConfig{},
@@ -223,7 +223,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			workflowID: "test-workflow",
 			expectedVars: map[string]string{
 				"GH_AW_ENGINE_ID":      `"copilot"`,
-				"GH_AW_ENGINE_VERSION": `"0.0.374"`,
+				"GH_AW_ENGINE_VERSION": `"0.0.375"`,
 				"GH_AW_ENGINE_MODEL":   `"gpt-4"`,
 			},
 			checkContains: true,
