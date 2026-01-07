@@ -53,10 +53,8 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 // GetInstallationSteps is implemented in copilot_engine_installation.go
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
-	return []string{
-		logsFolder,
-		"/home/runner/.copilot/session-state/*.jsonl", // Copilot session state files for debugging
-	}
+	// Session state files are copied to logs folder by GetFirewallLogsCollectionStep
+	return []string{logsFolder}
 }
 
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags

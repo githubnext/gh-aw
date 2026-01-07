@@ -38,29 +38,14 @@ func TestCopilotEngine(t *testing.T) {
 		t.Error("Expected copilot engine to not support max-turns yet")
 	}
 
-	// Test declared output files include session state
+	// Test declared output files (session files are copied to logs folder)
 	outputFiles := engine.GetDeclaredOutputFiles()
-	if len(outputFiles) != 2 {
-		t.Errorf("Expected 2 declared output files, got %d", len(outputFiles))
+	if len(outputFiles) != 1 {
+		t.Errorf("Expected 1 declared output file, got %d", len(outputFiles))
 	}
 
-	// Check for logs folder
-	hasLogsFolder := false
-	hasSessionState := false
-	for _, file := range outputFiles {
-		if file == "/tmp/gh-aw/sandbox/agent/logs/" {
-			hasLogsFolder = true
-		}
-		if file == "/home/runner/.copilot/session-state/*.jsonl" {
-			hasSessionState = true
-		}
-	}
-
-	if !hasLogsFolder {
-		t.Error("Expected declared output files to include logs folder")
-	}
-	if !hasSessionState {
-		t.Error("Expected declared output files to include Copilot session state files")
+	if outputFiles[0] != "/tmp/gh-aw/sandbox/agent/logs/" {
+		t.Errorf("Expected declared output file to be logs folder, got %s", outputFiles[0])
 	}
 }
 
