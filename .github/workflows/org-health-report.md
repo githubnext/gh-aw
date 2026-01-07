@@ -29,8 +29,6 @@ safe-outputs:
   upload-asset:
 timeout-minutes: 60
 strict: true
-features:
-  dangerous-permissions-write: true
 network:
   allowed:
     - defaults
