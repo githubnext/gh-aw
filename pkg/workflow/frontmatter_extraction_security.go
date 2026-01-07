@@ -173,9 +173,8 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	}
 
 	if mcpVal, hasMCP := sandboxObj["mcp"]; hasMCP {
-		frontmatterExtractionSecurityLog.Print("Unsupported MCP gateway configuration (removed)")
-		// MCP gateway (awmg) has been removed - this configuration is no longer supported
-		_ = mcpVal // Silence unused variable warning
+		frontmatterExtractionSecurityLog.Print("Extracting MCP gateway configuration")
+		config.MCP = c.extractMCPGatewayConfig(mcpVal)
 	}
 
 	// If we found agent field, return the new format config
@@ -293,6 +292,114 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 	}
 
 	return agentConfig
+}
+
+// extractMCPGatewayConfig extracts MCP gateway configuration from frontmatter
+// Supports object format with command/container, port, apiKey, domain, env, etc.
+func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig {
+	// Handle nil or boolean false
+	if mcpVal == nil {
+		return nil
+	}
+	if mcpBool, ok := mcpVal.(bool); ok && !mcpBool {
+		return nil
+	}
+
+	// Handle object format: { command: "...", container: "...", port: ..., args: [...], env: {...} }
+	mcpObj, ok := mcpVal.(map[string]any)
+	if !ok {
+		frontmatterExtractionSecurityLog.Printf("MCP gateway configuration is not an object: %T", mcpVal)
+		return nil
+	}
+
+	mcpConfig := &MCPGatewayRuntimeConfig{}
+
+	// Extract command (mutually exclusive with container)
+	if commandVal, hasCommand := mcpObj["command"]; hasCommand {
+		if commandStr, ok := commandVal.(string); ok {
+			mcpConfig.Command = commandStr
+		}
+	}
+
+	// Extract container (mutually exclusive with command)
+	if containerVal, hasContainer := mcpObj["container"]; hasContainer {
+		if containerStr, ok := containerVal.(string); ok {
+			mcpConfig.Container = containerStr
+		}
+	}
+
+	// Extract version (for container)
+	if versionVal, hasVersion := mcpObj["version"]; hasVersion {
+		if versionStr, ok := versionVal.(string); ok {
+			mcpConfig.Version = versionStr
+		}
+	}
+
+	// Extract port
+	if portVal, hasPort := mcpObj["port"]; hasPort {
+		switch v := portVal.(type) {
+		case int:
+			mcpConfig.Port = v
+		case int64:
+			mcpConfig.Port = int(v)
+		case uint:
+			mcpConfig.Port = int(v)
+		case uint64:
+			mcpConfig.Port = int(v)
+		case float64:
+			mcpConfig.Port = int(v)
+		}
+	}
+
+	// Extract apiKey
+	if apiKeyVal, hasAPIKey := mcpObj["api-key"]; hasAPIKey {
+		if apiKeyStr, ok := apiKeyVal.(string); ok {
+			mcpConfig.APIKey = apiKeyStr
+		}
+	}
+
+	// Extract domain
+	if domainVal, hasDomain := mcpObj["domain"]; hasDomain {
+		if domainStr, ok := domainVal.(string); ok {
+			mcpConfig.Domain = domainStr
+		}
+	}
+
+	// Extract args (additional arguments)
+	if argsVal, hasArgs := mcpObj["args"]; hasArgs {
+		if argsSlice, ok := argsVal.([]any); ok {
+			for _, arg := range argsSlice {
+				if argStr, ok := arg.(string); ok {
+					mcpConfig.Args = append(mcpConfig.Args, argStr)
+				}
+			}
+		}
+	}
+
+	// Extract entrypointArgs (for container only)
+	if entrypointArgsVal, hasEntrypointArgs := mcpObj["entrypointArgs"]; hasEntrypointArgs {
+		if entrypointArgsSlice, ok := entrypointArgsVal.([]any); ok {
+			for _, arg := range entrypointArgsSlice {
+				if argStr, ok := arg.(string); ok {
+					mcpConfig.EntrypointArgs = append(mcpConfig.EntrypointArgs, argStr)
+				}
+			}
+		}
+	}
+
+	// Extract env (environment variables)
+	if envVal, hasEnv := mcpObj["env"]; hasEnv {
+		if envObj, ok := envVal.(map[string]any); ok {
+			mcpConfig.Env = make(map[string]string)
+			for key, value := range envObj {
+				if valueStr, ok := value.(string); ok {
+					mcpConfig.Env[key] = valueStr
+				}
+			}
+		}
+	}
+
+	return mcpConfig
 }
 
 // extractSRTConfig extracts Sandbox Runtime configuration from a map

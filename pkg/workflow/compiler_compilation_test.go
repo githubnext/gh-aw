@@ -22,7 +22,10 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+engine: copilot
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -109,6 +112,8 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectError:      true,
@@ -127,6 +132,8 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -148,6 +155,8 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
    	   
@@ -177,6 +186,8 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -202,6 +213,8 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 

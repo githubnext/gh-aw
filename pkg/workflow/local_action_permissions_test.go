@@ -28,6 +28,8 @@ on:
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 command: /fix
 ---`,
@@ -44,6 +46,8 @@ on:
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			description:        "Main agent job should have contents: read when using local actions",
@@ -153,6 +157,8 @@ on:
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 command: /fix
 ---`

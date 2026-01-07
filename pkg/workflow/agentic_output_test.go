@@ -26,6 +26,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -125,6 +127,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: codex
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:

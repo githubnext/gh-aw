@@ -135,7 +135,7 @@ Automated security improvements and vulnerability remediation
 
 **Important: Retrieve the Project Board URL from Issue Assignments**
 
-The user adds the issue to a GitHub Project board via the UI after creating the issue. You must query this assignment using GitHub CLI (replace `ISSUE_NUMBER` with the actual issue number from `github.event.issue.number`):
+A project board has been automatically created from the campaign template and assigned to this issue. You must query this assignment using GitHub CLI (replace `ISSUE_NUMBER` with the actual issue number from `github.event.issue.number`):
 
 ```bash
 gh issue view ISSUE_NUMBER --json projectItems --jq '.projectItems.nodes[0]?.project?.url // empty'
@@ -148,9 +148,8 @@ Alternatively, use the github-issue-query skill (from the repository root):
 ```
 
 **If no project is assigned:**
-- Inform the user that a project board assignment is required
-- Provide clear instructions: "Please assign this issue to a GitHub Project board using the project selector in the issue sidebar, then mention me again to continue."
-- Explain they can also recreate the issue from the project board directly (which auto-assigns the project)
+- This should not happen as the campaign-generator workflow creates the project automatically
+- If it does happen, inform the user and ask them to re-run the campaign-generator workflow
 - Do not proceed with campaign creation without a valid project URL
 
 ### Step 2: Design the Campaign Specification
@@ -159,13 +158,13 @@ Based on the parsed requirements and project assignment, determine:
 
 1. **Campaign Name**: Derive a clear campaign name from the goal (e.g., "Security Vulnerability Remediation", "Node.js Migration")
 2. **Campaign ID**: Convert the campaign name to kebab-case (e.g., "Security Vulnerability Remediation" → "security-vulnerability-remediation")
-3. **Project URL**: Use the project URL retrieved from the issue's project assignments
+3. **Project URL**: Use the project URL retrieved from the issue's project assignments (created automatically by campaign-generator)
 4. **Workflows**: Identify workflows needed to implement the campaign
 5. **Owners**: Determine who will own and maintain the campaign
 6. **Risk Level**: Assess the risk level based on the campaign's scope
 7. **Safe Outputs**: Determine which safe outputs should be allowed
 8. **Approval Policy**: Define approval requirements based on risk level
-9. **Project Board Setup**: If the campaign uses a GitHub Project, recommend setting up custom fields:
+9. **Project Board Setup**: The project board is created from a template that already includes recommended custom fields:
    - `Worker/Workflow` (single-select): Workflow names for swimlane grouping
    - `Priority` (single-select): High/Medium/Low for filtering
    - `Status` (single-select): Todo/In Progress/Blocked/Done

@@ -2,7 +2,7 @@
 description: Campaign generator that updates issue status and assigns to Copilot agent for campaign design
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened]
     lock-for-agent: true
   reaction: "eyes"
 permissions:
@@ -18,6 +18,16 @@ safe-outputs:
   add-comment:
     max: 5
   assign-to-agent:
+  copy-project:
+    max: 1
+    source-project: "https://github.com/orgs/githubnext/projects/74"
+    target-owner: "githubnext"
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+  messages:
+    footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
+    run-started: "🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
+    run-success: "✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊"
+    run-failure: "⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again..."
 timeout-minutes: 5
 ---
 
@@ -35,20 +45,28 @@ Your job is to keep the user informed at each stage and assign the work to an AI
 
 ## Workflow Steps
 
-### Step 1: Retrieve the Project URL
+### Step 1: Copy Project from Template
 
-First, retrieve the project URL from the issue's project assignments using the GitHub CLI:
+Use the `copy-project` safe output to create a new project for the campaign from the template.
 
-```bash
-gh issue view ${{ github.event.issue.number }} --json projectItems --jq '.projectItems[0]?.project?.url // empty'
+Call the copy_project tool with just the title parameter (the target owner is configured as a default):
+
+```
+copy_project({
+  title: "Campaign: <campaign-name>"
+})
 ```
 
-If no project is assigned, post a comment explaining that a project board is required and stop.
+Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
+
+This will copy the "[TEMPLATE: Agentic Campaign]" project (https://github.com/orgs/githubnext/projects/74) to create a new project board for this campaign in the githubnext organization.
+
+The copied project will be automatically assigned to this issue.
 
 ### Step 2: Post Initial Comment
 
 Use the `add-comment` safe output to post a welcome comment that:
-- Shows the project URL prominently near the top with a clear link
+- Explains that a new project has been created from the template
 - Explains what will happen next
 - Sets expectations about the AI agent's work
 
@@ -56,11 +74,11 @@ Example structure:
 ```markdown
 🤖 **Campaign Creation Started**
 
-📊 **Project Board:** [View Project](<project-url>)
+📊 **Project Board:** A new project board has been created from the campaign template.
 
 I'm processing your campaign request. Here's what will happen:
 
-1. ✅ Retrieve project board details
+1. ✅ Created project board from template
 2. 🔄 Analyze campaign requirements
 3. 📝 Generate campaign specification
 4. 🔀 Create pull request with campaign file
@@ -74,6 +92,7 @@ An AI agent will be assigned to design your campaign. This typically takes a few
 Use the `assign-to-agent` safe output to assign the Copilot agent who will:
 - Parse the campaign requirements from the issue body
 - Generate a NEW campaign specification file (`.campaign.md`) with a unique campaign ID
+- Use the newly created project URL in the campaign spec
 - Create a pull request with the new campaign file
 
 The campaign-designer agent has detailed instructions in `.github/agents/agentic-campaign-designer.agent.md`
@@ -95,7 +114,8 @@ The AI agent is now working on your campaign design. You'll receive updates as t
 
 ## Important Notes
 
-- Always retrieve and display the project URL prominently in the first comment
+- Always create the project from the template using copy-project
+- The project URL from the copy-project output should be used in the campaign spec
 - Use clear, concise language in all comments
 - Keep users informed at each stage
 - The agent will create a NEW campaign file, not modify existing ones

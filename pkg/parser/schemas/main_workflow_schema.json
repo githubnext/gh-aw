@@ -3111,13 +3111,20 @@
               "type": "object",
               "description": "Repo-memory configuration object",
               "properties": {
+                "branch-prefix": {
+                  "type": "string",
+                  "minLength": 4,
+                  "maxLength": 32,
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "description": "Branch prefix for memory storage (default: 'memory'). Must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Branch will be named {branch-prefix}/{id}"
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
                 },
                 "branch-name": {
                   "type": "string",
-                  "description": "Git branch name for memory storage (default: memory/default)"
+                  "description": "Git branch name for memory storage (default: {branch-prefix}/default or memory/default if branch-prefix not set)"
                 },
                 "file-glob": {
                   "oneOf": [
@@ -3181,13 +3188,20 @@
                     "type": "string",
                     "description": "Memory identifier (required for array notation, default: 'default')"
                   },
+                  "branch-prefix": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9_-]+$",
+                    "description": "Branch prefix for memory storage (default: 'memory'). Must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Applied to all entries in the array. Branch will be named {branch-prefix}/{id}"
+                  },
                   "target-repo": {
                     "type": "string",
                     "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
                   },
                   "branch-name": {
                     "type": "string",
-                    "description": "Git branch name for memory storage (default: memory/{id})"
+                    "description": "Git branch name for memory storage (default: {branch-prefix}/{id} or memory/{id} if branch-prefix not set)"
                   },
                   "file-glob": {
                     "oneOf": [
@@ -3482,7 +3496,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -3619,28 +3633,29 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub Copilot agent tasks from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "deprecated": true,
               "properties": {
                 "base": {
                   "type": "string",
-                  "description": "Base branch for the agent task pull request. Defaults to the current branch or repository default branch."
+                  "description": "Base branch for the agent session pull request. Defaults to the current branch or repository default branch."
                 },
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of agent tasks to create (default: 1)",
+                  "description": "Maximum number of agent sessions to create (default: 1)",
                   "minimum": 1,
                   "maximum": 1
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository agent task creation. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository agent session creation. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of additional repositories in format 'owner/repo' that agent tasks can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the agent task in. The target repository (current or target-repo) is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that agent sessions can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the agent session in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -3651,7 +3666,47 @@
             },
             {
               "type": "null",
-              "description": "Enable agent task creation with default configuration"
+              "description": "Enable agent session creation with default configuration"
+            }
+          ]
+        },
+        "create-agent-session": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub Copilot agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "properties": {
+                "base": {
+                  "type": "string",
+                  "description": "Base branch for the agent session pull request. Defaults to the current branch or repository default branch."
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of agent sessions to create (default: 1)",
+                  "minimum": 1,
+                  "maximum": 1
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository agent session creation. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that agent sessions can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the agent session in. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable agent session creation with default configuration"
             }
           ]
         },

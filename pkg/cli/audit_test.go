@@ -1129,16 +1129,16 @@ func TestGenerateAuditReportWithFirewall(t *testing.T) {
 	if !strings.Contains(report, "Allowed Requests") {
 		t.Error("Report should mention allowed requests")
 	}
-	if !strings.Contains(report, "Denied Requests") {
-		t.Error("Report should mention denied requests")
+	if !strings.Contains(report, "Blocked Requests") {
+		t.Error("Report should mention blocked requests")
 	}
 
 	// Verify domain lists are present
 	if !strings.Contains(report, "Allowed Domains") {
 		t.Error("Report should contain Allowed Domains section")
 	}
-	if !strings.Contains(report, "Denied Domains") {
-		t.Error("Report should contain Denied Domains section")
+	if !strings.Contains(report, "Blocked Domains") {
+		t.Error("Report should contain Blocked Domains section")
 	}
 
 	// Verify specific domains are listed

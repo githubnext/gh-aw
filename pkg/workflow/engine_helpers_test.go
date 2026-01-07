@@ -250,11 +250,6 @@ func TestExtractAgentIdentifier(t *testing.T) {
 			expected: "test-agent",
 		},
 		{
-			name:     "custom agent file with .agent.md extension",
-			input:    ".github/agents/speckit-dispatcher.agent.md",
-			expected: "speckit-dispatcher",
-		},
-		{
 			name:     "custom agent file simple path",
 			input:    ".github/agents/test-agent.agent.md",
 			expected: "test-agent",

@@ -7,6 +7,11 @@ import Default from '@astrojs/starlight/components/Head.astro';
 
 <link rel="icon" type="image/svg+xml" href="/gh-aw/favicon.svg" />
 
+<!-- Responsive tables enhancement script -->
+<script>
+  import '../scripts/responsive-tables.ts';
+</script>
+
 <script is:inline>
   (function() {
     const storedTheme = localStorage.getItem('starlight-theme') || 'auto';

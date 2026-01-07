@@ -27,6 +27,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -71,6 +73,8 @@ permissions:
   contents: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -95,6 +99,8 @@ permissions:
   discussions: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -209,6 +215,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -273,6 +281,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
