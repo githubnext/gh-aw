@@ -46,6 +46,7 @@ func GetAllCodemods() []Codemod {
 		getCommandToSlashCommandCodemod(),
 		getSafeInputsModeCodemod(),
 		getUploadAssetsCodemod(),
+		getAgentTaskToAgentSessionCodemod(),
 	}
 }
 
@@ -583,6 +584,104 @@ func getUploadAssetsCodemod() Codemod {
 
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied upload-assets to upload-asset migration")
+			return newContent, true, nil
+		},
+	}
+}
+
+// getAgentTaskToAgentSessionCodemod creates a codemod for migrating create-agent-task to create-agent-session
+func getAgentTaskToAgentSessionCodemod() Codemod {
+	return Codemod{
+		ID:           "agent-task-to-agent-session-migration",
+		Name:         "Migrate create-agent-task to create-agent-session",
+		Description:  "Replaces deprecated 'safe-outputs.create-agent-task' field with 'safe-outputs.create-agent-session'",
+		IntroducedIn: "0.4.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// Check if safe-outputs.create-agent-task exists
+			safeOutputsValue, hasSafeOutputs := frontmatter["safe-outputs"]
+			if !hasSafeOutputs {
+				return content, false, nil
+			}
+
+			safeOutputsMap, ok := safeOutputsValue.(map[string]any)
+			if !ok {
+				return content, false, nil
+			}
+
+			// Check if create-agent-task field exists in safe-outputs (deprecated)
+			_, hasAgentTask := safeOutputsMap["create-agent-task"]
+			if !hasAgentTask {
+				return content, false, nil
+			}
+
+			// Parse frontmatter to get raw lines
+			result, err := parser.ExtractFrontmatterFromContent(content)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
+			}
+
+			// Find and replace create-agent-task with create-agent-session within the safe-outputs block
+			var modified bool
+			var inSafeOutputsBlock bool
+			var safeOutputsIndent string
+
+			frontmatterLines := make([]string, len(result.FrontmatterLines))
+
+			for i, line := range result.FrontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				// Track if we're in the safe-outputs block
+				if strings.HasPrefix(trimmedLine, "safe-outputs:") {
+					inSafeOutputsBlock = true
+					safeOutputsIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					frontmatterLines[i] = line
+					continue
+				}
+
+				// Check if we've left the safe-outputs block (new top-level key with same or less indentation)
+				if inSafeOutputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(currentIndent) <= len(safeOutputsIndent) && strings.Contains(line, ":") {
+						inSafeOutputsBlock = false
+					}
+				}
+
+				// Replace create-agent-task with create-agent-session if in safe-outputs block
+				if inSafeOutputsBlock && strings.HasPrefix(trimmedLine, "create-agent-task:") {
+					// Preserve indentation
+					leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+
+					// Extract the value and any trailing comment
+					parts := strings.SplitN(line, ":", 2)
+					if len(parts) >= 2 {
+						valueAndComment := parts[1]
+						frontmatterLines[i] = fmt.Sprintf("%screate-agent-session:%s", leadingSpace, valueAndComment)
+						modified = true
+						codemodsLog.Printf("Replaced safe-outputs.create-agent-task with safe-outputs.create-agent-session on line %d", i+1)
+					} else {
+						frontmatterLines[i] = line
+					}
+				} else {
+					frontmatterLines[i] = line
+				}
+			}
+
+			if !modified {
+				return content, false, nil
+			}
+
+			// Reconstruct the content
+			var lines []string
+			lines = append(lines, "---")
+			lines = append(lines, frontmatterLines...)
+			lines = append(lines, "---")
+			if result.Markdown != "" {
+				lines = append(lines, "")
+				lines = append(lines, result.Markdown)
+			}
+
+			newContent := strings.Join(lines, "\n")
+			codemodsLog.Print("Applied create-agent-task to create-agent-session migration")
 			return newContent, true, nil
 		},
 	}

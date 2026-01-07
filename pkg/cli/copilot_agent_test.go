@@ -43,7 +43,7 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 		{
 			name: "aw_info.json present means agentic workflow, not copilot agent",
 			setupFunc: func(dir string) error {
-				awInfo := `{"workflow_name": "copilot-swe-agent-task", "workflow_file": "test.yml"}`
+				awInfo := `{"workflow_name": "copilot-swe-agent-session", "workflow_file": "test.yml"}`
 				return os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0644)
 			},
 			workflowPath:   ".github/workflows/copilot-swe-agent.yml",
@@ -62,7 +62,7 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 			setupFunc: func(dir string) error {
 				logContent := `
 2024-01-15 10:00:00 Starting GitHub Copilot Agent v1.2.3
-2024-01-15 10:00:01 Initializing agent task execution
+2024-01-15 10:00:01 Initializing agent session execution
 2024-01-15 10:00:02 Processing request
 `
 				return os.WriteFile(filepath.Join(dir, "agent.log"), []byte(logContent), 0644)

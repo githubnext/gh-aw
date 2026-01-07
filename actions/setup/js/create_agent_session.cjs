@@ -8,8 +8,8 @@ const path = require("path");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
-  core.setOutput("task_number", "");
-  core.setOutput("task_url", "");
+  core.setOutput("session_number", "");
+  core.setOutput("session_url", "");
 
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
@@ -46,23 +46,23 @@ async function main() {
     return;
   }
 
-  const createAgentTaskItems = validatedOutput.items.filter(item => item.type === "create_agent_task");
-  if (createAgentTaskItems.length === 0) {
-    core.info("No create-agent-task items found in agent output");
+  const createAgentSessionItems = validatedOutput.items.filter(item => item.type === "create_agent_session");
+  if (createAgentSessionItems.length === 0) {
+    core.info("No create-agent-session items found in agent output");
     return;
   }
 
-  core.info(`Found ${createAgentTaskItems.length} create-agent-task item(s)`);
+  core.info(`Found ${createAgentSessionItems.length} create-agent-session item(s)`);
 
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Create Agent Tasks Preview\n\n";
-    summaryContent += "The following agent tasks would be created if staged mode was disabled:\n\n";
+    let summaryContent = "## 🎭 Staged Mode: Create Agent Sessions Preview\n\n";
+    summaryContent += "The following agent sessions would be created if staged mode was disabled:\n\n";
 
-    for (const [index, item] of createAgentTaskItems.entries()) {
+    for (const [index, item] of createAgentSessionItems.entries()) {
       summaryContent += `### Task ${index + 1}\n\n`;
       summaryContent += `**Description:**\n${item.body || "No description provided"}\n\n`;
 
-      const baseBranch = process.env.GITHUB_AW_AGENT_TASK_BASE || "main";
+      const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || "main";
       summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
 
       const targetRepo = process.env.GITHUB_AW_TARGET_REPO || process.env.GITHUB_REPOSITORY || "unknown";
@@ -78,14 +78,14 @@ async function main() {
   }
 
   // Get base branch from environment or use current branch
-  const baseBranch = process.env.GITHUB_AW_AGENT_TASK_BASE || process.env.GITHUB_REF_NAME || "main";
+  const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || process.env.GITHUB_REF_NAME || "main";
   const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
 
-  // Process all agent task items
+  // Process all agent session items
   const createdTasks = [];
-  let summaryContent = "## ✅ Agent Tasks Created\n\n";
+  let summaryContent = "## ✅ Agent Sessions Created\n\n";
 
-  for (const [index, taskItem] of createAgentTaskItems.entries()) {
+  for (const [index, taskItem] of createAgentSessionItems.entries()) {
     const taskDescription = taskItem.body;
 
     if (!taskDescription || taskDescription.trim() === "") {
@@ -111,7 +111,7 @@ async function main() {
         ghArgs.push("--repo", targetRepo);
       }
 
-      core.info(`Task ${index + 1}: Creating agent task with command: gh ${ghArgs.join(" ")}`);
+      core.info(`Task ${index + 1}: Creating agent session with command: gh ${ghArgs.join(" ")}`);
 
       // Execute gh agent-task create command
       let taskOutput;
@@ -125,12 +125,12 @@ async function main() {
 
         // Check for authentication/permission errors
         if (errorMessage.includes("authentication") || errorMessage.includes("permission") || errorMessage.includes("forbidden") || errorMessage.includes("401") || errorMessage.includes("403")) {
-          core.error(`Task ${index + 1}: Failed to create agent task due to authentication/permission error.`);
-          core.error(`The default GITHUB_TOKEN does not have permission to create agent tasks.`);
+          core.error(`Task ${index + 1}: Failed to create agent session due to authentication/permission error.`);
+          core.error(`The default GITHUB_TOKEN does not have permission to create agent sessions.`);
           core.error(`You must configure a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN or GH_AW_GITHUB_TOKEN.`);
-          core.error(`See documentation: https://githubnext.github.io/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-task`);
+          core.error(`See documentation: https://githubnext.github.io/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-session`);
         } else {
-          core.error(`Task ${index + 1}: Failed to create agent task: ${errorMessage}`);
+          core.error(`Task ${index + 1}: Failed to create agent session: ${errorMessage}`);
         }
         continue;
       }
@@ -151,22 +151,22 @@ async function main() {
         summaryContent += `**Task:** [#${taskNumber}](${output})\n\n`;
         summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
 
-        core.info(`✅ Successfully created agent task #${taskNumber}`);
+        core.info(`✅ Successfully created agent session #${taskNumber}`);
       } else {
         core.warning(`Task ${index + 1}: Could not parse task number from output: ${output}`);
         createdTasks.push({ number: "", url: output });
       }
     } catch (error) {
-      core.error(`Task ${index + 1}: Error creating agent task: ${getErrorMessage(error)}`);
+      core.error(`Task ${index + 1}: Error creating agent session: ${getErrorMessage(error)}`);
     }
   }
 
   // Set outputs for the first created task (for backward compatibility)
   if (createdTasks.length > 0) {
-    core.setOutput("task_number", createdTasks[0].number);
-    core.setOutput("task_url", createdTasks[0].url);
+    core.setOutput("session_number", createdTasks[0].number);
+    core.setOutput("session_url", createdTasks[0].url);
   } else {
-    core.setFailed("No agent tasks were created");
+    core.setFailed("No agent sessions were created");
     return;
   }
 

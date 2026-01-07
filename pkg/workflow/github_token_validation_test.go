@@ -232,7 +232,7 @@ on:
     types: [opened]
 engine: copilot
 safe-outputs:
-  create-agent-task:
+  create-agent-session:
     github-token: ` + tt.token + `
 ---
 

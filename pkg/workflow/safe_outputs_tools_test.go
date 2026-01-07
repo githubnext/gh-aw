@@ -34,13 +34,13 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			expectedTools: []string{"create_issue"},
 		},
 		{
-			name: "create agent tasks enabled",
+			name: "create agent sessions enabled",
 			safeOutputs: &SafeOutputsConfig{
-				CreateAgentTasks: &CreateAgentTaskConfig{
+				CreateAgentSessions: &CreateAgentSessionConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
 				},
 			},
-			expectedTools: []string{"create_agent_task"},
+			expectedTools: []string{"create_agent_session"},
 		},
 		{
 			name: "create discussions enabled",
@@ -145,7 +145,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "all tools enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues:                    &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
-				CreateAgentTasks:                &CreateAgentTaskConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
+				CreateAgentSessions:             &CreateAgentSessionConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 				CreateDiscussions:               &CreateDiscussionsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 2}},
 				AddComments:                     &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
 				CreatePullRequests:              &CreatePullRequestsConfig{},
@@ -160,7 +160,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			},
 			expectedTools: []string{
 				"create_issue",
-				"create_agent_task",
+				"create_agent_session",
 				"create_discussion",
 				"add_comment",
 				"create_pull_request",
@@ -271,7 +271,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 	// Verify all expected tools are present
 	expectedTools := []string{
 		"create_issue",
-		"create_agent_task",
+		"create_agent_session",
 		"create_discussion",
 		"update_discussion",
 		"close_discussion",
