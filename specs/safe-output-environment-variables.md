@@ -168,7 +168,7 @@ Each safe output type has additional environment variables specific to its confi
 |----------|-------------|----------|---------|
 | `GH_AW_MILESTONES_ALLOWED` | Comma-separated allowed milestone titles | `allowed` configured | `"v1.0,v2.0"` |
 
-### Create Agent Task (`create-agent-task:`)
+### Create Agent Task (`create-agent-session:`)
 
 | Variable | Description | Set When | Example |
 |----------|-------------|----------|---------|

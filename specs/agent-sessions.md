@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the plan to migrate from the old terminology "agent task" to the new terminology "agent session" throughout the GitHub Agentic Workflows codebase.
+This document outlines the plan to migrate from the old terminology "agent session" to the new terminology "agent session" throughout the GitHub Agentic Workflows codebase.
 
 **Status**: Planning Phase  
 **Target**: Complete terminology update to "agent session"  
@@ -26,7 +26,7 @@ The terminology for starting an agent is changing from "New Agent Task" to "New 
 
 ## Current State Analysis
 
-### Files Containing "agent task" (case-insensitive)
+### Files Containing "agent session" (case-insensitive)
 
 **Go Files (Primary Code)**:
 - `pkg/workflow/create_agent_task.go` - Core implementation
@@ -81,17 +81,17 @@ The terminology for starting an agent is changing from "New Agent Task" to "New 
 - `specs/template-injection-prevention.md` - Security patterns
 
 **Test Workflows**:
-- `pkg/cli/workflows/test-copilot-create-agent-task.md` - Test workflow
+- `pkg/cli/workflows/test-copilot-create-agent-session.md` - Test workflow
 
 ### Key Terminology Patterns
 
 **Configuration Keys** (in YAML/JSON):
-- `create-agent-task` → `create-agent-session`
+- `create-agent-session` → `create-agent-session`
 - `GITHUB_AW_AGENT_TASK_BASE` → `GITHUB_AW_AGENT_SESSION_BASE`
 
 **Go Type Names**:
-- `CreateAgentTaskConfig` → `CreateAgentSessionConfig`
-- `CreateAgentTasks` → `CreateAgentSessions`
+- `CreateAgentSessionConfig` → `CreateAgentSessionConfig`
+- `CreateAgentSessions` → `CreateAgentSessions`
 - `parseAgentTaskConfig` → `parseAgentSessionConfig`
 - `buildCreateOutputAgentTaskJob` → `buildCreateOutputAgentSessionJob`
 - `createAgentTaskLog` → `createAgentSessionLog`
@@ -107,7 +107,7 @@ The terminology for starting an agent is changing from "New Agent Task" to "New 
 - `create_agent_task_test.go` → `create_agent_session_test.go`
 - `create_agent_task.cjs` → `create_agent_session.cjs`
 - `create_agent_task.test.cjs` → `create_agent_session_test.cjs`
-- `test-copilot-create-agent-task.md` → `test-copilot-create-agent-session.md`
+- `test-copilot-create-agent-session.md` → `test-copilot-create-agent-session.md`
 
 **CLI Commands**:
 - `gh agent-task create` → Keeping this (external CLI tool, not part of gh-aw)
@@ -115,7 +115,7 @@ The terminology for starting an agent is changing from "New Agent Task" to "New 
 **User-Facing Terms**:
 - "Agent Task Creation" → "Agent Session Creation"
 - "Create Agent Task" → "Create Agent Session"
-- "agent task" → "agent session"
+- "agent session" → "agent session"
 
 ---
 
@@ -123,23 +123,23 @@ The terminology for starting an agent is changing from "New Agent Task" to "New 
 
 ### Phase 1: Schema and Codemod (Breaking Change)
 
-Since the configuration key `create-agent-task` is changing to `create-agent-session`, this is a **breaking change** that requires:
+Since the configuration key `create-agent-session` is changing to `create-agent-session`, this is a **breaking change** that requires:
 
 1. **Update JSON Schema**
    - Add `create-agent-session` to schema
-   - Mark `create-agent-task` as deprecated (if possible)
+   - Mark `create-agent-session` as deprecated (if possible)
    - Update descriptions and examples
 
 2. **Create Codemod**
    - Add new codemod to `pkg/cli/fix_codemods.go`
    - Codemod ID: `agent-task-to-agent-session-migration`
-   - Transform: `create-agent-task` → `create-agent-session`
+   - Transform: `create-agent-session` → `create-agent-session`
    - Preserve formatting, comments, and nested properties
 
 3. **Update Compiler**
    - Support both old and new keys during transition
    - Parse `create-agent-session` first
-   - Fall back to `create-agent-task` with deprecation warning
+   - Fall back to `create-agent-session` with deprecation warning
    - Plan full removal in future version
 
 ### Phase 2: Go Code Migration
@@ -152,7 +152,7 @@ Since the configuration key `create-agent-task` is changing to `create-agent-ses
    ```
 
 2. **Update Type Names**
-   - `CreateAgentTaskConfig` → `CreateAgentSessionConfig`
+   - `CreateAgentSessionConfig` → `CreateAgentSessionConfig`
    - Update all references in dependent files
 
 3. **Update Function Names**
@@ -161,7 +161,7 @@ Since the configuration key `create-agent-task` is changing to `create-agent-ses
 
 4. **Update Variable Names**
    - `agentTaskConfig` → `agentSessionConfig`
-   - `CreateAgentTasks` → `CreateAgentSessions`
+   - `CreateAgentSessions` → `CreateAgentSessions`
 
 5. **Update Logger Names**
    - `createAgentTaskLog` → `createAgentSessionLog`
@@ -216,21 +216,21 @@ Since the configuration key `create-agent-task` is changing to `create-agent-ses
 ### Phase 5: Test Migration
 
 1. **Update Test Workflows**
-   - Rename `test-copilot-create-agent-task.md` → `test-copilot-create-agent-session.md`
+   - Rename `test-copilot-create-agent-session.md` → `test-copilot-create-agent-session.md`
    - Update workflow content
 
 2. **Update Test Files**
-   - All `*_test.go` files with agent task references
+   - All `*_test.go` files with agent session references
 
 3. **Update Test Fixtures**
-   - Any test data or fixtures referencing agent tasks
+   - Any test data or fixtures referencing agent sessions
 
 ### Phase 6: Backward Compatibility
 
 During transition period:
 
 1. **Support Both Terms**
-   - Accept both `create-agent-task` and `create-agent-session` in schema
+   - Accept both `create-agent-session` and `create-agent-session` in schema
    - Parse both in compiler
    - Emit deprecation warning for old term
 
@@ -250,7 +250,7 @@ During transition period:
 ### Schema Changes
 - [ ] Update `pkg/parser/schemas/main_workflow_schema.json`
   - [ ] Add `create-agent-session` property
-  - [ ] Mark `create-agent-task` as deprecated (with description note)
+  - [ ] Mark `create-agent-session` as deprecated (with description note)
   - [ ] Update examples to use new terminology
   - [ ] Update `$comment` field listing operations
 
@@ -267,7 +267,7 @@ During transition period:
   - [ ] `create_agent_task_integration_test.go` → `create_agent_session_integration_test.go`
   
 - [ ] Update type definitions
-  - [ ] `CreateAgentTaskConfig` → `CreateAgentSessionConfig`
+  - [ ] `CreateAgentSessionConfig` → `CreateAgentSessionConfig`
   - [ ] Update all struct field names in `SafeOutputsConfig`
   
 - [ ] Update function names
@@ -276,7 +276,7 @@ During transition period:
   
 - [ ] Update variable names
   - [ ] All local variables: `agentTaskConfig` → `agentSessionConfig`
-  - [ ] All references to `CreateAgentTasks` → `CreateAgentSessions`
+  - [ ] All references to `CreateAgentSessions` → `CreateAgentSessions`
   
 - [ ] Update logger
   - [ ] `createAgentTaskLog` → `createAgentSessionLog`
@@ -286,7 +286,7 @@ During transition period:
   - [ ] `GITHUB_AW_AGENT_TASK_BASE` → `GITHUB_AW_AGENT_SESSION_BASE`
   
 - [ ] Add backward compatibility
-  - [ ] Parse both `create-agent-task` and `create-agent-session`
+  - [ ] Parse both `create-agent-session` and `create-agent-session`
   - [ ] Emit deprecation warning for old key
   
 - [ ] Update all importing files
@@ -315,7 +315,7 @@ During transition period:
   - [ ] `task_url` → `session_url`
   
 - [ ] Update comments and strings
-  - [ ] User-facing messages: "agent task" → "agent session"
+  - [ ] User-facing messages: "agent session" → "agent session"
   - [ ] "Create Agent Task" → "Create Agent Session"
   
 - [ ] Update tool definitions
@@ -358,7 +358,7 @@ During transition period:
 
 ### Test Changes
 - [ ] Rename test workflow
-  - [ ] `test-copilot-create-agent-task.md` → `test-copilot-create-agent-session.md`
+  - [ ] `test-copilot-create-agent-session.md` → `test-copilot-create-agent-session.md`
   - [ ] Update workflow content
   
 - [ ] Update test files
@@ -392,7 +392,7 @@ The `gh agent-task` CLI extension is **external** to gh-aw (repository: `github/
 
 ### Breaking Change Communication
 
-This is a **breaking change** for users with existing workflows using `create-agent-task`. Communication plan:
+This is a **breaking change** for users with existing workflows using `create-agent-session`. Communication plan:
 
 1. **Changeset**: Create changeset with `BREAKING CHANGE` prefix
 2. **Release Notes**: Clearly document the migration path
@@ -411,7 +411,7 @@ Focus testing on:
 
 ## References
 
-- Issue: Terminology change from "agent task" to "agent session"
+- Issue: Terminology change from "agent session" to "agent session"
 - Related: `gh agent-task` CLI tool (external, github/agent-task repo)
 - Schema: `pkg/parser/schemas/main_workflow_schema.json`
 - Codemods: `pkg/cli/fix_codemods.go`

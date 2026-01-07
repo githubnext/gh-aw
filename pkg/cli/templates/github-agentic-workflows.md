@@ -557,10 +557,10 @@ The YAML frontmatter supports these fields:
         max: 50                         # Optional: max findings (default: unlimited)
     ```
     Severity levels: error, warning, info, note.
-  - `create-agent-task:` - Create GitHub Copilot agent tasks
+  - `create-agent-session:` - Create GitHub Copilot agent sessions
     ```yaml
     safe-outputs:
-      create-agent-task:
+      create-agent-session:
         base: main                      # Optional: base branch (defaults to current)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
