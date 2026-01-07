@@ -563,7 +563,7 @@ func generateMCPGatewayStep(yaml *strings.Builder, tools map[string]any, mcpTool
 		// Direct command execution
 		mcpServersLog.Printf("Using command: %s", gatewayConfig.Command)
 		yaml.WriteString("          # Start gateway with command\n")
-		
+
 		// Build command line
 		cmdLine := gatewayConfig.Command
 		if len(gatewayConfig.Args) > 0 {
@@ -571,7 +571,7 @@ func generateMCPGatewayStep(yaml *strings.Builder, tools map[string]any, mcpTool
 				cmdLine += " " + shellQuote(arg)
 			}
 		}
-		
+
 		yaml.WriteString("          cat /tmp/gh-aw/mcp-config/gateway-input.json | " + cmdLine + " \\\n")
 		yaml.WriteString("            > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &\n")
 	} else if gatewayConfig.Container != "" {
@@ -585,7 +585,7 @@ func generateMCPGatewayStep(yaml *strings.Builder, tools map[string]any, mcpTool
 		yaml.WriteString("          # Start gateway with container\n")
 		yaml.WriteString("          cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \\\n")
 		yaml.WriteString("            --network host \\\n")
-		
+
 		// Add environment variables to container
 		yaml.WriteString("            -e MCP_GATEWAY_PORT \\\n")
 		yaml.WriteString("            -e MCP_GATEWAY_DOMAIN \\\n")
@@ -600,23 +600,23 @@ func generateMCPGatewayStep(yaml *strings.Builder, tools map[string]any, mcpTool
 				fmt.Fprintf(yaml, "            -e %s \\\n", envVarName)
 			}
 		}
-		
+
 		yaml.WriteString("            " + containerImage)
-		
+
 		// Add entrypoint args if configured
 		if len(gatewayConfig.EntrypointArgs) > 0 {
 			for _, arg := range gatewayConfig.EntrypointArgs {
 				yaml.WriteString(" " + shellQuote(arg))
 			}
 		}
-		
+
 		// Add command args if configured
 		if len(gatewayConfig.Args) > 0 {
 			for _, arg := range gatewayConfig.Args {
 				yaml.WriteString(" " + shellQuote(arg))
 			}
 		}
-		
+
 		yaml.WriteString(" \\\n")
 		yaml.WriteString("            > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &\n")
 	} else {
