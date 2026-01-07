@@ -66,6 +66,8 @@ permissions:
   issues: read
   pull-requests: read
 strict: false
+features:
+  dangerous-permissions-write: true
 ---
 
 # Verbose Test Workflow

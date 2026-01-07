@@ -267,6 +267,8 @@ permissions:
   issues: read
   pull-requests: read
   actions: write
+features:
+  dangerous-permissions-write: true
 imports:
   - shared/shared-permissions.md
 tools:
