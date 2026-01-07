@@ -91,8 +91,8 @@ func TestCreateDiscussionJobDependencies(t *testing.T) {
 
 func TestParseDiscussionsConfigDefaultExpiration(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         map[string]any
+		name            string
+		config          map[string]any
 		expectedExpires int
 	}{
 		{
