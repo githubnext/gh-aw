@@ -147,7 +147,7 @@ func TestFindWritePermissions(t *testing.T) {
 		{
 			name:               "write-all shorthand",
 			permissions:        NewPermissionsWriteAll(),
-			expectedWriteCount: 16, // All permission scopes
+			expectedWriteCount: 16,  // All permission scopes
 			expectedScopes:     nil, // Don't check specific scopes for shorthand
 		},
 		{
@@ -187,9 +187,9 @@ func TestFindWritePermissions(t *testing.T) {
 
 func TestFormatDangerousPermissionsError(t *testing.T) {
 	tests := []struct {
-		name              string
-		writePermissions  []PermissionScope
-		expectedContains  []string
+		name               string
+		writePermissions   []PermissionScope
+		expectedContains   []string
 		expectedNotContain []string
 	}{
 		{
