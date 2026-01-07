@@ -13,8 +13,8 @@
 //
 // This spinner uses idiomatic Bubble Tea patterns with tea.NewProgram() for proper
 // message handling and rendering pipeline integration. This approach:
-//   - Eliminates manual goroutine management
-//   - Removes mutex requirements through Bubble Tea's message passing
+//   - Simplified state management (single enabled flag, no running state)
+//   - No mutex required (Bubble Tea handles concurrency via message passing)
 //   - Leverages Bubble Tea's framerate optimization
 //   - Provides standard architecture consistent with other console components
 //
@@ -53,19 +53,15 @@ type spinnerModel struct {
 	message string
 }
 
-// Init initializes the spinner model and starts the ticker
-func (m spinnerModel) Init() tea.Cmd {
-	return m.spinner.Tick
-}
+func (m spinnerModel) Init() tea.Cmd { return m.spinner.Tick }
+func (m spinnerModel) View() string  { return fmt.Sprintf("\r%s %s", m.spinner.View(), m.message) }
 
-// Update handles messages and updates the spinner model
 func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case updateMessageMsg:
 		m.message = string(msg)
 		return m, nil
 	case tea.KeyMsg:
-		// Allow Ctrl+C to quit
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
@@ -77,108 +73,52 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the spinner with its message
-func (m spinnerModel) View() string {
-	return fmt.Sprintf("\r%s %s", m.spinner.View(), m.message)
-}
-
 // SpinnerWrapper wraps the spinner functionality with TTY detection and Bubble Tea program
 type SpinnerWrapper struct {
 	program *tea.Program
 	enabled bool
-	running bool
 }
 
-// NewSpinner creates a new spinner with the given message using MiniDot style
-// The spinner is automatically disabled when not running in a TTY or in accessibility mode
+// NewSpinner creates a new spinner with the given message using MiniDot style.
+// Automatically disabled when not running in a TTY or when ACCESSIBLE env var is set.
 func NewSpinner(message string) *SpinnerWrapper {
-	// Check if spinner should be enabled:
-	// 1. Must be running in a TTY
-	// 2. ACCESSIBLE environment variable must not be set
 	enabled := tty.IsStderrTerminal() && os.Getenv("ACCESSIBLE") == ""
-
-	s := &SpinnerWrapper{
-		enabled: enabled,
-		running: false,
-	}
+	s := &SpinnerWrapper{enabled: enabled}
 
 	if enabled {
-		// Create a new spinner model with MiniDot style and info color
-		spinnerModel := spinnerModel{
-			spinner: spinner.New(
-				spinner.WithSpinner(spinner.MiniDot),
-				spinner.WithStyle(styles.Info),
-			),
+		model := spinnerModel{
+			spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot), spinner.WithStyle(styles.Info)),
 			message: message,
 		}
-
-		// Create Bubble Tea program with output to stderr
-		s.program = tea.NewProgram(
-			spinnerModel,
-			tea.WithOutput(os.Stderr),
-			tea.WithoutRenderer(), // Use inline mode without alt screen
-		)
+		s.program = tea.NewProgram(model, tea.WithOutput(os.Stderr), tea.WithoutRenderer())
 	}
-
 	return s
 }
 
-// Start begins the spinner animation
 func (s *SpinnerWrapper) Start() {
-	if !s.enabled || s.running {
-		return
+	if s.enabled && s.program != nil {
+		go func() { _, _ = s.program.Run() }()
 	}
-
-	s.running = true
-
-	// Start the program in the background
-	go func() {
-		_, _ = s.program.Run()
-	}()
 }
 
-// Stop stops the spinner animation and clears the line
 func (s *SpinnerWrapper) Stop() {
-	if !s.enabled || !s.running {
-		return
+	if s.enabled && s.program != nil {
+		s.program.Quit()
+		fmt.Fprint(os.Stderr, "\r\033[K")
 	}
-
-	s.running = false
-
-	// Send quit message to stop the program
-	s.program.Quit()
-
-	// Clear the line
-	fmt.Fprint(os.Stderr, "\r\033[K")
 }
 
-// StopWithMessage stops the spinner and displays a final message
-// The message will only be displayed if the spinner is enabled (TTY check)
 func (s *SpinnerWrapper) StopWithMessage(msg string) {
-	if !s.enabled || !s.running {
-		return
+	if s.enabled && s.program != nil {
+		s.program.Quit()
+		fmt.Fprintf(os.Stderr, "\r\033[K%s\n", msg)
 	}
-
-	s.running = false
-
-	// Send quit message to stop the program
-	s.program.Quit()
-
-	// Clear the line and print the final message
-	fmt.Fprintf(os.Stderr, "\r\033[K%s\n", msg)
 }
 
-// UpdateMessage updates the spinner message
 func (s *SpinnerWrapper) UpdateMessage(message string) {
-	if !s.enabled || !s.running {
-		return
+	if s.enabled && s.program != nil {
+		s.program.Send(updateMessageMsg(message))
 	}
-
-	// Send update message through Bubble Tea's message passing
-	s.program.Send(updateMessageMsg(message))
 }
 
-// IsEnabled returns whether the spinner is enabled (i.e., running in a TTY)
-func (s *SpinnerWrapper) IsEnabled() bool {
-	return s.enabled
-}
+func (s *SpinnerWrapper) IsEnabled() bool { return s.enabled }
