@@ -26,6 +26,8 @@ permissions:
   issues: write
   pull-requests: read
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -69,6 +71,8 @@ permissions:
   issues: write
   pull-requests: read
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues, create_issue]
