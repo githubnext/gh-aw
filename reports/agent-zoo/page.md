@@ -222,38 +222,38 @@ The zoo organized shared components into two main directories:
 These components provided fundamental capabilities that many workflows needed:
 
 **Most Popular Shared Components:**
-- **`reporting.md`** (46 imports) - Report formatting guidelines, workflow run references, footer standards
-- **`jqschema.md`** (17 imports) - JSON querying and schema validation utilities
-- **`python-dataviz.md`** (7 imports) - Python environment with NumPy, Pandas, Matplotlib, Seaborn
-- **`trending-charts-simple.md`** (6 imports) - Quick setup for creating trend visualizations
-- **`gh.md`** (4 imports) - Safe-input wrapper for GitHub CLI with authentication
-- **`copilot-pr-data-fetch.md`** (4 imports) - Fetch and cache GitHub Copilot PR data
+- [**`reporting.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) (46 imports) - Report formatting guidelines, workflow run references, footer standards
+- [**`jqschema.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) (17 imports) - JSON querying and schema validation utilities
+- [**`python-dataviz.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/python-dataviz.md) (7 imports) - Python environment with NumPy, Pandas, Matplotlib, Seaborn
+- [**`trending-charts-simple.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/trending-charts-simple.md) (6 imports) - Quick setup for creating trend visualizations
+- [**`gh.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/gh.md) (4 imports) - Safe-input wrapper for GitHub CLI with authentication
+- [**`copilot-pr-data-fetch.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/copilot-pr-data-fetch.md) (4 imports) - Fetch and cache GitHub Copilot PR data
 
 **Specialized Components:**
-- **`charts-with-trending.md`** - Comprehensive trending with cache-memory integration
-- **`ci-data-analysis.md`** - CI workflow analysis utilities
-- **`session-analysis-charts.md`** - Copilot session visualization patterns
-- **`keep-it-short.md`** - Prompt guidance for concise responses
-- **`safe-output-app.md`** - Safe output application patterns
+- [**`charts-with-trending.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/charts-with-trending.md) - Comprehensive trending with cache-memory integration
+- [**`ci-data-analysis.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/ci-data-analysis.md) - CI workflow analysis utilities
+- [**`session-analysis-charts.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/session-analysis-charts.md) - Copilot session visualization patterns
+- [**`keep-it-short.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/keep-it-short.md) - Prompt guidance for concise responses
+- [**`safe-output-app.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/safe-output-app.md) - Safe output application patterns
 
 #### `.github/workflows/shared/mcp/` - MCP Server Configurations (20+ servers)
 
 These components configured Model Context Protocol servers for specialized capabilities:
 
 **Most Used MCP Servers:**
-- **`gh-aw.md`** (12 imports) - GitHub Agentic Workflows MCP server with `logs` command
-- **`tavily.md`** (5 imports) - Web search via Tavily API
-- **`markitdown.md`** (3 imports) - Document conversion (PDF, Office, images to Markdown)
-- **`ast-grep.md`** (2 imports) - Structural code search and analysis
-- **`brave.md`** (2 imports) - Alternative web search via Brave API
-- **`arxiv.md`** (2 imports) - Academic paper research
-- **`notion.md`** (2 imports) - Notion workspace integration
+- [**`gh-aw.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/gh-aw.md) (12 imports) - GitHub Agentic Workflows MCP server with `logs` command
+- [**`tavily.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/tavily.md) (5 imports) - Web search via Tavily API
+- [**`markitdown.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/markitdown.md) (3 imports) - Document conversion (PDF, Office, images to Markdown)
+- [**`ast-grep.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/ast-grep.md) (2 imports) - Structural code search and analysis
+- [**`brave.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/brave.md) (2 imports) - Alternative web search via Brave API
+- [**`arxiv.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/arxiv.md) (2 imports) - Academic paper research
+- [**`notion.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/notion.md) (2 imports) - Notion workspace integration
 
 **Infrastructure & Analysis:**
-- **`jupyter.md`** - Jupyter notebook environment with Docker services
-- **`skillz.md`** - Dynamic skill loading from `.github/skills/` directory
-- **`context7.md`**, **`deepwiki.md`**, **`microsoft-docs.md`** - Specialized search and documentation
-- **`slack.md`**, **`sentry.md`**, **`datadog.md`** - External service integrations
+- [**`jupyter.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/jupyter.md) - Jupyter notebook environment with Docker services
+- [**`skillz.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/skillz.md) - Dynamic skill loading from `.github/skills/` directory
+- [**`context7.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/context7.md), [**`deepwiki.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/deepwiki.md), [**`microsoft-docs.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/microsoft-docs.md) - Specialized search and documentation
+- [**`slack.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/slack.md), [**`sentry.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/sentry.md), [**`datadog.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/datadog.md) - External service integrations
 
 ### Import Patterns in Practice
 
@@ -266,7 +266,7 @@ imports:
   - shared/reporting.md
 ```
 
-Used by: `semantic-function-refactor`, `blog-auditor`, `daily-secrets-analysis` and others
+Used by: [`semantic-function-refactor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/semantic-function-refactor.md), [`blog-auditor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/blog-auditor.md), [`daily-secrets-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-secrets-analysis.md) and others
 
 #### Pattern 2: Analysis with Tools
 
@@ -279,7 +279,7 @@ imports:
   - shared/mcp/gh-aw.md
 ```
 
-Used by: `audit-workflows`, `issue-arborist`, `smoke-detector` and others
+Used by: [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md), [`issue-arborist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md), [`smoke-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-detector.md) and others
 
 #### Pattern 3: Data Visualization Stack
 
@@ -293,7 +293,7 @@ imports:
   - shared/trending-charts-simple.md
 ```
 
-Used by: `audit-workflows`, `prompt-clustering-analysis`, `copilot-agent-analysis` and others
+Used by: [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md), [`prompt-clustering-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/prompt-clustering-analysis.md), [`copilot-agent-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-agent-analysis.md) and others
 
 #### Pattern 4: Research Agent
 
@@ -311,7 +311,7 @@ imports:
   - shared/jqschema.md
 ```
 
-Used by: `scout` (deep research agent with 8 imports!)
+Used by: [`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md) (deep research agent with 8 imports!)
 
 #### Pattern 5: CI Analysis
 
@@ -324,7 +324,7 @@ imports:
   - shared/reporting.md
 ```
 
-Used by: `ci-coach`
+Used by: [`ci-coach`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ci-coach.md)
 
 #### Pattern 6: Agent File Customization
 
@@ -336,7 +336,7 @@ imports:
   - ../agents/technical-doc-writer.agent.md
 ```
 
-Used by: `glossary-maintainer`, `technical-doc-writer`
+Used by: [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md), [`technical-doc-writer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/technical-doc-writer.md)
 
 ### Nested Imports: Shared Components Can Import Too
 
@@ -388,7 +388,7 @@ The import system wasn't just textual inclusion - it performed **intelligent mer
 # Provides defaults that workflows can selectively override
 ```
 
-### Real-World Example: The `audit-workflows` Agent
+### Real-World Example: The [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) Agent
 
 The audit-workflows agent demonstrates imports at their best - combining 5 shared components to create a sophisticated meta-analysis agent:
 
@@ -415,9 +415,9 @@ The workflow itself only needed to specify its unique logic - everything else ca
 ### Statistics: Imports by the Numbers
 
 - **84 workflows** (65% of zoo) use the imports feature
-- **46 workflows** import `reporting.md` (most popular component)
-- **17 workflows** import `jqschema.md` (JSON utilities)
-- **12 workflows** import `mcp/gh-aw.md` (meta-analysis server)
+- **46 workflows** import [`reporting.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) (most popular component)
+- **17 workflows** import [`jqschema.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) (JSON utilities)
+- **12 workflows** import [`mcp/gh-aw.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/gh-aw.md) (meta-analysis server)
 - **35+ shared components** in `.github/workflows/shared/`
 - **20+ MCP server configs** in `.github/workflows/shared/mcp/`
 - **Average 2-3 imports** per workflow (some have 8+!)
@@ -428,7 +428,7 @@ The workflow itself only needed to specify its unique logic - everything else ca
 Without imports, maintaining 145 workflows would have been impossible. Updates that touched dozens of workflows became single-file changes.
 
 **🎯 Start with Shared Components**  
-We learned to ask "Can this be shared?" first. Components like `reporting.md` and `jqschema.md` emerged as universal patterns early on.
+We learned to ask "Can this be shared?" first. Components like [`reporting.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) and [`jqschema.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) emerged as universal patterns early on.
 
 **🔧 Layer by Abstraction Level**  
 The best shared components provided a single level of abstraction. Too generic meant workflows still needed boilerplate. Too specific meant limited reuse.
@@ -509,86 +509,86 @@ After running 145 agents continuously, we identified 12 fundamental patterns tha
 ### 1. The Read-Only Analyst 🔬
 **Observe, analyze, and report without changing anything**
 
-Agentic Workfows that gather data, perform analysis, and publish insights through discussions or assets. No write permissions to code. Safe for continuous operation at any frequency. Includes metrics collectors, audit reports, health monitors, statistical analyzers (lockfile-stats, org-health), and deep research agents (scout, archie).
+Agentic Workfows that gather data, perform analysis, and publish insights through discussions or assets. No write permissions to code. Safe for continuous operation at any frequency. Includes metrics collectors, audit reports, health monitors, statistical analyzers ([`lockfile-stats`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/lockfile-stats.md), [`org-health`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/org-health-report.md)), and deep research agents ([`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md), [`archie`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/archie.md)).
 
-*Examples: Weekly metrics, audit workflows, portfolio analyst, session insights, prompt clustering, org health report*
+*Examples: Weekly metrics, [`audit workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md), [`portfolio analyst`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md), [`session insights`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-session-insights.md), [`prompt clustering`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/prompt-clustering-analysis.md), [`org health report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/org-health-report.md)*
 
 ### 2. The ChatOps Responder 💬
 **On-demand assistance via slash commands**
 
-Agentic Workfows activated by `/command` mentions in issues or PRs. Role-gated for security. Respond with analysis, visualizations, or actions. Includes review agents (grumpy-reviewer), generators (workflow-generator, campaign-generator), fixers (pr-fix), optimizers (q), researchers (scout), and diagram creators (archie).
+Agentic Workfows activated by `/command` mentions in issues or PRs. Role-gated for security. Respond with analysis, visualizations, or actions. Includes review agents ([`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md)), generators ([`workflow-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md), [`campaign-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md)), fixers ([`pr-fix`](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md)), optimizers ([`q`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md)), researchers ([`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md)), and diagram creators ([`archie`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/archie.md)).
 
-*Examples: Q, grumpy reviewer, poem bot, mergefest, scout, archie, pr-fix*
+*Examples: [`Q`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md), [`grumpy reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md), [`poem bot`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md), [`mergefest`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md), [`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md), [`archie`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/archie.md), [`pr-fix`](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md)*
 
 ### 3. The Continuous Janitor 🧹
 **Automated cleanup and maintenance**
 
-Agentic Workfows that propose incremental improvements through PRs. Run on schedules (daily/weekly). Create scoped changes with descriptive labels and commit messages. Human review before merging. Includes dependency updates, formatting fixes, documentation sync, file refactoring (daily-file-diet), instruction maintenance (instructions-janitor), and CI repairs (hourly-ci-cleaner).
+Agentic Workfows that propose incremental improvements through PRs. Run on schedules (daily/weekly). Create scoped changes with descriptive labels and commit messages. Human review before merging. Includes dependency updates, formatting fixes, documentation sync, file refactoring ([`daily-file-diet`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md)), instruction maintenance ([`instructions-janitor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/instructions-janitor.md)), and CI repairs ([`hourly-ci-cleaner`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/hourly-ci-cleaner.md)).
 
-*Examples: Daily workflow updater, glossary maintainer, unbloat-docs, daily-file-diet, hourly-ci-cleaner*
+*Examples: [`Daily workflow updater`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-workflow-updater.md), [`glossary maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md), [`unbloat-docs`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/unbloat-docs.md), [`daily-file-diet`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md), [`hourly-ci-cleaner`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/hourly-ci-cleaner.md)*
 
 ### 4. The Quality Guardian 🛡️
 **Continuous validation and compliance enforcement**
 
-Agentic Workfows that validate system integrity through testing, scanning, and compliance checks. Run frequently (hourly/daily) to catch regressions early. Includes smoke tests (engine validation), security scanners (static-analysis-report, daily-malicious-code-scan), accessibility checkers (daily-accessibility-review), and infrastructure validators (firewall, mcp-inspector).
+Agentic Workfows that validate system integrity through testing, scanning, and compliance checks. Run frequently (hourly/daily) to catch regressions early. Includes smoke tests (engine validation), security scanners ([`static-analysis-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/static-analysis-report.md), [`daily-malicious-code-scan`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-malicious-code-scan.md)), accessibility checkers ([`daily-accessibility-review`](https://github.com/githubnext/agentics/blob/main/workflows/daily-accessibility-review.md)), and infrastructure validators ([`firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md), [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md)).
 
-*Examples: Smoke tests, schema consistency checker, breaking change checker, security compliance, static-analysis-report, mcp-inspector*
+*Examples: Smoke tests, [`schema consistency checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/schema-consistency-checker.md), [`breaking change checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/breaking-change-checker.md), [`security compliance`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-compliance.md), [`static-analysis-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/static-analysis-report.md), [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md)*
 
 ### 5. The Issue & PR Manager 🔗
 **Intelligent workflow automation for issues and pull requests**
 
-Agentic Workfows that triage, link, label, close, and coordinate issues and PRs. Includes triagers (issue-triage-agent, issue-classifier), linkers (issue-arborist), closers (sub-issue-closer), template optimizers, merge coordinators (mergefest), changeset generators, and auto-assigners. React to events or run on schedules.
+Agentic Workfows that triage, link, label, close, and coordinate issues and PRs. Includes triagers ([`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md), [`issue-classifier`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-classifier.md)), linkers ([`issue-arborist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md)), closers ([`sub-issue-closer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/sub-issue-closer.md)), template optimizers, merge coordinators ([`mergefest`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md)), changeset generators, and auto-assigners. React to events or run on schedules.
 
-*Examples: Issue triage agent, issue arborist, mergefest, sub-issue closer, changeset generator*
+*Examples: [`Issue triage agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md), [`issue arborist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md), [`mergefest`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md), [`sub issue closer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/sub-issue-closer.md), [`changeset generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/changeset.md)*
 
 ### 6. The Multi-Phase Project Agent 🔄
 **Progressive work across multiple days with human checkpoints**
 
 Agentic Workfows that tackle complex improvements too large for single runs. Three phases: (1) Research and create plan discussion, (2) Infer/setup build infrastructure, (3) Implement changes via PR. Check state each run to determine current phase. Enables ambitious goals like backlog reduction, performance optimization, test coverage improvement.
 
-*Examples: Daily backlog burner, daily perf improver, daily test improver, daily QA*
+*Examples: [`Daily backlog burner`](https://github.com/githubnext/agentics/blob/main/workflows/daily-backlog-burner.md), [`daily perf improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-perf-improver.md), [`daily test improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md), [`daily QA`](https://github.com/githubnext/agentics/blob/main/workflows/daily-qa.md)*
 
 ### 7. The Code Intelligence Agent 🔍
 **Semantic analysis and pattern detection**
 
-Agentic Workfows using specialized code analysis tools (Serena, ast-grep) to detect patterns, duplicates, anti-patterns, and refactoring opportunities. Language-specific (go-pattern-detector, duplicate-code-detector) or cross-language (semantic-function-refactor). Creates issues or PRs with detailed findings. Includes type analysis (typist) and consistency checking.
+Agentic Workfows using specialized code analysis tools (Serena, ast-grep) to detect patterns, duplicates, anti-patterns, and refactoring opportunities. Language-specific ([`go-pattern-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/go-pattern-detector.md), [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md)) or cross-language ([`semantic-function-refactor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/semantic-function-refactor.md)). Creates issues or PRs with detailed findings. Includes type analysis ([`typist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/typist.md)) and consistency checking.
 
-*Examples: Duplicate code detector, semantic function refactor, terminal stylist, go-pattern-detector, typist*
+*Examples: [`Duplicate code detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md), [`semantic function refactor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/semantic-function-refactor.md), [`terminal stylist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/terminal-stylist.md), [`go-pattern-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/go-pattern-detector.md), [`typist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/typist.md)*
 
-### 8. The Meta-Orchestrator 🎯
+### 8. The Content & Documentation Agent 📝
+**Maintain knowledge artifacts synchronized with code**
+
+Agentic Workfows that keep documentation, glossaries, slide decks, blog posts, and other content fresh. Monitor codebase changes and update corresponding docs. Includes specialized analyzers ([`video-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/video-analyzer.md), [`pdf-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/pdf-summary.md), [`ubuntu-image-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ubuntu-image-analyzer.md) for environment docs) and general maintainers. Creates PRs with synchronized content.
+
+*Examples: [`Glossary maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md), [`technical doc writer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/technical-doc-writer.md), [`slide deck maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/slide-deck-maintainer.md), [`blog auditor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/blog-auditor.md), [`repo-tree-map`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/repo-tree-map.md), [`ubuntu-image-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ubuntu-image-analyzer.md)*
+
+### 9. The Meta-Agent Optimizer 🎯
 **Agentic Workfows that monitor and optimize other agents**
 
 Agentic Workfows that analyze the agent ecosystem itself. Download workflow logs, classify failures, detect missing tools, track performance metrics, identify cost optimization opportunities. Essential for maintaining agent health at scale. Includes performance analyzers, missing tool detectors, and workflow health managers.
 
-*Examples: Audit workflows, agent performance analyzer, portfolio analyst, workflow health manager*
+*Examples: [`Audit workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md), [`agent performance analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md), [`portfolio analyst`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md), [`workflow health manager`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md)*
 
-### 9. The Content & Documentation Agent 📝
-**Maintain knowledge artifacts synchronized with code**
-
-Agentic Workfows that keep documentation, glossaries, slide decks, blog posts, and other content fresh. Monitor codebase changes and update corresponding docs. Includes specialized analyzers (video-analyzer, pdf-summary, ubuntu-image-analyzer for environment docs) and general maintainers. Creates PRs with synchronized content.
-
-*Examples: Glossary maintainer, technical doc writer, slide deck maintainer, blog auditor, repo-tree-map, ubuntu-image-analyzer*
-
-### 10. The Event-Driven Coordinator 🚦
+### 10. The Meta-Agent Orchestrator 🚦
 **Orchestrate multi-step workflows via state machines**
 
-Agentic Workfows that coordinate complex workflows through campaigns or beads patterns. Track state across runs (open/in-progress/completed). Campaign pattern uses labeled issues and project boards. Beads pattern uses hourly workers for queued tasks. Includes workflow generators and dev monitors (dev-hawk).
+Agentic Workfows that coordinate complex workflows through campaigns or beads patterns. Track state across runs (open/in-progress/completed). Campaign pattern uses labeled issues and project boards. Beads pattern uses hourly workers for queued tasks. Includes workflow generators and dev monitors ([`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md)).
 
-*Examples: Campaign generator, beads worker, workflow generator, dev-hawk*
+*Examples: [`Campaign generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md), [`beads worker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/beads-worker.md), [`workflow generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md), [`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md)*
 
 ### 11. The ML & Analytics Agent 🤖
 **Advanced insights through machine learning and NLP**
 
 Agentic Workfows that apply clustering, NLP, statistical analysis, or ML techniques to extract patterns from historical data. Fetch sessions, prompts, PRs, or conversations. Generate visualizations and trend reports. Use repo-memory for longitudinal analysis. Discover hidden patterns not obvious from individual interactions.
 
-*Examples: Copilot session insights, NLP analysis, prompt clustering, copilot agent analysis*
+*Examples: [`Copilot session insights`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-session-insights.md), [`NLP analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-nlp-analysis.md), [`prompt clustering`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/prompt-clustering-analysis.md), [`copilot agent analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-agent-analysis.md)*
 
 ### 12. The Security & Moderation Agent 🔒
 **Protect repositories from threats and enforce policies**
 
 Agentic Workfows that guard repositories through vulnerability scanning, secret detection, spam filtering, malicious code analysis, and compliance enforcement. Includes AI moderators for comment spam, security scanners for code vulnerabilities, firewall validators, deadline trackers for security campaigns, and automated security fix generators.
 
-*Examples: Security compliance, firewall, daily secrets analysis, ai-moderator, security-fix-pr, static-analysis-report, daily-malicious-code-scan*
+*Examples: [`Security compliance`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-compliance.md), [`firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md), [`daily secrets analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-secrets-analysis.md), [`ai-moderator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ai-moderator.md), [`security-fix-pr`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-fix-pr.md), [`static-analysis-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/static-analysis-report.md), [`daily-malicious-code-scan`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-malicious-code-scan.md)*
 Running a zoo taught us that **safety isn't just about permissions** - it's about designing environments where agents can't accidentally cause harm:
 
 ### 🛡️ **Least Privilege, Always**
@@ -638,7 +638,7 @@ Breaking complex improvements into 3-phase workflows (research → setup → imp
 ### 💬 **Slash Commands Create Natural User Interfaces**
 ChatOps-style `/command` triggers made agents feel like natural team members. Users could invoke powerful capabilities with simple comments, and role-gating ensured only authorized users could trigger sensitive operations.
 
-### 🧪 **Smoke Tests Build Confidence**
+### 🧪 **Heartbeats Build Confidence**
 Frequent, lightweight validation tests (every 12 hours) caught regressions quickly. These "heartbeat" agents ensured the infrastructure stayed healthy without manual monitoring.
 
 ### 🔧 **MCP Inspection Is Essential**
@@ -721,37 +721,37 @@ Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Krzysztof Cieślak, 
 **Incorporated into 12 consolidated patterns (95 workflows):**
 
 *Pattern 1 - Read-Only Analyst:*
-agent-performance-analyzer, audit-workflows, copilot-agent-analysis, copilot-session-insights, daily-copilot-token-report, daily-performance-summary, lockfile-stats, metrics-collector, org-health-report, portfolio-analyst, prompt-clustering-analysis, repo-tree-map, scout, static-analysis-report, ubuntu-image-analyzer
+[`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md), [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md), [`copilot-agent-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-agent-analysis.md), [`copilot-session-insights`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-session-insights.md), [`daily-copilot-token-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-copilot-token-report.md), [`daily-performance-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-performance-summary.md), [`lockfile-stats`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/lockfile-stats.md), [`metrics-collector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/metrics-collector.md), [`org-health-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/org-health-report.md), [`portfolio-analyst`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md), [`prompt-clustering-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/prompt-clustering-analysis.md), [`repo-tree-map`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/repo-tree-map.md), [`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md), [`static-analysis-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/static-analysis-report.md), [`ubuntu-image-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ubuntu-image-analyzer.md)
 
 *Pattern 2 - ChatOps Responder:*
-archie, campaign-generator, grumpy-reviewer, mergefest, poem-bot, pr-nitpick-reviewer, q, workflow-generator
+[`archie`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/archie.md), [`campaign-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md), [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md), [`mergefest`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md), [`poem-bot`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md), [`pr-nitpick-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/pr-nitpick-reviewer.md), [`q`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md), [`workflow-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md)
 
 *Pattern 3 - Continuous Janitor:*
-changeset, daily-doc-updater, daily-file-diet, daily-workflow-updater, developer-docs-consolidator, glossary-maintainer, hourly-ci-cleaner, instructions-janitor, slide-deck-maintainer, technical-doc-writer, unbloat-docs
+[`changeset`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/changeset.md), [`daily-doc-updater`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-doc-updater.md), [`daily-file-diet`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md), [`daily-workflow-updater`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-workflow-updater.md), [`developer-docs-consolidator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/developer-docs-consolidator.md), [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md), [`hourly-ci-cleaner`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/hourly-ci-cleaner.md), [`instructions-janitor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/instructions-janitor.md), [`slide-deck-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/slide-deck-maintainer.md), [`technical-doc-writer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/technical-doc-writer.md), [`unbloat-docs`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/unbloat-docs.md)
 
 *Pattern 4 - Quality Guardian:*
-breaking-change-checker, ci-coach, daily-multi-device-docs-tester, firewall-escape, firewall, github-mcp-structural-analysis, mcp-inspector, schema-consistency-checker, smoke-claude, smoke-codex-firewall, smoke-codex, smoke-copilot-no-firewall, smoke-copilot-playwright, smoke-copilot-safe-inputs, smoke-copilot, smoke-detector, smoke-srt-custom-config, smoke-srt
+[`breaking-change-checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/breaking-change-checker.md), [`ci-coach`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ci-coach.md), [`daily-multi-device-docs-tester`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-multi-device-docs-tester.md), [`firewall-escape`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall-escape.md), [`firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md), [`github-mcp-structural-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/github-mcp-structural-analysis.md), [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md), [`schema-consistency-checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/schema-consistency-checker.md), [`smoke-claude`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-claude.md), [`smoke-codex-firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-codex-firewall.md), [`smoke-codex`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-codex.md), [`smoke-copilot-no-firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-copilot-no-firewall.md), [`smoke-copilot-playwright`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-copilot-playwright.md), [`smoke-copilot-safe-inputs`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-copilot-safe-inputs.md), [`smoke-copilot`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-copilot.md), [`smoke-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-detector.md), [`smoke-srt-custom-config`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-srt-custom-config.md), [`smoke-srt`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-srt.md)
 
 *Pattern 5 - Issue & PR Manager:*
-issue-arborist, issue-classifier, issue-template-optimizer, issue-triage-agent, sub-issue-closer
+[`issue-arborist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md), [`issue-classifier`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-classifier.md), [`issue-template-optimizer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-template-optimizer.md), [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md), [`sub-issue-closer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/sub-issue-closer.md)
 
 *Pattern 7 - Code Intelligence:*
-cli-consistency-checker, duplicate-code-detector, go-pattern-detector, repository-quality-improver, semantic-function-refactor, terminal-stylist, typist
+[`cli-consistency-checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/cli-consistency-checker.md), [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md), [`go-pattern-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/go-pattern-detector.md), [`repository-quality-improver`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/repository-quality-improver.md), [`semantic-function-refactor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/semantic-function-refactor.md), [`terminal-stylist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/terminal-stylist.md), [`typist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/typist.md)
 
 *Pattern 9 - Content & Documentation:*
-artifacts-summary, blog-auditor, copilot-pr-merged-report, notion-issue-summary, pdf-summary, video-analyzer, weekly-issue-summary
+[`artifacts-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/artifacts-summary.md), [`blog-auditor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/blog-auditor.md), [`copilot-pr-merged-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-merged-report.md), [`notion-issue-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/notion-issue-summary.md), [`pdf-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/pdf-summary.md), [`video-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/video-analyzer.md), [`weekly-issue-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/weekly-issue-summary.md)
 
 *Pattern 10 - Event-Driven Coordinator:*
-beads-worker, dev-hawk, docs-quality-maintenance-project67.campaign, docs-quality-maintenance-project67.campaign.g, file-size-reduction-project71.campaign, file-size-reduction-project71.campaign.g, workflow-health-manager
+[`beads-worker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/beads-worker.md), [`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md), [`docs-quality-maintenance-project67.campaign`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/docs-quality-maintenance-project67.campaign.md), [`docs-quality-maintenance-project67.campaign.g`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/docs-quality-maintenance-project67.campaign.g.md), [`file-size-reduction-project71.campaign`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/file-size-reduction-project71.campaign.md), [`file-size-reduction-project71.campaign.g`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/file-size-reduction-project71.campaign.g.md), [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md)
 
 *Pattern 11 - ML & Analytics:*
-copilot-pr-nlp-analysis, copilot-pr-prompt-analysis
+[`copilot-pr-nlp-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-nlp-analysis.md), [`copilot-pr-prompt-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-prompt-analysis.md)
 
 *Pattern 12 - Security & Moderation:*
-ai-moderator, daily-malicious-code-scan, daily-secrets-analysis, security-compliance, security-fix-pr, safe-output-health
+[`ai-moderator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ai-moderator.md), [`daily-malicious-code-scan`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-malicious-code-scan.md), [`daily-secrets-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-secrets-analysis.md), [`security-compliance`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-compliance.md), [`security-fix-pr`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-fix-pr.md), [`safe-output-health`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/safe-output-health.md)
 
 **Specialized/experimental variants (33):**
-brave, ci-doctor, cli-version-checker, cloclo, commit-changes-analyzer, craft, daily-assign-issue-to-user, daily-choice-test, daily-cli-performance, daily-code-metrics, daily-fact, daily-firewall-report, daily-issues-report, daily-news, daily-repo-chronicle, daily-team-status, deep-report, dependabot-go-checker, dev, dictation-prompt, docs-noob-tester, example-custom-error-patterns, example-permissions-warning, example-workflow-analyzer, github-mcp-tools-report, go-fan, go-logger, issue-monster, jsweep, layout-spec-maintainer, plan, playground-org-project-update-issue, playground-snapshots-refresh, python-data-charts, release, research, stale-repo-identifier, super-linter, tidy
+[`brave`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/brave.md), [`ci-doctor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ci-doctor.md), [`cli-version-checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/cli-version-checker.md), [`cloclo`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/cloclo.md), [`commit-changes-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/commit-changes-analyzer.md), [`craft`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/craft.md), [`daily-assign-issue-to-user`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-assign-issue-to-user.md), [`daily-choice-test`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-choice-test.md), [`daily-cli-performance`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-cli-performance.md), [`daily-code-metrics`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-code-metrics.md), [`daily-fact`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-fact.md), [`daily-firewall-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-firewall-report.md), [`daily-issues-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-issues-report.md), [`daily-news`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-news.md), [`daily-repo-chronicle`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-repo-chronicle.md), [`daily-team-status`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-team-status.md), [`deep-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/deep-report.md), [`dependabot-go-checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dependabot-go-checker.md), [`dev`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev.md), [`dictation-prompt`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dictation-prompt.md), [`docs-noob-tester`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/docs-noob-tester.md), [`example-custom-error-patterns`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/example-custom-error-patterns.md), [`example-permissions-warning`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/example-permissions-warning.md), [`example-workflow-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/example-workflow-analyzer.md), [`github-mcp-tools-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/github-mcp-tools-report.md), [`go-fan`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/go-fan.md), [`go-logger`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/go-logger.md), [`issue-monster`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-monster.md), [`jsweep`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/jsweep.md), [`layout-spec-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/layout-spec-maintainer.md), [`plan`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/plan.md), [`playground-org-project-update-issue`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/playground-org-project-update-issue.md), [`playground-snapshots-refresh`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/playground-snapshots-refresh.md), [`python-data-charts`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/python-data-charts.md), [`release`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/release.md), [`research`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/research.md), [`stale-repo-identifier`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/stale-repo-identifier.md), [`super-linter`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/super-linter.md), [`tidy`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/tidy.md)
 
 ### Workflows from `/home/dsyme/agentics/workflows` (17 total)
 
