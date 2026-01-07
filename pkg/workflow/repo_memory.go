@@ -74,7 +74,7 @@ func validateBranchPrefix(prefix string) error {
 
 	// Check for alphanumeric and branch-friendly characters (alphanumeric, hyphens, underscores)
 	for _, c := range prefix {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '_' {
 			return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'", prefix)
 		}
 	}
@@ -141,7 +141,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	if memoryArray, ok := repoMemoryValue.([]any); ok {
 		repoMemoryLog.Printf("Processing memory array with %d entries", len(memoryArray))
 		config.Memories = make([]RepoMemoryEntry, 0, len(memoryArray))
-		
+
 		// Parse branch-prefix from first item if it's a map with branch-prefix key
 		// This allows branch-prefix to be set at the top level for all memories
 		if len(memoryArray) > 0 {
@@ -157,7 +157,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				}
 			}
 		}
-		
+
 		for _, item := range memoryArray {
 			if memoryMap, ok := item.(map[string]any); ok {
 				entry := RepoMemoryEntry{
@@ -277,7 +277,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	// Convert to array with single entry
 	if configMap, ok := repoMemoryValue.(map[string]any); ok {
 		repoMemoryLog.Print("Processing object-style repo-memory configuration (backward compatible)")
-		
+
 		// Parse branch-prefix if provided
 		if branchPrefix, exists := configMap["branch-prefix"]; exists {
 			if prefixStr, ok := branchPrefix.(string); ok {
@@ -288,7 +288,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				repoMemoryLog.Printf("Using custom branch-prefix: %s", prefixStr)
 			}
 		}
-		
+
 		entry := RepoMemoryEntry{
 			ID:           "default",
 			BranchName:   generateDefaultBranchName("default", config.BranchPrefix),

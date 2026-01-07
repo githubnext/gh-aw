@@ -833,8 +833,8 @@ func TestBranchPrefixInConfig(t *testing.T) {
 	require.NotNil(t, config, "Expected non-nil config")
 
 	assert.Equal(t, "campaigns", config.BranchPrefix, "Expected branch-prefix 'campaigns'")
-	assert.Equal(t, 1, len(config.Memories), "Expected 1 memory")
-	
+	assert.Len(t, config.Memories, 1, "Expected 1 memory")
+
 	memory := config.Memories[0]
 	assert.Equal(t, "campaigns/default", memory.BranchName, "Expected branch name 'campaigns/default'")
 }
@@ -862,8 +862,8 @@ func TestBranchPrefixInArrayConfig(t *testing.T) {
 	require.NotNil(t, config, "Expected non-nil config")
 
 	assert.Equal(t, "my-prefix", config.BranchPrefix, "Expected branch-prefix 'my-prefix'")
-	assert.Equal(t, 2, len(config.Memories), "Expected 2 memories")
-	
+	assert.Len(t, config.Memories, 2, "Expected 2 memories")
+
 	// Both memories should use the same prefix
 	assert.Equal(t, "my-prefix/session", config.Memories[0].BranchName, "Expected branch name 'my-prefix/session'")
 	assert.Equal(t, "my-prefix/logs", config.Memories[1].BranchName, "Expected branch name 'my-prefix/logs'")
@@ -887,7 +887,7 @@ func TestBranchPrefixWithExplicitBranchName(t *testing.T) {
 	require.NotNil(t, config, "Expected non-nil config")
 
 	assert.Equal(t, "campaigns", config.BranchPrefix, "Expected branch-prefix 'campaigns'")
-	
+
 	memory := config.Memories[0]
 	// Explicit branch-name should override the prefix
 	assert.Equal(t, "custom/branch", memory.BranchName, "Expected explicit branch name 'custom/branch'")
@@ -918,7 +918,7 @@ func TestInvalidBranchPrefixRejectsConfig(t *testing.T) {
 
 			compiler := NewCompiler(false, "", "test")
 			config, err := compiler.extractRepoMemoryConfig(toolsConfig)
-			assert.Error(t, err, "Expected error for invalid branch-prefix: %s", tt.prefix)
+			require.Error(t, err, "Expected error for invalid branch-prefix: %s", tt.prefix)
 			assert.Nil(t, config, "Expected nil config on error")
 		})
 	}
