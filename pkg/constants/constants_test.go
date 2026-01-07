@@ -379,6 +379,7 @@ func TestFeatureFlagConstants(t *testing.T) {
 		{"SafeInputsFeatureFlag", SafeInputsFeatureFlag, "safe-inputs"},
 		{"MCPGatewayFeatureFlag", MCPGatewayFeatureFlag, "mcp-gateway"},
 		{"SandboxRuntimeFeatureFlag", SandboxRuntimeFeatureFlag, "sandbox-runtime"},
+		{"DangerousPermissionsWriteFeatureFlag", DangerousPermissionsWriteFeatureFlag, "dangerous-permissions-write"},
 	}
 
 	for _, tt := range tests {
