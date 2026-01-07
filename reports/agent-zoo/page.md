@@ -1,12 +1,12 @@
-# Introducing the Agent Zoo
+# Introducing the Agent Nursery
 
 **Exploring the landscape of automated agentic workflows in software development**
 
-_The automated use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "zoo" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this zoo, the patterns we explored, and the lessons for the future of repo-level automated agentic development._
+_The automated use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "nursery" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this nursery, the patterns we explored, and the lessons for the future of repo-level automated agentic development._
 
-## What is the Agent Zoo?
+## What is the Agent Nursery?
 
-Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress. The **Agent Zoo** is our exploration of what happens when you take the design philosophy of _let's create a new agentic workflow for that_ as the answer to every opportunity that may present itself! What happens when you _max out on agentic workflows_ - when you let dozens of specialized AI agentic workflows loose in a real repository, each designed to solve a specific problem.
+Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress. The **Agent Nursery** is our exploration of what happens when you take the design philosophy of _let's create a new agentic workflow for that_ as the answer to every opportunity that may present itself! What happens when you _max out on agentic workflows_ - when you make and nurture dozens of specialized AI agentic workflows in a real repository, each designed to solve a specific problem.
 
 Over the course of this research project, we built and operated **over 100 autonomous agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These weren't hypothetical demos - they were working agents that:
 
@@ -20,7 +20,7 @@ Over the course of this research project, we built and operated **over 100 auton
 - Validated infrastructure through continuous smoke testing
 - Even wrote poetry to boost team morale
 
-Think of it as a real zoo: each "species" of agent has its own habitat (triggers and permissions), diet (tools and data sources), and behavior patterns (what it produces). Some are friendly herbivores that just read and report. Others are more assertive, proposing changes through pull requests. And a few are the zookeepers themselves - meta-agents that monitor the health of all the other agents.
+Think of it as a real nursery: each agentic workflow has its own care requirements (triggers and permissions), nutrients (tools and data sources), and growth patterns (what it produces). Some are gentle caregivers that just read and report. Others are more proactive, proposing changes through pull requests. And a few are the gardeners themselves - meta-agents that monitor the health of all the other agents.
 
 We know we're taking things to an extreme here. Most repositories won't need dozens of agents. No one can read all these outputs. But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust.
 
@@ -28,7 +28,7 @@ The information in this report is up to date as of January 2026. Most of it is h
 
 ### By the Numbers
 
-At the time of writing zoo comprises:
+At the time of writing the nursery comprises:
 - **128 workflows** in the main `gh-aw` repository
 - **17 curated workflows** in the installable `agentics` collection
 - **145 total workflows** demonstrating diverse agent patterns
@@ -39,24 +39,24 @@ At the time of writing zoo comprises:
 
 ---
 
-## Why Build a Zoo?
+## Why Build a Nursery?
 
 When we started exploring agentic workflows, we faced a fundamental question: **What should repository-level agents actually do?**
 
-The answer wasn't obvious. So instead of trying to build one "perfect" agent, we took a naturalist's approach:
+The answer wasn't obvious. So instead of trying to build one "perfect" agent, we took a gardener's approach:
 
-1. **Let many species evolve**  -  We created diverse agents for different tasks
-2. **Observe them in the wild**  -  We ran them continuously in real development workflows
-3. **Document survival strategies**  -  We identified which patterns worked and which failed
-4. **Extract reusable DNA**  -  We cataloged the common structures that made agents safe and effective
+1. **Embrace diversity**  -  We created diverse agents for different tasks
+2. **Use them and improve them**  -  We ran them continuously in real development workflows
+3. **Document what thrives**  -  We identified which patterns worked and which failed
+4. **Share the knowledge**  -  We cataloged the common structures that made agents safe and effective
 
-The zoo became both an experiment and a reference collection - a living library of patterns that others could study, adapt, and remix.
+The nursery became both an experiment and a reference collection - a living library of patterns that others could study, adapt, and remix.
 
 ---
 
-## Meet the Inhabitants
+## Meet the Agentic Workflows
 
-OK, it's time to meet the residents of the Agent Zoo! Below is a curated selection of the most interesting and useful agentic workflows we developed and ran continuously in the `gh-aw` repository. Each agent is linked to its source Markdown file so you can explore how it works in detail.
+OK, it's time to meet the agentic workflows in the Agent Nursery! Below is a curated selection of the most interesting and useful agentic workflows we developed and ran continuously in the `gh-aw` repository. Each is linked to its source Markdown file so you can explore how it works in detail.
 
 ### 🏥 **Triage & Summarization Agentic Workfows**
 
@@ -193,13 +193,13 @@ These agents manage structured improvement campaigns:
 
 ---
 
-## Imports & Sharing: The Agent Zoo's Secret Weapon
+## Imports & Sharing: The Agent Nursery's Secret Weapon
 
-One of the most powerful features that enabled us to scale to 145 agents was the **imports system** - a mechanism for sharing and reusing workflow components across the entire zoo. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
+One of the most powerful features that enabled us to scale to 145 agents was the **imports system** - a mechanism for sharing and reusing workflow components across the entire nursery. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
 
 ### Why Imports Matter at Scale
 
-Managing dozens of agents would be unsustainable without reuse. Imports provided several critical benefits:
+Tending dozens of agents would be unsustainable without reuse. Imports provided several critical benefits:
 
 **🔄 DRY Principle for Agents**  
 When we improved report formatting or updated an MCP server configuration, the change automatically propagated to all workflows that imported it. No need to update 46 workflows individually.
@@ -215,7 +215,7 @@ Creating a new workflow often meant writing just the agent-specific prompt and i
 
 ### The Shared Component Library
 
-The zoo organized shared components into two main directories:
+The nursery organized shared components into two main directories:
 
 #### `.github/workflows/shared/` - Core Capabilities (35+ components)
 
@@ -589,7 +589,12 @@ Agentic Workfows that apply clustering, NLP, statistical analysis, or ML techniq
 Agentic Workfows that guard repositories through vulnerability scanning, secret detection, spam filtering, malicious code analysis, and compliance enforcement. Includes AI moderators for comment spam, security scanners for code vulnerabilities, firewall validators, deadline trackers for security campaigns, and automated security fix generators.
 
 *Examples: [`Security compliance`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-compliance.md), [`firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md), [`daily secrets analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-secrets-analysis.md), [`ai-moderator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ai-moderator.md), [`security-fix-pr`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-fix-pr.md), [`static-analysis-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/static-analysis-report.md), [`daily-malicious-code-scan`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-malicious-code-scan.md)*
-Running a zoo taught us that **safety isn't just about permissions** - it's about designing environments where agents can't accidentally cause harm:
+
+## Security Lessons
+
+Security is critical in agentic workflows. See the [security architecture](https://githubnext.github.io/gh-aw/introduction/architecture/) and [security guide](https://githubnext.github.io/gh-aw/guides/security/). Many of the security features of GitHub Agentic Workflows were born from lessons learned while building and running this nursery.
+
+Nurturing a nursery taught us that **safety isn't just about permissions** - it's about designing environments where agents can't accidentally cause harm:
 
 ### 🛡️ **Least Privilege, Always**
 Start with read-only permissions. Add write permissions only when absolutely necessary and through constrained safe outputs.
@@ -661,45 +666,24 @@ Agentic Workfows that maintained glossaries, technical docs, and slide decks kep
 
 ---
 
-## Research Artifacts
-
-This project produced several resources:
-
-- **[100+ Working Workflows](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/)**  -  The actual zoo, ready to explore
-- **[Agentics Pack](https://github.com/githubnext/agentics)**  -  Curated collection of installable workflows for common development tasks:
-  - **ci-doctor.md**  -  Diagnoses and reports on CI failures
-  - **daily-backlog-burner.md**  -  Systematically works through issue/PR backlog
-  - **daily-perf-improver.md**  -  Three-phase performance optimization workflow
-  - **daily-test-improver.md**  -  Identifies and implements test coverage improvements
-  - **daily-qa.md**  -  Continuous quality assurance automation
-  - **issue-triage.md**  -  Automatically categorizes and labels issues
-  - **q.md**  -  Interactive workflow optimizer and investigator
-  - **repo-ask.md**  -  Natural language repository queries
-  - **update-docs.md**  -  Documentation maintenance agent
-  - **weekly-research.md**  -  Research summaries and insights
-- **[Pattern Catalog](/reports/agent-zoo/patterns.md)**  -  Documented scaffolds and anti-patterns
-- **[Research Plan](/reports/agent-zoo/plan.md)**  -  Detailed methodology and evaluation framework
-
----
-
 ## Try It Yourself
 
-Want to start your own agent zoo?
+Want to start your own agent nursery?
 
 1. **Start Small**: Pick one tedious task (issue triage, CI diagnosis, weekly summaries)
 2. **Use the Analyst Pattern**: Read-only agents that post to discussions
-3. **Run Continuously**: Let it run for a week and observe
+3. **Nurture Continuously**: Let it run and observe
 4. **Iterate**: Refine based on what actually helps your team
-5. **Add More Species**: Once one agent works, add complementary ones
+5. **Plant More Seeds**: Once one agent works, add complementary ones
 
-The workflows in this zoo are fully remixable. Copy them, adapt them, and make them your own.
+The workflows in this nursery are fully remixable. Copy them, adapt them, and make them your own.
 
 ---
 
 ## Learn More
 
 - **[Agentic Workflows Documentation](https://githubnext.github.io/gh-aw/)**  -  How to write and compile workflows
-- **[gh-aw Repository](https://github.com/githubnext/gh-aw)**  -  The zoo's home
+- **[gh-aw Repository](https://github.com/githubnext/gh-aw)**  -  The nursery's home
 - **[Agentics Collection](https://github.com/githubnext/agentics)**  -  Ready-to-install workflows
 - **[Continuous AI Project](https://githubnext.com/projects/continuous-ai)**  -  The broader vision
 
@@ -707,7 +691,7 @@ The workflows in this zoo are fully remixable. Copy them, adapt them, and make t
 
 ## Credits
 
-**Agent Zoo** was a research project by GitHub Next Agentic Workflows contributors and collaborators:
+**Agent Nursery** was a research project by GitHub Next Agentic Workflows contributors and collaborators:
 
 Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Krzysztof Cieślak,  Russell Horton, Ben De St Paer‑Gotch, Jiaxiao Zhou
 
