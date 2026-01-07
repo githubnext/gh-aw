@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -15,7 +16,15 @@ import (
 
 var detectionLog = logger.New("workflow:detection")
 
-func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+func (c *Compiler) ParseWorkflowFile(markdownPath string) (workflowData *WorkflowData, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Panic recovered in ParseWorkflowFile: %v\nStack: %s", r, string(debug.Stack()))
+			err = fmt.Errorf("internal error during workflow parsing: %v. This is a bug - please report it at github.com/githubnext/gh-aw/issues", r)
+			workflowData = nil
+		}
+	}()
+
 	log.Printf("Reading file: %s", markdownPath)
 
 	// Clean the path to prevent path traversal issues (gosec G304)
@@ -443,7 +452,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Build workflow data
-	workflowData := &WorkflowData{
+	workflowData = &WorkflowData{
 		Name:                workflowName,
 		FrontmatterName:     frontmatterName,
 		FrontmatterYAML:     strings.Join(result.FrontmatterLines, "\n"),

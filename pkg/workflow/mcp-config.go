@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -775,11 +776,18 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 }
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
-func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
+func getMCPConfig(toolConfig map[string]any, toolName string) (result *parser.MCPServerConfig, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			mcpLog.Printf("Panic recovered in getMCPConfig for tool %s: %v\nStack: %s", toolName, r, string(debug.Stack()))
+			err = fmt.Errorf("internal error during MCP config parsing for tool '%s': %v. This is a bug - please report it at github.com/githubnext/gh-aw/issues", toolName, r)
+		}
+	}()
+
 	mcpLog.Printf("Extracting MCP config for tool: %s", toolName)
 
 	config := MapToolConfig(toolConfig)
-	result := &parser.MCPServerConfig{
+	result = &parser.MCPServerConfig{
 		BaseMCPServerConfig: types.BaseMCPServerConfig{
 			Env:     make(map[string]string),
 			Headers: make(map[string]string),

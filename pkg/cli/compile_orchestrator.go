@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/campaign"
@@ -222,7 +223,14 @@ func generateAndCompileCampaignOrchestrator(
 }
 
 // CompileWorkflows compiles workflows based on the provided configuration
-func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.WorkflowData, error) {
+func CompileWorkflows(ctx context.Context, config CompileConfig) (result []*workflow.WorkflowData, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			compileOrchestratorLog.Printf("Panic recovered in CompileWorkflows: %v\nStack: %s", r, string(debug.Stack()))
+			err = fmt.Errorf("internal error during workflow compilation: %v. This is a bug - please report it at github.com/githubnext/gh-aw/issues", r)
+		}
+	}()
+
 	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v",
 		len(config.MarkdownFiles), config.Validate, config.Watch, config.NoEmit)
 

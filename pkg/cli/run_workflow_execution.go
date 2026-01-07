@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +20,14 @@ import (
 var executionLog = logger.New("cli:run_workflow_execution")
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, waitForCompletion bool, inputs []string, verbose bool) error {
+func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, waitForCompletion bool, inputs []string, verbose bool) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			executionLog.Printf("Panic recovered in RunWorkflowOnGitHub: %v\nStack: %s", r, string(debug.Stack()))
+			err = fmt.Errorf("internal error during workflow execution: %v. This is a bug - please report it at github.com/githubnext/gh-aw/issues", r)
+		}
+	}()
+
 	executionLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, push=%v, wait=%v, inputs=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, push, waitForCompletion, inputs)
 
 	// Check context cancellation at the start
