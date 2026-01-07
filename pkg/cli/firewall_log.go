@@ -55,13 +55,8 @@ var (
 // - Comment lines (starting with #) are skipped
 // - Empty lines are skipped
 // - Lines with fewer than 10 fields are rejected
-// - Field validation uses regex patterns matching the JavaScript parser:
-//   * timestamp: must be numeric with optional decimal point
-//   * client_ip:port: must be IP:port format or "-"
-//   * domain: must be domain:port format or "-"
-//   * dest_ip:port: must be IP:port format or "-"
-//   * status: must be numeric or "-"
-//   * decision: must contain ":" or be "-"
+// - Only timestamp field is validated (must be numeric with optional decimal point)
+// - Other fields are accepted as-is without validation (matches JavaScript parser behavior)
 // - User agent quotes are automatically stripped
 //
 // # Request Classification
@@ -164,49 +159,19 @@ func parseFirewallLogLine(line string) *FirewallLogEntry {
 		return nil
 	}
 
-	// Validate timestamp format (should be numeric with optional decimal point)
+	// Only validate timestamp (essential for log format detection)
+	// This matches the JavaScript parser behavior which only validates timestamp
 	timestamp := fields[0]
 	if matched, _ := regexp.MatchString(`^\d+(\.\d+)?$`, timestamp); !matched {
 		return nil
 	}
 
-	// Validate client IP:port format (should be IP:port or "-")
+	// Extract fields without validation (matches JavaScript parser)
 	clientIPPort := fields[1]
-	if clientIPPort != "-" {
-		if matched, _ := regexp.MatchString(`^[\d.]+:\d+$`, clientIPPort); !matched {
-			return nil
-		}
-	}
-
-	// Validate domain format (should be domain:port or "-")
 	domain := fields[2]
-	if domain != "-" {
-		if matched, _ := regexp.MatchString(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$`, domain); !matched {
-			return nil
-		}
-	}
-
-	// Validate dest IP:port format (should be IP:port or "-")
 	destIPPort := fields[3]
-	if destIPPort != "-" {
-		if matched, _ := regexp.MatchString(`^[\d.]+:\d+$`, destIPPort); !matched {
-			return nil
-		}
-	}
-
-	// Validate status code (should be numeric or "-")
 	status := fields[6]
-	if status != "-" {
-		if matched, _ := regexp.MatchString(`^\d+$`, status); !matched {
-			return nil
-		}
-	}
-
-	// Validate decision format (should contain ":" or be "-")
 	decision := fields[7]
-	if decision != "-" && !strings.Contains(decision, ":") {
-		return nil
-	}
 
 	// Remove quotes from user agent
 	userAgent := fields[9]
