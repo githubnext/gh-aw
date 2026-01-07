@@ -42,9 +42,9 @@ func TestSpinnerModel_Update_MessageUpdate(t *testing.T) {
 // TestSpinnerModel_Update_KeyMsg tests handling keyboard input
 func TestSpinnerModel_Update_KeyMsg(t *testing.T) {
 	tests := []struct {
-		name        string
-		key         string
-		expectQuit  bool
+		name       string
+		key        string
+		expectQuit bool
 	}{
 		{
 			name:       "ctrl+c should quit",
@@ -109,7 +109,7 @@ func TestSpinnerModel_View(t *testing.T) {
 
 	view := model.View()
 	assert.Contains(t, view, "Loading data", "View should contain the message")
-	assert.True(t, len(view) > 0, "View should not be empty")
+	assert.NotEmpty(t, view, "View should not be empty")
 	// View should start with carriage return for inline updates
 	assert.Equal(t, '\r', rune(view[0]), "View should start with carriage return")
 }
@@ -127,10 +127,10 @@ func TestNewSpinner_TTYDetection(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name            string
-		accessibleEnv   string
-		expectEnabled   bool
-		skipInNonTTY    bool
+		name          string
+		accessibleEnv string
+		expectEnabled bool
+		skipInNonTTY  bool
 	}{
 		{
 			name:          "ACCESSIBLE unset - depends on TTY",
@@ -483,7 +483,7 @@ func TestSpinnerModel_ViewFormat(t *testing.T) {
 			}
 
 			view := model.View()
-			assert.True(t, len(view) > 0, "View should not be empty")
+			assert.NotEmpty(t, view, "View should not be empty")
 			if tt.message != "" {
 				assert.Contains(t, view, tt.message, "View should contain the message")
 			}
