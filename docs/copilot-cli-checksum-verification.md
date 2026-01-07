@@ -149,19 +149,16 @@ The following 73 workflows now use checksum-verified Copilot CLI installation:
 58. smoke-copilot-safe-inputs.md
 59. smoke-copilot.md
 60. smoke-srt.md
-61. spec-kit-execute.md
-62. spec-kit-executor.md
-63. speckit-dispatcher.md
-64. stale-repo-identifier.md
-65. super-linter.md
-66. technical-doc-writer.md
-67. test-discussion-expires.md
-68. test-hide-older-comments.md
-69. test-python-safe-input.md
-70. tidy.md
-71. video-analyzer.md
-72. weekly-issue-summary.md
-73. (and any other workflows using engine: copilot)
+61. stale-repo-identifier.md
+62. super-linter.md
+63. technical-doc-writer.md
+64. test-discussion-expires.md
+65. test-hide-older-comments.md
+66. test-python-safe-input.md
+67. tidy.md
+68. video-analyzer.md
+69. weekly-issue-summary.md
+70. (and any other workflows using engine: copilot)
 
 ## Verification
 
