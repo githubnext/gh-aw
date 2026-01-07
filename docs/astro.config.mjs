@@ -114,6 +114,7 @@ export default defineConfig({
 						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
 						{ label: 'Threat Detection', link: '/guides/threat-detection/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
+						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
 					],
 				},
 				{

@@ -64,7 +64,7 @@ Most safe output types support cross-repository operations. Exceptions are noted
 ### Security & Agent Tasks
 
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) — Generate SARIF security advisories (max: unlimited, same-repo only)
-- [**Create Agent Session**](#agent-task-creation-create-agent-session) (`create-agent-session`) — Create Copilot agent sessions (max: 1)
+- [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) — Create Copilot agent sessions (max: 1)
 
 ### System Types (Auto-Enabled)
 

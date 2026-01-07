@@ -39,7 +39,7 @@ name: "Daily Issues Report Generator"
 permissions:
   actions: read
   contents: read
-  discussions: write
+  discussions: read
   issues: read
   pull-requests: read
 
@@ -86,7 +86,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: write
+      discussions: read
       issues: read
       pull-requests: read
     concurrency:
@@ -197,7 +197,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.78.0
+        run: npm install -g --silent @openai/codex@0.79.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.8.2)"
@@ -498,7 +498,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.78.0",
+              agent_version: "0.79.0",
               workflow_name: "Daily Issues Report Generator",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1995,7 +1995,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.78.0
+        run: npm install -g --silent @openai/codex@0.79.0
       - name: Run Codex
         run: |
           set -o pipefail

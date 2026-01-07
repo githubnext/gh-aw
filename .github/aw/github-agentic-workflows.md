@@ -359,9 +359,12 @@ The YAML frontmatter supports these fields:
         title-prefix: "[ai] "           # Optional: prefix for discussion titles
         category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
         max: 3                          # Optional: maximum number of discussions (default: 1)
+        close-older-discussions: true   # Optional: close older discussions with same prefix/labels (default: false)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
+
+    Set `close-older-discussions: true` to automatically close older discussions matching the same title prefix or labels. Up to 10 older discussions are closed as "OUTDATED" with a comment linking to the new discussion. Requires `title-prefix` or `labels` to identify matching discussions.
 
     When using `safe-outputs.create-discussion`, the main job does **not** need `discussions: write` permission since discussion creation is handled by a separate job with appropriate permissions.
   - `close-discussion:` - Close discussions with comment and resolution
@@ -557,14 +560,14 @@ The YAML frontmatter supports these fields:
         max: 50                         # Optional: max findings (default: unlimited)
     ```
     Severity levels: error, warning, info, note.
-  - `create-agent-task:` - Create GitHub Copilot agent tasks
+  - `create-agent-session:` - Create GitHub Copilot agent sessions
     ```yaml
     safe-outputs:
-      create-agent-task:
+      create-agent-session:
         base: main                      # Optional: base branch (defaults to current)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
-    Requires PAT as `COPILOT_GITHUB_TOKEN`.
+    Requires PAT as `COPILOT_GITHUB_TOKEN`. Note: `create-agent-task` is deprecated (use `create-agent-session`).
   - `assign-to-agent:` - Assign Copilot agents to issues
     ```yaml
     safe-outputs:
