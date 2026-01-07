@@ -29,7 +29,6 @@ name: "Dictation Prompt Generator"
 "on":
   schedule:
   - cron: "0 6 * * 0"
-    # Friendly format: weekly on wednesday at 12:00
   workflow_dispatch:
 
 permissions:
