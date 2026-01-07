@@ -12,6 +12,8 @@ tools:
     toolsets: [repos, issues, pull_requests]
     read-only: false
 strict: false
+features:
+  dangerous-permissions-write: true
 ---
 
 # Example: Properly Provisioned Permissions
