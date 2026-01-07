@@ -39,7 +39,7 @@ name: "Daily Issues Report Generator"
 permissions:
   actions: read
   contents: read
-  discussions: write
+  discussions: read
   issues: read
   pull-requests: read
 
@@ -86,7 +86,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: write
+      discussions: read
       issues: read
       pull-requests: read
     concurrency:

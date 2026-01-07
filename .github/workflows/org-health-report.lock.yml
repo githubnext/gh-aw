@@ -37,7 +37,7 @@ name: "Organization Health Report"
 permissions:
   actions: read
   contents: read
-  discussions: write
+  discussions: read
   issues: read
   pull-requests: read
 
@@ -82,7 +82,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: write
+      discussions: read
       issues: read
       pull-requests: read
     concurrency:
