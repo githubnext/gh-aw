@@ -206,23 +206,26 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Checkout repository
+`)
+
+	// Checkout step - different behavior based on mode
+	if actionMode == ActionModeDev {
+		// Dev mode: checkout entire repository (no sparse checkout, but no credentials)
+		yaml.WriteString(`      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+`)
+	} else {
+		// Release mode: sparse checkout of .github folder only
+		yaml.WriteString(`      - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github
           persist-credentials: false
-`)
 
-	// Add checkout for actions folder only in dev mode
-	if actionMode == ActionModeDev {
-		yaml.WriteString(`
-      - name: Checkout actions folder
-        uses: ` + GetActionPin("actions/checkout") + `
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
 `)
 	}
 
