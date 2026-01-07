@@ -213,7 +213,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 		"add_labels":                 true,
 		"create_pr_review_comment":   true,
 		"create_code_scanning_alert": true,
-		"create_agent_session":          true,
+		"create_agent_session":       true,
 		"upload_assets":              true,
 		"update_project":             true,
 	}

@@ -145,7 +145,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "all tools enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues:                    &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
-				CreateAgentSessions:                &CreateAgentSessionConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
+				CreateAgentSessions:             &CreateAgentSessionConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 				CreateDiscussions:               &CreateDiscussionsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 2}},
 				AddComments:                     &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
 				CreatePullRequests:              &CreatePullRequestsConfig{},
