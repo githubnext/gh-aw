@@ -117,12 +117,12 @@ func TestGenerateWriteScriptsStep(t *testing.T) {
 
 	// Check that the step includes the mkdir command
 	stepsStr := strings.Join(steps, "")
-	if !strings.Contains(stepsStr, "mkdir -p /tmp/gh-aw/scripts") {
+	if !strings.Contains(stepsStr, "mkdir -p /opt/gh-aw/scripts") {
 		t.Error("Expected mkdir command for scripts directory")
 	}
 
 	// Check that the file is written
-	if !strings.Contains(stepsStr, "cat > /tmp/gh-aw/scripts/test.cjs") {
+	if !strings.Contains(stepsStr, "cat > /opt/gh-aw/scripts/test.cjs") {
 		t.Error("Expected cat command for writing file")
 	}
 
@@ -136,7 +136,7 @@ func TestGenerateRequireScript(t *testing.T) {
 	script := GenerateRequireScript("create_issue.cjs")
 
 	if !strings.Contains(script, "/opt/gh-aw/scripts/create_issue.cjs") {
-		t.Errorf("Expected script to require from /tmp/gh-aw/scripts/, got: %s", script)
+		t.Errorf("Expected script to require from /opt/gh-aw/scripts/, got: %s", script)
 	}
 
 	if !strings.Contains(script, "require(") {

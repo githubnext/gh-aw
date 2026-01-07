@@ -51,7 +51,7 @@ This section provides an overview of artifacts organized by job name, with dupli
   - **Paths**: `${{ env.GH_AW_SAFE_OUTPUTS }}`
   - **Used in**: 71 workflow(s) - agent-performance-analyzer.md, ai-moderator.md, archie.md, artifacts-summary.md, blog-auditor.md, brave.md, breaking-change-checker.md, campaign-generator.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, dependabot-go-checker.md, dev-hawk.md, dev.md, dictation-prompt.md, example-workflow-analyzer.md, github-mcp-structural-analysis.md, github-mcp-tools-report.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-template-optimizer.md, issue-triage-agent.md, layout-spec-maintainer.md, mcp-inspector.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, playground-org-project-update-issue.md, playground-snapshots-refresh.md, poem-bot.md, portfolio-analyst.md, pr-nitpick-reviewer.md, python-data-charts.md, q.md, release.md, repo-tree-map.md, repository-quality-improver.md, research.md, scout.md, security-compliance.md, slide-deck-maintainer.md, smoke-copilot-playwright.md, smoke-detector.md, smoke-srt.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 - `safe-outputs-assets`
-  - **Paths**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Paths**: `/opt/gh-aw/safeoutputs/assets/`
   - **Used in**: 12 workflow(s) - copilot-pr-nlp-analysis.md, daily-copilot-token-report.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, github-mcp-structural-analysis.md, poem-bot.md, portfolio-analyst.md, python-data-charts.md, stale-repo-identifier.md, technical-doc-writer.md, weekly-issue-summary.md
 - `trending-charts`
   - **Paths**: `/tmp/gh-aw/python/charts/*.png`
@@ -71,7 +71,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Artifacts Downloaded:**
 
 - `agent-output`
-  - **Download paths**: `/tmp/gh-aw/safeoutputs/`
+  - **Download paths**: `/opt/gh-aw/safeoutputs/`
   - **Used in**: 71 workflow(s) - agent-performance-analyzer.md, ai-moderator.md, archie.md, artifacts-summary.md, blog-auditor.md, brave.md, breaking-change-checker.md, campaign-generator.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, dependabot-go-checker.md, dev-hawk.md, dev.md, dictation-prompt.md, example-workflow-analyzer.md, github-mcp-structural-analysis.md, github-mcp-tools-report.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-template-optimizer.md, issue-triage-agent.md, layout-spec-maintainer.md, mcp-inspector.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, playground-org-project-update-issue.md, playground-snapshots-refresh.md, poem-bot.md, portfolio-analyst.md, pr-nitpick-reviewer.md, python-data-charts.md, q.md, release.md, repo-tree-map.md, repository-quality-improver.md, research.md, scout.md, security-compliance.md, slide-deck-maintainer.md, smoke-copilot-playwright.md, smoke-detector.md, smoke-srt.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 
 ### Job: `detection`
@@ -104,7 +104,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Artifacts Downloaded:**
 
 - `agent-output`
-  - **Download paths**: `/tmp/gh-aw/safe-jobs/`
+  - **Download paths**: `/opt/gh-aw/safe-jobs/`
   - **Used in**: 2 workflow(s) - mcp-inspector.md, notion-issue-summary.md
 
 ### Job: `post_to_slack_channel`
@@ -112,7 +112,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Artifacts Downloaded:**
 
 - `agent-output`
-  - **Download paths**: `/tmp/gh-aw/safe-jobs/`
+  - **Download paths**: `/opt/gh-aw/safe-jobs/`
   - **Used in**: 1 workflow(s) - mcp-inspector.md
 
 ### Job: `push_repo_memory`
@@ -131,7 +131,7 @@ This section provides an overview of artifacts organized by job name, with dupli
   - **Download paths**: `/tmp/gh-aw/`
   - **Used in**: 17 workflow(s) - changeset.md, ci-coach.md, cloclo.md, craft.md, dictation-prompt.md, github-mcp-tools-report.md, glossary-maintainer.md, hourly-ci-cleaner.md, issue-template-optimizer.md, layout-spec-maintainer.md, mergefest.md, playground-snapshots-refresh.md, poem-bot.md, q.md, slide-deck-maintainer.md, technical-doc-writer.md, tidy.md
 - `agent-output`
-  - **Download paths**: `/tmp/gh-aw/safeoutputs/`
+  - **Download paths**: `/opt/gh-aw/safeoutputs/`
   - **Used in**: 68 workflow(s) - agent-performance-analyzer.md, ai-moderator.md, archie.md, artifacts-summary.md, blog-auditor.md, brave.md, breaking-change-checker.md, campaign-generator.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, dependabot-go-checker.md, dev-hawk.md, dev.md, dictation-prompt.md, example-workflow-analyzer.md, github-mcp-structural-analysis.md, github-mcp-tools-report.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-template-optimizer.md, issue-triage-agent.md, layout-spec-maintainer.md, mcp-inspector.md, mergefest.md, pdf-summary.md, plan.md, playground-org-project-update-issue.md, playground-snapshots-refresh.md, poem-bot.md, portfolio-analyst.md, pr-nitpick-reviewer.md, python-data-charts.md, q.md, release.md, repo-tree-map.md, repository-quality-improver.md, research.md, scout.md, security-compliance.md, slide-deck-maintainer.md, smoke-copilot-playwright.md, smoke-detector.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 
 ### Job: `super_linter`
@@ -147,7 +147,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Artifacts Downloaded:**
 
 - `agent-output`
-  - **Download paths**: `/tmp/gh-aw/safe-jobs/`
+  - **Download paths**: `/opt/gh-aw/safe-jobs/`
   - **Used in**: 1 workflow(s) - daily-choice-test.md
 
 ### Job: `update_cache_memory`
@@ -166,10 +166,10 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Artifacts Downloaded:**
 
 - `agent-output`
-  - **Download paths**: `/tmp/gh-aw/safeoutputs/`
+  - **Download paths**: `/opt/gh-aw/safeoutputs/`
   - **Used in**: 12 workflow(s) - copilot-pr-nlp-analysis.md, daily-copilot-token-report.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, github-mcp-structural-analysis.md, poem-bot.md, portfolio-analyst.md, python-data-charts.md, stale-repo-identifier.md, technical-doc-writer.md, weekly-issue-summary.md
 - `safe-outputs-assets`
-  - **Download paths**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download paths**: `/opt/gh-aw/safeoutputs/assets/`
   - **Used in**: 12 workflow(s) - copilot-pr-nlp-analysis.md, daily-copilot-token-report.md, daily-news.md, daily-repo-chronicle.md, deep-report.md, github-mcp-structural-analysis.md, poem-bot.md, portfolio-analyst.md, python-data-charts.md, stale-repo-identifier.md, technical-doc-writer.md, weekly-issue-summary.md
 
 ## Workflows
@@ -210,7 +210,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs]
 
 #### Job: `detection`
@@ -244,7 +244,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### ai-moderator.md
@@ -279,7 +279,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent safe_outputs]
 
 #### Job: `safe_outputs`
@@ -287,7 +287,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent]
 
 ### archie.md
@@ -322,7 +322,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -348,7 +348,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### artifacts-summary.md
@@ -383,7 +383,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -409,7 +409,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### blog-auditor.md
@@ -439,7 +439,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -465,7 +465,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### brave.md
@@ -500,7 +500,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -526,7 +526,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### breaking-change-checker.md
@@ -561,7 +561,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -587,7 +587,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### campaign-generator.md
@@ -622,7 +622,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -648,7 +648,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### changeset.md
@@ -684,7 +684,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -710,7 +710,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -754,7 +754,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -780,7 +780,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -831,7 +831,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -857,7 +857,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -900,7 +900,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -926,7 +926,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### cloclo.md
@@ -961,7 +961,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -987,7 +987,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -1029,7 +1029,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -1055,7 +1055,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### copilot-pr-merged-report.md
@@ -1091,7 +1091,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -1117,7 +1117,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### copilot-pr-nlp-analysis.md
@@ -1158,7 +1158,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -1173,7 +1173,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -1207,7 +1207,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -1223,11 +1223,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### craft.md
@@ -1263,7 +1263,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -1289,7 +1289,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -1323,7 +1323,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection test_environment]
 
 #### Job: `detection`
@@ -1349,7 +1349,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safe-jobs/`
+  - **Download path**: `/opt/gh-aw/safe-jobs/`
   - **Depends on jobs**: [agent detection]
 
 ### daily-copilot-token-report.md
@@ -1390,7 +1390,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -1405,7 +1405,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -1439,7 +1439,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -1455,11 +1455,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### daily-fact.md
@@ -1494,7 +1494,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -1520,7 +1520,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### daily-file-diet.md
@@ -1555,7 +1555,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -1581,7 +1581,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### daily-news.md
@@ -1622,7 +1622,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -1637,7 +1637,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -1671,7 +1671,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -1687,11 +1687,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### daily-repo-chronicle.md
@@ -1728,7 +1728,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -1743,7 +1743,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -1769,7 +1769,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -1785,11 +1785,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### deep-report.md
@@ -1821,7 +1821,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -1836,7 +1836,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -1870,7 +1870,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -1886,11 +1886,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### dependabot-go-checker.md
@@ -1925,7 +1925,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -1951,7 +1951,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### dev-hawk.md
@@ -1986,7 +1986,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2012,7 +2012,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### dev.md
@@ -2047,7 +2047,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2073,7 +2073,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### dictation-prompt.md
@@ -2109,7 +2109,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2135,7 +2135,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -2188,7 +2188,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2214,7 +2214,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### firewall.md
@@ -2265,7 +2265,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -2280,7 +2280,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -2306,7 +2306,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -2322,11 +2322,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### github-mcp-tools-report.md
@@ -2361,7 +2361,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -2387,7 +2387,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -2439,7 +2439,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -2465,7 +2465,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -2511,7 +2511,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -2537,7 +2537,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -2575,7 +2575,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2601,7 +2601,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### grumpy-reviewer.md
@@ -2640,7 +2640,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -2666,7 +2666,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -2710,7 +2710,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2736,7 +2736,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -2769,7 +2769,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2795,7 +2795,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### issue-template-optimizer.md
@@ -2835,7 +2835,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -2861,7 +2861,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -2908,7 +2908,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2934,7 +2934,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### layout-spec-maintainer.md
@@ -2970,7 +2970,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -2996,7 +2996,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -3039,7 +3039,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection notion_add_comment post_to_slack_channel safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -3065,7 +3065,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safe-jobs/`
+  - **Download path**: `/opt/gh-aw/safe-jobs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `post_to_slack_channel`
@@ -3073,7 +3073,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safe-jobs/`
+  - **Download path**: `/opt/gh-aw/safe-jobs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `safe_outputs`
@@ -3081,7 +3081,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -3125,7 +3125,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -3151,7 +3151,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -3221,7 +3221,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection notion_add_comment]
 
 #### Job: `detection`
@@ -3247,7 +3247,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safe-jobs/`
+  - **Download path**: `/opt/gh-aw/safe-jobs/`
   - **Depends on jobs**: [agent detection]
 
 ### pdf-summary.md
@@ -3286,7 +3286,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -3312,7 +3312,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -3355,7 +3355,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -3381,7 +3381,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### playground-org-project-update-issue.md
@@ -3416,7 +3416,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -3442,7 +3442,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### playground-snapshots-refresh.md
@@ -3478,7 +3478,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -3504,7 +3504,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -3536,7 +3536,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -3552,7 +3552,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -3578,7 +3578,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -3598,11 +3598,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### portfolio-analyst.md
@@ -3639,7 +3639,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -3654,7 +3654,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -3680,7 +3680,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -3696,11 +3696,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### pr-nitpick-reviewer.md
@@ -3739,7 +3739,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -3765,7 +3765,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -3810,7 +3810,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -3825,7 +3825,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -3851,7 +3851,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -3867,11 +3867,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### q.md
@@ -3911,7 +3911,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -3937,7 +3937,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -3984,7 +3984,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -4019,7 +4019,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### repo-tree-map.md
@@ -4054,7 +4054,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -4080,7 +4080,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### repository-quality-improver.md
@@ -4119,7 +4119,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -4145,7 +4145,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -4188,7 +4188,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -4214,7 +4214,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### scout.md
@@ -4248,7 +4248,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -4274,7 +4274,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -4321,7 +4321,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs]
 
 #### Job: `detection`
@@ -4355,7 +4355,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### slide-deck-maintainer.md
@@ -4395,7 +4395,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -4421,7 +4421,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -4477,7 +4477,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -4503,7 +4503,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -4545,7 +4545,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -4571,7 +4571,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -4631,7 +4631,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 #### Job: `detection`
@@ -4695,7 +4695,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -4710,7 +4710,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -4736,7 +4736,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -4752,11 +4752,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### super-linter.md
@@ -4801,7 +4801,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
 
 #### Job: `detection`
@@ -4827,7 +4827,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `super_linter`
@@ -4871,7 +4871,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -4887,7 +4887,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -4913,7 +4913,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -4933,11 +4933,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### tidy.md
@@ -4973,7 +4973,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -4999,7 +4999,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection]
 
 - **Artifact**: `agent-artifacts` (by name)
@@ -5033,7 +5033,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -5059,7 +5059,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### video-analyzer.md
@@ -5094,7 +5094,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -5120,7 +5120,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### weekly-issue-summary.md
@@ -5157,7 +5157,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `safe-outputs-assets`
   - **Upload paths**:
-    - `/tmp/gh-aw/safeoutputs/assets/`
+    - `/opt/gh-aw/safeoutputs/assets/`
 
 - **Artifact**: `agent-artifacts`
   - **Upload paths**:
@@ -5172,7 +5172,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory upload_assets]
 
 #### Job: `detection`
@@ -5198,7 +5198,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 #### Job: `update_cache_memory`
@@ -5214,11 +5214,11 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `safe-outputs-assets` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/assets/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/assets/`
   - **Depends on jobs**: [agent detection]
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### workflow-generator.md
@@ -5253,7 +5253,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection safe_outputs]
 
 #### Job: `detection`
@@ -5279,7 +5279,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ### workflow-health-manager.md
@@ -5318,7 +5318,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs]
 
 #### Job: `detection`
@@ -5352,7 +5352,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 **Downloads:**
 
 - **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/safeoutputs/`
+  - **Download path**: `/opt/gh-aw/safeoutputs/`
   - **Depends on jobs**: [agent detection]
 
 ## Usage Examples
