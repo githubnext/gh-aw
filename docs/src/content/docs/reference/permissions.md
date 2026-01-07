@@ -97,6 +97,70 @@ Write operations use safe outputs instead of direct API access. This provides co
 
 Run `gh aw compile workflow.md` to validate permissions. Common errors include undefined permissions, direct write permissions in the main job (use safe outputs instead), and insufficient permissions for declared tools. Use `--strict` mode to enforce read-only permissions and require explicit network configuration.
 
+### Write Permission Policy
+
+Starting with version 0.4.0, write permissions are blocked by default to enforce the security-first design. Workflows with write permissions will fail compilation with an error:
+
+```
+Write permissions are not allowed unless the 'dangerous-permissions-write' feature flag is enabled.
+
+Found write permissions:
+  - contents: write
+
+To fix this issue, you have two options:
+
+Option 1: Change write permissions to read:
+permissions:
+  contents: read
+
+Option 2: Enable the feature flag (use with caution):
+features:
+  dangerous-permissions-write: true
+```
+
+#### Migrating Existing Workflows
+
+To migrate workflows with write permissions, you can:
+
+1. **Use the automated codemod** (recommended):
+   ```bash
+   # Check what would be changed (dry-run)
+   gh aw fix workflow.md
+   
+   # Apply the fix
+   gh aw fix workflow.md --write
+   ```
+   
+   This automatically converts all write permissions to read permissions.
+
+2. **Enable the feature flag** (for workflows that genuinely need write access):
+   ```yaml
+   features:
+     dangerous-permissions-write: true
+   permissions:
+     contents: write
+   ```
+   
+   :::danger[Use with extreme caution]
+   The `dangerous-permissions-write` feature flag bypasses the security-first design. Only use it when:
+   - You have a specific use case that requires direct write access
+   - You fully understand the security implications
+   - You have reviewed and approved the AI's access to repository writes
+   
+   In most cases, use [safe outputs](/gh-aw/reference/safe-outputs/) instead.
+   :::
+
+#### Scope
+
+This validation applies to:
+- Top-level workflow `permissions:` configuration
+
+This validation does **not** apply to:
+- Custom jobs (defined in `jobs:` section)
+- Safe outputs jobs (defined in `safe-outputs.job:` section)
+
+Custom jobs and safe outputs jobs can have their own permission requirements based on their specific needs.
+
 ### Tool-Specific Requirements
 
 Some tools require specific permissions to function:
