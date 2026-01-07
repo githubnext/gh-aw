@@ -1301,6 +1301,23 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
+      - name: Copy Copilot session files to logs
+        if: always()
+        continue-on-error: true
+        run: |
+          # Copy Copilot session files from ~/.copilot/session-state/ to logs folder
+          # This captures the session state for debugging and analysis
+          SESSION_STATE_DIR="$HOME/.copilot/session-state"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs/"
+          
+          if [ -d "$SESSION_STATE_DIR" ]; then
+            echo "Copying Copilot session files from $SESSION_STATE_DIR to $LOGS_DIR"
+            # Copy all .jsonl files from session-state directory
+            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR" 2>/dev/null || true
+            echo "Session files copied successfully"
+          else
+            echo "No session-state directory found at $SESSION_STATE_DIR"
+          fi
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
