@@ -58,6 +58,8 @@ permissions:
   contents: read
   issues: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			wantEnvironmentInJob: true,

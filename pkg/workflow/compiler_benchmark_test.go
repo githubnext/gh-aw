@@ -24,6 +24,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read, add_issue_comment, list_issues]
@@ -67,6 +69,8 @@ permissions:
   contents: read
   pull-requests: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote
@@ -132,6 +136,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 imports:
   - shared/web-tools.md
 timeout-minutes: 20
@@ -171,6 +177,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read, add_issue_comment]
@@ -285,6 +293,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [get_repository, list_commits]

@@ -106,6 +106,8 @@ permissions:
   contents: read
   issues: write
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -149,6 +151,8 @@ permissions:
   contents: read
   issues: write
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
