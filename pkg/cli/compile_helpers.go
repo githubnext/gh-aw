@@ -155,7 +155,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	if len(mdFiles) == 0 {
 		compileHelpersLog.Printf("No markdown files found in %s", workflowsDir)
 		if verbose {
-			fmt.Printf("No markdown files found in %s\n", workflowsDir)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No markdown files found in %s", workflowsDir)))
 		}
 		return stats, nil
 	}
@@ -194,7 +194,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	if successCount > 0 || hasActionCacheEntries {
 		if err := ensureGitAttributes(); err != nil {
 			if verbose {
-				fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 		}
 	} else {
@@ -252,7 +252,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 	if successCount > 0 || hasActionCacheEntries {
 		if err := ensureGitAttributes(); err != nil {
 			if verbose {
-				fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 		}
 	} else {
@@ -336,7 +336,7 @@ func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph 
 	if successCount > 0 || hasActionCacheEntries {
 		if err := ensureGitAttributes(); err != nil {
 			if verbose {
-				fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 		}
 	} else {
@@ -356,11 +356,11 @@ func handleFileDeleted(mdFile string, verbose bool) {
 		if _, err := os.Stat(orchestratorFile); err == nil {
 			if err := os.Remove(orchestratorFile); err != nil {
 				if verbose {
-					fmt.Printf("⚠️  Failed to remove orchestrator file %s: %v\n", orchestratorFile, err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orchestrator file %s: %v", orchestratorFile, err)))
 				}
 			} else {
 				if verbose {
-					fmt.Printf("🗑️  Removed generated orchestrator: %s\n", orchestratorFile)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed generated orchestrator: %s", orchestratorFile)))
 				}
 			}
 		}
@@ -370,11 +370,11 @@ func handleFileDeleted(mdFile string, verbose bool) {
 		if _, err := os.Stat(orchestratorLockFile); err == nil {
 			if err := os.Remove(orchestratorLockFile); err != nil {
 				if verbose {
-					fmt.Printf("⚠️  Failed to remove orchestrator lock file %s: %v\n", orchestratorLockFile, err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orchestrator lock file %s: %v", orchestratorLockFile, err)))
 				}
 			} else {
 				if verbose {
-					fmt.Printf("🗑️  Removed orchestrator lock file: %s\n", orchestratorLockFile)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed orchestrator lock file: %s", orchestratorLockFile)))
 				}
 			}
 		}
@@ -388,11 +388,11 @@ func handleFileDeleted(mdFile string, verbose bool) {
 	if _, err := os.Stat(lockFile); err == nil {
 		if err := os.Remove(lockFile); err != nil {
 			if verbose {
-				fmt.Printf("⚠️  Failed to remove lock file %s: %v\n", lockFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove lock file %s: %v", lockFile, err)))
 			}
 		} else {
 			if verbose {
-				fmt.Printf("🗑️  Removed corresponding lock file: %s\n", lockFile)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed corresponding lock file: %s", lockFile)))
 			}
 		}
 	}
