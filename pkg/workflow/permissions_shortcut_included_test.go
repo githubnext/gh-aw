@@ -29,7 +29,7 @@ func TestPermissionsShortcutInIncludedFiles(t *testing.T) {
 		{
 			name:                   "write-all shortcut in included file",
 			includedPermissions:    "permissions: write-all",
-			mainPermissions:        "permissions: write-all",
+			mainPermissions:        "permissions: write-all\nfeatures:\n  dangerous-permissions-write: true",
 			expectCompilationError: false,
 			expectLockFileContains: "permissions: write-all",
 		},
@@ -43,7 +43,7 @@ func TestPermissionsShortcutInIncludedFiles(t *testing.T) {
 		{
 			name:                   "write shortcut in included file",
 			includedPermissions:    "permissions: write",
-			mainPermissions:        "permissions: write",
+			mainPermissions:        "permissions: write\nfeatures:\n  dangerous-permissions-write: true",
 			expectCompilationError: false,
 			expectLockFileContains: "permissions: write",
 		},
@@ -55,7 +55,9 @@ func TestPermissionsShortcutInIncludedFiles(t *testing.T) {
 			mainPermissions: `permissions:
   contents: read
   issues: write
-  pull-requests: read`,
+  pull-requests: read
+features:
+  dangerous-permissions-write: true`,
 			expectCompilationError: false,
 			expectLockFileContains: "issues: write",
 		},

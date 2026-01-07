@@ -274,7 +274,6 @@ async function main() {
       core.setOutput("project_url", projectResult.projectUrl);
 
       core.info(`Successfully processed copy_project item ${i + 1}`);
-      core.info(`Successfully processed copy_project item ${i + 1}`);
     } catch (err) {
       // prettier-ignore
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
@@ -285,6 +284,3 @@ async function main() {
 }
 
 module.exports = { copyProject, parseProjectUrl, getProjectId, getOwnerId, main };
-
-// Execute main function
-main();

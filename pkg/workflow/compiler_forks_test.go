@@ -35,6 +35,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -60,6 +62,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -87,6 +91,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -115,6 +121,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -141,6 +149,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -167,6 +177,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -191,6 +203,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -215,6 +229,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -239,6 +255,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -262,6 +280,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -348,6 +368,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -376,6 +398,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -398,6 +422,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -419,6 +445,8 @@ permissions:
   pull-requests: read
 
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -525,6 +553,8 @@ permissions:
   issues: write
   pull-requests: read
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -564,6 +594,8 @@ permissions:
   issues: write
   pull-requests: read
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
