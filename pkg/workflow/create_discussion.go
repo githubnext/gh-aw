@@ -33,15 +33,13 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-discussion"].(map[string]any)
 
-	// Pre-process the expires field if it's a string (convert to int before unmarshaling)
+	// Pre-process the expires field (convert to hours before unmarshaling)
 	if configData != nil {
-		if expires, exists := configData["expires"]; exists {
-			if _, ok := expires.(string); ok {
-				// Parse the string format and replace with int
-				expiresInt := parseExpiresFromConfig(configData)
-				if expiresInt > 0 {
-					configData["expires"] = expiresInt
-				}
+		if _, exists := configData["expires"]; exists {
+			// Parse the expires value (string or integer) and convert to hours
+			expiresInt := parseExpiresFromConfig(configData)
+			if expiresInt > 0 {
+				configData["expires"] = expiresInt
 			}
 		}
 	}
@@ -57,6 +55,12 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	// Set default max if not specified
 	if config.Max == 0 {
 		config.Max = 1
+	}
+
+	// Set default expires to 7 days (168 hours) if not specified
+	if config.Expires == 0 {
+		config.Expires = 168 // 7 days = 168 hours
+		discussionLog.Print("Using default expiration: 7 days (168 hours)")
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)

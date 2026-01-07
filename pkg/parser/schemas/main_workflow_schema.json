@@ -2038,6 +2038,15 @@
               },
               "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions."
             },
+            "blocked": {
+              "type": "array",
+              "description": "List of blocked domains or ecosystem identifiers (e.g., 'python', 'node', 'tracker.example.com'). Blocked domains take precedence over allowed domains.",
+              "items": {
+                "type": "string",
+                "description": "Domain name or ecosystem identifier to block (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
+              },
+              "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
+            },
             "firewall": {
               "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
               "deprecated": true,
@@ -3881,7 +3890,8 @@
                       "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y'); minimum 2h for hour values"
                     }
                   ],
-                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). Minimum duration: 2 hours. When set, a maintenance workflow will be generated."
+                  "default": 7,
+                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). Minimum duration: 2 hours. When set, a maintenance workflow will be generated. Defaults to 7 days if not specified."
                 }
               },
               "additionalProperties": false,

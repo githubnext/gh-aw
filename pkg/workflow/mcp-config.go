@@ -807,6 +807,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	for key := range toolConfig {
 		if !knownProperties[key] {
+			mcpLog.Printf("Unknown property '%s' in MCP config for tool '%s'", key, toolName)
 			// Build list of valid properties
 			validProps := []string{}
 			for prop := range knownProperties {
@@ -846,6 +847,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Type = "stdio"
 			mcpLog.Printf("Inferred MCP type as stdio (has container field)")
 		} else {
+			mcpLog.Printf("Unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
 			return nil, fmt.Errorf(
 				"unable to determine MCP type for tool '%s': missing type, url, command, or container. "+
 					"Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). "+
@@ -893,6 +895,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if url, hasURL := config.GetString("url"); hasURL {
 			result.URL = url
 		} else {
+			mcpLog.Printf("HTTP MCP tool '%s' missing required 'url' field", toolName)
 			return nil, fmt.Errorf(
 				"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
 					"Example:\n"+
@@ -909,6 +912,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Headers = headers
 		}
 	default:
+		mcpLog.Printf("Unsupported MCP type '%s' for tool '%s'", result.Type, toolName)
 		return nil, fmt.Errorf(
 			"unsupported MCP type '%s' for tool '%s'. Valid types are: stdio, http. "+
 				"Example:\n"+
