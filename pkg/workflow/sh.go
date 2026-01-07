@@ -45,6 +45,24 @@ func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string)
 	}
 }
 
+// escapeGitHubActionsExpressions escapes literal ${{ sequences in text content
+// so they are not interpreted as GitHub Actions expressions by the YAML parser.
+// This is necessary when embedding bash code or other content that contains literal
+// ${{ sequences (e.g., grep patterns searching for GitHub Actions expressions).
+//
+// GitHub Actions YAML parser interprets ${{ as the start of an expression.
+// To include a literal ${{ in the YAML content, we must escape it as $${{.
+// After GitHub Actions processes the YAML, $${{ becomes ${{ in the actual content.
+//
+// Example:
+//   Input:  grep '\${{ github.event'
+//   Output: grep '\$${{ github.event'
+//   Result after YAML parsing: grep '\${{ github.event'
+func escapeGitHubActionsExpressions(text string) string {
+	// Replace ${{ with $${{ to escape it for GitHub Actions YAML parser
+	return strings.ReplaceAll(text, "${{", "$${{")
+}
+
 // WritePromptTextToYAML writes static prompt text to a YAML heredoc with proper indentation.
 // Use this function for prompt text that contains NO variable placeholders or expressions.
 // It chunks the text into groups of lines of less than MaxPromptChunkSize characters, with a maximum of MaxPromptChunks chunks.
@@ -62,7 +80,9 @@ func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
 	for _, chunk := range chunks {
 		yaml.WriteString(indent + "cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 		for _, line := range chunk {
-			fmt.Fprintf(yaml, "%s%s\n", indent, line)
+			// Escape literal ${{ sequences so GitHub Actions YAML parser doesn't treat them as expressions
+			escapedLine := escapeGitHubActionsExpressions(line)
+			fmt.Fprintf(yaml, "%s%s\n", indent, escapedLine)
 		}
 		yaml.WriteString(indent + "PROMPT_EOF\n")
 	}
@@ -83,7 +103,9 @@ func WritePromptTextToYAMLWithPlaceholders(yaml *strings.Builder, text string, i
 	for _, chunk := range chunks {
 		yaml.WriteString(indent + "cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 		for _, line := range chunk {
-			fmt.Fprintf(yaml, "%s%s\n", indent, line)
+			// Escape literal ${{ sequences so GitHub Actions YAML parser doesn't treat them as expressions
+			escapedLine := escapeGitHubActionsExpressions(line)
+			fmt.Fprintf(yaml, "%s%s\n", indent, escapedLine)
 		}
 		yaml.WriteString(indent + "PROMPT_EOF\n")
 	}

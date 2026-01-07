@@ -227,7 +227,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		lines := strings.Split(chunks[0], "\n")
 		for _, line := range lines {
 			yaml.WriteString("          ")
-			yaml.WriteString(line)
+			// Escape literal ${{ sequences so GitHub Actions YAML parser doesn't treat them as expressions
+			escapedLine := escapeGitHubActionsExpressions(line)
+			yaml.WriteString(escapedLine)
 			yaml.WriteByte('\n')
 		}
 		yaml.WriteString("          PROMPT_EOF\n")
@@ -255,7 +257,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		lines := strings.Split(chunk, "\n")
 		for _, line := range lines {
 			yaml.WriteString("          ")
-			yaml.WriteString(line)
+			// Escape literal ${{ sequences so GitHub Actions YAML parser doesn't treat them as expressions
+			escapedLine := escapeGitHubActionsExpressions(line)
+			yaml.WriteString(escapedLine)
 			yaml.WriteByte('\n')
 		}
 		yaml.WriteString("          PROMPT_EOF\n")

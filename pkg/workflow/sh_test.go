@@ -285,3 +285,88 @@ func TestChunkLines_SingleLineExceedsLimit(t *testing.T) {
 		t.Errorf("Expected 1 line in chunk, got %d", len(chunks[0]))
 	}
 }
+
+func TestEscapeGitHubActionsExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple expression",
+			input:    "Value: ${{ github.actor }}",
+			expected: "Value: $${{ github.actor }}",
+		},
+		{
+			name:     "grep pattern",
+			input:    "grep -rn '\\${{ github\\.event\\.' .github/workflows/*.lock.yml",
+			expected: "grep -rn '\\$${{ github\\.event\\.' .github/workflows/*.lock.yml",
+		},
+		{
+			name:     "multiple expressions",
+			input:    "${{ github.repository }} and ${{ github.run_id }}",
+			expected: "$${{ github.repository }} and $${{ github.run_id }}",
+		},
+		{
+			name:     "no expressions",
+			input:    "This is plain text without expressions",
+			expected: "This is plain text without expressions",
+		},
+		{
+			name:     "expression in bash code",
+			input:    "DIRECT_INTERP=$(grep -rn '\\${{ github\\.event\\.' file.yml | wc -l)",
+			expected: "DIRECT_INTERP=$(grep -rn '\\$${{ github\\.event\\.' file.yml | wc -l)",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "partial expression marker",
+			input:    "Value: ${ or ${{ or {{ or }}",
+			expected: "Value: ${ or $${{ or {{ or }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := escapeGitHubActionsExpressions(tt.input)
+			if result != tt.expected {
+				t.Errorf("escapeGitHubActionsExpressions() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestWritePromptTextToYAML_WithExpressions(t *testing.T) {
+	var yaml strings.Builder
+	text := "Check for expressions: grep '\\${{ github.event' file.yml\nAnd another: ${{ github.actor }}"
+	indent := "          "
+
+	WritePromptTextToYAML(&yaml, text, indent)
+
+	result := yaml.String()
+
+	// Should escape ${{ as $${
+	if !strings.Contains(result, "$${{ github.event") {
+		t.Error("Expected to find escaped expression $${{ github.event in output")
+	}
+	if !strings.Contains(result, "$${{ github.actor") {
+		t.Error("Expected to find escaped expression $${{ github.actor in output")
+	}
+
+	// Should not contain unescaped ${{ (except in the cat command)
+	lines := strings.Split(result, "\n")
+	for i, line := range lines {
+		// Skip the cat command line
+		if strings.Contains(line, "cat << 'PROMPT_EOF'") || strings.Contains(line, "PROMPT_EOF") {
+			continue
+		}
+		// Check if line contains unescaped ${{ (not $${)
+		if strings.Contains(line, "${{") && !strings.Contains(line, "$${") {
+			t.Errorf("Line %d contains unescaped ${{: %s", i, line)
+		}
+	}
+}
+
