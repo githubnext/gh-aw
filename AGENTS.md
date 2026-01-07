@@ -772,6 +772,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 - **[console-rendering](skills/console-rendering/SKILL.md)** - Struct tag-based console rendering system for CLI output
 - **[error-messages](skills/error-messages/SKILL.md)** - Error message style guide for validation errors
 - **[error-pattern-safety](skills/error-pattern-safety/SKILL.md)** - Safety guidelines for error pattern regex
+- **[error-recovery-patterns](specs/error-recovery-patterns.md)** - Error handling patterns, recovery strategies, and debugging techniques
 
 ### JavaScript & GitHub Actions
 - **[github-script](skills/github-script/SKILL.md)** - Best practices for GitHub Actions scripts using github-script
