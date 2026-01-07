@@ -2,7 +2,7 @@
 description: Campaign generator that updates issue status and assigns to Copilot agent for campaign design
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened]
     lock-for-agent: true
   reaction: "eyes"
 permissions:

@@ -102,9 +102,10 @@ tools:
 }
 
 // TestCampaignGeneratorWorkflow specifically tests the campaign-generator workflow
-// to ensure it compiles correctly with both opened and labeled event types.
-// The workflow uses title prefix checking instead of label checking to avoid
-// GitHub's unreliable label application from issue forms.
+// to ensure it compiles correctly with only the opened event type.
+// The workflow uses only 'opened' to prevent double-triggering when issue templates
+// automatically apply labels. The title prefix check filters issues, so no need
+// for the 'labeled' event type.
 func TestCampaignGeneratorWorkflow(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
@@ -130,12 +131,12 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 	}
 	lockContent := string(lockBytes)
 
-	// Verify both opened and labeled event types are present
-	if !strings.Contains(lockContent, "- labeled") {
-		t.Error("Expected 'labeled' event type in campaign-generator lock file")
-	}
+	// Verify only the opened event type is present (labeled removed to prevent double-triggering)
 	if !strings.Contains(lockContent, "- opened") {
 		t.Error("Expected 'opened' event type in campaign-generator lock file")
+	}
+	if strings.Contains(lockContent, "- labeled") {
+		t.Error("Unexpected 'labeled' event type in campaign-generator lock file - this causes double-triggering when issue templates auto-apply labels")
 	}
 
 	// Verify the title prefix condition is present (not label-based)
