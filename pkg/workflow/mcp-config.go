@@ -352,6 +352,39 @@ func renderCustomMCPConfigWrapper(yaml *strings.Builder, toolName string, toolCo
 	return nil
 }
 
+// renderCustomMCPConfigWrapperWithContext generates custom MCP server configuration wrapper with workflow context
+// This version includes workflowData to determine if localhost URLs should be rewritten
+func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
+	mcpLog.Printf("Rendering custom MCP config wrapper with context for tool: %s", toolName)
+	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
+
+	// Determine if localhost URLs should be rewritten to host.docker.internal
+	// This is needed when firewall is enabled (agent is not disabled)
+	rewriteLocalhost := workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
+
+	// Use the shared MCP config renderer with JSON format
+	renderer := MCPConfigRenderer{
+		IndentLevel:              "                ",
+		Format:                   "json",
+		RewriteLocalhostToDocker: rewriteLocalhost,
+	}
+
+	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
+	if err != nil {
+		return err
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+
+	return nil
+}
+
 // MCPConfigRenderer contains configuration options for rendering MCP config
 type MCPConfigRenderer struct {
 	// IndentLevel controls the indentation level for properties (e.g., "                " for JSON, "          " for TOML)
@@ -360,6 +393,34 @@ type MCPConfigRenderer struct {
 	Format string
 	// RequiresCopilotFields indicates if the engine requires "type" and "tools" fields (true for copilot engine)
 	RequiresCopilotFields bool
+	// RewriteLocalhostToDocker indicates if localhost URLs should be rewritten to host.docker.internal
+	// This is needed when the agent runs inside a firewall container and needs to access MCP servers on the host
+	RewriteLocalhostToDocker bool
+}
+
+// rewriteLocalhostToDockerHost rewrites localhost URLs to use host.docker.internal
+// This is necessary when MCP servers run on the host machine but are accessed from within
+// a Docker container (e.g., when firewall/sandbox is enabled)
+func rewriteLocalhostToDockerHost(url string) string {
+	// Replace http://localhost with http://host.docker.internal
+	if strings.HasPrefix(url, "http://localhost") {
+		newURL := strings.Replace(url, "http://localhost", "http://host.docker.internal", 1)
+		mcpLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
+		return newURL
+	}
+	// Also handle https://localhost
+	if strings.HasPrefix(url, "https://localhost") {
+		newURL := strings.Replace(url, "https://localhost", "https://host.docker.internal", 1)
+		mcpLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
+		return newURL
+	}
+	// Handle 127.0.0.1 as well
+	if strings.Contains(url, "://127.0.0.1") {
+		newURL := strings.Replace(url, "://127.0.0.1", "://host.docker.internal", 1)
+		mcpLog.Printf("Rewriting 127.0.0.1 URL for Docker access: %s -> %s", url, newURL)
+		return newURL
+	}
+	return url
 }
 
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
@@ -600,14 +661,20 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 			}
 		case "url":
+			// Rewrite localhost URLs to host.docker.internal when running inside firewall container
+			// This allows MCP servers running on the host to be accessed from the container
+			urlValue := mcpConfig.URL
+			if renderer.RewriteLocalhostToDocker {
+				urlValue = rewriteLocalhostToDockerHost(urlValue)
+			}
 			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%surl = \"%s\"\n", renderer.IndentLevel, mcpConfig.URL)
+				fmt.Fprintf(yaml, "%surl = \"%s\"\n", renderer.IndentLevel, urlValue)
 			} else {
 				comma := ","
 				if isLast {
 					comma = ""
 				}
-				fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.URL, comma)
+				fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, urlValue, comma)
 			}
 		case "http_headers":
 			// TOML format for HTTP headers (Codex style)
