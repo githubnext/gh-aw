@@ -552,6 +552,95 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+      - name: Start MCP gateway
+        id: sandbox.mcp
+        env:
+          MCP_GATEWAY_PORT: "8080"
+          MCP_GATEWAY_DOMAIN: "localhost"
+          MCP_GATEWAY_API_KEY: $(openssl rand -base64 45 | tr -d '/+=')
+        run: |
+          set -e
+          
+          # Create logs directory for gateway
+          mkdir -p /tmp/gh-aw/mcp-logs/gateway
+          
+          # Build gateway configuration with runtime values
+          cat /home/runner/.copilot/mcp-config.json | jq --arg port "$MCP_GATEWAY_PORT" --arg apiKey "$MCP_GATEWAY_API_KEY" --arg domain "$MCP_GATEWAY_DOMAIN" \
+            '.gateway = { port: ($port | tonumber), apiKey: $apiKey, domain: $domain }' > /tmp/gh-aw/mcp-config/gateway-input.json
+          
+          echo "Gateway input configuration:"
+          cat /tmp/gh-aw/mcp-config/gateway-input.json
+          
+          # Start gateway with container
+          cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
+            --network host \
+            -e MCP_GATEWAY_PORT \
+            -e MCP_GATEWAY_DOMAIN \
+            -e MCP_GATEWAY_API_KEY \
+            ghcr.io/githubnext/awmg:latest \
+            > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
+          
+          GATEWAY_PID=$!
+          echo "Gateway started with PID: $GATEWAY_PID"
+          
+          # Wait for gateway to be ready using /health endpoint
+          echo "Waiting for gateway to be ready..."
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -f -s "http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health" > /dev/null 2>&1; then
+              echo "Gateway is ready!"
+              break
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet, waiting 1 second..."
+              sleep 1
+            fi
+          done
+          
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
+            echo "Gateway stderr logs:"
+            cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+            kill $GATEWAY_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Wait for gateway output (rewritten configuration)
+          echo "Reading gateway output configuration..."
+          WAIT_ATTEMPTS=10
+          WAIT_ATTEMPT=0
+          while [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; do
+            if [ -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+              echo "Gateway output received!"
+              break
+            fi
+            WAIT_ATTEMPT=$((WAIT_ATTEMPT + 1))
+            if [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; then
+              sleep 1
+            fi
+          done
+          
+          # Verify output was written
+          if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+            echo "ERROR: Gateway did not write output configuration"
+            echo "Gateway stderr logs:"
+            cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+            kill $GATEWAY_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Use gateway output as the new MCP configuration
+          echo "Updating MCP configuration with gateway output:"
+          cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+          cat /home/runner/.copilot/mcp-config.json
+          
+          echo "MCP gateway is running on http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
+          echo "Gateway PID: $GATEWAY_PID"
+          
+          # Store PID for cleanup
+          echo $GATEWAY_PID > /tmp/gh-aw/mcp-logs/gateway/gateway.pid
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0

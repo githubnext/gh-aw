@@ -462,6 +462,242 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+
+	// Generate MCP gateway step if feature is enabled and sandbox.mcp is configured
+	generateMCPGatewayStep(yaml, tools, mcpTools, workflowData)
+}
+
+// generateMCPGatewayStep generates the MCP gateway start step that proxies MCP servers
+// through a unified HTTP endpoint. This step is only generated when:
+// 1. features.mcp-gateway is enabled
+// 2. sandbox.mcp configuration is present
+//
+// The gateway follows the specification at:
+// https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/reference/mcp-gateway.md
+func generateMCPGatewayStep(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	mcpServersLog.Print("Checking if MCP gateway step should be generated")
+
+	// Check if feature flag is enabled
+	if !isFeatureEnabled(constants.MCPGatewayFeatureFlag, workflowData) {
+		mcpServersLog.Print("MCP gateway feature flag not enabled, skipping gateway step")
+		return
+	}
+
+	// Check if sandbox.mcp is configured
+	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.MCP == nil {
+		mcpServersLog.Print("sandbox.mcp not configured, skipping gateway step")
+		return
+	}
+
+	gatewayConfig := workflowData.SandboxConfig.MCP
+	mcpServersLog.Printf("Generating MCP gateway step with config: command=%s, container=%s, port=%d",
+		gatewayConfig.Command, gatewayConfig.Container, gatewayConfig.Port)
+
+	// Default values per specification
+	port := gatewayConfig.Port
+	if port == 0 {
+		port = int(DefaultMCPGatewayPort)
+	}
+
+	domain := gatewayConfig.Domain
+	if domain == "" {
+		// Default to host.docker.internal when agent is enabled (AWF), localhost when disabled
+		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+			domain = "localhost"
+		} else {
+			domain = "host.docker.internal"
+		}
+	}
+
+	// Generate API key if not provided (temporary key per spec section 7.2)
+	apiKey := gatewayConfig.APIKey
+	apiKeyExpr := ""
+	if apiKey == "" {
+		// Generate random API key at runtime
+		apiKeyExpr = "$(openssl rand -base64 45 | tr -d '/+=')"
+		mcpServersLog.Print("API key will be generated at runtime")
+	} else {
+		apiKeyExpr = apiKey
+		mcpServersLog.Print("Using configured API key")
+	}
+
+	yaml.WriteString("      - name: Start MCP gateway\n")
+	yaml.WriteString("        id: sandbox.mcp\n")
+
+	// Add environment variables for the gateway
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          MCP_GATEWAY_PORT: \"" + fmt.Sprintf("%d", port) + "\"\n")
+	yaml.WriteString("          MCP_GATEWAY_DOMAIN: \"" + domain + "\"\n")
+	yaml.WriteString("          MCP_GATEWAY_API_KEY: " + apiKeyExpr + "\n")
+
+	// Add user-configured environment variables
+	if len(gatewayConfig.Env) > 0 {
+		envVarNames := make([]string, 0, len(gatewayConfig.Env))
+		for envVarName := range gatewayConfig.Env {
+			envVarNames = append(envVarNames, envVarName)
+		}
+		sort.Strings(envVarNames)
+
+		for _, envVarName := range envVarNames {
+			envVarValue := gatewayConfig.Env[envVarName]
+			fmt.Fprintf(yaml, "          %s: %s\n", envVarName, envVarValue)
+		}
+	}
+
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          set -e\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Create logs directory for gateway\n")
+	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/gateway\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Build gateway configuration with runtime values\n")
+	yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json | jq --arg port \"$MCP_GATEWAY_PORT\" --arg apiKey \"$MCP_GATEWAY_API_KEY\" --arg domain \"$MCP_GATEWAY_DOMAIN\" \\\n")
+	yaml.WriteString("            '.gateway = { port: ($port | tonumber), apiKey: $apiKey, domain: $domain }' > /tmp/gh-aw/mcp-config/gateway-input.json\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          echo \"Gateway input configuration:\"\n")
+	yaml.WriteString("          cat /tmp/gh-aw/mcp-config/gateway-input.json\n")
+	yaml.WriteString("          \n")
+
+	// Determine command to run (command or container)
+	if gatewayConfig.Command != "" {
+		// Direct command execution
+		mcpServersLog.Printf("Using command: %s", gatewayConfig.Command)
+		yaml.WriteString("          # Start gateway with command\n")
+		
+		// Build command line
+		cmdLine := gatewayConfig.Command
+		if len(gatewayConfig.Args) > 0 {
+			for _, arg := range gatewayConfig.Args {
+				cmdLine += " " + shellQuote(arg)
+			}
+		}
+		
+		yaml.WriteString("          cat /tmp/gh-aw/mcp-config/gateway-input.json | " + cmdLine + " \\\n")
+		yaml.WriteString("            > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &\n")
+	} else if gatewayConfig.Container != "" {
+		// Container execution
+		containerImage := gatewayConfig.Container
+		if gatewayConfig.Version != "" {
+			containerImage += ":" + gatewayConfig.Version
+		}
+		mcpServersLog.Printf("Using container: %s", containerImage)
+
+		yaml.WriteString("          # Start gateway with container\n")
+		yaml.WriteString("          cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \\\n")
+		yaml.WriteString("            --network host \\\n")
+		
+		// Add environment variables to container
+		yaml.WriteString("            -e MCP_GATEWAY_PORT \\\n")
+		yaml.WriteString("            -e MCP_GATEWAY_DOMAIN \\\n")
+		yaml.WriteString("            -e MCP_GATEWAY_API_KEY \\\n")
+		if len(gatewayConfig.Env) > 0 {
+			envVarNames := make([]string, 0, len(gatewayConfig.Env))
+			for envVarName := range gatewayConfig.Env {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+			for _, envVarName := range envVarNames {
+				fmt.Fprintf(yaml, "            -e %s \\\n", envVarName)
+			}
+		}
+		
+		yaml.WriteString("            " + containerImage)
+		
+		// Add entrypoint args if configured
+		if len(gatewayConfig.EntrypointArgs) > 0 {
+			for _, arg := range gatewayConfig.EntrypointArgs {
+				yaml.WriteString(" " + shellQuote(arg))
+			}
+		}
+		
+		// Add command args if configured
+		if len(gatewayConfig.Args) > 0 {
+			for _, arg := range gatewayConfig.Args {
+				yaml.WriteString(" " + shellQuote(arg))
+			}
+		}
+		
+		yaml.WriteString(" \\\n")
+		yaml.WriteString("            > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &\n")
+	} else {
+		mcpServersLog.Print("ERROR: No command or container specified for MCP gateway")
+		yaml.WriteString("          echo 'ERROR: sandbox.mcp must specify either command or container'\n")
+		yaml.WriteString("          exit 1\n")
+		return
+	}
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          GATEWAY_PID=$!\n")
+	yaml.WriteString("          echo \"Gateway started with PID: $GATEWAY_PID\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Wait for gateway to be ready using /health endpoint\n")
+	yaml.WriteString("          echo \"Waiting for gateway to be ready...\"\n")
+	yaml.WriteString("          MAX_ATTEMPTS=30\n")
+	yaml.WriteString("          ATTEMPT=0\n")
+	yaml.WriteString("          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do\n")
+	yaml.WriteString("            if curl -f -s \"http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health\" > /dev/null 2>&1; then\n")
+	yaml.WriteString("              echo \"Gateway is ready!\"\n")
+	yaml.WriteString("              break\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("            ATTEMPT=$((ATTEMPT + 1))\n")
+	yaml.WriteString("            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then\n")
+	yaml.WriteString("              echo \"Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet, waiting 1 second...\"\n")
+	yaml.WriteString("              sleep 1\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("          done\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then\n")
+	yaml.WriteString("            echo \"ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts\"\n")
+	yaml.WriteString("            echo \"Gateway stderr logs:\"\n")
+	yaml.WriteString("            cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo \"No stderr logs available\"\n")
+	yaml.WriteString("            kill $GATEWAY_PID 2>/dev/null || true\n")
+	yaml.WriteString("            exit 1\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Wait for gateway output (rewritten configuration)\n")
+	yaml.WriteString("          echo \"Reading gateway output configuration...\"\n")
+	yaml.WriteString("          WAIT_ATTEMPTS=10\n")
+	yaml.WriteString("          WAIT_ATTEMPT=0\n")
+	yaml.WriteString("          while [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; do\n")
+	yaml.WriteString("            if [ -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then\n")
+	yaml.WriteString("              echo \"Gateway output received!\"\n")
+	yaml.WriteString("              break\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("            WAIT_ATTEMPT=$((WAIT_ATTEMPT + 1))\n")
+	yaml.WriteString("            if [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; then\n")
+	yaml.WriteString("              sleep 1\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("          done\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Verify output was written\n")
+	yaml.WriteString("          if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then\n")
+	yaml.WriteString("            echo \"ERROR: Gateway did not write output configuration\"\n")
+	yaml.WriteString("            echo \"Gateway stderr logs:\"\n")
+	yaml.WriteString("            cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo \"No stderr logs available\"\n")
+	yaml.WriteString("            kill $GATEWAY_PID 2>/dev/null || true\n")
+	yaml.WriteString("            exit 1\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Use gateway output as the new MCP configuration\n")
+	yaml.WriteString("          echo \"Updating MCP configuration with gateway output:\"\n")
+	yaml.WriteString("          cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json\n")
+	yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          echo \"MCP gateway is running on http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}\"\n")
+	yaml.WriteString("          echo \"Gateway PID: $GATEWAY_PID\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Store PID for cleanup\n")
+	yaml.WriteString("          echo $GATEWAY_PID > /tmp/gh-aw/mcp-logs/gateway/gateway.pid\n")
+}
+
+// shellQuote adds shell quoting to a string if needed
+func shellQuote(s string) string {
+	if strings.ContainsAny(s, " \t\n'\"\\$`") {
+		// Escape single quotes and wrap in single quotes
+		s = strings.ReplaceAll(s, "'", "'\\''")
+		return "'" + s + "'"
+	}
+	return s
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

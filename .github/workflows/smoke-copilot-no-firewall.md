@@ -23,6 +23,8 @@ network:
 sandbox:
   agent: false  # Firewall disabled (migrated from network.firewall)
   mcp:
+    container: ghcr.io/githubnext/awmg
+    version: latest
     port: 8080
 imports:
   - shared/gh.md
