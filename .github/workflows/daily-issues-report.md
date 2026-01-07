@@ -10,6 +10,8 @@ permissions:
 engine: codex
 strict: true
 tracker-id: daily-issues-report
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [default, discussions]
