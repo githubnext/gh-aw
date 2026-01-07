@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-01-06T12:43:00Z",
-  "report_date": "2026-01-06",
+  "timestamp": "2026-01-07T12:43:00Z",
+  "report_date": "2026-01-07",
   "summary": {
     "last_data_date": "2025-12-05",
     "workflows_analyzed": 12,
@@ -22,5 +22,5 @@
     {"domain": "twitter.com", "count": 53},
     {"domain": "cdn.example.com", "count": 49}
   ],
-  "note": "Analysis based on cached data. Report generated for 2026-01-06. Python environment unavailable for trend charts."
+  "note": "Report generated for 2026-01-07. Python data analysis environment unavailable for trend charts. MCP tools and gh CLI not accessible due to authentication constraints."
 }
