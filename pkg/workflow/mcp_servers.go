@@ -465,7 +465,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// If MCP gateway is enabled, add gateway start logic to the same step
 	if shouldGenerateMCPGateway(workflowData) {
-		generateMCPGatewayStepInline(yaml, workflowData)
+		generateMCPGatewayStepInline(yaml, engine, workflowData)
 	}
 }
 
@@ -486,7 +486,7 @@ func shouldGenerateMCPGateway(workflowData *WorkflowData) bool {
 
 // generateMCPGatewayStepInline generates the MCP gateway start logic inline in the Setup MCPs step
 // This adds the gateway configuration and start commands after the MCP config is generated
-func generateMCPGatewayStepInline(yaml *strings.Builder, workflowData *WorkflowData) {
+func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngine, workflowData *WorkflowData) {
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	mcpServersLog.Printf("Adding MCP gateway start to Setup MCPs step: command=%s, container=%s, port=%d",
 		gatewayConfig.Command, gatewayConfig.Container, gatewayConfig.Port)
@@ -522,6 +522,9 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, workflowData *WorkflowD
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+
+	// Export engine type for agent-specific conversion
+	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
 
 	// Add user-configured environment variables
 	if len(gatewayConfig.Env) > 0 {

@@ -118,17 +118,44 @@ fi
 echo "Converting gateway configuration to agent format..."
 export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json
 
-# Determine which agent-specific converter to use
-# Currently only Copilot is supported, but this can be extended
-if [ -n "$GITHUB_COPILOT_CLI_MODE" ] || [ -f "/home/runner/.copilot" ]; then
-  # Use Copilot converter
-  bash /tmp/gh-aw/actions/convert_gateway_config_copilot.sh
+# Determine which agent-specific converter to use based on engine type
+# Check for engine-specific indicators and call appropriate converter
+if [ -n "$GH_AW_ENGINE" ]; then
+  ENGINE_TYPE="$GH_AW_ENGINE"
+elif [ -f "/home/runner/.copilot" ] || [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
+  ENGINE_TYPE="copilot"
+elif [ -f "/tmp/gh-aw/mcp-config/config.toml" ]; then
+  ENGINE_TYPE="codex"
+elif [ -f "/tmp/gh-aw/mcp-config/mcp-servers.json" ]; then
+  ENGINE_TYPE="claude"
 else
-  # Default: just copy the gateway output as-is
-  echo "No agent-specific converter found, using gateway output directly"
-  cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
-  cat /home/runner/.copilot/mcp-config.json
+  ENGINE_TYPE="unknown"
 fi
+
+echo "Detected engine type: $ENGINE_TYPE"
+
+case "$ENGINE_TYPE" in
+  copilot)
+    echo "Using Copilot converter..."
+    bash /tmp/gh-aw/actions/convert_gateway_config_copilot.sh
+    ;;
+  codex)
+    echo "Using Codex converter..."
+    bash /tmp/gh-aw/actions/convert_gateway_config_codex.sh
+    ;;
+  claude)
+    echo "Using Claude converter..."
+    bash /tmp/gh-aw/actions/convert_gateway_config_claude.sh
+    ;;
+  *)
+    echo "No agent-specific converter found for engine: $ENGINE_TYPE"
+    echo "Using gateway output directly"
+    # Default fallback - copy to most common location
+    mkdir -p /home/runner/.copilot
+    cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+    cat /home/runner/.copilot/mcp-config.json
+    ;;
+esac
 echo ""
 
 echo "MCP gateway is running on http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
