@@ -99,7 +99,7 @@ Run `gh aw compile workflow.md` to validate permissions. Common errors include u
 
 ### Write Permission Policy
 
-Starting with version 0.4.0, write permissions are blocked by default to enforce the security-first design. Workflows with write permissions will fail compilation with an error:
+Write permissions are blocked by default to enforce the security-first design. Workflows with write permissions will fail compilation with an error:
 
 ```
 Write permissions are not allowed unless the 'dangerous-permissions-write' feature flag is enabled.
