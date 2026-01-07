@@ -27,7 +27,6 @@ name: "Workflow Generator"
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - opened
-    - labeled
 
 permissions:
   contents: read

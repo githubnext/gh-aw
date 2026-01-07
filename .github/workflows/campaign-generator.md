@@ -2,7 +2,7 @@
 description: Campaign generator that updates issue status and assigns to Copilot agent for campaign design
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened]
     lock-for-agent: true
   reaction: "eyes"
 permissions:
@@ -21,6 +21,7 @@ safe-outputs:
   copy-project:
     max: 1
     source-project: "https://github.com/orgs/githubnext/projects/74"
+    target-owner: "githubnext"
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 timeout-minutes: 5
 ---
@@ -43,24 +44,17 @@ Your job is to keep the user informed at each stage and assign the work to an AI
 
 Use the `copy-project` safe output to create a new project for the campaign from the template.
 
-First, extract the owner from the repository context:
-
-```bash
-OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1)
-```
-
-Then call the copy_project tool with the owner parameter:
+Call the copy_project tool with just the title parameter (the target owner is configured as a default):
 
 ```
 copy_project({
-  owner: "<owner-from-repo>",
   title: "Campaign: <campaign-name>"
 })
 ```
 
-Replace `<owner-from-repo>` with the owner extracted above, and `<campaign-name>` with a descriptive campaign name based on the issue goal.
+Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
 
-This will copy the "[TEMPLATE: Agentic Campaign]" project (https://github.com/orgs/githubnext/projects/74) to create a new project board for this campaign.
+This will copy the "[TEMPLATE: Agentic Campaign]" project (https://github.com/orgs/githubnext/projects/74) to create a new project board for this campaign in the githubnext organization.
 
 The copied project will be automatically assigned to this issue.
 

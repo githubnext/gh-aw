@@ -44,8 +44,6 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 
 ## What is GitHub Agentic Workflows?
 
-**GitHub Agentic Workflows is a CLI extension that lets you write AI-powered automation workflows in natural language that compile to GitHub Actions.**
-
 Instead of writing complex YAML configurations, you describe your automation goals in plain markdown. AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can understand and execute instructions) then execute these workflows safely with built-in security controls, making intelligent decisions based on context.
 
 **How it works:**
@@ -63,7 +61,7 @@ Workflows run with read-only permissions by default. Write operations require ex
   <FeatureCard icon="pencil" title="Natural Language Workflows" href="/gh-aw/introduction/overview/#natural-language-to-github-actions">
     Write automation in markdown instead of complex YAML
   </FeatureCard>
-  <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="/gh-aw/introduction/how-it-works/#core-concepts">
+  <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="/gh-aw/introduction/how-it-works/">
     Workflows that understand context and adapt to situations
   </FeatureCard>
   <FeatureCard icon="mark-github" title="GitHub Integration" href="/gh-aw/reference/tools/#github-tools-github">
@@ -79,6 +77,26 @@ Workflows run with read-only permissions by default. Write operations require ex
     Systematic, automated application of AI to software collaboration
   </FeatureCard>
 </FeatureGrid>
+
+## Example: Daily Issues Report
+
+Here's a simple workflow that runs daily to analyze repository issues:
+
+```markdown
+---
+on: daily
+permissions: read
+safe-outputs:
+  create-discussion:
+---
+
+## Daily Issues Report
+
+Analyze repository issues and create a daily discussion 
+with metrics, trends, and key insights.
+```
+
+The `gh aw compile` command transforms this into a GitHub Actions workflow that runs an AI agent in a containerized environment on a schedule.
 
 <div style="max-width: 600px; margin: 3rem auto; text-align: center;">
 
