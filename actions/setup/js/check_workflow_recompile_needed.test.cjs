@@ -185,4 +185,3 @@ describe("check_workflow_recompile_needed", () => {
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to check for workflow changes"));
   });
 });
-

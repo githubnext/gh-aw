@@ -85,9 +85,7 @@ async function main() {
 
       // Add a comment to the existing issue with the new workflow run info
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const runUrl = context.payload.repository
-        ? `${context.payload.repository.html_url}/actions/runs/${context.runId}`
-        : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
+      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
       const commentBody = `Workflows are still out of sync as of ${new Date().toISOString()}.\n\nSee [workflow run](${runUrl}) for details.`;
 
       await github.rest.issues.createComment({
@@ -109,9 +107,7 @@ async function main() {
   core.info("No existing issue found, creating a new issue with agentic instructions");
 
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository
-    ? `${context.payload.repository.html_url}/actions/runs/${context.runId}`
-    : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
+  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
 
   // Build the issue body with agentic instructions
   const issueBody = `## Problem
