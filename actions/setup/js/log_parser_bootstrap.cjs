@@ -13,9 +13,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @param {function(string): string|{markdown: string, mcpFailures?: string[], maxTurnsHit?: boolean, logEntries?: Array}} options.parseLog - Parser function that takes log content and returns markdown or result object
  * @param {string} options.parserName - Name of the parser (e.g., "Codex", "Claude", "Copilot")
  * @param {boolean} [options.supportsDirectories=false] - Whether the parser supports reading from directories
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function runLogParser(options) {
+async function runLogParser(options) {
   const fs = require("fs");
   const path = require("path");
   const { parseLog, parserName, supportsDirectories = false } = options;
