@@ -446,39 +446,42 @@ func extractLevelFromMatchCompiled(match []string, cp compiledPattern) string {
 	return "unknown"
 }
 
+// FinalizeToolMetricsOptions holds the options for FinalizeToolMetrics
+type FinalizeToolMetricsOptions struct {
+	Metrics         *LogMetrics
+	ToolCallMap     map[string]*ToolCallInfo
+	CurrentSequence []string
+	Turns           int
+	TokenUsage      int
+	LogContent      string
+	ErrorPatterns   []ErrorPattern
+}
+
 // FinalizeToolMetrics completes the metric collection process by finalizing sequences,
 // converting tool call maps to sorted slices, and optionally counting errors using patterns.
 // This function is called by engine-specific ParseLogMetrics implementations to avoid code duplication.
-func FinalizeToolMetrics(
-	metrics *LogMetrics,
-	toolCallMap map[string]*ToolCallInfo,
-	currentSequence []string,
-	turns int,
-	tokenUsage int,
-	logContent string,
-	errorPatterns []ErrorPattern,
-) {
+func FinalizeToolMetrics(opts FinalizeToolMetricsOptions) {
 	// Add final sequence if any
-	if len(currentSequence) > 0 {
-		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+	if len(opts.CurrentSequence) > 0 {
+		opts.Metrics.ToolSequences = append(opts.Metrics.ToolSequences, opts.CurrentSequence)
 	}
 
-	metrics.TokenUsage = tokenUsage
-	metrics.Turns = turns
+	opts.Metrics.TokenUsage = opts.TokenUsage
+	opts.Metrics.Turns = opts.Turns
 
 	// Convert tool call map to slice
-	for _, toolInfo := range toolCallMap {
-		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
+	for _, toolInfo := range opts.ToolCallMap {
+		opts.Metrics.ToolCalls = append(opts.Metrics.ToolCalls, *toolInfo)
 	}
 
 	// Sort tool calls by name for consistent output
-	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
-		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
+	sort.Slice(opts.Metrics.ToolCalls, func(i, j int) bool {
+		return opts.Metrics.ToolCalls[i].Name < opts.Metrics.ToolCalls[j].Name
 	})
 
 	// Count errors and warnings using pattern matching for better accuracy
-	if len(errorPatterns) > 0 {
-		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
+	if len(opts.ErrorPatterns) > 0 {
+		opts.Metrics.Errors = CountErrorsAndWarningsWithPatterns(opts.LogContent, opts.ErrorPatterns)
 	}
 }
 

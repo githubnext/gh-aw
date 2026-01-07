@@ -132,7 +132,20 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			}
 		}
 
-		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, ref, beforeRunID, afterRunID, repoOverride, len(processedRuns), count, verbose)
+		runs, totalFetched, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
+			WorkflowName:   workflowName,
+			Limit:          batchSize,
+			StartDate:      startDate,
+			EndDate:        endDate,
+			BeforeDate:     beforeDate,
+			Ref:            ref,
+			BeforeRunID:    beforeRunID,
+			AfterRunID:     afterRunID,
+			RepoOverride:   repoOverride,
+			ProcessedCount: len(processedRuns),
+			TargetCount:    count,
+			Verbose:        verbose,
+		})
 		if err != nil {
 			return err
 		}
