@@ -1,12 +1,12 @@
 name: 🚀 Start an Agentic Campaign
-description: Create a new agentic campaign with AI assistance - describe your goal and we'll generate the details
+description: Create a new agentic campaign with AI assistance - describe your goal and we'll generate the details and project board
 title: "[New Agentic Campaign]"
 labels: ["campaign", "campaign-tracker"]
 body:
   - type: markdown
     attributes:
       value: |
-        **Project Board Required:** Assign this issue to a GitHub Project for tracking (use project selector below or create from project board).
+        **Note:** A project board will be automatically created from the campaign template when you submit this issue.
 
   - type: textarea
     id: campaign_goal

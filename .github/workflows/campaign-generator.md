@@ -18,6 +18,10 @@ safe-outputs:
   add-comment:
     max: 5
   assign-to-agent:
+  copy-project:
+    max: 1
+    source-project: "https://github.com/orgs/githubnext/projects/74"
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 timeout-minutes: 5
 ---
 
@@ -35,20 +39,35 @@ Your job is to keep the user informed at each stage and assign the work to an AI
 
 ## Workflow Steps
 
-### Step 1: Retrieve the Project URL
+### Step 1: Copy Project from Template
 
-First, retrieve the project URL from the issue's project assignments using the GitHub CLI:
+Use the `copy-project` safe output to create a new project for the campaign from the template.
+
+First, extract the owner from the repository context:
 
 ```bash
-gh issue view ${{ github.event.issue.number }} --json projectItems --jq '.projectItems[0]?.project?.url // empty'
+OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1)
 ```
 
-If no project is assigned, post a comment explaining that a project board is required and stop.
+Then call the copy_project tool with the owner parameter:
+
+```
+copy_project({
+  owner: "<owner-from-repo>",
+  title: "Campaign: <campaign-name>"
+})
+```
+
+Replace `<owner-from-repo>` with the owner extracted above, and `<campaign-name>` with a descriptive campaign name based on the issue goal.
+
+This will copy the "[TEMPLATE: Agentic Campaign]" project (https://github.com/orgs/githubnext/projects/74) to create a new project board for this campaign.
+
+The copied project will be automatically assigned to this issue.
 
 ### Step 2: Post Initial Comment
 
 Use the `add-comment` safe output to post a welcome comment that:
-- Shows the project URL prominently near the top with a clear link
+- Explains that a new project has been created from the template
 - Explains what will happen next
 - Sets expectations about the AI agent's work
 
@@ -56,11 +75,11 @@ Example structure:
 ```markdown
 🤖 **Campaign Creation Started**
 
-📊 **Project Board:** [View Project](<project-url>)
+📊 **Project Board:** A new project board has been created from the campaign template.
 
 I'm processing your campaign request. Here's what will happen:
 
-1. ✅ Retrieve project board details
+1. ✅ Created project board from template
 2. 🔄 Analyze campaign requirements
 3. 📝 Generate campaign specification
 4. 🔀 Create pull request with campaign file
@@ -74,6 +93,7 @@ An AI agent will be assigned to design your campaign. This typically takes a few
 Use the `assign-to-agent` safe output to assign the Copilot agent who will:
 - Parse the campaign requirements from the issue body
 - Generate a NEW campaign specification file (`.campaign.md`) with a unique campaign ID
+- Use the newly created project URL in the campaign spec
 - Create a pull request with the new campaign file
 
 The campaign-designer agent has detailed instructions in `.github/agents/agentic-campaign-designer.agent.md`
@@ -95,7 +115,8 @@ The AI agent is now working on your campaign design. You'll receive updates as t
 
 ## Important Notes
 
-- Always retrieve and display the project URL prominently in the first comment
+- Always create the project from the template using copy-project
+- The project URL from the copy-project output should be used in the campaign spec
 - Use clear, concise language in all comments
 - Keep users informed at each stage
 - The agent will create a NEW campaign file, not modify existing ones

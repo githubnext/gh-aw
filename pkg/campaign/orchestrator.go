@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
@@ -355,19 +354,6 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for create-project-status-update", spec.ID)
 	}
 	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
-
-	// Allow copying GitHub Projects for campaign setup (max: 1, typically used once).
-	// Default source project is the githubnext "[TEMPLATE: Agentic Campaign]" project.
-	copyProjectConfig := &workflow.CopyProjectsConfig{
-		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1},
-		SourceProject:        string(constants.DefaultCampaignTemplateProjectURL),
-	}
-	// Use the same custom GitHub token for copy-project as for other project operations.
-	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
-		copyProjectConfig.GitHubToken = strings.TrimSpace(spec.ProjectGitHubToken)
-		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for copy-project", spec.ID)
-	}
-	safeOutputs.CopyProjects = copyProjectConfig
 
 	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
 
