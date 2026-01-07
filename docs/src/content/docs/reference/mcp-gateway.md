@@ -151,7 +151,7 @@ The gateway operates in a headless mode:
 1. Configuration is provided via **stdin** (JSON format)
 2. Secrets are provided via **environment variables**
 3. Startup output is written to **stdout** (rewritten configuration)
-4. Error messages are written to **stderr**
+4. Error messages are written to **stdout** as error payloads
 5. HTTP server accepts client requests on configured port
 
 ---
@@ -160,7 +160,7 @@ The gateway operates in a headless mode:
 
 ### 4.1 Configuration Format
 
-The gateway MUST accept configuration via stdin in JSON format conforming to the Claude MCP configuration file schema.
+The gateway MUST accept configuration via stdin in JSON format conforming to the MCP configuration file schema.
 
 #### 4.1.1 Configuration Structure
 
@@ -170,6 +170,8 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
     "server-name": {
       "command": "string",
       "args": ["string"],
+      "container": "string",
+      "entrypointArgs": ["string"],
       "env": {
         "VAR_NAME": "value"
       },
@@ -195,11 +197,13 @@ Each server configuration MUST support:
 |-------|------|----------|-------------|
 | `command` | string | Conditional* | Executable command for stdio servers |
 | `args` | array[string] | No | Command arguments |
+| `container` | string | Conditional* | Container image for the MCP server (mutually exclusive with command) |
+| `entrypointArgs` | array[string] | No | Arguments passed to container entrypoint (container only) |
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
 | `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
 
-*Required for stdio servers  
+*Either `command` or `container` is required for stdio servers  
 **Required for HTTP servers
 
 #### 4.1.3 Gateway Configuration Fields
@@ -209,7 +213,7 @@ The optional `gateway` section configures gateway-specific behavior:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `port` | integer | 8080 | HTTP server port |
-| `apiKey` | string | (none) | Bearer token for authentication |
+| `apiKey` | string | (none) | API key for authentication |
 | `domain` | string | localhost | Gateway domain (localhost or host.docker.internal) |
 | `startupTimeout` | integer | 30 | Server startup timeout in seconds |
 | `toolTimeout` | integer | 60 | Tool invocation timeout in seconds |
@@ -231,7 +235,7 @@ The gateway MUST:
 1. Detect variable expressions in configuration values
 2. Replace expressions with values from process environment variables
 3. FAIL IMMEDIATELY if a referenced variable is not defined
-4. Log the undefined variable name to stderr
+4. Log the undefined variable name to stdout as an error payload
 5. Exit with non-zero status code
 
 #### 4.2.3 Example
@@ -281,7 +285,7 @@ The gateway MUST validate:
 
 If configuration is invalid, the gateway MUST:
 
-1. Write a detailed error message to stderr including:
+1. Write a detailed error message to stdout as an error payload including:
    - The specific validation error
    - The location in the configuration (JSON path)
    - Suggested corrective action
@@ -293,6 +297,8 @@ If configuration is invalid, the gateway MUST:
 
 ## 5. Protocol Behavior
 
+For complete details on the Model Context Protocol, see the [Model Context Protocol Specification](https://spec.modelcontextprotocol.io/).
+
 ### 5.1 HTTP Server Interface
 
 #### 5.1.1 Endpoint Structure
@@ -300,10 +306,8 @@ If configuration is invalid, the gateway MUST:
 The gateway MUST expose the following HTTP endpoints:
 
 ```
-POST /mcp/{server-name}/rpc
+POST /mcp/{server-name}
 GET  /health
-GET  /health/ready
-GET  /health/live
 ```
 
 #### 5.1.2 RPC Endpoint Behavior
@@ -311,9 +315,9 @@ GET  /health/live
 **Request Format**:
 
 ```http
-POST /mcp/{server-name}/rpc HTTP/1.1
+POST /mcp/{server-name} HTTP/1.1
 Content-Type: application/json
-Authorization: Bearer {apiKey}
+Authorization: {apiKey}
 
 {
   "jsonrpc": "2.0",
@@ -387,7 +391,7 @@ For HTTP-based servers, the gateway MUST:
 
 #### 5.2.3 Tool Signature Preservation
 
-The gateway MUST NOT modify:
+The gateway SHOULD NOT modify:
 
 - Tool names
 - Tool parameters
@@ -400,7 +404,7 @@ This ensures transparent proxying without name mangling or schema transformation
 
 #### 5.3.1 Startup Timeout
 
-The gateway MUST enforce `startupTimeout` for server initialization:
+The gateway SHOULD enforce `startupTimeout` for server initialization:
 
 1. Start timer when server process is launched
 2. Wait for server ready signal (stdio) or successful health check (HTTP)
@@ -409,7 +413,7 @@ The gateway MUST enforce `startupTimeout` for server initialization:
 
 #### 5.3.2 Tool Timeout
 
-The gateway MUST enforce `toolTimeout` for individual tool invocations:
+The gateway SHOULD enforce `toolTimeout` for individual tool invocations:
 
 1. Start timer when RPC request is sent to server
 2. Wait for complete response
@@ -420,16 +424,16 @@ The gateway MUST enforce `toolTimeout` for individual tool invocations:
 
 After successful initialization, the gateway MUST:
 
-1. Write a complete Claude-formatted MCP server configuration to stdout
+1. Write a complete MCP server configuration to stdout
 2. Include gateway connection details:
    ```json
    {
      "mcpServers": {
        "server-name": {
          "type": "http",
-         "url": "http://{domain}:{port}/mcp/server-name/rpc",
+         "url": "http://{domain}:{port}/mcp/server-name",
          "headers": {
-           "Authorization": "Bearer {apiKey}"
+           "Authorization": "{apiKey}"
          }
        }
      }
@@ -445,14 +449,21 @@ This allows clients to dynamically discover gateway endpoints.
 
 ## 6. Server Isolation
 
-### 6.1 Process Isolation
+### 6.1 Process and Container Isolation
 
-For stdio servers, the gateway MUST:
+For stdio servers using processes, the gateway MUST:
 
 1. Launch each server in a separate process
 2. Maintain isolated stdin/stdout/stderr streams
 3. Prevent cross-server communication
 4. Terminate child processes on gateway shutdown
+
+For stdio servers using containers, the gateway MUST:
+
+1. Launch each server in a separate container
+2. Maintain isolated stdin/stdout/stderr streams
+3. Prevent cross-container communication
+4. Terminate containers on gateway shutdown
 
 ### 6.2 Resource Isolation
 
@@ -476,31 +487,27 @@ The gateway MUST NOT:
 
 ## 7. Authentication
 
-### 7.1 Bearer Token Authentication
+### 7.1 API Key Authentication
 
 When `gateway.apiKey` is configured, the gateway MUST:
 
-1. Require `Authorization: Bearer {apiKey}` header on all RPC requests
+1. Require `Authorization: {apiKey}` header on all RPC requests
 2. Reject requests with missing or invalid tokens (HTTP 401)
 3. Reject requests with malformed Authorization headers (HTTP 400)
 4. NOT log API keys in plaintext
 
 ### 7.2 Optimal Temporary API Key
 
-The gateway SHOULD support short-lived, auto-rotating API keys:
+The gateway SHOULD support temporary API keys:
 
 1. Generate a random API key on startup if not provided
 2. Include key in stdout configuration output
-3. Support key rotation via signal (e.g., SIGHUP)
-4. Invalidate old keys after rotation grace period
 
 ### 7.3 Authentication Exemptions
 
 The following endpoints MUST NOT require authentication:
 
 - `/health`
-- `/health/live`
-- `/health/ready`
 
 ---
 
@@ -528,22 +535,6 @@ Response:
 }
 ```
 
-#### 8.1.2 Liveness Probe (`/health/live`)
-
-```http
-GET /health/live HTTP/1.1
-```
-
-Returns HTTP 200 if gateway process is running, HTTP 503 otherwise.
-
-#### 8.1.3 Readiness Probe (`/health/ready`)
-
-```http
-GET /health/ready HTTP/1.1
-```
-
-Returns HTTP 200 if gateway can accept requests, HTTP 503 otherwise.
-
 ### 8.2 Health Check Behavior
 
 The gateway SHOULD:
@@ -562,7 +553,7 @@ The gateway SHOULD:
 
 If any configured server fails to start, the gateway MUST:
 
-1. Write detailed error to stderr including:
+1. Write detailed error to stdout as an error payload including:
    - Server name
    - Command/URL attempted
    - Error message from server process
@@ -575,7 +566,7 @@ If any configured server fails to start, the gateway MUST:
 
 For runtime errors, the gateway MUST:
 
-1. Log errors to stderr with:
+1. Log errors to stdout as error payloads with:
    - Timestamp
    - Server name
    - Request ID
@@ -802,7 +793,6 @@ Implementations SHOULD provide:
 - API keys MUST NOT be logged
 - Environment variables MUST be isolated per server
 - Secrets SHOULD be cleared from memory after use
-- Token rotation SHOULD be supported
 
 #### C.2 Network Security
 
@@ -830,7 +820,7 @@ Implementations SHOULD provide:
 
 ### Informative References
 
-- **[Claude-Config]** Claude Desktop MCP Configuration Format
+- **[MCP-Config]** MCP Configuration Format
 - **[HTTP/1.1]** Hypertext Transfer Protocol -- HTTP/1.1
 
 ---
