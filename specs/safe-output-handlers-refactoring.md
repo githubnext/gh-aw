@@ -4,6 +4,38 @@
 
 All safe output handlers have been successfully refactored to follow the handler factory pattern where `main(config)` returns a message handler function.
 
+## Architecture Overview
+
+Safe outputs are processed through two distinct patterns:
+
+### 1. Handler Manager Pattern (Default)
+Most safe outputs are processed through `safe_output_handler_manager.cjs`:
+- Handler exports `main(config)` which returns a message handler function
+- Handler manager calls the handler once per message
+- Examples: `create_issue`, `add_comment`, `create_discussion`, `create_project_status_update`
+
+### 2. Standalone Step Pattern
+Some safe outputs require dedicated standalone steps in the workflow:
+- Each safe output gets its own step in the `safe_outputs` job
+- Direct script execution without handler manager
+- Used when requiring special environment variables, tokens, or permissions
+
+**Standalone step types** (defined in `safe_output_handler_manager.cjs`):
+- `assign_to_agent` - Agent assignment operations
+- `create_agent_task` - Creates GitHub Copilot agent tasks
+- `update_project` - Updates GitHub Projects v2 (requires PAT/GitHub App token)
+- `copy_project` - Copies GitHub Projects v2 structure
+- `upload_asset` - Uploads files to orphaned branches
+- `noop` - No-operation placeholder
+
+**Why use standalone steps?**
+- Custom environment variables needed (e.g., `GH_AW_COPY_PROJECT_SOURCE`)
+- Special token requirements (Projects v2 requires PAT, not GITHUB_TOKEN)
+- Specialized permissions (organization-projects write)
+- Git operations requiring repository checkout (upload_asset)
+
+The handler manager silently skips messages with standalone step types without logging warnings, since they're handled by their dedicated steps.
+
 ## Pattern
 **Old:** `main()` loads all items via `loadAgentOutput()` and processes them in a loop
 **New:** `main(config)` returns `async function(message, resolvedTemporaryIds)` that processes ONE message
