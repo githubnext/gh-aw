@@ -42,6 +42,18 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 				}
 			}
 
+			// Extract blocked domains if present
+			if blocked, hasBlocked := networkObj["blocked"]; hasBlocked {
+				if blockedSlice, ok := blocked.([]any); ok {
+					for _, domain := range blockedSlice {
+						if domainStr, ok := domain.(string); ok {
+							permissions.Blocked = append(permissions.Blocked, domainStr)
+						}
+					}
+					frontmatterExtractionSecurityLog.Printf("Extracted %d blocked domains", len(permissions.Blocked))
+				}
+			}
+
 			// Extract firewall configuration if present
 			if firewall, hasFirewall := networkObj["firewall"]; hasFirewall {
 				frontmatterExtractionSecurityLog.Print("Extracting firewall configuration")
