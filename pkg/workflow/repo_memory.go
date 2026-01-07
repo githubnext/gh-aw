@@ -65,9 +65,9 @@ func validateBranchPrefix(prefix string) error {
 		return nil // Empty means use default
 	}
 
-	// Check length (6-32 characters)
-	if len(prefix) < 6 {
-		return fmt.Errorf("branch-prefix must be at least 6 characters long, got %d", len(prefix))
+	// Check length (4-32 characters)
+	if len(prefix) < 4 {
+		return fmt.Errorf("branch-prefix must be at least 4 characters long, got %d", len(prefix))
 	}
 	if len(prefix) > 32 {
 		return fmt.Errorf("branch-prefix must be at most 32 characters long, got %d", len(prefix))

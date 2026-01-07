@@ -729,6 +729,11 @@ func TestBranchPrefixValidation(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid prefix - daily (5 chars)",
+			prefix:  "daily",
+			wantErr: false,
+		},
+		{
 			name:    "valid prefix - with hyphens",
 			prefix:  "my-memory",
 			wantErr: false,
@@ -744,8 +749,13 @@ func TestBranchPrefixValidation(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid prefix - exactly 6 chars",
-			prefix:  "mem123",
+			name:    "valid prefix - exactly 4 chars",
+			prefix:  "mem1",
+			wantErr: false,
+		},
+		{
+			name:    "valid prefix - 5 chars",
+			prefix:  "mem12",
 			wantErr: false,
 		},
 		{
@@ -754,10 +764,10 @@ func TestBranchPrefixValidation(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "invalid - too short (5 chars)",
-			prefix:  "mem12",
+			name:    "invalid - too short (3 chars)",
+			prefix:  "mem",
 			wantErr: true,
-			errMsg:  "must be at least 6 characters long",
+			errMsg:  "must be at least 4 characters long",
 		},
 		{
 			name:    "invalid - too long (33 chars)",

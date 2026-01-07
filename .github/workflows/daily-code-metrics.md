@@ -11,7 +11,7 @@ tracker-id: daily-code-metrics
 engine: claude
 tools:
   repo-memory:
-    branch-prefix: dailyops
+    branch-prefix: daily
     description: "Historical code quality and health metrics"
     file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
     max-file-size: 102400  # 100KB

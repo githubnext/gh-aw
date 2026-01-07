@@ -3104,10 +3104,10 @@
               "properties": {
                 "branch-prefix": {
                   "type": "string",
-                  "minLength": 6,
+                  "minLength": 4,
                   "maxLength": 32,
                   "pattern": "^[a-zA-Z0-9_-]+$",
-                  "description": "Branch prefix for memory storage (default: 'memory'). Must be 6-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Branch will be named {branch-prefix}/{id}"
+                  "description": "Branch prefix for memory storage (default: 'memory'). Must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Branch will be named {branch-prefix}/{id}"
                 },
                 "target-repo": {
                   "type": "string",
@@ -3181,10 +3181,10 @@
                   },
                   "branch-prefix": {
                     "type": "string",
-                    "minLength": 6,
+                    "minLength": 4,
                     "maxLength": 32,
                     "pattern": "^[a-zA-Z0-9_-]+$",
-                    "description": "Branch prefix for memory storage (default: 'memory'). Must be 6-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Applied to all entries in the array. Branch will be named {branch-prefix}/{id}"
+                    "description": "Branch prefix for memory storage (default: 'memory'). Must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Applied to all entries in the array. Branch will be named {branch-prefix}/{id}"
                   },
                   "target-repo": {
                     "type": "string",
