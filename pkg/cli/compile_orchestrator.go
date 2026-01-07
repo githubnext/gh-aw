@@ -173,16 +173,16 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 
 // GenerateCampaignOrchestratorOptions holds the options for generateAndCompileCampaignOrchestrator
 type GenerateCampaignOrchestratorOptions struct {
-	Compiler            *workflow.Compiler
-	Spec                *campaign.CampaignSpec
-	CampaignSpecPath    string
-	Verbose             bool
-	NoEmit              bool
-	RunZizmorPerFile    bool
-	RunPoutinePerFile   bool
+	Compiler             *workflow.Compiler
+	Spec                 *campaign.CampaignSpec
+	CampaignSpecPath     string
+	Verbose              bool
+	NoEmit               bool
+	RunZizmorPerFile     bool
+	RunPoutinePerFile    bool
 	RunActionlintPerFile bool
-	Strict              bool
-	ValidateActionSHAs  bool
+	Strict               bool
+	ValidateActionSHAs   bool
 }
 
 func generateAndCompileCampaignOrchestrator(opts GenerateCampaignOrchestratorOptions) (string, error) {
