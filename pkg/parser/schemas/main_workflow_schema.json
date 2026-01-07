@@ -3826,7 +3826,8 @@
                       "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y'); minimum 2h for hour values"
                     }
                   ],
-                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). Minimum duration: 2 hours. When set, a maintenance workflow will be generated."
+                  "default": 7,
+                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). Minimum duration: 2 hours. When set, a maintenance workflow will be generated. Defaults to 7 days if not specified."
                 }
               },
               "additionalProperties": false,
