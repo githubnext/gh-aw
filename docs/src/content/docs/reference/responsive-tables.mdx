@@ -1,0 +1,189 @@
+---
+title: Responsive Tables
+description: Demonstration of responsive table patterns that transform into card layouts on mobile devices
+sidebar:
+  order: 999
+---
+
+import ResponsiveTable from '../../../components/ResponsiveTable.astro';
+
+This page demonstrates two ways to create responsive tables that transform from standard table layouts on desktop to card-based layouts on mobile devices:
+
+1. **ResponsiveTable Component** - A reusable Astro component with explicit configuration
+2. **Enhanced Markdown Tables** - Standard markdown tables with automatic responsive enhancement
+
+Both approaches use **CSS-only transformation** with no JavaScript-based layout switching, preserving table semantics for screen readers at all breakpoints.
+
+## How It Works
+
+### Desktop View (> 640px)
+- Tables display in standard tabular format
+- Column headers visible in `<thead>`
+- Normal row and column alignment
+
+### Mobile View (≤ 640px)
+- Each table row transforms into a "card"
+- Column headers are visually hidden but remain accessible to screen readers
+- Each cell displays with a label (from the header) and its value
+- Cards are stacked vertically for easy scrolling
+
+## ResponsiveTable Component
+
+The `ResponsiveTable` component provides explicit control over table structure with strongly-typed props.
+
+### Example Usage
+
+export const sampleColumns = [
+  { key: 'command', header: 'Command', align: 'left' },
+  { key: 'description', header: 'Description', align: 'left' },
+  { key: 'status', header: 'Status', align: 'center' }
+];
+
+export const sampleRows = [
+  { 
+    command: 'gh aw compile', 
+    description: 'Convert markdown to GitHub Actions YAML', 
+    status: '✅ Stable' 
+  },
+  { 
+    command: 'gh aw run', 
+    description: 'Execute workflows immediately', 
+    status: '✅ Stable' 
+  },
+  { 
+    command: 'gh aw logs', 
+    description: 'Download and analyze execution logs', 
+    status: '✅ Stable' 
+  },
+  { 
+    command: 'gh aw audit', 
+    description: 'Analyze specific workflow run', 
+    status: '🔬 Beta' 
+  }
+];
+
+<ResponsiveTable 
+  columns={sampleColumns} 
+  rows={sampleRows}
+  caption="CLI Commands Overview"
+/>
+
+### Component Code
+
+```astro
+---
+import ResponsiveTable from '../components/ResponsiveTable.astro';
+
+const columns = [
+  { key: 'command', header: 'Command', align: 'left' },
+  { key: 'description', header: 'Description', align: 'left' },
+  { key: 'status', header: 'Status', align: 'center' }
+];
+
+const rows = [
+  { command: 'gh aw compile', description: 'Convert markdown to YAML', status: '✅ Stable' },
+  { command: 'gh aw run', description: 'Execute workflows', status: '✅ Stable' }
+];
+---
+
+<ResponsiveTable columns={columns} rows={rows} caption="Commands" />
+```
+
+## Enhanced Markdown Tables
+
+Standard markdown tables are automatically enhanced with responsive behavior. Simply write markdown tables as normal:
+
+### Example: Feature Comparison
+
+| Feature | Description | Availability |
+|---------|-------------|--------------|
+| **AI Engines** | Multiple AI providers (Copilot, Claude, Codex) | All plans |
+| **Safe Outputs** | Controlled GitHub API interactions | All plans |
+| **MCP Servers** | Model Context Protocol integration | All plans |
+| **Custom Agents** | Domain-specific AI agents | All plans |
+| **Repo Memory** | Persistent git-backed storage | Beta |
+| **Campaigns** | Multi-workflow orchestration | Beta |
+
+### Example: Trigger Types
+
+| Trigger | Use Case | Example |
+|---------|----------|---------|
+| `workflow_dispatch` | Manual execution | Run on-demand research |
+| `schedule` | Recurring tasks | Daily maintenance |
+| `issues` | Issue events | Auto-triage new issues |
+| `pull_request` | PR events | Code review automation |
+| `push` | Commit events | Continuous integration |
+
+## Technical Implementation
+
+### Accessibility Features
+
+- ✅ Table semantics preserved at all breakpoints
+- ✅ `<thead>` remains accessible to screen readers when visually hidden
+- ✅ Proper use of `<th scope="col">` for headers
+- ✅ `data-label` attributes provide mobile label context
+- ✅ Keyboard navigation fully supported
+- ✅ High contrast ratios in both light and dark themes
+
+### CSS-Only Transformation
+
+The responsive transformation uses:
+- `display: block` to reflow table elements on mobile
+- `position: absolute` with clip technique to hide headers accessibly
+- `::before` pseudo-element with `content: attr(data-label)` for labels
+- Flexbox for label/value layout in card cells
+
+### Browser Support
+
+- ✅ Modern browsers (Chrome, Firefox, Safari, Edge)
+- ✅ Mobile browsers (iOS Safari, Chrome Mobile)
+- ✅ Screen readers (NVDA, JAWS, VoiceOver)
+
+## Best Practices
+
+### When to Use This Pattern
+
+✅ **Good use cases:**
+- Reference tables with 2-6 columns
+- Command lists and API references
+- Feature comparison tables
+- Configuration options
+
+❌ **Not recommended for:**
+- Large data tables (> 8 columns)
+- Tables requiring horizontal scrolling on desktop
+- Complex nested table structures
+- Tables with merged cells
+
+### Content Guidelines
+
+1. **Keep headers concise** - They become labels on mobile
+2. **Limit columns** - 2-6 columns work best
+3. **Use semantic data** - Numbers, dates, status indicators
+4. **Avoid very long content** - Cards grow vertically on mobile
+
+## Limitations
+
+- **JavaScript dependency for markdown tables**: Standard markdown tables require the client-side script to add `data-label` attributes
+- **Wide content**: Extremely wide cell content may cause layout issues on mobile
+- **Complex tables**: Merged cells and nested tables are not supported
+- **Print styles**: Card layout may not be ideal for printing (consider print-specific CSS)
+
+## Testing Responsive Behavior
+
+To test the responsive transformation:
+
+1. **Resize browser window** to below 640px width
+2. **Use browser DevTools** device emulation (mobile viewport)
+3. **Test on actual mobile devices** for real-world validation
+4. **Use screen reader** to verify accessibility at all breakpoints
+
+## Source Code
+
+The implementation consists of:
+
+- **Component**: `/src/components/ResponsiveTable.astro`
+- **CSS styles**: `/src/styles/custom.css` (markdown table enhancements)
+- **Enhancement script**: `/src/scripts/responsive-tables.ts`
+
+View the [GitHub repository](https://github.com/githubnext/gh-aw) for complete source code.
