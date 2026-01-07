@@ -3102,13 +3102,20 @@
               "type": "object",
               "description": "Repo-memory configuration object",
               "properties": {
+                "branch-prefix": {
+                  "type": "string",
+                  "minLength": 4,
+                  "maxLength": 32,
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "description": "Branch prefix for memory storage (default: 'memory'). Must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Branch will be named {branch-prefix}/{id}"
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
                 },
                 "branch-name": {
                   "type": "string",
-                  "description": "Git branch name for memory storage (default: memory/default)"
+                  "description": "Git branch name for memory storage (default: {branch-prefix}/default or memory/default if branch-prefix not set)"
                 },
                 "file-glob": {
                   "oneOf": [
@@ -3172,13 +3179,20 @@
                     "type": "string",
                     "description": "Memory identifier (required for array notation, default: 'default')"
                   },
+                  "branch-prefix": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9_-]+$",
+                    "description": "Branch prefix for memory storage (default: 'memory'). Must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be 'copilot'. Applied to all entries in the array. Branch will be named {branch-prefix}/{id}"
+                  },
                   "target-repo": {
                     "type": "string",
                     "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
                   },
                   "branch-name": {
                     "type": "string",
-                    "description": "Git branch name for memory storage (default: memory/{id})"
+                    "description": "Git branch name for memory storage (default: {branch-prefix}/{id} or memory/{id} if branch-prefix not set)"
                   },
                   "file-glob": {
                     "oneOf": [
