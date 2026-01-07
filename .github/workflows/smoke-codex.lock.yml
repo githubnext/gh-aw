@@ -188,7 +188,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.78.0
+        run: npm install -g --silent @openai/codex@0.79.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.8.2)"
@@ -558,7 +558,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.78.0",
+              agent_version: "0.79.0",
               workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
@@ -876,15 +876,12 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/parse_codex_log.cjs');
             await main();
-      - name: Parse firewall logs for step summary
+      - name: Firewall summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');
-            await main();
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: awf logs summary >> $GITHUB_STEP_SUMMARY
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
@@ -1120,7 +1117,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.78.0
+        run: npm install -g --silent @openai/codex@0.79.0
       - name: Run Codex
         run: |
           set -o pipefail

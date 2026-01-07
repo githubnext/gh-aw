@@ -1522,7 +1522,7 @@ function createEngineLogParser(options) {
   const { parserName, parseFunction, supportsDirectories = false } = options;
 
   return async function main() {
-    runLogParser({
+    await runLogParser({
       parseLog: logContent => wrapLogParser(parseFunction, parserName, logContent),
       parserName,
       supportsDirectories,

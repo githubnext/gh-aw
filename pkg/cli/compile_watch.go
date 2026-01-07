@@ -96,9 +96,9 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 	// Always emit the begin pattern for task integration
 	if markdownFile != "" {
-		fmt.Printf("Watching for file changes to %s...\n", markdownFile)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Watching for file changes to %s...", markdownFile)))
 	} else {
-		fmt.Printf("Watching for file changes in %s...\n", workflowsDir)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Watching for file changes in %s...", workflowsDir)))
 	}
 
 	if verbose {
@@ -174,7 +174,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 			compileWatchLog.Printf("Detected change: %s (%s)", event.Name, event.Op.String())
 			if verbose {
-				fmt.Printf("📝 Detected change: %s (%s)\n", event.Name, event.Op.String())
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected change: %s (%s)", event.Name, event.Op.String())))
 			}
 
 			// Handle file operations
@@ -211,7 +211,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 			}
 			compileWatchLog.Printf("Watcher error: %v", err)
 			if verbose {
-				fmt.Printf("⚠️  Watcher error: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Watcher error: %v", err)))
 			}
 
 		case <-sigChan:

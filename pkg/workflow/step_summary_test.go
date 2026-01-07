@@ -27,6 +27,8 @@ engine: claude
 features:
   dangerous-permissions-write: true
 strict: false
+features:
+  dangerous-permissions-write: true
 safe-outputs:
   create-issue:
 ---
@@ -83,6 +85,8 @@ permissions:
   issues: write
   pull-requests: read
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues]
@@ -188,6 +192,8 @@ permissions:
   issues: read
   pull-requests: read
 strict: false
+features:
+  dangerous-permissions-write: true
 engine:
   id: claude
   model: claude-sonnet-4-20250514

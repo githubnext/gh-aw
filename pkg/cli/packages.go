@@ -107,7 +107,7 @@ func InstallPackage(repoSpec string, verbose bool) error {
 func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	packagesLog.Printf("Downloading workflows from %s (version: %s) to %s", repo, version, targetDir)
 	if verbose {
-		fmt.Printf("Downloading workflows from %s/workflows...\n", repo)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading workflows from %s/workflows...", repo)))
 	}
 
 	// Create a temporary directory for cloning
@@ -137,7 +137,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Printf("Cloning repository...\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cloning repository..."))
 	}
 
 	// Use helper to execute gh CLI with git fallback
@@ -161,7 +161,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 			return fmt.Errorf("failed to checkout commit %s: %w (output: %s)", version, err, stderr+stdout)
 		}
 		if verbose {
-			fmt.Printf("Checked out commit: %s\n", version)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checked out commit: %s", version)))
 		}
 	}
 
@@ -182,7 +182,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Printf("Repository commit SHA: %s\n", commitSHA)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repository commit SHA: %s", commitSHA)))
 	}
 
 	// Copy all .md files from temp directory to target
@@ -230,7 +230,7 @@ func copyMarkdownFiles(sourceDir, targetDir string, verbose bool) error {
 
 		// Copy file
 		if verbose {
-			fmt.Printf("Copying: %s -> %s\n", relPath, targetFile)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Copying: %s -> %s", relPath, targetFile)))
 		}
 
 		content, err := os.ReadFile(path)
@@ -348,7 +348,7 @@ func listWorkflowsWithMetadata(repoSlug string, verbose bool) ([]WorkflowInfo, e
 		// Check if this is a valid workflow file
 		if !isValidWorkflowFile(path) {
 			if verbose {
-				fmt.Printf("Skipping non-workflow file: %s\n", path)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping non-workflow file: %s", path)))
 			}
 			return nil
 		}
@@ -379,7 +379,7 @@ func listWorkflowsWithMetadata(repoSlug string, verbose bool) ([]WorkflowInfo, e
 		})
 
 		if verbose {
-			fmt.Printf("Found workflow: %s (ID: %s, Name: %s)\n", relPath, workflowID, name)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found workflow: %s (ID: %s, Name: %s)", relPath, workflowID, name)))
 		}
 
 		return nil
@@ -445,14 +445,14 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 	packagesDir, err := getPackagesDir()
 	if err != nil {
 		if verbose {
-			fmt.Printf("Warning: Failed to get packages directory: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get packages directory: %v", err)))
 		}
 		return nil, nil, fmt.Errorf("failed to get packages directory: %w", err)
 	}
 
 	if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
 		if verbose {
-			fmt.Printf("No packages directory found at %s\n", packagesDir)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No packages directory found at %s", packagesDir)))
 		}
 		return nil, nil, fmt.Errorf("no packages directory found")
 	}
@@ -460,7 +460,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 	// Handle local workflows (starting with "./")
 	if strings.HasPrefix(workflow.WorkflowPath, "./") {
 		if verbose {
-			fmt.Printf("Searching local filesystem for workflow: %s\n", workflow.WorkflowPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Searching local filesystem for workflow: %s", workflow.WorkflowPath)))
 		}
 
 		// For local workflows, use current directory as packagePath
@@ -468,7 +468,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 		workflowFile := workflow.WorkflowPath
 
 		if verbose {
-			fmt.Printf("Looking for local workflow: %s\n", workflowFile)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Looking for local workflow: %s", workflowFile)))
 		}
 
 		content, err := os.ReadFile(workflowFile)
@@ -486,7 +486,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 	}
 
 	if verbose {
-		fmt.Printf("Searching packages in %s for workflow: %s\n", packagesDir, workflow.WorkflowPath)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Searching packages in %s for workflow: %s", packagesDir, workflow.WorkflowPath)))
 	}
 
 	// Check if workflow name contains org/repo prefix
@@ -495,7 +495,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 	workflowFile := filepath.Join(packagePath, workflow.WorkflowPath)
 
 	if verbose {
-		fmt.Printf("Looking for qualified workflow: %s\n", workflowFile)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Looking for qualified workflow: %s", workflowFile)))
 	}
 
 	content, err := os.ReadFile(workflowFile)
@@ -509,7 +509,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 			fallbackWorkflowFile := filepath.Join(packagePath, fallbackPath)
 
 			if verbose {
-				fmt.Printf("Initial path not found, trying fallback: %s\n", fallbackWorkflowFile)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Initial path not found, trying fallback: %s", fallbackWorkflowFile)))
 			}
 
 			var fallbackErr error
@@ -518,7 +518,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 				// Success with fallback path, update workflowFile to the fallback path
 				workflowFile = fallbackWorkflowFile
 				if verbose {
-					fmt.Printf("Found workflow at fallback path: %s\n", fallbackWorkflowFile)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found workflow at fallback path: %s", fallbackWorkflowFile)))
 				}
 			} else {
 				// Both attempts failed, return the original error
@@ -536,10 +536,10 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 	if shaBytes, err := os.ReadFile(metadataPath); err == nil {
 		commitSHA = strings.TrimSpace(string(shaBytes))
 		if verbose {
-			fmt.Printf("Found commit SHA from metadata: %s\n", commitSHA)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found commit SHA from metadata: %s", commitSHA)))
 		}
 	} else if verbose {
-		fmt.Printf("Warning: Could not read commit SHA metadata: %v\n", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read commit SHA metadata: %v", err)))
 	}
 
 	sourceInfo := &WorkflowSourceInfo{
@@ -558,7 +558,7 @@ func collectPackageIncludeDependencies(content, packagePath string, verbose bool
 	seen := make(map[string]bool)
 
 	if verbose {
-		fmt.Printf("Collecting package dependencies from: %s\n", packagePath)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Collecting package dependencies from: %s", packagePath)))
 	}
 
 	err := collectPackageIncludesRecursive(content, packagePath, &dependencies, seen, verbose)
@@ -601,14 +601,14 @@ func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]In
 			*dependencies = append(*dependencies, dep)
 
 			if verbose {
-				fmt.Printf("Found include dependency: %s -> %s\n", fullSourcePath, filePath)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found include dependency: %s -> %s", fullSourcePath, filePath)))
 			}
 
 			// Read the included file and process its includes recursively
 			includedContent, err := os.ReadFile(fullSourcePath)
 			if err != nil {
 				if verbose {
-					fmt.Printf("Warning: Could not read include file %s: %v\n", fullSourcePath, err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read include file %s: %v", fullSourcePath, err)))
 				}
 				continue
 			}
@@ -617,7 +617,7 @@ func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]In
 			markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
 			if err != nil {
 				if verbose {
-					fmt.Printf("Warning: Could not extract markdown from %s: %v\n", fullSourcePath, err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract markdown from %s: %v", fullSourcePath, err)))
 				}
 				continue
 			}
@@ -626,7 +626,7 @@ func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]In
 			includedDir := filepath.Dir(fullSourcePath)
 			if err := collectPackageIncludesRecursive(markdownContent, includedDir, dependencies, seen, verbose); err != nil {
 				if verbose {
-					fmt.Printf("Warning: Error processing includes in %s: %v\n", fullSourcePath, err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error processing includes in %s: %v", fullSourcePath, err)))
 				}
 			}
 		}
@@ -653,11 +653,11 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 			if dep.IsOptional {
 				// For optional includes, just show an informational message and skip
 				if verbose {
-					fmt.Printf("Optional include file not found: %s (you can create this file to configure the workflow)\n", dep.TargetPath)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional include file not found: %s (you can create this file to configure the workflow)", dep.TargetPath)))
 				}
 				continue
 			}
-			fmt.Printf("Warning: Failed to read include file %s: %v\n", dep.SourcePath, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read include file %s: %v", dep.SourcePath, err)))
 			continue
 		}
 
@@ -669,19 +669,19 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 			if string(existingContent) == string(sourceContent) {
 				// Contents are the same, skip
 				if verbose {
-					fmt.Printf("Include file %s already exists with same content, skipping\n", dep.TargetPath)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Include file %s already exists with same content, skipping", dep.TargetPath)))
 				}
 				continue
 			}
 
 			// Contents are different
 			if !force {
-				fmt.Printf("Include file %s already exists with different content, skipping (use --force to overwrite)\n", dep.TargetPath)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Include file %s already exists with different content, skipping (use --force to overwrite)", dep.TargetPath)))
 				continue
 			}
 
 			// Force is enabled, overwrite
-			fmt.Printf("Overwriting existing include file: %s\n", dep.TargetPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Overwriting existing include file: %s", dep.TargetPath)))
 		}
 
 		// Track the file based on whether it existed before (if tracker is available)
@@ -699,7 +699,7 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 		}
 
 		if verbose {
-			fmt.Printf("Copied include file: %s -> %s\n", dep.SourcePath, targetPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Copied include file: %s -> %s", dep.SourcePath, targetPath)))
 		}
 	}
 
