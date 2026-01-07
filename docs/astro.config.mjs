@@ -170,7 +170,6 @@ export default defineConfig({
 						{ label: 'Cache & Memory', link: '/reference/memory/' },
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },
-						{ label: 'Responsive Tables', link: '/reference/responsive-tables/' },
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
 						{ label: 'MCP Server', link: '/setup/mcp-server/' },
 						{ label: 'MCP Gateway', link: '/reference/mcp-gateway/' },
