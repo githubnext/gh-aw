@@ -190,12 +190,22 @@ async function copyProject(output) {
     targetScope = "orgs";
     core.info(`Target owner ID (org): ${targetOwnerId}`);
   } catch (orgError) {
+    // prettier-ignore
+    const orgGraphQLError = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (orgError);
+    core.info(`Failed to find "${effectiveOwner}" as organization: ${getErrorMessage(orgGraphQLError)}`);
+    logGraphQLError(orgGraphQLError, `looking up organization "${effectiveOwner}"`);
+
     try {
       targetOwnerId = await getOwnerId("users", effectiveOwner);
       targetScope = "users";
       core.info(`Target owner ID (user): ${targetOwnerId}`);
     } catch (userError) {
-      throw new Error(`Failed to find owner "${effectiveOwner}" as either an organization or user.`);
+      // prettier-ignore
+      const userGraphQLError = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (userError);
+      core.info(`Failed to find "${effectiveOwner}" as user: ${getErrorMessage(userGraphQLError)}`);
+      logGraphQLError(userGraphQLError, `looking up user "${effectiveOwner}"`);
+
+      throw new Error(`Failed to find owner "${effectiveOwner}" as either an organization or user. Check the logs above for details about the GraphQL errors.`);
     }
   }
 
