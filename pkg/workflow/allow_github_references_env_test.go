@@ -21,6 +21,8 @@ func TestAllowGitHubReferencesEnvVar(t *testing.T) {
 			workflow: `---
 on: push
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
@@ -42,6 +44,8 @@ Test workflow with allowed-github-references.
 			workflow: `---
 on: push
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
@@ -63,6 +67,8 @@ Test workflow with multiple allowed repos.
 			workflow: `---
 on: push
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
@@ -82,6 +88,8 @@ Test workflow without allowed-github-references.
 			workflow: `---
 on: push
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
@@ -103,6 +111,8 @@ Test workflow with special characters in repo names.
 			workflow: `---
 on: push
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
@@ -124,6 +134,8 @@ Test workflow mixing repo keyword with specific repos.
 			workflow: `---
 on: push
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read

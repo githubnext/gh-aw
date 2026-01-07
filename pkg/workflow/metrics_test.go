@@ -875,15 +875,15 @@ Info: Processing complete
 		t.Run(tt.name, func(t *testing.T) {
 			metrics := tt.initialMetrics
 
-			FinalizeToolMetrics(
-				&metrics,
-				tt.toolCallMap,
-				tt.currentSequence,
-				tt.turns,
-				tt.tokenUsage,
-				tt.logContent,
-				tt.errorPatterns,
-			)
+			FinalizeToolMetrics(FinalizeToolMetricsOptions{
+				Metrics:         &metrics,
+				ToolCallMap:     tt.toolCallMap,
+				CurrentSequence: tt.currentSequence,
+				Turns:           tt.turns,
+				TokenUsage:      tt.tokenUsage,
+				LogContent:      tt.logContent,
+				ErrorPatterns:   tt.errorPatterns,
+			})
 
 			if metrics.Turns != tt.expectedTurns {
 				t.Errorf("Expected %d turns, got %d", tt.expectedTurns, metrics.Turns)

@@ -31,9 +31,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.CreateIssues.AllowedLabels,
 			)
 		}
-		if data.SafeOutputs.CreateAgentTasks != nil {
+		if data.SafeOutputs.CreateAgentSessions != nil {
 			safeOutputsConfig["create_agent_task"] = generateMaxConfig(
-				data.SafeOutputs.CreateAgentTasks.Max,
+				data.SafeOutputs.CreateAgentSessions.Max,
 				1, // default max
 			)
 		}
@@ -440,6 +440,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	// Parse the JSON to get all tools
 	var allTools []map[string]any
 	if err := json.Unmarshal([]byte(allToolsJSON), &allTools); err != nil {
+		safeOutputsConfigLog.Printf("Failed to parse safe outputs tools JSON: %v", err)
 		return "", fmt.Errorf("failed to parse safe outputs tools JSON: %w", err)
 	}
 
@@ -450,7 +451,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.CreateIssues != nil {
 		enabledTools["create_issue"] = true
 	}
-	if data.SafeOutputs.CreateAgentTasks != nil {
+	if data.SafeOutputs.CreateAgentSessions != nil {
 		enabledTools["create_agent_task"] = true
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
@@ -647,9 +648,11 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	// and to reduce merge conflicts in generated lockfiles
 	filteredJSON, err := json.MarshalIndent(filteredTools, "", "  ")
 	if err != nil {
+		safeOutputsConfigLog.Printf("Failed to marshal filtered tools: %v", err)
 		return "", fmt.Errorf("failed to marshal filtered tools: %w", err)
 	}
 
+	safeOutputsConfigLog.Printf("Successfully generated filtered tools JSON with %d tools", len(filteredTools))
 	return string(filteredJSON), nil
 }
 
@@ -691,7 +694,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			targetRepoSlug = config.TargetRepoSlug
 		}
 	case "create_agent_task":
-		if config := safeOutputs.CreateAgentTasks; config != nil {
+		if config := safeOutputs.CreateAgentSessions; config != nil {
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug
 		}

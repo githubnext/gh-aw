@@ -275,6 +275,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
+
+		// Add blocked domains if specified
+		blockedDomains := formatBlockedDomains(workflowData.NetworkPermissions)
+		if blockedDomains != "" {
+			awfArgs = append(awfArgs, "--block-domains", blockedDomains)
+			copilotExecLog.Printf("Added blocked domains: %s", blockedDomains)
+		}
+
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 

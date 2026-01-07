@@ -26,6 +26,8 @@ permissions:
   contents: read
   pull-requests: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -76,6 +78,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -243,6 +247,8 @@ permissions:
   contents: read
   pull-requests: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -294,6 +300,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:

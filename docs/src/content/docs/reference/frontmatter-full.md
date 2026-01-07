@@ -823,6 +823,13 @@ network:
     # Array of Domain name or ecosystem identifier (supports wildcards like
     # '*.example.com' and ecosystem names like 'python', 'node')
 
+  # List of blocked domains or ecosystem identifiers (e.g., 'python', 'node',
+  # 'tracker.example.com'). Blocked domains take precedence over allowed domains.
+  # (optional)
+  blocked: []
+    # Array of Domain name or ecosystem identifier to block (supports wildcards like
+    # '*.example.com' and ecosystem names like 'python', 'node')
+
 # Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox
 # Runtime) and MCP gateway.
 # (optional)
@@ -1615,20 +1622,20 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Configuration for creating GitHub Copilot agent tasks from agentic
+  # Option 1: Configuration for creating GitHub Copilot agent sessions from agentic
   # workflow output using gh agent-task CLI. The main job does not need write
   # permissions.
-  create-agent-task:
-    # Base branch for the agent task pull request. Defaults to the current branch or
+  create-agent-session:
+    # Base branch for the agent session pull request. Defaults to the current branch or
     # repository default branch.
     # (optional)
     base: "example-value"
 
-    # Maximum number of agent tasks to create (default: 1)
+    # Maximum number of agent sessions to create (default: 1)
     # (optional)
     max: 1
 
-    # Target repository in format 'owner/repo' for cross-repository agent task
+    # Target repository in format 'owner/repo' for cross-repository agent session
     # creation. Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
@@ -1638,8 +1645,8 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-  # Option 2: Enable agent task creation with default configuration
-  create-agent-task: null
+  # Option 2: Enable agent session creation with default configuration
+  create-agent-session: null
 
   # (optional)
   # This field supports multiple formats (oneOf):

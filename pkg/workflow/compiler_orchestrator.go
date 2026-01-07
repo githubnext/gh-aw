@@ -14,8 +14,10 @@ import (
 )
 
 var detectionLog = logger.New("workflow:detection")
+var orchestratorLog = logger.New("workflow:compiler_orchestrator")
 
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
 	log.Printf("Reading file: %s", markdownPath)
 
 	// Clean the path to prevent path traversal issues (gosec G304)
@@ -25,14 +27,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Read the file
 	content, err := os.ReadFile(cleanPath)
 	if err != nil {
+		orchestratorLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	log.Printf("File size: %d bytes", len(content))
 
 	// Parse frontmatter and markdown
+	orchestratorLog.Printf("Parsing frontmatter from file: %s", cleanPath)
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
+		orchestratorLog.Printf("Frontmatter extraction failed: %v", err)
 		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
 		frontmatterStart := 2
 		if result != nil && result.FrontmatterStart > 0 {
@@ -42,11 +47,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	if len(result.Frontmatter) == 0 {
+		orchestratorLog.Print("No frontmatter found in file")
 		return nil, fmt.Errorf("no frontmatter found")
 	}
 
 	// Preprocess schedule fields to convert human-friendly format to cron expressions
 	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
+		orchestratorLog.Printf("Schedule preprocessing failed: %v", err)
 		return nil, err
 	}
 
@@ -61,6 +68,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 		// Validate as an included/shared workflow (uses included_file_schema)
 		if err := parser.ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+			orchestratorLog.Printf("Shared workflow validation failed: %v", err)
 			return nil, err
 		}
 
@@ -74,16 +82,20 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// For main workflows (with 'on' field), markdown content is required
 	if result.Markdown == "" {
+		orchestratorLog.Print("No markdown content found for main workflow")
 		return nil, fmt.Errorf("no markdown content found")
 	}
 
 	// Validate main workflow frontmatter contains only expected entries
+	orchestratorLog.Printf("Validating main workflow frontmatter schema")
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+		orchestratorLog.Printf("Main workflow frontmatter validation failed: %v", err)
 		return nil, err
 	}
 
 	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
 	if err := ValidateEventFilters(frontmatterForValidation); err != nil {
+		orchestratorLog.Printf("Event filter validation failed: %v", err)
 		return nil, err
 	}
 
@@ -127,7 +139,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Perform strict mode validations
+	orchestratorLog.Printf("Performing strict mode validation (strict=%v)", c.strictMode)
 	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
+		orchestratorLog.Printf("Strict mode validation failed: %v", err)
 		// Restore strict mode before returning error
 		c.strictMode = initialStrictMode
 		return nil, err
@@ -139,6 +153,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Validate that @include/@import directives are not used inside template regions
 	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
+		orchestratorLog.Printf("Template region validation failed: %v", err)
 		return nil, fmt.Errorf("template region validation failed: %w", err)
 	}
 
@@ -153,17 +168,21 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Process imports from frontmatter first (before @include directives)
+	orchestratorLog.Printf("Processing imports from frontmatter")
 	importCache := c.getSharedImportCache()
 	// Pass the full file content for accurate line/column error reporting
 	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, cleanPath, string(content))
 	if err != nil {
+		orchestratorLog.Printf("Import processing failed: %v", err)
 		return nil, err // Error is already formatted with source location
 	}
 
 	// Merge network permissions from imports with top-level network permissions
 	if importsResult.MergedNetwork != "" {
+		orchestratorLog.Printf("Merging network permissions from imports")
 		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
 		if err != nil {
+			orchestratorLog.Printf("Network permissions merge failed: %v", err)
 			return nil, fmt.Errorf("failed to merge network permissions: %w", err)
 		}
 	}
@@ -172,14 +191,18 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract top-level permissions first
 	topLevelPermissions := c.extractPermissions(result.Frontmatter)
 	if importsResult.MergedPermissions != "" {
+		orchestratorLog.Printf("Validating included permissions")
 		if err := c.ValidateIncludedPermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
+			orchestratorLog.Printf("Included permissions validation failed: %v", err)
 			return nil, fmt.Errorf("permission validation failed: %w", err)
 		}
 	}
 
 	// Process @include directives to extract engine configurations and check for conflicts
+	orchestratorLog.Printf("Expanding includes for engine configurations")
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {
+		orchestratorLog.Printf("Failed to expand includes for engines: %v", err)
 		return nil, fmt.Errorf("failed to expand includes for engines: %w", err)
 	}
 
@@ -187,8 +210,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	allEngines := append(importsResult.MergedEngines, includedEngines...)
 
 	// Validate that only one engine field exists across all files
+	orchestratorLog.Printf("Validating single engine specification")
 	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
 	if err != nil {
+		orchestratorLog.Printf("Engine specification validation failed: %v", err)
 		return nil, err
 	}
 	if finalEngineSetting != "" {
@@ -197,8 +222,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// If engineConfig is nil (engine was in an included file), extract it from the included engine JSON
 	if engineConfig == nil && len(allEngines) > 0 {
+		orchestratorLog.Printf("Extracting engine config from included file")
 		extractedConfig, err := c.extractEngineConfigFromJSON(allEngines[0])
 		if err != nil {
+			orchestratorLog.Printf("Failed to extract engine config: %v", err)
 			return nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
 		}
 		engineConfig = extractedConfig
@@ -218,13 +245,16 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Validate the engine setting
+	orchestratorLog.Printf("Validating engine setting: %s", engineSetting)
 	if err := c.validateEngine(engineSetting); err != nil {
+		orchestratorLog.Printf("Engine validation failed: %v", err)
 		return nil, err
 	}
 
 	// Get the agentic engine instance
 	agenticEngine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
+		orchestratorLog.Printf("Failed to get agentic engine: %v", err)
 		return nil, err
 	}
 
@@ -258,13 +288,16 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Validate firewall is enabled in strict mode for copilot with network restrictions
+	orchestratorLog.Printf("Validating strict firewall (strict=%v)", c.strictMode)
 	if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {
+		orchestratorLog.Printf("Strict firewall validation failed: %v", err)
 		c.strictMode = initialStrictModeForFirewall
 		return nil, err
 	}
 
 	// Check if the engine supports network restrictions when they are defined
 	if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
+		orchestratorLog.Printf("Network support check failed: %v", err)
 		// Restore strict mode before returning error
 		c.strictMode = initialStrictModeForFirewall
 		return nil, err
@@ -283,8 +316,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Merge secret-masking from imports with top-level secret-masking
 	if importsResult.MergedSecretMasking != "" {
+		orchestratorLog.Printf("Merging secret-masking from imports")
 		secretMasking, err = c.MergeSecretMasking(secretMasking, importsResult.MergedSecretMasking)
 		if err != nil {
+			orchestratorLog.Printf("Secret-masking merge failed: %v", err)
 			return nil, fmt.Errorf("failed to merge secret-masking: %w", err)
 		}
 	}
@@ -298,8 +333,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional tools
+	orchestratorLog.Printf("Expanding includes for tools")
 	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, true)
 	if err != nil {
+		orchestratorLog.Printf("Failed to expand includes for tools: %v", err)
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
 
@@ -317,18 +354,22 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
 	allMCPServers := mcpServers
 	if importsResult.MergedMCPServers != "" {
+		orchestratorLog.Printf("Merging imported mcp-servers")
 		// Parse and merge imported MCP servers
 		mergedMCPServers, err := c.MergeMCPServers(mcpServers, importsResult.MergedMCPServers)
 		if err != nil {
+			orchestratorLog.Printf("MCP servers merge failed: %v", err)
 			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
 		}
 		allMCPServers = mergedMCPServers
 	}
 
 	// Merge tools including mcp-servers
+	orchestratorLog.Printf("Merging tools and MCP servers")
 	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
 
 	if err != nil {
+		orchestratorLog.Printf("Tools merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
@@ -349,8 +390,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Extract and merge runtimes from frontmatter and imports
 	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
+	orchestratorLog.Printf("Merging runtimes")
 	runtimes, err := mergeRuntimes(topRuntimes, importsResult.MergedRuntimes)
 	if err != nil {
+		orchestratorLog.Printf("Runtimes merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge runtimes: %w", err)
 	}
 
@@ -358,12 +401,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 
 	// Validate MCP configurations
+	orchestratorLog.Printf("Validating MCP configurations")
 	if err := ValidateMCPConfigs(tools); err != nil {
+		orchestratorLog.Printf("MCP configuration validation failed: %v", err)
 		return nil, err
 	}
 
 	// Validate HTTP transport support for the current engine
 	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
+		orchestratorLog.Printf("HTTP transport validation failed: %v", err)
 		return nil, err
 	}
 
@@ -758,6 +804,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, result.Frontmatter)
 
+	orchestratorLog.Printf("Workflow file parsing completed successfully: %s", markdownPath)
 	return workflowData, nil
 }
 

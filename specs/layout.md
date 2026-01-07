@@ -215,7 +215,7 @@ All action scripts are copied from `actions/setup/js/*.cjs` and `actions/setup/s
 | `checkout_pr_branch.cjs` | Checks out pull request branch | Git operations |
 | `collect_ndjson_output.cjs` | Collects NDJSON output | Data aggregation |
 | `compute_text.cjs` | Computes text transformations | Text processing |
-| `create_agent_task.cjs` | Creates agent tasks | Task orchestration |
+| `create_agent_task.cjs` | Creates agent sessions | Task orchestration |
 | `determine_automatic_lockdown.cjs` | Determines lockdown status | Security |
 | `generate_workflow_overview.cjs` | Generates workflow overview | Documentation |
 | `interpolate_prompt.cjs` | Interpolates prompt templates | Prompt processing |

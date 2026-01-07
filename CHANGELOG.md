@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Breaking Changes
+
+#### Terminology Change: "Agent Task" → "Agent Session"
+
+The terminology for creating Copilot agent work items has been updated from "agent task" to "agent session" to better reflect their purpose and avoid confusion with other task concepts.
+
+**Configuration Changes:**
+- `create-agent-task` → `create-agent-session` in safe-outputs configuration
+- `GITHUB_AW_AGENT_TASK_BASE` → `GITHUB_AW_AGENT_SESSION_BASE` environment variable
+- Output names: `task_number`/`task_url` → `session_number`/`session_url`
+
+**Migration:**
+Run `gh aw fix` to automatically update your workflow files to use the new terminology. The deprecated `create-agent-task` key is still supported during the transition period with a deprecation warning.
+
+**Note:** The external `gh agent-task` CLI command name remains unchanged as it is maintained separately.
+
 ## v0.35.1 - 2026-01-06
 
 Maintenance release with dependency updates and minor improvements.

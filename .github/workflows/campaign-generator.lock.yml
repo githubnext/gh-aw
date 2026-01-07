@@ -27,7 +27,6 @@ name: "Campaign Generator"
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - opened
-    - labeled
 
 permissions:
   contents: read
@@ -84,6 +83,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_LOCK_FOR_AGENT: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -199,7 +199,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":5},"assign_to_agent":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":5},"assign_to_agent":{},"copy_project":{"max":1},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -291,6 +291,36 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Copy a GitHub Projects v2 board to create a new project with the same structure, fields, and views. Useful for duplicating project templates or migrating projects between organizations. By default, draft issues are not copied unless includeDraftIssues is set to true. If the workflow has configured default values for source-project or target-owner, those fields become optional in the tool call.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "includeDraftIssues": {
+                    "description": "Whether to copy draft issues from the source project. Default: false.",
+                    "type": "boolean"
+                  },
+                  "owner": {
+                    "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter.",
+                    "type": "string"
+                  },
+                  "sourceProject": {
+                    "description": "Full GitHub project URL of the source project to copy (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Optional if source-project is configured in the workflow frontmatter.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title"
+                ],
+                "type": "object"
+              },
+              "name": "copy_project"
             }
           ]
           EOF
@@ -494,20 +524,28 @@ jobs:
           
           ## Workflow Steps
           
-          ### Step 1: Retrieve the Project URL
+          ### Step 1: Copy Project from Template
           
-          First, retrieve the project URL from the issue's project assignments using the GitHub CLI:
+          Use the `copy-project` safe output to create a new project for the campaign from the template.
           
-          ```bash
-          gh issue view __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ --json projectItems --jq '.projectItems[0]?.project?.url // empty'
+          Call the copy_project tool with just the title parameter (the target owner is configured as a default):
+          
+          ```
+          copy_project({
+            title: "Campaign: <campaign-name>"
+          })
           ```
           
-          If no project is assigned, post a comment explaining that a project board is required and stop.
+          Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
+          
+          This will copy the "[TEMPLATE: Agentic Campaign]" project (https://github.com/orgs/githubnext/projects/74) to create a new project board for this campaign in the githubnext organization.
+          
+          The copied project will be automatically assigned to this issue.
           
           ### Step 2: Post Initial Comment
           
           Use the `add-comment` safe output to post a welcome comment that:
-          - Shows the project URL prominently near the top with a clear link
+          - Explains that a new project has been created from the template
           - Explains what will happen next
           - Sets expectations about the AI agent's work
           
@@ -515,11 +553,11 @@ jobs:
           ```markdown
           🤖 **Campaign Creation Started**
           
-          📊 **Project Board:** [View Project](<project-url>)
+          📊 **Project Board:** A new project board has been created from the campaign template.
           
           I'm processing your campaign request. Here's what will happen:
           
-          1. ✅ Retrieve project board details
+          1. ✅ Created project board from template
           2. 🔄 Analyze campaign requirements
           3. 📝 Generate campaign specification
           4. 🔀 Create pull request with campaign file
@@ -533,6 +571,7 @@ jobs:
           Use the `assign-to-agent` safe output to assign the Copilot agent who will:
           - Parse the campaign requirements from the issue body
           - Generate a NEW campaign specification file (`.campaign.md`) with a unique campaign ID
+          - Use the newly created project URL in the campaign spec
           - Create a pull request with the new campaign file
           
           The campaign-designer agent has detailed instructions in `.github/agents/agentic-campaign-designer.agent.md`
@@ -554,7 +593,8 @@ jobs:
           
           ## Important Notes
           
-          - Always retrieve and display the project URL prominently in the first comment
+          - Always create the project from the template using copy-project
+          - The project URL from the copy-project output should be used in the campaign spec
           - Use clear, concise language in all comments
           - Keep users informed at each stage
           - The agent will create a NEW campaign file, not modify existing ones
@@ -599,7 +639,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, assign_to_agent, missing_tool, noop
+          **Available tools**: add_comment, assign_to_agent, copy_project, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -896,6 +936,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1116,6 +1157,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
       GH_AW_WORKFLOW_ID: "campaign-generator"
       GH_AW_WORKFLOW_NAME: "Campaign Generator"
     outputs:
@@ -1169,5 +1211,20 @@ jobs:
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/assign_to_agent.cjs');
+            await main();
+      - name: Copy Project
+        id: copy_project
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'copy_project'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COPY_PROJECT_SOURCE: "https://github.com/orgs/githubnext/projects/74"
+          GH_AW_COPY_PROJECT_TARGET_OWNER: "githubnext"
+        with:
+          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/copy_project.cjs');
             await main();
 

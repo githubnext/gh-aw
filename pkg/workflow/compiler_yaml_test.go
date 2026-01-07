@@ -34,6 +34,8 @@ tools:
   github:
     allowed: [list_issues
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -56,6 +58,8 @@ permissions:
 invalid: yaml: syntax
   more: bad
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -75,6 +79,8 @@ permissions:
 contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -98,6 +104,8 @@ tools:
   github:
     allowed: ["list_issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -120,6 +128,8 @@ permissions:
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -160,6 +170,8 @@ permissions
   issues: write
 engine: claude
 strict: false
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -249,6 +261,8 @@ Invalid YAML with malformed nested structure.`,
 on: push
 permissions: {contents: read, issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 

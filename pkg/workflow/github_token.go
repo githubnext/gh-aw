@@ -45,9 +45,9 @@ func getEffectiveSafeOutputGitHubToken(customToken, toplevelToken string) string
 // 2. secrets.COPILOT_GITHUB_TOKEN (recommended token for Copilot operations)
 // 3. secrets.GH_AW_GITHUB_TOKEN (legacy fallback for backward compatibility)
 // Note: The default GITHUB_TOKEN is NOT included as a fallback because it does not have
-// permission to create agent tasks, assign issues to bots, or add bots as reviewers.
+// permission to create agent sessions, assign issues to bots, or add bots as reviewers.
 // This is used for safe outputs that interact with GitHub Copilot features:
-// - create-agent-task
+// - create-agent-session
 // - assigning "copilot" to issues
 // - adding "copilot" as PR reviewer
 func getEffectiveCopilotGitHubToken(customToken, toplevelToken string) string {

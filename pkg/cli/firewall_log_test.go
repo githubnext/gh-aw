@@ -64,29 +64,84 @@ func TestParseFirewallLogLine(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:     "invalid client IP:port format",
-			line:     `1761332530.474 Accepting api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: nil,
+			name: "non-standard client IP:port format is accepted",
+			line: `1761332530.474 Accepting api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
+			expected: &FirewallLogEntry{
+				Timestamp:    "1761332530.474",
+				ClientIPPort: "Accepting",
+				Domain:       "api.github.com:443",
+				DestIPPort:   "140.82.112.22:443",
+				Proto:        "1.1",
+				Method:       "CONNECT",
+				Status:       "200",
+				Decision:     "TCP_TUNNEL:HIER_DIRECT",
+				URL:          "api.github.com:443",
+				UserAgent:    "-",
+			},
 		},
 		{
-			name:     "invalid domain format (no port)",
-			line:     `1761332530.474 172.30.0.20:35288 DNS 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: nil,
+			name: "non-standard domain format is accepted",
+			line: `1761332530.474 172.30.0.20:35288 DNS 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
+			expected: &FirewallLogEntry{
+				Timestamp:    "1761332530.474",
+				ClientIPPort: "172.30.0.20:35288",
+				Domain:       "DNS",
+				DestIPPort:   "140.82.112.22:443",
+				Proto:        "1.1",
+				Method:       "CONNECT",
+				Status:       "200",
+				Decision:     "TCP_TUNNEL:HIER_DIRECT",
+				URL:          "api.github.com:443",
+				UserAgent:    "-",
+			},
 		},
 		{
-			name:     "invalid dest IP:port format",
-			line:     `1761332530.474 172.30.0.20:35288 api.github.com:443 Local 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: nil,
+			name: "non-standard dest IP:port format is accepted",
+			line: `1761332530.474 172.30.0.20:35288 api.github.com:443 Local 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
+			expected: &FirewallLogEntry{
+				Timestamp:    "1761332530.474",
+				ClientIPPort: "172.30.0.20:35288",
+				Domain:       "api.github.com:443",
+				DestIPPort:   "Local",
+				Proto:        "1.1",
+				Method:       "CONNECT",
+				Status:       "200",
+				Decision:     "TCP_TUNNEL:HIER_DIRECT",
+				URL:          "api.github.com:443",
+				UserAgent:    "-",
+			},
 		},
 		{
-			name:     "invalid status code (non-numeric)",
-			line:     `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT Swap TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: nil,
+			name: "non-numeric status code is accepted",
+			line: `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT Swap TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
+			expected: &FirewallLogEntry{
+				Timestamp:    "1761332530.474",
+				ClientIPPort: "172.30.0.20:35288",
+				Domain:       "api.github.com:443",
+				DestIPPort:   "140.82.112.22:443",
+				Proto:        "1.1",
+				Method:       "CONNECT",
+				Status:       "Swap",
+				Decision:     "TCP_TUNNEL:HIER_DIRECT",
+				URL:          "api.github.com:443",
+				UserAgent:    "-",
+			},
 		},
 		{
-			name:     "invalid decision format (no colon)",
-			line:     `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 Waiting api.github.com:443 "-"`,
-			expected: nil,
+			name: "decision format without colon is accepted",
+			line: `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 Waiting api.github.com:443 "-"`,
+			expected: &FirewallLogEntry{
+				Timestamp:    "1761332530.474",
+				ClientIPPort: "172.30.0.20:35288",
+				Domain:       "api.github.com:443",
+				DestIPPort:   "140.82.112.22:443",
+				Proto:        "1.1",
+				Method:       "CONNECT",
+				Status:       "200",
+				Decision:     "Waiting",
+				URL:          "api.github.com:443",
+				UserAgent:    "-",
+			},
 		},
 		{
 			name:     "fewer than 10 fields",
@@ -94,9 +149,20 @@ func TestParseFirewallLogLine(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:     "line with pipe character in domain position",
-			line:     `1761332530.474 172.30.0.20:35288 pinger|test 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: nil,
+			name: "line with pipe character in domain position is accepted",
+			line: `1761332530.474 172.30.0.20:35288 pinger|test 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
+			expected: &FirewallLogEntry{
+				Timestamp:    "1761332530.474",
+				ClientIPPort: "172.30.0.20:35288",
+				Domain:       "pinger|test",
+				DestIPPort:   "140.82.112.22:443",
+				Proto:        "1.1",
+				Method:       "CONNECT",
+				Status:       "200",
+				Decision:     "TCP_TUNNEL:HIER_DIRECT",
+				URL:          "api.github.com:443",
+				UserAgent:    "-",
+			},
 		},
 	}
 
@@ -334,13 +400,18 @@ Invalid line with not enough fields
 		t.Fatalf("Failed to parse firewall log: %v", err)
 	}
 
-	// Should only have parsed 2 valid lines
-	if analysis.TotalRequests != 2 {
-		t.Errorf("TotalRequests: got %d, want 2 (should skip malformed lines)", analysis.TotalRequests)
+	// Should have parsed 3 valid lines (relaxed validation accepts INVALID_IP like JavaScript parser)
+	// Lines with valid timestamps and 10 fields are accepted, even if field formats are non-standard
+	if analysis.TotalRequests != 3 {
+		t.Errorf("TotalRequests: got %d, want 3 (non-standard formats accepted)", analysis.TotalRequests)
 	}
 
 	if analysis.AllowedRequests != 2 {
 		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
+	}
+
+	if analysis.BlockedRequests != 1 {
+		t.Errorf("BlockedRequests: got %d, want 1", analysis.BlockedRequests)
 	}
 }
 

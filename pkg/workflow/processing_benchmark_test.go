@@ -60,6 +60,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -252,6 +254,8 @@ permissions:
   discussions: write
   deployments: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -288,6 +292,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 

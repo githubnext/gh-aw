@@ -108,7 +108,7 @@ Note: MCP server integration is enabled by default. Use `--no-mcp` if you want t
 ✗ Required gh-aw token secrets are missing:
 
 ℹ Secret: COPILOT_GITHUB_TOKEN
-ℹ When needed: Copilot workflows (CLI, engine, agent tasks, etc.)
+ℹ When needed: Copilot workflows (CLI, engine, agent sessions, etc.)
 ℹ Recommended scopes: PAT with Copilot Requests permission and repo access
 ⚡ gh aw secret set COPILOT_GITHUB_TOKEN --owner <owner> --repo <repo>
 

@@ -36,6 +36,8 @@ post-steps:
       name: test-artifact
       path: test-file.txt
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -119,6 +121,8 @@ post-steps:
   - name: Only Post Step
     run: echo "This runs after AI only"
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 

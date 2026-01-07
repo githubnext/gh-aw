@@ -28,18 +28,18 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 	compiler.SetNoEmit(false)
 	compiler.SetStrictMode(false)
 
-	orchestratorPath, err := generateAndCompileCampaignOrchestrator(
-		compiler,
-		spec,
-		campaignSpecPath,
-		false, // verbose
-		false, // noEmit
-		false, // zizmor
-		false, // poutine
-		false, // actionlint
-		false, // strict
-		false, // validateActionSHAs
-	)
+	orchestratorPath, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+		Compiler:             compiler,
+		Spec:                 spec,
+		CampaignSpecPath:     campaignSpecPath,
+		Verbose:              false,
+		NoEmit:               false,
+		RunZizmorPerFile:     false,
+		RunPoutinePerFile:    false,
+		RunActionlintPerFile: false,
+		Strict:               false,
+		ValidateActionSHAs:   false,
+	})
 	if err != nil {
 		t.Fatalf("generateAndCompileCampaignOrchestrator() error: %v", err)
 	}
@@ -155,12 +155,18 @@ func TestCampaignSourceCommentStability(t *testing.T) {
 		t.Fatalf("failed to change to tmp directory: %v", err)
 	}
 
-	orchestratorPath1, err := generateAndCompileCampaignOrchestrator(
-		compiler,
-		spec,
-		campaignSpecPath,
-		false, false, false, false, false, false, false,
-	)
+	orchestratorPath1, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+		Compiler:             compiler,
+		Spec:                 spec,
+		CampaignSpecPath:     campaignSpecPath,
+		Verbose:              false,
+		NoEmit:               false,
+		RunZizmorPerFile:     false,
+		RunPoutinePerFile:    false,
+		RunActionlintPerFile: false,
+		Strict:               false,
+		ValidateActionSHAs:   false,
+	})
 	if err != nil {
 		t.Fatalf("first generation error: %v", err)
 	}
@@ -185,12 +191,18 @@ func TestCampaignSourceCommentStability(t *testing.T) {
 		t.Fatalf("failed to remove first generated file: %v", err)
 	}
 
-	orchestratorPath2, err := generateAndCompileCampaignOrchestrator(
-		compiler,
-		spec,
-		campaignSpecPath,
-		false, false, false, false, false, false, false,
-	)
+	orchestratorPath2, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+		Compiler:             compiler,
+		Spec:                 spec,
+		CampaignSpecPath:     campaignSpecPath,
+		Verbose:              false,
+		NoEmit:               false,
+		RunZizmorPerFile:     false,
+		RunPoutinePerFile:    false,
+		RunActionlintPerFile: false,
+		Strict:               false,
+		ValidateActionSHAs:   false,
+	})
 	if err != nil {
 		t.Fatalf("second generation error: %v", err)
 	}
@@ -257,12 +269,18 @@ func TestCampaignOrchestratorGitHubToken(t *testing.T) {
 		compiler.SetNoEmit(false)
 		compiler.SetStrictMode(false)
 
-		orchestratorPath, err := generateAndCompileCampaignOrchestrator(
-			compiler,
-			spec,
-			campaignSpecPath,
-			false, false, false, false, false, false, false,
-		)
+		orchestratorPath, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+			Compiler:             compiler,
+			Spec:                 spec,
+			CampaignSpecPath:     campaignSpecPath,
+			Verbose:              false,
+			NoEmit:               false,
+			RunZizmorPerFile:     false,
+			RunPoutinePerFile:    false,
+			RunActionlintPerFile: false,
+			Strict:               false,
+			ValidateActionSHAs:   false,
+		})
 		if err != nil {
 			t.Fatalf("generateAndCompileCampaignOrchestrator() error: %v", err)
 		}
@@ -309,12 +327,18 @@ func TestCampaignOrchestratorGitHubToken(t *testing.T) {
 		compiler.SetNoEmit(false)
 		compiler.SetStrictMode(false)
 
-		orchestratorPath, err := generateAndCompileCampaignOrchestrator(
-			compiler,
-			spec,
-			filepath.Join(tmpDir, "test-campaign-no-token.campaign.md"),
-			false, false, false, false, false, false, false,
-		)
+		orchestratorPath, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+			Compiler:             compiler,
+			Spec:                 spec,
+			CampaignSpecPath:     filepath.Join(tmpDir, "test-campaign-no-token.campaign.md"),
+			Verbose:              false,
+			NoEmit:               false,
+			RunZizmorPerFile:     false,
+			RunPoutinePerFile:    false,
+			RunActionlintPerFile: false,
+			Strict:               false,
+			ValidateActionSHAs:   false,
+		})
 		if err != nil {
 			t.Fatalf("generateAndCompileCampaignOrchestrator() error: %v", err)
 		}

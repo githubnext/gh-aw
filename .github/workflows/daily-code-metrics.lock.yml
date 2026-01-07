@@ -151,7 +151,7 @@ jobs:
       - name: Clone repo-memory branch (default)
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/code-metrics
+          BRANCH_NAME: daily/default
           TARGET_REPO: ${{ github.repository }}
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
@@ -1335,7 +1335,7 @@ jobs:
           You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Historical code quality and health metrics
           
           - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/code-metrics` branch of the current repository
+          - **Git Branch Storage**: Files are stored in the `daily/default` branch of the current repository
           - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
           - **Merge Strategy**: In case of conflicts, your changes (current version) win
           - **Persistence**: Files persist across workflow runs via git branch storage
@@ -1981,7 +1981,7 @@ jobs:
           ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/code-metrics
+          BRANCH_NAME: daily/default
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
           FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"

@@ -14,8 +14,8 @@ For GitHub Agentic Workflows, you only need to create a few **optional** secrets
 
 | When you need this…                                  | Secret to create                       | Notes |
 |------------------------------------------------------|----------------------------------------|-------|
+| Copilot workflows (CLI, engine, agent sessions, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission and repo access. |
 | Cross-repo Project Ops / remote GitHub tools         | `GH_AW_GITHUB_TOKEN`                   | PAT or app token with cross-repo access. |
-| Copilot workflows (CLI, engine, agent tasks, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission and repo access. |
 | Assigning agents/bots to issues or pull requests     | `GH_AW_AGENT_TOKEN`                    | Used by `assign-to-agent` and Copilot assignee/reviewer flows. |
 | Any GitHub Projects v2 operations                    | `GH_AW_PROJECT_GITHUB_TOKEN`           | **Required** for `update-project`. Default `GITHUB_TOKEN` cannot access Projects v2 API. |
 | Isolating Model Context Protocol (MCP) server permissions (advanced optional) | `GH_AW_GITHUB_MCP_SERVER_TOKEN`        | Only if you want MCP to use a different token than other jobs. |
@@ -24,8 +24,8 @@ Create these as **repository secrets in *your* repo**. The easiest way is to use
 
 ```bash
 # Current repository
-gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
 ```
@@ -65,11 +65,11 @@ jobs:
 | Token | Type | Purpose | User Configurable |
 |-------|------|---------|-------------------|
 | `GITHUB_TOKEN` | Auto-provided | Default Actions token for current repository | No (auto-provided) |
+| `COPILOT_GITHUB_TOKEN` | PAT | Copilot authentication (recommended) | **Yes** (required for Copilot) |
 | `GH_AW_GITHUB_TOKEN` | PAT | Enhanced token for cross-repo and remote GitHub tools | **Yes** (required for cross-repo) |
+| `GH_AW_AGENT_TOKEN` | PAT | Agent assignment operations | **Yes** (required for agent ops) |
 | `GH_AW_PROJECT_GITHUB_TOKEN` | PAT | Required token for GitHub Projects v2 operations | **Yes** (required for Projects v2) |
 | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | PAT | Custom token specifically for GitHub MCP server | **Yes** (optional override) |
-| `COPILOT_GITHUB_TOKEN` | PAT | Copilot authentication (recommended) | **Yes** (required for Copilot) |
-| `GH_AW_AGENT_TOKEN` | PAT | Agent assignment operations | **Yes** (required for agent ops) |
 | `GITHUB_MCP_SERVER_TOKEN` | Auto-set | Automatically configured by compiler | No (auto-configured) |
 
 ## `GITHUB_TOKEN` (Default)
@@ -255,12 +255,12 @@ To opt-in to creating projects, the agent must include `create_if_missing: true`
 
 **Type**: Personal Access Token (user must configure)
 
-The recommended token for all Copilot-related operations including the Copilot engine, agent task creation, and bot assignments.
+The recommended token for all Copilot-related operations including the Copilot engine, agent session creation, and bot assignments.
 
 **Required for**:
 
 - `engine: copilot` workflows
-- `create-agent-task:` safe outputs
+- `create-agent-session:` safe outputs
 - Assigning `copilot` as issue assignee
 - Adding `copilot` as PR reviewer
 
@@ -420,7 +420,7 @@ safe-outputs:
 - `add-comment:` → Issues: Write
 - `add-labels:` → Issues: Write
 - `update-issue:` → Issues: Write
-- `create-agent-task:` → Actions: Write, Contents: Write
+- `create-agent-session:` → Actions: Write, Contents: Write
 
 **Configuration inheritance**:
 App configuration can be imported from shared workflows. Local configuration takes precedence:
@@ -572,11 +572,11 @@ Work with organization admin to request exemption, use organization-wide GitHub 
 ### Token Setup Commands
 
 ```bash wrap
-# Enhanced GitHub token (most common, current repository)
-gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
-
 # Copilot operations
 gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+
+# Enhanced GitHub token (most common, current repository)
+gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 
 # Agent assignments
 gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
