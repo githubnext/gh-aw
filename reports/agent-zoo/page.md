@@ -112,7 +112,6 @@ These agents respond to user commands and provide on-demand assistance:
 - **[Q](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md)**  -  Workflow optimizer that investigates performance and creates PRs
 - **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md)**  -  Performs critical code reviews with personality
 - **[Workflow Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md)**  -  Creates new workflows from issue requests
-- **[Spec-Kit Dispatcher](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/speckit-dispatcher.md)**  -  Routes specification-driven development commands
 
 ### 🔧 **Code Quality & Refactoring Agentic Workfows**
 
@@ -322,9 +321,9 @@ Agentic Workfows that keep documentation, glossaries, slide decks, blog posts, a
 ### 10. The Event-Driven Coordinator 🚦
 **Orchestrate multi-step workflows via state machines**
 
-Agentic Workfows that coordinate complex workflows through campaigns, beads, or spec-kit patterns. Track state across runs (open/in-progress/completed). Campaign pattern uses labeled issues and project boards. Beads pattern uses hourly workers for queued tasks. Spec-kit dispatches sub-commands for specification-driven development. Includes workflow generators and dev monitors (dev-hawk).
+Agentic Workfows that coordinate complex workflows through campaigns or beads patterns. Track state across runs (open/in-progress/completed). Campaign pattern uses labeled issues and project boards. Beads pattern uses hourly workers for queued tasks. Includes workflow generators and dev monitors (dev-hawk).
 
-*Examples: Campaign generator, beads worker, speckit-dispatcher, workflow generator, dev-hawk*
+*Examples: Campaign generator, beads worker, workflow generator, dev-hawk*
 
 ### 11. The ML & Analytics Agent 🤖
 **Advanced insights through machine learning and NLP**
@@ -474,7 +473,7 @@ Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Krzysztof Cieślak, 
 agent-performance-analyzer, audit-workflows, copilot-agent-analysis, copilot-session-insights, daily-copilot-token-report, daily-performance-summary, lockfile-stats, metrics-collector, org-health-report, portfolio-analyst, prompt-clustering-analysis, repo-tree-map, scout, static-analysis-report, ubuntu-image-analyzer
 
 *Pattern 2 - ChatOps Responder:*
-archie, campaign-generator, grumpy-reviewer, mergefest, poem-bot, pr-nitpick-reviewer, q, speckit-dispatcher, workflow-generator
+archie, campaign-generator, grumpy-reviewer, mergefest, poem-bot, pr-nitpick-reviewer, q, workflow-generator
 
 *Pattern 3 - Continuous Janitor:*
 changeset, daily-doc-updater, daily-file-diet, daily-workflow-updater, developer-docs-consolidator, glossary-maintainer, hourly-ci-cleaner, instructions-janitor, slide-deck-maintainer, technical-doc-writer, unbloat-docs
@@ -492,7 +491,7 @@ cli-consistency-checker, duplicate-code-detector, go-pattern-detector, repositor
 artifacts-summary, blog-auditor, copilot-pr-merged-report, notion-issue-summary, pdf-summary, video-analyzer, weekly-issue-summary
 
 *Pattern 10 - Event-Driven Coordinator:*
-beads-worker, dev-hawk, docs-quality-maintenance-project67.campaign, docs-quality-maintenance-project67.campaign.g, file-size-reduction-project71.campaign, file-size-reduction-project71.campaign.g, spec-kit-execute, spec-kit-executor, workflow-health-manager
+beads-worker, dev-hawk, docs-quality-maintenance-project67.campaign, docs-quality-maintenance-project67.campaign.g, file-size-reduction-project71.campaign, file-size-reduction-project71.campaign.g, workflow-health-manager
 
 *Pattern 11 - ML & Analytics:*
 copilot-pr-nlp-analysis, copilot-pr-prompt-analysis
