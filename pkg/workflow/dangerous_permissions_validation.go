@@ -76,24 +76,18 @@ func findWritePermissions(permissions *Permissions) []PermissionScope {
 // formatDangerousPermissionsError formats an error message for write permissions violations
 func formatDangerousPermissionsError(writePermissions []PermissionScope) error {
 	var lines []string
-	lines = append(lines, "Write permissions are not allowed unless the 'dangerous-permissions-write' feature flag is enabled.")
+	lines = append(lines, "Write permissions are not allowed.")
 	lines = append(lines, "")
 	lines = append(lines, "Found write permissions:")
 	for _, scope := range writePermissions {
 		lines = append(lines, fmt.Sprintf("  - %s: write", scope))
 	}
 	lines = append(lines, "")
-	lines = append(lines, "To fix this issue, you have two options:")
-	lines = append(lines, "")
-	lines = append(lines, "Option 1: Change write permissions to read:")
+	lines = append(lines, "To fix this issue, change write permissions to read:")
 	lines = append(lines, "permissions:")
 	for _, scope := range writePermissions {
 		lines = append(lines, fmt.Sprintf("  %s: read", scope))
 	}
-	lines = append(lines, "")
-	lines = append(lines, "Option 2: Enable the feature flag (use with caution):")
-	lines = append(lines, "features:")
-	lines = append(lines, "  dangerous-permissions-write: true")
 
 	return fmt.Errorf("%s", strings.Join(lines, "\n"))
 }

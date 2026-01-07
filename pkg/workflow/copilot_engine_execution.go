@@ -110,6 +110,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
+	// Add --share flag to generate a markdown file of the conversation for step summary
+	// The markdown file will be used to create a preview of the agent log
+	shareFilePath := logsFolder + "conversation.md"
+	copilotArgs = append(copilotArgs, "--share", shareFilePath)
+	copilotExecLog.Printf("Added --share flag with path: %s", shareFilePath)
+
 	// Add prompt argument - inline for sandbox modes, variable for non-sandbox
 	if sandboxEnabled {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
@@ -275,6 +281,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
+
+		// Add blocked domains if specified
+		blockedDomains := formatBlockedDomains(workflowData.NetworkPermissions)
+		if blockedDomains != "" {
+			awfArgs = append(awfArgs, "--block-domains", blockedDomains)
+			copilotExecLog.Printf("Added blocked domains: %s", blockedDomains)
+		}
+
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 

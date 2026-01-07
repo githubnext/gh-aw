@@ -823,6 +823,13 @@ network:
     # Array of Domain name or ecosystem identifier (supports wildcards like
     # '*.example.com' and ecosystem names like 'python', 'node')
 
+  # List of blocked domains or ecosystem identifiers (e.g., 'python', 'node',
+  # 'tracker.example.com'). Blocked domains take precedence over allowed domains.
+  # (optional)
+  blocked: []
+    # Array of Domain name or ecosystem identifier to block (supports wildcards like
+    # '*.example.com' and ecosystem names like 'python', 'node')
+
 # Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox
 # Runtime) and MCP gateway.
 # (optional)
