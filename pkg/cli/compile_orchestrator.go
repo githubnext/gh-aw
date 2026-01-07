@@ -111,24 +111,6 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 			}
 			outputs["create-project-status-update"] = statusUpdateConfig
 		}
-		if data.SafeOutputs.CopyProjects != nil {
-			copyProjectConfig := map[string]any{
-				"max": data.SafeOutputs.CopyProjects.Max,
-			}
-			// Include source-project if specified
-			if strings.TrimSpace(data.SafeOutputs.CopyProjects.SourceProject) != "" {
-				copyProjectConfig["source-project"] = data.SafeOutputs.CopyProjects.SourceProject
-			}
-			// Include target-owner if specified
-			if strings.TrimSpace(data.SafeOutputs.CopyProjects.TargetOwner) != "" {
-				copyProjectConfig["target-owner"] = data.SafeOutputs.CopyProjects.TargetOwner
-			}
-			// Include github-token if specified
-			if strings.TrimSpace(data.SafeOutputs.CopyProjects.GitHubToken) != "" {
-				copyProjectConfig["github-token"] = data.SafeOutputs.CopyProjects.GitHubToken
-			}
-			outputs["copy-project"] = copyProjectConfig
-		}
 		if len(outputs) > 0 {
 			payload := map[string]any{"safe-outputs": outputs}
 			if out, err := yaml.Marshal(payload); err == nil {
