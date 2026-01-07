@@ -703,11 +703,11 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"continue-on-error: true",
 		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
 		"name: agent-output",
-		"path: /opt/gh-aw/safeoutputs/",
+		"path: /tmp/gh-aw/safeoutputs/",
 		"- name: Setup agent output environment variable",
-		"mkdir -p /opt/gh-aw/safeoutputs/",
-		"find \"/opt/gh-aw/safeoutputs/\" -type f -print",
-		"GH_AW_AGENT_OUTPUT=/opt/gh-aw/safeoutputs/agent_output.json",
+		"mkdir -p /tmp/gh-aw/safeoutputs/",
+		"find \"/tmp/gh-aw/safeoutputs/\" -type f -print",
+		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json",
 	}
 
 	for _, expected := range expectedComponents {
@@ -717,8 +717,8 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	}
 
 	// Verify mkdir comes before find to ensure directory exists
-	mkdirIdx := strings.Index(stepsStr, "mkdir -p /opt/gh-aw/safeoutputs/")
-	findIdx := strings.Index(stepsStr, "find \"/opt/gh-aw/safeoutputs/\"")
+	mkdirIdx := strings.Index(stepsStr, "mkdir -p /tmp/gh-aw/safeoutputs/")
+	findIdx := strings.Index(stepsStr, "find \"/tmp/gh-aw/safeoutputs/\"")
 
 	if mkdirIdx == -1 {
 		t.Fatal("mkdir command not found in steps")
