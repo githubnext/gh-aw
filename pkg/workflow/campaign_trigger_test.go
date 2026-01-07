@@ -139,7 +139,7 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 	}
 
 	// Verify the title prefix condition is present (not label-based)
-	if !strings.Contains(lockContent, "startsWith(github.event.issue.title, '[Campaign]')") {
-		t.Error("Expected title prefix condition in campaign-generator lock file")
+	if !strings.Contains(lockContent, "startsWith(github.event.issue.title, '[New Agentic Campaign]')") {
+		t.Error("Expected title prefix condition '[New Agentic Campaign]' in campaign-generator lock file")
 	}
 }
