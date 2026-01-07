@@ -252,15 +252,17 @@ func TestBuildSafeOutputConfigs(t *testing.T) {
 			},
 		},
 		{
-			name: "Empty configs are excluded",
+			name: "Empty configs are included (handler enabled by presence)",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
 					// All zero values
 				},
 			},
-			expectedKeys: []string{},
+			expectedKeys: []string{"create_issue"},
 			validateField: func(t *testing.T, config map[string]map[string]any) {
-				assert.Empty(t, config, "Empty configs should not be included")
+				assert.Contains(t, config, "create_issue", "Empty config should still be included")
+				issueConfig := config["create_issue"]
+				assert.Empty(t, issueConfig, "Config should be empty map")
 			},
 		},
 	}

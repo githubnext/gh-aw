@@ -231,10 +231,8 @@ func buildSafeOutputConfigs(safeOutputs *SafeOutputsConfig) map[string]map[strin
 			handler.customizer(field.Interface(), handlerConfig)
 		}
 
-		// Only add if there are actual config values
-		if len(handlerConfig) > 0 {
-			config[handler.handlerName] = handlerConfig
-		}
+		// Add even if empty - the presence of the config pointer indicates the handler is enabled
+		config[handler.handlerName] = handlerConfig
 	}
 
 	// Handle max_patch_size for PR-related handlers
