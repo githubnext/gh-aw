@@ -387,11 +387,45 @@ describe("Safe Output Handler Manager", () => {
       expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("create_agent_task"));
     });
 
+    it("should silently skip copy_project as a standalone step", async () => {
+      const messages = [
+        { type: "create_issue", title: "Issue" },
+        { type: "copy_project", source_project: "https://github.com/orgs/myorg/projects/42", target_owner: "anotherorg" },
+      ];
+
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
+
+      // Only create_issue handler is available; copy_project is handled by standalone step
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(2);
+
+      // First message should succeed
+      expect(result.results[0].success).toBe(true);
+      expect(result.results[0].type).toBe("create_issue");
+
+      // Second message should be skipped (standalone step)
+      expect(result.results[1].success).toBe(false);
+      expect(result.results[1].type).toBe("copy_project");
+      expect(result.results[1].skipped).toBe(true);
+      expect(result.results[1].reason).toBe("Handled by standalone step");
+
+      // Should NOT have logged warning for standalone step type
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'copy_project'"));
+
+      // Should have logged debug message
+      expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("copy_project"));
+    });
+
     it("should track skipped message types for logging", async () => {
       const messages = [
         { type: "create_issue", title: "Issue" },
         { type: "update_project", project: "https://github.com/orgs/myorg/projects/42" },
         { type: "create_agent_task", title: "Task" },
+        { type: "copy_project", source_project: "https://github.com/orgs/myorg/projects/42", target_owner: "anotherorg" },
         { type: "unknown_type", data: "test" },
         { type: "another_unknown", data: "test2" },
       ];
@@ -408,7 +442,7 @@ describe("Safe Output Handler Manager", () => {
       // Collect skipped standalone types
       const skippedStandaloneResults = result.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
       const standaloneTypes = [...new Set(skippedStandaloneResults.map(r => r.type))];
-      expect(standaloneTypes).toEqual(expect.arrayContaining(["update_project", "create_agent_task"]));
+      expect(standaloneTypes).toEqual(expect.arrayContaining(["update_project", "create_agent_task", "copy_project"]));
 
       // Collect skipped no-handler types
       const skippedNoHandlerResults = result.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
