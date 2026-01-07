@@ -325,28 +325,18 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 
 	// Extract port
 	if portVal, hasPort := mcpObj["port"]; hasPort {
-		frontmatterExtractionSecurityLog.Printf("Extracting port from MCP config: %v (%T)", portVal, portVal)
 		switch v := portVal.(type) {
 		case int:
 			mcpConfig.Port = v
-			frontmatterExtractionSecurityLog.Printf("Port extracted as int: %d", v)
 		case int64:
 			mcpConfig.Port = int(v)
-			frontmatterExtractionSecurityLog.Printf("Port extracted as int64: %d", v)
 		case uint:
 			mcpConfig.Port = int(v)
-			frontmatterExtractionSecurityLog.Printf("Port extracted as uint: %d", v)
 		case uint64:
 			mcpConfig.Port = int(v)
-			frontmatterExtractionSecurityLog.Printf("Port extracted as uint64: %d", v)
 		case float64:
 			mcpConfig.Port = int(v)
-			frontmatterExtractionSecurityLog.Printf("Port extracted as float64: %d", int(v))
-		default:
-			frontmatterExtractionSecurityLog.Printf("Port type not recognized: %T", v)
 		}
-	} else {
-		frontmatterExtractionSecurityLog.Print("Port not found in MCP config")
 	}
 
 	// Extract apiKey
