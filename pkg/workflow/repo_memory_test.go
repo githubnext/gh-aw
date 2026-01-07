@@ -3,6 +3,9 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestRepoMemoryConfigDefault tests basic repo-memory configuration with boolean true
@@ -704,5 +707,219 @@ func TestRepoMemoryConfigWithCampaignID(t *testing.T) {
 
 	if len(memory.FileGlob) != 1 || memory.FileGlob[0] != "go-file-size-reduction-project64/**" {
 		t.Errorf("Expected file glob 'go-file-size-reduction-project64/**', got %v", memory.FileGlob)
+	}
+}
+
+// TestBranchPrefixValidation tests the validateBranchPrefix function
+func TestBranchPrefixValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		prefix  string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "empty prefix (use default)",
+			prefix:  "",
+			wantErr: false,
+		},
+		{
+			name:    "valid prefix - alphanumeric",
+			prefix:  "campaigns",
+			wantErr: false,
+		},
+		{
+			name:    "valid prefix - with hyphens",
+			prefix:  "my-memory",
+			wantErr: false,
+		},
+		{
+			name:    "valid prefix - with underscores",
+			prefix:  "my_memory",
+			wantErr: false,
+		},
+		{
+			name:    "valid prefix - mixed",
+			prefix:  "test_mem-123",
+			wantErr: false,
+		},
+		{
+			name:    "valid prefix - exactly 6 chars",
+			prefix:  "mem123",
+			wantErr: false,
+		},
+		{
+			name:    "valid prefix - exactly 32 chars",
+			prefix:  "12345678901234567890123456789012",
+			wantErr: false,
+		},
+		{
+			name:    "invalid - too short (5 chars)",
+			prefix:  "mem12",
+			wantErr: true,
+			errMsg:  "must be at least 6 characters long",
+		},
+		{
+			name:    "invalid - too long (33 chars)",
+			prefix:  "123456789012345678901234567890123",
+			wantErr: true,
+			errMsg:  "must be at most 32 characters long",
+		},
+		{
+			name:    "invalid - contains slash",
+			prefix:  "memory/branch",
+			wantErr: true,
+			errMsg:  "must contain only alphanumeric characters",
+		},
+		{
+			name:    "invalid - contains space",
+			prefix:  "my memory",
+			wantErr: true,
+			errMsg:  "must contain only alphanumeric characters",
+		},
+		{
+			name:    "invalid - contains special char",
+			prefix:  "memory@branch",
+			wantErr: true,
+			errMsg:  "must contain only alphanumeric characters",
+		},
+		{
+			name:    "invalid - reserved word 'copilot'",
+			prefix:  "copilot",
+			wantErr: true,
+			errMsg:  "cannot be 'copilot' (reserved)",
+		},
+		{
+			name:    "invalid - reserved word 'Copilot' (case-insensitive)",
+			prefix:  "Copilot",
+			wantErr: true,
+			errMsg:  "cannot be 'copilot' (reserved)",
+		},
+		{
+			name:    "invalid - reserved word 'COPILOT' (case-insensitive)",
+			prefix:  "COPILOT",
+			wantErr: true,
+			errMsg:  "cannot be 'copilot' (reserved)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBranchPrefix(tt.prefix)
+			if tt.wantErr {
+				require.Error(t, err, "Expected error for prefix: %s", tt.prefix)
+				assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain: %s", tt.errMsg)
+			} else {
+				require.NoError(t, err, "Expected no error for prefix: %s", tt.prefix)
+			}
+		})
+	}
+}
+
+// TestBranchPrefixInConfig tests branch-prefix in object configuration
+func TestBranchPrefixInConfig(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"branch-prefix": "campaigns",
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler(false, "", "test")
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config, "Expected non-nil config")
+
+	assert.Equal(t, "campaigns", config.BranchPrefix, "Expected branch-prefix 'campaigns'")
+	assert.Equal(t, 1, len(config.Memories), "Expected 1 memory")
+	
+	memory := config.Memories[0]
+	assert.Equal(t, "campaigns/default", memory.BranchName, "Expected branch name 'campaigns/default'")
+}
+
+// TestBranchPrefixInArrayConfig tests branch-prefix in array configuration
+func TestBranchPrefixInArrayConfig(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":            "session",
+				"branch-prefix": "my-prefix",
+			},
+			map[string]any{
+				"id": "logs",
+			},
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler(false, "", "test")
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config, "Expected non-nil config")
+
+	assert.Equal(t, "my-prefix", config.BranchPrefix, "Expected branch-prefix 'my-prefix'")
+	assert.Equal(t, 2, len(config.Memories), "Expected 2 memories")
+	
+	// Both memories should use the same prefix
+	assert.Equal(t, "my-prefix/session", config.Memories[0].BranchName, "Expected branch name 'my-prefix/session'")
+	assert.Equal(t, "my-prefix/logs", config.Memories[1].BranchName, "Expected branch name 'my-prefix/logs'")
+}
+
+// TestBranchPrefixWithExplicitBranchName tests that explicit branch-name overrides prefix
+func TestBranchPrefixWithExplicitBranchName(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"branch-prefix": "campaigns",
+			"branch-name":   "custom/branch",
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler(false, "", "test")
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config, "Expected non-nil config")
+
+	assert.Equal(t, "campaigns", config.BranchPrefix, "Expected branch-prefix 'campaigns'")
+	
+	memory := config.Memories[0]
+	// Explicit branch-name should override the prefix
+	assert.Equal(t, "custom/branch", memory.BranchName, "Expected explicit branch name 'custom/branch'")
+}
+
+// TestInvalidBranchPrefixRejectsConfig tests that invalid prefix causes error
+func TestInvalidBranchPrefixRejectsConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		prefix string
+	}{
+		{"too short", "short"},
+		{"too long", "this_is_a_very_long_prefix_that_exceeds_32_characters"},
+		{"reserved word", "copilot"},
+		{"special chars", "my@prefix"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			toolsMap := map[string]any{
+				"repo-memory": map[string]any{
+					"branch-prefix": tt.prefix,
+				},
+			}
+
+			toolsConfig, err := ParseToolsConfig(toolsMap)
+			require.NoError(t, err, "Failed to parse tools config")
+
+			compiler := NewCompiler(false, "", "test")
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+			assert.Error(t, err, "Expected error for invalid branch-prefix: %s", tt.prefix)
+			assert.Nil(t, config, "Expected nil config on error")
+		})
 	}
 }

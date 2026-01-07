@@ -27,7 +27,8 @@ var repoMemoryLog = logger.New("workflow:repo_memory")
 
 // RepoMemoryConfig holds configuration for repo-memory functionality
 type RepoMemoryConfig struct {
-	Memories []RepoMemoryEntry `yaml:"memories,omitempty"` // repo-memory configurations
+	BranchPrefix string            `yaml:"branch-prefix,omitempty"` // branch prefix (default: "memory")
+	Memories     []RepoMemoryEntry `yaml:"memories,omitempty"`      // repo-memory configurations
 }
 
 // RepoMemoryEntry represents a single repo-memory configuration
@@ -49,12 +50,41 @@ type RepoMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
-// generateDefaultBranchName generates a default branch name for a given memory ID
-func generateDefaultBranchName(memoryID string) string {
-	if memoryID == "default" {
-		return "memory/default"
+// generateDefaultBranchName generates a default branch name for a given memory ID and prefix
+func generateDefaultBranchName(memoryID string, branchPrefix string) string {
+	if branchPrefix == "" {
+		branchPrefix = "memory"
 	}
-	return fmt.Sprintf("memory/%s", memoryID)
+	return fmt.Sprintf("%s/%s", branchPrefix, memoryID)
+}
+
+// validateBranchPrefix validates that the branch prefix meets requirements
+func validateBranchPrefix(prefix string) error {
+	if prefix == "" {
+		return nil // Empty means use default
+	}
+
+	// Check length (6-32 characters)
+	if len(prefix) < 6 {
+		return fmt.Errorf("branch-prefix must be at least 6 characters long, got %d", len(prefix))
+	}
+	if len(prefix) > 32 {
+		return fmt.Errorf("branch-prefix must be at most 32 characters long, got %d", len(prefix))
+	}
+
+	// Check for alphanumeric and branch-friendly characters (alphanumeric, hyphens, underscores)
+	for _, c := range prefix {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+			return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'", prefix)
+		}
+	}
+
+	// Cannot be "copilot"
+	if strings.ToLower(prefix) == "copilot" {
+		return fmt.Errorf("branch-prefix cannot be 'copilot' (reserved)")
+	}
+
+	return nil
 }
 
 // extractRepoMemoryConfig extracts repo-memory configuration from tools section
@@ -66,7 +96,9 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 
 	repoMemoryLog.Print("Extracting repo-memory configuration from ToolsConfig")
 
-	config := &RepoMemoryConfig{}
+	config := &RepoMemoryConfig{
+		BranchPrefix: "memory", // Default branch prefix
+	}
 	repoMemoryValue := toolsConfig.RepoMemory.Raw
 
 	// Handle nil value (simple enable with defaults) - same as true
@@ -75,7 +107,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 		config.Memories = []RepoMemoryEntry{
 			{
 				ID:           "default",
-				BranchName:   generateDefaultBranchName("default"),
+				BranchName:   generateDefaultBranchName("default", config.BranchPrefix),
 				MaxFileSize:  10240, // 10KB
 				MaxFileCount: 100,
 				CreateOrphan: true,
@@ -92,7 +124,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			config.Memories = []RepoMemoryEntry{
 				{
 					ID:           "default",
-					BranchName:   generateDefaultBranchName("default"),
+					BranchName:   generateDefaultBranchName("default", config.BranchPrefix),
 					MaxFileSize:  10240, // 10KB
 					MaxFileCount: 100,
 					CreateOrphan: true,
@@ -109,6 +141,23 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	if memoryArray, ok := repoMemoryValue.([]any); ok {
 		repoMemoryLog.Printf("Processing memory array with %d entries", len(memoryArray))
 		config.Memories = make([]RepoMemoryEntry, 0, len(memoryArray))
+		
+		// Parse branch-prefix from first item if it's a map with branch-prefix key
+		// This allows branch-prefix to be set at the top level for all memories
+		if len(memoryArray) > 0 {
+			if firstItem, ok := memoryArray[0].(map[string]any); ok {
+				if branchPrefix, exists := firstItem["branch-prefix"]; exists {
+					if prefixStr, ok := branchPrefix.(string); ok {
+						if err := validateBranchPrefix(prefixStr); err != nil {
+							return nil, err
+						}
+						config.BranchPrefix = prefixStr
+						repoMemoryLog.Printf("Using custom branch-prefix: %s", prefixStr)
+					}
+				}
+			}
+		}
+		
 		for _, item := range memoryArray {
 			if memoryMap, ok := item.(map[string]any); ok {
 				entry := RepoMemoryEntry{
@@ -143,7 +192,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				}
 				// Set default branch name if not specified
 				if entry.BranchName == "" {
-					entry.BranchName = generateDefaultBranchName(entry.ID)
+					entry.BranchName = generateDefaultBranchName(entry.ID, config.BranchPrefix)
 				}
 
 				// Parse file-glob
@@ -228,9 +277,21 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	// Convert to array with single entry
 	if configMap, ok := repoMemoryValue.(map[string]any); ok {
 		repoMemoryLog.Print("Processing object-style repo-memory configuration (backward compatible)")
+		
+		// Parse branch-prefix if provided
+		if branchPrefix, exists := configMap["branch-prefix"]; exists {
+			if prefixStr, ok := branchPrefix.(string); ok {
+				if err := validateBranchPrefix(prefixStr); err != nil {
+					return nil, err
+				}
+				config.BranchPrefix = prefixStr
+				repoMemoryLog.Printf("Using custom branch-prefix: %s", prefixStr)
+			}
+		}
+		
 		entry := RepoMemoryEntry{
 			ID:           "default",
-			BranchName:   generateDefaultBranchName("default"),
+			BranchName:   generateDefaultBranchName("default", config.BranchPrefix),
 			MaxFileSize:  10240, // 10KB default
 			MaxFileCount: 100,   // 100 files default
 			CreateOrphan: true,  // create orphan by default
