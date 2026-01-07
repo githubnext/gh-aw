@@ -130,8 +130,13 @@ func validateCampaigns(workflowDir string, verbose bool, campaignFiles []string)
 		// Validate the spec itself
 		problems := campaign.ValidateSpec(&spec)
 
-		// Validate that referenced workflows exist
-		workflowProblems := campaign.ValidateWorkflowsExist(&spec, absWorkflowDir)
+		// Validate that referenced workflows exist in the same directory as the campaign spec
+		// Use the directory of the campaign spec file, not a global workflow directory
+		campaignDir := filepath.Dir(spec.ConfigPath)
+		if !filepath.IsAbs(campaignDir) {
+			campaignDir = filepath.Join(gitRoot, campaignDir)
+		}
+		workflowProblems := campaign.ValidateWorkflowsExist(&spec, campaignDir)
 		problems = append(problems, workflowProblems...)
 
 		if len(problems) > 0 {
