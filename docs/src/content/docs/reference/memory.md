@@ -111,6 +111,7 @@ Creates branch `memory/default` at `/tmp/gh-aw/repo-memory-default/`. Files are 
 tools:
   repo-memory:
     branch-name: memory/custom-agent
+    branch-prefix: campaigns  # Custom prefix instead of "memory"
     description: "Long-term insights"
     file-glob: ["memory/custom-agent/*.md", "memory/custom-agent/*.json"]
     max-file-size: 1048576  # 1MB (default 10KB)
@@ -119,6 +120,8 @@ tools:
     create-orphan: true     # default
 ---
 ```
+
+**Branch Prefix**: Use `branch-prefix` to customize the branch name prefix (default is `memory`). The prefix must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be `copilot`. When set, branches are created as `{branch-prefix}/{id}` instead of `memory/{id}`.
 
 **Note**: File glob patterns must include the full branch path structure. For branch `memory/custom-agent`, use patterns like `memory/custom-agent/*.json` to match files stored at that path within the branch.
 
@@ -129,15 +132,15 @@ tools:
 tools:
   repo-memory:
     - id: insights
-      branch-name: memory/insights
-      file-glob: ["memory/insights/*.md"]
+      branch-prefix: daily  # Creates daily/insights branch
+      file-glob: ["daily/insights/*.md"]
     - id: state
       file-glob: ["memory/state/*.json"]
       max-file-size: 524288  # 512KB
 ---
 ```
 
-Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `memory/{id}`. Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch). **File glob patterns must include the full branch path.**
+Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `{branch-prefix}/{id}` (where `branch-prefix` defaults to `memory`). Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch). **File glob patterns must include the full branch path.**
 
 ## Behavior
 
