@@ -26,10 +26,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateIssues = issuesConfig
 			}
 
-			// Handle create-agent-task
-			agentTaskConfig := c.parseAgentTaskConfig(outputMap)
-			if agentTaskConfig != nil {
-				config.CreateAgentTasks = agentTaskConfig
+			// Handle create-agent-session
+			agentSessionConfig := c.parseAgentSessionConfig(outputMap)
+			if agentSessionConfig != nil {
+				config.CreateAgentSessions = agentSessionConfig
 			}
 
 			// Handle update-project (smart project board management)

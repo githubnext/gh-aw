@@ -199,7 +199,7 @@ permissions:
 safe-outputs:
   create-issue:          # Creates issues (default max: 1)
     max: 5               # Optional: specify maximum number
-  # create-agent-task:   # Creates GitHub Copilot agent tasks (max: 1)
+  # create-agent-session:   # Creates GitHub Copilot agent sessions (max: 1)
   # create-pull-request: # Creates exactly one pull request
   # add-comment:   # Adds comments (default max: 1)
   #   max: 2             # Optional: specify maximum number

@@ -145,7 +145,7 @@ func (d *CopilotAgentDetector) hasAgentArtifacts() bool {
 	// Check for agent-specific artifact patterns
 	agentArtifacts := []string{
 		"copilot-agent-output",
-		"agent-task-result",
+		"agent-session-result",
 		"copilot-swe-agent-output",
 	}
 

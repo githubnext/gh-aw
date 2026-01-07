@@ -8,7 +8,7 @@ import (
 // safeOutputFieldMapping maps struct field names to their tool names
 var safeOutputFieldMapping = map[string]string{
 	"CreateIssues":                    "create_issue",
-	"CreateAgentTasks":                "create_agent_task",
+	"CreateAgentSessions":             "create_agent_session",
 	"CreateDiscussions":               "create_discussion",
 	"UpdateDiscussions":               "update_discussion",
 	"CloseDiscussions":                "close_discussion",
