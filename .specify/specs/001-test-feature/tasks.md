@@ -2,13 +2,13 @@
 
 ## Phase 1: Setup
 
-- [ ] 1.1: Create `pkg/test/` directory
-- [ ] 1.2: Create `test_feature.go` file
+- [x] 1.1: Create `pkg/test/` directory
+- [x] 1.2: Create `test_feature.go` file
 
 ## Phase 2: Tests (TDD)
 
-- [ ] 2.1: Create `test_feature_test.go` file
-- [ ] 2.2: Write test for basic functionality
+- [x] 2.1: Create `test_feature_test.go` file (adapted to pkg/testutil/speckit_feature_test.go)
+- [x] 2.2: Write test for basic functionality
 
 ## Phase 3: Core Implementation
 
