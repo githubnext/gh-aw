@@ -246,11 +246,14 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 	}
 
 	if resolvedAgentOutputFile != "" {
+		// Sanitize the path to prevent path traversal attacks
+		cleanPath := filepath.Clean(resolvedAgentOutputFile)
+
 		// Read the safe output artifact file
-		content, readErr := os.ReadFile(resolvedAgentOutputFile)
+		content, readErr := os.ReadFile(cleanPath)
 		if readErr != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", resolvedAgentOutputFile, readErr)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", cleanPath, readErr)))
 			}
 			return missingTools, nil // Continue processing without this file
 		}
@@ -263,7 +266,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 
 		if err := json.Unmarshal(content, &safeOutput); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", resolvedAgentOutputFile, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", cleanPath, err)))
 			}
 			return missingTools, nil // Continue processing without this file
 		}
@@ -369,11 +372,14 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 	}
 
 	if resolvedAgentOutputFile != "" {
+		// Sanitize the path to prevent path traversal attacks
+		cleanPath := filepath.Clean(resolvedAgentOutputFile)
+
 		// Read the safe output artifact file
-		content, readErr := os.ReadFile(resolvedAgentOutputFile)
+		content, readErr := os.ReadFile(cleanPath)
 		if readErr != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", resolvedAgentOutputFile, readErr)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", cleanPath, readErr)))
 			}
 			return noops, nil // Continue processing without this file
 		}
@@ -386,7 +392,7 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 
 		if err := json.Unmarshal(content, &safeOutput); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", resolvedAgentOutputFile, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", cleanPath, err)))
 			}
 			return noops, nil // Continue processing without this file
 		}
