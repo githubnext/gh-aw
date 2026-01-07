@@ -172,6 +172,7 @@ export default defineConfig({
 						{ label: 'Markdown', link: '/reference/markdown/' },
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
 						{ label: 'MCP Server', link: '/setup/mcp-server/' },
+						{ label: 'MCP Gateway', link: '/reference/mcp-gateway/' },
 					],
 				},
 				{
