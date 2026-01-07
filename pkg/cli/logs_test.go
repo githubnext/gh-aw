@@ -1346,6 +1346,84 @@ func TestFindAgentLogFile(t *testing.T) {
 		}
 	})
 
+	// Test Copilot engine with process log (new naming convention)
+	// Copilot changed from session-*.log to process-*.log
+	t.Run("copilot_engine_process_log", func(t *testing.T) {
+		copilotDir := filepath.Join(tmpDir, "copilot_process_test")
+		err := os.MkdirAll(copilotDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create test directory: %v", err)
+		}
+
+		// Create process log directly in the run directory
+		// This simulates the new naming convention for Copilot logs
+		processLog := filepath.Join(copilotDir, "process-12345.log")
+		err = os.WriteFile(processLog, []byte("test process log content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create process log file: %v", err)
+		}
+
+		copilotEngine := workflow.NewCopilotEngine()
+
+		// Test findAgentLogFile - should find via recursive search
+		found, ok := findAgentLogFile(copilotDir, copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file via recursive search")
+		}
+
+		// Should find the process log file
+		if !strings.HasSuffix(found, "process-12345.log") {
+			t.Errorf("Expected to find process-12345.log, but found %s", found)
+		}
+
+		// Verify the path is correct
+		if found != processLog {
+			t.Errorf("Expected path %s, got %s", processLog, found)
+		}
+	})
+
+	// Test Copilot engine with process log in nested directory
+	t.Run("copilot_engine_process_log_nested", func(t *testing.T) {
+		copilotDir := filepath.Join(tmpDir, "copilot_process_nested_test")
+		err := os.MkdirAll(copilotDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create test directory: %v", err)
+		}
+
+		// Create nested directory structure
+		processLogsDir := filepath.Join(copilotDir, "sandbox", "agent", "logs")
+		err = os.MkdirAll(processLogsDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create process logs directory: %v", err)
+		}
+
+		// Create a test process log file
+		processLog := filepath.Join(processLogsDir, "process-test-789.log")
+		err = os.WriteFile(processLog, []byte("test process log content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create process log file: %v", err)
+		}
+
+		copilotEngine := workflow.NewCopilotEngine()
+
+		// Test findAgentLogFile - should find the process log in nested location
+		found, ok := findAgentLogFile(copilotDir, copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Copilot engine in nested location")
+		}
+
+		// Should find the process log file
+		if !strings.HasSuffix(found, "process-test-789.log") {
+			t.Errorf("Expected to find process-test-789.log, but found %s", found)
+		}
+
+		// Verify the path is correct
+		expectedPath := filepath.Join(copilotDir, "sandbox", "agent", "logs", "process-test-789.log")
+		if found != expectedPath {
+			t.Errorf("Expected path %s, got %s", expectedPath, found)
+		}
+	})
+
 	// Test 2: Claude engine with agent-stdio.log
 	t.Run("Claude engine uses agent-stdio.log", func(t *testing.T) {
 		claudeEngine := workflow.NewClaudeEngine()
