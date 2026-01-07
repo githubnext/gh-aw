@@ -1,66 +1,72 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"golang.org/x/mod/semver"
 )
 
 var semverLog = logger.New("workflow:semver")
 
 // compareVersions compares two semantic versions, returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
-// Note: Non-numeric version parts (e.g., 'beta', 'alpha') default to 0 for comparison purposes
+// Uses golang.org/x/mod/semver for proper semantic version comparison
 func compareVersions(v1, v2 string) int {
 	semverLog.Printf("Comparing versions: v1=%s, v2=%s", v1, v2)
 
-	parts1 := strings.Split(v1, ".")
-	parts2 := strings.Split(v2, ".")
-
-	maxLen := len(parts1)
-	if len(parts2) > maxLen {
-		maxLen = len(parts2)
+	// Ensure versions have 'v' prefix for semver package
+	if !strings.HasPrefix(v1, "v") {
+		v1 = "v" + v1
+	}
+	if !strings.HasPrefix(v2, "v") {
+		v2 = "v" + v2
 	}
 
-	for i := 0; i < maxLen; i++ {
-		var p1, p2 int
+	result := semver.Compare(v1, v2)
 
-		if i < len(parts1) {
-			_, _ = fmt.Sscanf(parts1[i], "%d", &p1) // Ignore error, defaults to 0 for non-numeric parts
-		}
-		if i < len(parts2) {
-			_, _ = fmt.Sscanf(parts2[i], "%d", &p2) // Ignore error, defaults to 0 for non-numeric parts
-		}
-
-		if p1 > p2 {
-			semverLog.Printf("Version comparison result: %s > %s", v1, v2)
-			return 1
-		} else if p1 < p2 {
-			semverLog.Printf("Version comparison result: %s < %s", v1, v2)
-			return -1
-		}
+	if result > 0 {
+		semverLog.Printf("Version comparison result: %s > %s", v1, v2)
+	} else if result < 0 {
+		semverLog.Printf("Version comparison result: %s < %s", v1, v2)
+	} else {
+		semverLog.Printf("Version comparison result: %s == %s", v1, v2)
 	}
 
-	semverLog.Printf("Version comparison result: %s == %s", v1, v2)
-	return 0
+	return result
 }
 
 // extractMajorVersion extracts the major version number from a version string
 // Examples: "v5.0.0" -> 5, "v6" -> 6, "5.1.0" -> 5
+// Uses golang.org/x/mod/semver.Major for proper semantic version parsing
 func extractMajorVersion(version string) int {
-	// Strip 'v' prefix if present
-	v := strings.TrimPrefix(version, "v")
-
-	// Split by '.' and get the first part
-	parts := strings.Split(v, ".")
-	if len(parts) > 0 {
-		var major int
-		// #nosec G104 - Intentionally ignoring Sscanf error as function defaults to 0 for non-numeric version parts
-		_, _ = fmt.Sscanf(parts[0], "%d", &major)
-		return major
+	// Ensure version has 'v' prefix for semver package
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
 	}
 
-	return 0
+	// Get major version string (e.g., "v5")
+	majorStr := semver.Major(version)
+	if majorStr == "" {
+		return 0
+	}
+
+	// Parse the integer from the major version string
+	// Major returns "v5", we need to extract 5
+	var major int
+	// Strip 'v' prefix and parse the number
+	numStr := strings.TrimPrefix(majorStr, "v")
+	if numStr != "" {
+		// Parse the number
+		for _, ch := range numStr {
+			if ch >= '0' && ch <= '9' {
+				major = major*10 + int(ch-'0')
+			} else {
+				break
+			}
+		}
+	}
+
+	return major
 }
 
 // isSemverCompatible checks if pinVersion is semver-compatible with requestedVersion
@@ -70,11 +76,20 @@ func extractMajorVersion(version string) int {
 //   - isSemverCompatible("v5.1.0", "v5.0.0") -> true
 //   - isSemverCompatible("v6.0.0", "v5") -> false
 func isSemverCompatible(pinVersion, requestedVersion string) bool {
-	pinMajor := extractMajorVersion(pinVersion)
-	requestedMajor := extractMajorVersion(requestedVersion)
+	// Ensure versions have 'v' prefix for semver package
+	if !strings.HasPrefix(pinVersion, "v") {
+		pinVersion = "v" + pinVersion
+	}
+	if !strings.HasPrefix(requestedVersion, "v") {
+		requestedVersion = "v" + requestedVersion
+	}
+
+	// Use semver.Major to get major version strings
+	pinMajor := semver.Major(pinVersion)
+	requestedMajor := semver.Major(requestedVersion)
 
 	compatible := pinMajor == requestedMajor
-	semverLog.Printf("Checking semver compatibility: pin=%s (major=%d), requested=%s (major=%d) -> %v",
+	semverLog.Printf("Checking semver compatibility: pin=%s (major=%s), requested=%s (major=%s) -> %v",
 		pinVersion, pinMajor, requestedVersion, requestedMajor, compatible)
 
 	return compatible
