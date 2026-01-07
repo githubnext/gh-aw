@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -19,8 +20,11 @@ var validationLog = logger.New("cli:run_workflow_validation")
 
 // IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)
 func IsRunnable(markdownPath string) (bool, error) {
+	// Sanitize the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(markdownPath)
+
 	// Read the file
-	contentBytes, err := os.ReadFile(markdownPath)
+	contentBytes, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return false, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -52,8 +56,11 @@ func IsRunnable(markdownPath string) (bool, error) {
 
 // getWorkflowInputs extracts workflow_dispatch inputs from the workflow markdown file
 func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinition, error) {
+	// Sanitize the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(markdownPath)
+
 	// Read the file
-	contentBytes, err := os.ReadFile(markdownPath)
+	contentBytes, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
