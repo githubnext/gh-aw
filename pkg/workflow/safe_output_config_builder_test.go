@@ -19,23 +19,23 @@ func TestBuildHandlerConfig(t *testing.T) {
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					Max: 5,
 				},
-				TitlePrefix:   "[AI] ",
-				Labels:        []string{"bug", "ai"},
-				AllowedLabels: []string{"bug", "feature"},
-				Assignees:     []string{"user1", "user2"},
+				TitlePrefix:    "[AI] ",
+				Labels:         []string{"bug", "ai"},
+				AllowedLabels:  []string{"bug", "feature"},
+				Assignees:      []string{"user1", "user2"},
 				TargetRepoSlug: "owner/repo",
-				AllowedRepos:  []string{"org/repo1", "org/repo2"},
-				Expires:       72,
+				AllowedRepos:   []string{"org/repo1", "org/repo2"},
+				Expires:        72,
 			},
 			expected: map[string]any{
-				"max":             int64(5),
-				"title_prefix":    "[AI] ",
-				"labels":          []any{"bug", "ai"},
-				"allowed_labels":  []any{"bug", "feature"},
-				"assignees":       []any{"user1", "user2"},
-				"target-repo":     "owner/repo",
-				"allowed_repos":   []any{"org/repo1", "org/repo2"},
-				"expires":         int64(72),
+				"max":            int64(5),
+				"title_prefix":   "[AI] ",
+				"labels":         []any{"bug", "ai"},
+				"allowed_labels": []any{"bug", "feature"},
+				"assignees":      []any{"user1", "user2"},
+				"target-repo":    "owner/repo",
+				"allowed_repos":  []any{"org/repo1", "org/repo2"},
+				"expires":        int64(72),
 			},
 		},
 		{
@@ -50,11 +50,11 @@ func TestBuildHandlerConfig(t *testing.T) {
 				AllowedRepos:      []string{"owner/repo2"},
 			},
 			expected: map[string]any{
-				"max":                  int64(3),
-				"target":               "issue",
-				"hide_older_comments":  true,
-				"target-repo":          "owner/repo",
-				"allowed_repos":        []any{"owner/repo2"},
+				"max":                 int64(3),
+				"target":              "issue",
+				"hide_older_comments": true,
+				"target-repo":         "owner/repo",
+				"allowed_repos":       []any{"owner/repo2"},
 			},
 		},
 		{
@@ -63,7 +63,7 @@ func TestBuildHandlerConfig(t *testing.T) {
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					Max: 0, // Should be omitted
 				},
-				TitlePrefix: "", // Should be omitted
+				TitlePrefix: "",         // Should be omitted
 				Labels:      []string{}, // Should be omitted
 			},
 			expected: map[string]any{},
@@ -106,10 +106,10 @@ func TestBuildHandlerConfig(t *testing.T) {
 				},
 			},
 			expected: map[string]any{
-				"max":                    int64(10),
-				"target":                 "issue",
-				"required_labels":        []any{"stale"},
-				"required_title_prefix":  "[OLD]",
+				"max":                   int64(10),
+				"target":                "issue",
+				"required_labels":       []any{"stale"},
+				"required_title_prefix": "[OLD]",
 			},
 		},
 		{
@@ -175,14 +175,14 @@ func TestBuildSafeOutputConfigs(t *testing.T) {
 			expectedKeys: []string{"create_issue", "add_comment", "add_labels"},
 			validateField: func(t *testing.T, config map[string]map[string]any) {
 				assert.Len(t, config, 3, "Should have 3 handlers")
-				
+
 				issueConfig := config["create_issue"]
 				assert.Equal(t, int64(5), issueConfig["max"])
-				
+
 				commentConfig := config["add_comment"]
 				assert.Equal(t, int64(3), commentConfig["max"])
 				assert.Equal(t, "issue", commentConfig["target"])
-				
+
 				labelConfig := config["add_labels"]
 				assert.Equal(t, []any{"bug", "feature"}, labelConfig["allowed"])
 			},
@@ -270,12 +270,12 @@ func TestBuildSafeOutputConfigs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := buildSafeOutputConfigs(tt.safeOutputs)
-			
+
 			// Check expected keys
 			for _, key := range tt.expectedKeys {
 				assert.Contains(t, result, key, "Should contain key %s", key)
 			}
-			
+
 			// Additional validation
 			if tt.validateField != nil {
 				tt.validateField(t, result)
