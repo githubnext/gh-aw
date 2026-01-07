@@ -590,6 +590,66 @@ Agentic Workfows that guard repositories through vulnerability scanning, secret 
 
 *Examples: [`Security compliance`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-compliance.md), [`firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md), [`daily secrets analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-secrets-analysis.md), [`ai-moderator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ai-moderator.md), [`security-fix-pr`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-fix-pr.md), [`static-analysis-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/static-analysis-report.md), [`daily-malicious-code-scan`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-malicious-code-scan.md)*
 
+---
+
+## Agentic Workflow Ops Patterns
+
+Beyond the 12 core behavioral patterns that define what agents do, our nursery revealed several strategic design patterns for how to structure and organize agentic workflows at scale, in the context of the GitHub information primitives. These patterns emerged from building and operating workflows and represent battle-tested approaches to common challenges.
+
+### [ChatOps](https://githubnext.github.io/gh-aw/examples/comment-triggered/chatops/): Command-Driven Interactions 💬
+
+These are workflows triggered by slash commands (`/review`, `/deploy`, `/fix`) in issue or PR comments. Creates an interactive conversation interface where team members can invoke powerful AI capabilities with simple commands.
+
+**Example**: [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) - Triggered by `/grumpy` on PR comments, performs critical code review with cache memory to avoid duplicate feedback.
+
+### [DailyOps](https://githubnext.github.io/gh-aw/examples/scheduled/dailyops/) 📅
+
+These are workflows that run on weekday schedules to make small, daily progress toward large goals. Instead of overwhelming teams with major changes, work happens automatically in manageable pieces that are easy to review and integrate.
+
+**Example**: [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) - Systematically identifies coverage gaps and implements new tests over multiple days with phased approval.
+
+### [IssueOps](https://githubnext.github.io/gh-aw/examples/issue-pr-events/issueops/): Event-Driven Issue Automation 🎫
+
+These are workflows that transform GitHub issues into automation triggers, automatically analyzing, categorizing, and responding to issues as they're created or updated. Uses safe outputs to ensure secure automated responses.
+
+**Example**: [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md) - Automatically labels and categorizes new issues with intelligent analysis.
+
+### [LabelOps](https://githubnext.github.io/gh-aw/examples/issue-pr-events/labelops/) 🏷️
+
+These are workflows that use GitHub labels as triggers, metadata, and state markers. Responds to specific label changes with filtering to activate only for relevant labels while maintaining secure automated responses.
+
+**Example**: Multiple workflows use label filtering for priority escalation and specialized routing based on issue categorization.
+
+### [ProjectOps](https://githubnext.github.io/gh-aw/examples/issue-pr-events/projectops/): AI-Powered Project Board Management 📊
+
+These are workflows that keep GitHub Projects v2 boards up to date using AI to analyze issues/PRs and intelligently decide routing, status, priority, and field values. Safe output architecture ensures security while automating project management.
+
+### [ResearchPlanAssign](https://githubnext.github.io/gh-aw/guides/researchplanassign/): Scaffolded Improvement Strategy 🔬
+
+This is a three-phase strategy that keeps developers in control while leveraging AI agents for systematic code improvements. Provides clear decision points at each phase: Research (investigate), Plan (break down work), Assign (execute).
+
+**Example Implementations from Nursery**:
+
+1. **Duplicate Code Detection → Plan → Refactor**: [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) uses Serena MCP for semantic analysis, creates well-scoped issues (max 3 per run), pre-assigns to `@copilot` since fixes are straightforward.
+
+2. **File Size Analysis → Plan → Refactor**: [`daily-file-diet`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md) monitors files exceeding healthy thresholds (1000+ lines), analyzes structure for split boundaries, creates refactoring issue with concrete plan.
+
+3. **Deep Research → Plan → Implementation**: [`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md) performs deep research using multiple MCPs (Tavily, arXiv, DeepWiki), creates structured summary. Developer uses `/plan` to convert recommendations into issues.
+
+### [MultiRepoOps](https://githubnext.github.io/gh-aw/guides/multirepoops/): Cross-Repository Coordination 🔗
+
+These are workflows that coordinate operations across multiple GitHub repositories using cross-repository safe outputs and secure authentication. Enables feature synchronization, hub-and-spoke tracking, organization-wide enforcement, and upstream/downstream workflows.
+
+### [SideRepoOps](https://githubnext.github.io/gh-aw/guides/siderepoops/): Isolated Automation Infrastructure 🏗️
+
+This pattern provides an easy way to get started with agentic workflows. Run workflows from a separate "side" repository that targets your main codebase, keeping AI-generated issues, comments, and workflow runs isolated from production code.
+
+### [TrialOps](https://githubnext.github.io/gh-aw/guides/trialops/): Safe Workflow Validation 🧪
+
+This is a specialized testing pattern that extends SideRepoOps for validating workflows in temporary trial repositories before production deployment. Creates isolated private repositories where workflows execute and capture safe outputs without affecting actual codebases.
+
+---
+
 ## Security Lessons
 
 Security is critical in agentic workflows. See the [security architecture](https://githubnext.github.io/gh-aw/introduction/architecture/) and [security guide](https://githubnext.github.io/gh-aw/guides/security/). Many of the security features of GitHub Agentic Workflows were born from lessons learned while building and running this nursery.
