@@ -23,7 +23,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# Effective stop-time: 2026-01-02 23:42:43
+# Effective stop-time: 2026-02-07 17:25:20
 
 name: "CI Failure Doctor"
 "on":
@@ -64,7 +64,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@3358877064a34dc532474a1d7280bcab7377779f # v0.9.2
+        uses: githubnext/gh-aw/actions/setup@7c6b2050d26967cd434f4e3a04f059c88f306fad # v0.9.2
         with:
           destination: /tmp/gh-aw/actions
       - name: Check workflow file timestamps
@@ -100,7 +100,7 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@3358877064a34dc532474a1d7280bcab7377779f # v0.9.2
+        uses: githubnext/gh-aw/actions/setup@7c6b2050d26967cd434f4e3a04f059c88f306fad # v0.9.2
         with:
           destination: /tmp/gh-aw/actions
       - name: Checkout repository
@@ -981,7 +981,7 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@3358877064a34dc532474a1d7280bcab7377779f # v0.9.2
+        uses: githubnext/gh-aw/actions/setup@7c6b2050d26967cd434f4e3a04f059c88f306fad # v0.9.2
         with:
           destination: /tmp/gh-aw/actions
       - name: Debug job inputs
@@ -1069,7 +1069,7 @@ jobs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@3358877064a34dc532474a1d7280bcab7377779f # v0.9.2
+        uses: githubnext/gh-aw/actions/setup@7c6b2050d26967cd434f4e3a04f059c88f306fad # v0.9.2
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent artifacts
@@ -1217,7 +1217,7 @@ jobs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_stop_time.outputs.stop_time_ok == 'true') }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@3358877064a34dc532474a1d7280bcab7377779f # v0.9.2
+        uses: githubnext/gh-aw/actions/setup@7c6b2050d26967cd434f4e3a04f059c88f306fad # v0.9.2
         with:
           destination: /tmp/gh-aw/actions
       - name: Check team membership for workflow
@@ -1236,7 +1236,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_STOP_TIME: 2026-01-02 23:42:43
+          GH_AW_STOP_TIME: 2026-02-07 17:25:20
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
         with:
           script: |
@@ -1269,7 +1269,7 @@ jobs:
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@3358877064a34dc532474a1d7280bcab7377779f # v0.9.2
+        uses: githubnext/gh-aw/actions/setup@7c6b2050d26967cd434f4e3a04f059c88f306fad # v0.9.2
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
@@ -1306,7 +1306,7 @@ jobs:
     permissions: {}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@3358877064a34dc532474a1d7280bcab7377779f # v0.9.2
+        uses: githubnext/gh-aw/actions/setup@7c6b2050d26967cd434f4e3a04f059c88f306fad # v0.9.2
         with:
           destination: /tmp/gh-aw/actions
       - name: Download cache-memory artifact (default)

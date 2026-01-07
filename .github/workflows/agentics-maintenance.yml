@@ -44,15 +44,8 @@ jobs:
     permissions:
       discussions: write
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: githubnext/gh-aw/actions/setup@c66e9a5ba-dirty
         with:
           destination: /tmp/gh-aw/actions
 
@@ -70,15 +63,8 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-
       - name: Setup Scripts
-        uses: ./actions/setup
+        uses: githubnext/gh-aw/actions/setup@c66e9a5ba-dirty
         with:
           destination: /tmp/gh-aw/actions
 
