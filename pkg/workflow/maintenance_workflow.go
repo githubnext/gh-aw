@@ -204,10 +204,32 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+`)
 
+	// Checkout step - different behavior based on mode
+	if actionMode == ActionModeDev {
+		// Dev mode: checkout entire repository (no sparse checkout, but no credentials)
+		yaml.WriteString(`      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+`)
+	} else {
+		// Release mode: sparse checkout of .github folder only
+		yaml.WriteString(`      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            .github
+          persist-credentials: false
+
+`)
+	}
+
+	yaml.WriteString(`
       - name: Setup Go
         uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
@@ -222,17 +244,19 @@ jobs:
           ./gh-aw compile --validate --verbose
           echo "✓ All workflows compiled successfully"
 
-      - name: Check for out-of-sync workflows
-        run: |
-          if git diff --exit-code .github/workflows/*.lock.yml; then
-            echo "✓ All workflow lock files are up to date"
-          else
-            echo "::error::Some workflow lock files are out of sync. Run 'make recompile' locally."
-            echo "::group::Diff of out-of-sync files"
-            git diff .github/workflows/*.lock.yml
-            echo "::endgroup::"
-            exit 1
-          fi
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: /tmp/gh-aw/actions
+
+      - name: Check for out-of-sync workflows and create issue if needed
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/check_workflow_recompile_needed.cjs');
+            await main();
 
   zizmor-scan:
     runs-on: ubuntu-latest
