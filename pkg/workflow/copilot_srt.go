@@ -248,7 +248,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');",
 		"            setupGlobals(core, github, context, exec, io);",
 		// Load firewall log parser script from external file using require()
-		"            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');",
+		"            const { main } = require('/opt/gh-aw/actions/parse_firewall_logs.cjs');",
 		"            await main();",
 	}
 

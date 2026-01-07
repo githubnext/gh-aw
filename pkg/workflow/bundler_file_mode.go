@@ -9,7 +9,7 @@
 // # How it works
 //
 // 1. CollectScriptFiles - Recursively collects all JavaScript files used by a script
-// 2. GenerateWriteScriptsStep - Creates a step that writes all files to /tmp/gh-aw/scripts/
+// 2. GenerateWriteScriptsStep - Creates a step that writes all files to /opt/gh-aw/scripts/
 // 3. GenerateRequireScript - Converts a script to require from the local filesystem
 //
 // # Benefits
@@ -35,10 +35,10 @@ import (
 var fileModeLog = logger.New("workflow:bundler_file_mode")
 
 // ScriptsBasePath is the directory where JavaScript files are written at runtime
-const ScriptsBasePath = "/tmp/gh-aw/scripts"
+const ScriptsBasePath = "/opt/gh-aw/scripts"
 
 // SetupActionDestination is the directory where the setup action writes activation scripts
-const SetupActionDestination = "/tmp/gh-aw/actions"
+const SetupActionDestination = "/opt/gh-aw/actions"
 
 // ScriptFile represents a JavaScript file to be written to disk
 type ScriptFile struct {
@@ -257,7 +257,7 @@ func patchTopLevelAwaitForFileMode(content string) string {
 }
 
 // GenerateWriteScriptsStep generates the YAML for a step that writes all collected
-// JavaScript files to /tmp/gh-aw/scripts/. This step should be added once at the
+// JavaScript files to /opt/gh-aw/scripts/. This step should be added once at the
 // beginning of the safe_outputs job.
 //
 // The generated step uses a heredoc to write each file efficiently.
@@ -333,7 +333,7 @@ globalThis.io = io;
 // This function:
 // 1. Adds a preamble to expose github-script globals (github, context, core, exec, io) on globalThis
 // 2. Gets the script content from the registry
-// 3. Transforms relative require() calls to absolute paths (e.g., './helper.cjs' -> '/tmp/gh-aw/scripts/helper.cjs')
+// 3. Transforms relative require() calls to absolute paths (e.g., './helper.cjs' -> '/opt/gh-aw/scripts/helper.cjs')
 // 4. Patches top-level await patterns to work in the execution context
 //
 // This is different from GenerateRequireScript which just generates a require() call.
@@ -350,7 +350,7 @@ func GetInlinedScriptForFileMode(scriptName string) (string, error) {
 		return "", fmt.Errorf("script not found in registry: %s", scriptName)
 	}
 
-	// Transform relative requires to absolute paths pointing to /tmp/gh-aw/scripts/
+	// Transform relative requires to absolute paths pointing to /opt/gh-aw/scripts/
 	transformed := TransformRequiresToAbsolutePath(content, ScriptsBasePath)
 
 	// Patch top-level await patterns
@@ -373,7 +373,7 @@ func GetInlinedScriptForFileMode(scriptName string) (string, error) {
 //
 // Into:
 //
-//	const { helper } = require('/tmp/gh-aw/scripts/helper.cjs');
+//	const { helper } = require('/opt/gh-aw/scripts/helper.cjs');
 func RewriteScriptForFileMode(content string, currentPath string) string {
 	// Regular expression to match local require statements
 	requireRegex := regexp.MustCompile(`require\(['"](\.\.?/)([^'"]+)['"]\)`)
@@ -425,7 +425,7 @@ func RewriteScriptForFileMode(content string, currentPath string) string {
 //
 // Parameters:
 //   - content: The JavaScript content to transform
-//   - basePath: The absolute path to use for requires (e.g., "/tmp/gh-aw/safeoutputs")
+//   - basePath: The absolute path to use for requires (e.g., "/opt/gh-aw/safeoutputs")
 func TransformRequiresToAbsolutePath(content string, basePath string) string {
 	// Regular expression to match local require statements
 	requireRegex := regexp.MustCompile(`require\(['"](\.\.?/)([^'"]+)['"]\)`)

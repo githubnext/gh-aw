@@ -239,7 +239,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		yaml,
 		constants.SafeOutputsMCPServerID,
 		"node",
-		[]string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
+		[]string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
 		envVars,
 		isLast,
 		includeCopilotFields,
@@ -307,7 +307,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
 	yaml.WriteString("          command = \"node\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
+	yaml.WriteString("            \"/opt/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
 	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
