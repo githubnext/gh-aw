@@ -632,19 +632,39 @@ jobs:
 
       - name: Run fuzz tests
         run: |
-          go test -run='^$' -fuzz=FuzzParseFrontmatter -fuzztime=10s ./pkg/parser/
-          go test -run='^$' -fuzz=FuzzScheduleParser -fuzztime=10s ./pkg/parser/
-          go test -run='^$' -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzMentionsFiltering -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzSanitizeOutput -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzSanitizeIncomingText -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzSanitizeLabelContent -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzWrapExpressionsInTemplateConditionals -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzYAMLParsing -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzTemplateRendering -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzInputValidation -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzNetworkPermissions -fuzztime=10s ./pkg/workflow/
-          go test -run='^$' -fuzz=FuzzSafeJobConfig -fuzztime=10s ./pkg/workflow/
+          # Create directory for fuzz results
+          mkdir -p fuzz-results
+          
+          # Run fuzz tests and capture output
+          go test -run='^$' -fuzz=FuzzParseFrontmatter -fuzztime=10s ./pkg/parser/ 2>&1 | tee fuzz-results/FuzzParseFrontmatter.txt
+          go test -run='^$' -fuzz=FuzzScheduleParser -fuzztime=10s ./pkg/parser/ 2>&1 | tee fuzz-results/FuzzScheduleParser.txt
+          go test -run='^$' -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzExpressionParser.txt
+          go test -run='^$' -fuzz=FuzzMentionsFiltering -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzMentionsFiltering.txt
+          go test -run='^$' -fuzz=FuzzSanitizeOutput -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzSanitizeOutput.txt
+          go test -run='^$' -fuzz=FuzzSanitizeIncomingText -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzSanitizeIncomingText.txt
+          go test -run='^$' -fuzz=FuzzSanitizeLabelContent -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzSanitizeLabelContent.txt
+          go test -run='^$' -fuzz=FuzzWrapExpressionsInTemplateConditionals -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzWrapExpressionsInTemplateConditionals.txt
+          go test -run='^$' -fuzz=FuzzYAMLParsing -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzYAMLParsing.txt
+          go test -run='^$' -fuzz=FuzzTemplateRendering -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzTemplateRendering.txt
+          go test -run='^$' -fuzz=FuzzInputValidation -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzInputValidation.txt
+          go test -run='^$' -fuzz=FuzzNetworkPermissions -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzNetworkPermissions.txt
+          go test -run='^$' -fuzz=FuzzSafeJobConfig -fuzztime=10s ./pkg/workflow/ 2>&1 | tee fuzz-results/FuzzSafeJobConfig.txt
+          
+          # Copy fuzz corpus data (testdata/fuzz directories)
+          echo "Copying fuzz corpus data..."
+          find ./pkg -path "*/testdata/fuzz" -type d | while read -r dir; do
+            pkg_name=$(echo "$dir" | sed 's|^\./pkg/||' | sed 's|/testdata/fuzz$||')
+            echo "Copying corpus from $dir to fuzz-results/corpus/$pkg_name/"
+            mkdir -p "fuzz-results/corpus/$pkg_name"
+            cp -r "$dir"/* "fuzz-results/corpus/$pkg_name/" 2>/dev/null || echo "No corpus data in $dir"
+          done
+
+      - name: Upload fuzz test results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fuzz-results
+          path: fuzz-results/
+          retention-days: 14
 
   security:
     runs-on: ubuntu-latest
