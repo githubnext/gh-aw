@@ -788,7 +788,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 ### AI Engine & Integration
 - **[copilot-cli](skills/copilot-cli/SKILL.md)** - GitHub Copilot CLI integration for agentic workflows
 - **[custom-agents](skills/custom-agents/SKILL.md)** - GitHub custom agent file format
-- **[gh-agent-task](skills/gh-agent-task/SKILL.md)** - GitHub CLI agent task extension
+- **[gh-agent-session](skills/gh-agent-session/SKILL.md)** - GitHub CLI agent session extension
 
 ### Safe Outputs & Features
 - **[temporary-id-safe-output](skills/temporary-id-safe-output/SKILL.md)** - Adding temporary ID support to safe output jobs

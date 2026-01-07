@@ -25,7 +25,7 @@ The codebase exhibits several well-organized patterns that should be emulated:
 - `create_pull_request.go` - Pull request creation logic
 - `create_discussion.go` - Discussion creation logic
 - `create_code_scanning_alert.go` - Code scanning alert creation
-- `create_agent_task.go` - Agent task creation logic
+- `create_agent_task.go` - Agent session creation logic
 - `create_pr_review_comment.go` - PR review comment creation
 
 **Why it works**:

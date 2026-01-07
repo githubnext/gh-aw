@@ -64,7 +64,7 @@ Most safe output types support cross-repository operations. Exceptions are noted
 ### Security & Agent Tasks
 
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) — Generate SARIF security advisories (max: unlimited, same-repo only)
-- [**Create Agent Task**](#agent-task-creation-create-agent-task) (`create-agent-task`) — Create Copilot agent tasks (max: 1)
+- [**Create Agent Session**](#agent-task-creation-create-agent-session) (`create-agent-session`) — Create Copilot agent sessions (max: 1)
 
 ### System Types (Auto-Enabled)
 
@@ -585,9 +585,9 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
 
-### Agent Task Creation (`create-agent-task:`)
+### Agent Session Creation (`create-agent-session:`)
 
-Creates Copilot agent tasks. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` PAT—default `GITHUB_TOKEN` lacks permissions.
+Creates Copilot agent sessions. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` PAT—default `GITHUB_TOKEN` lacks permissions.
 
 ### Assign to Agent (`assign-to-agent:`)
 

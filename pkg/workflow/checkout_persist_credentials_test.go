@@ -108,7 +108,7 @@ strict: false
 			description: "Upload assets job checkout should include persist-credentials: false",
 		},
 		{
-			name: "safe output create-agent-task checkout includes persist-credentials false",
+			name: "safe output create-agent-session checkout includes persist-credentials false",
 			frontmatter: `---
 on:
   issues:
@@ -119,11 +119,11 @@ permissions:
   issues: read
   pull-requests: read
 safe-outputs:
-  create-agent-task:
+  create-agent-session:
 engine: claude
 strict: false
 ---`,
-			description: "Create agent task job checkout should include persist-credentials: false",
+			description: "Create agent session job checkout should include persist-credentials: false",
 		},
 	}
 
