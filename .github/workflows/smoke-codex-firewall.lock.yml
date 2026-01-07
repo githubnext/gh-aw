@@ -70,16 +70,16 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_WORKFLOW_FILE: "smoke-codex-firewall.lock.yml"
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
       - name: Add rocket reaction to the triggering item
         id: react
@@ -91,9 +91,9 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔥 *Firewall tested by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔒 Initiating firewall smoke test... [{workflow_name}]({run_url}) is validating network sandboxing for {event_type}...\",\"runSuccess\":\"✅ Firewall validation complete... [{workflow_name}]({run_url}) confirmed network sandboxing is operational. 🛡️\",\"runFailure\":\"❌ Firewall validation failed... [{workflow_name}]({run_url}) {status}. Network sandboxing may not be working correctly.\"}"
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/add_reaction_and_edit_comment.cjs');
+            const { main } = require('/opt/gh-aw/actions/add_reaction_and_edit_comment.cjs');
             await main();
 
   agent:
@@ -105,9 +105,9 @@ jobs:
       pull-requests: read
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
-      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
-      GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /tmp/gh-aw/safeoutputs/tools.json
+      GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
+      GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ steps.generate_aw_info.outputs.model }}
@@ -123,13 +123,13 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
-        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
+        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -150,12 +150,12 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
-        run: /tmp/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -180,18 +180,18 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');
+            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0
       - name: Write Safe Outputs Config
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs
+          mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
+          cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
           {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-codex-firewall"],"max":3},"create_issue":{"max":1},"hide_comment":{"max":5},"missing_tool":{},"noop":{"max":1}}
           EOF
-          cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
+          cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
               "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
@@ -352,7 +352,7 @@ jobs:
             }
           ]
           EOF
-          cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
+          cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
             "add_comment": {
               "defaultMax": 1,
@@ -488,7 +488,7 @@ jobs:
           [mcp_servers.safeoutputs]
           command = "node"
           args = [
-            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
+            "/opt/gh-aw/safeoutputs/mcp-server.cjs",
           ]
           env_vars = ["GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]
           EOF
@@ -540,7 +540,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { generateWorkflowOverview } = require('/tmp/gh-aw/actions/generate_workflow_overview.cjs');
+            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
       - name: Create prompt
         env:
@@ -549,7 +549,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
-          bash /tmp/gh-aw/actions/create_prompt_first.sh
+          bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Smoke Test: Codex Engine with AWF Firewall
           
@@ -584,7 +584,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
-            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function
             return await substitutePlaceholders({
@@ -679,7 +679,7 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
-            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function
             return await substitutePlaceholders({
@@ -703,14 +703,14 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/interpolate_prompt.cjs');
+            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');
             await main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
+        run: bash /opt/gh-aw/actions/print_prompt_summary.sh
       - name: Run Codex
         run: |
           set -o pipefail
@@ -736,9 +736,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/redact_secrets.cjs');
+            const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
           GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
@@ -764,9 +764,9 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/collect_ndjson_output.cjs');
+            const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
@@ -790,18 +790,18 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/parse_codex_log.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_codex_log.cjs');
             await main();
       - name: Parse firewall logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_firewall_logs.cjs');
             await main();
       - name: Validate agent logs for errors
         if: always()
@@ -811,9 +811,9 @@ jobs:
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(ERROR)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(WARN|WARNING)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');
+            const { main } = require('/opt/gh-aw/actions/validate_errors.cjs');
             await main();
       - name: Upload agent artifacts
         if: always()
@@ -856,7 +856,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -873,12 +873,12 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
+          path: /opt/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+          mkdir -p /opt/gh-aw/safeoutputs/
+          find "/opt/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Process No-Op Messages
         id: noop
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -889,9 +889,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/noop.cjs');
+            const { main } = require('/opt/gh-aw/actions/noop.cjs');
             await main();
       - name: Record Missing Tool
         id: missing_tool
@@ -902,9 +902,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
+            const { main } = require('/opt/gh-aw/actions/missing_tool.cjs');
             await main();
       - name: Update reaction comment with completion status
         id: conclusion
@@ -921,9 +921,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/notify_comment_error.cjs');
+            const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
   detection:
@@ -944,7 +944,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
       - name: Download agent artifacts
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -970,9 +970,9 @@ jobs:
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/setup_threat_detection.cjs');
+            const { main } = require('/opt/gh-aw/actions/setup_threat_detection.cjs');
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
@@ -1021,7 +1021,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
-        run: /tmp/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -1054,9 +1054,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/parse_threat_detection_results.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_threat_detection_results.cjs');
             await main();
       - name: Upload threat detection log
         if: always()
@@ -1085,7 +1085,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1094,9 +1094,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
 
   safe_outputs:
@@ -1129,18 +1129,18 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
+          path: /opt/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+          mkdir -p /opt/gh-aw/safeoutputs/
+          find "/opt/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1150,8 +1150,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/safe_output_handler_manager.cjs');
+            const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
 

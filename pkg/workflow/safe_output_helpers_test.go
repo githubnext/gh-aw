@@ -706,7 +706,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"path: /tmp/gh-aw/safeoutputs/",
 		"- name: Setup agent output environment variable",
 		"mkdir -p /tmp/gh-aw/safeoutputs/",
-		"find \"/tmp/gh-aw/safeoutputs/\" -type f -print",
+		"find \"/opt/gh-aw/safeoutputs/\" -type f -print",
 		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json",
 	}
 
@@ -718,7 +718,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 
 	// Verify mkdir comes before find to ensure directory exists
 	mkdirIdx := strings.Index(stepsStr, "mkdir -p /tmp/gh-aw/safeoutputs/")
-	findIdx := strings.Index(stepsStr, "find \"/tmp/gh-aw/safeoutputs/\"")
+	findIdx := strings.Index(stepsStr, "find \"/opt/gh-aw/safeoutputs/\"")
 
 	if mkdirIdx == -1 {
 		t.Fatal("mkdir command not found in steps")

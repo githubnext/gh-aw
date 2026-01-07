@@ -135,7 +135,7 @@ func TestGenerateWriteScriptsStep(t *testing.T) {
 func TestGenerateRequireScript(t *testing.T) {
 	script := GenerateRequireScript("create_issue.cjs")
 
-	if !strings.Contains(script, "/tmp/gh-aw/scripts/create_issue.cjs") {
+	if !strings.Contains(script, "/opt/gh-aw/scripts/create_issue.cjs") {
 		t.Errorf("Expected script to require from /tmp/gh-aw/scripts/, got: %s", script)
 	}
 
@@ -165,19 +165,19 @@ func TestRewriteScriptForFileMode(t *testing.T) {
 			name:        "simple relative require",
 			content:     "const { helper } = require('./helper.cjs');",
 			currentPath: "main.cjs",
-			wantContain: "/tmp/gh-aw/scripts/helper.cjs",
+			wantContain: "/opt/gh-aw/scripts/helper.cjs",
 		},
 		{
 			name:        "nested relative require",
 			content:     "const { util } = require('./utils/util.cjs');",
 			currentPath: "main.cjs",
-			wantContain: "/tmp/gh-aw/scripts/utils/util.cjs",
+			wantContain: "/opt/gh-aw/scripts/utils/util.cjs",
 		},
 		{
 			name:        "parent directory require",
 			content:     "const { shared } = require('../shared.cjs');",
 			currentPath: "utils/util.cjs",
-			wantContain: "/tmp/gh-aw/scripts/shared.cjs",
+			wantContain: "/opt/gh-aw/scripts/shared.cjs",
 		},
 	}
 
@@ -212,7 +212,7 @@ func TestPrepareFilesForFileMode(t *testing.T) {
 
 	// Check that require paths are rewritten
 	mainFile := prepared[0]
-	if !strings.Contains(mainFile.Content, "/tmp/gh-aw/scripts/helper.cjs") {
+	if !strings.Contains(mainFile.Content, "/opt/gh-aw/scripts/helper.cjs") {
 		t.Errorf("Expected main file to have rewritten require path, got: %s", mainFile.Content)
 	}
 
