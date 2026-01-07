@@ -119,16 +119,26 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 	return jobs, nil
 }
 
+// ListWorkflowRunsOptions holds the options for listWorkflowRunsWithPagination
+type ListWorkflowRunsOptions struct {
+	WorkflowName   string // filter by specific workflow (if empty, fetches all agentic workflows)
+	Limit          int    // maximum number of runs to fetch in this API call (batch size)
+	StartDate      string // filter by creation date (>=)
+	EndDate        string // filter by creation date (<=)
+	BeforeDate     string // used for pagination (fetch runs created before this date)
+	Ref            string // filter by branch or tag name
+	BeforeRunID    int64  // filter by run database ID (< this ID)
+	AfterRunID     int64  // filter by run database ID (> this ID)
+	RepoOverride   string // fetch from a specific repository instead of current
+	ProcessedCount int    // number of runs already processed (for progress display)
+	TargetCount    int    // target number of runs to fetch (for progress display)
+	Verbose        bool   // enable verbose logging
+}
+
 // listWorkflowRunsWithPagination fetches workflow runs from GitHub Actions using the GitHub CLI.
 //
-// This function retrieves workflow runs with pagination support and applies various filters:
-//   - workflowName: filter by specific workflow (if empty, fetches all agentic workflows)
-//   - limit: maximum number of runs to fetch in this API call (batch size)
-//   - startDate/endDate: filter by creation date range
-//   - beforeDate: used for pagination (fetch runs created before this date)
-//   - ref: filter by branch or tag name
-//   - beforeRunID/afterRunID: filter by run database ID range
-//   - repoOverride: fetch from a specific repository instead of current
+// This function retrieves workflow runs with pagination support and applies various filters
+// as specified in the ListWorkflowRunsOptions.
 //
 // Returns:
 //   - []WorkflowRun: filtered list of workflow runs
@@ -142,44 +152,44 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 // not the total number of matching runs the user wants to find.
 //
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
-func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, ref string, beforeRunID, afterRunID int64, repoOverride string, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
-	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", workflowName, limit, startDate, endDate, ref)
+func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", opts.WorkflowName, opts.Limit, opts.StartDate, opts.EndDate, opts.Ref)
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
-	if workflowName != "" {
-		args = append(args, "--workflow", workflowName)
+	if opts.WorkflowName != "" {
+		args = append(args, "--workflow", opts.WorkflowName)
 	}
-	if limit > 0 {
-		args = append(args, "--limit", strconv.Itoa(limit))
+	if opts.Limit > 0 {
+		args = append(args, "--limit", strconv.Itoa(opts.Limit))
 	}
-	if startDate != "" {
-		args = append(args, "--created", ">="+startDate)
+	if opts.StartDate != "" {
+		args = append(args, "--created", ">="+opts.StartDate)
 	}
-	if endDate != "" {
-		args = append(args, "--created", "<="+endDate)
+	if opts.EndDate != "" {
+		args = append(args, "--created", "<="+opts.EndDate)
 	}
 	// Add beforeDate filter for pagination
-	if beforeDate != "" {
-		args = append(args, "--created", "<"+beforeDate)
+	if opts.BeforeDate != "" {
+		args = append(args, "--created", "<"+opts.BeforeDate)
 	}
 	// Add ref filter (uses --branch flag which also works for tags)
-	if ref != "" {
-		args = append(args, "--branch", ref)
+	if opts.Ref != "" {
+		args = append(args, "--branch", opts.Ref)
 	}
 	// Add repo filter
-	if repoOverride != "" {
-		args = append(args, "--repo", repoOverride)
+	if opts.RepoOverride != "" {
+		args = append(args, "--repo", opts.RepoOverride)
 	}
 
-	if verbose {
+	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
 	}
 
 	// Start spinner for network operation
-	spinnerMsg := fmt.Sprintf("Fetching workflow runs from GitHub... (%d / %d)", processedCount, targetCount)
+	spinnerMsg := fmt.Sprintf("Fetching workflow runs from GitHub... (%d / %d)", opts.ProcessedCount, opts.TargetCount)
 	spinner := console.NewSpinner(spinnerMsg)
-	if !verbose {
+	if !opts.Verbose {
 		spinner.Start()
 	}
 
@@ -188,7 +198,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 
 	if err != nil {
 		// Stop spinner on error
-		if !verbose {
+		if !opts.Verbose {
 			spinner.Stop()
 		}
 
@@ -206,7 +216,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		errMsg := err.Error()
 		outputMsg := string(output)
 		combinedMsg := errMsg + " " + outputMsg
-		if verbose {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(outputMsg))
 		}
 
@@ -238,14 +248,14 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	var runs []WorkflowRun
 	if err := json.Unmarshal(output, &runs); err != nil {
 		// Stop spinner on parse error
-		if !verbose {
+		if !opts.Verbose {
 			spinner.Stop()
 		}
 		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
 	}
 
 	// Stop spinner silently - don't show per-iteration messages
-	if !verbose {
+	if !opts.Verbose {
 		spinner.Stop()
 	}
 
@@ -255,10 +265,10 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	// Filter only agentic workflow runs when no specific workflow is specified
 	// If a workflow name was specified, we already filtered by it in the API call
 	var agenticRuns []WorkflowRun
-	if workflowName == "" {
+	if opts.WorkflowName == "" {
 		// No specific workflow requested, filter to only agentic workflows
 		// Get the list of agentic workflow names from .lock.yml files
-		agenticWorkflowNames, err := getAgenticWorkflowNames(verbose)
+		agenticWorkflowNames, err := getAgenticWorkflowNames(opts.Verbose)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to get agentic workflow names: %w", err)
 		}
@@ -274,15 +284,15 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	}
 
 	// Apply run ID filtering if specified
-	if beforeRunID > 0 || afterRunID > 0 {
+	if opts.BeforeRunID > 0 || opts.AfterRunID > 0 {
 		var filteredRuns []WorkflowRun
 		for _, run := range agenticRuns {
 			// Apply before-run-id filter (exclusive)
-			if beforeRunID > 0 && run.DatabaseID >= beforeRunID {
+			if opts.BeforeRunID > 0 && run.DatabaseID >= opts.BeforeRunID {
 				continue
 			}
 			// Apply after-run-id filter (exclusive)
-			if afterRunID > 0 && run.DatabaseID <= afterRunID {
+			if opts.AfterRunID > 0 && run.DatabaseID <= opts.AfterRunID {
 				continue
 			}
 			filteredRuns = append(filteredRuns, run)

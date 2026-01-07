@@ -345,7 +345,14 @@ func TestListWorkflowRunsWithPagination(t *testing.T) {
 
 	// This should fail with authentication error (if not authenticated)
 	// or succeed with empty results (if authenticated but no workflows match)
-	runs, _, err := listWorkflowRunsWithPagination("nonexistent-workflow", 5, "", "", "2024-01-01T00:00:00Z", "", 0, 0, "", 0, 5, false)
+	runs, _, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
+		WorkflowName:   "nonexistent-workflow",
+		Limit:          5,
+		BeforeDate:     "2024-01-01T00:00:00Z",
+		ProcessedCount: 0,
+		TargetCount:    5,
+		Verbose:        false,
+	})
 
 	if err != nil {
 		// If there's an error, it should be an authentication error or workflow not found
