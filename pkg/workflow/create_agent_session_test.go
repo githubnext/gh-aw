@@ -133,12 +133,12 @@ func TestBuildCreateOutputAgentTaskJob(t *testing.T) {
 		t.Errorf("buildCreateOutputAgentSessionJob().Outputs length = %v, want 2", len(job.Outputs))
 	}
 
-	if _, ok := job.Outputs["task_number"]; !ok {
-		t.Error("buildCreateOutputAgentSessionJob().Outputs missing 'task_number'")
+	if _, ok := job.Outputs["session_number"]; !ok {
+		t.Error("buildCreateOutputAgentSessionJob().Outputs missing 'session_number'")
 	}
 
-	if _, ok := job.Outputs["task_url"]; !ok {
-		t.Error("buildCreateOutputAgentSessionJob().Outputs missing 'task_url'")
+	if _, ok := job.Outputs["session_url"]; !ok {
+		t.Error("buildCreateOutputAgentSessionJob().Outputs missing 'session_url'")
 	}
 
 	if len(job.Steps) == 0 {
