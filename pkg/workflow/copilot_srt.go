@@ -231,25 +231,16 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary.
 func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
-	// Get the firewall log parser script
-	parserScript := GetLogParserScript("parse_firewall_logs")
-	if parserScript == "" {
-		// Return empty step if parser script not found
-		return GitHubActionStep([]string{})
-	}
+	// Firewall logs are at a known location in the sandbox folder structure
+	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs"
 
 	stepLines := []string{
-		"      - name: Parse firewall logs for step summary",
+		"      - name: Firewall summary",
 		"        if: always()",
-		"        uses: " + GetActionPin("actions/github-script"),
-		"        with:",
-		"          script: |",
-		// Use the setup_globals helper to store GitHub Actions objects in global scope
-		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');",
-		"            setupGlobals(core, github, context, exec, io);",
-		// Load firewall log parser script from external file using require()
-		"            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');",
-		"            await main();",
+		"        continue-on-error: true",
+		"        env:",
+		fmt.Sprintf("          AWF_LOGS_DIR: %s", firewallLogsDir),
+		"        run: awf logs summary >> $GITHUB_STEP_SUMMARY",
 	}
 
 	return GitHubActionStep(stepLines)
