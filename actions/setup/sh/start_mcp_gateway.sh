@@ -114,10 +114,21 @@ if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   exit 1
 fi
 
-# Use gateway output as the new MCP configuration
-echo "Updating MCP configuration with gateway output:"
-cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
-cat /home/runner/.copilot/mcp-config.json
+# Convert gateway output to agent-specific format
+echo "Converting gateway configuration to agent format..."
+export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json
+
+# Determine which agent-specific converter to use
+# Currently only Copilot is supported, but this can be extended
+if [ -n "$GITHUB_COPILOT_CLI_MODE" ] || [ -f "/home/runner/.copilot" ]; then
+  # Use Copilot converter
+  bash /tmp/gh-aw/actions/convert_gateway_config_copilot.sh
+else
+  # Default: just copy the gateway output as-is
+  echo "No agent-specific converter found, using gateway output directly"
+  cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+  cat /home/runner/.copilot/mcp-config.json
+fi
 echo ""
 
 echo "MCP gateway is running on http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
