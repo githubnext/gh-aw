@@ -6,6 +6,9 @@ on:
 permissions:
   contents: read
   issues: read
+engine:
+  id: copilot
+  model: gpt-5-mini
 tools:
   github:
     mode: remote
