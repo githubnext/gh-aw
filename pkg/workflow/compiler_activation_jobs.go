@@ -694,14 +694,15 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.SafeOutputs != nil {
 		env = make(map[string]string)
 
-		// Set GH_AW_SAFE_OUTPUTS to fixed path
-		env["GH_AW_SAFE_OUTPUTS"] = "/opt/gh-aw/safeoutputs/outputs.jsonl"
+		// Set GH_AW_SAFE_OUTPUTS to writable path in /tmp
+		// The MCP server writes agent outputs to this file during execution
+		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
 		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
 
-		// Set config and tools paths (files are written to these paths)
+		// Set config and tools paths (readonly files in /opt/gh-aw)
 		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "/opt/gh-aw/safeoutputs/config.json"
 		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "/opt/gh-aw/safeoutputs/tools.json"
 

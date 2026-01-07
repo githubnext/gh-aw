@@ -253,6 +253,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("      - name: Write Safe Outputs Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /opt/gh-aw/safeoutputs\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs\n")
 
 		// Write the safe-outputs configuration to config.json
