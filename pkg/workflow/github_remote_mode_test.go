@@ -29,6 +29,8 @@ on: issues
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -47,6 +49,8 @@ on: issues
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -85,6 +89,8 @@ on: issues
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -102,6 +108,8 @@ on: issues
 permissions:
   issues: write
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -139,6 +147,8 @@ on: issues
 permissions:
   issues: write
 engine: codex
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -158,6 +168,8 @@ on: issues
 permissions:
   issues: write
 engine: codex
+features:
+  dangerous-permissions-write: true
 strict: false
 tools:
   github:

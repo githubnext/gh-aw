@@ -62,7 +62,15 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	}
 
 	// Finalize metrics using shared helper
-	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, totalTokenUsage, logContent, e.GetErrorPatterns())
+	FinalizeToolMetrics(FinalizeToolMetricsOptions{
+		Metrics:         &metrics,
+		ToolCallMap:     toolCallMap,
+		CurrentSequence: currentSequence,
+		Turns:           turns,
+		TokenUsage:      totalTokenUsage,
+		LogContent:      logContent,
+		ErrorPatterns:   e.GetErrorPatterns(),
+	})
 
 	codexLogsLog.Printf("Parsed Codex metrics: turns=%d, token_usage=%d, tool_calls=%d, errors=%d",
 		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls), len(metrics.Errors))

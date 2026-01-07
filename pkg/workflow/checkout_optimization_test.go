@@ -44,6 +44,8 @@ tools:
   github:
     toolsets: [issues, pull_requests]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: false,
@@ -63,6 +65,8 @@ tools:
   github:
     toolsets: [repos, issues, pull_requests]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: true,
@@ -82,6 +86,8 @@ tools:
   github:
     toolsets: [repos, issues, pull_requests]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: true,
@@ -110,6 +116,8 @@ on:
   issues:
     types: [opened]
 permissions: write-all
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]
@@ -140,6 +148,8 @@ tools:
   github:
     toolsets: [issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: false,
@@ -166,6 +176,8 @@ tools:
   github:
     toolsets: [issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: true,
@@ -191,6 +203,8 @@ tools:
   github:
     toolsets: [issues, pull_requests]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: false,

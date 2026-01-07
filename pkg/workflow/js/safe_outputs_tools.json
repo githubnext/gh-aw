@@ -40,8 +40,8 @@
     }
   },
   {
-    "name": "create_agent_task",
-    "description": "Create a GitHub Copilot agent task to delegate coding work. Use this when you need another Copilot agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead.",
+    "name": "create_agent_session",
+    "description": "Create a GitHub Copilot agent session to delegate coding work. Use this when you need another Copilot agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead.",
     "inputSchema": {
       "type": "object",
       "required": [

@@ -347,7 +347,7 @@ func TestRepoMemoryBranchNameGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			branchName := generateDefaultBranchName(tt.memoryID)
+			branchName := generateDefaultBranchName(tt.memoryID, "memory")
 			assert.Equal(t, tt.expectedBranchName, branchName,
 				"Generated branch name should match expected pattern")
 		})

@@ -27,6 +27,8 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 

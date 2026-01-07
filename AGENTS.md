@@ -772,6 +772,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 - **[console-rendering](skills/console-rendering/SKILL.md)** - Struct tag-based console rendering system for CLI output
 - **[error-messages](skills/error-messages/SKILL.md)** - Error message style guide for validation errors
 - **[error-pattern-safety](skills/error-pattern-safety/SKILL.md)** - Safety guidelines for error pattern regex
+- **[error-recovery-patterns](specs/error-recovery-patterns.md)** - Error handling patterns, recovery strategies, and debugging techniques
 
 ### JavaScript & GitHub Actions
 - **[github-script](skills/github-script/SKILL.md)** - Best practices for GitHub Actions scripts using github-script
@@ -788,7 +789,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 ### AI Engine & Integration
 - **[copilot-cli](skills/copilot-cli/SKILL.md)** - GitHub Copilot CLI integration for agentic workflows
 - **[custom-agents](skills/custom-agents/SKILL.md)** - GitHub custom agent file format
-- **[gh-agent-task](skills/gh-agent-task/SKILL.md)** - GitHub CLI agent task extension
+- **[gh-agent-session](skills/gh-agent-session/SKILL.md)** - GitHub CLI agent session extension
 
 ### Safe Outputs & Features
 - **[temporary-id-safe-output](skills/temporary-id-safe-output/SKILL.md)** - Adding temporary ID support to safe output jobs

@@ -138,7 +138,15 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 
 	// Finalize metrics using shared helper
 	copilotLogsLog.Printf("Finalized metrics: totalTokenUsage=%d, turns=%d, toolCalls=%d", totalTokenUsage, turns, len(toolCallMap))
-	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, totalTokenUsage, logContent, e.GetErrorPatterns())
+	FinalizeToolMetrics(FinalizeToolMetricsOptions{
+		Metrics:         &metrics,
+		ToolCallMap:     toolCallMap,
+		CurrentSequence: currentSequence,
+		Turns:           turns,
+		TokenUsage:      totalTokenUsage,
+		LogContent:      logContent,
+		ErrorPatterns:   e.GetErrorPatterns(),
+	})
 
 	return metrics
 }

@@ -27,6 +27,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			description: "Activation job should not include checkout step - uses GitHub API instead",
@@ -40,6 +42,8 @@ on:
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			description: "Activation job should not include checkout - uses GitHub API instead",
@@ -54,6 +58,8 @@ on:
 permissions:
   issues: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			description: "Activation job with reaction should not include checkout - uses GitHub API instead",

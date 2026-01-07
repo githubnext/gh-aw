@@ -464,8 +464,10 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.UploadAssets != nil
 	case "update-release":
 		return config.UpdateRelease != nil
-	case "create-agent-task":
-		return config.CreateAgentTasks != nil
+	case "create-agent-session":
+		return config.CreateAgentSessions != nil
+	case "create-agent-task": // Backward compatibility
+		return config.CreateAgentSessions != nil
 	case "update-project":
 		return config.UpdateProjects != nil
 	case "missing-tool":
@@ -547,8 +549,8 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.UpdateRelease == nil && importedConfig.UpdateRelease != nil {
 		result.UpdateRelease = importedConfig.UpdateRelease
 	}
-	if result.CreateAgentTasks == nil && importedConfig.CreateAgentTasks != nil {
-		result.CreateAgentTasks = importedConfig.CreateAgentTasks
+	if result.CreateAgentSessions == nil && importedConfig.CreateAgentSessions != nil {
+		result.CreateAgentSessions = importedConfig.CreateAgentSessions
 	}
 	if result.UpdateProjects == nil && importedConfig.UpdateProjects != nil {
 		result.UpdateProjects = importedConfig.UpdateProjects

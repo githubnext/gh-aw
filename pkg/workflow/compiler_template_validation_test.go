@@ -26,6 +26,8 @@ on: issues
 permissions:
   issues: write
 strict: false
+features:
+  dangerous-permissions-write: true
 ---
 
 # Valid Workflow
@@ -44,6 +46,8 @@ on: issues
 permissions:
   issues: write
 strict: false
+features:
+  dangerous-permissions-write: true
 ---
 
 # Invalid Workflow

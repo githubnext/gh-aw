@@ -320,6 +320,8 @@ tools:
   github:
     toolsets: [repos, issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 

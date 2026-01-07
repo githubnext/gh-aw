@@ -316,6 +316,8 @@ tools:
   github:
     toolsets: [issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
