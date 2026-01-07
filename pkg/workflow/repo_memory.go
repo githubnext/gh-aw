@@ -18,6 +18,7 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -73,10 +74,9 @@ func validateBranchPrefix(prefix string) error {
 	}
 
 	// Check for alphanumeric and branch-friendly characters (alphanumeric, hyphens, underscores)
-	for _, c := range prefix {
-		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '_' {
-			return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'", prefix)
-		}
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	if !validPattern.MatchString(prefix) {
+		return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'", prefix)
 	}
 
 	// Cannot be "copilot"
