@@ -47,10 +47,11 @@ The `ci-data-analysis` shared module has pre-downloaded CI run data and built th
 The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
 
 1. **CI Runs**: `/tmp/ci-runs.json` - Last 100 workflow runs
-2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmarks
+2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
 3. **CI Configuration**: `.github/workflows/ci.yml` - Current workflow
 4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data
 5. **Test Results**: `/tmp/gh-aw/test-results.json` - Test performance data
+6. **Fuzz Results**: `/tmp/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
 
 The project has been **built, linted, and tested** so you can validate changes immediately.
 
@@ -67,6 +68,10 @@ Follow the optimization strategies defined in the `ci-optimization-strategies` s
 - Check for orphaned tests not covered by any CI job
 - Verify catch-all matrix groups exist for packages with specific patterns
 - Identify coverage gaps and propose fixes if needed
+- **Analyze fuzz test performance**: Review fuzz test results in `/tmp/ci-artifacts/*/fuzz-results/`
+  - Check for new crash inputs or interesting corpus growth
+  - Evaluate fuzz test duration (currently 10s per test)
+  - Consider if fuzz time should be increased for security-critical tests
 
 ### Phase 3: Identify Optimization Opportunities (10 minutes)
 Apply the optimization strategies from the shared module:
@@ -78,6 +83,11 @@ Apply the optimization strategies from the shared module:
 6. **Matrix Strategy** - Balance breadth vs. speed
 7. **Conditional Execution** - Skip unnecessary jobs
 8. **Dependency Installation** - Reduce redundant work
+9. **Fuzz Test Optimization** - Evaluate fuzz test strategy
+   - Consider increasing fuzz time for security-critical parsers (sanitization, expression parsing)
+   - Evaluate if fuzz tests should run on PRs (currently main-only)
+   - Check if corpus data is growing efficiently
+   - Consider parallel fuzz test execution
 
 ### Phase 4: Cost-Benefit Analysis (3 minutes)
 For each potential optimization:
