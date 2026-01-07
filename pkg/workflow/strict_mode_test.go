@@ -114,6 +114,8 @@ permissions:
   pull-requests: read
 timeout-minutes: 10
 engine: copilot
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
@@ -128,6 +130,8 @@ permissions:
   issues: write
 timeout-minutes: 10
 engine: copilot
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
@@ -142,6 +146,8 @@ permissions:
   pull-requests: write
 timeout-minutes: 10
 engine: copilot
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
@@ -169,6 +175,8 @@ tools:
 			content: `---
 on: push
 permissions: write
+features:
+  dangerous-permissions-write: true
 timeout-minutes: 10
 engine: copilot
 ---
@@ -182,6 +190,8 @@ engine: copilot
 			content: `---
 on: push
 permissions: write-all
+features:
+  dangerous-permissions-write: true
 timeout-minutes: 10
 engine: copilot
 ---
@@ -216,6 +226,8 @@ permissions:
   pull-requests: read
 timeout-minutes: 10
 engine: copilot
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
@@ -598,6 +610,8 @@ permissions:
   issues: write
   pull-requests: read
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 network:
   allowed:
@@ -655,6 +669,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
@@ -688,6 +704,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
@@ -732,6 +750,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+features:
+  dangerous-permissions-write: true
 ---
 
 # Test Workflow`
@@ -783,6 +803,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 

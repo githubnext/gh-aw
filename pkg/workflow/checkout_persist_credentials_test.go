@@ -29,6 +29,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---`,
 			description: "Main job checkout step should include persist-credentials: false",

@@ -21,6 +21,8 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -86,6 +88,8 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -125,6 +129,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -210,6 +216,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:

@@ -84,6 +84,8 @@ on:
   issues:
     types: [opened]
 engine: copilot
+features:
+  dangerous-permissions-write: true
 permissions:
   contents: read
   issues: write

@@ -46,6 +46,7 @@ func GetAllCodemods() []Codemod {
 		getCommandToSlashCommandCodemod(),
 		getSafeInputsModeCodemod(),
 		getUploadAssetsCodemod(),
+		getWritePermissionsCodemod(),
 		getAgentTaskToAgentSessionCodemod(),
 	}
 }
@@ -584,6 +585,133 @@ func getUploadAssetsCodemod() Codemod {
 
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied upload-assets to upload-asset migration")
+			return newContent, true, nil
+		},
+	}
+}
+
+// getWritePermissionsCodemod creates a codemod for converting write permissions to read
+func getWritePermissionsCodemod() Codemod {
+	return Codemod{
+		ID:           "write-permissions-to-read-migration",
+		Name:         "Convert write permissions to read",
+		Description:  "Converts all write permissions to read permissions to comply with the new security policy",
+		IntroducedIn: "0.4.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// Check if permissions exist
+			permissionsValue, hasPermissions := frontmatter["permissions"]
+			if !hasPermissions {
+				return content, false, nil
+			}
+
+			// Check if any write permissions exist
+			hasWritePermissions := false
+
+			// Handle string shorthand (write-all, write)
+			if strValue, ok := permissionsValue.(string); ok {
+				if strValue == "write-all" || strValue == "write" {
+					hasWritePermissions = true
+				}
+			}
+
+			// Handle map format
+			if mapValue, ok := permissionsValue.(map[string]any); ok {
+				for _, value := range mapValue {
+					if strValue, ok := value.(string); ok && strValue == "write" {
+						hasWritePermissions = true
+						break
+					}
+				}
+			}
+
+			if !hasWritePermissions {
+				return content, false, nil
+			}
+
+			// Parse frontmatter to get raw lines
+			result, err := parser.ExtractFrontmatterFromContent(content)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
+			}
+
+			// Find and replace write permissions
+			var modified bool
+			var inPermissionsBlock bool
+			var permissionsIndent string
+
+			frontmatterLines := make([]string, len(result.FrontmatterLines))
+
+			for i, line := range result.FrontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				// Track if we're in the permissions block
+				if strings.HasPrefix(trimmedLine, "permissions:") {
+					inPermissionsBlock = true
+					permissionsIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+
+					// Handle shorthand on same line: "permissions: write-all" or "permissions: write"
+					if strings.Contains(trimmedLine, ": write-all") {
+						frontmatterLines[i] = strings.Replace(line, ": write-all", ": read-all", 1)
+						modified = true
+						codemodsLog.Printf("Replaced permissions: write-all with permissions: read-all on line %d", i+1)
+						continue
+					} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
+						frontmatterLines[i] = strings.Replace(line, ": write", ": read", 1)
+						modified = true
+						codemodsLog.Printf("Replaced permissions: write with permissions: read on line %d", i+1)
+						continue
+					}
+
+					frontmatterLines[i] = line
+					continue
+				}
+
+				// Check if we've left the permissions block (new top-level key with same or less indentation)
+				if inPermissionsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(currentIndent) <= len(permissionsIndent) && strings.Contains(line, ":") {
+						inPermissionsBlock = false
+					}
+				}
+
+				// Replace write with read if in permissions block
+				if inPermissionsBlock && strings.Contains(trimmedLine, ": write") {
+					// Preserve indentation and everything else
+					// Extract the key, value, and any trailing comment
+					parts := strings.SplitN(line, ":", 2)
+					if len(parts) >= 2 {
+						key := parts[0]
+						valueAndComment := parts[1]
+
+						// Replace "write" with "read" in the value part
+						newValueAndComment := strings.Replace(valueAndComment, " write", " read", 1)
+						frontmatterLines[i] = fmt.Sprintf("%s:%s", key, newValueAndComment)
+						modified = true
+						codemodsLog.Printf("Replaced write with read on line %d", i+1)
+					} else {
+						frontmatterLines[i] = line
+					}
+				} else {
+					frontmatterLines[i] = line
+				}
+			}
+
+			if !modified {
+				return content, false, nil
+			}
+
+			// Reconstruct the content
+			var lines []string
+			lines = append(lines, "---")
+			lines = append(lines, frontmatterLines...)
+			lines = append(lines, "---")
+			if result.Markdown != "" {
+				lines = append(lines, "")
+				lines = append(lines, result.Markdown)
+			}
+
+			newContent := strings.Join(lines, "\n")
+			codemodsLog.Print("Applied write permissions to read migration")
 			return newContent, true, nil
 		},
 	}

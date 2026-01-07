@@ -73,6 +73,8 @@ permissions:
   contents: write
   issues: write
 strict: false
+features:
+  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [repos, issues]

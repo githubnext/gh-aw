@@ -150,6 +150,8 @@ permissions:
   contents: read
   pull-requests: read
 engine: codex
+features:
+  dangerous-permissions-write: true
 strict: false
 ---
 
