@@ -162,6 +162,12 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 
 // isPathScannedBySecretRedaction checks if a path would be scanned by the secret redaction step
 func isPathScannedBySecretRedaction(path string) bool {
+	// Allow Copilot session state files - these are internal CLI state files that don't contain user secrets
+	// They contain CLI session metadata and are safe to upload without redaction
+	if strings.Contains(path, "/home/runner/.copilot/session-state/") {
+		return true
+	}
+
 	// Paths must be under /tmp/gh-aw/ to be scanned
 	// Accept both literal paths and environment variable references
 	if !strings.HasPrefix(path, "/tmp/gh-aw/") {
