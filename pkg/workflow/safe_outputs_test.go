@@ -38,9 +38,9 @@ func TestHasSafeOutputsEnabled(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "create agent tasks enabled",
+			name: "create agent sessions enabled",
 			safeOutputs: &SafeOutputsConfig{
-				CreateAgentTasks: &CreateAgentTaskConfig{},
+				CreateAgentSessions: &CreateAgentSessionConfig{},
 			},
 			expected: true,
 		},
@@ -497,15 +497,15 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			expectedKeys: []string{"create_issue"},
 		},
 		{
-			name: "create-agent-task config",
+			name: "create-agent-session config",
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
-					CreateAgentTasks: &CreateAgentTaskConfig{
+					CreateAgentSessions: &CreateAgentSessionConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
 					},
 				},
 			},
-			expectedKeys: []string{"create_agent_task"},
+			expectedKeys: []string{"create_agent_session"},
 		},
 		{
 			name: "add-comment with target",
@@ -1023,7 +1023,7 @@ func TestGetEnabledSafeOutputToolNames(t *testing.T) {
 			name: "all standard tools are sorted",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues:       &CreateIssuesConfig{},
-				CreateAgentTasks:   &CreateAgentTaskConfig{},
+				CreateAgentSessions:   &CreateAgentSessionConfig{},
 				CreateDiscussions:  &CreateDiscussionsConfig{},
 				CloseDiscussions:   &CloseDiscussionsConfig{},
 				CloseIssues:        &CloseIssuesConfig{},
@@ -1046,7 +1046,7 @@ func TestGetEnabledSafeOutputToolNames(t *testing.T) {
 				"close_discussion",
 				"close_issue",
 				"close_pull_request",
-				"create_agent_task",
+				"create_agent_session",
 				"create_discussion",
 				"create_issue",
 				"create_pull_request",

@@ -151,11 +151,11 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 			},
 		},
 		{
-			name:           "create_agent_task",
-			safeOutputType: "create-agent-task",
+			name:           "create_agent_session",
+			safeOutputType: "create-agent-session",
 			configBuilder: func() *SafeOutputsConfig {
 				return &SafeOutputsConfig{
-					CreateAgentTasks: &CreateAgentTaskConfig{
+					CreateAgentSessions: &CreateAgentSessionConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
 							Max: 5,
 						},
@@ -213,7 +213,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 		"add_labels":                 true,
 		"create_pr_review_comment":   true,
 		"create_code_scanning_alert": true,
-		"create_agent_task":          true,
+		"create_agent_session":          true,
 		"upload_assets":              true,
 		"update_project":             true,
 	}

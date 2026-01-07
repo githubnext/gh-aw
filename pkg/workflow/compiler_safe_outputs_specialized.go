@@ -30,19 +30,19 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	}
 }
 
-// buildCreateAgentTaskStepConfig builds the configuration for creating an agent task
-func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.CreateAgentTasks
+// buildCreateAgentTaskStepConfig builds the configuration for creating an agent session
+func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.CreateAgentSessions
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
-	condition := BuildSafeOutputType("create_agent_task")
+	condition := BuildSafeOutputType("create_agent_session")
 
 	return SafeOutputStepConfig{
-		StepName:        "Create Agent Task",
-		StepID:          "create_agent_task",
-		Script:          "const { main } = require('/tmp/gh-aw/actions/create_agent_task.cjs'); await main();",
+		StepName:        "Create Agent Session",
+		StepID:          "create_agent_session",
+		Script:          "const { main } = require('/tmp/gh-aw/actions/create_agent_session.cjs'); await main();",
 		CustomEnvVars:   customEnvVars,
 		Condition:       condition,
 		Token:           cfg.GitHubToken,

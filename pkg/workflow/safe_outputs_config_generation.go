@@ -31,9 +31,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.CreateIssues.AllowedLabels,
 			)
 		}
-		if data.SafeOutputs.CreateAgentTasks != nil {
+		if data.SafeOutputs.CreateAgentSessions != nil {
 			safeOutputsConfig["create_agent_task"] = generateMaxConfig(
-				data.SafeOutputs.CreateAgentTasks.Max,
+				data.SafeOutputs.CreateAgentSessions.Max,
 				1, // default max
 			)
 		}
@@ -450,7 +450,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.CreateIssues != nil {
 		enabledTools["create_issue"] = true
 	}
-	if data.SafeOutputs.CreateAgentTasks != nil {
+	if data.SafeOutputs.CreateAgentSessions != nil {
 		enabledTools["create_agent_task"] = true
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
@@ -691,7 +691,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			targetRepoSlug = config.TargetRepoSlug
 		}
 	case "create_agent_task":
-		if config := safeOutputs.CreateAgentTasks; config != nil {
+		if config := safeOutputs.CreateAgentSessions; config != nil {
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug
 		}
