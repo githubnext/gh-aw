@@ -1,0 +1,13 @@
+{
+  "campaign_id": "file-size-reduction-project71",
+  "date": "2026-01-07",
+  "tasks_total": 20,
+  "tasks_completed": 19,
+  "tasks_in_progress": 0,
+  "tasks_blocked": 0,
+  "velocity_per_day": 0.59,
+  "estimated_completion": "2026-01-09",
+  "items_processed_this_run": 10,
+  "items_deferred": 10,
+  "completion_percentage": 95.0
+}
