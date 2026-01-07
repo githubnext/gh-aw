@@ -219,18 +219,18 @@ func processCampaignSpec(
 	}
 
 	// Generate and compile the campaign orchestrator
-	if _, genErr := generateAndCompileCampaignOrchestrator(
-		compiler,
-		spec,
-		resolvedFile,
-		verbose && !jsonOutput,
-		noEmit,
-		zizmor && !noEmit,
-		poutine && !noEmit,
-		actionlint && !noEmit,
-		strict,
-		validate && !noEmit,
-	); genErr != nil {
+	if _, genErr := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+		Compiler:             compiler,
+		Spec:                 spec,
+		CampaignSpecPath:     resolvedFile,
+		Verbose:              verbose && !jsonOutput,
+		NoEmit:               noEmit,
+		RunZizmorPerFile:     zizmor && !noEmit,
+		RunPoutinePerFile:    poutine && !noEmit,
+		RunActionlintPerFile: actionlint && !noEmit,
+		Strict:               strict,
+		ValidateActionSHAs:   validate && !noEmit,
+	}); genErr != nil {
 		errMsg := fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(resolvedFile), genErr)
 		if !jsonOutput {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))

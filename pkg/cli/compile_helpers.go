@@ -96,18 +96,18 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(file))))
 		}
 
-		_, genErr := generateAndCompileCampaignOrchestrator(
-			compiler,
-			spec,
-			file,
-			verbose,
-			false, // noEmit
-			false, // zizmor
-			false, // poutine
-			false, // actionlint
-			false, // strict
-			false, // validateActionSHAs
-		)
+		_, genErr := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+			Compiler:             compiler,
+			Spec:                 spec,
+			CampaignSpecPath:     file,
+			Verbose:              verbose,
+			NoEmit:               false,
+			RunZizmorPerFile:     false,
+			RunPoutinePerFile:    false,
+			RunActionlintPerFile: false,
+			Strict:               false,
+			ValidateActionSHAs:   false,
+		})
 		if genErr != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(file), genErr)))
 			stats.Errors++

@@ -171,19 +171,22 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 	return b.String()
 }
 
-func generateAndCompileCampaignOrchestrator(
-	compiler *workflow.Compiler,
-	spec *campaign.CampaignSpec,
-	campaignSpecPath string,
-	verbose bool,
-	noEmit bool,
-	runZizmorPerFile bool,
-	runPoutinePerFile bool,
-	runActionlintPerFile bool,
-	strict bool,
-	validateActionSHAs bool,
-) (string, error) {
-	data, orchestratorPath := campaign.BuildOrchestrator(spec, campaignSpecPath)
+// GenerateCampaignOrchestratorOptions holds the options for generateAndCompileCampaignOrchestrator
+type GenerateCampaignOrchestratorOptions struct {
+	Compiler            *workflow.Compiler
+	Spec                *campaign.CampaignSpec
+	CampaignSpecPath    string
+	Verbose             bool
+	NoEmit              bool
+	RunZizmorPerFile    bool
+	RunPoutinePerFile   bool
+	RunActionlintPerFile bool
+	Strict              bool
+	ValidateActionSHAs  bool
+}
+
+func generateAndCompileCampaignOrchestrator(opts GenerateCampaignOrchestratorOptions) (string, error) {
+	data, orchestratorPath := campaign.BuildOrchestrator(opts.Spec, opts.CampaignSpecPath)
 	if data == nil || orchestratorPath == "" {
 		return "", nil
 	}
@@ -193,28 +196,28 @@ func generateAndCompileCampaignOrchestrator(
 		data.AI = "copilot"
 	}
 
-	if !noEmit {
-		content := renderGeneratedCampaignOrchestratorMarkdown(data, campaignSpecPath)
+	if !opts.NoEmit {
+		content := renderGeneratedCampaignOrchestratorMarkdown(data, opts.CampaignSpecPath)
 		// Write with restrictive permissions (0600) to follow security best practices
 		if err := os.WriteFile(orchestratorPath, []byte(content), 0600); err != nil {
 			return "", fmt.Errorf("failed to write generated campaign orchestrator %s: %w", orchestratorPath, err)
 		}
-		if verbose {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Generated campaign orchestrator %s", filepath.Base(orchestratorPath))))
 		}
 	}
 
 	// Prefer compiling from the generated markdown so defaults and validation behavior
 	// match normal workflows (including computed permissions).
-	if !noEmit {
-		if err := CompileWorkflowWithValidation(compiler, orchestratorPath, verbose, runZizmorPerFile, runPoutinePerFile, runActionlintPerFile, strict, validateActionSHAs); err != nil {
+	if !opts.NoEmit {
+		if err := CompileWorkflowWithValidation(opts.Compiler, orchestratorPath, opts.Verbose, opts.RunZizmorPerFile, opts.RunPoutinePerFile, opts.RunActionlintPerFile, opts.Strict, opts.ValidateActionSHAs); err != nil {
 			return orchestratorPath, err
 		}
 		return orchestratorPath, nil
 	}
 
 	// No-emit mode: compile from the in-memory WorkflowData.
-	if err := CompileWorkflowDataWithValidation(compiler, data, orchestratorPath, verbose, runZizmorPerFile, runPoutinePerFile, runActionlintPerFile, strict, validateActionSHAs); err != nil {
+	if err := CompileWorkflowDataWithValidation(opts.Compiler, data, orchestratorPath, opts.Verbose, opts.RunZizmorPerFile, opts.RunPoutinePerFile, opts.RunActionlintPerFile, opts.Strict, opts.ValidateActionSHAs); err != nil {
 		return orchestratorPath, err
 	}
 
