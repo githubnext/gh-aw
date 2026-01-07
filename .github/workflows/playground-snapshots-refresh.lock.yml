@@ -25,6 +25,7 @@ name: "Refresh playground snapshots"
 "on":
   schedule:
   - cron: "0 8 * * 1"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions:
