@@ -8,7 +8,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-  discussions: write
+  discussions: true
 engine: copilot
 tools:
   github:
@@ -29,8 +29,6 @@ safe-outputs:
   upload-asset:
 timeout-minutes: 60
 strict: true
-features:
-  dangerous-permissions-write: true
 network:
   allowed:
     - defaults

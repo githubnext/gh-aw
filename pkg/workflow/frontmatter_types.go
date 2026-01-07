@@ -270,39 +270,50 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 
 	// Parse detailed permissions
 	for scope, level := range permissions {
-		if levelStr, ok := level.(string); ok {
-			switch scope {
-			case "actions":
-				config.Actions = levelStr
-			case "checks":
-				config.Checks = levelStr
-			case "contents":
-				config.Contents = levelStr
-			case "deployments":
-				config.Deployments = levelStr
-			case "id-token":
-				config.IDToken = levelStr
-			case "issues":
-				config.Issues = levelStr
-			case "discussions":
-				config.Discussions = levelStr
-			case "packages":
-				config.Packages = levelStr
-			case "pages":
-				config.Pages = levelStr
-			case "pull-requests":
-				config.PullRequests = levelStr
-			case "repository-projects":
-				config.RepositoryProjects = levelStr
-			case "security-events":
-				config.SecurityEvents = levelStr
-			case "statuses":
-				config.Statuses = levelStr
-			case "organization-projects":
-				config.OrganizationProjects = levelStr
-			case "organization-packages":
-				config.OrganizationPackages = levelStr
-			}
+		var levelStr string
+		
+		// Handle both string and boolean true values
+		if str, ok := level.(string); ok {
+			levelStr = str
+		} else if boolVal, ok := level.(bool); ok && boolVal {
+			// Boolean true is a shorthand for "write" permission
+			levelStr = "write"
+		} else {
+			// Skip invalid types (false, numbers, etc.)
+			continue
+		}
+		
+		switch scope {
+		case "actions":
+			config.Actions = levelStr
+		case "checks":
+			config.Checks = levelStr
+		case "contents":
+			config.Contents = levelStr
+		case "deployments":
+			config.Deployments = levelStr
+		case "id-token":
+			config.IDToken = levelStr
+		case "issues":
+			config.Issues = levelStr
+		case "discussions":
+			config.Discussions = levelStr
+		case "packages":
+			config.Packages = levelStr
+		case "pages":
+			config.Pages = levelStr
+		case "pull-requests":
+			config.PullRequests = levelStr
+		case "repository-projects":
+			config.RepositoryProjects = levelStr
+		case "security-events":
+			config.SecurityEvents = levelStr
+		case "statuses":
+			config.Statuses = levelStr
+		case "organization-projects":
+			config.OrganizationProjects = levelStr
+		case "organization-packages":
+			config.OrganizationPackages = levelStr
 		}
 	}
 
