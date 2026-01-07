@@ -440,6 +440,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	// Parse the JSON to get all tools
 	var allTools []map[string]any
 	if err := json.Unmarshal([]byte(allToolsJSON), &allTools); err != nil {
+		safeOutputsConfigLog.Printf("Failed to parse safe outputs tools JSON: %v", err)
 		return "", fmt.Errorf("failed to parse safe outputs tools JSON: %w", err)
 	}
 
@@ -647,9 +648,11 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	// and to reduce merge conflicts in generated lockfiles
 	filteredJSON, err := json.MarshalIndent(filteredTools, "", "  ")
 	if err != nil {
+		safeOutputsConfigLog.Printf("Failed to marshal filtered tools: %v", err)
 		return "", fmt.Errorf("failed to marshal filtered tools: %w", err)
 	}
 
+	safeOutputsConfigLog.Printf("Successfully generated filtered tools JSON with %d tools", len(filteredTools))
 	return string(filteredJSON), nil
 }
 
