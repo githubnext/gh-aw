@@ -31,12 +31,14 @@ var logsParsingLog = logger.New("cli:logs_parsing")
 // parseAwInfo reads and parses aw_info.json file, returning the parsed data
 // Handles cases where aw_info.json is a file or a directory containing the actual file
 func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
-	logsParsingLog.Printf("Parsing aw_info.json from: %s", infoFilePath)
+	// Sanitize the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(infoFilePath)
+	logsParsingLog.Printf("Parsing aw_info.json from: %s", cleanPath)
 	var data []byte
 	var err error
 
 	// Check if the path exists and determine if it's a file or directory
-	stat, statErr := os.Stat(infoFilePath)
+	stat, statErr := os.Stat(cleanPath)
 	if statErr != nil {
 		logsParsingLog.Printf("Failed to stat aw_info.json: %v", statErr)
 		if verbose {
@@ -47,14 +49,14 @@ func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
 
 	if stat.IsDir() {
 		// It's a directory - look for nested aw_info.json
-		nestedPath := filepath.Join(infoFilePath, "aw_info.json")
+		nestedPath := filepath.Join(cleanPath, "aw_info.json")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("aw_info.json is a directory, trying nested file: %s", nestedPath)))
 		}
 		data, err = os.ReadFile(nestedPath)
 	} else {
 		// It's a regular file
-		data, err = os.ReadFile(infoFilePath)
+		data, err = os.ReadFile(cleanPath)
 	}
 
 	if err != nil {
