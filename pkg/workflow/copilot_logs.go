@@ -11,12 +11,12 @@ var copilotLogsLog = logger.New("workflow:copilot_logs")
 
 // SessionEntry represents a single entry in a Copilot session JSONL file
 type SessionEntry struct {
-	Type    string                 `json:"type"`
-	Subtype string                 `json:"subtype,omitempty"`
-	Message *SessionMessage        `json:"message,omitempty"`
-	Usage   *SessionUsage          `json:"usage,omitempty"`
-	NumTurns int                   `json:"num_turns,omitempty"`
-	RawData map[string]interface{} `json:"-"`
+	Type     string                 `json:"type"`
+	Subtype  string                 `json:"subtype,omitempty"`
+	Message  *SessionMessage        `json:"message,omitempty"`
+	Usage    *SessionUsage          `json:"usage,omitempty"`
+	NumTurns int                    `json:"num_turns,omitempty"`
+	RawData  map[string]interface{} `json:"-"`
 }
 
 // SessionMessage represents the message field in session entries
@@ -55,7 +55,7 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
-		
+
 		// Skip empty lines and debug log lines
 		if trimmedLine == "" || !strings.HasPrefix(trimmedLine, "{") {
 			continue
@@ -83,17 +83,17 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 				for _, content := range entry.Message.Content {
 					if content.Type == "tool_use" {
 						toolName := content.Name
-						
+
 						// Track in sequence
 						currentSequence = append(currentSequence, toolName)
-						
+
 						// Calculate input size
 						inputSize := 0
 						if content.Input != nil {
 							inputJSON, _ := json.Marshal(content.Input)
 							inputSize = len(inputJSON)
 						}
-						
+
 						// Update or create tool call info
 						if toolInfo, exists := toolCallMap[toolName]; exists {
 							toolInfo.CallCount++
@@ -108,7 +108,7 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 								MaxOutputSize: 0,
 							}
 						}
-						
+
 						if verbose {
 							copilotLogsLog.Printf("Found tool call: %s with input size %d", toolName, inputSize)
 						}
@@ -123,7 +123,7 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 					if content.Type == "tool_result" && content.ToolUseID != "" {
 						// Track output size
 						outputSize := len(content.Content)
-						
+
 						// Try to find the tool by matching recent tools in sequence
 						// Since we don't have the tool ID mapping, we'll update the most recent matching tool
 						for toolName, toolInfo := range toolCallMap {
@@ -144,7 +144,7 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 			if entry.Usage != nil {
 				totalTokenUsage = entry.Usage.InputTokens + entry.Usage.OutputTokens
 				turns = entry.NumTurns
-				
+
 				if verbose {
 					copilotLogsLog.Printf("Found result entry: input_tokens=%d, output_tokens=%d, num_turns=%d",
 						entry.Usage.InputTokens, entry.Usage.OutputTokens, turns)
@@ -166,7 +166,7 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 	// Finalize metrics
 	copilotLogsLog.Printf("Session JSONL parsing complete: totalTokenUsage=%d, turns=%d, toolCalls=%d",
 		totalTokenUsage, turns, len(toolCallMap))
-	
+
 	FinalizeToolMetrics(FinalizeToolMetricsOptions{
 		Metrics:         &metrics,
 		ToolCallMap:     toolCallMap,
@@ -203,7 +203,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 
 	// Fall back to debug log format parsing
 	copilotLogsLog.Printf("JSONL parsing failed or no entries found, falling back to debug log format")
-	
+
 	var metrics LogMetrics
 	var totalTokenUsage int
 
