@@ -60,6 +60,17 @@ function formatMissingData(missingData) {
 }
 
 /**
+ * Format noop messages into markdown list items
+ * @param {Array<{message: string}>} noopMessages - Noop messages
+ * @returns {string} Formatted markdown list
+ */
+function formatNoopMessages(noopMessages) {
+  if (!noopMessages?.length) return "";
+
+  return noopMessages.map(item => `- ${escapeMarkdown(item.message)}`).join("\n");
+}
+
+/**
  * Generate HTML details section for missing tools
  * @param {Array<{tool: string, reason: string, alternatives?: string}>} missingTools - Missing tool messages
  * @returns {string} HTML details section or empty string
@@ -84,31 +95,41 @@ function generateMissingDataSection(missingData) {
 }
 
 /**
+ * Generate HTML details section for noop messages
+ * @param {Array<{message: string}>} noopMessages - Noop messages
+ * @returns {string} HTML details section or empty string
+ */
+function generateNoopMessagesSection(noopMessages) {
+  if (!noopMessages?.length) return "";
+
+  const content = formatNoopMessages(noopMessages);
+  return `\n\n<details>\n<summary><b>No-Op Messages</b></summary>\n\n${content}\n\n</details>`;
+}
+
+/**
  * Generate complete missing information sections for both tools and data
- * @param {{missingTools?: Array<any>, missingData?: Array<any>}} missings - Object containing missing tools and data
+ * @param {{missingTools?: Array<any>, missingData?: Array<any>, noopMessages?: Array<any>}} missings - Object containing missing tools, data, and noop messages
  * @returns {string} Combined HTML details sections
  */
 function generateMissingInfoSections(missings) {
   if (!missings) return "";
 
-  let sections = "";
+  const sections = [
+    missings.missingTools && generateMissingToolsSection(missings.missingTools),
+    missings.missingData && generateMissingDataSection(missings.missingData),
+    missings.noopMessages && generateNoopMessagesSection(missings.noopMessages),
+  ];
 
-  if (missings.missingTools && missings.missingTools.length > 0) {
-    sections += generateMissingToolsSection(missings.missingTools);
-  }
-
-  if (missings.missingData && missings.missingData.length > 0) {
-    sections += generateMissingDataSection(missings.missingData);
-  }
-
-  return sections;
+  return sections.filter(Boolean).join("");
 }
 
 module.exports = {
   escapeMarkdown,
   formatMissingTools,
   formatMissingData,
+  formatNoopMessages,
   generateMissingToolsSection,
   generateMissingDataSection,
+  generateNoopMessagesSection,
   generateMissingInfoSections,
 };
