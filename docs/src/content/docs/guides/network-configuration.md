@@ -68,16 +68,24 @@ network:
 
 ## Custom Domains
 
-Add specific domains for your services:
+Add specific domains for your services. Both base domains and wildcard patterns are supported:
 
 ```yaml
 network:
   allowed:
     - defaults
     - python
-    - "api.example.com"
-    - "*.cdn.example.com"  # Wildcard for subdomains
+    - "api.example.com"        # Matches api.example.com and subdomains
+    - "*.cdn.example.com"      # Wildcard: matches any subdomain of cdn.example.com
 ```
+
+**Wildcard pattern behavior:**
+- `*.example.com` matches `sub.example.com`, `deep.nested.example.com`, and `example.com`
+- Only single wildcards at the start are supported (e.g., `*.*.example.com` is invalid)
+
+:::tip
+Both `example.com` and `*.example.com` match subdomains. Use wildcards when you want to explicitly document that subdomain access is expected.
+:::
 
 ## Security Best Practices
 
