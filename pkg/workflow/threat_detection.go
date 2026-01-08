@@ -339,9 +339,9 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		} else {
 			// Create a copy without setting the model
 			detectionEngineConfig = &EngineConfig{
-				ID:            detectionEngineConfig.ID,
-				Model:         "", // Explicitly leave empty for env var mechanism
-				Version:       detectionEngineConfig.Version,
+				ID:          detectionEngineConfig.ID,
+				Model:       "", // Explicitly leave empty for env var mechanism
+				Version:     detectionEngineConfig.Version,
 				MaxTurns:    detectionEngineConfig.MaxTurns,
 				Concurrency: detectionEngineConfig.Concurrency,
 				UserAgent:   detectionEngineConfig.UserAgent,

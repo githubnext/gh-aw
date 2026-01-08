@@ -547,5 +547,3 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 // extractCodexTokenUsage is implemented in codex_logs.go
 
 // GetLogParserScriptId is implemented in codex_logs.go
-
-

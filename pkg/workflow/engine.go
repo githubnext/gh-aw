@@ -143,7 +143,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-
 			// Extract optional 'config' field (additional TOML configuration)
 			if config_field, hasConfig := engineObj["config"]; hasConfig {
 				if configStr, ok := config_field.(string); ok {

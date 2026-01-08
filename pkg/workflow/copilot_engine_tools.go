@@ -203,5 +203,3 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 
 	return comment.String()
 }
-
-

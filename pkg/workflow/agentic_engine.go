@@ -76,8 +76,6 @@ type CodingAgentEngine interface {
 	GetDefaultDetectionModel() string
 }
 
-
-
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
 	id                     string
@@ -136,8 +134,6 @@ func (e *BaseEngine) SupportsFirewall() bool {
 func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
 }
-
-
 
 // GetDefaultDetectionModel returns empty string by default (no default model)
 // Engines can override this to provide a cost-effective default for detection jobs
@@ -433,5 +429,3 @@ func unquoteUsesWithComments(yamlStr string) string {
 	}
 	return strings.Join(lines, "\n")
 }
-
-
