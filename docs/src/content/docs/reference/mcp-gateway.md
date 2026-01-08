@@ -182,7 +182,9 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
   "mcpServers": {
     "server-name": {
       "container": "string",
+      "entrypoint": "string",
       "entrypointArgs": ["string"],
+      "mounts": ["source:dest:mode"],
       "env": {
         "VAR_NAME": "value"
       },
@@ -195,8 +197,7 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
     "apiKey": "string",
     "domain": "string",
     "startupTimeout": 30,
-    "toolTimeout": 60,
-    "mounts": ["source:dest:mode"]
+    "toolTimeout": 60
   }
 }
 ```
@@ -208,7 +209,9 @@ Each server configuration MUST support:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `container` | string | Conditional* | Container image for the MCP server (required for stdio servers) |
+| `entrypoint` | string | No | Optional entrypoint override for container (equivalent to `docker run --entrypoint`) |
 | `entrypointArgs` | array[string] | No | Arguments passed to container entrypoint (container only) |
+| `mounts` | array[string] | No | Volume mounts for container (format: "source:dest:mode" where mode is "ro" or "rw") |
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
 | `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
@@ -229,7 +232,7 @@ The optional `gateway` section configures gateway-specific behavior:
 | `domain` | string | localhost | Gateway domain (localhost or host.docker.internal) |
 | `startupTimeout` | integer | 30 | Server startup timeout in seconds |
 | `toolTimeout` | integer | 60 | Tool invocation timeout in seconds |
-| `mounts` | array[string] | [] | Volume mounts for gateway container (format: "source:dest:mode") |
+| `mounts` | array[string] | [] | **Deprecated**: Volume mounts for gateway container. Use per-server `mounts` field instead (format: "source:dest:mode") |
 
 ### 4.2 Variable Expression Rendering
 
@@ -746,7 +749,32 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.2 Gateway with Volume Mounts
+#### A.2 Server with Volume Mounts and Custom Entrypoint
+
+```json
+{
+  "mcpServers": {
+    "data-server": {
+      "container": "ghcr.io/example/data-mcp:latest",
+      "entrypoint": "/custom/entrypoint.sh",
+      "entrypointArgs": ["--config", "/app/config.json"],
+      "mounts": [
+        "/host/data:/container/data:ro",
+        "/host/config:/container/config:rw"
+      ],
+      "type": "stdio"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "apiKey": "gateway-secret-token"
+  }
+}
+```
+
+#### A.3 Legacy: Gateway with Volume Mounts (Deprecated)
+
+**Note**: Gateway-level mounts are deprecated. Use per-server mounts instead (see A.2).
 
 ```json
 {
@@ -767,7 +795,7 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.3 Mixed Transport Configuration
+#### A.4 Mixed Transport Configuration
 
 ```json
 {
@@ -790,7 +818,7 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.4 GitHub MCP Server (Containerized)
+#### A.5 GitHub MCP Server (Containerized)
 
 ```json
 {
