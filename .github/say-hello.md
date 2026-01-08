@@ -1,4 +1,4 @@
 
 # Hello
 
-Say hello to the world and talk about cats.
+Say hello to the world and talk about dogs.
