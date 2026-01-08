@@ -511,13 +511,19 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 
 	generated := yamlBuilder.String()
 
-	// Should generate error validation step even though Claude doesn't support it natively
+	// Should generate error validation step
 	if !strings.Contains(generated, "Validate agent logs for errors") {
 		t.Error("Should generate error validation step with frontmatter patterns")
 	}
 
-	if !strings.Contains(generated, "GH_AW_ERROR_PATTERNS") {
-		t.Error("Should include error patterns environment variable")
+	// Should include GH_AW_ENGINE_ID
+	if !strings.Contains(generated, "GH_AW_ENGINE_ID") {
+		t.Error("Should include engine ID environment variable")
+	}
+	
+	// Should include GH_AW_CUSTOM_ERROR_PATTERNS for user-configured patterns
+	if !strings.Contains(generated, "GH_AW_CUSTOM_ERROR_PATTERNS") {
+		t.Error("Should include custom error patterns environment variable")
 	}
 
 	// Should contain the custom pattern

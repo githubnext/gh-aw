@@ -100,26 +100,6 @@ func (c *Compiler) convertErrorPatternsToJavaScript(goPatterns []ErrorPattern) [
 
 // generateErrorValidation generates a step that validates the agent's logs for errors
 func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, data *WorkflowData) {
-	// Concatenate engine error patterns and configured error patterns
-	var errorPatterns []ErrorPattern
-
-	// Add engine-defined patterns
-	enginePatterns := engine.GetErrorPatterns()
-	errorPatterns = append(errorPatterns, enginePatterns...)
-
-	// Add user-configured patterns from engine config
-	if data.EngineConfig != nil && len(data.EngineConfig.ErrorPatterns) > 0 {
-		errorPatterns = append(errorPatterns, data.EngineConfig.ErrorPatterns...)
-	}
-
-	// Skip if no error patterns are available
-	if len(errorPatterns) == 0 {
-		return
-	}
-
-	// Convert Go regex patterns to JavaScript-compatible patterns
-	jsCompatiblePatterns := c.convertErrorPatternsToJavaScript(errorPatterns)
-
 	// Get the log file path for validation (may be different from stdout/stderr log)
 	logFileForValidation := engine.GetLogFileForParsing()
 
@@ -128,14 +108,19 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
-
-	// Add JavaScript-compatible error patterns as a single JSON array
-	patternsJSON, err := json.Marshal(jsCompatiblePatterns)
-	if err != nil {
-		// Skip if patterns can't be marshaled
-		return
+	
+	// Pass the engine ID so JavaScript can load appropriate patterns
+	fmt.Fprintf(yaml, "          GH_AW_ENGINE_ID: %s\n", engine.GetID())
+	
+	// Add custom error patterns if configured by user
+	if data.EngineConfig != nil && len(data.EngineConfig.ErrorPatterns) > 0 {
+		// Convert user-configured patterns to JavaScript-compatible format
+		jsCompatiblePatterns := c.convertErrorPatternsToJavaScript(data.EngineConfig.ErrorPatterns)
+		patternsJSON, err := json.Marshal(jsCompatiblePatterns)
+		if err == nil {
+			fmt.Fprintf(yaml, "          GH_AW_CUSTOM_ERROR_PATTERNS: %q\n", string(patternsJSON))
+		}
 	}
-	fmt.Fprintf(yaml, "          GH_AW_ERROR_PATTERNS: %q\n", string(patternsJSON))
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

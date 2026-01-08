@@ -545,10 +545,13 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 // GetLogParserScriptId is implemented in codex_logs.go
 
 // GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
+// Patterns are now defined in JavaScript (actions/setup/js/error_patterns.cjs) but kept here for fallback.
+// The compiled workflow passes the engine ID to JavaScript which loads patterns at runtime.
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
 
 	// Add Codex-specific error patterns for Rust log format
+	// Note: These patterns are duplicated in error_patterns.cjs and serve as fallback
 	patterns = append(patterns, []ErrorPattern{
 		// Rust format patterns (without brackets, with milliseconds and Z timezone)
 		{

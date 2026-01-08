@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getErrorPatternsForEngine, getCustomErrorPatternsFromEnv } = require("./error_patterns.cjs");
 
 function main() {
   const fs = require("fs");
@@ -24,15 +25,14 @@ function main() {
       return;
     }
 
-    // Get error patterns from environment variables
-    const patterns = getErrorPatternsFromEnv();
+    // Get error patterns from environment variables or load from error_patterns.cjs
+    const patterns = getErrorPatterns();
     if (patterns.length === 0) {
-      throw new Error("GH_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
+      throw new Error("No error patterns available - either set GH_AW_ERROR_PATTERNS or GH_AW_ENGINE_ID");
     }
 
     core.info(`Loaded ${patterns.length} error patterns`);
     core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
-
     let content = "";
 
     // Check if logPath is a directory or a file
@@ -86,6 +86,38 @@ function main() {
     console.debug(error);
     core.error(`Error validating log: ${getErrorMessage(error)}`);
   }
+}
+
+/**
+ * Get error patterns from environment variables or load from error_patterns.cjs.
+ * Supports both legacy GH_AW_ERROR_PATTERNS (direct JSON) and new GH_AW_ENGINE_ID approach.
+ * @returns {any[]} Array of error patterns
+ */
+function getErrorPatterns() {
+  // First try the new approach: load patterns based on engine ID
+  const engineId = process.env.GH_AW_ENGINE_ID;
+  if (engineId) {
+    core.info(`Loading error patterns for engine: ${engineId}`);
+    const patterns = getErrorPatternsForEngine(engineId);
+
+    // Add custom patterns if provided
+    const customPatterns = getCustomErrorPatternsFromEnv();
+    if (customPatterns.length > 0) {
+      core.info(`Adding ${customPatterns.length} custom error patterns from GH_AW_CUSTOM_ERROR_PATTERNS`);
+      return [...patterns, ...customPatterns];
+    }
+
+    return patterns;
+  }
+
+  // Fallback to legacy approach: patterns passed as JSON via GH_AW_ERROR_PATTERNS
+  const legacyPatterns = getErrorPatternsFromEnv();
+  if (legacyPatterns.length > 0) {
+    core.info("Using legacy GH_AW_ERROR_PATTERNS (consider migrating to GH_AW_ENGINE_ID)");
+    return legacyPatterns;
+  }
+
+  return [];
 }
 
 function getErrorPatternsFromEnv() {

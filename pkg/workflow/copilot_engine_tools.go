@@ -205,12 +205,13 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 }
 
 // GetErrorPatterns returns regex patterns for extracting error messages from Copilot CLI logs.
-// It includes common patterns plus Copilot-specific patterns for timestamped logs,
-// command failures, module errors, and permission-related issues.
+// Patterns are now defined in JavaScript (actions/setup/js/error_patterns.cjs) but kept here for fallback.
+// The compiled workflow passes the engine ID to JavaScript which loads patterns at runtime.
 func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
 
 	// Add Copilot-specific error patterns for timestamp-based log formats
+	// Note: These patterns are duplicated in error_patterns.cjs and serve as fallback
 	patterns = append(patterns, []ErrorPattern{
 		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(WARN|WARNING)\]\s+(.+)`,

@@ -42,9 +42,19 @@ func TestErrorPatternsOnCopilotEngine(t *testing.T) {
 		t.Error("Should generate error validation step for Copilot with custom patterns")
 	}
 
-	// Should include GH_AW_ERROR_PATTERNS environment variable
-	if !strings.Contains(generated, "GH_AW_ERROR_PATTERNS") {
-		t.Error("Should include error patterns environment variable")
+	// Should include GH_AW_ENGINE_ID environment variable
+	if !strings.Contains(generated, "GH_AW_ENGINE_ID") {
+		t.Error("Should include engine ID environment variable")
+	}
+	
+	// Should include engine ID value
+	if !strings.Contains(generated, "GH_AW_ENGINE_ID: copilot") {
+		t.Error("Should include copilot engine ID")
+	}
+
+	// Should contain custom patterns in GH_AW_CUSTOM_ERROR_PATTERNS
+	if !strings.Contains(generated, "GH_AW_CUSTOM_ERROR_PATTERNS") {
+		t.Error("Should include custom error patterns environment variable")
 	}
 
 	// Should contain custom patterns
@@ -54,11 +64,6 @@ func TestErrorPatternsOnCopilotEngine(t *testing.T) {
 
 	if !strings.Contains(generated, "Custom bracketed error pattern") {
 		t.Error("Should include custom bracketed error pattern description")
-	}
-
-	// Should also contain Copilot's built-in patterns
-	if !strings.Contains(generated, "Copilot CLI") {
-		t.Error("Should still include Copilot's built-in error patterns")
 	}
 }
 
@@ -93,6 +98,16 @@ func TestErrorPatternsOnClaudeEngine(t *testing.T) {
 		t.Error("Should generate error validation step for Claude with custom patterns")
 	}
 
+	// Should include GH_AW_ENGINE_ID
+	if !strings.Contains(generated, "GH_AW_ENGINE_ID: claude") {
+		t.Error("Should include claude engine ID")
+	}
+
+	// Should include custom pattern in GH_AW_CUSTOM_ERROR_PATTERNS
+	if !strings.Contains(generated, "GH_AW_CUSTOM_ERROR_PATTERNS") {
+		t.Error("Should include custom error patterns environment variable")
+	}
+
 	// Should include custom pattern
 	if !strings.Contains(generated, "CLAUDE_PROJECT_ERROR") {
 		t.Error("Should include CLAUDE_PROJECT_ERROR custom pattern")
@@ -100,11 +115,6 @@ func TestErrorPatternsOnClaudeEngine(t *testing.T) {
 
 	if !strings.Contains(generated, "Project-specific error pattern for Claude") {
 		t.Error("Should include Claude pattern description")
-	}
-
-	// Should also contain common patterns
-	if !strings.Contains(generated, "GitHub Actions workflow command") {
-		t.Error("Should still include common error patterns")
 	}
 }
 
@@ -139,6 +149,16 @@ func TestErrorPatternsOnCodexEngine(t *testing.T) {
 		t.Error("Should generate error validation step for Codex with custom patterns")
 	}
 
+	// Should include GH_AW_ENGINE_ID
+	if !strings.Contains(generated, "GH_AW_ENGINE_ID: codex") {
+		t.Error("Should include codex engine ID")
+	}
+
+	// Should include custom pattern in GH_AW_CUSTOM_ERROR_PATTERNS
+	if !strings.Contains(generated, "GH_AW_CUSTOM_ERROR_PATTERNS") {
+		t.Error("Should include custom error patterns environment variable")
+	}
+
 	// Should include custom pattern
 	if !strings.Contains(generated, "CODEX_PROJECT_ERROR") {
 		t.Error("Should include CODEX_PROJECT_ERROR custom pattern")
@@ -146,11 +166,6 @@ func TestErrorPatternsOnCodexEngine(t *testing.T) {
 
 	if !strings.Contains(generated, "Project-specific error pattern for Codex") {
 		t.Error("Should include Codex pattern description")
-	}
-
-	// Should also contain Codex-specific patterns
-	if !strings.Contains(generated, "Codex ERROR messages") {
-		t.Error("Should still include Codex's built-in error patterns")
 	}
 }
 
@@ -195,21 +210,12 @@ func TestErrorPatternsOnCustomEngine(t *testing.T) {
 	}
 }
 
-// TestErrorPatternsMergeEngineAndCustom verifies that engine patterns and custom patterns are properly merged
+// TestErrorPatternsMergeEngineAndCustom verifies that custom patterns are passed via GH_AW_CUSTOM_ERROR_PATTERNS
 func TestErrorPatternsMergeEngineAndCustom(t *testing.T) {
 	compiler := NewCompiler(false, "", "")
 	engine := NewCopilotEngine()
 
-	// Get the count of built-in Copilot patterns
-	builtinPatterns := engine.GetErrorPatterns()
-	builtinCount := len(builtinPatterns)
-
-	if builtinCount == 0 {
-		t.Fatal("Copilot should have built-in error patterns")
-	}
-
 	// Workflow with custom error patterns
-	customPatternCount := 3
 	data := &WorkflowData{
 		Name: "test-merge-patterns",
 		EngineConfig: &EngineConfig{
@@ -227,6 +233,16 @@ func TestErrorPatternsMergeEngineAndCustom(t *testing.T) {
 
 	generated := yamlBuilder.String()
 
+	// Should include GH_AW_ENGINE_ID for built-in patterns
+	if !strings.Contains(generated, "GH_AW_ENGINE_ID: copilot") {
+		t.Error("Should include copilot engine ID")
+	}
+
+	// Should include GH_AW_CUSTOM_ERROR_PATTERNS for user patterns
+	if !strings.Contains(generated, "GH_AW_CUSTOM_ERROR_PATTERNS") {
+		t.Error("Should include custom error patterns environment variable")
+	}
+
 	// Verify all custom patterns are included
 	if !strings.Contains(generated, "PATTERN_1") {
 		t.Error("Should include PATTERN_1")
@@ -236,22 +252,6 @@ func TestErrorPatternsMergeEngineAndCustom(t *testing.T) {
 	}
 	if !strings.Contains(generated, "PATTERN_3") {
 		t.Error("Should include PATTERN_3")
-	}
-
-	// Verify at least one built-in pattern is included
-	if !strings.Contains(generated, "GitHub Actions workflow command") {
-		t.Error("Should include built-in GitHub Actions workflow command patterns")
-	}
-
-	// Count total patterns in the generated JSON by looking for the pattern field
-	// Note: We use \\\\\\\\s because the JSON is already escaped in the YAML
-	patternCount := strings.Count(generated, `\\\\s`)
-	expectedMinCount := builtinCount + customPatternCount
-
-	if patternCount < expectedMinCount {
-		t.Logf("Pattern count check: found %d occurrences of \\\\s pattern markers", patternCount)
-		// This is informational - the important thing is that we verified individual patterns above
-		// The exact count can vary due to JSON escaping in YAML
 	}
 }
 
