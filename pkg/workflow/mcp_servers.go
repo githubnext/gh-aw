@@ -554,6 +554,9 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
 		containerImage += ":" + gatewayConfig.Version
+	} else {
+		// Use default version if not specified
+		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 
 	// Build container command with args
