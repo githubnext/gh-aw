@@ -345,22 +345,6 @@ steps:
 # Agent reads output, clusters findings, creates discussion
 ```
 
-### Super Linter Report
-**File**: `.github/workflows/super-linter.md`
-
-**Pattern**: Custom job runs linter → Upload artifact → AI analyzes logs
-
-```yaml
-jobs:
-  super_linter:    # Run markdown linting
-    steps:
-      - Run super-linter
-      - Upload log artifact
-steps:
-  - Download linter log
-# Agent categorizes issues, creates actionable report
-```
-
 ## Best Practices
 
 ### Data Preparation
