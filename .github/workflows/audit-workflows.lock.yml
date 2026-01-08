@@ -419,7 +419,7 @@ jobs:
             "mcpServers": {
               "gh-aw": {
                 "type": "http",
-                "url": "http://localhost:8765"
+                "url": "http://host.docker.internal:8765"
               },
               "github": {
                 "command": "docker",
