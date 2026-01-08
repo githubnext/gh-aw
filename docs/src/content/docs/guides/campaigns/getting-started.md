@@ -5,6 +5,11 @@ description: "Quick start guide for creating and launching agentic campaigns"
 
 This guide is the shortest path from “we want a campaign” to a working dashboard.
 
+> [!WARNING]
+> **GitHub Agentic Workflows** is a *research demonstrator* in early development and may change significantly.
+> Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
+> Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
+
 ## Quick start (5 steps)
 
 1. Create a GitHub Project board (manual, one-time) and copy its URL.
@@ -18,6 +23,7 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 In GitHub: your org → **Projects** → **New project**. Start with a **Table** view, add a **Board** view grouped by `Status`, and optionally a **Roadmap** view for timelines.
 
 Recommended custom fields (see [Project Management](/gh-aw/guides/campaigns/project-management/)):
+
 - **Status** (Single select): Todo, In Progress, Blocked, Done
 - **Worker/Workflow** (Single select): Names of your worker workflows
 - **Priority** (Single select): High, Medium, Low
@@ -62,6 +68,7 @@ gh aw compile
 This validates the spec. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `compile` also generates an orchestrator and compiles it to `.campaign.lock.yml`.
 
 The orchestrator workflow consists of:
+
 1. **Discovery precomputation step**: Queries GitHub for candidate items and writes a normalized manifest
 2. **Agent coordination job**: Reads the manifest and updates the project board
 
@@ -82,6 +89,7 @@ Apply the tracker label (for example `campaign:framework-upgrade`) to issues/PRs
 **Important: Campaign item protection**
 
 Items with campaign labels (`campaign:*`) are automatically protected from other automated workflows:
+
 - **Automatic exclusion**: Workflows like `issue-monster` skip issues with campaign labels
 - **Controlled by orchestrator**: Only the campaign orchestrator manages campaign items
 - **Manual opt-out**: Use labels like `no-bot` or `no-campaign` to exclude items from all automation

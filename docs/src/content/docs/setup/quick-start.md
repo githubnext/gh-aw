@@ -10,75 +10,27 @@ sidebar:
 > Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
-## Prerequisites
+## Adding Daily News to your repo
 
-Before installing, ensure you have:
-
-- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
-- ✅ **GitHub account** with admin or write access to a repository
-- ✅ **[GitHub Actions](https://docs.github.com/en/actions)** (GitHub's automation platform) enabled in your repository
-- ✅ **Git** installed on your machine
-- ✅ **Operating System:** Linux, macOS, or Windows with WSL
-
-
-
-**Verify your setup:**
-
-```bash
-gh --version      # Should show version 2.0.0 or higher
-gh auth status    # Should show "Logged in to github.com"
-git --version     # Should show git version 2.x or higher
-```
-
-
-
-### Agentic Setup
-
-If you want to use Copilot to configure GitHub Agentic Workflows, run:
-
-```bash wrap
-npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
-```
-
-## How Agentic Workflows Work
-
-Before installing anything, it helps to understand the workflow lifecycle:
-
-```text
-1. You write       2. Compile           3. GitHub Actions runs
-   .md file    →    gh aw compile   →    .lock.yml file
-   (natural         (translates to        (GitHub Actions
-   language)        GitHub Actions)       executes)
-```
-
-**Why two files?**
-- **`.md` file**: Human-friendly markdown with natural language instructions and simple YAML [frontmatter](/gh-aw/reference/glossary/#frontmatter) (configuration at the top between `---` markers). This is what you write and edit.
-- **[`.lock.yml` file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)**: Machine-ready GitHub Actions YAML with security hardening applied. This is what GitHub Actions runs.
-- **[Compilation](/gh-aw/reference/glossary/#compilation)**: The `gh aw compile` command translates your markdown into validated, secure GitHub Actions YAML.
-
-Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
-
-:::caution[Important]
-**Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
-:::
+This is a happy path guide to get you started with daily reports in an existing GitHub repository you have admin or write access to. If you stumbled on one of these steps, go to the [Prerequisites](#prerequisites) section for setup instructions.
 
 ### Step 1 — Install the extension
-
-:::caution[Working in GitHub Codespaces?]
-If you're working in a GitHub Codespace (especially outside the githubnext organization), the extension installation may fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
-
-```bash wrap
-curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
-```
-
-After installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
-:::
 
 Install the [GitHub CLI](https://cli.github.com/), then install the GitHub Agentic Workflows extension:
 
 ```bash wrap
 gh extension install githubnext/gh-aw
 ```
+
+:::caution[Working in GitHub Codespaces?]
+
+If you're working in a GitHub Codespace, the extension installation *may* fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
+
+```bash wrap
+curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+```
+
+:::
 
 ### Step 2 — Add a sample workflow
 
@@ -112,7 +64,9 @@ Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-toke
 4. Click **"Generate token"** and copy it immediately (you won't see it again)
 
 :::tip[Can't find Copilot Requests permission?]
+
 Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
+
 :::
 
 #### Add the token to your repository
@@ -135,6 +89,7 @@ gh aw status
 ```
 
 **Expected output:**
+
 ```text
 Workflow                 Engine    State     Enabled  Schedule
 ──────────────────────────────────────────────────────────────
@@ -144,12 +99,14 @@ daily-team-status        copilot   ✓         Yes      0 9 * * 1-5
 This confirms the workflow is compiled, enabled, and scheduled correctly.
 
 :::tip[Troubleshooting]
+
 If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
+
 :::
 
 ### Step 4 — Trigger a workflow run
 
-Trigger the workflow immediately in GitHub Actions:
+Trigger the workflow immediately in GitHub Actions (this may fail in a codespace):
 
 ```bash wrap
 gh aw run daily-team-status
@@ -163,9 +120,59 @@ gh aw status
 
 Once complete, a new issue will be created in your repository with daily news! The report will be automatically generated by the AI based on recent activity in your repository.
 
+### Agentic Setup
+
+If you want to use Copilot to configure GitHub Agentic Workflows, run:
+
+```bash wrap
+npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
+```
+
+## Prerequisites
+
+Before installing, ensure you have:
+
+- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
+- ✅ **GitHub account** with admin or write access to a repository
+- ✅ **[GitHub Actions](https://docs.github.com/en/actions)** (GitHub's automation platform) enabled in your repository
+- ✅ **Git** installed on your machine
+- ✅ **Operating System:** Linux, macOS, or Windows with WSL
+
+**Verify your setup:**
+
+```bash
+gh --version      # Should show version 2.0.0 or higher
+gh auth status    # Should show "Logged in to github.com"
+git --version     # Should show git version 2.x or higher
+```
+
+## How Agentic Workflows Work
+
+Before installing anything, it helps to understand the workflow lifecycle:
+
+```text
+1. You write       2. Compile           3. GitHub Actions runs
+   .md file    →    gh aw compile   →    .lock.yml file
+   (natural         (translates to        (GitHub Actions
+   language)        GitHub Actions)       executes)
+```
+
+**Why two files?**
+
+- **`.md` file**: Human-friendly markdown with natural language instructions and simple YAML [frontmatter](/gh-aw/reference/glossary/#frontmatter) (configuration at the top between `---` markers). This is what you write and edit.
+- **[`.lock.yml` file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)**: Machine-ready GitHub Actions YAML with security hardening applied. This is what GitHub Actions runs.
+- **[Compilation](/gh-aw/reference/glossary/#compilation)**: The `gh aw compile` command translates your markdown into validated, secure GitHub Actions YAML.
+
+Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
+
+:::caution[Important]
+**Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
+:::
+
 ## Understanding Your First Workflow
 
 The daily team status workflow creates a status report every weekday and posts it as an issue. The workflow file has two parts:
+
 - **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (YAML configuration section between `---` markers) — Configures when the workflow runs and what it can do
 - **Markdown instructions** — Natural language task descriptions for the AI
 
@@ -201,6 +208,7 @@ Create an upbeat daily status report for the team as a GitHub issue.
 ```
 
 **Key configuration elements:**
+
 - **[`tools:`](/gh-aw/reference/tools/)** — Capabilities the AI can use (like GitHub API access)
 - **[`safe-outputs:`](/gh-aw/reference/safe-outputs/)** (pre-approved GitHub operations) — Allows creating issues without giving the AI write permissions
 
