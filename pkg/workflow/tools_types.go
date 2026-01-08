@@ -135,6 +135,9 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if config.Container != "" {
 		result["container"] = config.Container
 	}
+	if config.Entrypoint != "" {
+		result["entrypoint"] = config.Entrypoint
+	}
 	if len(config.EntrypointArgs) > 0 {
 		result["entrypointArgs"] = config.EntrypointArgs
 	}

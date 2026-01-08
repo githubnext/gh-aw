@@ -19,5 +19,6 @@ type BaseMCPServerConfig struct {
 
 	// Container-specific fields
 	Container      string   `json:"container,omitempty" yaml:"container,omitempty"`           // Container image for the MCP server
+	Entrypoint     string   `json:"entrypoint,omitempty" yaml:"entrypoint,omitempty"`         // Custom entrypoint for the container (overrides container's default)
 	EntrypointArgs []string `json:"entrypointArgs,omitempty" yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint
 }

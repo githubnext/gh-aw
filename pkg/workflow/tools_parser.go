@@ -533,6 +533,10 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 		config.Container = container
 	}
 
+	if entrypoint, ok := configMap["entrypoint"].(string); ok {
+		config.Entrypoint = entrypoint
+	}
+
 	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
 		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
 		for _, arg := range entrypointArgs {
@@ -554,6 +558,7 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 		"url":            true,
 		"headers":        true,
 		"container":      true,
+		"entrypoint":     true,
 		"entrypointArgs": true,
 	}
 

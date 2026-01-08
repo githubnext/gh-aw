@@ -868,6 +868,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"container":      true,
 		"version":        true,
 		"args":           true,
+		"entrypoint":     true,
 		"entrypointArgs": true,
 		"env":            true,
 		"proxy-args":     true,
@@ -954,6 +955,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		}
 		if args, hasArgs := config.GetStringArray("args"); hasArgs {
 			result.Args = args
+		}
+		if entrypoint, hasEntrypoint := config.GetString("entrypoint"); hasEntrypoint {
+			result.Entrypoint = entrypoint
 		}
 		if entrypointArgs, hasEntrypointArgs := config.GetStringArray("entrypointArgs"); hasEntrypointArgs {
 			result.EntrypointArgs = entrypointArgs

@@ -182,6 +182,7 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
   "mcpServers": {
     "server-name": {
       "container": "string",
+      "entrypoint": "string",
       "entrypointArgs": ["string"],
       "env": {
         "VAR_NAME": "value"
@@ -208,6 +209,7 @@ Each server configuration MUST support:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `container` | string | Conditional* | Container image for the MCP server (required for stdio servers) |
+| `entrypoint` | string | No | Custom entrypoint for the container (overrides container's default entrypoint) |
 | `entrypointArgs` | array[string] | No | Arguments passed to container entrypoint (container only) |
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |

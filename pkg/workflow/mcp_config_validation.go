@@ -130,6 +130,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"headers":         true,
 		"version":         true,
 		"args":            true,
+		"entrypoint":      true,
 		"entrypointArgs":  true,
 		"proxy-args":      true,
 		"registry":        true,
