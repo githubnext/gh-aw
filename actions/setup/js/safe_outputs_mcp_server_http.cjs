@@ -44,6 +44,14 @@ function createMCPServer(options = {}) {
   // Bootstrap: load configuration and tools using shared logic
   const { config: safeOutputsConfig, outputFile, tools: ALL_TOOLS } = bootstrapSafeOutputsServer(logger);
 
+  // Log tool IDs from tools.json for debugging
+  if (ALL_TOOLS && Object.keys(ALL_TOOLS).length > 0) {
+    const toolIds = Object.keys(ALL_TOOLS);
+    logger.debug(`Available tools from tools.json (${toolIds.length}): ${toolIds.join(", ")}`);
+  } else {
+    logger.debug(`No tools loaded from tools.json`);
+  }
+
   // Create server with configuration
   const serverName = "safeoutputs";
   const version = "1.0.0";

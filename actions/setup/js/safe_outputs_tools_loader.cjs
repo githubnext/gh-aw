@@ -27,6 +27,13 @@ function loadTools(server) {
     server.debug(`Tools file read successfully, attempting to parse JSON`);
     const tools = JSON.parse(toolsFileContent);
     server.debug(`Successfully parsed ${tools.length} tools from file`);
+
+    // Log tool IDs for debugging
+    if (tools && tools.length > 0) {
+      const toolIds = tools.map(t => t.name).filter(Boolean);
+      server.debug(`Tool IDs from tools.json: ${toolIds.join(", ")}`);
+    }
+
     return tools;
   } catch (error) {
     server.debug(`Error reading tools file: ${getErrorMessage(error)}`);
