@@ -42,13 +42,14 @@ const HANDLER_MAP = {
   create_project_status_update: "./create_project_status_update.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
   create_missing_tool_issue: "./create_missing_tool_issue.cjs",
+  missing_tool: "./missing_tool.cjs",
 };
 
 /**
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  */
-const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "update_project", "upload_asset", "noop", "missing_tool"]);
+const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "update_project", "upload_asset", "noop"]);
 
 /**
  * Load configuration for safe outputs
