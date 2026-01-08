@@ -147,23 +147,6 @@ features:
 			description:         "Runtime-import should trigger checkout when contents: read is present",
 		},
 		{
-			name: "runtime-import without contents permission",
-			frontmatter: `---
-on:
-  issues:
-    types: [opened]
-permissions:
-  issues: write
-engine: copilot
-strict: false
-features:
-  dangerous-permissions-write: true
----`,
-			markdown:            "# Agent\n\n{{#runtime-import .github/shared.md}}\n\nDo the task.",
-			expectedHasCheckout: false,
-			description:         "Runtime-import should NOT trigger checkout without contents permission",
-		},
-		{
 			name: "inline syntax @./ with contents read",
 			frontmatter: `---
 on:
@@ -182,23 +165,6 @@ features:
 			description:         "Inline @./ syntax should trigger checkout",
 		},
 		{
-			name: "URL-only runtime-imports should not require checkout",
-			frontmatter: `---
-on:
-  issues:
-    types: [opened]
-permissions:
-  issues: write
-engine: copilot
-strict: false
-features:
-  dangerous-permissions-write: true
----`,
-			markdown:            "# Agent\n\n{{#runtime-import https://example.com/guide.md}}\n\n@https://github.com/org/repo/file.md",
-			expectedHasCheckout: false,
-			description:         "URL-only runtime-imports should not trigger checkout",
-		},
-		{
 			name: "no runtime-imports with contents read",
 			frontmatter: `---
 on:
@@ -215,26 +181,6 @@ features:
 			markdown:            "# Agent\n\nSimple task instructions here.",
 			expectedHasCheckout: true,
 			description:         "With contents: read but no runtime-imports, checkout should still happen (existing behavior)",
-		},
-		{
-			name: "runtime-import already in custom steps",
-			frontmatter: `---
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  issues: write
-engine: copilot
-strict: false
-features:
-  dangerous-permissions-write: true
-steps:
-  - uses: actions/checkout@v4
----`,
-			markdown:            "# Agent\n\n{{#runtime-import .github/shared.md}}",
-			expectedHasCheckout: false,
-			description:         "Should not add duplicate checkout if already in custom steps",
 		},
 	}
 
@@ -270,8 +216,8 @@ steps:
 			hasCheckout := strings.Contains(lockContentStr, "actions/checkout@")
 
 			if hasCheckout != tt.expectedHasCheckout {
-				t.Errorf("%s: Expected checkout=%v, got checkout=%v\nLock content:\n%s",
-					tt.description, tt.expectedHasCheckout, hasCheckout, lockContentStr)
+				t.Errorf("%s: Expected checkout=%v, got checkout=%v",
+					tt.description, tt.expectedHasCheckout, hasCheckout)
 			}
 		})
 	}

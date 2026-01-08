@@ -490,18 +490,20 @@ func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 		return true // Custom agent file requires checkout to access the file
 	}
 
-	// Check condition 3: If markdown contains runtime-import macros, checkout is required
-	// Runtime imports need to read files from the .github folder at runtime
-	if containsRuntimeImports(data.MarkdownContent) {
-		log.Print("Adding checkout step: markdown contains runtime-import macros")
-		return true // Runtime imports require checkout to access repository files
-	}
-
-	// Check condition 4: If permissions don't grant contents access, don't add checkout
+	// Check condition 3: If permissions don't grant contents access, don't add checkout
+	// This must be checked before runtime-imports check because checkout requires permissions
 	permParser := NewPermissionsParser(data.Permissions)
 	if !permParser.HasContentsReadAccess() {
 		log.Print("Skipping checkout step: no contents read access in permissions")
 		return false // No contents read access, so checkout is not needed
+	}
+
+	// Check condition 4: If markdown contains runtime-import macros, checkout is required
+	// Runtime imports need to read files from the .github folder at runtime
+	// This check only matters if permissions allow contents access (checked above)
+	if containsRuntimeImports(data.MarkdownContent) {
+		log.Print("Adding checkout step: markdown contains runtime-import macros")
+		return true // Runtime imports require checkout to access repository files
 	}
 
 	// If we get here, permissions allow contents access and custom steps (if any) don't contain checkout
