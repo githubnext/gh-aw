@@ -22,6 +22,8 @@ network:
     - "http://httpbin.org"       # Test HTTP-only protocol filtering
 sandbox:
   agent: awf  # Firewall enabled
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
 tools:
   cache-memory: true
   edit:
@@ -43,6 +45,8 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 5
 strict: true
+features:
+  mcp-gateway: true
 ---
 
 # Smoke Test: Copilot Engine Validation
