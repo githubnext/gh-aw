@@ -143,6 +143,34 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	return envVars
 }
 
+// generateSafeOutputsPortConfig generates the step to create port and API key for safe-outputs HTTP server
+// This must be called before the Setup Scripts step so the port is available when MCP config is generated
+func (c *Compiler) generateSafeOutputsPortConfig(yaml *strings.Builder, workflowData *WorkflowData) {
+	// Only generate if safe-outputs is enabled
+	if !HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		return
+	}
+
+	mcpServersLog.Print("Generating Safe Outputs port configuration step")
+	yaml.WriteString("      - name: Generate Safe Outputs Server Config\n")
+	yaml.WriteString("        id: safe-outputs-config\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          # Generate random port between 3000-4000\n")
+	yaml.WriteString("          PORT=$((3000 + $RANDOM % 1000))\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Generate random API key\n")
+	yaml.WriteString("          API_KEY=$(openssl rand -hex 32)\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Output to GitHub Actions output variables\n")
+	yaml.WriteString("          {\n")
+	yaml.WriteString("            echo \"safe_outputs_api_key=${API_KEY}\"\n")
+	yaml.WriteString("            echo \"safe_outputs_port=${PORT}\"\n")
+	yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          echo \"Safe Outputs MCP server will run on port ${PORT}\"\n")
+	yaml.WriteString("          \n")
+}
+
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	mcpServersLog.Print("Generating MCP server configuration setup")
@@ -305,26 +333,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Note: The MCP server entry point (mcp-server.cjs) is now copied by actions/setup
 		// from safe-outputs-mcp-server-http.cjs for HTTP transport
 
-		// Step 2: Generate port and API key for safe-outputs HTTP server
-		yaml.WriteString("      - name: Generate Safe Outputs Server Config\n")
-		yaml.WriteString("        id: safe-outputs-config\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          # Generate random port between 3000-4000\n")
-		yaml.WriteString("          PORT=$((3000 + $RANDOM % 1000))\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Generate random API key\n")
-		yaml.WriteString("          API_KEY=$(openssl rand -hex 32)\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Output to GitHub Actions output variables\n")
-		yaml.WriteString("          {\n")
-		yaml.WriteString("            echo \"safe_outputs_api_key=${API_KEY}\"\n")
-		yaml.WriteString("            echo \"safe_outputs_port=${PORT}\"\n")
-		yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          echo \"Safe Outputs MCP server will run on port ${PORT}\"\n")
-		yaml.WriteString("          \n")
-
-		// Step 3: Start the HTTP server in the background
+		// Step 2: Start the HTTP server in the background
+		// Note: Port and API key were already generated in an earlier step (before Setup Scripts)
 		yaml.WriteString("      - name: Start Safe Outputs MCP HTTP Server\n")
 		yaml.WriteString("        id: safe-outputs-start\n")
 

@@ -85,6 +85,23 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Generate Safe Outputs Server Config
+        id: safe-outputs-config
+        run: |
+          # Generate random port between 3000-4000
+          PORT=$((3000 + $RANDOM % 1000))
+          
+          # Generate random API key
+          API_KEY=$(openssl rand -hex 32)
+          
+          # Output to GitHub Actions output variables
+          {
+            echo "safe_outputs_api_key=${API_KEY}"
+            echo "safe_outputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "Safe Outputs MCP server will run on port ${PORT}"
+          
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -341,23 +358,6 @@ jobs:
             }
           }
           EOF
-      - name: Generate Safe Outputs Server Config
-        id: safe-outputs-config
-        run: |
-          # Generate random port between 3000-4000
-          PORT=$((3000 + $RANDOM % 1000))
-          
-          # Generate random API key
-          API_KEY=$(openssl rand -hex 32)
-          
-          # Output to GitHub Actions output variables
-          {
-            echo "safe_outputs_api_key=${API_KEY}"
-            echo "safe_outputs_port=${PORT}"
-          } >> "$GITHUB_OUTPUT"
-          
-          echo "Safe Outputs MCP server will run on port ${PORT}"
-          
       - name: Start Safe Outputs MCP HTTP Server
         id: safe-outputs-start
         env:

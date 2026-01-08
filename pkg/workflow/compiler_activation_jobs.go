@@ -579,6 +579,14 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Add setup action steps at the beginning of the job
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
+		// Generate safe-outputs port configuration BEFORE checkout/setup
+		// This ensures the port is available when Setup Scripts runs
+		var portConfigBuilder strings.Builder
+		c.generateSafeOutputsPortConfig(&portConfigBuilder, data)
+		if portConfigStr := portConfigBuilder.String(); portConfigStr != "" {
+			steps = append(steps, portConfigStr)
+		}
+
 		// For dev mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
