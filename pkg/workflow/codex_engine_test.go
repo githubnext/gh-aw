@@ -754,9 +754,10 @@ func TestCodexEngineHttpMCPServerRendered(t *testing.T) {
 				},
 			},
 			mcpTools: []string{"gh-aw"},
+			// localhost URLs are rewritten to host.docker.internal when firewall is enabled (default)
 			shouldContain: []string{
 				"[mcp_servers.gh-aw]",
-				"url = \"http://localhost:8765\"",
+				"url = \"http://host.docker.internal:8765\"",
 			},
 		},
 		{
