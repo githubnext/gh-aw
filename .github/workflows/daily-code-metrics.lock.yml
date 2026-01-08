@@ -119,11 +119,7 @@ jobs:
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
         name: Upload generated charts
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           if-no-files-found: warn
           name: data-charts
@@ -131,11 +127,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source files and data
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -1581,11 +1573,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1606,11 +1594,7 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -1635,22 +1619,14 @@ jobs:
       # Upload repo memory as artifacts for push job
       - name: Upload repo-memory artifact (default)
         if: always()
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           name: repo-memory-default
           path: /tmp/gh-aw/repo-memory/default
           retention-days: 1
           if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         if: always()
         with:
           name: cache-memory
@@ -1658,11 +1634,7 @@ jobs:
       # Upload safe-outputs assets for upload_assets job
       - name: Upload safe-outputs assets
         if: always()
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           name: safe-outputs-assets
           path: /tmp/gh-aw/safeoutputs/assets/
@@ -1683,11 +1655,7 @@ jobs:
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           name: agent-artifacts
           path: |
@@ -1957,11 +1925,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always()
-<<<<<<< HEAD
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-=======
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
->>>>>>> origin/main
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
