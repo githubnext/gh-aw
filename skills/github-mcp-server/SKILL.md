@@ -116,7 +116,7 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 | `labels` | Label management | `get_label`, `list_labels`, `create_label` |
 | `notifications` | Notifications | `list_notifications`, `mark_notifications_read` |
 | `orgs` | Organization management | `get_organization`, `list_organizations` |
-| `projects` | GitHub Projects | Project board operations |
+| `projects` | GitHub Projects (see [URL workarounds](#github-projects-tools---missing-issuepr-urls)) | Project board operations |
 | `secret_protection` | Secret scanning | Secret detection and management |
 | `security_advisories` | Security advisories | Advisory creation and management |
 | `stargazers` | Repository stars | Star-related operations |
