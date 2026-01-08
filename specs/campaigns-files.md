@@ -580,16 +580,16 @@ The discovery script is **not** included in the compiled `.lock.yml` file. Inste
 
 ### Related Documentation
 
-**User-facing guides** (in `docs/src/content/docs/`):
-- [Getting Started with Campaigns](../docs/src/content/docs/guides/campaigns/getting-started.md) - Quick start guide
-- [Campaign Specs](../docs/src/content/docs/guides/campaigns/specs.md) - YAML frontmatter reference
-- [Campaign CLI Commands](../docs/src/content/docs/guides/campaigns/cli-commands.md) - CLI usage examples
-- [Project Management](../docs/src/content/docs/guides/campaigns/project-management.md) - GitHub Projects integration
+**User-facing guides**:
+- `docs/src/content/docs/guides/campaigns/getting-started.md` - Quick start guide
+- `docs/src/content/docs/guides/campaigns/specs.md` - YAML frontmatter reference
+- `docs/src/content/docs/guides/campaigns/cli-commands.md` - CLI usage examples
+- `docs/src/content/docs/guides/campaigns/project-management.md` - GitHub Projects integration
 
-**Architecture specs** (in `specs/`):
-- [Repo-Memory](./repo-memory.md) - Persistent state storage for campaigns
-- [Safe Output Messages](./safe-output-messages.md) - GitHub API operations (create-issue, update-project)
-- [Code Organization](./code-organization.md) - Campaign package structure rationale
+**Architecture specs**:
+- `specs/repo-memory.md` - Persistent state storage for campaigns
+- `specs/safe-output-messages.md` - GitHub API operations (create-issue, update-project)
+- `specs/code-organization.md` - Campaign package structure rationale
 
 ### Code References
 
