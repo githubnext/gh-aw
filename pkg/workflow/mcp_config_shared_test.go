@@ -91,6 +91,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 }
 
 // TestRenderSafeOutputsMCPConfigShared tests the shared renderSafeOutputsMCPConfig function
+// This function generates HTTP transport configuration (not stdio)
 func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -103,12 +104,11 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			isLast: false,
 			wantContains: []string{
 				`"safeoutputs": {`,
-				`"command": "node"`,
-				`"/opt/gh-aw/safeoutputs/mcp-server.cjs"`,
-				`"GH_AW_SAFE_OUTPUTS"`,
-				`"GH_AW_ASSETS_BRANCH"`,
-				`"GH_AW_ASSETS_MAX_SIZE_KB"`,
-				`"GH_AW_ASSETS_ALLOWED_EXTS"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
+				`"Authorization": "Bearer $GH_AW_SAFE_OUTPUTS_API_KEY"`,
+				`"GH_AW_SAFE_OUTPUTS_PORT"`,
+				`"GH_AW_SAFE_OUTPUTS_API_KEY"`,
 			},
 			wantEnding: "},\n",
 		},
@@ -117,8 +117,9 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			isLast: true,
 			wantContains: []string{
 				`"safeoutputs": {`,
-				`"command": "node"`,
-				`"GH_AW_SAFE_OUTPUTS"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
+				`"GH_AW_SAFE_OUTPUTS_PORT"`,
 			},
 			wantEnding: "}\n",
 		},
