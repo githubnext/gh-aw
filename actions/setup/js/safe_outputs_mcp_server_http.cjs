@@ -177,7 +177,8 @@ function createMCPServer(options = {}) {
   logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
 
   if (!registeredCount) {
-    throw new Error("No tools enabled in configuration");
+    logger.debug(`WARNING: No tools enabled in configuration - server will start but no tools will be available`);
+    logger.debug(`This may indicate an empty safe-outputs configuration or missing tool definitions`);
   }
 
   logger.debug(`=== MCP Server Creation Complete ===`);
@@ -186,7 +187,7 @@ function createMCPServer(options = {}) {
   // phase (collect_ndjson_output.cjs) that runs after the MCP server completes.
   // The config file only contains schema information (no secrets), so it's safe to leave.
 
-  return { server, config: safeOutputsConfig, logger };
+  return { server, config: safeOutputsConfig, logger, registeredCount };
 }
 
 /**
@@ -209,7 +210,7 @@ async function startHttpServer(options = {}) {
 
   // Create the MCP server
   try {
-    const { server, config, logger: mcpLogger } = createMCPServer({ logDir: options.logDir });
+    const { server, config, logger: mcpLogger, registeredCount } = createMCPServer({ logDir: options.logDir });
 
     // Use the MCP logger for subsequent messages
     Object.assign(logger, mcpLogger);
@@ -217,7 +218,12 @@ async function startHttpServer(options = {}) {
     logger.debug(`MCP server created successfully`);
     logger.debug(`Server name: safeoutputs`);
     logger.debug(`Server version: 1.0.0`);
-    logger.debug(`Tools configured: ${Object.keys(config).length}`);
+    logger.debug(`Configuration items: ${Object.keys(config).length}`);
+    logger.debug(`Registered tools: ${registeredCount}`);
+
+    if (registeredCount === 0) {
+      logger.debug(`WARNING: No tools registered - server will run but no tools will be available to the MCP client`);
+    }
 
     logger.debug(`Creating HTTP transport...`);
     // Create the HTTP transport
@@ -256,7 +262,7 @@ async function startHttpServer(options = {}) {
             status: "ok",
             server: "safeoutputs",
             version: "1.0.0",
-            tools: Object.keys(config).length,
+            tools: registeredCount,
           })
         );
         return;
