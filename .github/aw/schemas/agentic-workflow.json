@@ -2265,19 +2265,13 @@
               "additionalProperties": false
             },
             "mcp": {
-              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled.",
+              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled. Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.",
               "type": "object",
               "properties": {
-                "command": {
-                  "type": "string",
-                  "$comment": "Mutually exclusive with 'container' - only one execution mode can be specified.",
-                  "description": "Custom command to execute the MCP gateway"
-                },
                 "container": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-                  "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified.",
-                  "description": "Container image for the MCP gateway executable"
+                  "description": "Container image for the MCP gateway executable (required)"
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -2289,14 +2283,13 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Arguments for command or docker run"
+                  "description": "Arguments for docker run"
                 },
                 "entrypointArgs": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "$comment": "Requires 'container' to be specified - entrypoint arguments only apply to container execution.",
                   "description": "Arguments to add after the container image (container entrypoint arguments)"
                 },
                 "env": {
@@ -2321,36 +2314,8 @@
                   "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 }
               },
-              "additionalProperties": false,
-              "anyOf": [
-                {
-                  "required": ["command"]
-                },
-                {
-                  "required": ["container"]
-                },
-                {}
-              ],
-              "not": {
-                "allOf": [
-                  {
-                    "required": ["command"]
-                  },
-                  {
-                    "required": ["container"]
-                  }
-                ]
-              },
-              "allOf": [
-                {
-                  "if": {
-                    "required": ["entrypointArgs"]
-                  },
-                  "then": {
-                    "required": ["container"]
-                  }
-                }
-              ]
+              "required": ["container"],
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
