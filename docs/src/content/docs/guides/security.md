@@ -364,6 +364,25 @@ Fine-grained control over AI engine network access, separate from MCP tool permi
 
 **Copilot Engine with AWF**: Uses [AWF](https://github.com/githubnext/gh-aw-firewall) firewall wrapper for process-level domain allowlisting, execution wrapping, and activity logging. See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions).
 
+**AWF (Agent Workflow Firewall) runtime hardening (v0.9.x+)**
+
+- Drops the `NET_ADMIN` capability and relies on stricter seccomp/AppArmor defaults, reducing kernel-level attack surface for the firewall container.
+- Blocks metadata and credential endpoints by default to prevent cloud credential exfiltration:
+  - `169.254.169.254` (instance metadata for AWS/Azure/GCP)
+  - `169.254.170.2` (AWS ECS task metadata v4, a container-scoped service)
+- `host-access` is **disabled by default**; only enable it deliberately, e.g.:
+
+```yaml wrap
+network:
+  firewall:
+    args: ["--host-access"]  # enables host networking - review security impact first
+```
+- Additional defense-in-depth:
+  - Deterministic sandbox mount paths (stable, non-user-controlled locations to reduce path-spoofing/escape attempts)
+  - Explicit rootless user
+  - Tighter iptables/egress validation with clearer error messages
+- Firewall logs now surface blocked DNS/HTTP requests more clearly to expose policy gaps during audits.
+
 **Best Practices**: Start with `defaults`, add needed ecosystems; prefer ecosystem identifiers over individual domains; listing a domain includes all subdomains; test thoroughly and monitor logs.
 
 ### Permission Modes
