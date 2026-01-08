@@ -288,6 +288,94 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
+  it("should handle 502 errors as success", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock successful agent lookup and issue details
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      .mockRejectedValueOnce({
+        response: {
+          status: 502,
+          url: "https://api.github.com/graphql",
+          headers: { "content-type": "text/html" },
+          data: "<html>\n<head><title>502 Bad Gateway</title></head>\n<body>\n<center><h1>502 Bad Gateway</h1></center>\n<hr><center>nginx</center>\n</body>\n</html>\n",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should warn about 502 but treat as success
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Received 502 error from cloud gateway"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Treating 502 error as success"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.summary.addRaw).toHaveBeenCalled();
+    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryCall).toContain("Successfully assigned 1 agent(s)");
+  });
+
+  it("should handle 502 errors in message as success", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock successful agent lookup and issue details
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      .mockRejectedValueOnce(new Error("502 Bad Gateway"));
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should warn about 502 but treat as success
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Received 502 error from cloud gateway"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Treating 502 error as success"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
   it("should cache agent IDs for multiple assignments", async () => {
     setAgentOutput({
       items: [
