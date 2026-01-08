@@ -283,12 +283,36 @@ Based on the parsed requirements, determine:
 
 1. Check if `.github/workflows/<workflow-id>.md` already exists using the `view` tool
 2. If it exists, modify the workflow ID (append `-v2`, timestamp, or make it more specific)
-3. Create the file with:
+3. **Create the agentics prompt file** at `.github/agentics/<workflow-id>.md`:
+   - Create the `.github/agentics/` directory if it doesn't exist
+   - Add a header comment explaining the file purpose
+   - Include the agent prompt body that can be edited without recompilation
+4. Create the workflow file at `.github/workflows/<workflow-id>.md` with:
    - Complete YAML frontmatter
-   - Clear prompt instructions
+   - A comment at the top of the markdown body explaining compilation-less editing
+   - A runtime-import macro reference to the agentics file
+   - Brief instructions (full prompt is in the agentics file)
    - Security best practices applied
 
-Example workflow structure:
+Example agentics prompt file (`.github/agentics/<workflow-id>.md`):
+```markdown
+<!-- This prompt will be imported in the agentic workflow .github/workflows/<workflow-id>.md at runtime. -->
+<!-- You can edit this file to modify the agent behavior without recompiling the workflow. -->
+
+# <Workflow Name>
+
+You are an AI agent that <what the agent does>.
+
+## Your Task
+
+<Clear, actionable instructions>
+
+## Guidelines
+
+<Specific guidelines for behavior>
+```
+
+Example workflow structure (`.github/workflows/<workflow-id>.md`):
 ```markdown
 ---
 description: <Brief description of what this workflow does>
@@ -310,17 +334,12 @@ safe-outputs:
 timeout-minutes: 5
 ---
 
-# <Workflow Name>
+<!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
+{{#runtime-import? .github/agentics/<workflow-id>.md}}
 
-You are an AI agent that <what the agent does>.
+## Fallback Instructions
 
-## Your Task
-
-<Clear, actionable instructions>
-
-## Guidelines
-
-<Specific guidelines for behavior>
+If the agentics file is not available, the agent should: <brief fallback instructions>
 ```
 
 ### Step 4: Compile the Workflow
@@ -337,13 +356,15 @@ If compilation fails with syntax errors:
 
 ### Step 5: Create a Pull Request
 
-Create a PR with both files:
-- `.github/workflows/<workflow-id>.md` (source workflow)
+Create a PR with all three files:
+- `.github/agentics/<workflow-id>.md` (editable agent prompt - can be modified without recompilation)
+- `.github/workflows/<workflow-id>.md` (source workflow with runtime-import reference)
 - `.github/workflows/<workflow-id>.lock.yml` (compiled workflow)
 
 Include in the PR description:
 - What the workflow does
 - How it was generated from the issue form
+- Explanation that the agent prompt in `.github/agentics/<workflow-id>.md` can be edited without recompilation
 - Any assumptions made
 - Link to the original issue
 
