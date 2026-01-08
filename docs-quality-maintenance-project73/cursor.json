@@ -1,4 +1,8 @@
 {
   "page": 1,
-  "label": "campaign:docs-quality-maintenance-project73"
+  "label": "campaign:docs-quality-maintenance-project73",
+  "last_processed_updated_at": "2026-01-08T14:45:27Z",
+  "last_run": "2026-01-08T18:10:47Z",
+  "items_processed": 16,
+  "notes": "All 16 discovered items processed successfully"
 }
