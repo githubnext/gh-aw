@@ -264,6 +264,18 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 	}
 
+	// 25. Create Project step
+	if data.SafeOutputs.CreateProjects != nil {
+		stepConfig := c.buildCreateProjectStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		// Create project requires organization-projects permission (via GitHub App token)
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
+
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
 		consolidatedSafeOutputsJobLog.Print("No safe output steps were added")

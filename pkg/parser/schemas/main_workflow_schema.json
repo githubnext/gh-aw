@@ -3757,6 +3757,42 @@
             }
           ]
         },
+        "create-project": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating new GitHub Projects v2 boards. Creates a new empty project that can be populated with issues and custom fields. Requires a Personal Access Token (PAT) or GitHub App token with Projects permissions; the GITHUB_TOKEN cannot be used. Safe output items use type=create_project and include: title (project name), owner (org/user login), owner_type ('org' or 'user', default: 'org'), and optional item_url (GitHub issue URL to add as first item). The target-owner can be configured in the workflow frontmatter to provide a default that the agent can use or override.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of create operations to perform (default: 1).",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Must have Projects write permission. Overrides global github-token if specified."
+                },
+                "target-owner": {
+                  "type": "string",
+                  "description": "Optional default target owner (organization or user login, e.g., 'myorg' or 'username') for the new project. If specified, the agent can omit the owner field in the tool call and this default will be used. The agent can still override by providing an owner in the tool call."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable project creation with default configuration (max=1)"
+            },
+            {
+              "enum": [null],
+              "description": "Alternative null value syntax"
+            }
+          ],
+          "default": {
+            "max": 1
+          }
+        },
         "create-project-status-update": {
           "oneOf": [
             {

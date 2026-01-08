@@ -30,6 +30,7 @@ var safeOutputFieldMapping = map[string]string{
 	"UpdateRelease":                   "update_release",
 	"UpdateProjects":                  "update_project",
 	"CopyProjects":                    "copy_project",
+	"CreateProjects":                  "create_project",
 	"CreateProjectStatusUpdates":      "create_project_status_update",
 	"LinkSubIssue":                    "link_sub_issue",
 	"HideComment":                     "hide_comment",
