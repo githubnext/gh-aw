@@ -37,6 +37,16 @@ func TestCopilotEngine(t *testing.T) {
 	if engine.SupportsMaxTurns() {
 		t.Error("Expected copilot engine to not support max-turns yet")
 	}
+
+	// Test declared output files (session files are copied to logs folder)
+	outputFiles := engine.GetDeclaredOutputFiles()
+	if len(outputFiles) != 1 {
+		t.Errorf("Expected 1 declared output file, got %d", len(outputFiles))
+	}
+
+	if outputFiles[0] != "/tmp/gh-aw/sandbox/agent/logs/" {
+		t.Errorf("Expected declared output file to be logs folder, got %s", outputFiles[0])
+	}
 }
 
 func TestCopilotEngineDefaultDetectionModel(t *testing.T) {

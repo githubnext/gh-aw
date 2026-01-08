@@ -77,22 +77,23 @@ Normal content here.
 		t.Error("Interpolation and template rendering step should use github-script action")
 	}
 
-	// Verify that GitHub expressions are wrapped in ${{ }}
-	if !strings.Contains(compiledStr, "{{#if ${{ github.event.issue.number }} }}") {
-		t.Error("Compiled workflow should contain wrapped github.event.issue.number expression")
+	// Verify that GitHub expressions are replaced with placeholders
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}") {
+		t.Error("Compiled workflow should contain placeholder for github.event.issue.number expression")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ github.actor }} }}") {
-		t.Error("Compiled workflow should contain wrapped github.actor expression")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_ACTOR__ }}") {
+		t.Error("Compiled workflow should contain placeholder for github.actor expression")
 	}
 
-	// Verify that literal values are also wrapped (simplified behavior)
-	if !strings.Contains(compiledStr, "{{#if ${{ true }} }}") {
-		t.Error("Compiled workflow should contain wrapped literal true")
+	// Verify that literal values are also replaced with placeholders
+	// true and false literals get normalized to __GH_AW_TRUE__ and __GH_AW_FALSE__
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_TRUE__ }}") {
+		t.Error("Compiled workflow should contain placeholder for literal true")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ false }} }}") {
-		t.Error("Compiled workflow should contain wrapped literal false")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_FALSE__ }}") {
+		t.Error("Compiled workflow should contain placeholder for literal false")
 	}
 
 	// Verify the setupGlobals helper is used

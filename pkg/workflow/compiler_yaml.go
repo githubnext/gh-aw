@@ -183,6 +183,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		cleanedMarkdownContent = SubstituteImportInputs(cleanedMarkdownContent, data.ImportInputs)
 	}
 
+	// Wrap GitHub expressions in template conditionals BEFORE extracting expressions
+	// This ensures that expressions created by wrapping (e.g., {{#if ${{ expr }} }})
+	// are also extracted and replaced with environment variables
+	cleanedMarkdownContent = wrapExpressionsInTemplateConditionals(cleanedMarkdownContent)
+
 	// Extract expressions and create environment variable mappings for security
 	extractor := NewExpressionExtractor()
 	expressionMappings, err := extractor.ExtractExpressions(cleanedMarkdownContent)
@@ -196,9 +201,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	if len(expressionMappings) > 0 {
 		cleanedMarkdownContent = extractor.ReplaceExpressionsWithEnvVars(cleanedMarkdownContent)
 	}
-
-	// Wrap GitHub expressions in template conditionals
-	cleanedMarkdownContent = wrapExpressionsInTemplateConditionals(cleanedMarkdownContent)
 
 	// Split content into manageable chunks
 	chunks := splitContentIntoChunks(cleanedMarkdownContent)

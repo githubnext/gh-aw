@@ -254,10 +254,16 @@ func (e *CopilotEngine) GetLogFileForParsing() string {
 	return "/tmp/gh-aw/sandbox/agent/logs/"
 }
 
-// GetFirewallLogsCollectionStep returns empty steps as firewall logs are at a known location
+// GetFirewallLogsCollectionStep returns steps for collecting firewall logs and copying session state files
 func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
-	// Collection step removed - firewall logs are now at a known location
-	return []GitHubActionStep{}
+	var steps []GitHubActionStep
+
+	// Add step to copy Copilot session state files to logs folder
+	// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+	sessionCopyStep := generateCopilotSessionFileCopyStep()
+	steps = append(steps, sessionCopyStep)
+
+	return steps
 }
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
@@ -285,4 +291,31 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
 	// Return empty step - cleanup steps have been removed
 	return GitHubActionStep([]string{})
+}
+
+// generateCopilotSessionFileCopyStep generates a step to copy Copilot session state files
+// from ~/.copilot/session-state/ to /tmp/gh-aw/sandbox/agent/logs/
+// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+func generateCopilotSessionFileCopyStep() GitHubActionStep {
+	var step []string
+
+	step = append(step, "      - name: Copy Copilot session state files to logs")
+	step = append(step, "        if: always()")
+	step = append(step, "        continue-on-error: true")
+	step = append(step, "        run: |")
+	step = append(step, "          # Copy Copilot session state files to logs folder for artifact collection")
+	step = append(step, "          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them")
+	step = append(step, "          SESSION_STATE_DIR=\"$HOME/.copilot/session-state\"")
+	step = append(step, "          LOGS_DIR=\"/tmp/gh-aw/sandbox/agent/logs\"")
+	step = append(step, "          ")
+	step = append(step, "          if [ -d \"$SESSION_STATE_DIR\" ]; then")
+	step = append(step, "            echo \"Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR\"")
+	step = append(step, "            mkdir -p \"$LOGS_DIR\"")
+	step = append(step, "            cp -v \"$SESSION_STATE_DIR\"/*.jsonl \"$LOGS_DIR/\" 2>/dev/null || true")
+	step = append(step, "            echo \"Session state files copied successfully\"")
+	step = append(step, "          else")
+	step = append(step, "            echo \"No session-state directory found at $SESSION_STATE_DIR\"")
+	step = append(step, "          fi")
+
+	return GitHubActionStep(step)
 }
