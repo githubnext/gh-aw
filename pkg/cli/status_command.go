@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
@@ -125,7 +127,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 			agent := extractEngineIDFromFile(file)
 
 			// Check if compiled (.lock.yml file is in .github/workflows)
-			lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(file)
 			compiled := "N/A"
 			timeRemaining := "N/A"
 
@@ -238,7 +240,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 		agent := extractEngineIDFromFile(file)
 
 		// Check if compiled (.lock.yml file is in .github/workflows)
-		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(file)
 		compiled := "N/A"
 		timeRemaining := "N/A"
 

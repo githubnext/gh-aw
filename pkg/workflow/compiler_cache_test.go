@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
@@ -165,7 +167,7 @@ tools:
 			}
 
 			// Read the generated lock file
-			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			content, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -225,7 +227,7 @@ This workflow should get default permissions applied automatically.
 	}
 
 	// Calculate the lock file path
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 
 	// Read the generated lock file
 	lockContent, err := os.ReadFile(lockFile)
@@ -343,7 +345,7 @@ This workflow has custom permissions that should override defaults.
 	}
 
 	// Calculate the lock file path
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 
 	// Read the generated lock file
 	lockContent, err := os.ReadFile(lockFile)

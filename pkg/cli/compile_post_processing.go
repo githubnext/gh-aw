@@ -31,10 +31,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -107,7 +107,7 @@ func collectWorkflowStatisticsWrapper(markdownFiles []string) []*WorkflowStats {
 		if err != nil {
 			continue // Skip files that couldn't be resolved
 		}
-		lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(resolvedFile)
 		if workflowStats, err := collectWorkflowStats(lockFile); err == nil {
 			statsList = append(statsList, workflowStats)
 		}

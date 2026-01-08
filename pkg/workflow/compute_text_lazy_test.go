@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestComputeTextLazyInsertion(t *testing.T) {
@@ -91,7 +93,7 @@ Create a report based on repository analysis.`
 		}
 
 		// Check that the compiled YAML contains inlined compute-text step
-		lockPath := strings.TrimSuffix(workflowWithTextPath, ".md") + ".lock.yml"
+		lockPath := stringutil.MarkdownToLockFile(workflowWithTextPath)
 		lockContent, err := os.ReadFile(lockPath)
 		if err != nil {
 			t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -130,7 +132,7 @@ Create a report based on repository analysis.`
 		}
 
 		// Check that the compiled YAML does NOT contain compute-text step
-		lockPath := strings.TrimSuffix(workflowWithoutTextPath, ".md") + ".lock.yml"
+		lockPath := stringutil.MarkdownToLockFile(workflowWithoutTextPath)
 		lockContent, err := os.ReadFile(lockPath)
 		if err != nil {
 			t.Fatalf("Failed to read compiled workflow: %v", err)

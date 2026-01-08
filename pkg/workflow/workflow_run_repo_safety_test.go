@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // TestWorkflowRunRepoSafetyCheck tests that workflow_run triggers get repository safety checks
@@ -100,7 +102,7 @@ Do something on issue.`,
 			}
 
 			// Read the generated lock file
-			lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(workflowFile)
 			lockContent, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -189,7 +191,7 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -276,7 +278,7 @@ Do something on push.`
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -328,7 +330,7 @@ Test workflow with workflow_run trigger.`
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

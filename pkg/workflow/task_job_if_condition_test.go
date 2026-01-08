@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestActivationJobWithIfConditionHasPlaceholderStep(t *testing.T) {
@@ -47,7 +49,7 @@ Check the failed workflow and provide analysis.`
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

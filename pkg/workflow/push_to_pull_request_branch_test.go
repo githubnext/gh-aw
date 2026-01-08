@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -44,7 +46,7 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -122,7 +124,7 @@ This workflow allows pushing to any pull request.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -274,7 +276,7 @@ This workflow has minimal push-to-pull-request-branch configuration.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -337,7 +339,7 @@ This workflow fails when there are no changes.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -384,7 +386,7 @@ This workflow ignores when there are no changes.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -430,7 +432,7 @@ This workflow uses default if-no-changes behavior.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -530,7 +532,7 @@ This workflow validates PR title prefix.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -578,7 +580,7 @@ This workflow validates PR labels.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -627,7 +629,7 @@ This workflow validates both PR title prefix and labels.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -678,7 +680,7 @@ This workflow appends a suffix to commit titles.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -725,7 +727,7 @@ since it's not supported by actions/github-script.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -782,7 +784,7 @@ Test that the push-to-pull-request-branch job receives activation comment enviro
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -848,7 +850,7 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

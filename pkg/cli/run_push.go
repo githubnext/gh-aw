@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
@@ -37,7 +39,7 @@ func collectWorkflowFiles(workflowPath string, verbose bool) ([]string, error) {
 	runPushLog.Printf("Added workflow file: %s", absWorkflowPath)
 
 	// Check if lock file needs recompilation
-	lockFilePath := strings.TrimSuffix(absWorkflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(absWorkflowPath)
 	runPushLog.Printf("Checking lock file: %s", lockFilePath)
 	needsRecompile := false
 
@@ -165,7 +167,7 @@ func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 	}
 	runPushLog.Printf("Resolved absolute path: %s", absWorkflowPath)
 
-	lockFilePath := strings.TrimSuffix(absWorkflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(absWorkflowPath)
 	runPushLog.Printf("Expected lock file path: %s", lockFilePath)
 	status := &LockFileStatus{
 		LockPath: lockFilePath,

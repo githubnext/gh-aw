@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // TestMainJobAlwaysHasAgentID verifies that the main job always gets the ID "agent"
@@ -75,7 +77,7 @@ Test workflow that creates issues.`,
 			}
 
 			// Read the generated lock file
-			lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(workflowFile)
 			lockContent, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
