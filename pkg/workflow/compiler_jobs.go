@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -436,6 +437,45 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	return nil
 }
 
+// containsRuntimeImports checks if markdown content contains runtime-import macros
+// that reference files from the repository (not URLs).
+// Patterns detected:
+//   - {{#runtime-import filepath}} or {{#runtime-import? filepath}} where filepath is not a URL
+//   - @./path or @../path (inline syntax - these must start with ./ or ../)
+// URLs (http:// or https://) are excluded as they don't require repository checkout.
+func containsRuntimeImports(markdownContent string) bool {
+	if markdownContent == "" {
+		return false
+	}
+
+	// Pattern 1: {{#runtime-import filepath}} or {{#runtime-import? filepath}}
+	// Match any runtime-import macro
+	macroPattern := `\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`
+	macroRe := regexp.MustCompile(macroPattern)
+	matches := macroRe.FindAllStringSubmatch(markdownContent, -1)
+	for _, match := range matches {
+		if len(match) > 1 {
+			filepath := strings.TrimSpace(match[1])
+			// Check if it's NOT a URL (URLs don't require checkout)
+			// Any non-URL path requires checkout since it's a file in the repository
+			if !strings.HasPrefix(filepath, "http://") && !strings.HasPrefix(filepath, "https://") {
+				return true
+			}
+		}
+	}
+
+	// Pattern 2: @./path or @../path (inline syntax)
+	// Must start with @ followed by ./ or ../
+	// Exclude email addresses and URLs
+	inlinePattern := `@(\.\./|\./)[^\s]+`
+	inlineRe := regexp.MustCompile(inlinePattern)
+	if inlineRe.MatchString(markdownContent) {
+		return true
+	}
+
+	return false
+}
+
 // shouldAddCheckoutStep determines if the checkout step should be added based on permissions and custom steps
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 	// Check condition 1: If custom steps already contain checkout, don't add another one
@@ -450,7 +490,14 @@ func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 		return true // Custom agent file requires checkout to access the file
 	}
 
-	// Check condition 3: If permissions don't grant contents access, don't add checkout
+	// Check condition 3: If markdown contains runtime-import macros, checkout is required
+	// Runtime imports need to read files from the .github folder at runtime
+	if containsRuntimeImports(data.MarkdownContent) {
+		log.Print("Adding checkout step: markdown contains runtime-import macros")
+		return true // Runtime imports require checkout to access repository files
+	}
+
+	// Check condition 4: If permissions don't grant contents access, don't add checkout
 	permParser := NewPermissionsParser(data.Permissions)
 	if !permParser.HasContentsReadAccess() {
 		log.Print("Skipping checkout step: no contents read access in permissions")
