@@ -1,9 +1,9 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -42,7 +42,7 @@ Test workflow content
 	require.NoError(t, err, "Failed to compile workflow")
 
 	// Get the lock file path
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 
 	// Read the compiled workflow
 	lockContent, err := os.ReadFile(lockFilePath)

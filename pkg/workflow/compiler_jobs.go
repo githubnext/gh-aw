@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -149,10 +150,9 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Handle campaign orchestrators specially: example.campaign.g.md -> example.campaign.lock.yml
 	var lockFilename string
 	if strings.HasSuffix(markdownPath, ".campaign.g.md") {
-		baseName := strings.TrimSuffix(markdownPath, ".campaign.g.md")
-		lockFilename = filepath.Base(baseName + ".campaign.lock.yml")
+		lockFilename = filepath.Base(stringutil.CampaignOrchestratorToLockFile(markdownPath))
 	} else {
-		lockFilename = filepath.Base(strings.TrimSuffix(markdownPath, ".md") + ".lock.yml")
+		lockFilename = filepath.Base(stringutil.MarkdownToLockFile(markdownPath))
 	}
 
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, and command position check)

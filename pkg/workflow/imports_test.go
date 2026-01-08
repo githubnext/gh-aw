@@ -1,6 +1,7 @@
 package workflow_test
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +61,7 @@ This is a test workflow.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -143,7 +144,7 @@ This is a test workflow with multiple imports.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -219,7 +220,7 @@ This is a test workflow with imported MCP server.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

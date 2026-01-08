@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,7 +100,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 		}
 
 		// Also check for corresponding .lock.yml file in .github/workflows
-		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(file)
 		if _, err := os.Stat(lockFile); err == nil {
 			fmt.Printf("  %s (compiled workflow)\n", filepath.Base(lockFile))
 		}
@@ -135,7 +136,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 		}
 
 		// Also remove corresponding .lock.yml file
-		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(file)
 		if _, err := os.Stat(lockFile); err == nil {
 			if err := os.Remove(lockFile); err != nil {
 				fmt.Printf("Warning: Failed to remove %s: %v\n", lockFile, err)

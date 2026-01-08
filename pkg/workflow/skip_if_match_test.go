@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,7 @@ This workflow has a skip-if-match configuration.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -104,7 +105,7 @@ This workflow has both stop-after and skip-if-match.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -157,7 +158,7 @@ This workflow has skip-if-match but no role restrictions.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -206,7 +207,7 @@ This workflow uses object format with max parameter.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -258,7 +259,7 @@ This workflow uses object format but omits max (defaults to 1).
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)

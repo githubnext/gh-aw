@@ -1,6 +1,7 @@
 package workflow_test
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -77,7 +78,7 @@ This workflow tests recursive imports.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -175,7 +176,7 @@ This workflow tests cyclic import detection.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -272,7 +273,7 @@ This workflow tests diamond import pattern.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -416,7 +417,7 @@ imports:
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -200,7 +201,7 @@ This test validates that command conditions are applied correctly based on event
 			}
 
 			// Read the compiled workflow to check the if condition
-			lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			lockContent, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -431,7 +432,7 @@ This test validates that command events filtering works correctly.
 			}
 
 			// Read the compiled workflow
-			lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			lockContent, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)

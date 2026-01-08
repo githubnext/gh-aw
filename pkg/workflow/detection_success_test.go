@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +39,7 @@ Create an issue.
 	}
 
 	// Read the compiled YAML
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	yamlBytes, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read compiled YAML: %v", err)
@@ -106,7 +107,7 @@ Create outputs.
 	}
 
 	// Read the compiled YAML
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	yamlBytes, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read compiled YAML: %v", err)

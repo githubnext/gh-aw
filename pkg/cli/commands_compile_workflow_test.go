@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -234,7 +235,7 @@ Test compilation with invalid engine.
 					t.Errorf("Expected no error but got: %v", err)
 				} else {
 					// Verify lock file was created
-					lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+					lockFile := stringutil.MarkdownToLockFile(workflowFile)
 					if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 						t.Errorf("Expected lock file %s to be created", lockFile)
 					}

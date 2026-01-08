@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,7 +69,7 @@ Test cache-memory import without local definition.
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(mainPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(mainPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

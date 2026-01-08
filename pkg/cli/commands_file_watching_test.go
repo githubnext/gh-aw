@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -178,7 +179,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		// Check that lock files were created
 		for _, file := range testFiles {
-			lockFile := filepath.Join(workflowsDir, strings.TrimSuffix(file, ".md")+".lock.yml")
+			lockFile := filepath.Join(workflowsDir, stringutil.MarkdownToLockFile(file))
 			if _, statErr := os.Stat(lockFile); os.IsNotExist(statErr) {
 				t.Errorf("Expected lock file %s to be created", lockFile)
 			}

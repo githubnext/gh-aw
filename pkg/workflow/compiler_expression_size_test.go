@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,7 +52,7 @@ The content is reasonable and won't generate overly long environment variables.
 		}
 
 		// Verify lock file was created
-		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(testFile)
 		if _, err := os.Stat(lockFile); err != nil {
 			t.Errorf("Lock file was not created: %v", err)
 		}

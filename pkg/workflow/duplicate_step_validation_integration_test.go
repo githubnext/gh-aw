@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,7 +53,7 @@ This workflow tests that duplicate checkout steps are properly deduplicated.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,7 +88,7 @@ This workflow tests custom 2MB patch size configuration.`,
 			}
 
 			// Determine expected lock file name
-			lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(mdFile)
 
 			// Read lock file content
 			lockContent, err := os.ReadFile(lockFile)
@@ -175,7 +176,7 @@ This workflow tests large valid patch size configuration.`,
 			}
 
 			// Determine expected lock file name
-			lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(mdFile)
 
 			// Read lock file content
 			lockContent, err := os.ReadFile(lockFile)

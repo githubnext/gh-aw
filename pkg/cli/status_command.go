@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -125,7 +126,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 			agent := extractEngineIDFromFile(file)
 
 			// Check if compiled (.lock.yml file is in .github/workflows)
-			lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(file)
 			compiled := "N/A"
 			timeRemaining := "N/A"
 
@@ -238,7 +239,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 		agent := extractEngineIDFromFile(file)
 
 		// Check if compiled (.lock.yml file is in .github/workflows)
-		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(file)
 		compiled := "N/A"
 		timeRemaining := "N/A"
 

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -225,7 +226,7 @@ This is a test workflow for GitHub remote mode configuration.
 			}
 
 			// Replace the file extension to .lock.yml
-			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			// Read the generated lock file
 			content, err := os.ReadFile(lockFile)
 			if err != nil {

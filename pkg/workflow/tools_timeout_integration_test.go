@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"strings"
 	"testing"
@@ -27,7 +28,7 @@ Test workflow.
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 	defer os.Remove(tmpFile.Name())
-	defer os.Remove(strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml")
+	defer os.Remove(stringutil.MarkdownToLockFile(tmpFile.Name()))
 
 	if _, err := tmpFile.WriteString(workflowContent); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
@@ -42,7 +43,7 @@ Test workflow.
 	}
 
 	// Read the compiled workflow
-	lockFile := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(tmpFile.Name())
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

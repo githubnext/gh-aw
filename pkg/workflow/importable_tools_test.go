@@ -1,6 +1,7 @@
 package workflow_test
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,7 +64,7 @@ Uses imported playwright tool.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -138,7 +139,7 @@ Uses imported serena tool.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -216,7 +217,7 @@ Uses imported agentic-workflows tool.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -293,7 +294,7 @@ Uses all imported tools.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -376,7 +377,7 @@ Uses imported serena with language config.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -461,7 +462,7 @@ Uses imported playwright with custom args.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -582,7 +583,7 @@ Uses imported edit tool.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -641,7 +642,7 @@ Uses imported web-fetch tool.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -698,7 +699,7 @@ Uses imported web-search tool.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -757,7 +758,7 @@ Uses imported safety-prompt setting.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -816,7 +817,7 @@ Uses imported timeout setting.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -878,7 +879,7 @@ Uses imported startup-timeout setting.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -944,7 +945,7 @@ Uses all imported neutral tools.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

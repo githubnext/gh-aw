@@ -1,10 +1,10 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
@@ -62,7 +62,7 @@ This workflow has an invalid container image.
 	}
 
 	// Verify the lock file was created
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 		t.Error("lock file should be created despite container validation warning")
 	}
@@ -114,7 +114,7 @@ This workflow has an invalid container image.
 	}
 
 	// Verify the lock file was created
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 		t.Error("lock file should be created when validation is disabled")
 	}

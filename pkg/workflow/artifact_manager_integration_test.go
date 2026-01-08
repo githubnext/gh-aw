@@ -1,9 +1,9 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
@@ -180,7 +180,7 @@ Test workflow 3.
 			"Artifact manager should be reset after compiling workflow %d", i+1)
 
 		// Verify lock file was created
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		_, err = os.Stat(lockFile)
 		assert.NoError(t, err, "Lock file should exist for workflow %d", i+1)
 	}

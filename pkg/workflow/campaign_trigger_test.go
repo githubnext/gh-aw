@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"strings"
 	"testing"
@@ -77,7 +78,7 @@ tools:
 			}
 
 			// Read the generated lock file
-			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			lockBytes, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatal(err)
@@ -124,7 +125,7 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
 	lockBytes, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatal(err)

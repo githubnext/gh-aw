@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,7 +147,7 @@ tools:
 			}
 
 			// Read the generated lock file
-			lockPath := strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
+			lockPath := stringutil.MarkdownToLockFile(mdPath)
 			lockContent, err := os.ReadFile(lockPath)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)

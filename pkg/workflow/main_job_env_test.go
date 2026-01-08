@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -149,7 +150,7 @@ This workflow tests that job-level environment variables are properly set for sa
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(workflowFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

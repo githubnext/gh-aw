@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -145,7 +146,7 @@ Create a pull request.
 			}
 
 			if tt.shouldCompile {
-				lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+				lockFile := stringutil.MarkdownToLockFile(workflowFile)
 				content, err := os.ReadFile(lockFile)
 				if err != nil {
 					t.Fatalf("Failed to read lock file: %v", err)
