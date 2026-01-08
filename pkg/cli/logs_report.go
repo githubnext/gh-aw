@@ -649,85 +649,12 @@ func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsL
 	}
 }
 
-// logErrorAggregator defines how to aggregate log errors
-type logErrorAggregator struct {
-	// generateKey creates a unique key for deduplication
-	generateKey func(logErr workflow.LogError) string
-	// selectMap chooses which map to store the error in (for separate error/warning maps)
-	selectMap func(logErr workflow.LogError) map[string]*ErrorSummary
-	// sortResults sorts the final aggregated results
-	sortResults func(results []ErrorSummary)
-}
+// logErrorAggregator and related functions have been removed since error patterns are no longer supported
 
-// aggregateLogErrors extracts common error aggregation logic
-// It iterates through processedRuns, extracts metrics, resolves engine info,
-// and aggregates errors using the provided aggregator strategy
-func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []ErrorSummary {
-	reportLog.Printf("Aggregating log errors from %d runs", len(processedRuns))
-	aggregatedMap := make(map[string]*ErrorSummary)
-
-	for _, pr := range processedRuns {
-		// Extract metrics from run's logs
-		metrics := ExtractLogMetricsFromRun(pr)
-
-		// Get engine information for this run
-		engineID := ""
-		awInfoPath := filepath.Join(pr.Run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			engineID = info.EngineID
-		}
-
-		// Process each error/warning
-		for _, logErr := range metrics.Errors {
-			// Generate key for this error
-			key := agg.generateKey(logErr)
-
-			// Determine target map (if using multiple maps)
-			targetMap := aggregatedMap
-			if agg.selectMap != nil {
-				targetMap = agg.selectMap(logErr)
-			}
-
-			if existing, exists := targetMap[key]; exists {
-				// Increment count for existing error/warning
-				existing.Count++
-			} else {
-				// Capitalize the type for display
-				displayType := logErr.Type
-				switch displayType {
-				case "error":
-					displayType = "Error"
-				case "warning":
-					displayType = "Warning"
-				}
-
-				// Create new entry
-				targetMap[key] = &ErrorSummary{
-					Type:         displayType,
-					Message:      logErr.Message,
-					Count:        1,
-					PatternID:    logErr.PatternID,
-					Engine:       engineID,
-					RunID:        pr.Run.DatabaseID,
-					RunURL:       pr.Run.URL,
-					WorkflowName: pr.Run.WorkflowName,
-				}
-			}
-		}
-	}
-
-	// Convert map to slice
-	var results []ErrorSummary
-	for _, summary := range aggregatedMap {
-		results = append(results, *summary)
-	}
-
-	// Sort results using provided strategy
-	if agg.sortResults != nil {
-		agg.sortResults(results)
-	}
-
-	return results
+// aggregateLogErrors has been removed since error patterns are no longer supported
+func aggregateLogErrors(processedRuns []ProcessedRun, agg interface{}) []ErrorSummary {
+	// Return empty slice since error patterns have been removed
+	return []ErrorSummary{}
 }
 
 // isActionableError checks if an error message is actionable (user-relevant)
@@ -793,44 +720,10 @@ func isActionableError(message string) bool {
 	return true
 }
 
-// buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
-// Filters out non-actionable errors like debug logs, JSON fragments, and internal messages
+// buildCombinedErrorsSummary has been removed since error patterns are no longer supported
 func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
-	agg := logErrorAggregator{
-		generateKey: func(logErr workflow.LogError) string {
-			// Create a combined key using type and message
-			return logErr.Type + ":" + logErr.Message
-		},
-		selectMap: nil, // Use single map
-		sortResults: func(results []ErrorSummary) {
-			sort.Slice(results, func(i, j int) bool {
-				// First sort by type (Error before Warning)
-				if results[i].Type != results[j].Type {
-					return results[i].Type == "Error"
-				}
-				// Then by count (descending)
-				return results[i].Count > results[j].Count
-			})
-		},
-	}
-
-	allErrors := aggregateLogErrors(processedRuns, agg)
-
-	// Filter out non-actionable errors
-	var actionableErrors []ErrorSummary
-	for _, err := range allErrors {
-		if isActionableError(err.Message) {
-			actionableErrors = append(actionableErrors, err)
-		}
-	}
-
-	// Limit to top 20 most common errors to keep output concise
-	maxErrors := 20
-	if len(actionableErrors) > maxErrors {
-		actionableErrors = actionableErrors[:maxErrors]
-	}
-
-	return actionableErrors
+	// Return empty slice since error patterns have been removed
+	return []ErrorSummary{}
 }
 
 // buildErrorsSummary aggregates errors and warnings across all runs

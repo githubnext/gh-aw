@@ -196,22 +196,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 	// Build downloaded files list
 	downloadedFiles := extractDownloadedFiles(run.LogsPath)
 
-	// Build errors and warnings lists
+	// No error/warning extraction since error patterns have been removed
 	var errors []ErrorInfo
 	var warnings []ErrorInfo
-	for _, logErr := range metrics.Errors {
-		errInfo := ErrorInfo{
-			File:    logErr.File,
-			Line:    logErr.Line,
-			Type:    logErr.Type,
-			Message: logErr.Message,
-		}
-		if strings.ToLower(logErr.Type) == "error" {
-			errors = append(errors, errInfo)
-		} else {
-			warnings = append(warnings, errInfo)
-		}
-	}
 
 	// Build tool usage
 	var toolUsage []ToolUsageInfo
