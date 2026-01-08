@@ -334,15 +334,15 @@ func TestParseMessagesConfig(t *testing.T) {
 		{
 			name: "all fields",
 			input: map[string]any{
-				"footer":                          "Powered by AI",
-				"footer-install":                  "Install now",
-				"footer-workflow-recompile":       "Recompile footer",
+				"footer":                            "Powered by AI",
+				"footer-install":                    "Install now",
+				"footer-workflow-recompile":         "Recompile footer",
 				"footer-workflow-recompile-comment": "Recompile comment footer",
-				"staged-title":                    "Preview",
-				"staged-description":              "Preview description",
-				"run-started":                     "Started",
-				"run-success":                     "Success",
-				"run-failure":                     "Failure",
+				"staged-title":                      "Preview",
+				"staged-description":                "Preview description",
+				"run-started":                       "Started",
+				"run-success":                       "Success",
+				"run-failure":                       "Failure",
 			},
 			expected: &SafeOutputMessagesConfig{
 				Footer:                         "Powered by AI",
