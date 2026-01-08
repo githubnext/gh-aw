@@ -18,8 +18,9 @@ safe-outputs:
   add-comment:
     max: 5
   assign-to-agent:
-  update-project:
+  create-project:
     max: 1
+    target-owner: "githubnext"
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
@@ -45,22 +46,20 @@ Your job is to keep the user informed at each stage and assign the work to an AI
 
 ### Step 1: Create New Project
 
-Use the `update-project` safe output to create a new empty project for the campaign.
+Use the `create-project` safe output to create a new empty project for the campaign.
 
-Call the update_project tool with the create_if_missing flag:
+Call the create_project tool with the title and item_url parameters (the target owner is configured as a default):
 
 ```
-update_project({
-  project: "https://github.com/orgs/githubnext/projects/<project-number>",
+create_project({
   title: "Campaign: <campaign-name>",
-  create_if_missing: true,
   item_url: "https://github.com/githubnext/gh-aw/issues/${{ github.event.issue.number }}"
 })
 ```
 
-Replace `<campaign-name>` with a descriptive campaign name based on the issue goal, and use a new unique project number (increment from the highest existing campaign project).
+Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
 
-This will create a new empty project board for this campaign in the githubnext organization and add the issue to the project.
+This will create a new empty project board for this campaign in the githubnext organization and add the issue as the first item.
 
 ### Step 2: Post Initial Comment
 
@@ -113,8 +112,8 @@ The AI agent is now working on your campaign design. You'll receive updates as t
 
 ## Important Notes
 
-- Always create a new empty project using update-project with create_if_missing: true
-- The project URL from the update-project output should be used in the campaign spec
+- Always create a new empty project using create-project
+- The project URL from the create-project output should be used in the campaign spec
 - Use clear, concise language in all comments
 - Keep users informed at each stage
 - The agent will create a NEW campaign file, not modify existing ones
