@@ -1,15 +1,15 @@
 ---
 title: "Comparison with GitHub Security Campaigns"
-description: "How agentic campaigns compare to GitHub's security campaigns feature"
+description: "How GitHub agentic campaigns compare to GitHub's security campaigns feature"
 ---
 
-This page compares GitHub Agentic Workflows campaigns (agentic campaigns) with GitHub's Security Campaigns feature. While both use "campaign" terminology, they serve different purposes and operate at different levels.
+This page compares **GitHub agentic campaigns** with GitHub's security campaigns feature. While both use "campaign" terminology, they serve different purposes and operate at different levels.
 
 ## Overview
 
 **GitHub Security Campaigns** are built-in GitHub Enterprise Cloud features designed specifically for fixing security alerts at scale. They focus on coordinating security teams and developers to remediate code scanning and secret scanning alerts.
 
-**Agentic campaigns** are flexible automation initiatives that run as GitHub Actions workflows. They coordinate AI agents to work toward any goal over time, with tracking via GitHub Projects.
+**GitHub Agentic campaigns** are flexible automation initiatives that run as GitHub agentic workflows. They coordinate AI agents to work toward any goal over time, with tracking via GitHub Projects.
 
 ## Key Differences
 
@@ -45,9 +45,9 @@ GitHub Security Campaigns excel at:
 5. Developers review and merge fixes
 6. Campaign tracks completion rate
 
-### Agentic Campaigns
+### GitHub Agentic Campaigns
 
-Agentic campaigns excel at:
+GitHub agentic campaigns excel at:
 
 - **Flexible objectives**: Any goal that can be described in natural language
 - **Custom coordination**: Define your own orchestration logic
@@ -86,7 +86,7 @@ graph LR
 - REST API endpoints for programmatic access
 - Webhooks for assignment notifications
 
-### Agentic Campaigns
+### GitHub Agentic Campaigns
 
 ```mermaid
 graph TB
@@ -119,7 +119,7 @@ graph TB
 - You want web UI for campaign management
 - You need temporary permission elevation for alerts
 
-### Use Agentic Campaigns When
+### Use GitHub Agentic Campaigns When
 
 - You need automation for any type of work
 - You want custom AI-driven coordination
@@ -131,7 +131,7 @@ graph TB
 
 ## Can They Work Together?
 
-Yes. The two features operate at different layers and can complement each other:
+Yes. The two features operate at different layers and can complement each other. Now, however that this requires GitHub Enterprise Cloud, as the REST API for creating Security Campaigns is only available in Enterprise Cloud accounts:
 
 **Example integration**:
 1. Use GitHub Security Campaigns for critical security alerts
@@ -141,10 +141,6 @@ Yes. The two features operate at different layers and can complement each other:
    - Assign alerts to appropriate teams
    - Track remediation progress
    - Report metrics to leadership
-
-:::note
-This integration example requires GitHub Enterprise Cloud, as the REST API for creating Security Campaigns is only available in Enterprise Cloud accounts.
-:::
 
 **Workflow example**:
 ```yaml
@@ -180,7 +176,7 @@ This agentic workflow automates security campaign creation while GitHub Security
 
 ### Core Capabilities
 
-| Feature | GitHub Security Campaigns | Agentic Campaigns |
+| Feature | GitHub Security Campaigns | GitHub Agentic Campaigns |
 |---------|--------------------------|-------------------|
 | Alert grouping | ✅ Native | ➖ Via custom logic |
 | Developer notification | ✅ Automatic | ➖ Via safe-outputs |
@@ -195,7 +191,7 @@ This agentic workflow automates security campaign creation while GitHub Security
 
 ### Workflow Features
 
-| Feature | GitHub Security Campaigns | Agentic Campaigns |
+| Feature | GitHub Security Campaigns | GitHub Agentic Campaigns |
 |---------|--------------------------|-------------------|
 | Templates | ✅ Alert type templates | ➖ User-created |
 | Scheduling | ➖ Manual runs | ✅ Cron + events |
@@ -207,7 +203,7 @@ This agentic workflow automates security campaign creation while GitHub Security
 
 ### Team Features
 
-| Feature | GitHub Security Campaigns | Agentic Campaigns |
+| Feature | GitHub Security Campaigns | GitHub Agentic Campaigns |
 |---------|--------------------------|-------------------|
 | Role-based access | ✅ Built-in | ➖ Via GitHub permissions |
 | Temporary permissions | ✅ For alerts | ➖ Standard GitHub |
@@ -269,7 +265,7 @@ Both features use "campaign" but the meanings differ:
 
 **GitHub Security Campaign**: A curated set of security alerts grouped for remediation. Emphasis on **alert curation** and **developer collaboration**.
 
-**Agentic Campaign**: A goal-driven automation initiative coordinated by AI agents. Emphasis on **continuous automation** and **progress tracking**.
+**GitHub Agentic Campaign**: A goal-driven automation initiative coordinated by AI agents. Emphasis on **continuous automation** and **progress tracking**.
 
 :::note
 The term "campaign" in both contexts refers to organized, time-bound initiatives. GitHub Security Campaigns are for security remediation; agentic campaigns are for any repeatable work coordinated by AI.
@@ -282,7 +278,7 @@ The term "campaign" in both contexts refers to organized, time-bound initiatives
 - [Creating and Managing Security Campaigns](https://docs.github.com/en/enterprise-cloud@latest/code-security/securing-your-organization/fixing-security-alerts-at-scale/creating-managing-security-campaigns)
 - [REST API for Security Campaigns](https://docs.github.com/en/enterprise-cloud@latest/rest/campaigns/campaigns)
 
-### Agentic Campaigns
+### GitHub Agentic Campaigns
 - [Agentic Campaigns Overview](/gh-aw/guides/campaigns/)
 - [Getting Started with Campaigns](/gh-aw/guides/campaigns/getting-started/)
 - [Campaign Specs Reference](/gh-aw/guides/campaigns/specs/)
