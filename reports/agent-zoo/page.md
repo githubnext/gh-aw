@@ -1,18 +1,18 @@
-# Introducing the Agent Nursery
+# 12 Lessons from the Agentic Nursery
 
 **Exploring the landscape of automated agentic workflows in software development**
 
-_The automated use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "nursery" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this nursery, the patterns we explored, and the lessons for the future of repo-level automated agentic development._
+_The automated, proactive use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "nursery" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this nursery, the patterns we explored, and the lessons for the future of repo-level automated agentic development._
 
-## What is the Agent Nursery?
+## What is the Agentic Nursery?
 
-Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress. The **Agent Nursery** is our exploration of what happens when you take the design philosophy of _let's create a new agentic workflow for that_ as the answer to every opportunity that may present itself! What happens when you _max out on agentic workflows_ - when you make and nurture dozens of specialized AI agentic workflows in a real repository, each designed to solve a specific problem.
+Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress. The **Agentic Nursery** is our exploration of what happens when you take the design philosophy of "_let's create a new agentic workflow for that_" as the answer to more or less every opportunity that may present itself! What happens when you _max out on agentic workflows_ - when you make and nurture dozens of specialized, automated AI agentic workflows in a real repository, each designed to solve a specific problem.
 
 Over the course of this research project, we built and operated **over 100 autonomous agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These weren't hypothetical demos - they were working agents that:
 
 - Triage incoming issues
 - Diagnose CI failures
-- Perform code reviews with personality and critical analysis
+- Perform code reviews
 - Maintain documentation
 - Improve test coverage
 - Monitor security compliance
@@ -197,7 +197,7 @@ These agents manage structured improvement campaigns:
 
 ---
 
-## Imports & Sharing: The Agent Nursery's Secret Weapon
+## Imports & Sharing: The Agentic Nursery's Secret Weapon
 
 Tending dozens of agents would be unsustainable without reuse. One of the most powerful features that enabled us to scale to 145 agents was the **imports system** of GitHub Agentic Workdlows - a mechanism for sharing and reusing workflow components across the entire nursery. This mechanisms is carefully designed to support modularization, sharing, installation, pinning and versioning of single-file portions of agentic workflows into other single-file workflows. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
 
@@ -397,7 +397,7 @@ Discussions and assets create a natural "agent ledger." You can always trace wha
 
 ## Conclusions
 
-The Agent Nursery was an ambitious experiment in scaling agentic workflows. After months of nurturing and observing, several key insights emerged about what works, what doesn't, and how to design effective agent ecosystems.
+The Agentic Nursery was an ambitious experiment in scaling agentic workflows. After months of nurturing and observing, several key insights emerged about what works, what doesn't, and how to design effective agent ecosystems.
 
 ✨ **Diversity Beats Perfection**
 No single agent can do everything. A collection of focused agents, each doing one thing well, proved more practical than trying to build a universal assistant.
@@ -487,7 +487,7 @@ The workflows in this nursery are fully remixable. Copy them, adapt them, and ma
 
 ## Credits
 
-**Agent Nursery** was a research project by GitHub Next Agentic Workflows contributors and collaborators:
+**Agentic Nursery** was a research project by GitHub Next Agentic Workflows contributors and collaborators:
 
 Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Krzysztof Cieślak,  Russell Horton, Ben De St Paer‑Gotch, Jiaxiao Zhou
 
