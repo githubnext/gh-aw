@@ -52,3 +52,83 @@ func NormalizeWorkflowName(name string) string {
 func NormalizeSafeOutputIdentifier(identifier string) string {
 	return strings.ReplaceAll(identifier, "-", "_")
 }
+
+// MarkdownToLockFile converts a workflow markdown file path to its compiled lock file path.
+// This is the standard transformation for agentic workflow files.
+//
+// The function removes the .md extension and adds .lock.yml extension.
+// If the input already has a .lock.yml extension, it returns the path unchanged.
+//
+// Examples:
+//
+//	MarkdownToLockFile("weekly-research.md")                    // returns "weekly-research.lock.yml"
+//	MarkdownToLockFile(".github/workflows/test.md")             // returns ".github/workflows/test.lock.yml"
+//	MarkdownToLockFile("workflow.lock.yml")                     // returns "workflow.lock.yml" (unchanged)
+//	MarkdownToLockFile("my.workflow.md")                        // returns "my.workflow.lock.yml"
+func MarkdownToLockFile(mdPath string) string {
+	// If already a lock file, return unchanged
+	if strings.HasSuffix(mdPath, ".lock.yml") {
+		return mdPath
+	}
+	return strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
+}
+
+// LockFileToMarkdown converts a compiled lock file path back to its markdown source path.
+// This is used when navigating from compiled workflows back to source files.
+//
+// The function removes the .lock.yml extension and adds .md extension.
+// If the input already has a .md extension, it returns the path unchanged.
+//
+// Examples:
+//
+//	LockFileToMarkdown("weekly-research.lock.yml")              // returns "weekly-research.md"
+//	LockFileToMarkdown(".github/workflows/test.lock.yml")       // returns ".github/workflows/test.md"
+//	LockFileToMarkdown("workflow.md")                           // returns "workflow.md" (unchanged)
+//	LockFileToMarkdown("my.workflow.lock.yml")                  // returns "my.workflow.md"
+func LockFileToMarkdown(lockPath string) string {
+	// If already a markdown file, return unchanged
+	if strings.HasSuffix(lockPath, ".md") {
+		return lockPath
+	}
+	return strings.TrimSuffix(lockPath, ".lock.yml") + ".md"
+}
+
+// CampaignSpecToOrchestrator converts a campaign specification file to its generated orchestrator file.
+// Campaign specs (.campaign.md) generate orchestrator workflows (.campaign.g.md).
+//
+// The function removes the .campaign.md extension and adds .campaign.g.md extension.
+//
+// Examples:
+//
+//	CampaignSpecToOrchestrator("test.campaign.md")              // returns "test.campaign.g.md"
+//	CampaignSpecToOrchestrator(".github/workflows/prod.campaign.md") // returns ".github/workflows/prod.campaign.g.md"
+func CampaignSpecToOrchestrator(specPath string) string {
+	return strings.TrimSuffix(specPath, ".campaign.md") + ".campaign.g.md"
+}
+
+// CampaignOrchestratorToLockFile converts a campaign orchestrator file to its compiled lock file.
+// Campaign orchestrators (.campaign.g.md) compile to lock files (.campaign.lock.yml).
+//
+// The function removes the .campaign.g.md extension and adds .campaign.lock.yml extension.
+//
+// Examples:
+//
+//	CampaignOrchestratorToLockFile("test.campaign.g.md")        // returns "test.campaign.lock.yml"
+//	CampaignOrchestratorToLockFile(".github/workflows/prod.campaign.g.md") // returns ".github/workflows/prod.campaign.lock.yml"
+func CampaignOrchestratorToLockFile(orchestratorPath string) string {
+	baseName := strings.TrimSuffix(orchestratorPath, ".campaign.g.md")
+	return baseName + ".campaign.lock.yml"
+}
+
+// CampaignSpecToLockFile converts a campaign specification file directly to its compiled lock file.
+// This skips the intermediate orchestrator step for convenience.
+//
+// The function removes the .campaign.md extension and adds .campaign.lock.yml extension.
+//
+// Examples:
+//
+//	CampaignSpecToLockFile("test.campaign.md")                  // returns "test.campaign.lock.yml"
+//	CampaignSpecToLockFile(".github/workflows/prod.campaign.md") // returns ".github/workflows/prod.campaign.lock.yml"
+func CampaignSpecToLockFile(specPath string) string {
+	return strings.TrimSuffix(specPath, ".campaign.md") + ".campaign.lock.yml"
+}
