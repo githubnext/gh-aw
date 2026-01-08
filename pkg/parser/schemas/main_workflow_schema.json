@@ -4839,6 +4839,53 @@
             }
           ]
         },
+        "missing-data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for reporting missing data required to achieve workflow goals. Encourages AI agents to be truthful about data gaps instead of hallucinating information.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of missing data reports (default: unlimited)",
+                  "minimum": 1
+                },
+                "create-issue": {
+                  "type": "boolean",
+                  "description": "Whether to create or update GitHub issues when data is missing (default: true)",
+                  "default": true
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Prefix for issue titles when creating issues for missing data (default: '[missing data]')",
+                  "default": "[missing data]"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Labels to add to created issues for missing data",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable missing data reporting with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable missing data reporting (false). Missing data reporting is enabled by default when safe-outputs is configured."
+            }
+          ]
+        },
         "noop": {
           "oneOf": [
             {
