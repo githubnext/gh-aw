@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -105,7 +107,7 @@ This workflow tests max-turns with timeout.`,
 			}
 
 			// Read the generated lock file
-			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			lockContent, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -287,7 +289,7 @@ This tests max-turns feature with custom engine.`
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

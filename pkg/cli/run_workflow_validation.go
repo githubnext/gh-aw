@@ -23,10 +23,9 @@ func IsRunnable(markdownPath string) (bool, error) {
 	// Sanitize the path to prevent path traversal attacks
 	cleanPath := filepath.Clean(markdownPath)
 
-	// Read the file
-	// #nosec G304 - Path is sanitized using filepath.Clean() to prevent path traversal attacks.
+	// Read the file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
 	// The markdownPath parameter comes from trusted sources (CLI arguments, validated workflow paths).
-	contentBytes, err := os.ReadFile(cleanPath)
+	contentBytes, err := os.ReadFile(cleanPath) // #nosec G304
 	if err != nil {
 		return false, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -61,10 +60,9 @@ func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinitio
 	// Sanitize the path to prevent path traversal attacks
 	cleanPath := filepath.Clean(markdownPath)
 
-	// Read the file
-	// #nosec G304 - Path is sanitized using filepath.Clean() to prevent path traversal attacks.
+	// Read the file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
 	// The markdownPath parameter comes from trusted sources (CLI arguments, validated workflow paths).
-	contentBytes, err := os.ReadFile(cleanPath)
+	contentBytes, err := os.ReadFile(cleanPath) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}

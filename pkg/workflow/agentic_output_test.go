@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
@@ -273,7 +275,7 @@ This workflow tests that /tmp/gh-aw/ files are excluded from cleanup.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -589,7 +591,7 @@ This workflow tests that the redacted URLs log file is included in artifact uplo
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

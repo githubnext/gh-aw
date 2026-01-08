@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -41,7 +43,7 @@ This is a test workflow to verify SHA pinning.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -109,7 +111,7 @@ Create issues based on input.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -167,7 +169,7 @@ Just a simple test workflow.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -78,7 +80,7 @@ This is a test workflow.
 			}
 
 			// Read the generated lock file
-			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			content, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)

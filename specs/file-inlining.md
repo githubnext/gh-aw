@@ -4,9 +4,11 @@
 
 This implementation adds inline syntax support for including file and URL content directly within workflow prompts at runtime:
 
-- **`@path/to/file`** - Include entire file content
-- **`@path/to/file:10-20`** - Include lines 10-20 from a file (1-indexed)
+- **`@path/to/file`** - Include entire file content (from `.github` folder)
+- **`@path/to/file:10-20`** - Include lines 10-20 from a file (1-indexed, from `.github` folder)
 - **`@https://example.com/file.txt`** - Fetch and include URL content (with caching)
+
+**Security Note:** File imports are **restricted to the `.github` folder** to prevent access to arbitrary repository files. URLs are not restricted.
 
 ## Implementation Details
 
@@ -14,14 +16,16 @@ This implementation adds inline syntax support for including file and URL conten
 
 The feature reuses and extends the existing `runtime_import.cjs` infrastructure:
 
-1. **File Processing** (`processFileInline`, `processFileInlines`)
-   - Reads files relative to `GITHUB_WORKSPACE`
+1. **File Processing** (`processRuntimeImport`)
+   - Reads files from `.github` folder relative to `GITHUB_WORKSPACE`
+   - Supports `.github/` prefix trimming (both `file.md` and `.github/file.md` work)
    - Supports line range extraction (1-indexed, inclusive)
    - Applies content sanitization (front matter removal, XML comment stripping, macro detection)
    - Smart email address filtering to avoid processing `user@example.com`
+   - **Security:** Validates all paths stay within `.github` folder
 
-2. **URL Processing** (`processUrlInline`, `processUrlInlines`)
-   - Fetches HTTP/HTTPS URLs
+2. **URL Processing** (`processUrlImport`)
+   - Fetches HTTP/HTTPS URLs (not restricted to `.github`)
    - Caches content for 1 hour in `/tmp/gh-aw/url-cache/`
    - Uses SHA256 hash of URL for cache filenames
    - Applies same sanitization as file content

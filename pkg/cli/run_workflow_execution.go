@@ -13,6 +13,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -191,7 +192,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			fmt.Printf("Recompiling workflow with engine override: %s\n", engineOverride)
 		}
 
-		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
+		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
 		config := CompileConfig{
 			MarkdownFiles:        []string{workflowMarkdownPath},
 			Verbose:              verbose,
@@ -225,7 +226,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 
 	// Check for missing or outdated lock files (when not using --push)
 	if !push && repoOverride == "" {
-		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
+		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
 		if status, err := checkLockFileStatus(workflowMarkdownPath); err == nil {
 			if status.Missing {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file is missing"))
@@ -249,7 +250,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		}
 
 		// Collect the workflow .md file, .lock.yml file, and transitive imports
-		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
+		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
 		files, err := collectWorkflowFiles(workflowMarkdownPath, verbose)
 		if err != nil {
 			return fmt.Errorf("failed to collect workflow files: %w", err)
@@ -297,7 +298,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		// Determine and add engine secrets
 		if repoOverride == "" && lockFilePath != "" {
 			// For local workflows, read and parse the workflow to determine engine requirements
-			workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
+			workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
 			config := CompileConfig{
 				MarkdownFiles:        []string{workflowMarkdownPath},
 				Verbose:              false, // Don't be verbose during secret determination

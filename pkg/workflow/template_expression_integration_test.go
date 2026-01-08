@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -78,7 +80,7 @@ ${{ needs.activation.outputs.text }}
 	}
 
 	// Read the compiled workflow
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -174,7 +176,7 @@ This expression needs wrapping.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -259,7 +261,7 @@ Steps expression - will be wrapped.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)

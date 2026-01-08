@@ -11,6 +11,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var log = logger.New("workflow:compiler")
@@ -90,11 +91,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Generate lock file name, handling campaign orchestrators specially
 	// Campaign orchestrators are named *.campaign.g.md (debug artifacts)
 	// but should produce *.campaign.lock.yml (not *.campaign.g.lock.yml)
-	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
+	var lockFile string
 	if strings.HasSuffix(markdownPath, ".campaign.g.md") {
 		// For campaign orchestrators: example.campaign.g.md -> example.campaign.lock.yml
-		baseName := strings.TrimSuffix(markdownPath, ".campaign.g.md")
-		lockFile = baseName + ".campaign.lock.yml"
+		lockFile = stringutil.CampaignOrchestratorToLockFile(markdownPath)
+	} else {
+		lockFile = stringutil.MarkdownToLockFile(markdownPath)
 	}
 
 	// Sanitize the lock file path to prevent path traversal attacks

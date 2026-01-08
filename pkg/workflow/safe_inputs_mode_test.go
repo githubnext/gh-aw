@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // TestSafeInputsHTTPMode verifies that HTTP mode generates correct configuration
@@ -56,7 +58,7 @@ Test safe-inputs HTTP mode
 			}
 
 			// Read the generated lock file
-			lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
 			lockContent, err := os.ReadFile(lockPath)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)

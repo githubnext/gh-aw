@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -48,7 +50,7 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 	}
 
 	// Calculate the lock file path
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 
 	// Read the generated lock file
 	lockContent, err := os.ReadFile(lockFile)
