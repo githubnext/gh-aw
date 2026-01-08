@@ -37,9 +37,56 @@ fi
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs/gateway
 
+# Determine engine type to select correct MCP config file
+# Check for engine-specific indicators
+if [ -n "$GH_AW_ENGINE" ]; then
+  ENGINE_TYPE="$GH_AW_ENGINE"
+elif [ -f "/home/runner/.copilot/mcp-config.json" ]; then
+  ENGINE_TYPE="copilot"
+elif [ -f "/tmp/gh-aw/mcp-config/config.toml" ]; then
+  ENGINE_TYPE="codex"
+elif [ -f "/tmp/gh-aw/mcp-config/mcp-servers.json" ]; then
+  ENGINE_TYPE="claude"
+else
+  ENGINE_TYPE="unknown"
+fi
+
+echo "Detected engine type: $ENGINE_TYPE"
+
+# Select the appropriate MCP config file based on engine type
+case "$ENGINE_TYPE" in
+  copilot)
+    MCP_CONFIG_FILE="/home/runner/.copilot/mcp-config.json"
+    ;;
+  claude)
+    MCP_CONFIG_FILE="/tmp/gh-aw/mcp-config/mcp-servers.json"
+    ;;
+  codex)
+    # Codex uses TOML, need to convert to JSON first
+    echo "Converting Codex TOML config to JSON for gateway..."
+    # Convert TOML to JSON (basic conversion, may need enhancement)
+    # For now, assume JSON is also available or generate it
+    MCP_CONFIG_FILE="/tmp/gh-aw/mcp-config/config.toml"
+    echo "ERROR: Codex TOML config conversion not yet implemented for gateway"
+    exit 1
+    ;;
+  *)
+    echo "ERROR: Unknown engine type, cannot determine MCP config file location"
+    exit 1
+    ;;
+esac
+
+echo "Using MCP config file: $MCP_CONFIG_FILE"
+
+# Validate config file exists
+if [ ! -f "$MCP_CONFIG_FILE" ]; then
+  echo "ERROR: MCP config file not found: $MCP_CONFIG_FILE"
+  exit 1
+fi
+
 # Build gateway configuration with runtime values
 echo "Building gateway configuration..."
-cat /home/runner/.copilot/mcp-config.json | jq --arg port "$MCP_GATEWAY_PORT" --arg apiKey "$MCP_GATEWAY_API_KEY" --arg domain "$MCP_GATEWAY_DOMAIN" \
+cat "$MCP_CONFIG_FILE" | jq --arg port "$MCP_GATEWAY_PORT" --arg apiKey "$MCP_GATEWAY_API_KEY" --arg domain "$MCP_GATEWAY_DOMAIN" \
   '.gateway = { port: ($port | tonumber), apiKey: $apiKey, domain: $domain }' > /tmp/gh-aw/mcp-config/gateway-input.json
 
 echo "Gateway input configuration:"
@@ -113,21 +160,7 @@ fi
 echo "Converting gateway configuration to agent format..."
 export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json
 
-# Determine which agent-specific converter to use based on engine type
-# Check for engine-specific indicators and call appropriate converter
-if [ -n "$GH_AW_ENGINE" ]; then
-  ENGINE_TYPE="$GH_AW_ENGINE"
-elif [ -f "/home/runner/.copilot" ] || [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
-  ENGINE_TYPE="copilot"
-elif [ -f "/tmp/gh-aw/mcp-config/config.toml" ]; then
-  ENGINE_TYPE="codex"
-elif [ -f "/tmp/gh-aw/mcp-config/mcp-servers.json" ]; then
-  ENGINE_TYPE="claude"
-else
-  ENGINE_TYPE="unknown"
-fi
-
-echo "Detected engine type: $ENGINE_TYPE"
+echo "Using engine type: $ENGINE_TYPE"
 
 case "$ENGINE_TYPE" in
   copilot)
