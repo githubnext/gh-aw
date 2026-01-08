@@ -166,7 +166,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{},"noop":{"max":1},"update_project":{"max":10}}
+          {"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [

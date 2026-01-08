@@ -36,7 +36,7 @@ func TestMissingDataSafeOutput(t *testing.T) {
 			frontmatter: map[string]any{
 				"name": "Test",
 				"safe-outputs": map[string]any{
-					"create-issue":  nil,
+					"create-issue": nil,
 					"missing-data": false,
 				},
 			},
@@ -63,7 +63,7 @@ func TestMissingDataSafeOutput(t *testing.T) {
 			frontmatter: map[string]any{
 				"name": "Test",
 				"safe-outputs": map[string]any{
-					"create-issue":  nil,
+					"create-issue": nil,
 					"missing-data": nil,
 				},
 			},
@@ -115,12 +115,12 @@ func TestMissingDataSafeOutput(t *testing.T) {
 
 func TestMissingDataConfigParsing(t *testing.T) {
 	tests := []struct {
-		name        string
-		configData  map[string]any
-		expectNil   bool
-		expectMax   int
-		expectIssue bool
-		expectTitle string
+		name         string
+		configData   map[string]any
+		expectNil    bool
+		expectMax    int
+		expectIssue  bool
+		expectTitle  string
 		expectLabels []string
 	}{
 		{

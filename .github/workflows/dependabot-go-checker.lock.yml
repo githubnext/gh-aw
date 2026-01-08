@@ -172,7 +172,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"close_issue":{"max":20,"required_title_prefix":"[deps]"},"create_issue":{"max":10},"missing_tool":{},"noop":{"max":1}}
+          {"close_issue":{"max":20,"required_title_prefix":"[deps]"},"create_issue":{"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [

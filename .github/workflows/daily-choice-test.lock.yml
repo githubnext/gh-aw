@@ -161,7 +161,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{},"noop":{"max":1},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
+          {"missing_data":{},"missing_tool":{},"noop":{"max":1},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
