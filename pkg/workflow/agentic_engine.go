@@ -458,45 +458,9 @@ func unquoteUsesWithComments(yamlStr string) string {
 }
 
 // GetCommonErrorPatterns returns error patterns that are common across all engines.
-// These patterns detect standard GitHub Actions workflow commands and other universal error formats.
+// NOTE: Error patterns are now defined in JavaScript (actions/setup/js/error_patterns.cjs)
+// and loaded at runtime in workflows. This function returns an empty array as patterns
+// are no longer maintained in Go.
 func GetCommonErrorPatterns() []ErrorPattern {
-	return []ErrorPattern{
-		// GitHub Actions workflow commands - standard error/warning/notice syntax
-		{
-			ID:           "common-gh-actions-error",
-			Pattern:      `::(error)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "error" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - error",
-		},
-		{
-			ID:           "common-gh-actions-warning",
-			Pattern:      `::(warning)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "warning" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - warning",
-		},
-		{
-			ID:           "common-gh-actions-notice",
-			Pattern:      `::(notice)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "notice" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - notice",
-		},
-		// Generic error/warning patterns - common log formats
-		{
-			ID:           "common-generic-error",
-			Pattern:      `(ERROR|Error):\s+(.+)`,
-			LevelGroup:   1, // "ERROR" or "Error" is in the first capture group
-			MessageGroup: 2, // error message is in the second capture group
-			Description:  "Generic ERROR messages",
-		},
-		{
-			ID:           "common-generic-warning",
-			Pattern:      `(WARNING|Warning):\s+(.+)`,
-			LevelGroup:   1, // "WARNING" or "Warning" is in the first capture group
-			MessageGroup: 2, // warning message is in the second capture group
-			Description:  "Generic WARNING messages",
-		},
-	}
+	return []ErrorPattern{}
 }

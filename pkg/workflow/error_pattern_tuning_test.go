@@ -75,6 +75,11 @@ func TestErrorPatternsNotOverlyAggressive(t *testing.T) {
 		t.Run(engine.GetID()+"_matches_actual_errors", func(t *testing.T) {
 			patterns := engine.GetErrorPatterns()
 
+			// Skip if engine has no patterns (patterns are now in JavaScript)
+			if len(patterns) == 0 {
+				t.Skip("Engine has no Go patterns - patterns are now defined in JavaScript")
+			}
+
 			// At least some patterns should match actual error text
 			matchedCount := 0
 			for _, text := range errorText {

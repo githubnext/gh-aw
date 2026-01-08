@@ -473,12 +473,11 @@ func (e *ClaudeEngine) GetLogParserScriptId() string {
 }
 
 // GetErrorPatterns returns regex patterns for extracting error messages from Claude logs
-// Claude uses common GitHub Actions workflow commands for error reporting.
-// Patterns are now defined in JavaScript (actions/setup/js/error_patterns.cjs) but kept here for fallback.
+// NOTE: Error patterns are now defined in JavaScript (actions/setup/js/error_patterns.cjs)
+// and loaded at runtime in workflows via GH_AW_ENGINE_ID. This function returns an empty array
+// as patterns are no longer maintained in Go.
 func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
-	// Claude uses common GitHub Actions workflow commands for error reporting
-	// No engine-specific log formats to parse
-	return GetCommonErrorPatterns()
+	return []ErrorPattern{}
 }
 
 // GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction)

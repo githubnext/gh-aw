@@ -607,6 +607,11 @@ func TestCodexEngineErrorPatterns(t *testing.T) {
 	engine := NewCodexEngine()
 	patterns := engine.GetErrorPatterns()
 
+	// Skip if engine has no patterns (patterns are now in JavaScript)
+	if len(patterns) == 0 {
+		t.Skip("Engine has no Go patterns - patterns are now defined in JavaScript")
+	}
+
 	// Test Rust format patterns (new format)
 	rustFormatTests := []struct {
 		name          string

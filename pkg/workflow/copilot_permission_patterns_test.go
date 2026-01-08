@@ -11,6 +11,11 @@ func TestCopilotPermissionPatternsAsWarnings(t *testing.T) {
 	engine := NewCopilotEngine()
 	patterns := engine.GetErrorPatterns()
 
+	// Skip if engine has no patterns (patterns are now in JavaScript)
+	if len(patterns) == 0 {
+		t.Skip("Engine has no Go patterns - patterns are now defined in JavaScript")
+	}
+
 	// Test cases with permission-related error messages
 	testCases := []struct {
 		name            string
@@ -148,6 +153,11 @@ func TestCopilotPermissionPatternsAsWarnings(t *testing.T) {
 func TestCopilotPermissionPatternsRequireErrorContext(t *testing.T) {
 	engine := NewCopilotEngine()
 	patterns := engine.GetErrorPatterns()
+
+	// Skip if engine has no patterns (patterns are now in JavaScript)
+	if len(patterns) == 0 {
+		t.Skip("Engine has no Go patterns - patterns are now defined in JavaScript")
+	}
 
 	// Get the permission-related patterns
 	permissionPatterns := []ErrorPattern{}
