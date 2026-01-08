@@ -155,7 +155,7 @@ async function getIssueNodeId(owner, repo, issueNumber) {
 /**
  * Main handler for create-project safe output
  */
-async function handler() {
+async function main() {
   try {
     core.info("Starting create_project handler");
 
@@ -261,8 +261,4 @@ async function handler() {
   }
 }
 
-// Run the handler
-handler().catch(error => {
-  core.setFailed(getErrorMessage(error));
-  process.exit(1);
-});
+module.exports = { main };
