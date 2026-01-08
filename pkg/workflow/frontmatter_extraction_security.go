@@ -370,12 +370,30 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
+	// Extract entrypoint (for container only)
+	if entrypointVal, hasEntrypoint := mcpObj["entrypoint"]; hasEntrypoint {
+		if entrypointStr, ok := entrypointVal.(string); ok {
+			mcpConfig.Entrypoint = entrypointStr
+		}
+	}
+
 	// Extract entrypointArgs (for container only)
 	if entrypointArgsVal, hasEntrypointArgs := mcpObj["entrypointArgs"]; hasEntrypointArgs {
 		if entrypointArgsSlice, ok := entrypointArgsVal.([]any); ok {
 			for _, arg := range entrypointArgsSlice {
 				if argStr, ok := arg.(string); ok {
 					mcpConfig.EntrypointArgs = append(mcpConfig.EntrypointArgs, argStr)
+				}
+			}
+		}
+	}
+
+	// Extract mounts (for container only)
+	if mountsVal, hasMounts := mcpObj["mounts"]; hasMounts {
+		if mountsSlice, ok := mountsVal.([]any); ok {
+			for _, mount := range mountsSlice {
+				if mountStr, ok := mount.(string); ok {
+					mcpConfig.Mounts = append(mcpConfig.Mounts, mountStr)
 				}
 			}
 		}

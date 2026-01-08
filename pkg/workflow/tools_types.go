@@ -135,8 +135,14 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if config.Container != "" {
 		result["container"] = config.Container
 	}
+	if config.Entrypoint != "" {
+		result["entrypoint"] = config.Entrypoint
+	}
 	if len(config.EntrypointArgs) > 0 {
 		result["entrypointArgs"] = config.EntrypointArgs
+	}
+	if len(config.Mounts) > 0 {
+		result["mounts"] = config.Mounts
 	}
 
 	// Add custom fields (these override standard fields if there are conflicts)
