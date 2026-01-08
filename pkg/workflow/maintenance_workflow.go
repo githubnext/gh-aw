@@ -247,15 +247,15 @@ jobs:
       - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
 
       - name: Check for out-of-sync workflows and create issue if needed
         uses: ` + GetActionPin("actions/github-script") + `
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/check_workflow_recompile_needed.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_workflow_recompile_needed.cjs');
             await main();
 
   zizmor-scan:
