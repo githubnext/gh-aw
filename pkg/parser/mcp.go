@@ -414,6 +414,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				Args: []string{
 					"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 					"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+					"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 					"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 				},
 				Env: make(map[string]string),
