@@ -105,14 +105,28 @@ func validateExpressionSafety(markdownContent string) error {
 		if parseErr == nil {
 			// If we can parse it, validate each literal expression in the tree
 			validationErr := VisitExpressionTree(parsed, func(expr *ExpressionNode) error {
-				return validateSingleExpression(expr.Expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &unauthorizedExpressions)
+				return validateSingleExpression(expr.Expression, ExpressionValidationOptions{
+					NeedsStepsRegex:         needsStepsRegex,
+					InputsRegex:             inputsRegex,
+					WorkflowCallInputsRegex: workflowCallInputsRegex,
+					AwInputsRegex:           awInputsRegex,
+					EnvRegex:                envRegex,
+					UnauthorizedExpressions: &unauthorizedExpressions,
+				})
 			})
 			if validationErr != nil {
 				return validationErr
 			}
 		} else {
 			// If parsing fails, fall back to validating the whole expression as a literal
-			err := validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &unauthorizedExpressions)
+			err := validateSingleExpression(expression, ExpressionValidationOptions{
+				NeedsStepsRegex:         needsStepsRegex,
+				InputsRegex:             inputsRegex,
+				WorkflowCallInputsRegex: workflowCallInputsRegex,
+				AwInputsRegex:           awInputsRegex,
+				EnvRegex:                envRegex,
+				UnauthorizedExpressions: &unauthorizedExpressions,
+			})
 			if err != nil {
 				return err
 			}
@@ -163,26 +177,36 @@ func validateExpressionSafety(markdownContent string) error {
 	return nil
 }
 
+// ExpressionValidationOptions contains the options for validating a single expression
+type ExpressionValidationOptions struct {
+	NeedsStepsRegex         *regexp.Regexp
+	InputsRegex             *regexp.Regexp
+	WorkflowCallInputsRegex *regexp.Regexp
+	AwInputsRegex           *regexp.Regexp
+	EnvRegex                *regexp.Regexp
+	UnauthorizedExpressions *[]string
+}
+
 // validateSingleExpression validates a single literal expression
-func validateSingleExpression(expression string, needsStepsRe, inputsRe, workflowCallInputsRe, awInputsRe, envRe *regexp.Regexp, unauthorizedExpressions *[]string) error {
+func validateSingleExpression(expression string, opts ExpressionValidationOptions) error {
 	expression = strings.TrimSpace(expression)
 
 	// Check if this expression is in the allowed list
 	allowed := false
 
 	// Check if this expression starts with "needs." or "steps." and is a simple property access
-	if needsStepsRe.MatchString(expression) {
+	if opts.NeedsStepsRegex.MatchString(expression) {
 		allowed = true
-	} else if inputsRe.MatchString(expression) {
+	} else if opts.InputsRegex.MatchString(expression) {
 		// Check if this expression matches github.event.inputs.* pattern
 		allowed = true
-	} else if workflowCallInputsRe.MatchString(expression) {
+	} else if opts.WorkflowCallInputsRegex.MatchString(expression) {
 		// Check if this expression matches inputs.* pattern (workflow_call inputs)
 		allowed = true
-	} else if awInputsRe.MatchString(expression) {
+	} else if opts.AwInputsRegex.MatchString(expression) {
 		// Check if this expression matches github.agentics.inputs.* pattern (shared workflow inputs)
 		allowed = true
-	} else if envRe.MatchString(expression) {
+	} else if opts.EnvRegex.MatchString(expression) {
 		// check if this expression matches env.* pattern
 		allowed = true
 	} else {
@@ -207,15 +231,15 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, workflo
 					propertyAllowed := false
 
 					// Check if extracted property is allowed
-					if needsStepsRe.MatchString(property) {
+					if opts.NeedsStepsRegex.MatchString(property) {
 						propertyAllowed = true
-					} else if inputsRe.MatchString(property) {
+					} else if opts.InputsRegex.MatchString(property) {
 						propertyAllowed = true
-					} else if workflowCallInputsRe.MatchString(property) {
+					} else if opts.WorkflowCallInputsRegex.MatchString(property) {
 						propertyAllowed = true
-					} else if awInputsRe.MatchString(property) {
+					} else if opts.AwInputsRegex.MatchString(property) {
 						propertyAllowed = true
-					} else if envRe.MatchString(property) {
+					} else if opts.EnvRegex.MatchString(property) {
 						propertyAllowed = true
 					} else {
 						for _, allowedExpr := range constants.AllowedExpressions {
@@ -240,7 +264,7 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, workflo
 	}
 
 	if !allowed {
-		*unauthorizedExpressions = append(*unauthorizedExpressions, expression)
+		*opts.UnauthorizedExpressions = append(*opts.UnauthorizedExpressions, expression)
 	}
 
 	return nil

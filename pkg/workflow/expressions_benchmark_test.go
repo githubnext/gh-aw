@@ -10,7 +10,15 @@ func BenchmarkValidateExpression(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		var unauthorized []string
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRegex:         needsStepsRegex,
+			InputsRegex:             inputsRegex,
+			WorkflowCallInputsRegex: workflowCallInputsRegex,
+			AwInputsRegex:           awInputsRegex,
+			EnvRegex:                envRegex,
+			UnauthorizedExpressions: &unauthorized,
+		})
 	}
 }
 
@@ -20,7 +28,15 @@ func BenchmarkValidateExpression_Complex(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		var unauthorized []string
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRegex:         needsStepsRegex,
+			InputsRegex:             inputsRegex,
+			WorkflowCallInputsRegex: workflowCallInputsRegex,
+			AwInputsRegex:           awInputsRegex,
+			EnvRegex:                envRegex,
+			UnauthorizedExpressions: &unauthorized,
+		})
 	}
 }
 
@@ -30,7 +46,15 @@ func BenchmarkValidateExpression_NeedsOutputs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		var unauthorized []string
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRegex:         needsStepsRegex,
+			InputsRegex:             inputsRegex,
+			WorkflowCallInputsRegex: workflowCallInputsRegex,
+			AwInputsRegex:           awInputsRegex,
+			EnvRegex:                envRegex,
+			UnauthorizedExpressions: &unauthorized,
+		})
 	}
 }
 
@@ -40,7 +64,15 @@ func BenchmarkValidateExpression_StepsOutputs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		var unauthorized []string
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRegex:         needsStepsRegex,
+			InputsRegex:             inputsRegex,
+			WorkflowCallInputsRegex: workflowCallInputsRegex,
+			AwInputsRegex:           awInputsRegex,
+			EnvRegex:                envRegex,
+			UnauthorizedExpressions: &unauthorized,
+		})
 	}
 }
 

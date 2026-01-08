@@ -156,23 +156,33 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	}
 }
 
+// MCPServerBlockOptions contains the options for rendering a built-in MCP server block
+type MCPServerBlockOptions struct {
+	ServerID             string
+	Command              string
+	Args                 []string
+	EnvVars              []string
+	IsLast               bool
+	IncludeCopilotFields bool
+}
+
 // renderBuiltinMCPServerBlock is a shared helper function that renders MCP server configuration blocks
 // for built-in servers (Safe Outputs and Agentic Workflows) with consistent formatting.
 // This eliminates code duplication between renderSafeOutputsMCPConfigWithOptions and
 // renderAgenticWorkflowsMCPConfigWithOptions by extracting the common YAML generation pattern.
-func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command string, args []string, envVars []string, isLast bool, includeCopilotFields bool) {
-	yaml.WriteString("              \"" + serverID + "\": {\n")
+func renderBuiltinMCPServerBlock(yaml *strings.Builder, opts MCPServerBlockOptions) {
+	yaml.WriteString("              \"" + opts.ServerID + "\": {\n")
 
 	// Add type field for Copilot
-	if includeCopilotFields {
+	if opts.IncludeCopilotFields {
 		yaml.WriteString("                \"type\": \"local\",\n")
 	}
 
-	yaml.WriteString("                \"command\": \"" + command + "\",\n")
+	yaml.WriteString("                \"command\": \"" + opts.Command + "\",\n")
 
 	// Write args array
 	yaml.WriteString("                \"args\": [")
-	for i, arg := range args {
+	for i, arg := range opts.Args {
 		if i > 0 {
 			yaml.WriteString(", ")
 		}
@@ -181,21 +191,21 @@ func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command
 	yaml.WriteString("],\n")
 
 	// Add tools field for Copilot
-	if includeCopilotFields {
+	if opts.IncludeCopilotFields {
 		yaml.WriteString("                \"tools\": [\"*\"],\n")
 	}
 
 	yaml.WriteString("                \"env\": {\n")
 
 	// Write environment variables with appropriate escaping
-	for i, envVar := range envVars {
-		isLastEnvVar := i == len(envVars)-1
+	for i, envVar := range opts.EnvVars {
+		isLastEnvVar := i == len(opts.EnvVars)-1
 		comma := ""
 		if !isLastEnvVar {
 			comma = ","
 		}
 
-		if includeCopilotFields {
+		if opts.IncludeCopilotFields {
 			// Copilot format: backslash-escaped shell variable reference
 			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
 		} else {
@@ -206,7 +216,7 @@ func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command
 
 	yaml.WriteString("                }\n")
 
-	if isLast {
+	if opts.IsLast {
 		yaml.WriteString("              }\n")
 	} else {
 		yaml.WriteString("              },\n")
@@ -239,12 +249,14 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 
 	renderBuiltinMCPServerBlock(
 		yaml,
-		constants.SafeOutputsMCPServerID,
-		"node",
-		[]string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
-		envVars,
-		isLast,
-		includeCopilotFields,
+		MCPServerBlockOptions{
+			ServerID:             constants.SafeOutputsMCPServerID,
+			Command:              "node",
+			Args:                 []string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
+			EnvVars:              envVars,
+			IsLast:               isLast,
+			IncludeCopilotFields: includeCopilotFields,
+		},
 	)
 }
 
@@ -256,12 +268,14 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 
 	renderBuiltinMCPServerBlock(
 		yaml,
-		"agentic_workflows",
-		"gh",
-		[]string{"aw", "mcp-server"},
-		envVars,
-		isLast,
-		includeCopilotFields,
+		MCPServerBlockOptions{
+			ServerID:             "agentic_workflows",
+			Command:              "gh",
+			Args:                 []string{"aw", "mcp-server"},
+			EnvVars:              envVars,
+			IsLast:               isLast,
+			IncludeCopilotFields: includeCopilotFields,
+		},
 	)
 }
 

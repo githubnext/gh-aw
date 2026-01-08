@@ -134,7 +134,14 @@ func TestRenderBuiltinMCPServerBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderBuiltinMCPServerBlock(&output, tt.serverID, tt.command, tt.args, tt.envVars, tt.isLast, tt.includeCopilotFields)
+			renderBuiltinMCPServerBlock(&output, MCPServerBlockOptions{
+				ServerID:             tt.serverID,
+				Command:              tt.command,
+				Args:                 tt.args,
+				EnvVars:              tt.envVars,
+				IsLast:               tt.isLast,
+				IncludeCopilotFields: tt.includeCopilotFields,
+			})
 
 			result := output.String()
 
@@ -178,7 +185,14 @@ func TestBuiltinMCPServerBlockCommaHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderBuiltinMCPServerBlock(&output, "test", "node", []string{"arg"}, []string{"VAR"}, tt.isLast, false)
+			renderBuiltinMCPServerBlock(&output, MCPServerBlockOptions{
+				ServerID:             "test",
+				Command:              "node",
+				Args:                 []string{"arg"},
+				EnvVars:              []string{"VAR"},
+				IsLast:               tt.isLast,
+				IncludeCopilotFields: false,
+			})
 
 			result := output.String()
 
@@ -194,7 +208,14 @@ func TestBuiltinMCPServerBlockEnvVarOrdering(t *testing.T) {
 	envVars := []string{"VAR_A", "VAR_B", "VAR_C", "VAR_D"}
 
 	var output strings.Builder
-	renderBuiltinMCPServerBlock(&output, "test", "cmd", []string{"arg"}, envVars, true, false)
+	renderBuiltinMCPServerBlock(&output, MCPServerBlockOptions{
+		ServerID:             "test",
+		Command:              "cmd",
+		Args:                 []string{"arg"},
+		EnvVars:              envVars,
+		IsLast:               true,
+		IncludeCopilotFields: false,
+	})
 
 	result := output.String()
 
