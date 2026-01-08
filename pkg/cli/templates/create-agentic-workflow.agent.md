@@ -86,15 +86,16 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
 **Scheduling Best Practices:**
    - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
    - ✨ **Recommended**: `schedule: daily` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
+   - 🔄 **`workflow_dispatch:` is automatically added** - When you use fuzzy scheduling (`daily`, `weekly`, etc.), the compiler automatically adds `workflow_dispatch:` to allow manual runs. You don't need to explicitly include it.
    - ⚠️ **Avoid fixed times**: Don't use explicit times like `cron: "0 0 * * *"` or `daily at midnight` as this concentrates all workflows at the same time, creating load spikes.
-   - Example fuzzy daily schedule: `schedule: daily` (compiler will scatter to something like `43 5 * * *`)
-   - Example fuzzy weekly schedule: `schedule: weekly` (compiler will scatter appropriately)
+   - Example fuzzy daily schedule: `schedule: daily` (compiler will scatter to something like `43 5 * * *` and add workflow_dispatch)
+   - Example fuzzy weekly schedule: `schedule: weekly` (compiler will scatter appropriately and add workflow_dispatch)
 
 DO NOT ask all these questions at once; instead, engage in a back-and-forth conversation to gather the necessary details.
 
 3. **Tools & MCP Servers**
    - Detect which tools are needed based on the task. Examples:
-     - API integration → `github` (with fine-grained `allowed` for read-only operations), `web-fetch`, `web-search`, `jq` (via `bash`)
+     - API integration → `github` (use `toolsets: [default]`), `web-fetch`, `web-search`, `jq` (via `bash`)
      - Browser automation → `playwright`
      - Media manipulation → `ffmpeg` (installed via `steps:`)
      - Code parsing/analysis → `ast-grep`, `codeql` (installed via `steps:`)
@@ -181,17 +182,15 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
    ### Correct tool snippets (reference)
 
-   **GitHub tool with fine-grained allowances (read-only)**:
+   **GitHub tool with toolsets**:
    ```yaml
    tools:
      github:
-       allowed:
-         - get_repository
-         - list_commits
-         - get_issue
+       toolsets: [default]
    ```
    
    ⚠️ **IMPORTANT**: 
+   - **Always use `toolsets:` for GitHub tools** - Use `toolsets: [default]` instead of manually listing individual tools.
    - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
    - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
@@ -223,8 +222,16 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 4. **Generate Workflows** (Both Modes)
    - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
    - Compile with `gh aw compile` to produce `.github/workflows/<name>.lock.yml`.
-   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`**.
-   - ⚙️ **Copilot is the default engine** - do NOT include `engine: copilot` in the template unless the user specifically requests a different engine.
+   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:``.
+   - ✨ **Keep frontmatter minimal** - Only include fields that differ from sensible defaults:
+     - ⚙️ **DO NOT include `engine: copilot`** - Copilot is the default engine. Only specify engine if user explicitly requests Claude, Codex, or custom.
+     - ⏱️ **DO NOT include `timeout-minutes:`** unless user needs a specific timeout - the default is sensible.
+     - 📋 **DO NOT include other fields with good defaults** - Let the compiler use sensible defaults unless customization is needed.
+   - 🎯 **When updating existing workflows**:
+     - Make **small, incremental changes** - Do NOT rewrite entire frontmatter unless absolutely necessary.
+     - Preserve existing configuration patterns and style.
+     - Only add/modify the specific fields needed to address the user's request.
+     - Avoid unnecessary changes that don't contribute to the goal.
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
      - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue`) over granting write perms.
@@ -261,12 +268,12 @@ Based on the parsed requirements, determine:
 
 1. **Workflow ID**: Convert the workflow name to kebab-case (e.g., "Issue Classifier" → "issue-classifier")
 2. **Triggers**: Infer appropriate triggers from the description:
-   - Issue automation → `on: issues: types: [opened, edited] workflow_dispatch:`
-   - PR automation → `on: pull_request: types: [opened, synchronize] workflow_dispatch:`
-   - Scheduled tasks → `on: schedule: daily workflow_dispatch:` (use fuzzy scheduling)
-   - **ALWAYS include** `workflow_dispatch:` to allow manual runs
+   - Issue automation → `on: issues: types: [opened, edited]` (workflow_dispatch auto-added by compiler)
+   - PR automation → `on: pull_request: types: [opened, synchronize]` (workflow_dispatch auto-added by compiler)
+   - Scheduled tasks → `on: schedule: daily` (use fuzzy scheduling - workflow_dispatch auto-added by compiler)
+   - **Note**: `workflow_dispatch:` is automatically added by the compiler, you don't need to include it explicitly
 3. **Tools**: Determine required tools:
-   - GitHub API reads → `tools: github: toolsets: [default]`
+   - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed)
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
 4. **Safe Outputs**: For any write operations:
@@ -277,7 +284,11 @@ Based on the parsed requirements, determine:
    - **Daily improver workflows** (creates PRs): Add `skip-if-match:` with a filter to avoid opening duplicate PRs (e.g., `'is:pr is:open in:title "[workflow-name]"'`)
    - **New workflows** (when creating, not updating): Consider enabling `missing-tool: create-issue: true` to automatically track missing tools as GitHub issues that expire after 1 week
 5. **Permissions**: Start with `permissions: read-all` and only add specific write permissions if absolutely necessary
-6. **Prompt Body**: Write clear, actionable instructions for the AI agent
+6. **Defaults to Omit**: Do NOT include fields with sensible defaults:
+   - `engine: copilot` - Copilot is the default, only specify if user wants Claude/Codex/Custom
+   - `timeout-minutes:` - Has sensible defaults, only specify if user needs custom timeout
+   - Other fields with good defaults - Let compiler use defaults unless customization needed
+7. **Prompt Body**: Write clear, actionable instructions for the AI agent
 
 ### Step 3: Create the Workflow File
 
@@ -319,7 +330,6 @@ description: <Brief description of what this workflow does>
 on:
   issues:
     types: [opened, edited]
-  workflow_dispatch:
 permissions:
   contents: read
   issues: read
@@ -331,7 +341,13 @@ safe-outputs:
     max: 1
   missing-tool:
     create-issue: true
-timeout-minutes: 5
+---
+
+<!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
+@./agentics/<workflow-id>.md
+```
+
+**Note**: This example omits `workflow_dispatch:` (auto-added by compiler), `timeout-minutes:` (has sensible default), and `engine:` (Copilot is default).
 ---
 
 <!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
@@ -359,24 +375,8 @@ Create a PR with all three files:
 
 Include in the PR description:
 - What the workflow does
-- How it was generated from the issue form
 - Explanation that the agent prompt in `.github/agentics/<workflow-id>.md` can be edited without recompilation
-- Any assumptions made
 - Link to the original issue
-
-## Interactive Mode: Workflow Compilation
-
-**CRITICAL**: After creating or modifying any workflow file:
-
-1. **Always run compilation**: Execute `gh aw compile <workflow-id>` immediately
-2. **Fix all syntax errors**: If compilation fails, fix ALL errors before proceeding
-3. **Verify success**: Only consider the workflow complete when compilation succeeds
-
-If syntax errors occur:
-- Review error messages carefully
-- Correct the frontmatter YAML or prompt body
-- Re-compile until successful
-- Consult `.github/aw/github-agentic-workflows.md` if needed
 
 ## Interactive Mode: Final Words
 
