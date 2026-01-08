@@ -451,17 +451,17 @@ func TestClaudeHTTPMCPConfigExcludesTypeField(t *testing.T) {
 		}
 
 		result := yaml.String()
-		
+
 		// Verify the "type" field is NOT present
 		if strings.Contains(result, `"type":`) {
 			t.Errorf("Expected 'type' field to be excluded from Claude MCP config, got:\n%s", result)
 		}
-		
+
 		// Verify the "url" field IS present
 		if !strings.Contains(result, `"url":`) {
 			t.Errorf("Expected 'url' field to be present in Claude MCP config, got:\n%s", result)
 		}
-		
+
 		// Verify the tool name is present
 		if !strings.Contains(result, `"custom-http-mcp"`) {
 			t.Errorf("Expected tool name to be present in Claude MCP config, got:\n%s", result)
@@ -482,12 +482,12 @@ func TestClaudeHTTPMCPConfigExcludesTypeField(t *testing.T) {
 		}
 
 		result := yaml.String()
-		
+
 		// Verify the "type" field is NOT present
 		if strings.Contains(result, `"type":`) {
 			t.Errorf("Expected 'type' field to be excluded from Claude MCP config, got:\n%s", result)
 		}
-		
+
 		// Verify the "command" field IS present
 		if !strings.Contains(result, `"command":`) {
 			t.Errorf("Expected 'command' field to be present in Claude MCP config, got:\n%s", result)
