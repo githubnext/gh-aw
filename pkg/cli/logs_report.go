@@ -24,6 +24,7 @@ type LogsData struct {
 	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
 	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MissingData       []MissingDataSummary       `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
 	MCPFailures       []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
 	AccessLog         *AccessLogSummary          `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
 	FirewallLog       *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
@@ -56,6 +57,7 @@ type LogsSummary struct {
 	TotalErrors       int     `json:"total_errors" console:"header:Total Errors"`
 	TotalWarnings     int     `json:"total_warnings" console:"header:Total Warnings"`
 	TotalMissingTools int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
+	TotalMissingData  int     `json:"total_missing_data" console:"header:Total Missing Data"`
 }
 
 // RunData contains information about a single workflow run
@@ -73,7 +75,8 @@ type RunData struct {
 	Turns            int       `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount       int       `json:"error_count" console:"header:Errors"`
 	WarningCount     int       `json:"warning_count" console:"header:Warnings"`
-	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing"`
+	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing Tools"`
+	MissingDataCount int       `json:"missing_data_count" console:"header:Missing Data"`
 	CreatedAt        time.Time `json:"created_at" console:"header:Created"`
 	StartedAt        time.Time `json:"started_at,omitempty" console:"-"`
 	UpdatedAt        time.Time `json:"updated_at,omitempty" console:"-"`
@@ -137,6 +140,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalErrors int
 	var totalWarnings int
 	var totalMissingTools int
+	var totalMissingData int
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
@@ -153,6 +157,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalErrors += run.ErrorCount
 		totalWarnings += run.WarningCount
 		totalMissingTools += run.MissingToolCount
+		totalMissingData += run.MissingDataCount
 
 		// Extract agent/engine ID from aw_info.json
 		agentID := ""
@@ -175,6 +180,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			ErrorCount:       run.ErrorCount,
 			WarningCount:     run.WarningCount,
 			MissingToolCount: run.MissingToolCount,
+			MissingDataCount: run.MissingDataCount,
 			CreatedAt:        run.CreatedAt,
 			StartedAt:        run.StartedAt,
 			UpdatedAt:        run.UpdatedAt,
@@ -198,6 +204,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalErrors:       totalErrors,
 		TotalWarnings:     totalWarnings,
 		TotalMissingTools: totalMissingTools,
+		TotalMissingData:  totalMissingData,
 	}
 
 	// Build tool usage summary
@@ -208,6 +215,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 
 	// Build missing tools summary
 	missingTools := buildMissingToolsSummary(processedRuns)
+
+	// Build missing data summary
+	missingData := buildMissingDataSummary(processedRuns)
 
 	// Build MCP failures summary
 	mcpFailures := buildMCPFailuresSummary(processedRuns)
@@ -229,6 +239,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		ToolUsage:         toolUsage,
 		ErrorsAndWarnings: errorsAndWarnings,
 		MissingTools:      missingTools,
+		MissingData:       missingData,
 		MCPFailures:       mcpFailures,
 		AccessLog:         accessLog,
 		FirewallLog:       firewallLog,
@@ -426,6 +437,49 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 		},
 		// finalizeSummary: populate display fields for console rendering
 		func(summary *MissingToolSummary) {
+			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
+			summary.FirstReasonDisplay = summary.FirstReason
+		},
+	)
+
+	// Sort by count descending
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Count > result[j].Count
+	})
+
+	return result
+}
+
+// buildMissingDataSummary aggregates missing data across all runs
+func buildMissingDataSummary(processedRuns []ProcessedRun) []MissingDataSummary {
+	result := aggregateSummaryItems(
+		processedRuns,
+		// getItems: extract missing data from each run
+		func(pr ProcessedRun) []MissingDataReport {
+			return pr.MissingData
+		},
+		// getKey: use data type as the aggregation key
+		func(data MissingDataReport) string {
+			return data.DataType
+		},
+		// createSummary: create new summary for first occurrence
+		func(data MissingDataReport) *MissingDataSummary {
+			return &MissingDataSummary{
+				DataType:    data.DataType,
+				Count:       1,
+				Workflows:   []string{data.WorkflowName},
+				FirstReason: data.Reason,
+				RunIDs:      []int64{data.RunID},
+			}
+		},
+		// updateSummary: update existing summary with new occurrence
+		func(summary *MissingDataSummary, data MissingDataReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, data.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, data.RunID)
+		},
+		// finalizeSummary: populate display fields for console rendering
+		func(summary *MissingDataSummary) {
 			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
 			summary.FirstReasonDisplay = summary.FirstReason
 		},

@@ -437,9 +437,10 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		processedRuns = processedRuns[:count]
 	}
 
-	// Update MissingToolCount and NoopCount in runs
+	// Update MissingToolCount, MissingDataCount, and NoopCount in runs
 	for i := range processedRuns {
 		processedRuns[i].Run.MissingToolCount = len(processedRuns[i].MissingTools)
+		processedRuns[i].Run.MissingDataCount = len(processedRuns[i].MissingData)
 		processedRuns[i].Run.NoopCount = len(processedRuns[i].Noops)
 	}
 
@@ -569,6 +570,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					FirewallAnalysis:        summary.FirewallAnalysis,
 					RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
 					MissingTools:            summary.MissingTools,
+					MissingData:             summary.MissingData,
 					Noops:                   summary.Noops,
 					MCPFailures:             summary.MCPFailures,
 					JobDetails:              summary.JobDetails,
@@ -661,6 +663,15 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.MissingTools = missingTools
 
+				// Extract missing data if available
+				missingData, missingDataErr := extractMissingDataFromRun(runOutputDir, run, verbose)
+				if missingDataErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data for run %d: %v", run.DatabaseID, missingDataErr)))
+					}
+				}
+				result.MissingData = missingData
+
 				// Extract noops if available
 				noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose)
 				if noopErr != nil {
@@ -706,6 +717,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					FirewallAnalysis:        firewallAnalysis,
 					RedactedDomainsAnalysis: redactedDomainsAnalysis,
 					MissingTools:            missingTools,
+					MissingData:             missingData,
 					Noops:                   noops,
 					MCPFailures:             mcpFailures,
 					ArtifactsList:           artifacts,
