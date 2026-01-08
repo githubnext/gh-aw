@@ -29,10 +29,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
+      - name: Find markdown files (excluding reports/)
+        id: find-files
+        run: |
+          # Find all markdown files excluding the reports/ directory
+          find . -name "*.md" -type f \
+            ! -path "./reports/*" \
+            ! -path "./.git/*" \
+            ! -path "./node_modules/*" \
+            ! -path "./actions/setup/js/node_modules/*" \
+            > files.txt
+          echo "Found $(wc -l < files.txt) markdown files to check"
+          cat files.txt
+
       - name: Check Markdown links
-        uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
-        with:
-          use-quiet-mode: 'no'
-          config-file: '.github/.markdown-link-check.json'
-          folder-path: 'reports/'
-          file-extension: '.md'
+        run: |
+          npm install -g markdown-link-check
+          exit_code=0
+          while IFS= read -r file; do
+            echo "Checking $file"
+            markdown-link-check "$file" --config .github/.markdown-link-check.json || exit_code=$?
+          done < files.txt
+          exit $exit_code
