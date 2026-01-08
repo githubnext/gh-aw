@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -912,6 +913,15 @@ Returns formatted text output showing:
 	return server
 }
 
+// sanitizeForLog removes newline and carriage return characters from user input
+// to prevent log injection attacks where malicious users could forge log entries.
+func sanitizeForLog(input string) string {
+	// Remove both \n and \r to prevent log injection
+	sanitized := strings.ReplaceAll(input, "\n", "")
+	sanitized = strings.ReplaceAll(sanitized, "\r", "")
+	return sanitized
+}
+
 // responseWriter wraps http.ResponseWriter to capture the status code.
 type responseWriter struct {
 	http.ResponseWriter
@@ -925,12 +935,15 @@ func loggingHandler(handler http.Handler) http.Handler {
 		// Create a response writer wrapper to capture status code.
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 
+		// Sanitize user-controlled input before logging to prevent log injection
+		sanitizedPath := sanitizeForLog(r.URL.Path)
+
 		// Log request details.
 		log.Printf("[REQUEST] %s | %s | %s %s",
 			start.Format(time.RFC3339),
 			r.RemoteAddr,
 			r.Method,
-			r.URL.Path)
+			sanitizedPath)
 
 		// Call the actual handler.
 		handler.ServeHTTP(wrapped, r)
@@ -941,7 +954,7 @@ func loggingHandler(handler http.Handler) http.Handler {
 			time.Now().Format(time.RFC3339),
 			r.RemoteAddr,
 			r.Method,
-			r.URL.Path,
+			sanitizedPath,
 			wrapped.statusCode,
 			duration)
 	})
