@@ -288,14 +288,6 @@ func TestGenerateAuditReport(t *testing.T) {
 		TokenUsage:    1500,
 		EstimatedCost: 0.025,
 		Turns:         5,
-		Errors: []workflow.LogError{
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    42,
-				Type:    "warning",
-				Message: "Example warning message",
-			},
-		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_issue_read",
@@ -461,40 +453,7 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 		LogsPath:     "/tmp/gh-aw/error-logs",
 	}
 
-	metrics := LogMetrics{
-		Errors: []workflow.LogError{
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    10,
-				Type:    "error",
-				Message: "Failed to initialize tool",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    15,
-				Type:    "error",
-				Message: "Connection timeout",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    102,
-				Type:    "error",
-				Message: "Permission denied",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    20,
-				Type:    "warning",
-				Message: "Deprecated API usage",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    156,
-				Type:    "warning",
-				Message: "Resource limit approaching",
-			},
-		},
-	}
+	metrics := LogMetrics{}
 
 	processedRun := ProcessedRun{
 		Run: run,
@@ -641,26 +600,6 @@ func TestBuildAuditData(t *testing.T) {
 		TokenUsage:    1500,
 		EstimatedCost: 0.025,
 		Turns:         5,
-		Errors: []workflow.LogError{
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    42,
-				Type:    "warning",
-				Message: "Example warning message",
-			},
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    50,
-				Type:    "error",
-				Message: "Example error message",
-			},
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    60,
-				Type:    "error",
-				Message: "Another error message",
-			},
-		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_issue_read",

@@ -881,8 +881,6 @@ Info: Processing complete
 				CurrentSequence: tt.currentSequence,
 				Turns:           tt.turns,
 				TokenUsage:      tt.tokenUsage,
-				LogContent:      tt.logContent,
-				ErrorPatterns:   tt.errorPatterns,
 			})
 
 			if metrics.Turns != tt.expectedTurns {
@@ -909,10 +907,6 @@ Info: Processing complete
 							metrics.ToolCalls[i].Name, metrics.ToolCalls[i+1].Name)
 					}
 				}
-			}
-
-			if len(metrics.Errors) != tt.expectedErrors {
-				t.Errorf("Expected %d errors/warnings, got %d", tt.expectedErrors, len(metrics.Errors))
 			}
 		})
 	}
