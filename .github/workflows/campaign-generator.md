@@ -20,7 +20,6 @@ safe-outputs:
   assign-to-agent:
   create-project:
     max: 1
-    target-owner: "githubnext"
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
@@ -48,18 +47,19 @@ Your job is to keep the user informed at each stage and assign the work to an AI
 
 Use the `create-project` safe output to create a new empty project for the campaign.
 
-Call the create_project tool with the title and item_url parameters (the target owner is configured as a default):
+Call the create_project tool with the title, owner, and item_url parameters:
 
 ```
 create_project({
   title: "Campaign: <campaign-name>",
-  item_url: "https://github.com/githubnext/gh-aw/issues/${{ github.event.issue.number }}"
+  owner: "${{ github.owner }}",
+  item_url: "${{ github.server_url }}/${{ github.repository }}/issues/${{ github.event.issue.number }}"
 })
 ```
 
 Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
 
-This will create a new empty project board for this campaign in the githubnext organization and add the issue as the first item.
+This will create a new empty project board for this campaign in the repository owner's organization (or user account) and add the issue as the first item.
 
 ### Step 2: Post Initial Comment
 
