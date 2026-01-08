@@ -665,7 +665,9 @@ func RenderJSONMCPConfig(
 	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools, path=%s", len(mcpTools), options.ConfigPath)
 
 	// Write config file header
-	fmt.Fprintf(yaml, "          cat > %s << EOF\n", options.ConfigPath)
+	// Use quoted EOF to prevent shell variable expansion in the heredoc
+	// Shell variables (like $GH_AW_SAFE_OUTPUTS_PORT) will be substituted later via envsubst
+	fmt.Fprintf(yaml, "          cat > %s << 'EOF'\n", options.ConfigPath)
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -739,6 +741,11 @@ func RenderJSONMCPConfig(
 
 	yaml.WriteString("          }\n")
 	yaml.WriteString("          EOF\n")
+	
+	// Substitute environment variables in the config file
+	// This expands shell variables like $GH_AW_SAFE_OUTPUTS_PORT that were written literally
+	fmt.Fprintf(yaml, "          envsubst < %s > %s.tmp && mv %s.tmp %s\n", 
+		options.ConfigPath, options.ConfigPath, options.ConfigPath, options.ConfigPath)
 
 	// Add any post-EOF commands (e.g., debug output for Copilot)
 	if options.PostEOFCommands != nil {

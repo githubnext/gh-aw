@@ -415,7 +415,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
+          cat > /home/runner/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
               "github": {
@@ -455,6 +455,7 @@ jobs:
             }
           }
           EOF
+          envsubst < /home/runner/.copilot/mcp-config.json > /home/runner/.copilot/mcp-config.json.tmp && mv /home/runner/.copilot/mcp-config.json.tmp /home/runner/.copilot/mcp-config.json
           echo "-------START MCP CONFIG-----------"
           cat /home/runner/.copilot/mcp-config.json
           echo "-------END MCP CONFIG-----------"
