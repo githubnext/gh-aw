@@ -22,9 +22,7 @@ function logGraphQLError(error, operation) {
       "This looks like a token permission problem for Projects v2. The GraphQL fields used by create_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). Fix: set safe-outputs.create-project.github-token to a secret PAT that can create projects in the target org."
     );
   } else if (hasNotFound && /projectV2\b/.test(getErrorMessage(error))) {
-    core.info(
-      "GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the owner does not exist, or (2) the token does not have access to that org/user."
-    );
+    core.info("GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the owner does not exist, or (2) the token does not have access to that org/user.");
   }
 
   if (error.errors) {
@@ -79,7 +77,7 @@ async function getOwnerId(ownerType, ownerLogin) {
  */
 async function createProject(ownerId, title) {
   core.info(`Creating project with title: "${title}"`);
-  
+
   const result = await github.graphql(
     `mutation($ownerId: ID!, $title: String!) {
       createProjectV2(input: { ownerId: $ownerId, title: $title }) {
@@ -114,7 +112,7 @@ async function createProject(ownerId, title) {
  */
 async function addItemToProject(projectId, contentId) {
   core.info(`Adding item to project...`);
-  
+
   const result = await github.graphql(
     `mutation($projectId: ID!, $contentId: ID!) {
       addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
@@ -166,7 +164,7 @@ async function handler() {
     core.info(`Loaded agent output, checking for create_project calls...`);
 
     const createProjectCalls = agentOutput.filter(output => output.type === "create_project");
-    
+
     if (createProjectCalls.length === 0) {
       core.info("No create_project calls found in agent output");
       return;
@@ -197,7 +195,7 @@ async function handler() {
 
       // Get owner ID
       const ownerId = await getOwnerId(ownerType, targetOwner);
-      
+
       // Create the project
       const projectInfo = await createProject(ownerId, title);
 
@@ -210,16 +208,16 @@ async function handler() {
       // If item_url is provided, add it to the project
       if (item_url) {
         core.info(`Adding item to project: ${item_url}`);
-        
+
         // Parse item URL to get issue number
         const urlMatch = item_url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
         if (urlMatch) {
           const [, itemOwner, itemRepo, issueNumberStr] = urlMatch;
           const issueNumber = parseInt(issueNumberStr, 10);
-          
+
           // Get issue node ID
           const contentId = await getIssueNodeId(itemOwner, itemRepo, issueNumber);
-          
+
           // Add item to project
           const itemId = await addItemToProject(projectInfo.projectId, contentId);
           core.setOutput("item-id", itemId);
