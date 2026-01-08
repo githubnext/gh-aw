@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // TestProtocolSpecificDomainsIntegration tests protocol-specific domain filtering end-to-end
@@ -116,7 +118,7 @@ Test protocol-specific domains in safe-outputs.
 			}
 
 			// Read the compiled lock file
-			lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
 			lockContent, err := os.ReadFile(lockPath)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -273,7 +275,7 @@ Test backward compatibility with domains without protocols.
 	}
 
 	// Read the compiled lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

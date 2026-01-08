@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -42,7 +44,7 @@ Run ID: ${{ github.run_id }}
 	}
 
 	// Read the compiled workflow
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)

@@ -12,6 +12,8 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
+const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 
 /**
  * Handler map configuration
@@ -42,6 +44,9 @@ const HANDLER_MAP = {
   create_project_status_update: "./create_project_status_update.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
   create_missing_tool_issue: "./create_missing_tool_issue.cjs",
+  missing_tool: "./missing_tool.cjs",
+  create_missing_data_issue: "./create_missing_data_issue.cjs",
+  missing_data: "./missing_data.cjs",
 };
 
 /**
@@ -124,16 +129,55 @@ async function loadHandlers(config) {
 }
 
 /**
+ * Collect missing_tool and missing_data messages from the messages array
+ * @param {Array<Object>} messages - Array of safe output messages
+ * @returns {{missingTools: Array<any>, missingData: Array<any>}} Object with collected missing items
+ */
+function collectMissingMessages(messages) {
+  const missingTools = [];
+  const missingData = [];
+
+  for (const message of messages) {
+    if (message.type === "missing_tool") {
+      // Extract relevant fields from missing_tool message
+      if (message.tool && message.reason) {
+        missingTools.push({
+          tool: message.tool,
+          reason: message.reason,
+          alternatives: message.alternatives || null,
+        });
+      }
+    } else if (message.type === "missing_data") {
+      // Extract relevant fields from missing_data message
+      if (message.data_type && message.reason) {
+        missingData.push({
+          data_type: message.data_type,
+          reason: message.reason,
+          context: message.context || null,
+          alternatives: message.alternatives || null,
+        });
+      }
+    }
+  }
+
+  core.info(`Collected ${missingTools.length} missing tool(s) and ${missingData.length} missing data item(s)`);
+  return { missingTools, missingData };
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
  *
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>, missings: Object}>}
  */
 async function processMessages(messageHandlers, messages) {
   const results = [];
+
+  // Collect missing_tool and missing_data messages first
+  const missings = collectMissingMessages(messages);
 
   // Initialize shared temporary ID map
   // This will be populated by handlers as they create entities with temporary IDs
@@ -380,6 +424,7 @@ async function processMessages(messageHandlers, messages) {
     results,
     temporaryIdMap: temporaryIdMapObj,
     outputsWithUnresolvedIds,
+    missings,
   };
 }
 
@@ -634,6 +679,12 @@ async function main() {
 
     // Process all messages in order of appearance
     const processingResult = await processMessages(messageHandlers, agentOutput.items);
+
+    // Store collected missings in helper module for handlers to access
+    if (processingResult.missings) {
+      setCollectedMissings(processingResult.missings);
+      core.info(`Stored ${processingResult.missings.missingTools.length} missing tool(s) and ${processingResult.missings.missingData.length} missing data item(s) for footer generation`);
+    }
 
     // Process synthetic updates by directly updating issue/discussion bodies
     let syntheticUpdateCount = 0;

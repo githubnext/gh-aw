@@ -40,20 +40,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		TokenUsage:    45000,
 		EstimatedCost: 0.18,
 		Turns:         12,
-		Errors: []workflow.LogError{
-			{
-				File:    "agent.log",
-				Line:    125,
-				Type:    "warning",
-				Message: "Rate limit approaching for GitHub API",
-			},
-			{
-				File:    "agent.log",
-				Line:    230,
-				Type:    "warning",
-				Message: "Large output size may impact performance",
-			},
-		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_search_repositories",
@@ -291,32 +277,6 @@ func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
 		TokenUsage:    8000,
 		EstimatedCost: 0.03,
 		Turns:         4,
-		Errors: []workflow.LogError{
-			{
-				File:    "build.log",
-				Line:    15,
-				Type:    "error",
-				Message: "Connection timeout while fetching dependencies",
-			},
-			{
-				File:    "build.log",
-				Line:    42,
-				Type:    "error",
-				Message: "Build process terminated unexpectedly",
-			},
-			{
-				File:    "build.log",
-				Line:    50,
-				Type:    "error",
-				Message: "Failed to publish artifacts",
-			},
-			{
-				File:    "build.log",
-				Line:    30,
-				Type:    "warning",
-				Message: "Deprecated API usage detected",
-			},
-		},
 	}
 
 	processedRun := ProcessedRun{

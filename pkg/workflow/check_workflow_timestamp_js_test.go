@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -34,7 +36,7 @@ This is a test workflow to verify timestamp checking uses JavaScript.
 		t.Fatalf("Compilation failed: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

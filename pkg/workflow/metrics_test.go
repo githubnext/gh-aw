@@ -762,13 +762,10 @@ func TestFinalizeToolMetrics(t *testing.T) {
 		currentSequence []string
 		turns           int
 		tokenUsage      int
-		logContent      string
-		errorPatterns   []ErrorPattern
 		expectedTurns   int
 		expectedTokens  int
 		expectedToolLen int
 		expectedSeqLen  int
-		expectedErrors  int
 	}{
 		{
 			name:           "Basic finalization with sequence and tools",
@@ -781,13 +778,10 @@ func TestFinalizeToolMetrics(t *testing.T) {
 			currentSequence: []string{"bash", "github_search", "web_fetch"},
 			turns:           5,
 			tokenUsage:      1500,
-			logContent:      "",
-			errorPatterns:   nil,
 			expectedTurns:   5,
 			expectedTokens:  1500,
 			expectedToolLen: 3,
 			expectedSeqLen:  1,
-			expectedErrors:  0,
 		},
 		{
 			name:           "Empty sequence should not be added",
@@ -798,13 +792,10 @@ func TestFinalizeToolMetrics(t *testing.T) {
 			currentSequence: []string{},
 			turns:           2,
 			tokenUsage:      500,
-			logContent:      "",
-			errorPatterns:   nil,
 			expectedTurns:   2,
 			expectedTokens:  500,
 			expectedToolLen: 1,
 			expectedSeqLen:  0,
-			expectedErrors:  0,
 		},
 		{
 			name:           "Tools should be sorted by name",
@@ -817,36 +808,10 @@ func TestFinalizeToolMetrics(t *testing.T) {
 			currentSequence: []string{"zebra_tool", "alpha_tool"},
 			turns:           3,
 			tokenUsage:      800,
-			logContent:      "",
-			errorPatterns:   nil,
 			expectedTurns:   3,
 			expectedTokens:  800,
 			expectedToolLen: 3,
 			expectedSeqLen:  1,
-			expectedErrors:  0,
-		},
-		{
-			name:            "Error patterns should be counted",
-			initialMetrics:  LogMetrics{},
-			toolCallMap:     map[string]*ToolCallInfo{},
-			currentSequence: []string{},
-			turns:           1,
-			tokenUsage:      100,
-			logContent: `
-Error: File not found
-Warning: Deprecated API used
-Error: Connection timeout
-Info: Processing complete
-`,
-			errorPatterns: []ErrorPattern{
-				{Pattern: `(?i)error:?\s+(.+)`, LevelGroup: 0, MessageGroup: 1},
-				{Pattern: `(?i)warning:?\s+(.+)`, LevelGroup: 0, MessageGroup: 1},
-			},
-			expectedTurns:   1,
-			expectedTokens:  100,
-			expectedToolLen: 0,
-			expectedSeqLen:  0,
-			expectedErrors:  3, // 2 errors + 1 warning
 		},
 		{
 			name: "Existing sequences should be preserved",
@@ -861,13 +826,10 @@ Info: Processing complete
 			currentSequence: []string{"tool3", "tool4"},
 			turns:           2,
 			tokenUsage:      300,
-			logContent:      "",
-			errorPatterns:   nil,
 			expectedTurns:   2,
 			expectedTokens:  300,
 			expectedToolLen: 1,
 			expectedSeqLen:  2, // 1 existing + 1 new
-			expectedErrors:  0,
 		},
 	}
 
@@ -881,8 +843,6 @@ Info: Processing complete
 				CurrentSequence: tt.currentSequence,
 				Turns:           tt.turns,
 				TokenUsage:      tt.tokenUsage,
-				LogContent:      tt.logContent,
-				ErrorPatterns:   tt.errorPatterns,
 			})
 
 			if metrics.Turns != tt.expectedTurns {
@@ -909,10 +869,6 @@ Info: Processing complete
 							metrics.ToolCalls[i].Name, metrics.ToolCalls[i+1].Name)
 					}
 				}
-			}
-
-			if len(metrics.Errors) != tt.expectedErrors {
-				t.Errorf("Expected %d errors/warnings, got %d", tt.expectedErrors, len(metrics.Errors))
 			}
 		})
 	}

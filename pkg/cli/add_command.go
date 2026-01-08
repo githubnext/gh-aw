@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -863,7 +865,7 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 
 func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, engineOverride string, tracker *FileTracker, refreshStopTime bool) error {
 	// Generate the expected lock file path
-	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(filePath)
 
 	// Check if lock file exists before compilation
 	lockFileExists := false

@@ -34,6 +34,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var compileBatchOperationsLog = logger.New("cli:compile_batch_operations")
@@ -237,7 +238,7 @@ func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCam
 		// Derive the expected source campaign definition file name
 		// e.g., "example.campaign.lock.yml" -> "example.campaign.md"
 		baseName := filepath.Base(lockFile)
-		sourceName := strings.TrimSuffix(baseName, ".lock.yml") + ".md"
+		sourceName := stringutil.LockFileToMarkdown(baseName)
 		sourcePath := filepath.Join(workflowsDir, sourceName)
 
 		// Check if the source campaign definition exists

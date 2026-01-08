@@ -303,8 +303,8 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				run.TokenUsage = result.Metrics.TokenUsage
 				run.EstimatedCost = result.Metrics.EstimatedCost
 				run.Turns = result.Metrics.Turns
-				run.ErrorCount = workflow.CountErrors(result.Metrics.Errors)
-				run.WarningCount = workflow.CountWarnings(result.Metrics.Errors)
+				run.ErrorCount = 0
+				run.WarningCount = 0
 				run.LogsPath = result.LogsPath
 
 				// Add failed jobs to error count

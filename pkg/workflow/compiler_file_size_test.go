@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -50,7 +52,7 @@ This is a normal workflow that should compile successfully.
 		}
 
 		// Verify lock file was created and is under 500KB
-		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(testFile)
 		if info, err := os.Stat(lockFile); err != nil {
 			t.Errorf("Lock file was not created: %v", err)
 		} else if info.Size() > MaxLockFileSize {
@@ -95,7 +97,7 @@ This workflow tests the file size validation logic.
 		}
 
 		// Verify the lock file exists and get its size
-		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(testFile)
 		info, err := os.Stat(lockFile)
 		if err != nil {
 			t.Fatalf("Lock file was not created: %v", err)
@@ -117,7 +119,7 @@ This workflow tests the file size validation logic.
 		// by simulating the warning condition
 
 		testFile := filepath.Join(tmpDir, "size-validation-test.md")
-		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(testFile)
 
 		// Create a mock file that exceeds the size limit
 		largeSize := int64(MaxLockFileSize + 100000) // 100KB over the limit

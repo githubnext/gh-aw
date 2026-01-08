@@ -2265,19 +2265,13 @@
               "additionalProperties": false
             },
             "mcp": {
-              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled.",
+              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled. Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.",
               "type": "object",
               "properties": {
-                "command": {
-                  "type": "string",
-                  "$comment": "Mutually exclusive with 'container' - only one execution mode can be specified.",
-                  "description": "Custom command to execute the MCP gateway"
-                },
                 "container": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-                  "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified.",
-                  "description": "Container image for the MCP gateway executable"
+                  "description": "Container image for the MCP gateway executable (required)"
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -2289,14 +2283,13 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Arguments for command or docker run"
+                  "description": "Arguments for docker run"
                 },
                 "entrypointArgs": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "$comment": "Requires 'container' to be specified - entrypoint arguments only apply to container execution.",
                   "description": "Arguments to add after the container image (container entrypoint arguments)"
                 },
                 "env": {
@@ -2321,36 +2314,8 @@
                   "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 }
               },
-              "additionalProperties": false,
-              "anyOf": [
-                {
-                  "required": ["command"]
-                },
-                {
-                  "required": ["container"]
-                },
-                {}
-              ],
-              "not": {
-                "allOf": [
-                  {
-                    "required": ["command"]
-                  },
-                  {
-                    "required": ["container"]
-                  }
-                ]
-              },
-              "allOf": [
-                {
-                  "if": {
-                    "required": ["entrypointArgs"]
-                  },
-                  "then": {
-                    "required": ["container"]
-                  }
-                }
-              ]
+              "required": ["container"],
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -4871,6 +4836,53 @@
               "type": "boolean",
               "const": false,
               "description": "Explicitly disable missing tool reporting (false). Missing tool reporting is enabled by default when safe-outputs is configured."
+            }
+          ]
+        },
+        "missing-data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for reporting missing data required to achieve workflow goals. Encourages AI agents to be truthful about data gaps instead of hallucinating information.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of missing data reports (default: unlimited)",
+                  "minimum": 1
+                },
+                "create-issue": {
+                  "type": "boolean",
+                  "description": "Whether to create or update GitHub issues when data is missing (default: true)",
+                  "default": true
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Prefix for issue titles when creating issues for missing data (default: '[missing data]')",
+                  "default": "[missing data]"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Labels to add to created issues for missing data",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable missing data reporting with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable missing data reporting (false). Missing data reporting is enabled by default when safe-outputs is configured."
             }
           ]
         },

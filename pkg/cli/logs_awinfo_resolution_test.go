@@ -50,24 +50,10 @@ func TestAwInfoResolution(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "aw-info directory should be removed after flattening")
 
 	// Step 5: Test that extractLogMetrics can find and parse the aw_info.json
-	metrics, err := extractLogMetrics(tempDir, false)
+	_, err = extractLogMetrics(tempDir, false)
 	require.NoError(t, err, "extractLogMetrics should succeed")
 
-	// Verify that engine was detected and errors were parsed
-	errorCount := 0
-	warnCount := 0
-	for _, logErr := range metrics.Errors {
-		switch logErr.Type {
-		case "error":
-			errorCount++
-		case "warning":
-			warnCount++
-		}
-	}
-
-	// With engine detection, errors should be detected
-	assert.Positive(t, errorCount, "Should detect errors when engine is found")
-	assert.Positive(t, warnCount, "Should detect warnings when engine is found")
+	// Error patterns have been removed - no error/warning detection
 }
 
 // TestAwInfoResolutionWithoutFlattening tests the failure case
@@ -98,25 +84,10 @@ func TestAwInfoResolutionWithoutFlattening(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test that extractLogMetrics FAILS to find aw_info.json because it's not at root
-	metrics, err := extractLogMetrics(tempDir, false)
+	_, err = extractLogMetrics(tempDir, false)
 	require.NoError(t, err, "extractLogMetrics should not error")
 
-	// Without flattening, aw_info.json is not found, so fallback parser is used
-	// Fallback parser should still detect errors
-	errorCount := 0
-	warnCount := 0
-	for _, logErr := range metrics.Errors {
-		switch logErr.Type {
-		case "error":
-			errorCount++
-		case "warning":
-			warnCount++
-		}
-	}
-
-	// Fallback parser should still detect errors and warnings
-	assert.Positive(t, errorCount, "Fallback parser should detect errors")
-	assert.Positive(t, warnCount, "Fallback parser should detect warnings")
+	// Error patterns have been removed - no error/warning detection
 }
 
 // TestMultipleArtifactFlattening tests that all files from unified agent-artifacts are flattened
@@ -156,7 +127,7 @@ func TestMultipleArtifactFlattening(t *testing.T) {
 
 	for _, file := range expectedFiles {
 		path := filepath.Join(tempDir, file)
-		_, err := os.Stat(path)
+		_, err = os.Stat(path)
 		require.NoError(t, err, "File %s should exist at root", file)
 	}
 

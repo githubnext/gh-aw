@@ -2,6 +2,159 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.36.0 - 2026-01-08
+
+### Features
+
+#### Migrate terminology from "agent task" to "agent session".
+
+This change updates the CLI, JSON schemas, codemods, docs, and tests to use
+the new "agent session" terminology. A codemod (`gh aw fix`) is included to
+automatically migrate workflows; the old `create-agent-task` key remains
+supported with a deprecation warning to preserve backward compatibility.
+
+
+### Bug Fixes
+
+#### Add domain blocklist support via `--block-domains` flag.
+
+This change adds support for specifying blocked domains in workflow frontmatter and passes the `--block-domains` flag to Copilot/Claude/Codex engines during compilation. Includes parser updates, unit and integration tests, and documentation updates.
+
+#### Add domain blocklist support via the `--block-domains` flag and the
+
+`blocked` frontmatter field. This enables specifying domains or ecosystem
+identifiers to block in workflows and ensures the flag is only added when
+blocked domains are present.
+
+Supported engines: Copilot, Claude, Codex.
+
+Ref: githubnext/gh-aw#9063
+
+#### Use `awf logs summary` to generate the CI firewall report and print it to the GitHub Actions step summary.
+
+- Adds `continue-on-error: true` to the "Firewall summary" step so CI does not fail when generating reports.
+- Recompiles workflow lock files and merges `main` to pick up latest changes.
+- Fixes githubnext/gh-aw#9041
+
+#### Bump gh-aw-firewall (AWF) default binary version to v0.8.2.
+
+Updated the `DefaultFirewallVersion` constant, corresponding test expectations, updated documentation, and recompiled workflow lock files.
+
+#### Bump Codex CLI default version to 0.78.0.
+
+This updates the repository to reference `@openai/codex@0.78.0` (used by workflows),
+and aligns the `DefaultCodexVersion` constant and related tests/docs with the new
+version. Changes include security hardening, reliability fixes, and UX improvements.
+
+Files affected in the PR: constants, tests, docs, and recompiled workflow lock files.
+
+Fixes: githubnext/gh-aw#9159
+
+#### Copy Copilot session state files (`~/.copilot/session-state/*.jsonl`) to
+
+`/tmp/gh-aw/sandbox/agent/logs/` before secret redaction so they are included
+in workflow artifacts and available for debugging.
+
+#### Fix template injection vulnerabilities in the workflow compiler by moving
+
+user-controlled inputs into environment variables and securing MCP lockdown
+handling. This change updates the way safe-inputs and MCP lockdown values are
+passed to runtime steps (moved to `env:` blocks) and simplifies lockdown value
+conversion. Affects several workflows and related MCP renderer/server code.
+
+Fixes: githubnext/gh-aw#9124
+
+#### Increase markdown header levels by 1 for Copilot `conversation.md` outputs
+
+before writing them to GitHub Actions step summaries. This change adds a
+JavaScript transformer (used in the Copilot log parser), associated tests,
+and integration wiring. This is an internal tooling change and includes
+comprehensive tests; it does not introduce breaking changes.
+
+#### Move action setup and compiler paths from `/tmp/gh-aw` to `/opt/gh-aw` so agent access is read-only; updates setup action, compiler constants, tests, and AWF mounts.
+
+#### Move action setup and compiler paths from `/tmp/gh-aw` to `/opt/gh-aw` so agent access is
+
+read-only; updates setup action, compiler constants, tests, and AWF mounts.
+
+This is an internal/tooling change and does not change the public API.
+
+#### Support protocol-specific domain filtering for `network.allowed` entries.
+
+This change adds validation and compiler integration so `http://` and
+`https://` prefixes (including wildcards) are accepted for protocol-specific
+domain restrictions. It also preserves protocol prefixes through compilation,
+adds unit and integration tests, and updates the documentation.
+
+Fixes githubnext/gh-aw#9040
+
+#### Rewrite MCP server URLs using `localhost` or `127.0.0.1` to
+
+`host.docker.internal` when the firewall is enabled so agents running
+inside firewall containers can reach host MCP servers.
+
+This change adds `RewriteLocalhostToDocker` to `MCPConfigRenderer` and
+propagates sandbox configuration through MCP renderers. The rewriting
+is skipped when `sandbox.agent.disabled: true` so existing localhost
+URLs are preserved when explicitly disabled.
+
+#### Support protocol-specific domain filtering for `network.allowed` entries: validation and compiler integration for `http://` and `https://` prefixes, tests, and documentation updates.
+
+Fixes githubnext/gh-aw#9040
+
+#### Update Copilot CLI to `0.0.375` and Codex to `0.79.0`.
+
+This patch updates the bundled CLI version constants, test expectations, and
+regenerates workflow lock files. It also adds support for generating
+conversation markdown via the Copilot `--share` flag (used when available),
+fixes a path double-slash bug for `conversation.md`, and addresses an
+async/await bug in the log parser.
+
+These changes are backward-compatible and affect tooling, tests, and
+workflow compilation only.
+
+#### Update Copilot CLI to `0.0.375` and Codex to `0.79.0`; add Copilot `--share` conversation.md support, fix double-slash path and async/await bug, update tests and recompile workflows.
+
+#### Upgrade actions/upload-artifact to v6.0.0 across workflows and recompiled lock files.
+
+This adds the `v6.0.0` pin to `.github/aw/actions-lock.json` and updates compiled
+workflows to reference `actions/upload-artifact@v6.0.0` (replacing v5.0.0 references).
+
+This is an internal tooling change (workflow lock files) and does not affect runtime code.
+
+#### Use `awf logs summary` to generate CI firewall reports and print them to the GitHub Actions step summary. Adds `continue-on-error: true` to the "Firewall summary" step so CI does not fail when generating reports. Recompiled workflow lock files and merged `main` to pick up latest changes.
+
+Fixes githubnext/gh-aw#9041
+
+---
+
+Crafted by Changeset Generator
+
+
+### Migration Guide
+
+`````markdown
+The following breaking changes require code updates:
+
+### Migrate terminology from "agent task" to "agent session".
+
+If your workflows use the old `create-agent-task` frontmatter key, update them:
+
+Before:
+
+```yaml
+create-agent-task: true
+```
+
+After:
+
+```yaml
+create-agent-session: true
+```
+
+Run `gh aw fix --write` to apply automatic updates across your repository.
+`````
+
 ## Unreleased
 
 ### Breaking Changes

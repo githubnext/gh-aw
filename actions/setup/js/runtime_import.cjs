@@ -210,18 +210,35 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
   }
 
   // Otherwise, process as a file
-  const filepath = filepathOrUrl;
+  let filepath = filepathOrUrl;
 
-  // Resolve and normalize the absolute path
-  const absolutePath = path.resolve(workspaceDir, filepath);
+  // Trim .github/ prefix if provided (support both .github/file and file)
+  // This allows users to use either format
+  if (filepath.startsWith(".github/")) {
+    filepath = filepath.substring(8); // Remove ".github/"
+  } else if (filepath.startsWith(".github\\")) {
+    filepath = filepath.substring(8); // Remove ".github\" (Windows)
+  }
+
+  // Remove leading ./ or ../ if present
+  if (filepath.startsWith("./")) {
+    filepath = filepath.substring(2);
+  } else if (filepath.startsWith(".\\")) {
+    filepath = filepath.substring(2);
+  }
+  // Note: We don't allow ../ paths as they would escape .github folder
+
+  // Construct the path within .github folder
+  const githubFolder = path.join(workspaceDir, ".github");
+  const absolutePath = path.resolve(githubFolder, filepath);
   const normalizedPath = path.normalize(absolutePath);
-  const normalizedWorkspace = path.normalize(workspaceDir);
+  const normalizedGithubFolder = path.normalize(githubFolder);
 
-  // Security check: ensure the resolved path is within the git root (workspace directory)
-  // Use path.relative to check if the path escapes the workspace
-  const relativePath = path.relative(normalizedWorkspace, normalizedPath);
+  // Security check: ensure the resolved path is within the .github folder
+  // Use path.relative to check if the path escapes the .github folder
+  const relativePath = path.relative(normalizedGithubFolder, normalizedPath);
   if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-    throw new Error(`Security: Path ${filepath} resolves outside git root (${normalizedWorkspace})`);
+    throw new Error(`Security: Path ${filepathOrUrl} must be within .github folder (resolves to: ${relativePath})`);
   }
 
   // Check if file exists

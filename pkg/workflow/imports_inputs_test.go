@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
@@ -72,7 +74,7 @@ This workflow tests import with inputs.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -169,7 +171,7 @@ This workflow tests that string imports still work.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -78,7 +80,7 @@ This is a test workflow for compilation.
 
 			// If compilation succeeded, check that lock file was created
 			if !tt.expectError && err == nil {
-				lockFile := strings.TrimSuffix(tt.inputFile, ".md") + ".lock.yml"
+				lockFile := stringutil.MarkdownToLockFile(tt.inputFile)
 				if _, statErr := os.Stat(lockFile); os.IsNotExist(statErr) {
 					t.Errorf("Expected lock file %s to be created", lockFile)
 				}
@@ -254,7 +256,7 @@ Brief content`,
 					return
 				}
 				// Verify lock file was created
-				lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+				lockFile := stringutil.MarkdownToLockFile(testFile)
 				if _, statErr := os.Stat(lockFile); os.IsNotExist(statErr) {
 					t.Errorf("%s: Expected lock file %s to be created", tt.description, lockFile)
 				}
@@ -315,7 +317,7 @@ This is a test workflow with a colon in the header.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
