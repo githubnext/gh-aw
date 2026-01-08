@@ -533,11 +533,24 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 		config.Container = container
 	}
 
+	if entrypoint, ok := configMap["entrypoint"].(string); ok {
+		config.Entrypoint = entrypoint
+	}
+
 	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
 		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
 		for _, arg := range entrypointArgs {
 			if str, ok := arg.(string); ok {
 				config.EntrypointArgs = append(config.EntrypointArgs, str)
+			}
+		}
+	}
+
+	if mounts, ok := configMap["mounts"].([]any); ok {
+		config.Mounts = make([]string, 0, len(mounts))
+		for _, mount := range mounts {
+			if str, ok := mount.(string); ok {
+				config.Mounts = append(config.Mounts, str)
 			}
 		}
 	}
@@ -554,7 +567,9 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 		"url":            true,
 		"headers":        true,
 		"container":      true,
+		"entrypoint":     true,
 		"entrypointArgs": true,
+		"mounts":         true,
 	}
 
 	for key, value := range configMap {

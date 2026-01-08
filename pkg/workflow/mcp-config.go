@@ -879,7 +879,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"container":      true,
 		"version":        true,
 		"args":           true,
+		"entrypoint":     true,
 		"entrypointArgs": true,
+		"mounts":         true,
 		"env":            true,
 		"proxy-args":     true,
 		"url":            true,
@@ -966,8 +968,14 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if args, hasArgs := config.GetStringArray("args"); hasArgs {
 			result.Args = args
 		}
+		if entrypoint, hasEntrypoint := config.GetString("entrypoint"); hasEntrypoint {
+			result.Entrypoint = entrypoint
+		}
 		if entrypointArgs, hasEntrypointArgs := config.GetStringArray("entrypointArgs"); hasEntrypointArgs {
 			result.EntrypointArgs = entrypointArgs
+		}
+		if mounts, hasMounts := config.GetStringArray("mounts"); hasMounts {
+			result.Mounts = mounts
 		}
 		if env, hasEnv := config.GetStringMap("env"); hasEnv {
 			result.Env = env
@@ -1017,7 +1025,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	if result.Type == "stdio" && result.Container != "" {
 		// Save user-provided args before transforming
 		userProvidedArgs := result.Args
+		entrypoint := result.Entrypoint
 		entrypointArgs := result.EntrypointArgs
+		mounts := result.Mounts
 
 		// Transform container field to docker command and args
 		result.Command = "docker"
@@ -1033,9 +1043,24 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Args = append(result.Args, "-e", envKey)
 		}
 
-		// Insert user-provided args (e.g., volume mounts) before the container image
+		// Add volume mounts if configured (sorted for deterministic output)
+		if len(mounts) > 0 {
+			sortedMounts := make([]string, len(mounts))
+			copy(sortedMounts, mounts)
+			sort.Strings(sortedMounts)
+			for _, mount := range sortedMounts {
+				result.Args = append(result.Args, "-v", mount)
+			}
+		}
+
+		// Insert user-provided args (e.g., additional docker flags) before the container image
 		if len(userProvidedArgs) > 0 {
 			result.Args = append(result.Args, userProvidedArgs...)
+		}
+
+		// Add entrypoint override if specified
+		if entrypoint != "" {
+			result.Args = append(result.Args, "--entrypoint", entrypoint)
 		}
 
 		// Build container image with version if provided
@@ -1052,10 +1077,12 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Args = append(result.Args, entrypointArgs...)
 		}
 
-		// Clear the container, version, and entrypointArgs fields since they're now part of the command
+		// Clear the container, version, entrypoint, entrypointArgs, and mounts fields since they're now part of the command
 		result.Container = ""
 		result.Version = ""
+		result.Entrypoint = ""
 		result.EntrypointArgs = nil
+		result.Mounts = nil
 	}
 
 	return result, nil

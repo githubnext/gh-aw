@@ -135,8 +135,14 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if config.Container != "" {
 		result["container"] = config.Container
 	}
+	if config.Entrypoint != "" {
+		result["entrypoint"] = config.Entrypoint
+	}
 	if len(config.EntrypointArgs) > 0 {
 		result["entrypointArgs"] = config.EntrypointArgs
+	}
+	if len(config.Mounts) > 0 {
+		result["mounts"] = config.Mounts
 	}
 
 	// Add custom fields (these override standard fields if there are conflicts)
@@ -313,7 +319,6 @@ type MCPGatewayRuntimeConfig struct {
 	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
 	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
 	Domain         string            `yaml:"domain,omitempty"`         // Domain for gateway URL (localhost or host.docker.internal)
-	Mounts         []string          `yaml:"mounts,omitempty"`         // Volume mounts for gateway container (format: "source:dest:mode")
 }
 
 // HasTool checks if a tool is present in the configuration

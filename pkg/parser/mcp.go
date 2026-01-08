@@ -650,6 +650,33 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 					}
 				}
 
+				// Add volume mounts if configured (sorted for deterministic output)
+				if mounts, hasMounts := mcpConfig["mounts"]; hasMounts {
+					if mountsSlice, ok := mounts.([]any); ok {
+						// Collect mounts first
+						var mountStrings []string
+						for _, mount := range mountsSlice {
+							if mountStr, ok := mount.(string); ok {
+								mountStrings = append(mountStrings, mountStr)
+								config.Mounts = append(config.Mounts, mountStr)
+							}
+						}
+						// Sort for deterministic output
+						sort.Strings(mountStrings)
+						for _, mountStr := range mountStrings {
+							config.Args = append(config.Args, "-v", mountStr)
+						}
+					}
+				}
+
+				// Add entrypoint override if specified
+				if entrypoint, hasEntrypoint := mcpConfig["entrypoint"]; hasEntrypoint {
+					if entrypointStr, ok := entrypoint.(string); ok {
+						config.Entrypoint = entrypointStr
+						config.Args = append(config.Args, "--entrypoint", entrypointStr)
+					}
+				}
+
 				config.Args = append(config.Args, containerStr)
 
 				// Add entrypoint args after the container image
