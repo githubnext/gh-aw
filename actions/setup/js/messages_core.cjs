@@ -26,6 +26,7 @@
  * @property {string} [footer] - Custom footer message template
  * @property {string} [footerInstall] - Custom installation instructions template
  * @property {string} [footerWorkflowRecompile] - Custom footer template for workflow recompile issues
+ * @property {string} [footerWorkflowRecompileComment] - Custom footer template for comments on workflow recompile issues
  * @property {string} [stagedTitle] - Custom staged mode title template
  * @property {string} [stagedDescription] - Custom staged mode description template
  * @property {string} [runStarted] - Custom workflow activation message template
