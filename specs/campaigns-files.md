@@ -144,13 +144,13 @@ steps:
     with:
       github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       script: |
-        const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+        const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
         setupGlobals(core, github, context, exec, io);
-        const { main } = require('/tmp/gh-aw/actions/campaign_discovery.cjs');
+        const { main } = require('/opt/gh-aw/actions/campaign_discovery.cjs');
         await main();
 ```
 
-**Discovery script location**: The script is loaded from `/tmp/gh-aw/actions/campaign_discovery.cjs`, which is copied during the `actions/setup` step.
+**Discovery script location**: The script is loaded from `/opt/gh-aw/actions/campaign_discovery.cjs`, which is copied during the `actions/setup` step.
 
 #### B. Workflow Metadata
 
@@ -251,9 +251,9 @@ This ensures the lock file name matches the campaign spec name pattern.
 
 **Source**: `actions/setup/js/campaign_discovery.cjs`
 
-**Runtime location**: `/tmp/gh-aw/actions/campaign_discovery.cjs`
+**Runtime location**: `/opt/gh-aw/actions/campaign_discovery.cjs`
 
-The discovery script is copied to `/tmp/gh-aw/actions/` during the `actions/setup` action, which runs before the agent job.
+The discovery script is copied to `/opt/gh-aw/actions/` during the `actions/setup` action, which runs before the agent job.
 
 ### Discovery Flow
 
@@ -499,13 +499,13 @@ gh extension install githubnext/gh-aw
 
 When the orchestrator runs:
 
-1. **Setup Actions** - Copies JavaScript files to `/tmp/gh-aw/actions/`:
+1. **Setup Actions** - Copies JavaScript files to `/opt/gh-aw/actions/`:
    - Source: `actions/setup/js/campaign_discovery.cjs` (from gh-aw repository)
-   - Runtime: `/tmp/gh-aw/actions/campaign_discovery.cjs`
+   - Runtime: `/opt/gh-aw/actions/campaign_discovery.cjs`
 
 2. **Discovery Step** - Executes discovery precomputation:
    - Uses `actions/github-script@v8.0.0`
-   - Calls `require('/tmp/gh-aw/actions/campaign_discovery.cjs')`
+   - Calls `require('/opt/gh-aw/actions/campaign_discovery.cjs')`
    - Generates `./.gh-aw/campaign.discovery.json`
 
 3. **Agent Job** - AI agent processes the manifest:
@@ -529,8 +529,8 @@ When the orchestrator runs:
 The discovery script is **not** included in the compiled `.lock.yml` file. Instead:
 
 1. The compiled workflow includes an `actions/setup` step
-2. `actions/setup` copies files from its repository to `/tmp/gh-aw/actions/`
-3. The discovery step uses `require('/tmp/gh-aw/actions/campaign_discovery.cjs')`
+2. `actions/setup` copies files from its repository to `/opt/gh-aw/actions/`
+3. The discovery step uses `require('/opt/gh-aw/actions/campaign_discovery.cjs')`
 4. This works because the path is available at runtime via the setup action
 
 **Key insight**: The setup action is a composite action that copies JavaScript files to a runtime location. This allows campaigns in any repository to use the discovery script without duplicating it.
