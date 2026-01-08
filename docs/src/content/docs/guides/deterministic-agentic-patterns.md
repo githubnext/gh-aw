@@ -5,50 +5,45 @@ sidebar:
   order: 6
 ---
 
-GitHub Agentic Workflows enable you to mix deterministic computation steps with agentic AI reasoning in a single workflow. This hybrid approach combines the reliability of traditional GitHub Actions with the flexibility of AI agents, enabling sophisticated automation patterns like data preprocessing, custom trigger filtering, and post-processing of AI results.
+GitHub Agentic Workflows combine deterministic computation with AI reasoning. This enables data preprocessing, custom trigger filtering, and post-processing patterns.
 
 ## When to Use This Pattern
 
-Combine deterministic and agentic steps when you need to:
+Use deterministic steps with AI agents to:
 
-- **Precompute data** to ground AI agents with structured context
-- **Filter triggers** with custom logic before invoking AI
-- **Preprocess inputs** to normalize or validate data for AI consumption
-- **Post-process AI output** to perform deterministic operations on agentic results
-- **Build multi-stage pipelines** with computation and reasoning phases
-- **Integrate external systems** through deterministic API calls around agentic steps
+- Precompute data to ground AI with structured context
+- Filter triggers with custom logic
+- Preprocess inputs before AI consumption
+- Post-process AI output deterministically
+- Build multi-stage computation and reasoning pipelines
 
 ## Architecture
 
-The hybrid pattern works by defining deterministic jobs in the frontmatter alongside the agentic execution:
+Define deterministic jobs in frontmatter alongside agentic execution:
 
 ```text
 ┌────────────────────────┐
 │  Deterministic Jobs    │
 │  - Data fetching       │
 │  - Preprocessing       │
-│  - Custom validation   │
 └───────────┬────────────┘
             │ artifacts/outputs
             ▼
 ┌────────────────────────┐
 │   Agent Job (AI)       │
-│   - Receives context   │
 │   - Reasons & decides  │
-│   - Generates output   │
 └───────────┬────────────┘
             │ safe outputs
             ▼
 ┌────────────────────────┐
 │  Safe Output Jobs      │
 │  - GitHub API calls    │
-│  - Custom actions      │
 └────────────────────────┘
 ```
 
 ## Basic Example: Precomputation
 
-Define deterministic steps in the frontmatter to prepare data for the AI agent:
+Prepare data for the AI agent:
 
 ```yaml wrap title=".github/workflows/release-highlights.md"
 ---
@@ -65,49 +60,27 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      set -e
-      mkdir -p /tmp/gh-aw/release-data
-      
-      # Get release tag from push event
-      RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-      echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
-      
-      # Fetch current release information
-      gh release view "$RELEASE_TAG" \
-        --json name,tagName,body \
-        > /tmp/gh-aw/release-data/current_release.json
-      
-      # Get previous release for comparison
-      PREV_TAG=$(gh release list --limit 2 \
-        --json tagName --jq '.[1].tagName // empty')
-      
-      if [ -n "$PREV_TAG" ]; then
-        # Fetch merged PRs between releases
-        gh pr list --state merged --limit 1000 \
-          --json number,title,author,labels \
-          > /tmp/gh-aw/release-data/pull_requests.json
-      fi
+      gh release view "${GITHUB_REF#refs/tags/}" --json name,tagName,body > /tmp/gh-aw/agent/release.json
+      gh pr list --state merged --limit 100 --json number,title,labels > /tmp/gh-aw/agent/prs.json
 ---
 
 # Release Highlights Generator
 
-Generate engaging release highlights for version `${RELEASE_TAG}`.
+Generate engaging release highlights for version `${GITHUB_REF#refs/tags/}`.
 
-## Available Data
-
-All data is precomputed in `/tmp/gh-aw/release-data/`:
-- `current_release.json` - Release metadata
-- `pull_requests.json` - Merged PRs since last release
+The agent has access to precomputed data in `/tmp/gh-aw/agent/`:
+- `release.json` - Release metadata
+- `prs.json` - Merged PRs
 
 Analyze the PRs, categorize changes, and use the update-release tool
 to prepend highlights to the release notes.
 ```
 
-The deterministic `steps:` execute first, preparing structured data that the AI agent can reliably access and analyze.
+Files in `/tmp/gh-aw/agent/` are automatically uploaded as workflow artifacts, making them available to the AI agent and subsequent jobs.
 
 ## Multi-Job Pattern
 
-For complex workflows, define multiple deterministic jobs with dependencies:
+Define multiple deterministic jobs with dependencies:
 
 ```yaml wrap title=".github/workflows/static-analysis.md"
 ---
@@ -118,33 +91,14 @@ safe-outputs:
   create-discussion:
 
 jobs:
-  pull-images:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Pull static analysis Docker images
-        run: |
-          docker pull ghcr.io/zizmorcore/zizmor:latest
-          docker pull ghcr.io/boostsecurityio/poutine:latest
-  
   run-analysis:
-    needs: [pull-images]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
-      - name: Run security scanners
-        run: |
-          ./gh-aw compile --zizmor --poutine \
-            2>&1 | tee /tmp/gh-aw/compile-output.txt
-      
-      - name: Upload analysis results
-        uses: actions/upload-artifact@v6
-        with:
-          name: analysis-results
-          path: /tmp/gh-aw/compile-output.txt
+      - run: ./gh-aw compile --zizmor --poutine > /tmp/gh-aw/agent/analysis.txt
 
 steps:
-  - name: Download analysis results
+  - name: Download analysis
     uses: actions/download-artifact@v6
     with:
       name: analysis-results
@@ -153,20 +107,15 @@ steps:
 
 # Static Analysis Report
 
-Analyze the security scan results in `/tmp/gh-aw/compile-output.txt`.
-
-Parse the findings, cluster by severity and type, generate fix suggestions,
-and create a discussion with your comprehensive analysis.
+Parse the findings in `/tmp/gh-aw/agent/analysis.txt`, cluster by severity, 
+and create a discussion with fix suggestions.
 ```
 
-Custom jobs run **before** the agent job and can pass data through:
-- **Artifacts** - Files uploaded with `actions/upload-artifact`
-- **Job outputs** - Variables defined with `$GITHUB_OUTPUT`
-- **Environment variables** - Set in `$GITHUB_ENV` for downstream steps
+Custom jobs pass data through artifacts, job outputs, or environment variables.
 
 ## Custom Trigger Filtering
 
-Use deterministic `steps:` to implement custom trigger logic:
+Use deterministic `steps:` for custom trigger logic:
 
 ```yaml wrap title=".github/workflows/smart-responder.md"
 ---
@@ -178,42 +127,26 @@ safe-outputs:
   add-comment:
 
 steps:
-  - name: Filter issues by criteria
+  - name: Filter issues
     id: filter
-    env:
-      ISSUE_BODY: ${{ github.event.issue.body }}
-      ISSUE_LABELS: ${{ toJson(github.event.issue.labels.*.name) }}
     run: |
-      # Custom filtering logic
-      if echo "$ISSUE_BODY" | grep -q "urgent"; then
-        echo "should_respond=true" >> "$GITHUB_OUTPUT"
+      if echo "${{ github.event.issue.body }}" | grep -q "urgent"; then
         echo "priority=high" >> "$GITHUB_OUTPUT"
-      elif echo "$ISSUE_LABELS" | grep -q "question"; then
-        echo "should_respond=true" >> "$GITHUB_OUTPUT"
-        echo "priority=normal" >> "$GITHUB_OUTPUT"
       else
-        echo "should_respond=false" >> "$GITHUB_OUTPUT"
+        exit 1
       fi
-  
-  - name: Skip if filtered out
-    if: steps.filter.outputs.should_respond != 'true'
-    run: |
-      echo "Issue does not meet response criteria"
-      exit 1
 ---
 
 # Smart Issue Responder
 
-Respond to the issue: "${{ github.event.issue.title }}"
+Respond to urgent issue: "${{ github.event.issue.title }}"
 
-Priority level: ${{ steps.filter.outputs.priority }}
-
-Provide a helpful response appropriate to the priority level.
+Priority: ${{ steps.filter.outputs.priority }}
 ```
 
 ## Post-Processing Pattern
 
-Combine agentic reasoning with deterministic post-processing using custom safe output jobs:
+Use custom safe output jobs for deterministic post-processing:
 
 ```yaml wrap title=".github/workflows/code-review.md"
 ---
@@ -221,82 +154,54 @@ on:
   pull_request:
     types: [opened]
 engine: copilot
-tools:
-  github:
-    toolsets: [default]
 
 safe-outputs:
   jobs:
     format-and-notify:
-      description: "Format review results and send notifications"
+      description: "Format and post review"
       runs-on: ubuntu-latest
       inputs:
-        review_summary:
-          description: "Agent's review summary"
+        summary:
           required: true
           type: string
       steps:
-        - name: Format review report
-          env:
-            SUMMARY: "${{ inputs.review_summary }}"
-          run: |
-            # Deterministic formatting
-            echo "## 🤖 AI Code Review" > /tmp/report.md
-            echo "" >> /tmp/report.md
-            echo "$SUMMARY" >> /tmp/report.md
-            echo "" >> /tmp/report.md
-            echo "---" >> /tmp/report.md
-            echo "*Reviewed by GitHub Agentic Workflows*" >> /tmp/report.md
-        
-        - name: Post as PR comment
+        - run: |
+            echo "## 🤖 AI Code Review\n\n${{ inputs.summary }}" > /tmp/report.md
+            gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/report.md
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-            gh pr comment ${{ github.event.pull_request.number }} \
-              --body-file /tmp/report.md
 ---
 
 # Code Review Agent
 
-Review the pull request changes and provide feedback.
-
-After analysis, use the format-and-notify tool to post your review summary.
+Review the pull request and use the format-and-notify tool to post your summary.
 ```
 
 ## Importing Shared Steps
 
-Define reusable deterministic steps in shared files and import them:
+Define reusable steps in shared files:
 
 ```yaml wrap title=".github/workflows/shared/reporting.md"
 ---
-# No engine or on: configuration - this is just shared steps
 ---
 
 ## Report Formatting
 
-Structure your report with an overview followed by detailed content:
-
-1. **Content Overview**: Start with 1-2 paragraphs summarizing key findings.
-
-2. **Detailed Content**: Place details inside HTML `<details>` tags.
-
-**Example format:**
+Structure reports with an overview followed by expandable details:
 
 ```markdown
-Brief overview paragraph introducing the report.
+Brief overview paragraph.
 
 <details>
-<summary><b>Full Report Details</b></summary>
+<summary><b>Full Details</b></summary>
 
-## Detailed Analysis
-
-Full report content with sections and tables.
+Detailed content here.
 
 </details>
 ```
 ```
 
-Import and use in workflows:
+Import in workflows:
 
 ```yaml wrap title=".github/workflows/analysis.md"
 ---
@@ -311,108 +216,83 @@ safe-outputs:
 
 # Daily Analysis
 
-Analyze the repository and create a discussion report.
-
 Follow the report formatting guidelines from the imported instructions.
 ```
 
 ## Pattern Examples
 
-Real-world examples from the gh-aw repository:
-
 ### Release Workflow
-**File**: `.github/workflows/release.md`
-
-**Pattern**: Multi-job deterministic pipeline with agentic highlights generation
+`.github/workflows/release.md` - Multi-job pipeline with AI highlights generation
 
 ```yaml
 jobs:
-  release:         # Build and publish binaries
-  generate-sbom:   # Generate security manifests
-  # Agent job runs after, generates release highlights
+  release:         # Build binaries
+  generate-sbom:   # Security manifests
+  # Agent generates release highlights
 ```
 
 ### Static Analysis Report
-**File**: `.github/workflows/static-analysis-report.md`
-
-**Pattern**: Pull Docker images → Run scanners → AI analyzes results
+`.github/workflows/static-analysis-report.md` - Run scanners then AI analysis
 
 ```yaml
 steps:
-  - Pull zizmor and poutine Docker images
   - Run ./gh-aw compile with security tools
-  - Save output to /tmp/gh-aw/compile-output.txt
-# Agent reads output, clusters findings, creates discussion
+  - Save to /tmp/gh-aw/agent/analysis.txt
+# Agent clusters findings, creates discussion
+```
+
+## Agent Data Directory
+
+The `/tmp/gh-aw/agent/` directory is the standard location for sharing data with AI agents:
+
+```yaml
+steps:
+  - name: Prepare data
+    run: |
+      gh api repos/${{ github.repository }}/issues > /tmp/gh-aw/agent/issues.json
+      gh api repos/${{ github.repository }}/pulls > /tmp/gh-aw/agent/pulls.json
+```
+
+**Key features:**
+- Files in this directory are automatically uploaded as workflow artifacts
+- The agent has read access to all files in `/tmp/gh-aw/agent/`
+- Use for JSON data, text files, or any structured content the agent needs
+- Directory is created automatically by the workflow runtime
+
+**Example prompt reference:**
+
+```markdown
+Analyze the issues in `/tmp/gh-aw/agent/issues.json` and pull requests 
+in `/tmp/gh-aw/agent/pulls.json`. Summarize the top 5 most active threads.
 ```
 
 ## Best Practices
 
-### Data Preparation
-
-**Store precomputed data in standard locations:**
+Store data in `/tmp/gh-aw/agent/` for automatic artifact upload:
 
 ```bash
-mkdir -p /tmp/gh-aw/data
-# Save structured data for agent
-echo "$RESULT" > /tmp/gh-aw/data/analysis.json
+gh api repos/${{ github.repository }}/issues > /tmp/gh-aw/agent/issues.json
 ```
 
-**Use artifacts for large datasets:**
-
-```yaml
-- uses: actions/upload-artifact@v6
-  with:
-    name: dataset
-    path: /tmp/dataset.json
-```
-
-### Job Dependencies
-
-**Define explicit dependencies with `needs:`:**
+Define job dependencies with `needs:`:
 
 ```yaml
 jobs:
   fetch-data:
     steps: [...]
-  
   process-data:
     needs: [fetch-data]
     steps: [...]
-
-# Agent job automatically depends on custom jobs
 ```
 
-### Error Handling
-
-**Validate data before agent execution:**
+Pass data via environment variables:
 
 ```yaml
 steps:
-  - name: Validate prerequisites
-    run: |
-      if [ ! -f /tmp/data.json ]; then
-        echo "Error: Required data not found"
-        exit 1
-      fi
+  - run: echo "RELEASE_TAG=v1.0.0" >> "$GITHUB_ENV"
 ```
 
-### Environment Variables
-
-**Pass data to agents via environment variables:**
-
-```yaml
-steps:
-  - name: Set context
-    run: |
-      echo "RELEASE_TAG=v1.0.0" >> "$GITHUB_ENV"
-      echo "PR_COUNT=42" >> "$GITHUB_ENV"
-```
-
-**Reference in prompt:**
-
-```markdown
-Analyze release `${RELEASE_TAG}` which includes ${PR_COUNT} pull requests.
-```
+Reference in prompts: `Analyze release ${RELEASE_TAG}`.
 
 ## Related Documentation
 
