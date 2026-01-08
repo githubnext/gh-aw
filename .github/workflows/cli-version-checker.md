@@ -69,6 +69,36 @@ For each CLI/MCP server:
 **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
 
 ### Research & Analysis
+
+**CRITICAL - Read gh-aw Context First**:
+Before analyzing external CLI tool updates, read the following files from this repository to understand the current state of gh-aw and how CLI updates might interact with recent changes:
+
+1. **Read CHANGELOG.md** (`./CHANGELOG.md`):
+   - Identify recent Copilot CLI integration changes
+   - Note engine configuration updates or changes
+   - Look for breaking changes that might be affected by CLI tool updates
+   - Find new features that might depend on specific CLI tool versions
+   - Understand recent bug fixes that might relate to CLI tool behavior
+
+2. **Read README.md** (`./README.md`):
+   - Understand current project description and capabilities
+   - Review quick start guide for CLI tool usage patterns
+   - Note any documented version requirements or compatibility notes
+
+3. **Read Reference Documentation**:
+   - `./docs/src/content/docs/reference/engines.md` - Engine configuration and CLI tool integration details
+   - `./docs/src/content/docs/reference/frontmatter.md` - Configuration options that use CLI tools
+   - `./docs/src/content/docs/reference/mcp-gateway.md` - MCP server integration that may depend on CLI versions
+
+**Why This Matters**:
+- Copilot CLI updates may affect how gh-aw integrates with it
+- Recent gh-aw changes might already address compatibility issues
+- New gh-aw features may require specific CLI tool versions
+- Understanding context prevents duplicate work or breaking changes
+- Can identify when new CLI features align with gh-aw requirements
+
+**Example**: If CHANGELOG.md shows gh-aw recently added support for a new Copilot CLI flag, the version checker can identify when that flag becomes available in new Copilot versions.
+
 For each update, analyze intermediate versions:
 - Categorize changes: Breaking, Features, Fixes, Security, Performance
 - Assess impact on gh-aw workflows
@@ -174,6 +204,15 @@ Template structure:
 - Subcommand Changes: [Changes in subcommands like config/environment or "None detected"]
 - Impact: Risk [Low/Medium/High], affects [features]
 - Migration: [Yes/No - details if yes]
+
+## gh-aw Context
+**Recent gh-aw Changes** (from CHANGELOG.md and docs):
+- Copilot Integration: [list any recent Copilot CLI integration changes]
+- Engine Configuration: [list any recent engine configuration updates]
+- Breaking Changes: [list breaking changes that might be affected by this CLI update]
+- New Features: [list new features that depend on or relate to this CLI tool]
+- Version Requirements: [note any version compatibility requirements discovered]
+- Alignment: [explain how this CLI update aligns with or impacts recent gh-aw changes]
 
 ## Release Highlights (from GitHub)
 [Include key highlights from GitHub release notes if available]
