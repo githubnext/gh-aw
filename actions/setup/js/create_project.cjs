@@ -1,8 +1,14 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "create_project";
 
 /**
  * Log detailed GraphQL error information
@@ -73,7 +79,7 @@ async function getOwnerId(ownerType, ownerLogin) {
  * Create a new GitHub Project V2
  * @param {string} ownerId - Owner node ID
  * @param {string} title - Project title
- * @returns {Promise<{ projectId: string, projectNumber: number, projectTitle: string, projectUrl: string }>} Created project info
+ * @returns {Promise<{ projectId: string, projectNumber: number, projectTitle: string, projectUrl: string, itemId?: string }>} Created project info
  */
 async function createProject(ownerId, title) {
   core.info(`Creating project with title: "${title}"`);
@@ -153,35 +159,46 @@ async function getIssueNodeId(owner, repo, issueNumber) {
 }
 
 /**
- * Main handler for create-project safe output
+ * Main handler factory for create_project
+ * Returns a message handler function that processes individual create_project messages
+ * @type {HandlerFactoryFunction}
  */
-async function main() {
-  try {
-    core.info("Starting create_project handler");
+async function main(config = {}) {
+  // Extract configuration
+  const maxCount = config.max || 1;
+  const defaultTargetOwner = config.target_owner || "";
 
-    // Load agent output
-    const result = await loadAgentOutput();
-    core.info(`Loaded agent output, checking for create_project calls...`);
+  core.info(`Max count: ${maxCount}`);
+  if (defaultTargetOwner) {
+    core.info(`Default target owner: ${defaultTargetOwner}`);
+  }
 
-    if (!result.success) {
-      core.info("No valid agent output found");
-      return;
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
+
+  // Track created projects for outputs
+  const createdProjects = [];
+
+  /**
+   * Message handler function that processes a single create_project message
+   * @param {Object} message - The create_project message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status and project details
+   */
+  return async function handleCreateProject(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping create_project: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
     }
 
-    const createProjectCalls = result.items.filter(output => output.type === "create_project");
+    processedCount++;
 
-    if (createProjectCalls.length === 0) {
-      core.info("No create_project calls found in agent output");
-      return;
-    }
-
-    core.info(`Found ${createProjectCalls.length} create_project call(s)`);
-
-    // Get default target owner from environment variable if set
-    const defaultTargetOwner = process.env.GH_AW_CREATE_PROJECT_TARGET_OWNER;
-
-    for (const call of createProjectCalls) {
-      let { title, owner, owner_type, item_url } = call;
+    try {
+      let { title, owner, owner_type, item_url } = message;
 
       // Generate a title if not provided by the agent
       if (!title) {
@@ -221,11 +238,8 @@ async function main() {
       // Create the project
       const projectInfo = await createProject(ownerId, title);
 
-      // Set outputs
-      core.setOutput("project-id", projectInfo.projectId);
-      core.setOutput("project-number", projectInfo.projectNumber);
-      core.setOutput("project-title", projectInfo.projectTitle);
-      core.setOutput("project-url", projectInfo.projectUrl);
+      // Track the created project
+      createdProjects.push(projectInfo);
 
       // If item_url is provided, add it to the project
       if (item_url) {
@@ -242,23 +256,32 @@ async function main() {
 
           // Add item to project
           const itemId = await addItemToProject(projectInfo.projectId, contentId);
-          core.setOutput("item-id", itemId);
+          projectInfo.itemId = itemId;
         } else {
           core.warning(`Could not parse item URL: ${item_url}`);
         }
       }
 
       core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
-    }
 
-    core.info("✓ All create_project operations completed successfully");
-  } catch (err) {
-    // prettier-ignore
-    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-    logGraphQLError(error, "create_project");
-    core.setFailed(`Failed to create project: ${getErrorMessage(error)}`);
-    throw error;
-  }
+      return {
+        success: true,
+        projectId: projectInfo.projectId,
+        projectNumber: projectInfo.projectNumber,
+        projectTitle: projectInfo.projectTitle,
+        projectUrl: projectInfo.projectUrl,
+        itemId: projectInfo.itemId,
+      };
+    } catch (err) {
+      // prettier-ignore
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+      logGraphQLError(error, "create_project");
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
+    }
+  };
 }
 
 module.exports = { main };
