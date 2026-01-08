@@ -85,6 +85,11 @@
       "version": "v5.0.0",
       "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     },
+    "actions/upload-artifact@v6.0.0": {
+      "repo": "actions/upload-artifact",
+      "version": "v6.0.0",
+      "sha": "b7c566a772e6b6bfb58ed0dc250532a479d7789f"
+    },
     "anchore/sbom-action@v0.20.10": {
       "repo": "anchore/sbom-action",
       "version": "v0.20.10",
