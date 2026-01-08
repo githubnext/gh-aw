@@ -16,7 +16,7 @@ steps:
 
   - name: Upload charts
     if: always()
-    uses: actions/upload-artifact@v5
+    uses: actions/upload-artifact@v6
     with:
       name: trending-charts
       path: /tmp/gh-aw/python/charts/*.png
@@ -25,7 +25,7 @@ steps:
 
   - name: Upload source and data
     if: always()
-    uses: actions/upload-artifact@v5
+    uses: actions/upload-artifact@v6
     with:
       name: trending-source-and-data
       path: |

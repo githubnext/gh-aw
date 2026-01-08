@@ -16,7 +16,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the Model Context Protocol (MCP) Gateway, a transparent proxy service that enables unified HTTP access to multiple MCP servers using different transport mechanisms (stdio, HTTP). The gateway provides protocol translation, server isolation, authentication, and health monitoring capabilities.
+This specification defines the Model Context Protocol (MCP) Gateway, a transparent proxy service that enables unified HTTP access to multiple MCP servers. The gateway supports containerized MCP servers and HTTP-based MCP servers. The gateway provides protocol translation, server isolation, authentication, and health monitoring capabilities.
 
 ## Status of This Document
 
@@ -43,13 +43,15 @@ This document is governed by the GitHub Agentic Workflows project specifications
 
 ### 1.1 Purpose
 
-The MCP Gateway serves as a protocol translation layer between MCP clients expecting HTTP-based communication and MCP servers using various transport mechanisms. It enables:
+The MCP Gateway serves as a protocol translation layer between MCP clients expecting HTTP-based communication and MCP servers running in containers or accessible via HTTP. It enables:
 
-- **Protocol Translation**: Converting between stdio and HTTP transports
+- **Protocol Translation**: Converting between containerized stdio servers and HTTP transports
 - **Unified Access**: Single HTTP endpoint for multiple MCP servers
-- **Server Isolation**: Enforcing boundaries between server instances
+- **Server Isolation**: Enforcing boundaries between server instances through containerization
 - **Authentication**: Token-based access control
 - **Health Monitoring**: Service availability endpoints
+
+The gateway requires that stdio-based MCP servers MUST be containerized. Direct command execution (stdio+command without containerization) is NOT supported because it cannot provide the necessary isolation and portability guarantees.
 
 ### 1.2 Scope
 
@@ -139,10 +141,21 @@ Implementations MUST support:
 
 The gateway MUST support the following transport mechanisms:
 
-- **stdio**: Standard input/output based communication
+- **stdio (containerized)**: MCP servers running in containers with standard input/output based communication
 - **HTTP**: Direct HTTP-based MCP servers
 
 The gateway MUST translate all upstream transports to HTTP for client communication.
+
+#### 3.2.1 Containerization Requirement
+
+Stdio-based MCP servers MUST be containerized. The gateway SHALL NOT support direct command execution without containerization (stdio+command) because:
+
+1. Containerization provides necessary process isolation and security boundaries
+2. Containers enable reproducible environments across different deployment contexts
+3. Container images provide versioning and dependency management
+4. Containerization ensures portability and consistent behavior
+
+Direct command execution of stdio servers (e.g., `command: "node server.js"` without a container) is explicitly NOT SUPPORTED by this specification.
 
 ### 3.3 Operational Model
 
@@ -168,8 +181,6 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
 {
   "mcpServers": {
     "server-name": {
-      "command": "string",
-      "args": ["string"],
       "container": "string",
       "entrypointArgs": ["string"],
       "env": {
@@ -195,16 +206,16 @@ Each server configuration MUST support:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `command` | string | Conditional* | Executable command for stdio servers |
-| `args` | array[string] | No | Command arguments |
-| `container` | string | Conditional* | Container image for the MCP server (mutually exclusive with command) |
+| `container` | string | Conditional* | Container image for the MCP server (required for stdio servers) |
 | `entrypointArgs` | array[string] | No | Arguments passed to container entrypoint (container only) |
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
 | `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
 
-*Either `command` or `container` is required for stdio servers  
+*Required for stdio servers (containerized execution)  
 **Required for HTTP servers
+
+**Note**: The `command` field is NOT supported. Stdio servers MUST use the `container` field to specify a containerized MCP server. Direct command execution is not supported by this specification.
 
 #### 4.1.3 Gateway Configuration Fields
 
@@ -246,7 +257,7 @@ Configuration:
 {
   "mcpServers": {
     "github": {
-      "command": "docker",
+      "container": "ghcr.io/github/github-mcp-server:latest",
       "env": {
         "GITHUB_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
@@ -369,16 +380,18 @@ The gateway MUST:
 
 ### 5.2 Protocol Translation
 
-#### 5.2.1 Stdio to HTTP
+#### 5.2.1 Stdio (Containerized) to HTTP
 
-For stdio-based servers, the gateway MUST:
+For containerized stdio-based servers, the gateway MUST:
 
-1. Start the server process on first request (lazy initialization)
-2. Write JSON-RPC request to server's stdin
-3. Read JSON-RPC response from server's stdout
+1. Start the container on first request (lazy initialization)
+2. Write JSON-RPC request to container's stdin
+3. Read JSON-RPC response from container's stdout
 4. Return HTTP response to client
-5. Maintain server process for subsequent requests
+5. Maintain container for subsequent requests
 6. Buffer partial responses until complete JSON is received
+
+The gateway SHALL NOT support non-containerized command execution. All stdio servers MUST be containerized.
 
 #### 5.2.2 HTTP to HTTP
 
@@ -406,9 +419,9 @@ This ensures transparent proxying without name mangling or schema transformation
 
 The gateway SHOULD enforce `startupTimeout` for server initialization:
 
-1. Start timer when server process is launched
+1. Start timer when server container is launched
 2. Wait for server ready signal (stdio) or successful health check (HTTP)
-3. If timeout expires, kill server process and return error
+3. If timeout expires, kill server container and return error
 4. Log timeout error with server name and elapsed time
 
 #### 5.3.2 Tool Timeout
@@ -449,30 +462,32 @@ This allows clients to dynamically discover gateway endpoints.
 
 ## 6. Server Isolation
 
-### 6.1 Process and Container Isolation
+### 6.1 Container Isolation
 
-For stdio servers using processes, the gateway MUST:
-
-1. Launch each server in a separate process
-2. Maintain isolated stdin/stdout/stderr streams
-3. Prevent cross-server communication
-4. Terminate child processes on gateway shutdown
-
-For stdio servers using containers, the gateway MUST:
+For stdio servers, the gateway MUST:
 
 1. Launch each server in a separate container
 2. Maintain isolated stdin/stdout/stderr streams
 3. Prevent cross-container communication
 4. Terminate containers on gateway shutdown
 
+All stdio-based MCP servers MUST be containerized to ensure:
+
+- **Process Isolation**: Each container provides a separate process namespace
+- **Resource Isolation**: Containers enforce CPU, memory, and filesystem boundaries
+- **Network Isolation**: Containers provide isolated network namespaces
+- **Security Boundaries**: Container runtimes enforce security policies and capabilities
+
+The gateway SHALL NOT support non-containerized process execution for stdio servers.
+
 ### 6.2 Resource Isolation
 
 The gateway MUST ensure:
 
-- Each server has isolated environment variables
-- File descriptors are not shared between servers
+- Each server has isolated environment variables within its container
+- File descriptors are not shared between containers
 - Network sockets are not shared (for HTTP servers)
-- Server failures do not affect other servers
+- Container failures do not affect other containers
 
 ### 6.3 Security Boundaries
 
@@ -540,7 +555,7 @@ Response:
 The gateway SHOULD:
 
 1. Periodically check server health (every 30 seconds)
-2. Restart failed stdio servers automatically
+2. Restart failed containerized stdio servers automatically
 3. Mark HTTP servers unhealthy if unreachable
 4. Include health status in `/health` response
 5. Update readiness based on critical server status
@@ -555,10 +570,10 @@ If any configured server fails to start, the gateway MUST:
 
 1. Write detailed error to stdout as an error payload including:
    - Server name
-   - Command/URL attempted
-   - Error message from server process
+   - Container image or URL attempted
+   - Error message from server container
    - Environment variable status
-   - Stdout/stderr from failed process
+   - Stdout/stderr from failed container
 2. Exit with status code 1
 3. NOT start the HTTP server
 
@@ -573,7 +588,7 @@ For runtime errors, the gateway MUST:
    - Error details
 2. Return JSON-RPC error response to client
 3. Continue serving other requests
-4. Attempt to restart failed stdio servers
+4. Attempt to restart failed containerized stdio servers
 
 ### 9.3 Error Response Format
 
@@ -641,11 +656,11 @@ A conforming implementation MUST pass the following test categories:
 
 #### 10.1.3 Isolation Tests
 
-- **T-ISO-001**: Process isolation verification
+- **T-ISO-001**: Container isolation verification
 - **T-ISO-002**: Environment isolation verification
 - **T-ISO-003**: Credential isolation verification
-- **T-ISO-004**: Cross-server communication prevention
-- **T-ISO-005**: Server failure isolation
+- **T-ISO-004**: Cross-container communication prevention
+- **T-ISO-005**: Container failure isolation
 
 #### 10.1.4 Authentication Tests
 
@@ -709,14 +724,14 @@ Implementations SHOULD provide:
 
 ### Appendix A: Example Configurations
 
-#### A.1 Basic Stdio Server
+#### A.1 Basic Containerized Stdio Server
 
 ```json
 {
   "mcpServers": {
     "example": {
-      "command": "node",
-      "args": ["server.js"],
+      "container": "ghcr.io/example/mcp-server:latest",
+      "entrypointArgs": ["--verbose"],
       "env": {
         "API_KEY": "${MY_API_KEY}"
       }
@@ -735,8 +750,8 @@ Implementations SHOULD provide:
 {
   "mcpServers": {
     "local-server": {
-      "command": "python",
-      "args": ["server.py"],
+      "container": "ghcr.io/example/python-mcp:latest",
+      "entrypointArgs": ["--config", "/app/config.json"],
       "type": "stdio"
     },
     "remote-server": {
@@ -752,18 +767,13 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.3 Docker-Based Server
+#### A.3 GitHub MCP Server (Containerized)
 
 ```json
 {
   "mcpServers": {
     "github": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server:latest"
-      ],
+      "container": "ghcr.io/github/github-mcp-server:latest",
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
@@ -801,12 +811,14 @@ Implementations SHOULD provide:
 - Cross-origin requests SHOULD be restricted
 - Rate limiting SHOULD be implemented
 
-#### C.3 Process Security
+#### C.3 Container Security
 
-- Server processes SHOULD run with minimal privileges
+- Server containers SHOULD run with minimal privileges
 - Resource limits SHOULD be enforced (CPU, memory, file descriptors)
 - Temporary files SHOULD be cleaned up
-- Process monitoring SHOULD detect anomalies
+- Container monitoring SHOULD detect anomalies
+- Container images SHOULD be signed and verified
+- Containers SHOULD use read-only root filesystems where possible
 
 ---
 
