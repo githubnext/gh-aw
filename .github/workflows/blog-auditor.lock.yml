@@ -375,6 +375,8 @@ jobs:
                   "--init",
                   "--network",
                   "host",
+                  "-v",
+                  "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
                   "mcr.microsoft.com/playwright/mcp",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",

@@ -507,6 +507,8 @@ jobs:
                   "--init",
                   "--network",
                   "host",
+                  "-v",
+                  "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
                   "mcr.microsoft.com/playwright/mcp",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
@@ -764,6 +766,20 @@ jobs:
           3. Wait for the page to fully load (including all CSS, fonts, and images)
           4. Take a full-page HD screenshot of the documentation page (1920x1080 viewport is configured)
           5. The screenshot will be saved in `/tmp/gh-aw/mcp-logs/playwright/` by Playwright (e.g., `/tmp/gh-aw/mcp-logs/playwright/getting-started.png`)
+          
+          #### Verify Screenshots Were Saved
+          
+          **IMPORTANT**: Before uploading, verify that Playwright successfully saved the screenshots:
+          
+          ```bash
+          # List files in the output directory to confirm screenshots were saved
+          ls -lh /tmp/gh-aw/mcp-logs/playwright/
+          ```
+          
+          **If no screenshot files are found:**
+          - Report this in the PR description under an "Issues" section
+          - Include the error message or reason why screenshots couldn't be captured
+          - Do not proceed with upload-asset if no files exist
           
           #### Upload Screenshots
           
