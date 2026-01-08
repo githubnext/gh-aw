@@ -257,50 +257,11 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 
 	// Add tools field for Copilot
 	if includeCopilotFields {
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
+		yaml.WriteString("                \"tools\": [\"*\"]\n")
 	}
 
-	// Add env block for server configuration environment variables
-	// Note: Tool-specific env vars are already set in the step's env block
-	// and don't need to be passed through the MCP config since the server uses HTTP transport
-	yaml.WriteString("                \"env\": {\n")
-
-	// Environment variables needed by safe-outputs MCP server
-	serverConfigVars := []string{
-		"GH_AW_SAFE_OUTPUTS_PORT",
-		"GH_AW_SAFE_OUTPUTS_API_KEY",
-		"GH_AW_MCP_LOG_DIR",
-		"GH_AW_SAFE_OUTPUTS",
-		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
-		"GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
-		"GH_AW_ASSETS_BRANCH",
-		"GH_AW_ASSETS_MAX_SIZE_KB",
-		"GH_AW_ASSETS_ALLOWED_EXTS",
-		"GITHUB_REPOSITORY",
-		"GITHUB_SERVER_URL",
-		"GITHUB_SHA",
-		"GITHUB_WORKSPACE",
-		"DEFAULT_BRANCH",
-	}
-
-	// Write environment variables with appropriate escaping
-	for i, envVar := range serverConfigVars {
-		isLastEnvVar := i == len(serverConfigVars)-1
-		comma := ""
-		if !isLastEnvVar {
-			comma = ","
-		}
-
-		if includeCopilotFields {
-			// Copilot format: backslash-escaped shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
-		} else {
-			// Claude/Custom format: direct shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
-		}
-	}
-
-	yaml.WriteString("                }\n")
+	// HTTP transport: No env block needed since the server is already running
+	// as a process with access to all necessary environment variables
 	yaml.WriteString("              }")
 	if !isLast {
 		yaml.WriteString(",")
