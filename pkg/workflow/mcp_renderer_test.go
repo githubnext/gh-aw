@@ -527,7 +527,7 @@ func TestOptionCombinations(t *testing.T) {
 			renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
 
 			yaml.Reset()
-			renderer.RenderSafeOutputsMCP(&yaml)
+			renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 			yaml.Reset()
 			renderer.RenderAgenticWorkflowsMCP(&yaml)

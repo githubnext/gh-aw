@@ -120,18 +120,7 @@ function createMCPServer(options = {}) {
   // Register predefined tools that are enabled in configuration
   // Note: We're using inline implementation rather than calling the loader function
   // because we need to register with MCP SDK instead of mcp_server_core
-  const PREDEFINED_TOOLS = [
-    "create_issue",
-    "update_issue",
-    "add_comment",
-    "add_labels",
-    "create_pull_request",
-    "create_discussion",
-    "update_discussion",
-    "create_code_scanning_alert",
-    "create_pr_review_comment",
-    "close_discussion",
-  ];
+  const PREDEFINED_TOOLS = ["create_issue", "update_issue", "add_comment", "add_labels", "create_pull_request", "create_discussion", "update_discussion", "create_code_scanning_alert", "create_pr_review_comment", "close_discussion"];
 
   for (const toolName of PREDEFINED_TOOLS) {
     if (safeOutputsConfig[toolName] === undefined) {

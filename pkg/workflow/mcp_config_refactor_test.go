@@ -168,7 +168,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderSafeOutputsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields)
+			renderSafeOutputsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields, nil)
 
 			result := output.String()
 

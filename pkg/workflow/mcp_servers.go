@@ -342,7 +342,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				yaml.WriteString("          GH_AW_ASSETS_BRANCH: " + workflowData.SafeOutputs.UploadAssets.BranchName + "\n")
 			}
 			if workflowData.SafeOutputs.UploadAssets.MaxSizeKB > 0 {
-				yaml.WriteString(fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
+				fmt.Fprintf(yaml, "          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
 			}
 			if len(workflowData.SafeOutputs.UploadAssets.AllowedExts) > 0 {
 				yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: " + strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",") + "\n")
