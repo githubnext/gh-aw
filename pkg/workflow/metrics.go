@@ -23,42 +23,10 @@ type ToolCallInfo struct {
 	MaxDuration   time.Duration // Maximum execution duration for any call
 }
 
-// LogError represents a single error or warning from the log
-type LogError struct {
-	File      string // File path (usually the log file)
-	Line      int    // Line number in the log file
-	Type      string // "error" or "warning"
-	Message   string // Error/warning message
-	PatternID string // ID of the error pattern that matched (if available)
-}
-
-// CountErrors counts the number of errors in the slice
-func CountErrors(errors []LogError) int {
-	count := 0
-	for _, err := range errors {
-		if err.Type == "error" {
-			count++
-		}
-	}
-	return count
-}
-
-// CountWarnings counts the number of warnings in the slice
-func CountWarnings(errors []LogError) int {
-	count := 0
-	for _, err := range errors {
-		if err.Type == "warning" {
-			count++
-		}
-	}
-	return count
-}
-
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
 	TokenUsage    int
 	EstimatedCost float64
-	Errors        []LogError     // Individual error and warning details
 	Turns         int            // Number of turns needed to complete the task
 	ToolCalls     []ToolCallInfo // Tool call statistics
 	ToolSequences [][]string     // Sequences of tool calls preserving order
@@ -315,137 +283,6 @@ func ExtractMCPServer(toolName string) string {
 	return toolName
 }
 
-// compiledPattern stores a pre-compiled regex with its metadata
-type compiledPattern struct {
-	regex        *regexp.Regexp
-	id           string
-	levelGroup   int
-	messageGroup int
-	severity     string
-}
-
-// CountErrorsAndWarningsWithPatterns extracts errors and warnings using regex patterns
-// This is more accurate than simple string matching and uses the same logic as validate_errors.cjs
-func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPattern) []LogError {
-	var errors []LogError
-
-	if len(patterns) == 0 {
-		return errors
-	}
-
-	// Pre-compile all patterns once before processing lines (performance optimization)
-	compiledPatterns := make([]compiledPattern, 0, len(patterns))
-	for _, pattern := range patterns {
-		regex, err := regexp.Compile(pattern.Pattern)
-		if err != nil {
-			// Skip invalid patterns
-			continue
-		}
-		compiledPatterns = append(compiledPatterns, compiledPattern{
-			regex:        regex,
-			id:           pattern.ID,
-			levelGroup:   pattern.LevelGroup,
-			messageGroup: pattern.MessageGroup,
-			severity:     pattern.Severity,
-		})
-	}
-
-	lines := strings.Split(logContent, "\n")
-
-	for lineNum, line := range lines {
-		for _, cp := range compiledPatterns {
-			// Find first match only - for error detection we don't need all matches
-			match := cp.regex.FindStringSubmatch(line)
-			if match == nil {
-				continue
-			}
-
-			level := extractLevelFromMatchCompiled(match, cp)
-
-			// Extract message using the pattern's MessageGroup or full match
-			message := ""
-			if cp.messageGroup > 0 && cp.messageGroup < len(match) && match[cp.messageGroup] != "" {
-				message = match[cp.messageGroup]
-			} else if len(match) > 0 {
-				message = match[0]
-			}
-
-			// Clean up the message
-			message = logger.ExtractErrorMessage(message)
-
-			if strings.ToLower(level) == "error" {
-				if message != "" {
-					errors = append(errors, LogError{
-						Line:      lineNum + 1, // 1-based line numbering
-						Type:      "error",
-						Message:   message,
-						PatternID: cp.id,
-					})
-				}
-			} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
-				if message != "" {
-					errors = append(errors, LogError{
-						Line:      lineNum + 1, // 1-based line numbering
-						Type:      "warning",
-						Message:   message,
-						PatternID: cp.id,
-					})
-				}
-			}
-		}
-	}
-
-	return errors
-}
-
-// extractLevelFromMatchCompiled is the compiled-pattern version of extractLevelFromMatch
-func extractLevelFromMatchCompiled(match []string, cp compiledPattern) string {
-	// If Severity is explicitly set, use it
-	if cp.severity != "" {
-		return cp.severity
-	}
-
-	// If level group is specified and valid, use it
-	if cp.levelGroup > 0 && cp.levelGroup < len(match) && match[cp.levelGroup] != "" {
-		levelText := strings.ToLower(match[cp.levelGroup])
-		// Normalize common error/warning keywords
-		if strings.Contains(levelText, "err") || strings.Contains(levelText, "error") ||
-			strings.Contains(levelText, "fail") || strings.Contains(levelText, "fatal") {
-			return "error"
-		} else if strings.Contains(levelText, "warn") || strings.Contains(levelText, "warning") {
-			return "warning"
-		}
-		// Return the original level text if it doesn't match common patterns
-		return match[cp.levelGroup]
-	}
-
-	// Try to infer level from the full match content
-	if len(match) > 0 {
-		fullMatch := strings.ToLower(match[0])
-
-		// Check for specific Copilot CLI permission warnings (before general error checks)
-		if strings.Contains(fullMatch, "permission denied and could not request permission from user") {
-			return "warning"
-		}
-
-		if strings.Contains(fullMatch, "error") || strings.Contains(fullMatch, "err") ||
-			strings.Contains(fullMatch, "fail") || strings.Contains(fullMatch, "fatal") {
-			return "error"
-		} else if strings.Contains(fullMatch, "warn") || strings.Contains(fullMatch, "warning") {
-			return "warning"
-		}
-		// Additional error indicators
-		if strings.Contains(fullMatch, "denied") || strings.Contains(fullMatch, "forbidden") ||
-			strings.Contains(fullMatch, "unauthorized") || strings.Contains(fullMatch, "not found") ||
-			strings.Contains(fullMatch, "✗") || // Copilot CLI failure indicator
-			strings.Contains(fullMatch, "permission") && (strings.Contains(fullMatch, "denied") || strings.Contains(fullMatch, "restricted")) {
-			return "error"
-		}
-	}
-
-	return "unknown"
-}
-
 // FinalizeToolMetricsOptions holds the options for FinalizeToolMetrics
 type FinalizeToolMetricsOptions struct {
 	Metrics         *LogMetrics
@@ -453,8 +290,6 @@ type FinalizeToolMetricsOptions struct {
 	CurrentSequence []string
 	Turns           int
 	TokenUsage      int
-	LogContent      string
-	ErrorPatterns   []ErrorPattern
 }
 
 // FinalizeToolMetrics completes the metric collection process by finalizing sequences,
@@ -478,11 +313,6 @@ func FinalizeToolMetrics(opts FinalizeToolMetricsOptions) {
 	sort.Slice(opts.Metrics.ToolCalls, func(i, j int) bool {
 		return opts.Metrics.ToolCalls[i].Name < opts.Metrics.ToolCalls[j].Name
 	})
-
-	// Count errors and warnings using pattern matching for better accuracy
-	if len(opts.ErrorPatterns) > 0 {
-		opts.Metrics.Errors = CountErrorsAndWarningsWithPatterns(opts.LogContent, opts.ErrorPatterns)
-	}
 }
 
 // FinalizeToolCallsAndSequence completes the tool call and sequence finalization.

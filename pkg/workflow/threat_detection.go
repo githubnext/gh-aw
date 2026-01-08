@@ -342,15 +342,14 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 				ID:            detectionEngineConfig.ID,
 				Model:         "", // Explicitly leave empty for env var mechanism
 				Version:       detectionEngineConfig.Version,
-				MaxTurns:      detectionEngineConfig.MaxTurns,
-				Concurrency:   detectionEngineConfig.Concurrency,
-				UserAgent:     detectionEngineConfig.UserAgent,
-				Env:           detectionEngineConfig.Env,
-				Steps:         detectionEngineConfig.Steps,
-				ErrorPatterns: detectionEngineConfig.ErrorPatterns,
-				Config:        detectionEngineConfig.Config,
-				Args:          detectionEngineConfig.Args,
-				Firewall:      detectionEngineConfig.Firewall,
+				MaxTurns:    detectionEngineConfig.MaxTurns,
+				Concurrency: detectionEngineConfig.Concurrency,
+				UserAgent:   detectionEngineConfig.UserAgent,
+				Env:         detectionEngineConfig.Env,
+				Steps:       detectionEngineConfig.Steps,
+				Config:      detectionEngineConfig.Config,
+				Args:        detectionEngineConfig.Args,
+				Firewall:    detectionEngineConfig.Firewall,
 			}
 		}
 	}

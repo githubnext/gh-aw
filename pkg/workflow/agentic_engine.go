@@ -71,32 +71,12 @@ type CodingAgentEngine interface {
 	// This may be different from the stdout/stderr log file if the engine produces separate detailed logs
 	GetLogFileForParsing() string
 
-	// GetErrorPatterns returns regex patterns for extracting error messages from logs
-	GetErrorPatterns() []ErrorPattern
-
 	// GetDefaultDetectionModel returns the default model to use for threat detection
 	// If empty, no default model is applied and the engine uses its standard default
 	GetDefaultDetectionModel() string
 }
 
-// ErrorPattern represents a regex pattern for extracting error information from logs
-type ErrorPattern struct {
-	// ID is a unique identifier for this error pattern
-	ID string `json:"id"`
-	// Pattern is the regular expression to match log lines
-	Pattern string `json:"pattern"`
-	// LevelGroup is the capture group index (1-based) that contains the error level (error, warning, etc.)
-	// If 0, the level will be inferred from the pattern name or content
-	LevelGroup int `json:"level_group"`
-	// MessageGroup is the capture group index (1-based) that contains the error message
-	// If 0, the entire match will be used as the message
-	MessageGroup int `json:"message_group"`
-	// Description is a human-readable description of what this pattern matches
-	Description string `json:"description"`
-	// Severity explicitly sets the level for this pattern, overriding inference
-	// Valid values: "error", "warning", or empty string (use inference)
-	Severity string `json:"severity,omitempty"`
-}
+
 
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
@@ -157,10 +137,7 @@ func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
 }
 
-// GetErrorPatterns returns an empty list by default (engines can override)
-func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
-	return []ErrorPattern{}
-}
+
 
 // GetDefaultDetectionModel returns empty string by default (no default model)
 // Engines can override this to provide a cost-effective default for detection jobs
@@ -457,46 +434,4 @@ func unquoteUsesWithComments(yamlStr string) string {
 	return strings.Join(lines, "\n")
 }
 
-// GetCommonErrorPatterns returns error patterns that are common across all engines.
-// These patterns detect standard GitHub Actions workflow commands and other universal error formats.
-func GetCommonErrorPatterns() []ErrorPattern {
-	return []ErrorPattern{
-		// GitHub Actions workflow commands - standard error/warning/notice syntax
-		{
-			ID:           "common-gh-actions-error",
-			Pattern:      `::(error)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "error" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - error",
-		},
-		{
-			ID:           "common-gh-actions-warning",
-			Pattern:      `::(warning)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "warning" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - warning",
-		},
-		{
-			ID:           "common-gh-actions-notice",
-			Pattern:      `::(notice)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "notice" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - notice",
-		},
-		// Generic error/warning patterns - common log formats
-		{
-			ID:           "common-generic-error",
-			Pattern:      `(ERROR|Error):\s+(.+)`,
-			LevelGroup:   1, // "ERROR" or "Error" is in the first capture group
-			MessageGroup: 2, // error message is in the second capture group
-			Description:  "Generic ERROR messages",
-		},
-		{
-			ID:           "common-generic-warning",
-			Pattern:      `(WARNING|Warning):\s+(.+)`,
-			LevelGroup:   1, // "WARNING" or "Warning" is in the first capture group
-			MessageGroup: 2, // warning message is in the second capture group
-			Description:  "Generic WARNING messages",
-		},
-	}
-}
+
