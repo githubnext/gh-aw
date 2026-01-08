@@ -53,6 +53,7 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 // GetInstallationSteps is implemented in copilot_engine_installation.go
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
+	// Session state files are copied to logs folder by GetFirewallLogsCollectionStep
 	return []string{logsFolder}
 }
 
