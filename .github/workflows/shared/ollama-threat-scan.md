@@ -329,7 +329,7 @@ safe-outputs:
       
       - name: Upload scan results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ollama-scan-results
           path: |

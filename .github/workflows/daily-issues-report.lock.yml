@@ -134,7 +134,7 @@ jobs:
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
         name: Upload generated charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           if-no-files-found: warn
           name: data-charts
@@ -142,7 +142,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source files and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -197,7 +197,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.78.0
+        run: npm install -g --silent @openai/codex@0.79.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.8.2)"
@@ -442,78 +442,6 @@ jobs:
             }
           }
           EOF
-      - name: Start MCP Gateway
-        env:
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/gh-aw
-          # Write MCP gateway configuration
-          cat > /tmp/gh-aw/mcpg-config.json << 'EOF'
-          {
-            "mcpServers": {
-              "cache-memory": {
-                "args": [
-                  "/tmp/gh-aw/actions/cache-memory-mcp-server.cjs"
-                ],
-                "command": "node",
-                "type": "local"
-              },
-              "github": {
-                "container": "ghcr.io/github/github-mcp-server:v0.27.0",
-                "entrypointArgs": [
-                  "stdio"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-                },
-                "lockdown": false,
-                "read-only": true,
-                "toolsets": "context,repos,issues,pull_requests,discussions",
-                "type": "local"
-              },
-              "safe-outputs": {
-                "args": [
-                  "/tmp/gh-aw/safeoutputs/mcp-server.cjs"
-                ],
-                "command": "node",
-                "type": "local"
-              }
-            }
-          }
-          EOF
-          
-          mkdir -p /tmp/gh-aw/mcp-gateway-logs
-          cat /tmp/gh-aw/mcpg-config.json | docker run \
-            --rm -i \
-            --name gh-aw-mcpg \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v /tmp:/tmp:rw \
-            -p 80:8000 \
-            --add-host host.docker.internal:host-gateway \
-            -e GITHUB_PERSONAL_ACCESS_TOKEN \
-            ghcr.io/githubnext/gh-aw-mcpg:v0.0.4 \
-            --routed --listen 0.0.0.0:8000 --config-stdin \
-            > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
-          
-          # Wait for gateway to be ready (backend servers need time to initialize)
-          sleep 5
-          
-          # Verify gateway is running and healthy
-          if docker ps | grep -q gh-aw-mcpg; then
-            echo "MCP Gateway container is running"
-            # Wait for gateway health endpoint to be ready
-            for i in 1 2 3 4 5; do
-              if curl -sf http://127.0.0.1:80/health > /dev/null 2>&1; then
-                echo "MCP Gateway started successfully"
-                break
-              fi
-              echo "Waiting for gateway health check (attempt $i/5)..."
-              sleep 2
-            done
-          else
-            echo "Warning: MCP Gateway may not have started correctly"
-            cat /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>/dev/null || true
-          fi
       - name: Setup MCPs
         env:
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
@@ -524,28 +452,39 @@ jobs:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/config.toml << 'EOF'
+          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
           [history]
           persistence = "none"
           
-          [mcp_servers.cache-memory]
-          type = "http"
-          url = "http://host.docker.internal/mcp/cache-memory"
-          [mcp_servers.cache-memory.headers]
-          Authorization = "Bearer awf-session"
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
           
           [mcp_servers.github]
-          type = "http"
-          url = "http://host.docker.internal/mcp/github"
-          [mcp_servers.github.headers]
-          Authorization = "Bearer awf-session"
+          user_agent = "daily-issues-report-generator"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 60
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "-e",
+            "GITHUB_READ_ONLY=1",
+            "-e",
+            "GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions",
+            "ghcr.io/github/github-mcp-server:v0.27.0"
+          ]
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
-          [mcp_servers.safe-outputs]
-          type = "http"
-          url = "http://host.docker.internal/mcp/safe-outputs"
-          [mcp_servers.safe-outputs.headers]
-          Authorization = "Bearer awf-session"
-          
+          [mcp_servers.safeoutputs]
+          command = "node"
+          args = [
+            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
+          ]
+          env_vars = ["GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]
           EOF
       - name: Generate agentic run info
         id: generate_aw_info
@@ -559,7 +498,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.78.0",
+              agent_version: "0.79.0",
               workflow_name: "Daily Issues Report Generator",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1720,7 +1659,7 @@ jobs:
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p "$CODEX_HOME/logs"
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --enable-host-access --allow-domains api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
             -- NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && codex ${GH_AW_MODEL_AGENT_CODEX:+-c model="$GH_AW_MODEL_AGENT_CODEX" }exec --full-auto --skip-git-repo-check "$INSTRUCTION" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -1756,7 +1695,7 @@ jobs:
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1777,13 +1716,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent_outputs
           path: |
@@ -1801,17 +1740,14 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/parse_codex_log.cjs');
             await main();
-      - name: Parse firewall logs for step summary
+      - name: Firewall summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');
-            await main();
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: awf logs summary >> $GITHUB_STEP_SUMMARY
       - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: cache-memory
@@ -1819,7 +1755,7 @@ jobs:
       # Upload safe-outputs assets for upload_assets job
       - name: Upload safe-outputs assets
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: safe-outputs-assets
           path: /tmp/gh-aw/safeoutputs/assets/
@@ -1840,7 +1776,7 @@ jobs:
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: agent-artifacts
           path: |
@@ -2059,7 +1995,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.78.0
+        run: npm install -g --silent @openai/codex@0.79.0
       - name: Run Codex
         run: |
           set -o pipefail
@@ -2088,7 +2024,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
