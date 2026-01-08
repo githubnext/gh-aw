@@ -334,22 +334,26 @@ func TestParseMessagesConfig(t *testing.T) {
 		{
 			name: "all fields",
 			input: map[string]any{
-				"footer":             "Powered by AI",
-				"footer-install":     "Install now",
-				"staged-title":       "Preview",
-				"staged-description": "Preview description",
-				"run-started":        "Started",
-				"run-success":        "Success",
-				"run-failure":        "Failure",
+				"footer":                            "Powered by AI",
+				"footer-install":                    "Install now",
+				"footer-workflow-recompile":         "Recompile footer",
+				"footer-workflow-recompile-comment": "Recompile comment footer",
+				"staged-title":                      "Preview",
+				"staged-description":                "Preview description",
+				"run-started":                       "Started",
+				"run-success":                       "Success",
+				"run-failure":                       "Failure",
 			},
 			expected: &SafeOutputMessagesConfig{
-				Footer:            "Powered by AI",
-				FooterInstall:     "Install now",
-				StagedTitle:       "Preview",
-				StagedDescription: "Preview description",
-				RunStarted:        "Started",
-				RunSuccess:        "Success",
-				RunFailure:        "Failure",
+				Footer:                         "Powered by AI",
+				FooterInstall:                  "Install now",
+				FooterWorkflowRecompile:        "Recompile footer",
+				FooterWorkflowRecompileComment: "Recompile comment footer",
+				StagedTitle:                    "Preview",
+				StagedDescription:              "Preview description",
+				RunStarted:                     "Started",
+				RunSuccess:                     "Success",
+				RunFailure:                     "Failure",
 			},
 		},
 		{
@@ -374,6 +378,12 @@ func TestParseMessagesConfig(t *testing.T) {
 			}
 			if result.FooterInstall != tt.expected.FooterInstall {
 				t.Errorf("FooterInstall: got %q, want %q", result.FooterInstall, tt.expected.FooterInstall)
+			}
+			if result.FooterWorkflowRecompile != tt.expected.FooterWorkflowRecompile {
+				t.Errorf("FooterWorkflowRecompile: got %q, want %q", result.FooterWorkflowRecompile, tt.expected.FooterWorkflowRecompile)
+			}
+			if result.FooterWorkflowRecompileComment != tt.expected.FooterWorkflowRecompileComment {
+				t.Errorf("FooterWorkflowRecompileComment: got %q, want %q", result.FooterWorkflowRecompileComment, tt.expected.FooterWorkflowRecompileComment)
 			}
 			if result.StagedTitle != tt.expected.StagedTitle {
 				t.Errorf("StagedTitle: got %q, want %q", result.StagedTitle, tt.expected.StagedTitle)
