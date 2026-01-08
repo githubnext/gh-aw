@@ -496,6 +496,8 @@ jobs:
           Find ONE open issue that:
           - Has no assignees
           - Does not have label `ai-generated`
+          - Does not have a `campaign:*` label (these are managed by campaign orchestrators)
+          - Does not have labels: `no-bot`, `no-campaign`
           - Was not opened by `github-actions` or any bot
           
           Pick the oldest unassigned issue.
