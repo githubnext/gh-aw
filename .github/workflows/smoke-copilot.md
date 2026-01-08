@@ -1,6 +1,6 @@
 ---
 description: Smoke Copilot
-on: 
+on:
   schedule: every 12h
   workflow_dispatch:
   pull_request:
@@ -13,6 +13,8 @@ permissions:
   issues: read
 name: Smoke Copilot
 engine: copilot
+features:
+  mcp-gateway: true
 network:
   allowed:
     - defaults
@@ -22,6 +24,9 @@ network:
     - "http://httpbin.org"       # Test HTTP-only protocol filtering
 sandbox:
   agent: awf  # Firewall enabled
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    # version defaults to constants.DefaultMCPGatewayVersion (v0.0.9)
 tools:
   cache-memory: true
   edit:
@@ -58,7 +63,8 @@ strict: true
 5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
 6. **Web Fetch Testing**: Use the web_fetch tool to fetch content from https://api.github.com/repos/githubnext/gh-aw (verify the tool is available and returns valid JSON)
 7. **Protocol Filtering Testing**: Verify that the AWF command includes protocol-specific domains in the --allow-domains flag. Check `/tmp/gh-aw/agent-stdio.log` for entries like `https://api.github.com` and `http://httpbin.org` to confirm protocol prefixes are preserved
-8. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
+8. **MCP Gateway Testing**: Verify the MCP gateway is running by checking `/tmp/gh-aw/mcp-logs/gateway/stderr.log` for gateway startup messages. Confirm the gateway health endpoint is accessible and MCP servers are proxied through the gateway.
+9. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
 
 ## Output
 

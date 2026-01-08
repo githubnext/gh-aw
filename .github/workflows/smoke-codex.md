@@ -14,11 +14,18 @@ permissions:
 name: Smoke Codex
 engine: codex
 strict: true
+features:
+  mcp-gateway: true
 network:
   allowed:
     - defaults
     - github
     - playwright
+sandbox:
+  agent: awf  # Firewall enabled
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    # version defaults to constants.DefaultMCPGatewayVersion (v0.0.9)
 tools:
   cache-memory: true
   github:
@@ -57,6 +64,7 @@ timeout-minutes: 10
 4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
 6. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
+7. **MCP Gateway Testing**: Verify the MCP gateway is running by checking `/tmp/gh-aw/mcp-logs/gateway/stderr.log` for gateway startup messages. Confirm the gateway health endpoint is accessible and MCP servers are proxied through the gateway.
 
 ## Output
 

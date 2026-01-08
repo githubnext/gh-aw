@@ -535,6 +535,16 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+          
+          # Start MCP gateway
+          export MCP_GATEWAY_PORT="8080"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_CONTAINER='docker run -i --rm --network host -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY ghcr.io/githubnext/gh-aw-mcpg:v0.0.9'
+          
+          # Run gateway start script
+          bash /opt/gh-aw/actions/start_mcp_gateway.sh
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -607,7 +617,8 @@ jobs:
           5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-__GH_AW_GITHUB_RUN_ID__.txt` with content "Cache memory test for run __GH_AW_GITHUB_RUN_ID__" and verify it was created successfully
           6. **Web Fetch Testing**: Use the web_fetch tool to fetch content from https://api.github.com/repos/githubnext/gh-aw (verify the tool is available and returns valid JSON)
           7. **Protocol Filtering Testing**: Verify that the AWF command includes protocol-specific domains in the --allow-domains flag. Check `/tmp/gh-aw/agent-stdio.log` for entries like `https://api.github.com` and `http://httpbin.org` to confirm protocol prefixes are preserved
-          8. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
+          8. **MCP Gateway Testing**: Verify the MCP gateway is running by checking `/tmp/gh-aw/mcp-logs/gateway/stderr.log` for gateway startup messages. Confirm the gateway health endpoint is accessible and MCP servers are proxied through the gateway.
+          9. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
           
           ## Output
           
