@@ -19,27 +19,30 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Creates weekly summary of issue activity including trends, charts, and insights every Monday
+# Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#     - shared/trends.md
 #     - shared/python-dataviz.md
+#     - shared/trends.md
 
-name: "Weekly Issue Summary"
+name: "Daily Code Metrics and Trend Tracking Agent"
 "on":
   schedule:
-  - cron: "0 15 * * 1"
+  - cron: "2 17 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions:
+  contents: read
   issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Weekly Issue Summary"
+run-name: "Daily Code Metrics and Trend Tracking Agent"
 
 jobs:
   activation:
@@ -63,7 +66,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "weekly-issue-summary.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-code-metrics.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -75,10 +78,11 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-          contents: read
-          issues: read
+      contents: read
+      issues: read
+      pull-requests: read
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
@@ -103,6 +107,10 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Setup Python environment
@@ -139,6 +147,15 @@ jobs:
           restore-keys: |
             memory-${{ github.workflow }}-
             memory-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: daily/default
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: true
+        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -150,29 +167,37 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Validate COPILOT_GITHUB_TOKEN secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
+      - name: Checkout PR branch
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          export VERSION=0.0.375 && sudo bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY Claude Code https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.8.2)"
           curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.8.2 bash
           which awf
           awf --version
+      - name: Install Claude Code CLI
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.76
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -196,7 +221,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[Weekly Summary] \". Discussions will be created in category \"Audits\".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"audits\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -365,12 +390,10 @@ jobs:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
               "github": {
-                "type": "local",
                 "command": "docker",
                 "args": [
                   "run",
@@ -383,44 +406,34 @@ jobs:
                   "-e",
                   "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
                   "-e",
-                  "GITHUB_TOOLSETS=issues",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.27.0"
                 ],
-                "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
                 }
               },
               "safeoutputs": {
-                "type": "local",
                 "command": "node",
                 "args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
-                "tools": ["*"],
                 "env": {
-                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
-                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
-                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
-                  "GITHUB_SHA": "\${GITHUB_SHA}",
-                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
-                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
+                  "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
+                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
+                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
+                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
+                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
+                  "GITHUB_SHA": "$GITHUB_SHA",
+                  "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
+                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
                 }
               }
             }
           }
           EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -429,13 +442,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
+              engine_id: "claude",
+              engine_name: "Claude Code",
+              model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "0.0.375",
-              workflow_name: "Weekly Issue Summary",
-              experimental: false,
+              agent_version: "2.0.76",
+              workflow_name: "Daily Code Metrics and Trend Tracking Agent",
+              experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -448,7 +461,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","node","python"],
+              allowed_domains: ["defaults","python"],
               firewall_enabled: true,
               awf_version: "v0.8.2",
               steps: {
@@ -475,7 +488,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -489,178 +501,6 @@ jobs:
           - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
-          
-          # Trends Visualization Guide
-          
-          You are an expert at creating compelling trend visualizations that reveal insights from data over time.
-          
-          ## Trending Chart Best Practices
-          
-          When generating trending charts, focus on:
-          
-          ### 1. **Time Series Excellence**
-          - Use line charts for continuous trends over time
-          - Add trend lines or moving averages to highlight patterns
-          - Include clear date/time labels on the x-axis
-          - Show confidence intervals or error bands when relevant
-          
-          ### 2. **Comparative Trends**
-          - Use multi-line charts to compare multiple trends
-          - Apply distinct colors for each series with a clear legend
-          - Consider using area charts for stacked trends
-          - Highlight key inflection points or anomalies
-          
-          ### 3. **Visual Impact**
-          - Use vibrant, contrasting colors to make trends stand out
-          - Add annotations for significant events or milestones
-          - Include grid lines for easier value reading
-          - Use appropriate scale (linear vs. logarithmic)
-          
-          ### 4. **Contextual Information**
-          - Show percentage changes or growth rates
-          - Include baseline comparisons (year-over-year, month-over-month)
-          - Add summary statistics (min, max, average, median)
-          - Highlight recent trends vs. historical patterns
-          
-          ## Example Trend Chart Types
-          
-          ### Temporal Trends
-          ```python
-          # Line chart with multiple trends
-          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-          for column in data.columns:
-              ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
-          ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
-          ax.set_xlabel('Date', fontsize=12)
-          ax.set_ylabel('Value', fontsize=12)
-          ax.legend(loc='best')
-          ax.grid(True, alpha=0.3)
-          plt.xticks(rotation=45)
-          ```
-          
-          ### Growth Rates
-          ```python
-          # Bar chart showing period-over-period growth
-          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
-          ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
-          ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-          ax.set_ylabel('Growth %', fontsize=12)
-          ```
-          
-          ### Moving Averages
-          ```python
-          # Trend with moving average overlay
-          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-          ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
-          ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
-          ax.fill_between(dates, values, moving_avg, alpha=0.2)
-          ```
-          
-          ## Data Preparation for Trends
-          
-          ### Time-Based Indexing
-          ```python
-          # Convert to datetime and set as index
-          data['date'] = pd.to_datetime(data['date'])
-          data.set_index('date', inplace=True)
-          data = data.sort_index()
-          ```
-          
-          ### Resampling and Aggregation
-          ```python
-          # Resample daily data to weekly
-          weekly_data = data.resample('W').mean()
-          
-          # Calculate rolling statistics
-          data['rolling_mean'] = data['value'].rolling(window=7).mean()
-          data['rolling_std'] = data['value'].rolling(window=7).std()
-          ```
-          
-          ### Growth Calculations
-          ```python
-          # Calculate percentage change
-          data['pct_change'] = data['value'].pct_change() * 100
-          
-          # Calculate year-over-year growth
-          data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
-          ```
-          
-          ## Color Palettes for Trends
-          
-          Use these palettes for impactful trend visualizations:
-          
-          - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
-          - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
-          - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
-          - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
-          
-          ## Annotation Best Practices
-          
-          ```python
-          # Annotate key points
-          max_idx = data['value'].idxmax()
-          max_val = data['value'].max()
-          ax.annotate(f'Peak: {max_val:.2f}',
-                      xy=(max_idx, max_val),
-                      xytext=(10, 20),
-                      textcoords='offset points',
-                      arrowprops=dict(arrowstyle='->', color='red'),
-                      fontsize=10,
-                      fontweight='bold')
-          ```
-          
-          ## Styling for Awesome Charts
-          
-          ```python
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          # Set professional style
-          sns.set_style("whitegrid")
-          sns.set_context("notebook", font_scale=1.2)
-          
-          # Custom color palette
-          custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
-          sns.set_palette(custom_colors)
-          
-          # Figure with optimal dimensions
-          fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-          
-          # ... your plotting code ...
-          
-          # Tight layout for clean appearance
-          plt.tight_layout()
-          
-          # Save with high quality
-          plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
-                      dpi=300,
-                      bbox_inches='tight',
-                      facecolor='white',
-                      edgecolor='none')
-          ```
-          
-          ## Tips for Trending Charts
-          
-          1. **Start with the story**: What trend are you trying to show?
-          2. **Choose the right timeframe**: Match granularity to the pattern
-          3. **Smooth noise**: Use moving averages for volatile data
-          4. **Show context**: Include historical baselines or benchmarks
-          5. **Highlight insights**: Use annotations to draw attention
-          6. **Test readability**: Ensure labels and legends are clear
-          7. **Optimize colors**: Use colorblind-friendly palettes
-          8. **Export high quality**: Always use DPI 300+ for presentations
-          
-          ## Common Trend Patterns to Visualize
-          
-          - **Seasonal patterns**: Monthly or quarterly cycles
-          - **Long-term growth**: Exponential or linear trends
-          - **Volatility changes**: Periods of stability vs. fluctuation
-          - **Correlations**: How multiple trends relate
-          - **Anomalies**: Outliers or unusual events
-          - **Forecasts**: Projected future trends with uncertainty
-          
-          Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
           
           # Python Data Visualization Guide
           
@@ -910,160 +750,544 @@ jobs:
           data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
           ```
           
-          # Weekly Issue Summary
+          # Trends Visualization Guide
           
-          ## 📊 Trend Charts Requirement
+          You are an expert at creating compelling trend visualizations that reveal insights from data over time.
           
-          **IMPORTANT**: Generate exactly 2 trend charts that showcase issue activity patterns over time.
+          ## Trending Chart Best Practices
           
-          ### Chart Generation Process
+          When generating trending charts, focus on:
           
-          **Phase 1: Data Collection**
+          ### 1. **Time Series Excellence**
+          - Use line charts for continuous trends over time
+          - Add trend lines or moving averages to highlight patterns
+          - Include clear date/time labels on the x-axis
+          - Show confidence intervals or error bands when relevant
           
-          Collect data for the past 30 days (or available data) using GitHub API:
+          ### 2. **Comparative Trends**
+          - Use multi-line charts to compare multiple trends
+          - Apply distinct colors for each series with a clear legend
+          - Consider using area charts for stacked trends
+          - Highlight key inflection points or anomalies
           
-          1. **Issue Activity Data**:
-             - Count of issues opened per day
-             - Count of issues closed per day
-             - Running count of open issues
+          ### 3. **Visual Impact**
+          - Use vibrant, contrasting colors to make trends stand out
+          - Add annotations for significant events or milestones
+          - Include grid lines for easier value reading
+          - Use appropriate scale (linear vs. logarithmic)
           
-          2. **Issue Resolution Data**:
-             - Average time to close issues (in days)
-             - Distribution of issue lifespans
-             - Issues by label category over time
+          ### 4. **Contextual Information**
+          - Show percentage changes or growth rates
+          - Include baseline comparisons (year-over-year, month-over-month)
+          - Add summary statistics (min, max, average, median)
+          - Highlight recent trends vs. historical patterns
           
-          **Phase 2: Data Preparation**
+          ## Example Trend Chart Types
           
-          1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-             - `issue_activity.csv` - Daily opened/closed counts and open count
-             - `issue_resolution.csv` - Resolution time statistics
-          
-          2. Each CSV should have a date column and metric columns with appropriate headers
-          
-          **Phase 3: Chart Generation**
-          
-          Generate exactly **2 high-quality trend charts**:
-          
-          **Chart 1: Issue Activity Trends**
-          - Multi-line chart showing:
-            - Issues opened per week (line or bar)
-            - Issues closed per week (line or bar)
-            - Net change (opened - closed) per week
-            - Running total of open issues (line)
-          - X-axis: Week (last 12 weeks or 30 days)
-          - Y-axis: Count
-          - Save as: `/tmp/gh-aw/python/charts/issue_activity_trends.png`
-          
-          **Chart 2: Issue Resolution Time Trends**
-          - Line chart with statistics showing:
-            - Average time to close (in days, 7-day moving average)
-            - Median time to close
-            - Shaded area showing resolution time variance
-          - X-axis: Date (last 30 days)
-          - Y-axis: Days to resolution
-          - Save as: `/tmp/gh-aw/python/charts/issue_resolution_trends.png`
-          
-          **Chart Quality Requirements**:
-          - DPI: 300 minimum
-          - Figure size: 12x7 inches for better readability
-          - Use seaborn styling with a professional color palette
-          - Include grid lines for easier reading
-          - Clear, large labels and legend
-          - Title with context (e.g., "Issue Activity - Last 12 Weeks")
-          - Annotations for notable patterns or changes
-          
-          **Phase 4: Upload Charts**
-          
-          1. Upload both charts using the `upload asset` tool
-          2. Collect the returned URLs for embedding in the discussion
-          
-          **Phase 5: Embed Charts in Discussion**
-          
-          Include the charts in your weekly summary with this structure:
-          
-          ```markdown
-          ## 📈 Issue Activity Trends
-          
-          ### Weekly Activity Patterns
-          ![Issue Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
-          
-          [Brief 2-3 sentence analysis of issue activity trends, highlighting increases/decreases in activity or backlog growth]
-          
-          ### Resolution Time Analysis
-          ![Issue Resolution Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
-          
-          [Brief 2-3 sentence analysis of how quickly issues are being resolved, noting improvements or slowdowns]
+          ### Temporal Trends
+          ```python
+          # Line chart with multiple trends
+          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+          for column in data.columns:
+              ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
+          ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Date', fontsize=12)
+          ax.set_ylabel('Value', fontsize=12)
+          ax.legend(loc='best')
+          ax.grid(True, alpha=0.3)
+          plt.xticks(rotation=45)
           ```
           
-          ### Python Implementation Notes
+          ### Growth Rates
+          ```python
+          # Bar chart showing period-over-period growth
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
+          ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
+          ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
+          ax.set_ylabel('Growth %', fontsize=12)
+          ```
           
-          - Use pandas for data manipulation and date handling
-          - Use matplotlib.pyplot and seaborn for visualization
-          - Set appropriate date formatters for x-axis labels
+          ### Moving Averages
+          ```python
+          # Trend with moving average overlay
+          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+          ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
+          ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
+          ax.fill_between(dates, values, moving_avg, alpha=0.2)
+          ```
+          
+          ## Data Preparation for Trends
+          
+          ### Time-Based Indexing
+          ```python
+          # Convert to datetime and set as index
+          data['date'] = pd.to_datetime(data['date'])
+          data.set_index('date', inplace=True)
+          data = data.sort_index()
+          ```
+          
+          ### Resampling and Aggregation
+          ```python
+          # Resample daily data to weekly
+          weekly_data = data.resample('W').mean()
+          
+          # Calculate rolling statistics
+          data['rolling_mean'] = data['value'].rolling(window=7).mean()
+          data['rolling_std'] = data['value'].rolling(window=7).std()
+          ```
+          
+          ### Growth Calculations
+          ```python
+          # Calculate percentage change
+          data['pct_change'] = data['value'].pct_change() * 100
+          
+          # Calculate year-over-year growth
+          data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
+          ```
+          
+          ## Color Palettes for Trends
+          
+          Use these palettes for impactful trend visualizations:
+          
+          - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
+          - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
+          - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
+          - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
+          
+          ## Annotation Best Practices
+          
+          ```python
+          # Annotate key points
+          max_idx = data['value'].idxmax()
+          max_val = data['value'].max()
+          ax.annotate(f'Peak: {max_val:.2f}',
+                      xy=(max_idx, max_val),
+                      xytext=(10, 20),
+                      textcoords='offset points',
+                      arrowprops=dict(arrowstyle='->', color='red'),
+                      fontsize=10,
+                      fontweight='bold')
+          ```
+          
+          ## Styling for Awesome Charts
+          
+          ```python
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set professional style
+          sns.set_style("whitegrid")
+          sns.set_context("notebook", font_scale=1.2)
+          
+          # Custom color palette
+          custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
+          sns.set_palette(custom_colors)
+          
+          # Figure with optimal dimensions
+          fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+          
+          # ... your plotting code ...
+          
+          # Tight layout for clean appearance
+          plt.tight_layout()
+          
+          # Save with high quality
+          plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
+                      dpi=300,
+                      bbox_inches='tight',
+                      facecolor='white',
+                      edgecolor='none')
+          ```
+          
+          ## Tips for Trending Charts
+          
+          1. **Start with the story**: What trend are you trying to show?
+          2. **Choose the right timeframe**: Match granularity to the pattern
+          3. **Smooth noise**: Use moving averages for volatile data
+          4. **Show context**: Include historical baselines or benchmarks
+          5. **Highlight insights**: Use annotations to draw attention
+          6. **Test readability**: Ensure labels and legends are clear
+          7. **Optimize colors**: Use colorblind-friendly palettes
+          8. **Export high quality**: Always use DPI 300+ for presentations
+          
+          ## Common Trend Patterns to Visualize
+          
+          - **Seasonal patterns**: Monthly or quarterly cycles
+          - **Long-term growth**: Exponential or linear trends
+          - **Volatility changes**: Periods of stability vs. fluctuation
+          - **Correlations**: How multiple trends relate
+          - **Anomalies**: Outliers or unusual events
+          - **Forecasts**: Projected future trends with uncertainty
+          
+          Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
+          
+          {{#runtime-import? .github/shared-instructions.md}}
+          
+          # Daily Code Metrics and Trend Tracking Agent
+          
+          You are the Daily Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.
+          
+          ## Mission
+          
+          Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day trends. Store in cache, generate reports with visualizations.
+          
+          **Context**: Fresh clone (no git history). Fetch with `git fetch --unshallow` for churn metrics. Memory: `/tmp/gh-aw/repo-memory/default/`
+          
+          ## Metrics to Collect
+          
+          **Size**: LOC by language (Go, JS/CJS, YAML, MD), by directory (cmd, pkg, docs, workflows), file counts/distribution
+          
+          **Quality**: Large files (>500 LOC), avg file size, function count, comment lines, comment ratio
+          
+          **Tests**: Test files/LOC, test-to-source ratio
+          
+          **Churn (7d)**: Files modified, commits, lines added/deleted, most active files (requires `git fetch --unshallow`)
+          
+          **Workflows**: Total `.md` files, `.lock.yml` files, avg workflow size in `.github/workflows`
+          
+          **Docs**: Files in `docs/`, total doc LOC, code-to-docs ratio
+          
+          ## Data Storage
+          
+          Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
+          ```json
+          {"date": "2024-01-15", "timestamp": 1705334400, "metrics": {"size": {...}, "quality": {...}, "tests": {...}, "churn": {...}, "workflows": {...}, "docs": {...}}}
+          ```
+          
+          ## Data Visualization with Python
+          
+          Generate **6 high-quality charts** to visualize code metrics and trends using Python, matplotlib, and seaborn. All charts must be uploaded as assets and embedded in the discussion report.
+          
+          ### Required Charts
+          
+          #### 1. LOC by Language (`loc_by_language.png`)
+          **Type**: Horizontal bar chart
+          **Content**: Distribution of lines of code by programming language
+          - Sort by LOC descending
+          - Include percentage labels on bars
+          - Use color-coding by language type (e.g., compiled vs interpreted)
+          - Show total LOC in title
+          - Save to: `/tmp/gh-aw/python/charts/loc_by_language.png`
+          
+          #### 2. Top Directories (`top_directories.png`)
+          **Type**: Horizontal bar chart
+          **Content**: Top 10 directories by lines of code
+          - Show full directory paths
+          - Display LOC count and percentage of total codebase
+          - Highlight key directories (cmd, pkg, docs, workflows)
+          - Use distinct colors for different directory types
+          - Save to: `/tmp/gh-aw/python/charts/top_directories.png`
+          
+          #### 3. Quality Score Breakdown (`quality_score_breakdown.png`)
+          **Type**: Stacked bar or pie chart with breakdown
+          **Content**: Quality score component breakdown
+          - Test Coverage: 30%
+          - Code Organization: 25%
+          - Documentation: 20%
+          - Churn Stability: 15%
+          - Comment Density: 10%
+          - Show current score vs target (100%) for each component
+          - Use color gradient from red (poor) to green (excellent)
+          - Save to: `/tmp/gh-aw/python/charts/quality_score_breakdown.png`
+          
+          #### 4. Test Coverage (`test_coverage.png`)
+          **Type**: Grouped bar chart or side-by-side comparison
+          **Content**: Test vs source code comparison
+          - Test LOC vs Source LOC by language
+          - Test-to-source ratio visualization
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
-              }
-            });
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          - Use `plt.xticks(rotation=45)` for readable date labels
-          - Apply `plt.tight_layout()` before saving
-          - Handle cases where data might be sparse or missing
+          - Include trend indicator if historical data available
+          - Highlight recommended ratio (e.g., 0.5-1.0)
+          - Save to: `/tmp/gh-aw/python/charts/test_coverage.png`
           
-          ### Error Handling
+          #### 5. Code Churn (`code_churn.png`)
+          **Type**: Diverging bar chart
+          **Content**: Top 10 most changed files in last 7 days
+          - Show lines added (positive) and deleted (negative)
+          - Net change highlighting
+          - Color-code by file type
+          - Include file paths truncated if needed
+          - Save to: `/tmp/gh-aw/python/charts/code_churn.png`
           
-          If insufficient data is available (less than 7 days):
-          - Generate the charts with available data
-          - Add a note in the analysis mentioning the limited data range
-          - Consider using a bar chart instead of line chart for very sparse data
+          #### 6. Historical Trends (`historical_trends.png`)
+          **Type**: Multi-line time series chart
+          **Content**: Track key metrics over 30 days
+          - Total LOC trend line
+          - Test coverage percentage trend line
+          - Quality score trend line
+          - Use multiple y-axes if scales differ significantly
+          - Show 7-day moving averages
+          - Annotate significant changes (>10%)
+          - Save to: `/tmp/gh-aw/python/charts/historical_trends.png`
+          
+          ### Chart Quality Standards
+          
+          All charts must meet these quality standards:
+          
+          - **DPI**: 300 minimum for publication quality
+          - **Figure Size**: 12x7 inches (consistent with daily-issues-report)
+          - **Styling**: Use seaborn styling (`sns.set_style("whitegrid")`)
+          - **Color Palette**: Professional colors (`sns.set_palette("husl")` or custom)
+          - **Labels**: Clear titles, axis labels, and legends
+          - **Grid Lines**: Enable for readability (`ax.grid(True, alpha=0.3)`)
+          - **Save Format**: PNG with `bbox_inches='tight'` for proper cropping
+          
+          ### Python Script Structure
+          
+          Create a Python script to collect data, analyze metrics, and generate all 6 charts:
+          
+          ```python
+          #!/usr/bin/env python3
+          """
+          Daily Code Metrics Analysis and Visualization
+          Generates 6 charts for code metrics tracking
+          """
+          import pandas as pd
+          import numpy as np
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          from datetime import datetime, timedelta
+          import json
+          from pathlib import Path
+          
+          # Set style
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Load historical data from repo-memory
+          history_file = Path('/tmp/gh-aw/repo-memory/default/history.jsonl')
+          historical_data = []
+          if history_file.exists():
+              with open(history_file, 'r') as f:
+                  for line in f:
+                      historical_data.append(json.loads(line))
+          
+          # Load current metrics from data files
+          # (Collect metrics using bash commands and save to JSON first)
+          current_metrics = json.load(open('/tmp/gh-aw/python/data/current_metrics.json'))
+          
+          # Generate each chart
+          # Chart 1: LOC by Language
+          # ... implementation ...
+          
+          # Chart 2: Top Directories  
+          # ... implementation ...
+          
+          # Chart 3: Quality Score Breakdown
+          # ... implementation ...
+          
+          # Chart 4: Test Coverage
+          # ... implementation ...
+          
+          # Chart 5: Code Churn
+          # ... implementation ...
+          
+          # Chart 6: Historical Trends
+          # ... implementation ...
+          
+          print("All charts generated successfully")
+          ```
+          
+          ### Chart Upload and Embedding
+          
+          After generating charts:
+          
+          1. **Upload each chart as an asset**:
+             - Use the `upload asset` safe-output tool for each PNG file
+             - Collect the returned URLs for embedding
+          
+          2. **Embed in discussion report**:
+             ```markdown
+             ## 📊 Visualizations
+             
+             ### LOC Distribution by Language
+             ![LOC by Language](URL_FROM_UPLOAD_ASSET_1)
+             
+             ### Top Directories by LOC
+             ![Top Directories](URL_FROM_UPLOAD_ASSET_2)
+             
+             ### Quality Score Breakdown
+             ![Quality Score](URL_FROM_UPLOAD_ASSET_3)
+             
+             ### Test Coverage Analysis
+             ![Test Coverage](URL_FROM_UPLOAD_ASSET_4)
+             
+             ### Code Churn (7 Days)
+             ![Code Churn](URL_FROM_UPLOAD_ASSET_5)
+             
+             ### Historical Trends (30 Days)
+             ![Historical Trends](URL_FROM_UPLOAD_ASSET_6)
+             ```
+          
+          ## Trend Calculation
+          
+          For each metric: current value, 7-day % change, 30-day % change, trend indicator (⬆️/➡️/⬇️)
+          
+          ## Report Format
+          
+          Use detailed template with embedded visualization charts:
+          
+          ### Discussion Structure
+          
+          **Title**: `Daily Code Metrics Report - YYYY-MM-DD`
+          
+          **Body**:
+          
+          ```markdown
+          Brief 2-3 paragraph executive summary highlighting key findings, quality score, notable trends, and any concerns requiring attention.
+          
+          ## 📊 Visualizations
+          
+          ### LOC Distribution by Language
+          ![LOC by Language](URL_FROM_UPLOAD_ASSET)
+          
+          [Analysis of language distribution and changes]
+          
+          ### Top Directories by LOC
+          ![Top Directories](URL_FROM_UPLOAD_ASSET)
+          
+          [Analysis of directory sizes and organization]
+          
+          ### Quality Score Breakdown
+          ![Quality Score](URL_FROM_UPLOAD_ASSET)
+          
+          [Current quality score and component analysis]
+          
+          ### Test Coverage Analysis
+          ![Test Coverage](URL_FROM_UPLOAD_ASSET)
+          
+          [Test coverage metrics and recommendations]
+          
+          ### Code Churn (Last 7 Days)
+          ![Code Churn](URL_FROM_UPLOAD_ASSET)
+          
+          [Most changed files and activity patterns]
+          
+          ### Historical Trends (30 Days)
+          ![Historical Trends](URL_FROM_UPLOAD_ASSET)
+          
+          [Trend analysis and significant changes]
+          
+          <details>
+          <summary><b>📈 Detailed Metrics</b></summary>
+          
+          ## Size Metrics
+          
+          ### Lines of Code by Language
+          | Language | LOC | % of Total | Change (7d) |
+          |----------|-----|------------|-------------|
+          | Go | X,XXX | XX% | ⬆️ +X% |
+          | JavaScript | X,XXX | XX% | ➡️ 0% |
+          | ... | ... | ... | ... |
+          
+          ### Lines of Code by Directory
+          | Directory | LOC | % of Total | Files |
+          |-----------|-----|------------|-------|
+          | pkg/ | X,XXX | XX% | XXX |
+          | cmd/ | X,XXX | XX% | XX |
+          | ... | ... | ... | ... |
+          
+          ## Quality Indicators
+          
+          - **Average File Size**: XXX lines
+          - **Large Files (>500 LOC)**: XX files
+          - **Function Count**: X,XXX functions
+          - **Comment Lines**: X,XXX lines (XX% ratio)
+          - **Comment Density**: XX%
+          
+          ## Test Coverage
+          
+          - **Test Files**: XX files
+          - **Test LOC**: X,XXX lines
+          - **Source LOC**: X,XXX lines  
+          - **Test-to-Source Ratio**: X.XX
+          - **Trend (7d)**: ⬆️ +X%
+          - **Trend (30d)**: ⬆️ +X%
+          
+          ## Code Churn (Last 7 Days)
+          
+          - **Files Modified**: XXX files
+          - **Commits**: XXX commits
+          - **Lines Added**: +X,XXX lines
+          - **Lines Deleted**: -X,XXX lines
+          - **Net Change**: +/-X,XXX lines
+          
+          ### Most Active Files
+          1. path/to/file.go: +XXX/-XXX lines
+          2. path/to/file.js: +XXX/-XXX lines
+          ...
+          
+          ## Workflow Metrics
+          
+          - **Total Workflow Files (.md)**: XXX files
+          - **Compiled Workflows (.lock.yml)**: XXX files
+          - **Average Workflow Size**: XXX lines
+          - **Growth (7d)**: ⬆️ +X%
+          
+          ## Documentation
+          
+          - **Doc Files (docs/)**: XXX files
+          - **Doc LOC**: X,XXX lines
+          - **Code-to-Docs Ratio**: X.XX:1
+          - **Documentation Coverage**: XX%
+          
+          ## Quality Score: XX/100
+          
+          ### Component Breakdown
+          - **Test Coverage (30%)**: XX/30 points
+          - **Code Organization (25%)**: XX/25 points
+          - **Documentation (20%)**: XX/20 points
+          - **Churn Stability (15%)**: XX/15 points
+          - **Comment Density (10%)**: XX/10 points
+          
+          </details>
+          
+          ## 💡 Insights & Recommendations
+          
+          1. [Specific actionable recommendation based on metrics]
+          2. [Another recommendation]
+          3. [Focus area for improvement]
+          4. [...]
           
           ---
+          *Report generated by Daily Code Metrics workflow*
+          *Historical data: 30 days | Last updated: YYYY-MM-DD HH:MM UTC*
+          ```
           
-          ## Weekly Analysis
+          ### Report Guidelines
           
-          Analyze all issues opened in the repository __GH_AW_GITHUB_REPOSITORY__ over the last 7 days.
+          - Include all 6 visualization charts as embedded images
+          - Upload charts using `upload asset` tool for permanent URLs
+          - Provide brief analysis for each chart
+          - Use collapsible details section for detailed metrics tables
+          - Highlight trends with emoji indicators (⬆️/➡️/⬇️)
+          - Calculate and display quality score prominently
+          - Provide 3-5 actionable recommendations
+          - Include metadata footer with generation info
           
-          Create a comprehensive summary that includes:
-          - Total number of issues opened
-          - List of issue titles with their numbers and authors
-          - Any notable patterns or trends (common labels, types of issues, etc.)
+          ## Quality Score
           
-          Format the summary clearly with proper markdown formatting for easy reading.
+          Weighted average: Test coverage (30%), Code organization (25%), Documentation (20%), Churn stability (15%), Comment density (10%)
+          
+          ## Guidelines
+          
+          - Comprehensive but efficient (complete in 15min)
+          - Calculate trends accurately, flag >10% changes
+          - Use repo memory for persistent history (90-day retention)
+          - Handle missing data gracefully
+          - Visual indicators for quick scanning
+          - Generate all 6 required visualization charts
+          - Upload charts as assets for permanent URLs
+          - Embed charts in discussion report with analysis
+          - Store metrics to repo memory, create discussion report with visualizations
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
-              }
-            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1096,6 +1320,36 @@ jobs:
           - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
           - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
           - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Historical code quality and health metrics
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `daily/default` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md
+          - **Max File Size**: 102400 bytes (0.10 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -1194,7 +1448,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1205,48 +1458,104 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
-      - name: Execute GitHub Copilot CLI
+      - name: Execute Claude Code CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 20
+        # Allowed tools (sorted):
+        # - Bash
+        # - BashOutput
+        # - Edit
+        # - Edit(/tmp/gh-aw/cache-memory/*)
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - KillBash
+        # - LS
+        # - MultiEdit
+        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
+        # - NotebookEdit
+        # - NotebookRead
+        # - Read
+        # - Read(/tmp/gh-aw/cache-memory/*)
+        # - Task
+        # - TodoWrite
+        # - Write
+        # - Write(/tmp/gh-aw/cache-memory/*)
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
+        # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__issue_read
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
+        # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
+        # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
+        timeout-minutes: 15
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,bun.sh,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,files.pythonhosted.org,get.pnpm.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.anaconda.com,repo.continuum.io,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
+            -- NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASH_DEFAULT_TIMEOUT_MS: 60000
+          BASH_MAX_TIMEOUT_MS: 60000
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DISABLE_BUG_COMMAND: 1
+          DISABLE_ERROR_REPORTING: 1
+          DISABLE_TELEMETRY: 1
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
-          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_MODEL_AGENT_CLAUDE: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
-      - name: Copy Copilot session state files to logs
-        if: always()
-        continue-on-error: true
-        run: |
-          # Copy Copilot session state files to logs folder for artifact collection
-          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
-          SESSION_STATE_DIR="$HOME/.copilot/session-state"
-          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
-          
-          if [ -d "$SESSION_STATE_DIR" ]; then
-            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
-            mkdir -p "$LOGS_DIR"
-            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
-            echo "Session state files copied successfully"
-          else
-            echo "No session-state directory found at $SESSION_STATE_DIR"
-          fi
+          MCP_TIMEOUT: 120000
+          MCP_TOOL_TIMEOUT: 60000
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1257,8 +1566,9 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1274,7 +1584,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,bun.sh,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,files.pythonhosted.org,get.pnpm.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.anaconda.com,repo.continuum.io,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1290,24 +1600,16 @@ jobs:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/gh-aw/sandbox/agent/logs/
-            /tmp/gh-aw/redacted-urls.log
-          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_claude_log.cjs');
             await main();
       - name: Firewall summary
         if: always()
@@ -1315,6 +1617,15 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: awf logs summary >> $GITHUB_STEP_SUMMARY
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
@@ -1334,8 +1645,8 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"}]"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1361,6 +1672,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_repo_memory
       - safe_outputs
       - update_cache_memory
       - upload_assets
@@ -1414,8 +1726,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
+          GH_AW_TRACKER_ID: "daily-code-metrics"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1428,8 +1740,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
+          GH_AW_TRACKER_ID: "daily-code-metrics"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1445,8 +1757,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
+          GH_AW_TRACKER_ID: "daily-code-metrics"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1463,7 +1775,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -1498,8 +1810,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Weekly Issue Summary"
-          WORKFLOW_DESCRIPTION: "Creates weekly summary of issue activity including trends, charts, and insights every Monday"
+          WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
+          WORKFLOW_DESCRIPTION: "Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1553,52 +1865,56 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate COPILOT_GITHUB_TOKEN secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY Claude Code https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          export VERSION=0.0.375 && sudo bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
-      - name: Execute GitHub Copilot CLI
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install Claude Code CLI
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.76
+      - name: Execute Claude Code CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
+        # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(jq)
+        # - Bash(ls)
+        # - Bash(tail)
+        # - Bash(wc)
+        # - BashOutput
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - KillBash
+        # - LS
+        # - NotebookRead
+        # - Read
+        # - Task
+        # - TodoWrite
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+                    # Execute Claude Code CLI with prompt from file
+                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASH_DEFAULT_TIMEOUT_MS: 60000
+          BASH_MAX_TIMEOUT_MS: 60000
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DISABLE_BUG_COMMAND: 1
+          DISABLE_ERROR_REPORTING: 1
+          DISABLE_TELEMETRY: 1
+          GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
+          MCP_TIMEOUT: 120000
+          MCP_TOOL_TIMEOUT: 60000
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1616,6 +1932,67 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: daily/default
+          MAX_FILE_SIZE: 102400
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
+            await main();
+
   safe_outputs:
     needs:
       - agent
@@ -1627,10 +2004,10 @@ jobs:
       discussions: write
     timeout-minutes: 15
     env:
-      GH_AW_ENGINE_ID: "copilot"
-      GH_AW_TRACKER_ID: "weekly-issue-summary"
-      GH_AW_WORKFLOW_ID: "weekly-issue-summary"
-      GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
+      GH_AW_ENGINE_ID: "claude"
+      GH_AW_TRACKER_ID: "daily-code-metrics"
+      GH_AW_WORKFLOW_ID: "daily-code-metrics"
+      GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1661,7 +2038,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"Audits\",\"close_older_discussions\":true,\"expires\":168,\"max\":1,\"title_prefix\":\"[Weekly Summary] \"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1770,9 +2147,9 @@ jobs:
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
-          GH_AW_ENGINE_ID: "copilot"
+          GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
+          GH_AW_TRACKER_ID: "daily-code-metrics"
+          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
