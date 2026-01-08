@@ -557,12 +557,7 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	}
 
 	// Build container command with args
-	// Default network mode is "host" unless specified otherwise
-	networkMode := "host"
-	if gatewayConfig.Network != "" {
-		networkMode = gatewayConfig.Network
-	}
-	containerCmd := "docker run -i --rm --network " + networkMode
+	containerCmd := "docker run -i --rm --network host"
 
 	// Add volume mounts if configured
 	if len(gatewayConfig.Mounts) > 0 {
@@ -572,17 +567,6 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 		sort.Strings(sortedMounts)
 		for _, mount := range sortedMounts {
 			containerCmd += " -v " + shellQuote(mount)
-		}
-	}
-
-	// Add port mappings if configured
-	if len(gatewayConfig.Ports) > 0 {
-		// Sort ports for stable code generation
-		sortedPorts := make([]string, len(gatewayConfig.Ports))
-		copy(sortedPorts, gatewayConfig.Ports)
-		sort.Strings(sortedPorts)
-		for _, portMapping := range sortedPorts {
-			containerCmd += " -p " + shellQuote(portMapping)
 		}
 	}
 

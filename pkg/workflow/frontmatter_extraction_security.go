@@ -404,24 +404,6 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
-	// Extract network (Docker network mode)
-	if networkVal, hasNetwork := mcpObj["network"]; hasNetwork {
-		if networkStr, ok := networkVal.(string); ok {
-			mcpConfig.Network = networkStr
-		}
-	}
-
-	// Extract ports (port mappings)
-	if portsVal, hasPorts := mcpObj["ports"]; hasPorts {
-		if portsSlice, ok := portsVal.([]any); ok {
-			for _, port := range portsSlice {
-				if portStr, ok := port.(string); ok {
-					mcpConfig.Ports = append(mcpConfig.Ports, portStr)
-				}
-			}
-		}
-	}
-
 	return mcpConfig
 }
 

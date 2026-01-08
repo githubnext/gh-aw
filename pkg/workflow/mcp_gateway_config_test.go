@@ -97,7 +97,7 @@ func TestMCPGatewayMountsConfiguration(t *testing.T) {
 	}
 }
 
-// TestMCPGatewayDockerCommandGeneration tests that docker command includes mounts and other options
+// TestMCPGatewayDockerCommandGeneration tests that docker command includes mounts
 func TestMCPGatewayDockerCommandGeneration(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -120,57 +120,12 @@ func TestMCPGatewayDockerCommandGeneration(t *testing.T) {
 			},
 		},
 		{
-			name: "network mode included in docker command",
-			gatewayConfig: &MCPGatewayRuntimeConfig{
-				Container: "ghcr.io/example/gateway:latest",
-				Network:   "bridge",
-			},
-			expectInCommand: []string{
-				"--network bridge",
-			},
-			expectNotInCmd: []string{
-				"--network host",
-			},
-		},
-		{
-			name: "port mappings included in docker command",
-			gatewayConfig: &MCPGatewayRuntimeConfig{
-				Container: "ghcr.io/example/gateway:latest",
-				Ports: []string{
-					"8080:8080",
-					"9090:9090",
-				},
-			},
-			expectInCommand: []string{
-				"-p 8080:8080",
-				"-p 9090:9090",
-			},
-		},
-		{
 			name: "default network mode is host",
 			gatewayConfig: &MCPGatewayRuntimeConfig{
 				Container: "ghcr.io/example/gateway:latest",
 			},
 			expectInCommand: []string{
 				"--network host",
-			},
-		},
-		{
-			name: "all options combined",
-			gatewayConfig: &MCPGatewayRuntimeConfig{
-				Container: "ghcr.io/example/gateway:latest",
-				Network:   "bridge",
-				Mounts: []string{
-					"/data:/data:ro",
-				},
-				Ports: []string{
-					"8080:8080",
-				},
-			},
-			expectInCommand: []string{
-				"--network bridge",
-				"-v /data:/data:ro",
-				"-p 8080:8080",
 			},
 		},
 	}
@@ -209,14 +164,12 @@ func TestMCPGatewayDockerCommandGeneration(t *testing.T) {
 	}
 }
 
-// TestMCPGatewayExtraction tests that the extraction function properly parses mounts and other fields
+// TestMCPGatewayExtraction tests that the extraction function properly parses mounts
 func TestMCPGatewayExtraction(t *testing.T) {
 	tests := []struct {
-		name          string
-		mcpConfig     map[string]any
-		expectMounts  []string
-		expectNetwork string
-		expectPorts   []string
+		name         string
+		mcpConfig    map[string]any
+		expectMounts []string
 	}{
 		{
 			name: "extract mounts",
@@ -233,46 +186,11 @@ func TestMCPGatewayExtraction(t *testing.T) {
 			},
 		},
 		{
-			name: "extract network",
+			name: "no mounts",
 			mcpConfig: map[string]any{
 				"container": "ghcr.io/example/gateway:latest",
-				"network":   "bridge",
 			},
-			expectNetwork: "bridge",
-		},
-		{
-			name: "extract ports",
-			mcpConfig: map[string]any{
-				"container": "ghcr.io/example/gateway:latest",
-				"ports": []any{
-					"8080:8080",
-					"9090:9090",
-				},
-			},
-			expectPorts: []string{
-				"8080:8080",
-				"9090:9090",
-			},
-		},
-		{
-			name: "extract all fields",
-			mcpConfig: map[string]any{
-				"container": "ghcr.io/example/gateway:latest",
-				"mounts": []any{
-					"/data:/data:ro",
-				},
-				"network": "bridge",
-				"ports": []any{
-					"8080:8080",
-				},
-			},
-			expectMounts: []string{
-				"/data:/data:ro",
-			},
-			expectNetwork: "bridge",
-			expectPorts: []string{
-				"8080:8080",
-			},
+			expectMounts: nil,
 		},
 	}
 
@@ -286,16 +204,6 @@ func TestMCPGatewayExtraction(t *testing.T) {
 			if len(tt.expectMounts) > 0 {
 				assert.ElementsMatch(t, tt.expectMounts, extracted.Mounts,
 					"Mounts should match expected values")
-			}
-
-			if tt.expectNetwork != "" {
-				assert.Equal(t, tt.expectNetwork, extracted.Network,
-					"Network should match expected value")
-			}
-
-			if len(tt.expectPorts) > 0 {
-				assert.ElementsMatch(t, tt.expectPorts, extracted.Ports,
-					"Ports should match expected values")
 			}
 		})
 	}

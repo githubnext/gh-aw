@@ -196,9 +196,7 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
     "domain": "string",
     "startupTimeout": 30,
     "toolTimeout": 60,
-    "mounts": ["source:dest:mode"],
-    "network": "host",
-    "ports": ["host:container"]
+    "mounts": ["source:dest:mode"]
   }
 }
 ```
@@ -232,8 +230,6 @@ The optional `gateway` section configures gateway-specific behavior:
 | `startupTimeout` | integer | 30 | Server startup timeout in seconds |
 | `toolTimeout` | integer | 60 | Tool invocation timeout in seconds |
 | `mounts` | array[string] | [] | Volume mounts for gateway container (format: "source:dest:mode") |
-| `network` | string | host | Docker network mode for gateway container |
-| `ports` | array[string] | [] | Port mappings for gateway container (format: "host:container" or "port") |
 
 ### 4.2 Variable Expression Rendering
 
@@ -750,7 +746,7 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.2 Gateway with Volume Mounts and Custom Network
+#### A.2 Gateway with Volume Mounts
 
 ```json
 {
@@ -766,9 +762,7 @@ Implementations SHOULD provide:
     "mounts": [
       "/host/data:/container/data:ro",
       "/host/config:/container/config:rw"
-    ],
-    "network": "bridge",
-    "ports": ["8080:8080", "9090:9090"]
+    ]
   }
 }
 ```

@@ -5,8 +5,7 @@ features:
   mcp-gateway: true
 
 # Example: MCP Gateway with Volume Mounts
-# This example demonstrates how to configure volume mounts and other
-# container options for the MCP Gateway.
+# This example demonstrates how to configure volume mounts for the MCP Gateway.
 
 sandbox:
   agent: awf
@@ -23,14 +22,6 @@ sandbox:
       - "/host/data:/data:ro"           # Read-only data mount
       - "/host/config:/config:rw"       # Read-write config mount
     
-    # Docker network mode (default: "host")
-    network: bridge
-    
-    # Port mappings (format: "host:container")
-    ports:
-      - "8080:8080"
-      - "9090:9090"
-    
     # Environment variables for the gateway
     env:
       LOG_LEVEL: debug
@@ -42,7 +33,7 @@ tools:
 
 # MCP Gateway with Volume Mounts
 
-This workflow demonstrates how to configure the MCP Gateway with volume mounts and other container options.
+This workflow demonstrates how to configure the MCP Gateway with volume mounts.
 
 ## Task
 
