@@ -370,3 +370,56 @@ func TestInitActionlintStats(t *testing.T) {
 		t.Errorf("ErrorsByKind should be empty, got %d entries", len(actionlintStats.ErrorsByKind))
 	}
 }
+
+func TestGetActionlintDocsURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		kind     string
+		expected string
+	}{
+		{
+			name:     "empty kind returns base URL",
+			kind:     "",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md",
+		},
+		{
+			name:     "runner-label kind",
+			kind:     "runner-label",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-runner-labels",
+		},
+		{
+			name:     "shellcheck kind",
+			kind:     "shellcheck",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-shellcheck-integ",
+		},
+		{
+			name:     "pyflakes kind",
+			kind:     "pyflakes",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-pyflakes-integ",
+		},
+		{
+			name:     "expression kind",
+			kind:     "expression",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-syntax-expression",
+		},
+		{
+			name:     "generic kind with check- prefix",
+			kind:     "check-job-deps",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-job-deps",
+		},
+		{
+			name:     "generic kind without check- prefix",
+			kind:     "job-deps",
+			expected: "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-job-deps",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getActionlintDocsURL(tt.kind)
+			if result != tt.expected {
+				t.Errorf("getActionlintDocsURL(%q) = %q, want %q", tt.kind, result, tt.expected)
+			}
+		})
+	}
+}
