@@ -402,24 +402,26 @@ type MCPConfigRenderer struct {
 // This is necessary when MCP servers run on the host machine but are accessed from within
 // a Docker container (e.g., when firewall/sandbox is enabled)
 func rewriteLocalhostToDockerHost(url string) string {
-	// Replace http://localhost with http://host.docker.internal
-	if strings.HasPrefix(url, "http://localhost") {
-		newURL := strings.Replace(url, "http://localhost", "http://host.docker.internal", 1)
-		mcpLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
-		return newURL
+	// Define the localhost patterns to replace and their docker equivalents
+	// Each pattern is a (prefix, replacement) pair
+	replacements := []struct {
+		prefix      string
+		replacement string
+	}{
+		{"http://localhost", "http://host.docker.internal"},
+		{"https://localhost", "https://host.docker.internal"},
+		{"http://127.0.0.1", "http://host.docker.internal"},
+		{"https://127.0.0.1", "https://host.docker.internal"},
 	}
-	// Also handle https://localhost
-	if strings.HasPrefix(url, "https://localhost") {
-		newURL := strings.Replace(url, "https://localhost", "https://host.docker.internal", 1)
-		mcpLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
-		return newURL
+
+	for _, r := range replacements {
+		if strings.HasPrefix(url, r.prefix) {
+			newURL := r.replacement + url[len(r.prefix):]
+			mcpLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
+			return newURL
+		}
 	}
-	// Handle 127.0.0.1 as well
-	if strings.Contains(url, "://127.0.0.1") {
-		newURL := strings.Replace(url, "://127.0.0.1", "://host.docker.internal", 1)
-		mcpLog.Printf("Rewriting 127.0.0.1 URL for Docker access: %s -> %s", url, newURL)
-		return newURL
-	}
+
 	return url
 }
 
