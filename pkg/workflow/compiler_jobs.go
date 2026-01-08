@@ -471,11 +471,7 @@ func containsRuntimeImports(markdownContent string) bool {
 	// Exclude email addresses and URLs
 	inlinePattern := `@(\.\./|\./)[^\s]+`
 	inlineRe := regexp.MustCompile(inlinePattern)
-	if inlineRe.MatchString(markdownContent) {
-		return true
-	}
-
-	return false
+	return inlineRe.MatchString(markdownContent)
 }
 
 // shouldAddCheckoutStep determines if the checkout step should be added based on permissions and custom steps
