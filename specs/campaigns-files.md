@@ -578,19 +578,6 @@ The discovery script is **not** included in the compiled `.lock.yml` file. Inste
 
 ## Cross-References
 
-### Related Documentation
-
-**User-facing guides**:
-- `docs/src/content/docs/guides/campaigns/getting-started.md` - Quick start guide
-- `docs/src/content/docs/guides/campaigns/specs.md` - YAML frontmatter reference
-- `docs/src/content/docs/guides/campaigns/cli-commands.md` - CLI usage examples
-- `docs/src/content/docs/guides/campaigns/project-management.md` - GitHub Projects integration
-
-**Architecture specs**:
-- `specs/repo-memory.md` - Persistent state storage for campaigns
-- `specs/safe-output-messages.md` - GitHub API operations (create-issue, update-project)
-- `specs/code-organization.md` - Campaign package structure rationale
-
 ### Code References
 
 **Campaign package** (`pkg/campaign/`):
