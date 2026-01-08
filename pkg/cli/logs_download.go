@@ -359,7 +359,7 @@ func unzipFile(zipPath, destDir string, verbose bool) error {
 }
 
 // extractZipFile extracts a single file from a zip archive
-func extractZipFile(f *zip.File, destDir string, verbose bool) error {
+func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error) {
 	// Construct the full path for the file
 	filePath := filepath.Join(destDir, f.Name)
 
@@ -394,11 +394,19 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer destFile.Close()
+	defer func() {
+		// Handle errors from closing the writable file to prevent data loss
+		// Data written to a file may be cached in memory and only flushed when the file is closed.
+		// If Close() fails and the error is ignored, data loss can occur silently.
+		if err := destFile.Close(); extractErr == nil && err != nil {
+			extractErr = fmt.Errorf("failed to close destination file: %w", err)
+		}
+	}()
 
 	// Copy the content
 	if _, err := io.Copy(destFile, srcFile); err != nil {
-		return fmt.Errorf("failed to extract file: %w", err)
+		extractErr = fmt.Errorf("failed to extract file: %w", err)
+		return extractErr
 	}
 
 	return nil
