@@ -4,6 +4,7 @@ on:
   issues:
     types: [opened]
     lock-for-agent: true
+  workflow_dispatch:
   reaction: "eyes"
 permissions:
   contents: read
@@ -13,7 +14,7 @@ engine: copilot
 tools:
   github:
     toolsets: [default]
-if: startsWith(github.event.issue.title, '[New Agentic Campaign]')
+if: startsWith(github.event.issue.title, '[New Agentic Campaign]') || github.event_name == 'workflow_dispatch'
 safe-outputs:
   add-comment:
     max: 5
@@ -37,7 +38,13 @@ You are a campaign workflow coordinator for GitHub Agentic Workflows.
 
 ## Your Task
 
+You handle campaign creation in two modes:
+
+### Mode 1: Issue-Triggered (Traditional)
 A user has submitted a campaign request via GitHub issue #${{ github.event.issue.number }}.
+
+### Mode 2: Workflow Dispatch (Copilot Session)
+You're being invoked directly by a Copilot agent session via the `create-agentic-campaign.agent.md` agent.
 
 Your job is to keep the user informed at each stage and assign the work to an AI agent.
 
@@ -47,6 +54,7 @@ Your job is to keep the user informed at each stage and assign the work to an AI
 
 Use the `create-project` safe output to create a new empty project for the campaign.
 
+**For Issue Mode:**
 Call the create_project tool with the title, owner, and item_url parameters:
 
 ```
@@ -57,13 +65,23 @@ create_project({
 })
 ```
 
-Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
+**For Workflow Dispatch Mode:**
+Call create_project without item_url (will be added later):
 
-This will create a new empty project board for this campaign in the repository owner's organization (or user account) and add the issue as the first item.
+```
+create_project({
+  title: "Campaign: <campaign-name>",
+  owner: "${{ github.owner }}"
+})
+```
 
-### Step 2: Post Initial Comment
+Replace `<campaign-name>` with a descriptive campaign name based on the campaign goal.
 
-Use the `add-comment` safe output to post a welcome comment that:
+This will create a new empty project board for this campaign in the repository owner's organization (or user account).
+
+### Step 2: Post Initial Comment (Issue Mode Only)
+
+**Only if triggered by an issue**, use the `add-comment` safe output to post a welcome comment that:
 - Explains that a new project has been created
 - Explains what will happen next
 - Sets expectations about the AI agent's work
@@ -88,16 +106,16 @@ An AI agent will be assigned to design your campaign. This typically takes a few
 ### Step 3: Assign to Agent
 
 Use the `assign-to-agent` safe output to assign the Copilot agent who will:
-- Parse the campaign requirements from the issue body
+- Parse the campaign requirements from the issue body (Issue Mode) or session context (Workflow Dispatch Mode)
 - Generate a NEW campaign specification file (`.campaign.md`) with a unique campaign ID
 - Use the newly created project URL in the campaign spec
 - Create a pull request with the new campaign file
 
-The campaign-designer agent has detailed instructions in `.github/agents/agentic-campaign-designer.agent.md`
+The campaign-designer agent has detailed instructions in `pkg/cli/templates/agentic-campaign-designer.agent.md`
 
-### Step 4: Post Confirmation Comment
+### Step 4: Post Confirmation Comment (Issue Mode Only)
 
-Use the `add-comment` safe output to post a confirmation that the agent has been assigned:
+**Only if triggered by an issue**, use the `add-comment` safe output to post a confirmation that the agent has been assigned:
 
 ```markdown
 ✅ **Agent Assigned**
@@ -117,3 +135,4 @@ The AI agent is now working on your campaign design. You'll receive updates as t
 - Use clear, concise language in all comments
 - Keep users informed at each stage
 - The agent will create a NEW campaign file, not modify existing ones
+- In Workflow Dispatch mode, coordinate with the calling Copilot session instead of posting comments

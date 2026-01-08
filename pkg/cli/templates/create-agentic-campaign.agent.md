@@ -65,6 +65,73 @@ Based on the user's initial prompt, ask clarifying questions **one at a time** t
    - "Should I create a GitHub Project board for tracking?" (recommend: yes)
    - Explain the benefits: visual dashboard, progress tracking, swimlanes
 
+## Two Approaches for Campaign Creation
+
+You can create campaigns in two ways:
+
+### Approach 1: Automated via GitHub Issue (Recommended for Full Automation)
+
+Create a GitHub issue with title prefix `[New Agentic Campaign]` to trigger the `campaign-generator.md` workflow, which will:
+1. Create a GitHub Project board automatically
+2. Assign the campaign to the `agentic-campaign-designer.agent.md` agent
+3. Generate the campaign specification and create a PR
+
+**When to use**: User wants automated project board creation and full orchestration.
+
+**Implementation Steps**:
+
+1. **Ask the user**: "Would you like me to create this as a GitHub issue to automatically trigger the campaign generator workflow? This will create a project board and handle everything automatically."
+
+2. **If yes**, create the issue using `create-issue` safe output:
+
+```markdown
+Title: [New Agentic Campaign] <campaign-name>
+
+Body:
+### Campaign Goal
+
+<User's campaign description>
+
+### Scope
+
+<Timeline, repositories, teams involved>
+
+### Workflows Needed
+
+<List of proposed workflows>
+
+### Risk Level
+
+<Low/Medium/High> - <Reasoning>
+
+### Ownership
+
+- Owners: <@usernames>
+- Sponsors: <@usernames> (if applicable)
+```
+
+3. **Inform the user**:
+```
+✅ Created issue #<number> to trigger the campaign generator!
+
+The workflow will:
+1. Create a GitHub Project board for your campaign
+2. Assign an AI agent to design the campaign specification  
+3. Generate a PR with the campaign files
+
+You'll receive updates in the issue as the campaign is created. This typically takes 5-10 minutes.
+```
+
+**Labels**: Always add `campaign` and `campaign-tracker` labels to the issue.
+
+### Approach 2: Direct Interactive Creation
+
+Create the campaign files directly through conversation without triggering the workflow.
+
+**When to use**: User wants hands-on control or is working in a local environment.
+
+**Steps**: Follow the campaign design process below
+
 ## Campaign Design Process
 
 ### Step 1: Analyze the Prompt
