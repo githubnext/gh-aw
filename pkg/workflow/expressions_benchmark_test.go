@@ -7,40 +7,72 @@ import (
 // BenchmarkValidateExpression benchmarks single expression validation
 func BenchmarkValidateExpression(b *testing.B) {
 	expression := "github.event.issue.number"
+	unauthorizedExprs := []string{}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRe:            needsStepsRegex,
+			InputsRe:                inputsRegex,
+			WorkflowCallInputsRe:    workflowCallInputsRegex,
+			AwInputsRe:              awInputsRegex,
+			EnvRe:                   envRegex,
+			UnauthorizedExpressions: &unauthorizedExprs,
+		})
 	}
 }
 
 // BenchmarkValidateExpression_Complex benchmarks complex expression with comparisons
 func BenchmarkValidateExpression_Complex(b *testing.B) {
 	expression := "github.event.pull_request.number == github.event.issue.number"
+	unauthorizedExprs := []string{}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRe:            needsStepsRegex,
+			InputsRe:                inputsRegex,
+			WorkflowCallInputsRe:    workflowCallInputsRegex,
+			AwInputsRe:              awInputsRegex,
+			EnvRe:                   envRegex,
+			UnauthorizedExpressions: &unauthorizedExprs,
+		})
 	}
 }
 
 // BenchmarkValidateExpression_NeedsOutputs benchmarks needs.*.outputs.* validation
 func BenchmarkValidateExpression_NeedsOutputs(b *testing.B) {
 	expression := "needs.activation.outputs.text"
+	unauthorizedExprs := []string{}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRe:            needsStepsRegex,
+			InputsRe:                inputsRegex,
+			WorkflowCallInputsRe:    workflowCallInputsRegex,
+			AwInputsRe:              awInputsRegex,
+			EnvRe:                   envRegex,
+			UnauthorizedExpressions: &unauthorizedExprs,
+		})
 	}
 }
 
 // BenchmarkValidateExpression_StepsOutputs benchmarks steps.*.outputs.* validation
 func BenchmarkValidateExpression_StepsOutputs(b *testing.B) {
 	expression := "steps.my-step.outputs.result"
+	unauthorizedExprs := []string{}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, awInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, ExpressionValidationOptions{
+			NeedsStepsRe:            needsStepsRegex,
+			InputsRe:                inputsRegex,
+			WorkflowCallInputsRe:    workflowCallInputsRegex,
+			AwInputsRe:              awInputsRegex,
+			EnvRe:                   envRegex,
+			UnauthorizedExpressions: &unauthorizedExprs,
+		})
 	}
 }
 
