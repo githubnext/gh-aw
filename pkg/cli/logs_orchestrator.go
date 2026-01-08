@@ -38,29 +38,83 @@ func getMaxConcurrentDownloads() int {
 	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
 }
 
+// DownloadWorkflowLogsOptions contains all options for downloading workflow logs
+type DownloadWorkflowLogsOptions struct {
+	Context        context.Context
+	WorkflowName   string
+	Count          int
+	StartDate      string
+	EndDate        string
+	OutputDir      string
+	Engine         string
+	Ref            string
+	BeforeRunID    int64
+	AfterRunID     int64
+	RepoOverride   string
+	Verbose        bool
+	ToolGraph      bool
+	NoStaged       bool
+	FirewallOnly   bool
+	NoFirewall     bool
+	Parse          bool
+	JSONOutput     bool
+	Timeout        int
+	CampaignOnly   bool
+	SummaryFile    string
+	SafeOutputType string
+}
+
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string, safeOutputType string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s, safeOutputType=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile, safeOutputType)
+	return DownloadWorkflowLogsWithOptions(DownloadWorkflowLogsOptions{
+		Context:        ctx,
+		WorkflowName:   workflowName,
+		Count:          count,
+		StartDate:      startDate,
+		EndDate:        endDate,
+		OutputDir:      outputDir,
+		Engine:         engine,
+		Ref:            ref,
+		BeforeRunID:    beforeRunID,
+		AfterRunID:     afterRunID,
+		RepoOverride:   repoOverride,
+		Verbose:        verbose,
+		ToolGraph:      toolGraph,
+		NoStaged:       noStaged,
+		FirewallOnly:   firewallOnly,
+		NoFirewall:     noFirewall,
+		Parse:          parse,
+		JSONOutput:     jsonOutput,
+		Timeout:        timeout,
+		CampaignOnly:   campaignOnly,
+		SummaryFile:    summaryFile,
+		SafeOutputType: safeOutputType,
+	})
+}
+
+// DownloadWorkflowLogsWithOptions downloads and analyzes workflow logs with metrics using an options struct
+func DownloadWorkflowLogsWithOptions(opts DownloadWorkflowLogsOptions) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s, safeOutputType=%s", opts.WorkflowName, opts.Count, opts.StartDate, opts.EndDate, opts.OutputDir, opts.CampaignOnly, opts.SummaryFile, opts.SafeOutputType)
 
 	// Check context cancellation at the start
 	select {
-	case <-ctx.Done():
+	case <-opts.Context.Done():
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-		return ctx.Err()
+		return opts.Context.Err()
 	default:
 	}
 
-	if verbose {
+	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
 
-	// Start timeout timer if specified
+	// Start opts.Timeout timer if specified
 	var startTime time.Time
 	var timeoutReached bool
-	if timeout > 0 {
+	if opts.Timeout > 0 {
 		startTime = time.Now()
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d seconds", timeout)))
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d seconds", opts.Timeout)))
 		}
 	}
 
@@ -68,27 +122,27 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	var beforeDate string
 	iteration := 0
 
-	// Determine if we should fetch all runs (when date filters are specified) or limit by count
-	// When date filters are specified, we fetch all runs within that range and apply count to final output
-	// When no date filters, we fetch up to 'count' runs with artifacts (old behavior for backward compatibility)
-	fetchAllInRange := startDate != "" || endDate != ""
+	// Determine if we should fetch all runs (when date filters are specified) or limit by opts.Count
+	// When date filters are specified, we fetch all runs within that range and apply opts.Count to final output
+	// When no date filters, we fetch up to 'opts.Count' runs with artifacts (old behavior for backward compatibility)
+	fetchAllInRange := opts.StartDate != "" || opts.EndDate != ""
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 	for iteration < MaxIterations {
 		// Check context cancellation
 		select {
-		case <-ctx.Done():
+		case <-opts.Context.Done():
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-			return ctx.Err()
+			return opts.Context.Err()
 		default:
 		}
 
-		// Check timeout if specified
-		if timeout > 0 {
+		// Check opts.Timeout if specified
+		if opts.Timeout > 0 {
 			elapsed := time.Since(startTime).Seconds()
-			if elapsed >= float64(timeout) {
+			if elapsed >= float64(opts.Timeout) {
 				timeoutReached = true
-				if verbose {
+				if opts.Verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", elapsed)))
 				}
 				break
@@ -96,35 +150,35 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		}
 
 		// Stop if we've collected enough processed runs
-		if len(processedRuns) >= count {
+		if len(processedRuns) >= opts.Count {
 			break
 		}
 
 		iteration++
 
-		if verbose && iteration > 1 {
+		if opts.Verbose && iteration > 1 {
 			if fetchAllInRange {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Fetching more runs in date range...", iteration)))
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Need %d more runs with artifacts, fetching more...", iteration, count-len(processedRuns))))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Need %d more runs with artifacts, fetching more...", iteration, opts.Count-len(processedRuns))))
 			}
 		}
 
 		// Fetch a batch of runs
 		batchSize := BatchSize
-		if workflowName == "" {
+		if opts.WorkflowName == "" {
 			// When searching for all agentic workflows, use a larger batch size
 			// since there may be many CI runs interspersed with agentic runs
 			batchSize = BatchSizeForAllWorkflows
 		}
 
 		// When not fetching all in range, optimize batch size based on how many we still need
-		if !fetchAllInRange && count-len(processedRuns) < batchSize {
+		if !fetchAllInRange && opts.Count-len(processedRuns) < batchSize {
 			// If we need fewer runs than the batch size, request exactly what we need
 			// but add some buffer since many runs might not have artifacts
-			needed := count - len(processedRuns)
+			needed := opts.Count - len(processedRuns)
 			batchSize = needed * 3 // Request 3x what we need to account for runs without artifacts
-			if workflowName == "" && batchSize < BatchSizeForAllWorkflows {
+			if opts.WorkflowName == "" && batchSize < BatchSizeForAllWorkflows {
 				// For all-workflows search, maintain a minimum batch size
 				batchSize = BatchSizeForAllWorkflows
 			}
@@ -134,40 +188,40 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		}
 
 		runs, totalFetched, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
-			WorkflowName:   workflowName,
+			WorkflowName:   opts.WorkflowName,
 			Limit:          batchSize,
-			StartDate:      startDate,
-			EndDate:        endDate,
+			StartDate:      opts.StartDate,
+			EndDate:        opts.EndDate,
 			BeforeDate:     beforeDate,
-			Ref:            ref,
-			BeforeRunID:    beforeRunID,
-			AfterRunID:     afterRunID,
-			RepoOverride:   repoOverride,
+			Ref:            opts.Ref,
+			BeforeRunID:    opts.BeforeRunID,
+			AfterRunID:     opts.AfterRunID,
+			RepoOverride:   opts.RepoOverride,
 			ProcessedCount: len(processedRuns),
-			TargetCount:    count,
-			Verbose:        verbose,
+			TargetCount:    opts.Count,
+			Verbose:        opts.Verbose,
 		})
 		if err != nil {
 			return err
 		}
 
 		if len(runs) == 0 {
-			if verbose {
+			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No more workflow runs found, stopping iteration"))
 			}
 			break
 		}
 
-		if verbose {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow runs in batch %d", len(runs), iteration)))
 		}
 
-		// Process runs in chunks so cache hits can satisfy the count without
+		// Process runs in chunks so cache hits can satisfy the opts.Count without
 		// forcing us to scan the entire batch.
 		batchProcessed := 0
 		runsRemaining := runs
-		for len(runsRemaining) > 0 && len(processedRuns) < count {
-			remainingNeeded := count - len(processedRuns)
+		for len(runsRemaining) > 0 && len(processedRuns) < opts.Count {
+			remainingNeeded := opts.Count - len(processedRuns)
 			if remainingNeeded <= 0 {
 				break
 			}
@@ -184,11 +238,11 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]
 
-			downloadResults := downloadRunArtifactsConcurrent(ctx, chunk, outputDir, verbose, remainingNeeded)
+			downloadResults := downloadRunArtifactsConcurrent(opts.Context, chunk, opts.OutputDir, opts.Verbose, remainingNeeded)
 
 			for _, result := range downloadResults {
 				if result.Skipped {
-					if verbose {
+					if opts.Verbose {
 						if result.Error != nil {
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
 						}
@@ -206,47 +260,47 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				var awInfoErr error
 				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
 
-				// Only parse if we need it for any filter
-				if engine != "" || noStaged || firewallOnly || noFirewall || campaignOnly {
-					awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
+				// Only opts.Parse if we need it for any filter
+				if opts.Engine != "" || opts.NoStaged || opts.FirewallOnly || opts.NoFirewall || opts.CampaignOnly {
+					awInfo, awInfoErr = parseAwInfo(awInfoPath, opts.Verbose)
 				}
 
 				// Apply campaign filtering if --campaign flag is specified
-				if campaignOnly {
+				if opts.CampaignOnly {
 					// Campaign orchestrator workflows end with .campaign.lock.yml
 					isCampaign := strings.HasSuffix(result.Run.WorkflowName, " Campaign Orchestrator") ||
 						strings.Contains(result.Run.WorkflowPath, ".campaign.lock.yml")
 
 					if !isCampaign {
-						if verbose {
+						if opts.Verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: not a campaign orchestrator workflow", result.Run.DatabaseID)))
 						}
 						continue
 					}
 				}
 
-				// Apply engine filtering if specified
-				if engine != "" {
-					// Check if the run's engine matches the filter
-					detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+				// Apply opts.Engine filtering if specified
+				if opts.Engine != "" {
+					// Check if the run's opts.Engine matches the filter
+					detectedEngine := extractEngineFromAwInfo(awInfoPath, opts.Verbose)
 
 					var engineMatches bool
 					if detectedEngine != nil {
-						// Get the engine ID to compare with the filter
+						// Get the opts.Engine ID to compare with the filter
 						registry := workflow.GetGlobalEngineRegistry()
 						for _, supportedEngine := range constants.AgenticEngines {
 							if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-								engineMatches = (supportedEngine == engine)
+								engineMatches = (supportedEngine == opts.Engine)
 								break
 							}
 						}
 					}
 
 					if !engineMatches {
-						if verbose {
+						if opts.Verbose {
 							engineName := "unknown"
 							if detectedEngine != nil {
-								// Try to get a readable name for the detected engine
+								// Try to get a readable name for the detected opts.Engine
 								registry := workflow.GetGlobalEngineRegistry()
 								for _, supportedEngine := range constants.AgenticEngines {
 									if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
@@ -255,21 +309,21 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 									}
 								}
 							}
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: opts.Engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, opts.Engine)))
 						}
 						continue
 					}
 				}
 
 				// Apply staged filtering if --no-staged flag is specified
-				if noStaged {
+				if opts.NoStaged {
 					var isStaged bool
 					if awInfoErr == nil && awInfo != nil {
 						isStaged = awInfo.Staged
 					}
 
 					if isStaged {
-						if verbose {
+						if opts.Verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
 						}
 						continue
@@ -277,7 +331,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				}
 
 				// Apply firewall filtering if --firewall or --no-firewall flag is specified
-				if firewallOnly || noFirewall {
+				if opts.FirewallOnly || opts.NoFirewall {
 					var hasFirewall bool
 					if awInfoErr == nil && awInfo != nil {
 						// Firewall is enabled if steps.firewall is non-empty (e.g., "squid")
@@ -285,14 +339,14 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 					}
 
 					// Check if the run matches the filter
-					if firewallOnly && !hasFirewall {
-						if verbose {
+					if opts.FirewallOnly && !hasFirewall {
+						if opts.Verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not use firewall (filtered by --firewall)", result.Run.DatabaseID)))
 						}
 						continue
 					}
-					if noFirewall && hasFirewall {
-						if verbose {
+					if opts.NoFirewall && hasFirewall {
+						if opts.Verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
 						}
 						continue
@@ -300,15 +354,15 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				}
 
 				// Apply safe output type filtering if --safe-output flag is specified
-				if safeOutputType != "" {
-					hasSafeOutputType, checkErr := runContainsSafeOutputType(result.LogsPath, safeOutputType, verbose)
-					if checkErr != nil && verbose {
+				if opts.SafeOutputType != "" {
+					hasSafeOutputType, checkErr := runContainsSafeOutputType(result.LogsPath, opts.SafeOutputType, opts.Verbose)
+					if checkErr != nil && opts.Verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check safe output type for run %d: %v", result.Run.DatabaseID, checkErr)))
 					}
 
 					if !hasSafeOutputType {
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, safeOutputType)))
+						if opts.Verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, opts.SafeOutputType)))
 						}
 						continue
 					}
@@ -323,11 +377,11 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				run.WarningCount = 0
 				run.LogsPath = result.LogsPath
 
-				// Add failed jobs to error count
-				if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
+				// Add failed jobs to error opts.Count
+				if failedJobCount, err := fetchJobStatuses(run.DatabaseID, opts.Verbose); err == nil {
 					run.ErrorCount += failedJobCount
-					if verbose && failedJobCount > 0 {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
+					if opts.Verbose && failedJobCount > 0 {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error opts.Count for run %d", failedJobCount, run.DatabaseID)))
 					}
 				}
 
@@ -349,25 +403,25 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				processedRuns = append(processedRuns, processedRun)
 				batchProcessed++
 
-				// If --parse flag is set, parse the agent log and write to log.md
-				if parse {
-					// Get the engine from aw_info.json
+				// If --opts.Parse flag is set, opts.Parse the agent log and write to log.md
+				if opts.Parse {
+					// Get the opts.Engine from aw_info.json
 					awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
-					detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+					detectedEngine := extractEngineFromAwInfo(awInfoPath, opts.Verbose)
 
-					if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
+					if err := parseAgentLog(result.LogsPath, detectedEngine, opts.Verbose); err != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to opts.Parse log for run %d: %v", run.DatabaseID, err)))
 					} else {
-						// Always show success message for parsing, not just in verbose mode
+						// Always show success message for parsing, not just in opts.Verbose mode
 						logMdPath := filepath.Join(result.LogsPath, "log.md")
 						if _, err := os.Stat(logMdPath); err == nil {
 							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
 						}
 					}
 
-					// Also parse firewall logs if they exist
-					if err := parseFirewallLogs(result.LogsPath, verbose); err != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", run.DatabaseID, err)))
+					// Also opts.Parse firewall logs if they exist
+					if err := parseFirewallLogs(result.LogsPath, opts.Verbose); err != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to opts.Parse firewall logs for run %d: %v", run.DatabaseID, err)))
 					} else {
 						// Show success message if firewall.md was created
 						firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
@@ -378,17 +432,17 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				}
 
 				// Stop processing this batch once we've collected enough runs.
-				if len(processedRuns) >= count {
+				if len(processedRuns) >= opts.Count {
 					break
 				}
 			}
 		}
 
-		if verbose {
+		if opts.Verbose {
 			if fetchAllInRange {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d)", batchProcessed, iteration, len(processedRuns))))
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d/%d)", batchProcessed, iteration, len(processedRuns), count)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d/%d)", batchProcessed, iteration, len(processedRuns), opts.Count)))
 			}
 		}
 
@@ -400,13 +454,13 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 
 		// If we got fewer runs than requested in this batch, we've likely hit the end
 		// IMPORTANT: Use totalFetched (API response size before filtering) not len(runs) (after filtering)
-		// to detect end. When workflowName is empty, runs are filtered to only agentic workflows,
+		// to detect end. When opts.WorkflowName is empty, runs are filtered to only agentic workflows,
 		// so len(runs) may be much smaller than totalFetched even when more data is available from GitHub.
 		// Example: API returns 250 total runs, but only 5 are agentic workflows after filtering.
 		//   Old buggy logic: len(runs)=5 < batchSize=250, stop iteration (WRONG - misses more agentic workflows!)
 		//   Fixed logic: totalFetched=250 < batchSize=250 is false, continue iteration (CORRECT)
 		if totalFetched < batchSize {
-			if verbose {
+			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received fewer runs than requested, likely reached end of available runs"))
 			}
 			break
@@ -417,12 +471,12 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	if iteration >= MaxIterations {
 		if fetchAllInRange {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts", MaxIterations, len(processedRuns))))
-		} else if len(processedRuns) < count {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts out of %d requested", MaxIterations, len(processedRuns), count)))
+		} else if len(processedRuns) < opts.Count {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts out of %d requested", MaxIterations, len(processedRuns), opts.Count)))
 		}
 	}
 
-	// Report if timeout was reached
+	// Report if opts.Timeout was reached
 	if timeoutReached && len(processedRuns) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout reached, returning %d processed runs", len(processedRuns))))
 	}
@@ -430,8 +484,8 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	if len(processedRuns) == 0 {
 		// When JSON output is requested, output JSON first to stdout before any stderr messages
 		// This prevents stderr messages from corrupting JSON when both streams are redirected together
-		if jsonOutput {
-			logsData := buildLogsData([]ProcessedRun{}, outputDir, nil)
+		if opts.JSONOutput {
+			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
 			if err := renderLogsJSON(logsData); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
 			}
@@ -445,12 +499,12 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		return nil
 	}
 
-	// Apply count limit to final results (truncate to count if we fetched more)
-	if len(processedRuns) > count {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Limiting output to %d most recent runs (fetched %d total)", count, len(processedRuns))))
+	// Apply opts.Count limit to final results (truncate to opts.Count if we fetched more)
+	if len(processedRuns) > opts.Count {
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Limiting output to %d most recent runs (fetched %d total)", opts.Count, len(processedRuns))))
 		}
-		processedRuns = processedRuns[:count]
+		processedRuns = processedRuns[:opts.Count]
 	}
 
 	// Update MissingToolCount, MissingDataCount, and NoopCount in runs
@@ -460,7 +514,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		processedRuns[i].Run.NoopCount = len(processedRuns[i].Noops)
 	}
 
-	// Build continuation data if timeout was reached and there are processed runs
+	// Build continuation data if opts.Timeout was reached and there are processed runs
 	var continuation *ContinuationData
 	if timeoutReached && len(processedRuns) > 0 {
 		// Get the oldest run ID from processed runs to use as before_run_id for continuation
@@ -468,31 +522,31 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 
 		continuation = &ContinuationData{
 			Message:      "Timeout reached. Use these parameters to continue fetching more logs.",
-			WorkflowName: workflowName,
-			Count:        count,
-			StartDate:    startDate,
-			EndDate:      endDate,
-			Engine:       engine,
-			Branch:       ref,
-			AfterRunID:   afterRunID,
+			WorkflowName: opts.WorkflowName,
+			Count:        opts.Count,
+			StartDate:    opts.StartDate,
+			EndDate:      opts.EndDate,
+			Engine:       opts.Engine,
+			Branch:       opts.Ref,
+			AfterRunID:   opts.AfterRunID,
 			BeforeRunID:  oldestRunID, // Continue from where we left off
-			Timeout:      timeout,
+			Timeout:      opts.Timeout,
 		}
 	}
 
 	// Build structured logs data
-	logsData := buildLogsData(processedRuns, outputDir, continuation)
+	logsData := buildLogsData(processedRuns, opts.OutputDir, continuation)
 
 	// Write summary file if requested (default behavior unless disabled with empty string)
-	if summaryFile != "" {
-		summaryPath := filepath.Join(outputDir, summaryFile)
-		if err := writeSummaryFile(summaryPath, logsData, verbose); err != nil {
+	if opts.SummaryFile != "" {
+		summaryPath := filepath.Join(opts.OutputDir, opts.SummaryFile)
+		if err := writeSummaryFile(summaryPath, logsData, opts.Verbose); err != nil {
 			return fmt.Errorf("failed to write summary file: %w", err)
 		}
 	}
 
 	// Render output based on format preference
-	if jsonOutput {
+	if opts.JSONOutput {
 		if err := renderLogsJSON(logsData); err != nil {
 			return fmt.Errorf("failed to render JSON output: %w", err)
 		}
@@ -500,8 +554,8 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		renderLogsConsole(logsData)
 
 		// Generate tool sequence graph if requested (console output only)
-		if toolGraph {
-			generateToolGraph(processedRuns, verbose)
+		if opts.ToolGraph {
+			generateToolGraph(processedRuns, opts.Verbose)
 		}
 	}
 
