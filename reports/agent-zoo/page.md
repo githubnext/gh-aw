@@ -1,4 +1,4 @@
-# Design Patterns and Lessons from the Automated Agentic Frontier
+# Lessons from the Automated Agentic Frontier
 
 **Exploring the landscape of automated agentic workflows in software development**
 
