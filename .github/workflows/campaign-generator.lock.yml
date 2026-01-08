@@ -200,7 +200,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":5},"assign_to_agent":{},"copy_project":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":5},"assign_to_agent":{},"create_project":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -294,21 +294,25 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Copy a GitHub Projects v2 board to create a new project with the same structure, fields, and views. Useful for duplicating project templates or migrating projects between organizations. By default, draft issues are not copied unless includeDraftIssues is set to true. If the workflow has configured default values for source-project or target-owner, those fields become optional in the tool call.",
+              "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "includeDraftIssues": {
-                    "description": "Whether to copy draft issues from the source project. Default: false.",
-                    "type": "boolean"
+                  "item_url": {
+                    "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123').",
+                    "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+$",
+                    "type": "string"
                   },
                   "owner": {
                     "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter.",
                     "type": "string"
                   },
-                  "sourceProject": {
-                    "description": "Full GitHub project URL of the source project to copy (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Optional if source-project is configured in the workflow frontmatter.",
-                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                  "owner_type": {
+                    "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'.",
+                    "enum": [
+                      "org",
+                      "user"
+                    ],
                     "type": "string"
                   },
                   "title": {
@@ -321,7 +325,7 @@ jobs:
                 ],
                 "type": "object"
               },
-              "name": "copy_project"
+              "name": "create_project"
             },
             {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
@@ -382,6 +386,36 @@ jobs:
                 "issue_number": {
                   "required": true,
                   "positiveInteger": true
+                }
+              }
+            },
+            "create_project": {
+              "defaultMax": 1,
+              "fields": {
+                "item_url": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+",
+                  "patternError": "must be a full GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)"
+                },
+                "owner": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "owner_type": {
+                  "type": "string",
+                  "enum": [
+                    "org",
+                    "user"
+                  ]
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
                 }
               }
             },
@@ -538,6 +572,9 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_OWNER: ${{ github.owner }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -555,28 +592,28 @@ jobs:
           
           ## Workflow Steps
           
-          ### Step 1: Copy Project from Template
+          ### Step 1: Create New Project
           
-          Use the `copy-project` safe output to create a new project for the campaign from the template.
+          Use the `create-project` safe output to create a new empty project for the campaign.
           
-          Call the copy_project tool with just the title parameter (the target owner is configured as a default):
+          Call the create_project tool with the title, owner, and item_url parameters:
           
           ```
-          copy_project({
-            title: "Campaign: <campaign-name>"
+          create_project({
+            title: "Campaign: <campaign-name>",
+            owner: "__GH_AW_GITHUB_OWNER__",
+            item_url: "__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/issues/__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"
           })
           ```
           
           Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
           
-          This will copy the "[TEMPLATE: Agentic Campaign]" project (https://github.com/orgs/githubnext/projects/74) to create a new project board for this campaign in the githubnext organization.
-          
-          The copied project will be automatically assigned to this issue.
+          This will create a new empty project board for this campaign in the repository owner's organization (or user account) and add the issue as the first item.
           
           ### Step 2: Post Initial Comment
           
           Use the `add-comment` safe output to post a welcome comment that:
-          - Explains that a new project has been created from the template
+          - Explains that a new project has been created
           - Explains what will happen next
           - Sets expectations about the AI agent's work
           
@@ -584,11 +621,11 @@ jobs:
           ```markdown
           🤖 **Campaign Creation Started**
           
-          📊 **Project Board:** A new project board has been created from the campaign template.
+          📊 **Project Board:** A new project board has been created for your campaign.
           
           I'm processing your campaign request. Here's what will happen:
           
-          1. ✅ Created project board from template
+          1. ✅ Created new project board
           2. 🔄 Analyze campaign requirements
           3. 📝 Generate campaign specification
           4. 🔀 Create pull request with campaign file
@@ -624,8 +661,8 @@ jobs:
           
           ## Important Notes
           
-          - Always create the project from the template using copy-project
-          - The project URL from the copy-project output should be used in the campaign spec
+          - Always create a new empty project using create-project
+          - The project URL from the create-project output should be used in the campaign spec
           - Use clear, concise language in all comments
           - Keep users informed at each stage
           - The agent will create a NEW campaign file, not modify existing ones
@@ -636,6 +673,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_OWNER: ${{ github.owner }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
@@ -644,7 +684,10 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_OWNER: process.env.GH_AW_GITHUB_OWNER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
               }
             });
       - name: Append XPIA security instructions to prompt
@@ -670,7 +713,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, assign_to_agent, copy_project, missing_tool, noop
+          **Available tools**: add_comment, assign_to_agent, create_project, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -753,6 +796,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_OWNER: ${{ github.owner }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1248,19 +1294,17 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/assign_to_agent.cjs');
             await main();
-      - name: Copy Project
-        id: copy_project
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'copy_project'))
+      - name: Create Project
+        id: create_project
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_project'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_COPY_PROJECT_SOURCE: "https://github.com/orgs/githubnext/projects/74"
-          GH_AW_COPY_PROJECT_TARGET_OWNER: "githubnext"
         with:
           github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/copy_project.cjs');
+            const { main } = require('/opt/gh-aw/actions/create_project.cjs');
             await main();
 
