@@ -403,7 +403,7 @@ jobs:
               },
               "safeoutputs": {
                 "command": "docker",
-                "args": ["run", "--rm", "-i", "-e", "GH_AW_MCP_LOG_DIR", "-e", "GH_AW_SAFE_OUTPUTS", "-e", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "-e", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "-e", "GH_AW_ASSETS_BRANCH", "-e", "GH_AW_ASSETS_MAX_SIZE_KB", "-e", "GH_AW_ASSETS_ALLOWED_EXTS", "-e", "GITHUB_REPOSITORY", "-e", "GITHUB_SERVER_URL", "-e", "GITHUB_SHA", "-e", "GITHUB_WORKSPACE", "-e", "DEFAULT_BRANCH", "--entrypoint", "node", "node:lts-alpine", "/opt/gh-aw/safeoutputs/mcp-server.cjs"],
+                "args": ["run", "--rm", "-i", "-v", "/opt/gh-aw:/opt/gh-aw:ro", "-v", "/tmp/gh-aw:/tmp/gh-aw", "-e", "GH_AW_MCP_LOG_DIR", "-e", "GH_AW_SAFE_OUTPUTS", "-e", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "-e", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "-e", "GH_AW_ASSETS_BRANCH", "-e", "GH_AW_ASSETS_MAX_SIZE_KB", "-e", "GH_AW_ASSETS_ALLOWED_EXTS", "-e", "GITHUB_REPOSITORY", "-e", "GITHUB_SERVER_URL", "-e", "GITHUB_SHA", "-e", "GITHUB_WORKSPACE", "-e", "DEFAULT_BRANCH", "--entrypoint", "node", "node:lts-alpine", "/opt/gh-aw/safeoutputs/mcp-server.cjs"],
                 "env": {
                   "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
                   "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",

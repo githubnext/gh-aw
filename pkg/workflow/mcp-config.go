@@ -251,8 +251,14 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	}
 
 	// Build Docker args for containerized execution per MCP Gateway spec
-	// Format: docker run --rm -i -e VAR1 -e VAR2 ... --entrypoint node <image> <script>
+	// Format: docker run --rm -i -v ... -e VAR1 -e VAR2 ... --entrypoint node <image> <script>
 	dockerArgs := []string{"run", "--rm", "-i"}
+	
+	// Add volume mounts for accessing scripts and writing logs
+	// /opt/gh-aw mounted as read-only for scripts and config files
+	// /tmp/gh-aw mounted as read-write for logs and temporary files
+	dockerArgs = append(dockerArgs, "-v", "/opt/gh-aw:/opt/gh-aw:ro")
+	dockerArgs = append(dockerArgs, "-v", "/tmp/gh-aw:/tmp/gh-aw")
 	
 	// Add environment variable flags (sorted for deterministic output)
 	for _, envVar := range envVars {
@@ -347,6 +353,10 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("            \"run\",\n")
 	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"-i\",\n")
+	yaml.WriteString("            \"-v\",\n")
+	yaml.WriteString("            \"/opt/gh-aw:/opt/gh-aw:ro\",\n")
+	yaml.WriteString("            \"-v\",\n")
+	yaml.WriteString("            \"/tmp/gh-aw:/tmp/gh-aw\",\n")
 	yaml.WriteString("            \"-e\",\n")
 	yaml.WriteString("            \"GH_AW_SAFE_OUTPUTS\",\n")
 	yaml.WriteString("            \"-e\",\n")
