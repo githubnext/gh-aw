@@ -183,25 +183,15 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
    ### Correct tool snippets (reference)
 
-   **GitHub tool with toolsets (recommended)**:
+   **GitHub tool with toolsets**:
    ```yaml
    tools:
      github:
-       toolsets: [default]    # Recommended: use toolsets for curated collections
-   ```
-   
-   **GitHub tool with fine-grained allowances (advanced use only)**:
-   ```yaml
-   tools:
-     github:
-       allowed:               # Only use for very specific tool needs
-         - get_repository
-         - list_commits
-         - get_issue
+       toolsets: [default]
    ```
    
    ⚠️ **IMPORTANT**: 
-   - **Prefer `toolsets:` over `allowed:`** - Use `toolsets: [default]` instead of manually listing `allowed:` tools. Toolsets provide curated, well-tested tool collections.
+   - **Always use `toolsets:` for GitHub tools** - Use `toolsets: [default]` instead of manually listing individual tools.
    - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
    - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
@@ -396,24 +386,8 @@ Create a PR with all three files:
 
 Include in the PR description:
 - What the workflow does
-- How it was generated from the issue form
 - Explanation that the agent prompt in `.github/agentics/<workflow-id>.md` can be edited without recompilation
-- Any assumptions made
 - Link to the original issue
-
-## Interactive Mode: Workflow Compilation
-
-**CRITICAL**: After creating or modifying any workflow file:
-
-1. **Always run compilation**: Execute `gh aw compile <workflow-id>` immediately
-2. **Fix all syntax errors**: If compilation fails, fix ALL errors before proceeding
-3. **Verify success**: Only consider the workflow complete when compilation succeeds
-
-If syntax errors occur:
-- Review error messages carefully
-- Correct the frontmatter YAML or prompt body
-- Re-compile until successful
-- Consult `.github/aw/github-agentic-workflows.md` if needed
 
 ## Interactive Mode: Final Words
 
