@@ -1,18 +1,18 @@
-# Introducing the Agent Nursery
+# Design Patterns and Lessons from the Automated Agentic Frontier
 
 **Exploring the landscape of automated agentic workflows in software development**
 
-_The automated use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "nursery" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this nursery, the patterns we explored, and the lessons for the future of repo-level automated agentic development._
+_The automated, proactive use of agentic coding agents opens up a broad landscape of potential applications within existing software repositories. In this project we explored a "nursery" of agentic workflows used within the development of GitHub Agentic Workflows itself and its application in a family of reusable workflows. Here we document this nursery, the patterns we explored, and the lessons for the future of repo-level automated agentic development._
 
-## What is the Agent Nursery?
+## What is the Agentic Nursery?
 
-Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress. The **Agent Nursery** is our exploration of what happens when you take the design philosophy of _let's create a new agentic workflow for that_ as the answer to every opportunity that may present itself! What happens when you _max out on agentic workflows_ - when you make and nurture dozens of specialized AI agentic workflows in a real repository, each designed to solve a specific problem.
+Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress. Our **Agentic Nursery** is our exploration of what happens when you take the design philosophy of "_let's create a new agentic workflow for that_" as the answer to more or less every opportunity that may present itself! What happens when you _max out on agentic workflows_ - when you make and nurture dozens of specialized, automated AI agentic workflows in a real repository, each designed to solve a specific problem.
 
-Over the course of this research project, we built and operated **over 100 autonomous agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These weren't hypothetical demos - they were working agents that:
+Over the course of this research project, we built and operated **over 100 autonomous agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These were used mostly in the context of the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) project itself, but many have also been applied at scale to GitHub and Microsoft internal repositories, and some external repositories. These weren't hypothetical demos - they were working agents that:
 
 - Triage incoming issues
 - Diagnose CI failures
-- Perform code reviews with personality and critical analysis
+- Perform code reviews
 - Maintain documentation
 - Improve test coverage
 - Monitor security compliance
@@ -23,7 +23,7 @@ Over the course of this research project, we built and operated **over 100 auton
 - Validate infrastructure through continuous smoke testing
 - Even write poetry to boost team morale
 
-Think of it as a nursery, or a zoo, or a collection: each agentic workflow has its own mode (triggers, permissions, schedules), needs (tools and data sources), and over time we learn and select. Some are simple, and just read and report. Others are more proactive, proposing changes through pull requests. And a few are meta-agents that monitor and improve the health of all the other workflows.
+Think of this collection as a nursery, or a zoo, or an incubation lab: each agentic workflow has its own mode of operation (triggers, permissions, schedules, inputs, outputs), needs (tools, data) and interaction (shared plans, memory). Some are simple, and just read and report. Others are more proactive, proposing changes through pull requests. And a few are meta-agents that monitor and improve the health of all the other workflows.
 
 We know we're taking things to an extreme here. Most repositories won't need dozens of agentic workflows. No one can read all these outputs (except, of course, another workflow). But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust and use.
 
@@ -197,27 +197,74 @@ These agents manage structured improvement campaigns:
 
 ---
 
-## Imports & Sharing: The Agent Nursery's Secret Weapon
+## 12 Lessons from the Agentic Nursery
 
-Tending dozens of agents would be unsustainable without reuse. One of the most powerful features that enabled us to scale to 145 agents was the **imports system** of GitHub Agentic Workdlows - a mechanism for sharing and reusing workflow components across the entire nursery. This mechanisms is carefully designed to support modularization, sharing, installation, pinning and versioning of single-file portions of agentic workflows into other single-file workflows. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
+The Agentic Nursery was an ambitious experiment in scaling agentic workflows. After months of nurturing and observing, several key insights emerged about what works, what doesn't, and how to design effective agent ecosystems.
 
-Imports provided several critical benefits:
+✨ **Diversity Beats Perfection**
+No single agent can do everything. A collection of focused agents, each doing one thing well, proved more practical than trying to build a universal assistant.
 
-**🔄 DRY Principle for Agentic Workflows**  
-When we improved report formatting or updated an MCP server configuration, the change automatically propagated to all workflows that imported it. No need to update 46 workflows individually.
+📊 **Guardrails Enable Innovation**
+Counter-intuitively, strict constraints (safe outputs, limited permissions, allowlisted tools) made it *easier* to experiment. We knew the blast radius of any failure.
 
-**🧩 Composable Agentic Wokflow Capabilities**  
-Workflows could mix and match capabilities by importing different shared components - like combining data visualization, trending analysis, and web search in a single import list.
+🔄 **Meta-Agentic Workfows Are Essential**
+Agentic Workfows that monitor agents became some of the most valuable. They caught issues early and helped us understand aggregate behavior.
 
-**🎯 Separation of Concerns**  
-Tools configuration, network permissions, data fetching logic, and agent instructions could be maintained independently by different experts, then composed together.
+🎭 **Personality Matters**
+Agentic Workfows with clear "personalities" (the meticulous auditor, the helpful janitor, the creative poet) were easier for teams to understand and trust.
 
-**⚡ Rapid Experimentation**  
-Creating a new workflow often meant writing just the agent-specific prompt and importing 3-5 shared components. We could prototype new agents in minutes.
+⚖️ **Cost-Quality Tradeoffs Are Real**
+Longer, more thorough analyses cost more but aren't always better. The portfolio analyst helped us identify which agents gave the best value.
+
+🔄 **Multi-Phase Workflows Enable Ambitious Goals**
+Breaking complex improvements into 3-phase workflows (research → setup → implement) allowed agents to tackle projects that would be too large for a single run. Each phase builds on the last, with human feedback between phases.
+
+💬 **Slash Commands Create Natural User Interfaces**
+ChatOps-style `/command` triggers made agents feel like natural team members. Users could invoke powerful capabilities with simple comments, and role-gating ensured only authorized users could trigger sensitive operations.
+
+🧪 **Heartbeats Build Confidence**
+Frequent, lightweight validation tests (every 12 hours) caught regressions quickly. These "heartbeat" agents ensured the infrastructure stayed healthy without manual monitoring.
+
+🔧 **MCP Inspection Is Essential**
+As workflows grew to use multiple MCP servers, having agents that could validate and report on tool availability became critical. The MCP inspector pattern prevented cryptic failures from misconfigured tools.
+
+🎯 **Dispatcher Patterns Scale Command Complexity**
+Instead of one monolithic agent handling all requests, dispatcher agents could route to specialized sub-agents or commands. This made the system more maintainable and allowed for progressive feature addition.
+
+📿 **Task Queuing is Everywhere**
+The task queue pattern provided a simple way to queue and distribute work across multiple workflow runs. Breaking large projects into discrete tasks allowed incremental progress with clear state tracking, recording tasks as issues, discussions or project cards.
+
+🤖 **ML Analysis Reveals Hidden Patterns**
+Applying clustering and NLP to agent interactions revealed usage patterns that weren't obvious from individual runs. This meta-analysis helped identify opportunities for consolidation and optimization.
+
+🏢 **Cross-Repo Agentic Workfows Need Special Care**
+Organization-level agents required careful permission management and rate limit awareness. They proved valuable for understanding ecosystem health but needed deliberate scoping to avoid overwhelming repositories.
+
+📝 **Documentation Agentic Workfows Bridge Code and Context**
+Agentic Workfows that maintained glossaries, technical docs, and slide decks kept documentation synchronized with rapidly evolving codebases. They acted as "knowledge janitors," reducing staleness debt.
+
+### Challenges We Encountered
+
+Not everything was smooth sailing. We faced several challenges that provided valuable lessons:
+
+**Permission Creep**
+As agents gained capabilities, there was a temptation to grant broader permissions. We had to constantly audit and prune permissions to maintain least privilege.
+
+**Debugging Complexity**
+When agents misbehaved, tracing the root cause through multiple workflow runs and safe outputs was challenging. Improved logging and observability are needed.
+
+**Repository Noise**
+Frequent agent runs created a lot of issues, PRs, and comments. We had to implement archival strategies to keep the repository manageable.
+
+**Cost Management**
+Running many agents incurred significant costs. The portfolio analyst helped, but ongoing cost monitoring is essential.
+
+**User Trust**
+Some team members were hesitant to engage with automated agents. Clear communication about capabilities and limitations helped build trust over time.
 
 ---
 
-## 12 Patterns for Flourishing Agentics
+## 12 Behavioural Patterns for Agentic Workfows
 
 After developing these 145 agents, we identified 12 fundamental design patterns of successful agentic workflows:
 
@@ -307,9 +354,9 @@ Agentic Workfows that guard repositories through vulnerability scanning, secret 
 
 ---
 
-## Agentic Ops
+## 9 Operational Patterns for Agentic Ops on GitHub
 
-Beyond the 12 core behavioral patterns that define what agents do, our nursery revealed several strategic design patterns for how to structure and organize agentic workflows at scale, in the context of the GitHub information primitives. These patterns emerged from building and operating workflows and represent battle-tested approaches to common challenges.
+Beyond the 12 core behavioral patterns that define what agents **do**, our nursery revealed several strategic design patterns for **how** agentic workflows operate in the context of the GitHub information primitives. These patterns emerged from building and operating workflows and represent battle-tested approaches to common challenges.
 
 ### [ChatOps](https://githubnext.github.io/gh-aw/examples/comment-triggered/chatops/): Command-Driven Interactions 💬
 
@@ -329,7 +376,7 @@ These are workflows that transform GitHub issues into automation triggers, autom
 
 **Example**: [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md) - Automatically labels and categorizes new issues with intelligent analysis.
 
-### [LabelOps](https://githubnext.github.io/gh-aw/examples/issue-pr-events/labelops/) 🏷️
+### [LabelOps](https://githubnext.github.io/gh-aw/examples/issue-pr-events/labelops/): Label-Driven Workflow Automation 🏷️
 
 These are workflows that use GitHub labels as triggers, metadata, and state markers. Responds to specific label changes with filtering to activate only for relevant labels while maintaining secure automated responses.
 
@@ -343,13 +390,7 @@ These are workflows that keep GitHub Projects v2 boards up to date using AI to a
 
 This is a three-phase strategy that keeps developers in control while leveraging AI agents for systematic code improvements. Provides clear decision points at each phase: Research (investigate), Plan (break down work), Assign (execute).
 
-**Example Implementations from Nursery**:
-
-1. **Duplicate Code Detection → Plan → Refactor**: [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) uses Serena MCP for semantic analysis, creates well-scoped issues (max 3 per run), pre-assigns to `@copilot` since fixes are straightforward.
-
-2. **File Size Analysis → Plan → Refactor**: [`daily-file-diet`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md) monitors files exceeding healthy thresholds (1000+ lines), analyzes structure for split boundaries, creates refactoring issue with concrete plan.
-
-3. **Deep Research → Plan → Implementation**: [`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md) performs deep research using multiple MCPs (Tavily, arXiv, DeepWiki), creates structured summary. Developer uses `/plan` to convert recommendations into issues.
+Some examples are **Duplicate Code Detection → Plan → Refactor**: [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md), which uses Serena MCP for semantic analysis, creates well-scoped issues (max 3 per run), pre-assigns to `@copilot` since fixes are straightforward, and **File Size Analysis → Plan → Refactor**: [`daily-file-diet`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md), which monitors files exceeding healthy thresholds (1000+ lines), analyzes structure for split boundaries, creates refactoring issue with concrete plan.
 
 ### [MultiRepoOps](https://githubnext.github.io/gh-aw/guides/multirepoops/): Cross-Repository Coordination 🔗
 
@@ -362,6 +403,26 @@ This pattern provides an easy way to get started with agentic workflows. Run wor
 ### [TrialOps](https://githubnext.github.io/gh-aw/guides/trialops/): Safe Workflow Validation 🧪
 
 This is a specialized testing pattern that extends SideRepoOps for validating workflows in temporary trial repositories before production deployment. Creates isolated private repositories where workflows execute and capture safe outputs without affecting actual codebases.
+
+---
+
+## Imports & Sharing: The Agentic Nursery's Secret Weapon
+
+Tending dozens of agents would be unsustainable without reuse. One of the most powerful features that enabled us to scale to 145 agents was the **imports system** of GitHub Agentic Workdlows - a mechanism for sharing and reusing workflow components across the entire nursery. This mechanisms is carefully designed to support modularization, sharing, installation, pinning and versioning of single-file portions of agentic workflows into other single-file workflows. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
+
+Imports provided several critical benefits:
+
+**🔄 DRY Principle for Agentic Workflows**  
+When we improved report formatting or updated an MCP server configuration, the change automatically propagated to all workflows that imported it. No need to update 46 workflows individually.
+
+**🧩 Composable Agentic Wokflow Capabilities**  
+Workflows could mix and match capabilities by importing different shared components - like combining data visualization, trending analysis, and web search in a single import list.
+
+**🎯 Separation of Concerns**  
+Tools configuration, network permissions, data fetching logic, and agent instructions could be maintained independently by different experts, then composed together.
+
+**⚡ Rapid Experimentation**  
+Creating a new workflow often meant writing just the agent-specific prompt and importing 3-5 shared components. We could prototype new agents in minutes.
 
 ---
 
@@ -395,73 +456,6 @@ Discussions and assets create a natural "agent ledger." You can always trace wha
 
 ---
 
-## Conclusions
-
-The Agent Nursery was an ambitious experiment in scaling agentic workflows. After months of nurturing and observing, several key insights emerged about what works, what doesn't, and how to design effective agent ecosystems.
-
-✨ **Diversity Beats Perfection**
-No single agent can do everything. A collection of focused agents, each doing one thing well, proved more practical than trying to build a universal assistant.
-
-📊 **Guardrails Enable Innovation**
-Counter-intuitively, strict constraints (safe outputs, limited permissions, allowlisted tools) made it *easier* to experiment. We knew the blast radius of any failure.
-
-🔄 **Meta-Agentic Workfows Are Essential**
-Agentic Workfows that monitor agents became some of the most valuable. They caught issues early and helped us understand aggregate behavior.
-
-🎭 **Personality Matters**
-Agentic Workfows with clear "personalities" (the meticulous auditor, the helpful janitor, the creative poet) were easier for teams to understand and trust.
-
-⚖️ **Cost-Quality Tradeoffs Are Real**
-Longer, more thorough analyses cost more but aren't always better. The portfolio analyst helped us identify which agents gave the best value.
-
-🔄 **Multi-Phase Workflows Enable Ambitious Goals**
-Breaking complex improvements into 3-phase workflows (research → setup → implement) allowed agents to tackle projects that would be too large for a single run. Each phase builds on the last, with human feedback between phases.
-
-💬 **Slash Commands Create Natural User Interfaces**
-ChatOps-style `/command` triggers made agents feel like natural team members. Users could invoke powerful capabilities with simple comments, and role-gating ensured only authorized users could trigger sensitive operations.
-
-🧪 **Heartbeats Build Confidence**
-Frequent, lightweight validation tests (every 12 hours) caught regressions quickly. These "heartbeat" agents ensured the infrastructure stayed healthy without manual monitoring.
-
-🔧 **MCP Inspection Is Essential**
-As workflows grew to use multiple MCP servers, having agents that could validate and report on tool availability became critical. The MCP inspector pattern prevented cryptic failures from misconfigured tools.
-
-🎯 **Dispatcher Patterns Scale Command Complexity**
-Instead of one monolithic agent handling all requests, dispatcher agents could route to specialized sub-agents or commands. This made the system more maintainable and allowed for progressive feature addition.
-
-📿 **Task Queuing is Everywhere**
-The task queue pattern provided a simple way to queue and distribute work across multiple workflow runs. Breaking large projects into discrete tasks allowed incremental progress with clear state tracking, recording tasks as issues, discussions or project cards.
-
-🤖 **ML Analysis Reveals Hidden Patterns**
-Applying clustering and NLP to agent interactions revealed usage patterns that weren't obvious from individual runs. This meta-analysis helped identify opportunities for consolidation and optimization.
-
-🏢 **Cross-Repo Agentic Workfows Need Special Care**
-Organization-level agents required careful permission management and rate limit awareness. They proved valuable for understanding ecosystem health but needed deliberate scoping to avoid overwhelming repositories.
-
-📝 **Documentation Agentic Workfows Bridge Code and Context**
-Agentic Workfows that maintained glossaries, technical docs, and slide decks kept documentation synchronized with rapidly evolving codebases. They acted as "knowledge janitors," reducing staleness debt.
-
-### Challenges We Encountered
-
-Not everything was smooth sailing. We faced several challenges that provided valuable lessons:
-
-**Permission Creep**
-As agents gained capabilities, there was a temptation to grant broader permissions. We had to constantly audit and prune permissions to maintain least privilege.
-
-**Debugging Complexity**
-When agents misbehaved, tracing the root cause through multiple workflow runs and safe outputs was challenging. Improved logging and observability are needed.
-
-**Repository Noise**
-Frequent agent runs created a lot of issues, PRs, and comments. We had to implement archival strategies to keep the repository manageable.
-
-**Cost Management**
-Running many agents incurred significant costs. The portfolio analyst helped, but ongoing cost monitoring is essential.
-
-**User Trust**
-Some team members were hesitant to engage with automated agents. Clear communication about capabilities and limitations helped build trust over time.
-
----
-
 ## Try It Yourself
 
 Want to start your own agent nursery?
@@ -487,7 +481,7 @@ The workflows in this nursery are fully remixable. Copy them, adapt them, and ma
 
 ## Credits
 
-**Agent Nursery** was a research project by GitHub Next Agentic Workflows contributors and collaborators:
+**Agentic Nursery** was a research project by GitHub Next Agentic Workflows contributors and collaborators:
 
 Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Krzysztof Cieślak,  Russell Horton, Ben De St Paer‑Gotch, Jiaxiao Zhou
 
