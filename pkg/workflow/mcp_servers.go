@@ -560,7 +560,9 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	}
 
 	// Build container command with args
-	containerCmd := "docker run -i --rm --network host"
+	// Mount Docker socket so the gateway can spawn MCP server containers
+	// Mount /tmp so the gateway can access stdio-based MCP servers
+	containerCmd := "docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp:rw"
 
 	// Add environment variables to container
 	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
