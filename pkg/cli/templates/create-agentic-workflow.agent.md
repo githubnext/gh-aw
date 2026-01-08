@@ -99,7 +99,6 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      - Browser automation → `playwright`
      - Media manipulation → `ffmpeg` (installed via `steps:`)
      - Code parsing/analysis → `ast-grep`, `codeql` (installed via `steps:`)
-     - Script-heavy workflows → `edit: "*"` and `bash: "*"` for full wildcard access
    - ⚠️ For GitHub write operations (creating issues, adding comments, etc.), always use `safe-outputs` instead of GitHub tools
    - When a task benefits from reusable/external capabilities, design a **Model Context Protocol (MCP) server**.
    - For each tool / MCP server:
@@ -209,15 +208,6 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      playwright:  # Browser automation
    ```
 
-   **For script-heavy workflows** (automation, file processing, data analysis):
-   ```yaml
-   tools:
-     edit: "*"    # Full wildcard access to edit any file
-     bash: "*"    # Full wildcard access to run any shell command
-   ```
-   
-   ⚠️ **Use wildcards responsibly**: Only use `edit: "*"` and `bash: "*"` for workflows that genuinely need broad file/command access (e.g., code generation, batch file processing, system automation). For focused tasks, prefer specific patterns.
-
    **MCP servers (top-level block)**:
    ```yaml
    mcp-servers:
@@ -286,7 +276,6 @@ Based on the parsed requirements, determine:
    - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed)
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
-   - Script-heavy workflows → `tools: edit: "*" bash: "*"` (full wildcard access)
 4. **Safe Outputs**: For any write operations:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`
