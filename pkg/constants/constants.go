@@ -199,12 +199,12 @@ const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.0.76"
+const DefaultClaudeCodeVersion Version = "2.1.1"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.375"
+const DefaultCopilotVersion Version = "0.0.376"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
@@ -235,7 +235,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.27.0"
 const DefaultFirewallVersion Version = "v0.8.2"
 
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
-const DefaultSandboxRuntimeVersion Version = "0.0.23"
+const DefaultSandboxRuntimeVersion Version = "0.0.25"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.54"

@@ -194,7 +194,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.375 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.376 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -625,7 +625,7 @@ jobs:
               "playwright": {
                 "type": "local",
                 "command": "docker",
-                "args": ["run", "-i", "--rm", "--init", "--network", "host", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--save-trace"],
+                "args": ["run", "-i", "--rm", "--init", "--network", "host", "-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--save-trace"],
                 "tools": ["*"]
               },
               "safeinputs": {
@@ -688,7 +688,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.375",
+              agent_version: "0.0.376",
               workflow_name: "Smoke Copilot Playwright",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1287,7 +1287,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.375 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.376 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
