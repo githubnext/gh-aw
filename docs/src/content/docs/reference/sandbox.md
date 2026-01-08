@@ -108,9 +108,7 @@ AWF automatically mounts several paths from the host into the container to enabl
 |-----------|----------------|------|---------|
 | `/tmp` | `/tmp` | `rw` | Temporary files and cache |
 | `${GITHUB_WORKSPACE}` | `${GITHUB_WORKSPACE}` | `rw` | Repository workspace directory |
-| `/usr/bin/date` | `/usr/bin/date` | `ro` | Date utility |
-| `/usr/bin/gh` | `/usr/bin/gh` | `ro` | GitHub CLI binary |
-| `/usr/bin/yq` | `/usr/bin/yq` | `ro` | YAML processor |
+| `/usr/bin/{date,gh,yq}` | `/usr/bin/{date,gh,yq}` | `ro` | System utilities (date, GitHub CLI, yq) |
 | `/usr/local/bin/copilot` | `/usr/local/bin/copilot` | `ro` | Copilot CLI binary |
 | `/home/runner/.copilot` | `/home/runner/.copilot` | `rw` | Copilot configuration and state |
 
