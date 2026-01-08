@@ -25,6 +25,8 @@ safe-outputs:
     max: 1
   messages:
     footer: "> 📊 *Diagram rendered by [{workflow_name}]({run_url})*"
+    footer-workflow-recompile: "> 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*"
+    footer-workflow-recompile-comment: "> 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*"
     run-started: "📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}..."
     run-success: "🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅"
     run-failure: "📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete..."

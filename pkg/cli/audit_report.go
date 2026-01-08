@@ -24,6 +24,7 @@ type AuditData struct {
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
 	MissingTools            []MissingToolReport      `json:"missing_tools,omitempty"`
+	MissingData             []MissingDataReport      `json:"missing_data,omitempty"`
 	Noops                   []NoopReport             `json:"noops,omitempty"`
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures,omitempty"`
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
@@ -266,6 +267,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		Jobs:                    jobs,
 		DownloadedFiles:         downloadedFiles,
 		MissingTools:            processedRun.MissingTools,
+		MissingData:             processedRun.MissingData,
 		Noops:                   processedRun.Noops,
 		MCPFailures:             processedRun.MCPFailures,
 		FirewallAnalysis:        processedRun.FirewallAnalysis,

@@ -272,6 +272,36 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alternatives": {
+                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
+                    "type": "string"
+                  },
+                  "context": {
+                    "description": "Additional context about the missing data or where it should come from (max 256 characters).",
+                    "type": "string"
+                  },
+                  "data_type": {
+                    "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "data_type",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              "name": "missing_data"
             }
           ]
           EOF
@@ -1009,7 +1039,7 @@ jobs:
           GH_AW_TRACKER_ID: "breaking-change-checker"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1232,7 +1262,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
       GH_AW_TRACKER_ID: "breaking-change-checker"
       GH_AW_WORKFLOW_ID: "breaking-change-checker"
       GH_AW_WORKFLOW_NAME: "Breaking Change Checker"

@@ -48,6 +48,7 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		10,                           // timeout
 		false,                        // campaignOnly
 		"summary.json",               // summaryFile
+		"",                           // safeOutputType
 	)
 
 	// Restore stdout and read output

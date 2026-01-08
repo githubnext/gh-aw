@@ -25,6 +25,18 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		}
 	}
 
+	if footerWorkflowRecompile, exists := messagesMap["footer-workflow-recompile"]; exists {
+		if footerWorkflowRecompileStr, ok := footerWorkflowRecompile.(string); ok {
+			config.FooterWorkflowRecompile = footerWorkflowRecompileStr
+		}
+	}
+
+	if footerWorkflowRecompileComment, exists := messagesMap["footer-workflow-recompile-comment"]; exists {
+		if footerWorkflowRecompileCommentStr, ok := footerWorkflowRecompileComment.(string); ok {
+			config.FooterWorkflowRecompileComment = footerWorkflowRecompileCommentStr
+		}
+	}
+
 	if stagedTitle, exists := messagesMap["staged-title"]; exists {
 		if stagedTitleStr, ok := stagedTitle.(string); ok {
 			config.StagedTitle = stagedTitleStr

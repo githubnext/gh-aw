@@ -56,6 +56,7 @@ type WorkflowRun struct {
 	ErrorCount       int
 	WarningCount     int
 	MissingToolCount int
+	MissingDataCount int
 	NoopCount        int
 	LogsPath         string
 }
@@ -71,6 +72,7 @@ type ProcessedRun struct {
 	FirewallAnalysis        *FirewallAnalysis
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis
 	MissingTools            []MissingToolReport
+	MissingData             []MissingDataReport
 	Noops                   []NoopReport
 	MCPFailures             []MCPFailureReport
 	JobDetails              []JobInfoWithDuration
@@ -90,6 +92,17 @@ type MissingToolReport struct {
 type NoopReport struct {
 	Message      string `json:"message"`
 	Timestamp    string `json:"timestamp,omitempty"`
+	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
+	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+}
+
+// MissingDataReport represents missing data reported by an agentic workflow
+type MissingDataReport struct {
+	DataType     string `json:"data_type"`
+	Reason       string `json:"reason"`
+	Context      string `json:"context,omitempty"`
+	Alternatives string `json:"alternatives,omitempty"`
+	Timestamp    string `json:"timestamp"`
 	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
 	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
 }
@@ -123,6 +136,17 @@ type MCPFailureSummary struct {
 	RunIDs           []int64  `json:"run_ids" console:"-"`                    // List of run IDs where this server failed
 }
 
+// MissingDataSummary aggregates missing data reports across runs
+type MissingDataSummary struct {
+	DataType           string   `json:"data_type" console:"header:Data Type"`
+	Count              int      `json:"count" console:"header:Occurrences"`
+	Workflows          []string `json:"workflows" console:"-"`                     // List of workflow names that reported this data
+	WorkflowsDisplay   string   `json:"-" console:"header:Workflows,maxlen:40"`    // Formatted display of workflows
+	FirstReason        string   `json:"first_reason" console:"-"`                  // Reason from the first occurrence
+	FirstReasonDisplay string   `json:"-" console:"header:First Reason,maxlen:50"` // Formatted display of first reason
+	RunIDs             []int64  `json:"run_ids" console:"-"`                       // List of run IDs where this data was reported
+}
+
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
 
@@ -149,6 +173,7 @@ type RunSummary struct {
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis"`         // Firewall log analysis
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis"` // Redacted URL domains analysis
 	MissingTools            []MissingToolReport      `json:"missing_tools"`             // Missing tool reports
+	MissingData             []MissingDataReport      `json:"missing_data"`              // Missing data reports
 	Noops                   []NoopReport             `json:"noops"`                     // Noop messages
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures"`              // MCP server failures
 	ArtifactsList           []string                 `json:"artifacts_list"`            // List of downloaded artifact files
@@ -163,6 +188,7 @@ type DownloadResult struct {
 	FirewallAnalysis        *FirewallAnalysis
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis
 	MissingTools            []MissingToolReport
+	MissingData             []MissingDataReport
 	Noops                   []NoopReport
 	MCPFailures             []MCPFailureReport
 	JobDetails              []JobInfoWithDuration

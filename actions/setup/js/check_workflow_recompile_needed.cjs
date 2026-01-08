@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker } = require("./messages_footer.cjs");
 const fs = require("fs");
 
 /**
@@ -88,7 +88,22 @@ async function main() {
       // Add a comment to the existing issue with the new workflow run info
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
-      const commentBody = `Workflows are still out of sync as of ${new Date().toISOString()}.\n\nSee [workflow run](${runUrl}) for details.`;
+
+      // Get workflow metadata for footer
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
+      const repository = `${owner}/${repo}`;
+
+      // Create custom footer for workflow recompile comment
+      const ctx = {
+        workflowName,
+        runUrl,
+        repository,
+      };
+
+      const footer = getFooterWorkflowRecompileCommentMessage(ctx);
+      const xmlMarker = generateXMLMarker(workflowName, runUrl);
+
+      const commentBody = `Workflows are still out of sync as of ${new Date().toISOString()}.\n\nSee [workflow run](${runUrl}) for details.\n\n---\n${footer}\n\n${xmlMarker}`;
 
       await github.rest.issues.createComment({
         owner,
@@ -129,12 +144,18 @@ async function main() {
 
   // Get workflow metadata for footer
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
-  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
 
-  // Add footer with workflow attribution
-  const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, undefined, undefined);
-  issueBody += "\n\n---\n" + footer;
+  // Create custom footer for workflow recompile issues
+  const ctx = {
+    workflowName,
+    runUrl,
+    repository,
+  };
+
+  // Use custom footer template if configured, with XML marker for traceability
+  const footer = getFooterWorkflowRecompileMessage(ctx);
+  const xmlMarker = generateXMLMarker(workflowName, runUrl);
+  issueBody += "\n\n---\n" + footer + "\n\n" + xmlMarker + "\n";
 
   try {
     const newIssue = await github.rest.issues.create({

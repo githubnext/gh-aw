@@ -99,7 +99,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: brave
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -291,6 +291,36 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alternatives": {
+                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
+                    "type": "string"
+                  },
+                  "context": {
+                    "description": "Additional context about the missing data or where it should come from (max 256 characters).",
+                    "type": "string"
+                  },
+                  "data_type": {
+                    "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "data_type",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              "name": "missing_data"
             }
           ]
           EOF
@@ -961,7 +991,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1185,7 +1215,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
       GH_AW_WORKFLOW_ID: "brave"
       GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
     outputs:

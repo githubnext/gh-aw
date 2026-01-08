@@ -494,6 +494,8 @@ func TestAuditDataJSONStructure(t *testing.T) {
 	jsonStr := string(jsonBytes)
 
 	// Verify all new fields are present
+	// Note: "errors" and "warnings" fields are omitempty and will not appear in JSON
+	// since error/warning extraction was removed from buildAuditData
 	expectedFields := []string{
 		"key_findings",
 		"recommendations",
@@ -505,8 +507,6 @@ func TestAuditDataJSONStructure(t *testing.T) {
 		"downloaded_files",
 		"missing_tools",
 		"mcp_failures",
-		"errors",
-		"warnings",
 		"tool_usage",
 	}
 

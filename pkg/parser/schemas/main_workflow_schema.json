@@ -5228,6 +5228,16 @@
               "description": "Custom installation instructions template appended to the footer. Available placeholders: {workflow_source}, {workflow_source_url}. Example: '> Install: `gh aw add {workflow_source}`'",
               "examples": ["> Install: `gh aw add {workflow_source}`", "> [Add this workflow]({workflow_source_url})"]
             },
+            "footer-workflow-recompile": {
+              "type": "string",
+              "description": "Custom footer message template for workflow recompile issues. Available placeholders: {workflow_name}, {run_url}, {repository}. Example: '> Workflow sync report by [{workflow_name}]({run_url}) for {repository}'",
+              "examples": ["> Workflow sync report by [{workflow_name}]({run_url}) for {repository}", "> Maintenance report by [{workflow_name}]({run_url})"]
+            },
+            "footer-workflow-recompile-comment": {
+              "type": "string",
+              "description": "Custom footer message template for comments on workflow recompile issues. Available placeholders: {workflow_name}, {run_url}, {repository}. Example: '> Update from [{workflow_name}]({run_url}) for {repository}'",
+              "examples": ["> Update from [{workflow_name}]({run_url}) for {repository}", "> Maintenance update by [{workflow_name}]({run_url})"]
+            },
             "staged-title": {
               "type": "string",
               "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
