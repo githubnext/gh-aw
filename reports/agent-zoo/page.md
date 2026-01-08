@@ -142,7 +142,7 @@ These agents monitor and analyze the agentic infrastructure itself:
 - **[GitHub MCP Tools Report](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/github-mcp-tools-report.md)**  -  Analyzes available MCP tools
 - **[Agent Performance Analyzer](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/agent-performance-analyzer.md)**  -  Meta-orchestrator for agent quality
 
-### 🚀 **Multi-Phase Improver Workfows** (from Agentics Pack)
+### 🚀 **Multi-Phase Improver Workfows**
 
 These comprehensive agents perform sustained, multi-day improvement projects:
 
@@ -184,6 +184,7 @@ These agents maintain high-quality documentation and content:
 These agents enhance issue and pull request workflows:
 
 - **[Issue Arborist](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/issue-arborist.md)**  -  Links related issues as sub-issues
+- **[Issue Monster](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/issue-monster.md)**  -  Assigns issues to Copilot agents one at a time
 - **[Mergefest](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/mergefest.md)**  -  Automatically merges main branch into PR branches
 - **[Sub Issue Closer](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/sub-issue-closer.md)**  -  Closes completed sub-issues automatically
 - **[Issue Template Optimizer](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/issue-template-optimizer.md)**  -  Improves issue templates based on usage
