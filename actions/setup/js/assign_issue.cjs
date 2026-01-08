@@ -35,10 +35,9 @@ async function main() {
   }
 
   const trimmedAssignee = assignee.trim();
-  const trimmedIssueNumber = issueNumber.trim();
-  const issueNum = parseInt(trimmedIssueNumber, 10);
+  const issueNum = parseInt(issueNumber.trim(), 10);
 
-  core.info(`Assigning issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
+  core.info(`Assigning issue #${issueNum} to ${trimmedAssignee}`);
 
   // Check if the assignee is a known coding agent (e.g., copilot, @copilot)
   const agentName = getAgentName(trimmedAssignee);
@@ -67,7 +66,7 @@ async function main() {
 
       // Check if agent is already assigned
       if (issueDetails.currentAssignees.includes(agentId)) {
-        core.info(`${agentName} is already assigned to issue #${trimmedIssueNumber}`);
+        core.info(`${agentName} is already assigned to issue #${issueNum}`);
       } else {
         // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
         const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
@@ -78,27 +77,19 @@ async function main() {
       }
     } else {
       // Use gh CLI for regular user assignment
-      await exec.exec("gh", ["issue", "edit", trimmedIssueNumber, "--add-assignee", trimmedAssignee], {
+      await exec.exec("gh", ["issue", "edit", String(issueNum), "--add-assignee", trimmedAssignee], {
         env: { ...process.env, GH_TOKEN: ghToken },
       });
     }
 
-    core.info(`✅ Successfully assigned issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
+    core.info(`✅ Successfully assigned issue #${issueNum} to ${trimmedAssignee}`);
 
     // Write summary
-    await core.summary
-      .addRaw(
-        `
-## Issue Assignment
-
-Successfully assigned issue #${trimmedIssueNumber} to \`${trimmedAssignee}\`.
-`
-      )
-      .write();
+    await core.summary.addRaw(`## Issue Assignment\n\nSuccessfully assigned issue #${issueNum} to \`${trimmedAssignee}\`.\n`).write();
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to assign issue: ${errorMessage}`);
-    core.setFailed(`Failed to assign issue #${trimmedIssueNumber} to ${trimmedAssignee}: ${errorMessage}`);
+    core.setFailed(`Failed to assign issue #${issueNum} to ${trimmedAssignee}: ${errorMessage}`);
   }
 }
 
