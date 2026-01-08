@@ -791,62 +791,62 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 // normalizeSafeOutputType converts dashes to underscores for matching
 // This allows users to use either "missing-tool" or "missing_tool" interchangeably
 func normalizeSafeOutputType(safeOutputType string) string {
-return strings.ReplaceAll(safeOutputType, "-", "_")
+	return strings.ReplaceAll(safeOutputType, "-", "_")
 }
 
 // runContainsSafeOutputType checks if a run's agent_output.json contains a specific safe output type
 func runContainsSafeOutputType(runDir string, safeOutputType string, verbose bool) (bool, error) {
-// Normalize the type for comparison (convert dashes to underscores)
-normalizedType := normalizeSafeOutputType(safeOutputType)
+	// Normalize the type for comparison (convert dashes to underscores)
+	normalizedType := normalizeSafeOutputType(safeOutputType)
 
-// Look for agent_output.json in the run directory
-agentOutputPath := filepath.Join(runDir, "agent_output.json")
+	// Look for agent_output.json in the run directory
+	agentOutputPath := filepath.Join(runDir, "agent_output.json")
 
-// Support both new flattened form and old directory form
-if stat, err := os.Stat(agentOutputPath); err != nil || stat.IsDir() {
-// Try old structure
-oldPath := filepath.Join(runDir, constants.AgentOutputArtifactName, constants.AgentOutputArtifactName)
-if _, err := os.Stat(oldPath); err == nil {
-agentOutputPath = oldPath
-} else {
-// No agent_output.json found
-return false, nil
-}
-}
+	// Support both new flattened form and old directory form
+	if stat, err := os.Stat(agentOutputPath); err != nil || stat.IsDir() {
+		// Try old structure
+		oldPath := filepath.Join(runDir, constants.AgentOutputArtifactName, constants.AgentOutputArtifactName)
+		if _, err := os.Stat(oldPath); err == nil {
+			agentOutputPath = oldPath
+		} else {
+			// No agent_output.json found
+			return false, nil
+		}
+	}
 
-// Read the file
-content, err := os.ReadFile(agentOutputPath)
-if err != nil {
-// File doesn't exist or can't be read
-return false, nil
-}
+	// Read the file
+	content, err := os.ReadFile(agentOutputPath)
+	if err != nil {
+		// File doesn't exist or can't be read
+		return false, nil
+	}
 
-// Parse the JSON
-var safeOutput struct {
-Items []json.RawMessage `json:"items"`
-}
+	// Parse the JSON
+	var safeOutput struct {
+		Items []json.RawMessage `json:"items"`
+	}
 
-if err := json.Unmarshal(content, &safeOutput); err != nil {
-return false, fmt.Errorf("failed to parse agent_output.json: %w", err)
-}
+	if err := json.Unmarshal(content, &safeOutput); err != nil {
+		return false, fmt.Errorf("failed to parse agent_output.json: %w", err)
+	}
 
-// Check each item for the specified type
-for _, itemRaw := range safeOutput.Items {
-var item struct {
-Type string `json:"type"`
-}
+	// Check each item for the specified type
+	for _, itemRaw := range safeOutput.Items {
+		var item struct {
+			Type string `json:"type"`
+		}
 
-if err := json.Unmarshal(itemRaw, &item); err != nil {
-continue // Skip malformed items
-}
+		if err := json.Unmarshal(itemRaw, &item); err != nil {
+			continue // Skip malformed items
+		}
 
-// Normalize the item type for comparison
-normalizedItemType := normalizeSafeOutputType(item.Type)
+		// Normalize the item type for comparison
+		normalizedItemType := normalizeSafeOutputType(item.Type)
 
-if normalizedItemType == normalizedType {
-return true, nil
-}
-}
+		if normalizedItemType == normalizedType {
+			return true, nil
+		}
+	}
 
-return false, nil
+	return false, nil
 }
