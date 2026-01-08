@@ -51,7 +51,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/" + parserScriptName + ".cjs');\n")
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/" + parserScriptName + ".cjs');\n")
 	yaml.WriteString("            await main();\n")
 }
 
@@ -69,7 +69,7 @@ func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load safe-inputs log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/parse_safe_inputs_logs.cjs');\n")
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');\n")
 	yaml.WriteString("            await main();\n")
 }
 
@@ -144,6 +144,6 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load error validation script from external file using require()
-	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');\n")
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/validate_errors.cjs');\n")
 	yaml.WriteString("            await main();\n")
 }

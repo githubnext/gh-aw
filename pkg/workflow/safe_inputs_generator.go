@@ -161,7 +161,7 @@ const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
 startHttpServer(configPath, {
   port: port,
   stateless: false,
-  logDir: "/tmp/gh-aw/safe-inputs/logs"
+  logDir: "/opt/gh-aw/safe-inputs/logs"
 }).catch(error => {
   console.error("Failed to start safe-inputs HTTP server:", error);
   process.exit(1);

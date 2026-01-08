@@ -295,7 +295,7 @@ This is a test workflow with playwright enabled.
 	}
 
 	// Test 2: Verify the cat command for playwright prompt file is included
-	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/playwright_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/playwright_prompt.md\" >> \"$GH_AW_PROMPT\"") {
 		t.Error("Expected cat command for playwright prompt file in generated workflow")
 	}
 
@@ -469,7 +469,7 @@ This is a test workflow with issue_comment trigger.
 	}
 
 	// Test 2: Verify the cat command for PR context prompt file is included
-	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/pr_context_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/pr_context_prompt.md\" >> \"$GH_AW_PROMPT\"") {
 		t.Error("Expected cat command for PR context prompt file in generated workflow")
 	}
 
