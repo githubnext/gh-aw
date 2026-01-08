@@ -199,16 +199,14 @@ These agents manage structured improvement campaigns:
 
 ## Imports & Sharing: The Agent Nursery's Secret Weapon
 
-One of the most powerful features that enabled us to scale to 145 agents was the **imports system** - a mechanism for sharing and reusing workflow components across the entire nursery. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
+Tending dozens of agents would be unsustainable without reuse. One of the most powerful features that enabled us to scale to 145 agents was the **imports system** of GitHub Agentic Workdlows - a mechanism for sharing and reusing workflow components across the entire nursery. This mechanisms is carefully designed to support modularization, sharing, installation, pinning and versioning of single-file portions of agentic workflows into other single-file workflows. Rather than duplicating configuration, tool setup, and instructions in every workflow, we created a library of shared components that agents could import on-demand.
 
-### Why Imports Matter at Scale
+Imports provided several critical benefits:
 
-Tending dozens of agents would be unsustainable without reuse. Imports provided several critical benefits:
-
-**🔄 DRY Principle for Agents**  
+**🔄 DRY Principle for Agentic Workflows**  
 When we improved report formatting or updated an MCP server configuration, the change automatically propagated to all workflows that imported it. No need to update 46 workflows individually.
 
-**🧩 Composable Agent Capabilities**  
+**🧩 Composable Agentic Wokflow Capabilities**  
 Workflows could mix and match capabilities by importing different shared components - like combining data visualization, trending analysis, and web search in a single import list.
 
 **🎯 Separation of Concerns**  
