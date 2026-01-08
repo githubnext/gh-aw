@@ -62,10 +62,24 @@ Test safe outputs workflow with MCP server integration.
 		t.Error("Expected safeoutputs in MCP server configuration")
 	}
 
-	// Check that the MCP server is configured with correct command
-	if !strings.Contains(yamlStr, `"command": "node"`) ||
-		!strings.Contains(yamlStr, `"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`) {
-		t.Error("Expected safeoutputs MCP server to be configured with node command")
+	// Check that the MCP server is configured with HTTP transport
+	if !strings.Contains(yamlStr, `"type": "http"`) {
+		t.Error("Expected safeoutputs MCP server to be configured with HTTP transport")
+	}
+
+	// Check that HTTP URL is configured
+	if !strings.Contains(yamlStr, `"url": "http://`) {
+		t.Error("Expected HTTP URL in safeoutputs MCP configuration")
+	}
+
+	// Check that Authorization header is configured
+	if !strings.Contains(yamlStr, `"Authorization":`) {
+		t.Error("Expected Authorization header in safeoutputs MCP configuration")
+	}
+
+	// Check that server startup step is included
+	if !strings.Contains(yamlStr, "Start Safe Outputs MCP HTTP Server") {
+		t.Error("Expected safe-outputs HTTP server startup step")
 	}
 
 	// Check that safe outputs config is written to file, not as environment variable
@@ -181,9 +195,19 @@ Test safe outputs workflow with Codex engine.
 		t.Error("Expected safeoutputs in Codex MCP server TOML configuration")
 	}
 
-	// Check that the MCP server is configured with correct command in TOML format
-	if !strings.Contains(yamlStr, `command = "node"`) {
-		t.Error("Expected safeoutputs MCP server to be configured with node command in TOML")
+	// Check that the MCP server is configured with HTTP transport in TOML format
+	if !strings.Contains(yamlStr, `type = "http"`) {
+		t.Error("Expected safeoutputs MCP server to be configured with HTTP transport in TOML")
+	}
+
+	// Check that HTTP URL is configured in TOML format
+	if !strings.Contains(yamlStr, `url = "http://`) {
+		t.Error("Expected HTTP URL in safeoutputs MCP TOML configuration")
+	}
+
+	// Check that server startup step is included
+	if !strings.Contains(yamlStr, "Start Safe Outputs MCP HTTP Server") {
+		t.Error("Expected safe-outputs HTTP server startup step")
 	}
 
 	t.Log("Safe outputs MCP server Codex integration test passed")

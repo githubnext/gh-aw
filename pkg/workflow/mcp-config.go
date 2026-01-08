@@ -215,7 +215,7 @@ func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command
 // This is a shared function used by both Claude and Custom engines
 func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 	mcpLog.Print("Rendering Safe Outputs MCP configuration")
-	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false)
+	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false, nil)
 }
 
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options

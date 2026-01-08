@@ -337,15 +337,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /tmp/gh-aw/safeoutputs/tools.json\n")
 
 		// Add assets-related environment variables if applicable
-		if workflowData.PublishAssets != nil {
-			if workflowData.PublishAssets.Branch != "" {
-				yaml.WriteString("          GH_AW_ASSETS_BRANCH: " + workflowData.PublishAssets.Branch + "\n")
+		if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
+			if workflowData.SafeOutputs.UploadAssets.BranchName != "" {
+				yaml.WriteString("          GH_AW_ASSETS_BRANCH: " + workflowData.SafeOutputs.UploadAssets.BranchName + "\n")
 			}
-			if workflowData.PublishAssets.MaxSizeKB > 0 {
-				yaml.WriteString(fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.PublishAssets.MaxSizeKB))
+			if workflowData.SafeOutputs.UploadAssets.MaxSizeKB > 0 {
+				yaml.WriteString(fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
 			}
-			if len(workflowData.PublishAssets.AllowedExtensions) > 0 {
-				yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: " + strings.Join(workflowData.PublishAssets.AllowedExtensions, ",") + "\n")
+			if len(workflowData.SafeOutputs.UploadAssets.AllowedExts) > 0 {
+				yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: " + strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",") + "\n")
 			}
 		}
 

@@ -319,6 +319,39 @@ jobs:
             }
           }
           EOF
+      - name: Generate Safe Outputs Server Config
+        id: safe-outputs-config
+        run: |
+          # Generate random port between 3000-4000
+          PORT=$((3000 + $RANDOM % 1000))
+          
+          # Generate random API key
+          API_KEY=$(openssl rand -hex 32)
+          
+          # Output to GitHub Actions output variables
+          {
+            echo "safe_outputs_api_key=${API_KEY}"
+            echo "safe_outputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "Safe Outputs MCP server will run on port ${PORT}"
+          
+      - name: Start Safe Outputs MCP HTTP Server
+        id: safe-outputs-start
+        env:
+          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}
+          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}
+          GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+          GH_AW_SAFE_OUTPUTS: "true"
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
+          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /tmp/gh-aw/safeoutputs/tools.json
+        run: |
+          # Environment variables are set above to prevent template injection
+          export GH_AW_SAFE_OUTPUTS_PORT
+          export GH_AW_SAFE_OUTPUTS_API_KEY
+          
+          bash /tmp/gh-aw/actions/start_safe_outputs_server.sh
+          
       - name: Setup MCPs
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -353,11 +386,15 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "local",
-                "command": "node",
-                "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
+                "type": "http",
+                "url": "http://host.docker.internal:\${GH_AW_SAFE_OUTPUTS_PORT}",
+                "headers": {
+                  "Authorization": "Bearer \${GH_AW_SAFE_OUTPUTS_API_KEY}"
+                },
                 "tools": ["*"],
                 "env": {
+                  "GH_AW_SAFE_OUTPUTS_PORT": "\${GH_AW_SAFE_OUTPUTS_PORT}",
+                  "GH_AW_SAFE_OUTPUTS_API_KEY": "\${GH_AW_SAFE_OUTPUTS_API_KEY}",
                   "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",

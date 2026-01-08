@@ -168,13 +168,13 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderSafeOutputsMCP(&yaml)
+	renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 	output := yaml.String()
 
-	// Verify Copilot-specific fields
-	if !strings.Contains(output, `"type": "local"`) {
-		t.Error("Expected 'type': 'local' field for Copilot")
+	// Verify Copilot-specific fields for HTTP transport
+	if !strings.Contains(output, `"type": "http"`) {
+		t.Error("Expected 'type': 'http' field for Copilot")
 	}
 	if !strings.Contains(output, `"tools": ["*"]`) {
 		t.Error("Expected 'tools' field for Copilot")
@@ -182,8 +182,11 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"safeoutputs": {`) {
 		t.Error("Expected safeoutputs server ID")
 	}
-	if !strings.Contains(output, `"command": "node"`) {
-		t.Error("Expected node command")
+	if !strings.Contains(output, `"url": "http://`) {
+		t.Error("Expected HTTP URL")
+	}
+	if !strings.Contains(output, `"Authorization"`) {
+		t.Error("Expected Authorization header")
 	}
 	// Check for env var with backslash escaping (Copilot format)
 	if !strings.Contains(output, `\${`) {
@@ -200,14 +203,15 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderSafeOutputsMCP(&yaml)
+	renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 	output := yaml.String()
 
-	// Verify Claude format (no Copilot-specific fields)
-	if strings.Contains(output, `"type"`) {
-		t.Error("Should not contain 'type' field for Claude")
+	// Verify Claude format (has type field for HTTP transport)
+	if !strings.Contains(output, `"type": "http"`) {
+		t.Error("Expected 'type': 'http' field for HTTP transport")
 	}
+	// Claude format does not include 'tools' field
 	if strings.Contains(output, `"tools"`) {
 		t.Error("Should not contain 'tools' field for Claude")
 	}
@@ -215,7 +219,7 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 	if strings.Contains(output, `\${`) {
 		t.Error("Should not have backslash-escaped env vars for Claude")
 	}
-	if !strings.Contains(output, `"$GH_AW_SAFE_OUTPUTS"`) {
+	if !strings.Contains(output, `"$GH_AW_SAFE_OUTPUTS_PORT"`) {
 		t.Error("Expected direct shell variable reference for Claude")
 	}
 }
@@ -229,19 +233,22 @@ func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderSafeOutputsMCP(&yaml)
+	renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 	output := yaml.String()
 
-	// Verify TOML format
+	// Verify TOML format for HTTP transport
 	if !strings.Contains(output, "[mcp_servers.safeoutputs]") {
 		t.Error("Expected TOML section header")
 	}
-	if !strings.Contains(output, `command = "node"`) {
-		t.Error("Expected TOML command format")
+	if !strings.Contains(output, `type = "http"`) {
+		t.Error("Expected type = \"http\" for HTTP transport")
 	}
-	if !strings.Contains(output, "env_vars = [") {
-		t.Error("Expected TOML env_vars array")
+	if !strings.Contains(output, `url = "http://`) {
+		t.Error("Expected HTTP URL in TOML format")
+	}
+	if !strings.Contains(output, "Authorization") {
+		t.Error("Expected Authorization header in TOML format")
 	}
 }
 
