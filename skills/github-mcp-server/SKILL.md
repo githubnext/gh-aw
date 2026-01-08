@@ -116,7 +116,7 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 | `labels` | Label management | `get_label`, `list_labels`, `create_label` |
 | `notifications` | Notifications | `list_notifications`, `mark_notifications_read` |
 | `orgs` | Organization management | `get_organization`, `list_organizations` |
-| `projects` | GitHub Projects (see [URL workarounds](#github-projects-tools---missing-issuepr-urls)) | Project board operations |
+| `projects` | GitHub Projects | Project board operations |
 | `secret_protection` | Secret scanning | Secret detection and management |
 | `security_advisories` | Security advisories | Advisory creation and management |
 | `stargazers` | Repository stars | Star-related operations |
@@ -323,108 +323,6 @@ mcp-servers:
 
 For GitHub tools, `allowed:` can be combined with `toolsets:` to further restrict access, but this pattern is not recommended for new workflows.
 
-## Workarounds and Limitations
-
-### GitHub Projects Tools - Missing Issue/PR URLs
-
-**Limitation**: The `list_project_items` and `get_project_item` tools in the GitHub MCP server don't directly return the `content.url` field for linked issues and pull requests.
-
-**Impact**: When working with GitHub Projects v2, you cannot directly extract the full GitHub URLs for linked content items, which makes it difficult to generate reports or references to specific issues/PRs.
-
-**Workaround Approaches**:
-
-#### 1. Use Missing Data Safe Output (Recommended)
-
-Report the data gap using the `missing_data` safe output type. This encourages honest AI behavior and tracks the limitation:
-
-```yaml
-tools:
-  github:
-    toolsets: [projects, issues, pull_requests]
-
-safe-outputs:
-  missing-data:
-    create-issue: true
-    title-prefix: "[data gap]"
-    labels: [data-quality, projects]
-```
-
-In your workflow, instruct the agent:
-
-```markdown
-If you cannot obtain the full GitHub URLs for project items because the 
-`content.url` field is not available, report this as missing data using 
-the missing_data safe output type.
-
-Example output:
-{
-  "type": "missing_data",
-  "data_type": "project_item_urls",
-  "reason": "GitHub MCP list_project_items does not return content.url field",
-  "context": "Needed to generate report with clickable issue links",
-  "alternatives": "Using repository + content_number to construct URLs manually"
-}
-```
-
-#### 2. Fetch Details Separately
-
-After getting project items, use separate GitHub tools to fetch full issue/PR details:
-
-```markdown
-Step 1: List project items using `list_project_items`
-Step 2: For each item with content_type="Issue" or content_type="PullRequest":
-   - Extract the content_number (issue/PR number)
-   - Extract the repository information
-   - Use `issue_read` or `pull_request_read` to get full details including URLs
-```
-
-**Example workflow pattern**:
-```yaml
-tools:
-  github:
-    toolsets: [projects, issues, pull_requests]
-```
-
-**Agent instructions**:
-```markdown
-1. Call `list_project_items` to get all items in the project
-2. For each item, note:
-   - content_type (Issue or PullRequest)
-   - content_number (the issue/PR number)
-   - repository information (if available)
-3. For items you need URLs for:
-   - Call `issue_read` with method="get" for issues
-   - Call `pull_request_read` with method="get" for PRs
-   - These calls will return the full URL in the response
-```
-
-#### 3. Manual URL Construction
-
-If you have the repository owner, repo name, and content number, construct URLs manually:
-
-```markdown
-URL Pattern:
-- Issues: https://github.com/{owner}/{repo}/issues/{number}
-- Pull Requests: https://github.com/{owner}/{repo}/pull/{number}
-
-Example:
-- Project item has: owner="githubnext", repo="gh-aw", content_number=123
-- Constructed URL: https://github.com/githubnext/gh-aw/issues/123
-```
-
-**Important**: Only use this approach if you can verify the repository information from the project item metadata. If repository data is missing, use approach #1 or #2 instead.
-
-### Best Practice Recommendation
-
-For production workflows that need issue/PR URLs from project boards:
-
-1. **Primary approach**: Use approach #2 (fetch details separately) for reliability
-2. **Fallback**: If fetching fails, use approach #3 (manual construction) with available metadata
-3. **Report gaps**: Always use `missing_data` safe output when URLs cannot be obtained
-4. **Document**: Add comments in your workflow explaining which approach you're using and why
-
-This combination ensures robust operation while tracking data quality issues for future improvements.
-
 ## Troubleshooting
 
 ### Common Issues
@@ -439,9 +337,6 @@ This combination ensures robust operation while tracking data quality issues for
 
 **Issue**: Workflow using `allowed:` list is verbose and hard to maintain
 - **Solution**: Migrate to `toolsets:` configuration using the migration guide above
-
-**Issue**: Cannot get issue/PR URLs from project items
-- **Solution**: See [Workarounds and Limitations](#workarounds-and-limitations) section above for detailed approaches
 
 ### Best Practices for Debugging
 

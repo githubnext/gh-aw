@@ -867,5 +867,27 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "list_project_items_with_urls",
+    "description": "List all items in a GitHub Projects v2 board with complete information including content URLs. This tool extends the standard GitHub MCP list_project_items functionality by including the content.url field for linked issues and pull requests. Use this when you need to generate reports or references with clickable GitHub URLs for project items.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "project"
+      ],
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted."
+        },
+        "first": {
+          "type": "number",
+          "description": "Number of items to fetch per page (default: 100). Higher values reduce API calls but increase response size."
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]

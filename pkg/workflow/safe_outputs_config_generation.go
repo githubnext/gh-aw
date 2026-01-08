@@ -230,6 +230,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				1, // default max
 			)
 		}
+if data.SafeOutputs.ListProjectItemsWithUrls != nil {
+safeOutputsConfig["list_project_items_with_urls"] = generateMaxConfig(
+data.SafeOutputs.ListProjectItemsWithUrls.Max,
+5, // default max
+)
+}
 		if data.SafeOutputs.UpdateRelease != nil {
 			safeOutputsConfig["update_release"] = generateMaxConfig(
 				data.SafeOutputs.UpdateRelease.Max,
