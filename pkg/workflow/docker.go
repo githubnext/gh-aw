@@ -80,7 +80,7 @@ func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []stri
 	}
 
 	yaml.WriteString("      - name: Downloading container images\n")
-	yaml.WriteString("        run: bash /tmp/gh-aw/actions/download_docker_images.sh")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/download_docker_images.sh")
 	for _, image := range dockerImages {
 		fmt.Fprintf(yaml, " %s", image)
 	}

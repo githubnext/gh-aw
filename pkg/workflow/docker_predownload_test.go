@@ -134,8 +134,8 @@ Test workflow with custom MCP container.`,
 			// If we expect a step, verify the images are present
 			if tt.expectStep {
 				// Verify the script call is present
-				if !strings.Contains(string(yaml), "bash /tmp/gh-aw/actions/download_docker_images.sh") {
-					t.Error("Expected to find 'bash /tmp/gh-aw/actions/download_docker_images.sh' script call in generated YAML")
+				if !strings.Contains(string(yaml), "bash /opt/gh-aw/actions/download_docker_images.sh") {
+					t.Error("Expected to find 'bash /opt/gh-aw/actions/download_docker_images.sh' script call in generated YAML")
 				}
 				for _, expectedImage := range tt.expectedImages {
 					// Check that the image is being passed as an argument to the script

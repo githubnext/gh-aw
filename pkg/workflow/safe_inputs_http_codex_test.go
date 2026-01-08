@@ -86,7 +86,7 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Codex config should not use stdio transport (command = 'node'), should use HTTP")
 	}
 
-	if strings.Contains(codexConfigSection, `args = [`) && strings.Contains(codexConfigSection, `/tmp/gh-aw/safe-inputs/mcp-server.cjs`) {
+	if strings.Contains(codexConfigSection, `args = [`) && strings.Contains(codexConfigSection, `/opt/gh-aw/safe-inputs/mcp-server.cjs`) {
 		t.Error("Codex config should not use stdio transport with mcp-server.cjs args, should use HTTP")
 	}
 

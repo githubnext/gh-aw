@@ -220,7 +220,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	}
 
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          bash /tmp/gh-aw/actions/create_prompt_first.sh\n")
+	yaml.WriteString("          bash /opt/gh-aw/actions/create_prompt_first.sh\n")
 
 	if len(chunks) > 0 {
 		// Write template with placeholders directly to target file
@@ -317,7 +317,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh\n")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/print_prompt_summary.sh\n")
 }
 
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
@@ -502,7 +502,7 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const { generateWorkflowOverview } = require('/tmp/gh-aw/actions/generate_workflow_overview.cjs');\n")
+	yaml.WriteString("            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');\n")
 	yaml.WriteString("            await generateWorkflowOverview(core);\n")
 }
 
@@ -563,9 +563,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          script: |\n")
 
 	// Load script from external file using require()
-	yaml.WriteString("            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/collect_ndjson_output.cjs');\n")
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');\n")
 	yaml.WriteString("            await main();\n")
 
 	// Record artifact upload for validation

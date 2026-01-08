@@ -100,7 +100,7 @@ func buildIssueAssigneeSteps(config CopilotParticipantConfig, effectiveToken str
 		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
 		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
 		// Load script from external file using require()
-		steps = append(steps, "            const { main } = require('/tmp/gh-aw/actions/assign_issue.cjs');\n")
+		steps = append(steps, "            const { main } = require('/opt/gh-aw/actions/assign_issue.cjs');\n")
 		steps = append(steps, "            await main({ github, context, core, exec, io });\n")
 
 		// Add a comment after each assignee step except the last
@@ -131,7 +131,7 @@ func buildPRReviewerSteps(config CopilotParticipantConfig, effectiveToken string
 			steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
 			steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
 			// Load script from external file using require()
-			steps = append(steps, "            const { main } = require('/tmp/gh-aw/actions/add_copilot_reviewer.cjs');\n")
+			steps = append(steps, "            const { main } = require('/opt/gh-aw/actions/add_copilot_reviewer.cjs');\n")
 			steps = append(steps, "            await main({ github, context, core, exec, io });\n")
 		} else {
 			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
