@@ -495,3 +495,98 @@ Test that lock-for-agent is commented out in generated YAML.
 		}
 	}
 }
+
+func TestLockForAgentUnlocksInSafeOutputsJob(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "lock-for-agent-safe-outputs-test")
+
+	// Create a test markdown file with lock-for-agent and safe-outputs
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+    lock-for-agent: true
+  reaction: eyes
+engine: copilot
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+# Lock For Agent with Safe Outputs Test
+
+Test that issue is unlocked in safe_outputs job before processing safe outputs.
+`
+
+	testFile := filepath.Join(tmpDir, "test-lock-for-agent-safe-outputs.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify lock-for-agent field is parsed correctly
+	if !workflowData.LockForAgent {
+		t.Error("Expected LockForAgent to be true")
+	}
+
+	// Generate YAML
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check for lock and unlock steps in the workflow
+	expectedStrings := []string{
+		"Lock issue for agent workflow",                  // In activation job
+		"Unlock issue after agent workflow",              // In conclusion job
+		"Unlock issue for safe output operations",        // NEW: In safe_outputs job
+		"id: unlock-issue-for-safe-outputs",              // NEW: Step ID
+		"needs.activation.outputs.issue_locked == 'true", // Condition check
+		"unlock-issue.cjs",                               // Script reference
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(yamlContent, expected) {
+			t.Errorf("Generated YAML does not contain expected string: %s", expected)
+		}
+	}
+
+	// Verify lock step is in activation job
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if !strings.Contains(activationJobSection, "Lock issue for agent workflow") {
+		t.Error("Activation job should contain the lock step")
+	}
+
+	// Verify unlock step is in safe_outputs job
+	safeOutputsJobSection := extractJobSection(yamlContent, "safe_outputs")
+	if !strings.Contains(safeOutputsJobSection, "Unlock issue for safe output operations") {
+		t.Error("safe_outputs job should contain the unlock step")
+	}
+
+	// Verify the unlock step appears BEFORE the safe output processing steps
+	unlockPos := strings.Index(safeOutputsJobSection, "Unlock issue for safe output operations")
+	processPos := strings.Index(safeOutputsJobSection, "Process Safe Outputs")
+	if unlockPos == -1 || processPos == -1 {
+		t.Error("Both unlock and process steps should exist in safe_outputs job")
+	} else if unlockPos > processPos {
+		t.Error("Unlock step should appear BEFORE Process Safe Outputs step")
+	}
+
+	// Verify unlock step in conclusion job still exists
+	conclusionJobSection := extractJobSection(yamlContent, "conclusion")
+	if !strings.Contains(conclusionJobSection, "Unlock issue after agent workflow") {
+		t.Error("Conclusion job should still contain the unlock step")
+	}
+
+	// Verify conclusion unlock has always() condition
+	if !strings.Contains(conclusionJobSection, "if: (always())") {
+		t.Error("Conclusion unlock step should have always() condition")
+	}
+}
