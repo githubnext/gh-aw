@@ -18,10 +18,8 @@ safe-outputs:
   add-comment:
     max: 5
   assign-to-agent:
-  copy-project:
+  update-project:
     max: 1
-    source-project: "https://github.com/orgs/githubnext/projects/74"
-    target-owner: "githubnext"
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
@@ -45,28 +43,29 @@ Your job is to keep the user informed at each stage and assign the work to an AI
 
 ## Workflow Steps
 
-### Step 1: Copy Project from Template
+### Step 1: Create New Project
 
-Use the `copy-project` safe output to create a new project for the campaign from the template.
+Use the `update-project` safe output to create a new empty project for the campaign.
 
-Call the copy_project tool with just the title parameter (the target owner is configured as a default):
+Call the update_project tool with the create_if_missing flag:
 
 ```
-copy_project({
-  title: "Campaign: <campaign-name>"
+update_project({
+  project: "https://github.com/orgs/githubnext/projects/<project-number>",
+  title: "Campaign: <campaign-name>",
+  create_if_missing: true,
+  item_url: "https://github.com/githubnext/gh-aw/issues/${{ github.event.issue.number }}"
 })
 ```
 
-Replace `<campaign-name>` with a descriptive campaign name based on the issue goal.
+Replace `<campaign-name>` with a descriptive campaign name based on the issue goal, and use a new unique project number (increment from the highest existing campaign project).
 
-This will copy the "[TEMPLATE: Agentic Campaign]" project (https://github.com/orgs/githubnext/projects/74) to create a new project board for this campaign in the githubnext organization.
-
-The copied project will be automatically assigned to this issue.
+This will create a new empty project board for this campaign in the githubnext organization and add the issue to the project.
 
 ### Step 2: Post Initial Comment
 
 Use the `add-comment` safe output to post a welcome comment that:
-- Explains that a new project has been created from the template
+- Explains that a new project has been created
 - Explains what will happen next
 - Sets expectations about the AI agent's work
 
@@ -74,11 +73,11 @@ Example structure:
 ```markdown
 🤖 **Campaign Creation Started**
 
-📊 **Project Board:** A new project board has been created from the campaign template.
+📊 **Project Board:** A new project board has been created for your campaign.
 
 I'm processing your campaign request. Here's what will happen:
 
-1. ✅ Created project board from template
+1. ✅ Created new project board
 2. 🔄 Analyze campaign requirements
 3. 📝 Generate campaign specification
 4. 🔀 Create pull request with campaign file
@@ -114,8 +113,8 @@ The AI agent is now working on your campaign design. You'll receive updates as t
 
 ## Important Notes
 
-- Always create the project from the template using copy-project
-- The project URL from the copy-project output should be used in the campaign spec
+- Always create a new empty project using update-project with create_if_missing: true
+- The project URL from the update-project output should be used in the campaign spec
 - Use clear, concise language in all comments
 - Keep users informed at each stage
 - The agent will create a NEW campaign file, not modify existing ones
