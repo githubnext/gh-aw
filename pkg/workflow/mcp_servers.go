@@ -87,8 +87,9 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	}
 	if hasSafeOutputs {
 		// Add server configuration env vars from step outputs
-		envVars["GH_AW_SAFE_OUTPUTS_PORT"] = "${{ steps.safe-outputs-config.outputs.safe_outputs_port }}"
-		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}"
+		// The start_safe_outputs_server.sh script outputs port and api_key to GITHUB_OUTPUT
+		envVars["GH_AW_SAFE_OUTPUTS_PORT"] = "${{ steps.safe-outputs-start.outputs.port }}"
+		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
 		
 		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
 		// Only add upload-assets env vars if upload-assets is configured
@@ -109,6 +110,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	}
 	if hasSafeInputs {
 		// Add server configuration env vars from step outputs
+		// The start_safe_inputs_server.sh script outputs port and api_key to GITHUB_OUTPUT
 		envVars["GH_AW_SAFE_INPUTS_PORT"] = "${{ steps.safe-inputs-start.outputs.port }}"
 		envVars["GH_AW_SAFE_INPUTS_API_KEY"] = "${{ steps.safe-inputs-start.outputs.api_key }}"
 
