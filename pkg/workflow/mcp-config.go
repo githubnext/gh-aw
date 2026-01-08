@@ -232,6 +232,8 @@ func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 }
 
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses Node.js Alpine LTS container with node entrypoint for minimal footprint and standards compliance.
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
 	envVars := []string{
 		"GH_AW_MCP_LOG_DIR",
@@ -248,11 +250,29 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		"DEFAULT_BRANCH",
 	}
 
+	// Build Docker args for containerized execution per MCP Gateway spec
+	// Format: docker run --rm -i -e VAR1 -e VAR2 ... --entrypoint node <image> <script>
+	dockerArgs := []string{"run", "--rm", "-i"}
+	
+	// Add environment variable flags (sorted for deterministic output)
+	for _, envVar := range envVars {
+		dockerArgs = append(dockerArgs, "-e", envVar)
+	}
+	
+	// Add entrypoint override to use node
+	dockerArgs = append(dockerArgs, "--entrypoint", "node")
+	
+	// Add container image
+	dockerArgs = append(dockerArgs, constants.DefaultNodeAlpineLTSImage)
+	
+	// Add script path as entrypoint args
+	dockerArgs = append(dockerArgs, "/opt/gh-aw/safeoutputs/mcp-server.cjs")
+
 	renderBuiltinMCPServerBlock(BuiltinMCPServerOptions{
 		Yaml:                 yaml,
 		ServerID:             constants.SafeOutputsMCPServerID,
-		Command:              "node",
-		Args:                 []string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
+		Command:              "docker",
+		Args:                 dockerArgs,
 		EnvVars:              envVars,
 		IsLast:               isLast,
 		IncludeCopilotFields: includeCopilotFields,
@@ -317,11 +337,37 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 }
 
 // renderSafeOutputsMCPConfigTOML generates the Safe Outputs MCP server configuration in TOML format for Codex
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses Node.js Alpine LTS container with node entrypoint for minimal footprint and standards compliance.
 func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
-	yaml.WriteString("          command = \"node\"\n")
+	yaml.WriteString("          command = \"docker\"\n")
 	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"run\",\n")
+	yaml.WriteString("            \"--rm\",\n")
+	yaml.WriteString("            \"-i\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GH_AW_SAFE_OUTPUTS\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GH_AW_ASSETS_BRANCH\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GH_AW_ASSETS_MAX_SIZE_KB\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GH_AW_ASSETS_ALLOWED_EXTS\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GITHUB_REPOSITORY\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GITHUB_SERVER_URL\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GITHUB_SHA\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"GITHUB_WORKSPACE\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"DEFAULT_BRANCH\",\n")
+	yaml.WriteString("            \"--entrypoint\",\n")
+	yaml.WriteString("            \"node\",\n")
+	yaml.WriteString("            \"" + constants.DefaultNodeAlpineLTSImage + "\",\n")
 	yaml.WriteString("            \"/opt/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
