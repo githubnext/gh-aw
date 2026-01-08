@@ -155,15 +155,20 @@ async function getIssueNodeId(owner, repo, issueNumber) {
 /**
  * Main handler for create-project safe output
  */
-async function handler() {
+async function main() {
   try {
     core.info("Starting create_project handler");
 
     // Load agent output
-    const agentOutput = await loadAgentOutput();
+    const result = await loadAgentOutput();
     core.info(`Loaded agent output, checking for create_project calls...`);
 
-    const createProjectCalls = agentOutput.filter(output => output.type === "create_project");
+    if (!result.success) {
+      core.info("No valid agent output found");
+      return;
+    }
+
+    const createProjectCalls = result.items.filter(output => output.type === "create_project");
 
     if (createProjectCalls.length === 0) {
       core.info("No create_project calls found in agent output");
@@ -176,10 +181,27 @@ async function handler() {
     const defaultTargetOwner = process.env.GH_AW_CREATE_PROJECT_TARGET_OWNER;
 
     for (const call of createProjectCalls) {
-      const { title, owner, owner_type, item_url } = call.content;
+      let { title, owner, owner_type, item_url } = call;
 
+      // Generate a title if not provided by the agent
       if (!title) {
-        throw new Error("Missing required field 'title' in create_project call");
+        // Try to generate a campaign title from the issue context
+        const issueTitle = context.payload?.issue?.title;
+        const issueNumber = context.payload?.issue?.number;
+
+        if (issueTitle) {
+          // Extract campaign name from issue title (e.g., "[New Agentic Campaign] Do X" -> "Do X")
+          const campaignMatch = issueTitle.match(/^\[New Agentic Campaign\]\s*(.+)$/i);
+          const campaignName = campaignMatch ? campaignMatch[1] : issueTitle;
+          title = `Campaign: ${campaignName}`;
+          core.info(`Generated campaign title from issue: "${title}"`);
+        } else if (issueNumber) {
+          // Fallback to issue number if no title is available
+          title = `Campaign #${issueNumber}`;
+          core.info(`Generated campaign title from issue number: "${title}"`);
+        } else {
+          throw new Error("Missing required field 'title' in create_project call and unable to generate from context");
+        }
       }
 
       // Determine owner - use explicit owner, default, or error
@@ -230,15 +252,13 @@ async function handler() {
     }
 
     core.info("✓ All create_project operations completed successfully");
-  } catch (error) {
+  } catch (err) {
+    // prettier-ignore
+    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
     logGraphQLError(error, "create_project");
     core.setFailed(`Failed to create project: ${getErrorMessage(error)}`);
     throw error;
   }
 }
 
-// Run the handler
-handler().catch(error => {
-  core.setFailed(getErrorMessage(error));
-  process.exit(1);
-});
+module.exports = { main };
