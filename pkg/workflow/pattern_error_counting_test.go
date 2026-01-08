@@ -56,12 +56,6 @@ copilot: error: Invalid token
 Warning: Feature deprecated`,
 			patterns: []ErrorPattern{
 				{
-					Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(ERROR)\]\s+(.+)`,
-					LevelGroup:   2,
-					MessageGroup: 3,
-					Description:  "Copilot timestamped ERROR messages",
-				},
-				{
 					Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(WARN|WARNING)\]\s+(.+)`,
 					LevelGroup:   2,
 					MessageGroup: 3,
@@ -80,7 +74,7 @@ Warning: Feature deprecated`,
 					Description:  "Generic warnings",
 				},
 			},
-			expectedErrors: 2,
+			expectedErrors: 1,
 			expectedWarns:  2,
 		},
 		{

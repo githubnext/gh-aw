@@ -213,12 +213,6 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	// Add Copilot-specific error patterns for timestamp-based log formats
 	patterns = append(patterns, []ErrorPattern{
 		{
-			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(ERROR)\]\s+(.+)`,
-			LevelGroup:   2, // "ERROR" is in the second capture group
-			MessageGroup: 3, // error message is in the third capture group
-			Description:  "Copilot CLI timestamped ERROR messages",
-		},
-		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(WARN|WARNING)\]\s+(.+)`,
 			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
 			MessageGroup: 3, // warning message is in the third capture group
