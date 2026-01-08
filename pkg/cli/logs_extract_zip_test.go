@@ -214,14 +214,14 @@ func TestExtractZipFileErrorHandling(t *testing.T) {
 
 		// Try to extract - should fail and return error
 		err = extractZipFile(zipReader.File[0], readOnlyDir, false)
-		assert.Error(t, err, "extractZipFile should return error when destination is read-only")
+		require.Error(t, err, "extractZipFile should return error when destination is read-only")
 		assert.Contains(t, err.Error(), "failed to create", "Error should mention creation failure")
 	})
 
 	t.Run("validates error return signature for writable file close", func(t *testing.T) {
 		// This test documents the security fix: the function uses named return value
 		// to properly handle errors from closing writable files (CWE-252)
-		
+
 		// Create a temporary directory for extraction
 		tempDir := t.TempDir()
 
