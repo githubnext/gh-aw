@@ -653,6 +653,56 @@ describe("Safe Output Handler Manager", () => {
       expect(result.missings.missingData[0].context).toBe("GitHub API access");
     });
 
+    it("should collect noop messages alongside missing_tool and missing_data", async () => {
+      const messages = [
+        {
+          type: "noop",
+          message: "No issues found in this review",
+        },
+        {
+          type: "create_issue",
+          title: "Test Issue",
+          body: "Issue body",
+        },
+        {
+          type: "missing_tool",
+          tool: "docker",
+          reason: "Need containerization",
+        },
+        {
+          type: "noop",
+          message: "Analysis complete",
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const handlers = new Map([
+        ["create_issue", mockCreateIssueHandler],
+        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["noop", vi.fn().mockResolvedValue({ success: true })],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.missings).toBeDefined();
+      expect(result.missings.missingTools).toHaveLength(1);
+      expect(result.missings.missingData).toHaveLength(0);
+      expect(result.missings.noopMessages).toHaveLength(2);
+
+      // Check missing tools
+      expect(result.missings.missingTools[0].tool).toBe("docker");
+      expect(result.missings.missingTools[0].reason).toBe("Need containerization");
+
+      // Check noop messages
+      expect(result.missings.noopMessages[0].message).toBe("No issues found in this review");
+      expect(result.missings.noopMessages[1].message).toBe("Analysis complete");
+    });
+
     it("should return empty arrays when no missing messages present", async () => {
       const messages = [
         {
@@ -675,6 +725,7 @@ describe("Safe Output Handler Manager", () => {
       expect(result.missings).toBeDefined();
       expect(result.missings.missingTools).toHaveLength(0);
       expect(result.missings.missingData).toHaveLength(0);
+      expect(result.missings.noopMessages).toHaveLength(0);
     });
   });
 });

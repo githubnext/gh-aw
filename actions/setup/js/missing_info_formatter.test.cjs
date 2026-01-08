@@ -125,6 +125,51 @@ describe("missing_info_formatter.cjs", () => {
     });
   });
 
+  describe("formatNoopMessages", () => {
+    it("should format noop messages into markdown list", () => {
+      const { formatNoopMessages } = formatter;
+      const messages = [{ message: "No issues found in this review" }, { message: "Analysis complete, no action needed" }];
+
+      const result = formatNoopMessages(messages);
+      expect(result).toContain("No issues found in this review");
+      expect(result).toContain("Analysis complete, no action needed");
+    });
+
+    it("should return empty string for empty array", () => {
+      const { formatNoopMessages } = formatter;
+      expect(formatNoopMessages([])).toBe("");
+      expect(formatNoopMessages(null)).toBe("");
+    });
+
+    it("should escape special characters in noop messages", () => {
+      const { formatNoopMessages } = formatter;
+      const messages = [{ message: "Found <special> chars **bold**" }];
+
+      const result = formatNoopMessages(messages);
+      expect(result).toContain("&lt;special&gt;");
+      expect(result).toContain("\\*\\*bold\\*\\*");
+    });
+  });
+
+  describe("generateNoopMessagesSection", () => {
+    it("should generate HTML details section for noop messages", () => {
+      const { generateNoopMessagesSection } = formatter;
+      const messages = [{ message: "No action required" }];
+
+      const result = generateNoopMessagesSection(messages);
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary><b>No-Op Messages</b></summary>");
+      expect(result).toContain("No action required");
+      expect(result).toContain("</details>");
+    });
+
+    it("should return empty string for no messages", () => {
+      const { generateNoopMessagesSection } = formatter;
+      expect(generateNoopMessagesSection([])).toBe("");
+      expect(generateNoopMessagesSection(null)).toBe("");
+    });
+  });
+
   describe("generateMissingInfoSections", () => {
     it("should generate both tools and data sections", () => {
       const { generateMissingInfoSections } = formatter;
@@ -138,6 +183,36 @@ describe("missing_info_formatter.cjs", () => {
       expect(result).toContain("Missing Data");
       expect(result).toContain("docker");
       expect(result).toContain("api\\_key"); // Escaped underscore
+    });
+
+    it("should generate sections with noop messages", () => {
+      const { generateMissingInfoSections } = formatter;
+      const missings = {
+        missingTools: [{ tool: "docker", reason: "Need containers" }],
+        missingData: [{ data_type: "api_key", reason: "No credentials" }],
+        noopMessages: [{ message: "No issues found" }],
+      };
+
+      const result = generateMissingInfoSections(missings);
+      expect(result).toContain("Missing Tools");
+      expect(result).toContain("Missing Data");
+      expect(result).toContain("No-Op Messages");
+      expect(result).toContain("docker");
+      expect(result).toContain("api\\_key");
+      expect(result).toContain("No issues found");
+    });
+
+    it("should handle only noop messages", () => {
+      const { generateMissingInfoSections } = formatter;
+      const missings = {
+        noopMessages: [{ message: "Analysis complete" }],
+      };
+
+      const result = generateMissingInfoSections(missings);
+      expect(result).not.toContain("Missing Tools");
+      expect(result).not.toContain("Missing Data");
+      expect(result).toContain("No-Op Messages");
+      expect(result).toContain("Analysis complete");
     });
 
     it("should handle only tools", () => {

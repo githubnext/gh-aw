@@ -48,6 +48,7 @@ const HANDLER_MAP = {
   missing_tool: "./missing_tool.cjs",
   create_missing_data_issue: "./create_missing_data_issue.cjs",
   missing_data: "./missing_data.cjs",
+  noop: "./noop_handler.cjs",
 };
 
 /**
@@ -130,13 +131,14 @@ async function loadHandlers(config) {
 }
 
 /**
- * Collect missing_tool and missing_data messages from the messages array
+ * Collect missing_tool, missing_data, and noop messages from the messages array
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {{missingTools: Array<any>, missingData: Array<any>}} Object with collected missing items
+ * @returns {{missingTools: Array<any>, missingData: Array<any>, noopMessages: Array<any>}} Object with collected missing items and noop messages
  */
 function collectMissingMessages(messages) {
   const missingTools = [];
   const missingData = [];
+  const noopMessages = [];
 
   for (const message of messages) {
     if (message.type === "missing_tool") {
@@ -158,11 +160,18 @@ function collectMissingMessages(messages) {
           alternatives: message.alternatives || null,
         });
       }
+    } else if (message.type === "noop") {
+      // Extract relevant fields from noop message
+      if (message.message) {
+        noopMessages.push({
+          message: message.message,
+        });
+      }
     }
   }
 
-  core.info(`Collected ${missingTools.length} missing tool(s) and ${missingData.length} missing data item(s)`);
-  return { missingTools, missingData };
+  core.info(`Collected ${missingTools.length} missing tool(s), ${missingData.length} missing data item(s), and ${noopMessages.length} noop message(s)`);
+  return { missingTools, missingData, noopMessages };
 }
 
 /**
@@ -684,7 +693,9 @@ async function main() {
     // Store collected missings in helper module for handlers to access
     if (processingResult.missings) {
       setCollectedMissings(processingResult.missings);
-      core.info(`Stored ${processingResult.missings.missingTools.length} missing tool(s) and ${processingResult.missings.missingData.length} missing data item(s) for footer generation`);
+      core.info(
+        `Stored ${processingResult.missings.missingTools.length} missing tool(s), ${processingResult.missings.missingData.length} missing data item(s), and ${processingResult.missings.noopMessages.length} noop message(s) for footer generation`
+      );
     }
 
     // Process synthetic updates by directly updating issue/discussion bodies

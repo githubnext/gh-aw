@@ -60,6 +60,21 @@ function formatMissingData(missingData) {
 }
 
 /**
+ * Format noop messages into markdown list items
+ * @param {Array<{message: string}>} noopMessages - Noop messages
+ * @returns {string} Formatted markdown list
+ */
+function formatNoopMessages(noopMessages) {
+  if (!noopMessages || noopMessages.length === 0) return "";
+
+  const items = noopMessages.map(item => {
+    return `- ${escapeMarkdown(item.message)}`;
+  });
+
+  return items.join("\n");
+}
+
+/**
  * Generate HTML details section for missing tools
  * @param {Array<{tool: string, reason: string, alternatives?: string}>} missingTools - Missing tool messages
  * @returns {string} HTML details section or empty string
@@ -84,8 +99,20 @@ function generateMissingDataSection(missingData) {
 }
 
 /**
+ * Generate HTML details section for noop messages
+ * @param {Array<{message: string}>} noopMessages - Noop messages
+ * @returns {string} HTML details section or empty string
+ */
+function generateNoopMessagesSection(noopMessages) {
+  if (!noopMessages || noopMessages.length === 0) return "";
+
+  const content = formatNoopMessages(noopMessages);
+  return `\n\n<details>\n<summary><b>No-Op Messages</b></summary>\n\n${content}\n\n</details>`;
+}
+
+/**
  * Generate complete missing information sections for both tools and data
- * @param {{missingTools?: Array<any>, missingData?: Array<any>}} missings - Object containing missing tools and data
+ * @param {{missingTools?: Array<any>, missingData?: Array<any>, noopMessages?: Array<any>}} missings - Object containing missing tools, data, and noop messages
  * @returns {string} Combined HTML details sections
  */
 function generateMissingInfoSections(missings) {
@@ -101,6 +128,10 @@ function generateMissingInfoSections(missings) {
     sections += generateMissingDataSection(missings.missingData);
   }
 
+  if (missings.noopMessages && missings.noopMessages.length > 0) {
+    sections += generateNoopMessagesSection(missings.noopMessages);
+  }
+
   return sections;
 }
 
@@ -108,7 +139,9 @@ module.exports = {
   escapeMarkdown,
   formatMissingTools,
   formatMissingData,
+  formatNoopMessages,
   generateMissingToolsSection,
   generateMissingDataSection,
+  generateNoopMessagesSection,
   generateMissingInfoSections,
 };
