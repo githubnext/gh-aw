@@ -18,7 +18,7 @@ const HANDLER_TYPE = "missing_tool";
 async function main(config = {}) {
   // Extract configuration
   const maxCount = config.max || 0; // 0 means unlimited
-  
+
   core.info(`Max count: ${maxCount === 0 ? "unlimited" : maxCount}`);
 
   // Track how many items we've processed for max limit

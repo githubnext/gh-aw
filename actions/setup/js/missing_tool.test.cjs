@@ -22,7 +22,7 @@ describe("missing_tool.cjs handler", () => {
 
     // Load the handler module
     const { main } = await import("./missing_tool.cjs");
-    
+
     // Create handler with default config
     handler = await main({});
   });
@@ -129,9 +129,9 @@ describe("missing_tool.cjs handler", () => {
     it("should add timestamp to results", async () => {
       const message = { tool: "test-tool", reason: "testing" };
       const beforeTime = new Date();
-      
+
       const result = await handler(message, {});
-      
+
       const afterTime = new Date();
       const timestamp = new Date(result.timestamp);
 
