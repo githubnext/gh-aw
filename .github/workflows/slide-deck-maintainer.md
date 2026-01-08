@@ -26,7 +26,9 @@ tools:
   bash:
     - "npm install*"
     - "npm run*"
+    - "npm ci*"
     - "npx @marp-team/marp-cli*"
+    - "npx http-server*"
     - "curl*"
     - "kill*"
     - "lsof*"
