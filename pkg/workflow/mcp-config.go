@@ -156,60 +156,71 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	}
 }
 
+// BuiltinMCPServerOptions contains the options for rendering a built-in MCP server block
+type BuiltinMCPServerOptions struct {
+	Yaml                 *strings.Builder
+	ServerID             string
+	Command              string
+	Args                 []string
+	EnvVars              []string
+	IsLast               bool
+	IncludeCopilotFields bool
+}
+
 // renderBuiltinMCPServerBlock is a shared helper function that renders MCP server configuration blocks
 // for built-in servers (Safe Outputs and Agentic Workflows) with consistent formatting.
 // This eliminates code duplication between renderSafeOutputsMCPConfigWithOptions and
 // renderAgenticWorkflowsMCPConfigWithOptions by extracting the common YAML generation pattern.
-func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command string, args []string, envVars []string, isLast bool, includeCopilotFields bool) {
-	yaml.WriteString("              \"" + serverID + "\": {\n")
+func renderBuiltinMCPServerBlock(opts BuiltinMCPServerOptions) {
+	opts.Yaml.WriteString("              \"" + opts.ServerID + "\": {\n")
 
 	// Add type field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+	if opts.IncludeCopilotFields {
+		opts.Yaml.WriteString("                \"type\": \"local\",\n")
 	}
 
-	yaml.WriteString("                \"command\": \"" + command + "\",\n")
+	opts.Yaml.WriteString("                \"command\": \"" + opts.Command + "\",\n")
 
 	// Write args array
-	yaml.WriteString("                \"args\": [")
-	for i, arg := range args {
+	opts.Yaml.WriteString("                \"args\": [")
+	for i, arg := range opts.Args {
 		if i > 0 {
-			yaml.WriteString(", ")
+			opts.Yaml.WriteString(", ")
 		}
-		yaml.WriteString("\"" + arg + "\"")
+		opts.Yaml.WriteString("\"" + arg + "\"")
 	}
-	yaml.WriteString("],\n")
+	opts.Yaml.WriteString("],\n")
 
 	// Add tools field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
+	if opts.IncludeCopilotFields {
+		opts.Yaml.WriteString("                \"tools\": [\"*\"],\n")
 	}
 
-	yaml.WriteString("                \"env\": {\n")
+	opts.Yaml.WriteString("                \"env\": {\n")
 
 	// Write environment variables with appropriate escaping
-	for i, envVar := range envVars {
-		isLastEnvVar := i == len(envVars)-1
+	for i, envVar := range opts.EnvVars {
+		isLastEnvVar := i == len(opts.EnvVars)-1
 		comma := ""
 		if !isLastEnvVar {
 			comma = ","
 		}
 
-		if includeCopilotFields {
+		if opts.IncludeCopilotFields {
 			// Copilot format: backslash-escaped shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+			opts.Yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
 		} else {
 			// Claude/Custom format: direct shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+			opts.Yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
 		}
 	}
 
-	yaml.WriteString("                }\n")
+	opts.Yaml.WriteString("                }\n")
 
-	if isLast {
-		yaml.WriteString("              }\n")
+	if opts.IsLast {
+		opts.Yaml.WriteString("              }\n")
 	} else {
-		yaml.WriteString("              },\n")
+		opts.Yaml.WriteString("              },\n")
 	}
 }
 
@@ -237,15 +248,15 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		"DEFAULT_BRANCH",
 	}
 
-	renderBuiltinMCPServerBlock(
-		yaml,
-		constants.SafeOutputsMCPServerID,
-		"node",
-		[]string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
-		envVars,
-		isLast,
-		includeCopilotFields,
-	)
+	renderBuiltinMCPServerBlock(BuiltinMCPServerOptions{
+		Yaml:                 yaml,
+		ServerID:             constants.SafeOutputsMCPServerID,
+		Command:              "node",
+		Args:                 []string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
+		EnvVars:              envVars,
+		IsLast:               isLast,
+		IncludeCopilotFields: includeCopilotFields,
+	})
 }
 
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
@@ -254,15 +265,15 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 		"GITHUB_TOKEN",
 	}
 
-	renderBuiltinMCPServerBlock(
-		yaml,
-		"agentic_workflows",
-		"gh",
-		[]string{"aw", "mcp-server"},
-		envVars,
-		isLast,
-		includeCopilotFields,
-	)
+	renderBuiltinMCPServerBlock(BuiltinMCPServerOptions{
+		Yaml:                 yaml,
+		ServerID:             "agentic_workflows",
+		Command:              "gh",
+		Args:                 []string{"aw", "mcp-server"},
+		EnvVars:              envVars,
+		IsLast:               isLast,
+		IncludeCopilotFields: includeCopilotFields,
+	})
 }
 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex
