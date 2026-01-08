@@ -2265,19 +2265,19 @@
               "additionalProperties": false
             },
             "mcp": {
-              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled.",
+              "description": "MCP Gateway configuration for proxying MCP server connections through a per-server Streamable HTTP gateway (gh-aw-mcpg). Each MCP server gets its own gateway instance. Frontend uses Streamable HTTP for client communication, backend uses stdio or HTTP to connect to the MCP server. Requires the 'mcp-gateway' feature flag to be enabled.",
               "type": "object",
               "properties": {
                 "command": {
                   "type": "string",
                   "$comment": "Mutually exclusive with 'container' - only one execution mode can be specified.",
-                  "description": "Custom command to execute the MCP gateway"
+                  "description": "Custom command to execute the MCP gateway (gh-aw-mcpg). Each gateway instance manages one MCP server."
                 },
                 "container": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
                   "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified.",
-                  "description": "Container image for the MCP gateway executable"
+                  "description": "Container image for the MCP gateway (gh-aw-mcpg). Each gateway instance manages one MCP server."
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -2314,11 +2314,11 @@
                   "minimum": 1,
                   "maximum": 65535,
                   "default": 8080,
-                  "description": "Port number for the MCP gateway HTTP server (default: 8080)"
+                  "description": "Port number for the MCP gateway Streamable HTTP server (default: 8080). When multiple gateways are spawned, each uses an incrementing port starting from this value."
                 },
                 "api-key": {
                   "type": "string",
-                  "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
+                  "description": "API key for authenticating with the MCP gateway Streamable HTTP frontend (supports ${{ secrets.* }} syntax)"
                 }
               },
               "additionalProperties": false,
@@ -2377,14 +2377,14 @@
         },
         {
           "mcp": {
-            "container": "ghcr.io/githubnext/mcp-gateway",
+            "container": "ghcr.io/githubnext/gh-aw-mcpg",
             "port": 8080
           }
         },
         {
           "agent": "awf",
           "mcp": {
-            "container": "ghcr.io/githubnext/mcp-gateway",
+            "container": "ghcr.io/githubnext/gh-aw-mcpg",
             "port": 8080,
             "api-key": "${{ secrets.MCP_GATEWAY_API_KEY }}"
           }

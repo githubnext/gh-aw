@@ -1,13 +1,13 @@
 ---
 title: MCP Gateway Specification
-description: Formal specification for the Model Context Protocol (MCP) Gateway implementation following W3C conventions
+description: Formal specification for the Model Context Protocol (MCP) Gateway (gh-aw-mcpg) implementation following W3C conventions
 sidebar:
   order: 1350
 ---
 
 # MCP Gateway Specification
 
-**Version**: 1.0.0  
+**Version**: 2.0.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **Editor**: GitHub Agentic Workflows Team
@@ -16,7 +16,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the Model Context Protocol (MCP) Gateway, a transparent proxy service that enables unified HTTP access to multiple MCP servers using different transport mechanisms (stdio, HTTP). The gateway provides protocol translation, server isolation, authentication, and health monitoring capabilities.
+This specification defines the Model Context Protocol (MCP) Gateway (`gh-aw-mcpg`), a per-server proxy that provides Streamable HTTP transport on the frontend while connecting to individual MCP servers using their native transport (stdio or HTTP) on the backend. Each MCP server has its own dedicated gateway instance, ensuring complete isolation and independent lifecycle management.
 
 ## Status of This Document
 
@@ -43,21 +43,22 @@ This document is governed by the GitHub Agentic Workflows project specifications
 
 ### 1.1 Purpose
 
-The MCP Gateway serves as a protocol translation layer between MCP clients expecting HTTP-based communication and MCP servers using various transport mechanisms. It enables:
+The MCP Gateway (`gh-aw-mcpg`) serves as a per-server protocol translation layer that provides Streamable HTTP transport to MCP clients while managing individual MCP server connections. The architecture follows a "one gateway per MCP server" model, where each gateway instance:
 
-- **Protocol Translation**: Converting between stdio and HTTP transports
-- **Unified Access**: Single HTTP endpoint for multiple MCP servers
-- **Server Isolation**: Enforcing boundaries between server instances
-- **Authentication**: Token-based access control
-- **Health Monitoring**: Service availability endpoints
+- **Provides Streamable HTTP Frontend**: Accepts MCP client connections using Streamable HTTP transport
+- **Manages Backend Transport**: Connects to a single MCP server using its native transport (stdio or HTTP)
+- **Ensures Isolation**: Complete separation between different MCP server instances
+- **Handles Authentication**: Token-based access control per gateway instance
+- **Monitors Health**: Individual health endpoints per gateway
 
 ### 1.2 Scope
 
 This specification covers:
 
-- Gateway configuration format and semantics
-- Protocol translation behavior
-- Server lifecycle management
+- Per-server gateway architecture and deployment model
+- Streamable HTTP frontend protocol behavior
+- Backend transport support (stdio and HTTP)
+- Gateway lifecycle management
 - Authentication mechanisms
 - Health monitoring interfaces
 - Error handling requirements
@@ -73,10 +74,13 @@ This specification does NOT cover:
 
 The gateway MUST be designed for:
 
+- **Per-Server Isolation**: Each MCP server has its own gateway instance
+- **Streamable HTTP Support**: Frontend uses Streamable HTTP for all client communication
+- **Transport Flexibility**: Backend supports both stdio and HTTP transports
 - **Headless Operation**: No user interaction required during runtime
 - **Fail-Fast Behavior**: Immediate failure with diagnostic information
 - **Forward Compatibility**: Graceful rejection of unknown configuration features
-- **Security**: Isolation between servers and secure credential handling
+- **Security**: Secure credential handling and network isolation
 
 ---
 
@@ -96,8 +100,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 Implementations MUST support:
 
-- **Level 1 (Required)**: Basic proxy functionality, stdio transport, configuration parsing
-- **Level 2 (Standard)**: HTTP transport, authentication, health endpoints
+- **Level 1 (Required)**: Basic proxy functionality, stdio backend transport, Streamable HTTP frontend
+- **Level 2 (Standard)**: HTTP backend transport, authentication, health endpoints
 - **Level 3 (Complete)**: All optional features including variable expressions, timeout configuration
 
 ---
@@ -106,53 +110,77 @@ Implementations MUST support:
 
 ### 3.1 Gateway Model
 
+The MCP Gateway follows a **one gateway per MCP server** architecture. Each gateway instance is responsible for a single MCP server, providing complete isolation and independent lifecycle management.
+
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      MCP Client                         │
-│                    (HTTP Transport)                     │
-└──────────────────────┬──────────────────────────────────┘
-                       │ HTTP/JSON-RPC
-                       ▼
-┌─────────────────────────────────────────────────────────┐
-│                    MCP Gateway                          │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  Authentication & Authorization Layer             │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  Protocol Translation Layer                       │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  Server Isolation & Lifecycle Management          │  │
-│  └───────────────────────────────────────────────────┘  │
-└──────┬──────────────┬──────────────┬───────────────────┘
-       │              │              │
-       │ stdio        │ HTTP         │ stdio
-       ▼              ▼              ▼
-  ┌─────────┐   ┌─────────┐   ┌─────────┐
-  │ MCP     │   │ MCP     │   │ MCP     │
-  │ Server  │   │ Server  │   │ Server  │
-  │ 1       │   │ 2       │   │ N       │
-  └─────────┘   └─────────┘   └─────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MCP Client                                     │
+│                       (e.g., AI Agent, Copilot)                             │
+└───────────┬─────────────────────┬─────────────────────┬─────────────────────┘
+            │                     │                     │
+            │ Streamable HTTP     │ Streamable HTTP     │ Streamable HTTP
+            ▼                     ▼                     ▼
+┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
+│   gh-aw-mcpg      │   │   gh-aw-mcpg      │   │   gh-aw-mcpg      │
+│   Gateway 1       │   │   Gateway 2       │   │   Gateway N       │
+│   (Port 8080)     │   │   (Port 8081)     │   │   (Port 808N)     │
+│  ┌─────────────┐  │   │  ┌─────────────┐  │   │  ┌─────────────┐  │
+│  │ Auth Layer  │  │   │  │ Auth Layer  │  │   │  │ Auth Layer  │  │
+│  └─────────────┘  │   │  └─────────────┘  │   │  └─────────────┘  │
+│  ┌─────────────┐  │   │  ┌─────────────┐  │   │  ┌─────────────┐  │
+│  │ Protocol    │  │   │  │ Protocol    │  │   │  │ Protocol    │  │
+│  │ Translation │  │   │  │ Translation │  │   │  │ Translation │  │
+│  └─────────────┘  │   │  └─────────────┘  │   │  └─────────────┘  │
+└─────────┬─────────┘   └─────────┬─────────┘   └─────────┬─────────┘
+          │                       │                       │
+          │ stdio                 │ HTTP                  │ stdio
+          ▼                       ▼                       ▼
+   ┌────────────┐          ┌────────────┐          ┌────────────┐
+   │ GitHub     │          │ Remote     │          │ Custom     │
+   │ MCP Server │          │ MCP Server │          │ MCP Server │
+   │ (Docker)   │          │ (HTTP)     │          │ (Process)  │
+   └────────────┘          └────────────┘          └────────────┘
 ```
 
 ### 3.2 Transport Support
 
-The gateway MUST support the following transport mechanisms:
+Each gateway instance MUST support the following transport configurations:
 
-- **stdio**: Standard input/output based communication
-- **HTTP**: Direct HTTP-based MCP servers
+**Frontend Transport (Client-Facing)**:
+- **Streamable HTTP**: All client communication uses Streamable HTTP transport as defined in the MCP specification
 
-The gateway MUST translate all upstream transports to HTTP for client communication.
+**Backend Transport (Server-Facing)**:
+- **stdio**: Standard input/output based communication with local processes or containers
+- **HTTP**: Direct HTTP-based communication with remote MCP servers
 
-### 3.3 Operational Model
+The gateway translates between Streamable HTTP (frontend) and the server's native transport (backend).
 
-The gateway operates in a headless mode:
+### 3.3 Per-Server Deployment
 
-1. Configuration is provided via **stdin** (JSON format)
+Each MCP server requires its own gateway instance. The deployment model:
+
+1. **One Gateway Per Server**: Each configured MCP server gets a dedicated gateway process
+2. **Independent Ports**: Each gateway listens on a unique port
+3. **Independent Authentication**: Each gateway has its own API key
+4. **Independent Lifecycle**: Gateway instances start, stop, and restart independently
+
+Example deployment for a workflow with three MCP servers:
+
+| Server Name | Gateway Port | Backend Transport | Backend Target |
+|-------------|--------------|-------------------|----------------|
+| github      | 8080         | stdio             | Docker container |
+| playwright  | 8081         | stdio             | Docker container |
+| remote-api  | 8082         | HTTP              | https://api.example.com |
+
+### 3.4 Operational Model
+
+Each gateway instance operates in headless mode:
+
+1. Configuration is provided via **stdin** (JSON format) at startup
 2. Secrets are provided via **environment variables**
-3. Startup output is written to **stdout** (rewritten configuration)
+3. Startup output is written to **stdout** (gateway endpoint information)
 4. Error messages are written to **stdout** as error payloads
-5. HTTP server accepts client requests on configured port
+5. Streamable HTTP server accepts client requests on the configured port
 
 ---
 
@@ -160,24 +188,27 @@ The gateway operates in a headless mode:
 
 ### 4.1 Configuration Format
 
-The gateway MUST accept configuration via stdin in JSON format conforming to the MCP configuration file schema.
+Each gateway instance MUST accept configuration via stdin in JSON format. Since each gateway manages exactly one MCP server, the configuration is per-server.
+
+:::note
+This configuration format is specific to the `gh-aw-mcpg` gateway implementation. The workflow frontmatter schema (`sandbox.mcp`) provides a higher-level configuration that the orchestrator uses to spawn gateway instances with this format.
+:::
 
 #### 4.1.1 Configuration Structure
 
 ```json
 {
-  "mcpServers": {
-    "server-name": {
-      "command": "string",
-      "args": ["string"],
-      "container": "string",
-      "entrypointArgs": ["string"],
-      "env": {
-        "VAR_NAME": "value"
-      },
-      "type": "stdio" | "http",
-      "url": "string"
-    }
+  "server": {
+    "name": "server-name",
+    "command": "string",
+    "args": ["string"],
+    "container": "string",
+    "entrypointArgs": ["string"],
+    "env": {
+      "VAR_NAME": "value"
+    },
+    "type": "stdio",
+    "url": "string"
   },
   "gateway": {
     "port": 8080,
@@ -191,31 +222,32 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
 
 #### 4.1.2 Server Configuration Fields
 
-Each server configuration MUST support:
+Each gateway manages exactly one MCP server. The `server` section MUST support:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `command` | string | Conditional* | Executable command for stdio servers |
+| `name` | string | Yes | Unique identifier for the MCP server |
+| `command` | string | Conditional* | Executable command for stdio backend |
 | `args` | array[string] | No | Command arguments |
 | `container` | string | Conditional* | Container image for the MCP server (mutually exclusive with command) |
 | `entrypointArgs` | array[string] | No | Arguments passed to container entrypoint (container only) |
 | `env` | object | No | Environment variables for the server process |
-| `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
-| `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
+| `type` | string | No | Backend transport type: "stdio" or "http" (default: "stdio") |
+| `url` | string | Conditional** | Backend HTTP endpoint URL for HTTP servers |
 
-*Either `command` or `container` is required for stdio servers  
-**Required for HTTP servers
+*Either `command` or `container` is required for stdio backend  
+**Required for HTTP backend
 
 #### 4.1.3 Gateway Configuration Fields
 
-The optional `gateway` section configures gateway-specific behavior:
+The `gateway` section configures the gateway's Streamable HTTP frontend and operational behavior:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `port` | integer | 8080 | HTTP server port |
-| `apiKey` | string | (none) | API key for authentication |
+| `port` | integer | 8080 | Streamable HTTP server port |
+| `apiKey` | string | (none) | API key for frontend authentication |
 | `domain` | string | localhost | Gateway domain (localhost or host.docker.internal) |
-| `startupTimeout` | integer | 30 | Server startup timeout in seconds |
+| `startupTimeout` | integer | 30 | Backend server startup timeout in seconds |
 | `toolTimeout` | integer | 60 | Tool invocation timeout in seconds |
 
 ### 4.2 Variable Expression Rendering
@@ -240,17 +272,21 @@ The gateway MUST:
 
 #### 4.2.3 Example
 
-Configuration:
+Configuration for a single gateway instance managing the GitHub MCP server:
 
 ```json
 {
-  "mcpServers": {
-    "github": {
-      "command": "docker",
-      "env": {
-        "GITHUB_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
+  "server": {
+    "name": "github",
+    "command": "docker",
+    "args": ["run", "-i", "--rm", "ghcr.io/github/github-mcp-server:latest"],
+    "env": {
+      "GITHUB_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
     }
+  },
+  "gateway": {
+    "port": 8080,
+    "apiKey": "generated-api-key"
   }
 }
 ```
@@ -259,7 +295,7 @@ If `GITHUB_PERSONAL_ACCESS_TOKEN` is not set in the environment:
 
 ```
 Error: undefined environment variable referenced: GITHUB_PERSONAL_ACCESS_TOKEN
-Required by: mcpServers.github.env.GITHUB_TOKEN
+Required by: server.env.GITHUB_TOKEN
 ```
 
 ### 4.3 Configuration Validation
@@ -290,8 +326,8 @@ If configuration is invalid, the gateway MUST:
    - The location in the configuration (JSON path)
    - Suggested corrective action
 2. Exit with status code 1
-3. NOT start the HTTP server
-4. NOT initialize any MCP servers
+3. NOT start the Streamable HTTP server
+4. NOT initialize the MCP server backend
 
 ---
 
@@ -299,25 +335,32 @@ If configuration is invalid, the gateway MUST:
 
 For complete details on the Model Context Protocol, see the [Model Context Protocol Specification](https://spec.modelcontextprotocol.io/).
 
-### 5.1 HTTP Server Interface
+### 5.1 Streamable HTTP Frontend
+
+Each gateway instance provides a Streamable HTTP transport interface for MCP clients. This enables efficient bidirectional communication with support for streaming responses.
 
 #### 5.1.1 Endpoint Structure
 
-The gateway MUST expose the following HTTP endpoints:
+The gateway MUST expose the following HTTP endpoints at `http://{domain}:{port}`:
 
-```
-POST /mcp/{server-name}
-GET  /health
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/mcp` | POST | MCP protocol endpoint for tool invocations |
+| `/health` | GET | Health check endpoint |
 
-#### 5.1.2 RPC Endpoint Behavior
+Note: Since each gateway manages exactly one MCP server, the endpoint does not require a server name parameter. The full URL is `http://{domain}:{port}/mcp`.
+
+#### 5.1.2 Streamable HTTP Transport
+
+The gateway MUST implement Streamable HTTP transport as defined in the MCP specification:
 
 **Request Format**:
 
 ```http
-POST /mcp/{server-name} HTTP/1.1
+POST /mcp HTTP/1.1
 Content-Type: application/json
-Authorization: {apiKey}
+Authorization: Bearer {apiKey}
+Accept: text/event-stream
 
 {
   "jsonrpc": "2.0",
@@ -327,7 +370,20 @@ Authorization: {apiKey}
 }
 ```
 
-**Response Format**:
+**Response Format** (Streaming):
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
+
+event: message
+data: {"jsonrpc":"2.0","result":{},"id":"string|number"}
+
+```
+
+**Response Format** (Non-Streaming):
 
 ```http
 HTTP/1.1 200 OK
@@ -357,41 +413,43 @@ Content-Type: application/json
 }
 ```
 
-#### 5.1.3 Request Routing
+#### 5.1.3 Request Processing
 
 The gateway MUST:
 
-1. Extract server name from URL path
-2. Validate server exists in configuration
-3. Route request to appropriate backend server
-4. Translate protocols if necessary (stdio ↔ HTTP)
-5. Return response to client
+1. Accept incoming Streamable HTTP requests on the `/mcp` endpoint
+2. Authenticate the request using the configured API key
+3. Translate the request to the backend transport format
+4. Forward the request to the MCP server
+5. Translate the response back to Streamable HTTP
+6. Return the response to the client
 
-### 5.2 Protocol Translation
+### 5.2 Backend Protocol Translation
 
-#### 5.2.1 Stdio to HTTP
+#### 5.2.1 Streamable HTTP to stdio
 
-For stdio-based servers, the gateway MUST:
+For stdio-based MCP servers, the gateway MUST:
 
 1. Start the server process on first request (lazy initialization)
-2. Write JSON-RPC request to server's stdin
+2. Translate Streamable HTTP request to JSON-RPC and write to server's stdin
 3. Read JSON-RPC response from server's stdout
-4. Return HTTP response to client
+4. Translate response to Streamable HTTP format
 5. Maintain server process for subsequent requests
 6. Buffer partial responses until complete JSON is received
 
-#### 5.2.2 HTTP to HTTP
+#### 5.2.2 Streamable HTTP to HTTP
 
-For HTTP-based servers, the gateway MUST:
+For HTTP-based MCP servers, the gateway MUST:
 
-1. Forward the JSON-RPC request to the server's URL
-2. Apply any configured headers or authentication
-3. Return the server's response to the client
-4. Handle HTTP-level errors appropriately
+1. Translate Streamable HTTP request to the backend HTTP format
+2. Forward the request to the server's URL
+3. Apply any configured headers or authentication
+4. Translate the backend response to Streamable HTTP
+5. Handle HTTP-level errors appropriately
 
 #### 5.2.3 Tool Signature Preservation
 
-The gateway SHOULD NOT modify:
+The gateway MUST NOT modify:
 
 - Tool names
 - Tool parameters
@@ -422,19 +480,18 @@ The gateway SHOULD enforce `toolTimeout` for individual tool invocations:
 
 ### 5.4 Stdout Configuration Output
 
-After successful initialization, the gateway MUST:
+After successful initialization, each gateway instance MUST:
 
-1. Write a complete MCP server configuration to stdout
-2. Include gateway connection details:
+1. Write connection details to stdout for client configuration
+2. Include the Streamable HTTP endpoint information:
    ```json
    {
-     "mcpServers": {
-       "server-name": {
-         "type": "http",
-         "url": "http://{domain}:{port}/mcp/server-name",
-         "headers": {
-           "Authorization": "{apiKey}"
-         }
+     "server": {
+       "name": "server-name",
+       "url": "http://{domain}:{port}/mcp",
+       "transport": "streamable-http",
+       "headers": {
+         "Authorization": "Bearer {apiKey}"
        }
      }
    }
@@ -443,45 +500,43 @@ After successful initialization, the gateway MUST:
 4. Flush stdout buffer
 5. Continue serving requests
 
-This allows clients to dynamically discover gateway endpoints.
+This allows the orchestrator to dynamically configure MCP clients with gateway endpoints.
 
 ---
 
 ## 6. Server Isolation
 
-### 6.1 Process and Container Isolation
+### 6.1 Per-Gateway Isolation
 
-For stdio servers using processes, the gateway MUST:
+Since each gateway manages exactly one MCP server, isolation is inherent in the architecture:
 
-1. Launch each server in a separate process
-2. Maintain isolated stdin/stdout/stderr streams
-3. Prevent cross-server communication
-4. Terminate child processes on gateway shutdown
+1. **Process Isolation**: Each gateway runs as a separate process
+2. **Port Isolation**: Each gateway listens on its own unique port
+3. **Authentication Isolation**: Each gateway has its own API key
+4. **Lifecycle Isolation**: Gateway instances start, stop, and restart independently
 
-For stdio servers using containers, the gateway MUST:
+### 6.2 Backend Process Management
 
-1. Launch each server in a separate container
-2. Maintain isolated stdin/stdout/stderr streams
-3. Prevent cross-container communication
-4. Terminate containers on gateway shutdown
+For stdio backend servers, the gateway MUST:
 
-### 6.2 Resource Isolation
+1. Launch the server as a child process or container
+2. Maintain exclusive access to the server's stdin/stdout/stderr streams
+3. Terminate the child process/container on gateway shutdown
 
-The gateway MUST ensure:
+For HTTP backend servers, the gateway MUST:
 
-- Each server has isolated environment variables
-- File descriptors are not shared between servers
-- Network sockets are not shared (for HTTP servers)
-- Server failures do not affect other servers
+1. Maintain a connection pool to the backend server
+2. Handle connection lifecycle (reconnection, timeout, etc.)
+3. Clean up connections on gateway shutdown
 
 ### 6.3 Security Boundaries
 
-The gateway MUST NOT:
+The gateway MUST:
 
-- Allow servers to access each other's configuration
-- Share authentication credentials between servers
-- Expose server implementation details to clients
-- Allow cross-server tool invocations
+- Isolate environment variables per gateway instance
+- NOT log API keys or secrets in plaintext
+- NOT expose backend server implementation details to clients
+- NOT forward internal errors that could leak sensitive information
 
 ---
 
@@ -513,9 +568,11 @@ The following endpoints MUST NOT require authentication:
 
 ## 8. Health Monitoring
 
-### 8.1 Health Endpoints
+### 8.1 Health Endpoint
 
-#### 8.1.1 General Health (`/health`)
+Each gateway instance MUST expose a health endpoint for monitoring:
+
+#### 8.1.1 Health Check (`/health`)
 
 ```http
 GET /health HTTP/1.1
@@ -526,11 +583,15 @@ Response:
 ```json
 {
   "status": "healthy" | "unhealthy",
-  "servers": {
-    "server-name": {
-      "status": "running" | "stopped" | "error",
-      "uptime": 12345
-    }
+  "server": {
+    "name": "server-name",
+    "status": "running" | "stopped" | "error",
+    "transport": "stdio" | "http",
+    "uptime": 12345
+  },
+  "gateway": {
+    "port": 8080,
+    "uptime": 12345
   }
 }
 ```
@@ -539,11 +600,11 @@ Response:
 
 The gateway SHOULD:
 
-1. Periodically check server health (every 30 seconds)
-2. Restart failed stdio servers automatically
-3. Mark HTTP servers unhealthy if unreachable
+1. Periodically check backend server health (every 30 seconds)
+2. Restart failed stdio backend servers automatically
+3. Mark HTTP backend servers unhealthy if unreachable
 4. Include health status in `/health` response
-5. Update readiness based on critical server status
+5. Update overall status based on backend server status
 
 ---
 
@@ -551,7 +612,7 @@ The gateway SHOULD:
 
 ### 9.1 Startup Failures
 
-If any configured server fails to start, the gateway MUST:
+If the backend server fails to start, the gateway MUST:
 
 1. Write detailed error to stdout as an error payload including:
    - Server name
@@ -560,7 +621,7 @@ If any configured server fails to start, the gateway MUST:
    - Environment variable status
    - Stdout/stderr from failed process
 2. Exit with status code 1
-3. NOT start the HTTP server
+3. NOT start the Streamable HTTP frontend server
 
 ### 9.2 Runtime Errors
 
@@ -572,8 +633,8 @@ For runtime errors, the gateway MUST:
    - Request ID
    - Error details
 2. Return JSON-RPC error response to client
-3. Continue serving other requests
-4. Attempt to restart failed stdio servers
+3. Continue serving requests if possible
+4. Attempt to restart failed stdio backend servers
 
 ### 9.3 Error Response Format
 
@@ -604,12 +665,11 @@ Error codes:
 
 ### 9.4 Graceful Degradation
 
-The gateway SHOULD:
+Since each gateway manages exactly one server, graceful degradation is limited to:
 
-1. Continue serving healthy servers when others fail
-2. Return specific errors for unavailable servers
-3. Attempt automatic recovery for transient failures
-4. Provide clear client feedback about server status
+1. Returning clear error messages when backend is unavailable
+2. Attempting automatic recovery for transient failures
+3. Providing health status updates for monitoring systems
 
 ---
 
@@ -621,8 +681,8 @@ A conforming implementation MUST pass the following test categories:
 
 #### 10.1.1 Configuration Tests
 
-- **T-CFG-001**: Valid stdio server configuration
-- **T-CFG-002**: Valid HTTP server configuration
+- **T-CFG-001**: Valid stdio backend configuration
+- **T-CFG-002**: Valid HTTP backend configuration
 - **T-CFG-003**: Variable expression resolution
 - **T-CFG-004**: Undefined variable error detection
 - **T-CFG-005**: Unknown field rejection
@@ -630,53 +690,58 @@ A conforming implementation MUST pass the following test categories:
 - **T-CFG-007**: Invalid type detection
 - **T-CFG-008**: Port range validation
 
-#### 10.1.2 Protocol Translation Tests
+#### 10.1.2 Streamable HTTP Frontend Tests
 
-- **T-PTL-001**: Stdio request/response cycle
-- **T-PTL-002**: HTTP passthrough
+- **T-SH-001**: Streamable HTTP endpoint availability
+- **T-SH-002**: Server-sent events streaming
+- **T-SH-003**: Non-streaming response fallback
+- **T-SH-004**: Content-Type negotiation
+- **T-SH-005**: Connection keep-alive
+
+#### 10.1.3 Backend Protocol Translation Tests
+
+- **T-PTL-001**: Streamable HTTP to stdio translation
+- **T-PTL-002**: Streamable HTTP to HTTP translation
 - **T-PTL-003**: Tool signature preservation
 - **T-PTL-004**: Concurrent request handling
 - **T-PTL-005**: Large payload handling
 - **T-PTL-006**: Partial response buffering
 
-#### 10.1.3 Isolation Tests
+#### 10.1.4 Per-Gateway Isolation Tests
 
-- **T-ISO-001**: Process isolation verification
-- **T-ISO-002**: Environment isolation verification
-- **T-ISO-003**: Credential isolation verification
-- **T-ISO-004**: Cross-server communication prevention
-- **T-ISO-005**: Server failure isolation
+- **T-ISO-001**: Process isolation per gateway
+- **T-ISO-002**: Port isolation verification
+- **T-ISO-003**: API key isolation verification
+- **T-ISO-004**: Lifecycle independence
 
-#### 10.1.4 Authentication Tests
+#### 10.1.5 Authentication Tests
 
 - **T-AUTH-001**: Valid token acceptance
 - **T-AUTH-002**: Invalid token rejection
 - **T-AUTH-003**: Missing token rejection
 - **T-AUTH-004**: Health endpoint exemption
-- **T-AUTH-005**: Token rotation support
+- **T-AUTH-005**: Bearer token format support
 
-#### 10.1.5 Timeout Tests
+#### 10.1.6 Timeout Tests
 
-- **T-TMO-001**: Startup timeout enforcement
+- **T-TMO-001**: Backend startup timeout enforcement
 - **T-TMO-002**: Tool timeout enforcement
 - **T-TMO-003**: Timeout error messaging
-- **T-TMO-004**: Partial response timeout
-- **T-TMO-005**: Concurrent timeout handling
+- **T-TMO-004**: Streaming timeout handling
 
-#### 10.1.6 Health Monitoring Tests
+#### 10.1.7 Health Monitoring Tests
 
 - **T-HLT-001**: Health endpoint availability
-- **T-HLT-002**: Liveness probe accuracy
-- **T-HLT-003**: Readiness probe accuracy
-- **T-HLT-004**: Server status reporting
-- **T-HLT-005**: Automatic restart behavior
+- **T-HLT-002**: Backend server status reporting
+- **T-HLT-003**: Uptime tracking
+- **T-HLT-004**: Automatic restart behavior
 
-#### 10.1.7 Error Handling Tests
+#### 10.1.8 Error Handling Tests
 
 - **T-ERR-001**: Startup failure reporting
 - **T-ERR-002**: Runtime error handling
 - **T-ERR-003**: Invalid request handling
-- **T-ERR-004**: Server crash recovery
+- **T-ERR-004**: Backend crash recovery
 - **T-ERR-005**: Error message quality
 
 ### 10.2 Compliance Checklist
@@ -684,13 +749,13 @@ A conforming implementation MUST pass the following test categories:
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
 | Configuration parsing | T-CFG-* | 1 | Required |
-| Variable expressions | T-CFG-003, T-CFG-004 | 3 | Optional |
-| Stdio transport | T-PTL-001 | 1 | Required |
-| HTTP transport | T-PTL-002 | 2 | Standard |
+| Streamable HTTP frontend | T-SH-* | 1 | Required |
+| Stdio backend | T-PTL-001 | 1 | Required |
+| HTTP backend | T-PTL-002 | 2 | Standard |
 | Authentication | T-AUTH-* | 2 | Standard |
 | Timeout handling | T-TMO-* | 3 | Optional |
 | Health monitoring | T-HLT-* | 2 | Standard |
-| Server isolation | T-ISO-* | 1 | Required |
+| Per-gateway isolation | T-ISO-* | 1 | Required |
 | Error handling | T-ERR-* | 1 | Required |
 
 ### 10.3 Test Execution
@@ -709,17 +774,18 @@ Implementations SHOULD provide:
 
 ### Appendix A: Example Configurations
 
-#### A.1 Basic Stdio Server
+#### A.1 Basic Stdio Backend
+
+Configuration for a gateway with stdio backend:
 
 ```json
 {
-  "mcpServers": {
-    "example": {
-      "command": "node",
-      "args": ["server.js"],
-      "env": {
-        "API_KEY": "${MY_API_KEY}"
-      }
+  "server": {
+    "name": "example",
+    "command": "node",
+    "args": ["server.js"],
+    "env": {
+      "API_KEY": "${MY_API_KEY}"
     }
   },
   "gateway": {
@@ -729,47 +795,59 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.2 Mixed Transport Configuration
+#### A.2 HTTP Backend
+
+Configuration for a gateway with HTTP backend:
 
 ```json
 {
-  "mcpServers": {
-    "local-server": {
-      "command": "python",
-      "args": ["server.py"],
-      "type": "stdio"
-    },
-    "remote-server": {
-      "type": "http",
-      "url": "https://api.example.com/mcp"
-    }
+  "server": {
+    "name": "remote-api",
+    "type": "http",
+    "url": "https://api.example.com/mcp"
   },
   "gateway": {
-    "port": 8080,
+    "port": 8081,
+    "apiKey": "gateway-secret-token",
     "startupTimeout": 60,
     "toolTimeout": 120
   }
 }
 ```
 
-#### A.3 Docker-Based Server
+#### A.3 Docker Container Backend
+
+Configuration for a gateway with Docker container backend:
 
 ```json
 {
-  "mcpServers": {
-    "github": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server:latest"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-      }
+  "server": {
+    "name": "github",
+    "container": "ghcr.io/github/github-mcp-server:latest",
+    "env": {
+      "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
     }
+  },
+  "gateway": {
+    "port": 8082,
+    "domain": "host.docker.internal"
   }
 }
+```
+
+#### A.4 Multi-Gateway Deployment
+
+Example orchestration of multiple gateways for a workflow:
+
+```bash
+# Start gateway for GitHub MCP server
+echo '{"server":{"name":"github","container":"ghcr.io/github/github-mcp-server:latest"},"gateway":{"port":8080}}' | gh-aw-mcpg &
+
+# Start gateway for Playwright MCP server
+echo '{"server":{"name":"playwright","container":"mcr.microsoft.com/playwright/mcp"},"gateway":{"port":8081}}' | gh-aw-mcpg &
+
+# Start gateway for remote API
+echo '{"server":{"name":"remote","type":"http","url":"https://api.example.com/mcp"},"gateway":{"port":8082}}' | gh-aw-mcpg &
 ```
 
 ### Appendix B: Error Code Reference
@@ -782,31 +860,49 @@ Implementations SHOULD provide:
 | -32602 | Invalid params | Invalid method parameters |
 | -32603 | Internal error | Internal JSON-RPC error |
 | -32000 | Server error | Generic server error |
-| -32001 | Server unavailable | Server not responding |
-| -32002 | Server timeout | Server response timeout |
-| -32003 | Authentication failed | Invalid or missing credentials |
+| -32001 | Backend unavailable | Backend server not responding |
+| -32002 | Backend timeout | Backend response timeout |
+| -32003 | Authentication failed | Invalid or missing API key |
 
 ### Appendix C: Security Considerations
 
 #### C.1 Credential Handling
 
-- API keys MUST NOT be logged
-- Environment variables MUST be isolated per server
+- API keys MUST NOT be logged in plaintext
+- Environment variables MUST be isolated per gateway instance
 - Secrets SHOULD be cleared from memory after use
+- Backend credentials MUST NOT be exposed to clients
 
 #### C.2 Network Security
 
-- Gateway SHOULD support TLS/HTTPS
-- Server URLs SHOULD be validated
+- Gateway SHOULD support TLS/HTTPS for frontend connections
+- Backend URLs SHOULD be validated before connection
+- Rate limiting SHOULD be implemented per gateway instance
 - Cross-origin requests SHOULD be restricted
-- Rate limiting SHOULD be implemented
 
 #### C.3 Process Security
 
-- Server processes SHOULD run with minimal privileges
+- Backend processes SHOULD run with minimal privileges
 - Resource limits SHOULD be enforced (CPU, memory, file descriptors)
-- Temporary files SHOULD be cleaned up
+- Temporary files SHOULD be cleaned up on shutdown
 - Process monitoring SHOULD detect anomalies
+
+### Appendix D: Streamable HTTP Transport
+
+The MCP Gateway uses Streamable HTTP transport for client-facing communication. This transport:
+
+1. **Supports Streaming**: Responses can be streamed using Server-Sent Events (SSE)
+2. **Backward Compatible**: Falls back to single-response mode when streaming is not requested
+3. **Connection Efficient**: Supports HTTP/1.1 keep-alive and HTTP/2 multiplexing
+4. **Standard Protocol**: Follows the MCP Streamable HTTP transport specification
+
+#### D.1 Content-Type Negotiation
+
+| Client Accept Header | Response Content-Type | Behavior |
+|---------------------|----------------------|----------|
+| `text/event-stream` | `text/event-stream` | Streaming SSE response |
+| `application/json` | `application/json` | Single JSON response |
+| `*/*` or missing | `application/json` | Single JSON response (default) |
 
 ---
 
@@ -817,19 +913,31 @@ Implementations SHOULD provide:
 - **[RFC 2119]** Key words for use in RFCs to Indicate Requirement Levels
 - **[JSON-RPC 2.0]** JSON-RPC 2.0 Specification
 - **[MCP]** Model Context Protocol Specification
+- **[MCP-Streamable-HTTP]** MCP Streamable HTTP Transport Specification
 
 ### Informative References
 
 - **[MCP-Config]** MCP Configuration Format
 - **[HTTP/1.1]** Hypertext Transfer Protocol -- HTTP/1.1
+- **[SSE]** Server-Sent Events (HTML Living Standard)
 
 ---
 
 ## Change Log
 
+### Version 2.0.0 (Draft)
+
+- **Architecture Change**: Updated to one gateway per MCP server model
+- **Frontend Protocol**: Changed from HTTP/JSON-RPC to Streamable HTTP transport
+- **Backend Protocols**: Clarified HTTP and stdio backend transport support
+- **Configuration Format**: Updated to per-server configuration structure
+- **Isolation Model**: Simplified to per-gateway isolation
+- **Test Suite**: Updated compliance tests for new architecture
+
 ### Version 1.0.0 (Draft)
 
 - Initial specification release
+- Unified gateway for multiple servers
 - Configuration format definition
 - Protocol behavior specification
 - Compliance test framework
