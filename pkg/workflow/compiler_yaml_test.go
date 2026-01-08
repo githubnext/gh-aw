@@ -514,6 +514,8 @@ func TestConvertGoPatternToJavaScript(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("convertGoPatternToJavaScript(%q) = %q, want %q",
 					tt.goPattern, result, tt.expected)
+			}
+		})
 	}
 }
 
