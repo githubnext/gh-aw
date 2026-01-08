@@ -50,12 +50,6 @@ If you have the gh-aw MCP server configured, use the \`compile\` tool:
 }
 \`\`\`
 
-### Using make command
-
-\`\`\`bash
-make recompile
-\`\`\`
-
 This will:
 1. Build the latest version of \`gh-aw\`
 2. Compile all workflow markdown files to YAML lock files
@@ -254,7 +248,7 @@ The following workflow lock files have changes:
     expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
-      title: "Workflows need recompilation",
+      title: "[aw] agentic workflows out of sync",
       body: expect.stringContaining("Using gh aw CLI"),
       labels: ["maintenance", "workflows"],
     });

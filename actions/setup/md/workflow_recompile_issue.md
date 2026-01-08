@@ -30,12 +30,6 @@ If you have the gh-aw MCP server configured, use the `compile` tool:
 }
 ```
 
-### Using make command
-
-```bash
-make recompile
-```
-
 This will:
 1. Build the latest version of `gh-aw`
 2. Compile all workflow markdown files to YAML lock files
