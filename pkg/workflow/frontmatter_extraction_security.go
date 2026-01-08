@@ -393,6 +393,35 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
+	// Extract mounts (volume mounts)
+	if mountsVal, hasMounts := mcpObj["mounts"]; hasMounts {
+		if mountsSlice, ok := mountsVal.([]any); ok {
+			for _, mount := range mountsSlice {
+				if mountStr, ok := mount.(string); ok {
+					mcpConfig.Mounts = append(mcpConfig.Mounts, mountStr)
+				}
+			}
+		}
+	}
+
+	// Extract network (Docker network mode)
+	if networkVal, hasNetwork := mcpObj["network"]; hasNetwork {
+		if networkStr, ok := networkVal.(string); ok {
+			mcpConfig.Network = networkStr
+		}
+	}
+
+	// Extract ports (port mappings)
+	if portsVal, hasPorts := mcpObj["ports"]; hasPorts {
+		if portsSlice, ok := portsVal.([]any); ok {
+			for _, port := range portsSlice {
+				if portStr, ok := port.(string); ok {
+					mcpConfig.Ports = append(mcpConfig.Ports, portStr)
+				}
+			}
+		}
+	}
+
 	return mcpConfig
 }
 

@@ -313,6 +313,9 @@ type MCPGatewayRuntimeConfig struct {
 	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
 	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
 	Domain         string            `yaml:"domain,omitempty"`         // Domain for gateway URL (localhost or host.docker.internal)
+	Mounts         []string          `yaml:"mounts,omitempty"`         // Volume mounts for gateway container (format: "source:dest:mode")
+	Network        string            `yaml:"network,omitempty"`        // Docker network mode (default: "host")
+	Ports          []string          `yaml:"ports,omitempty"`          // Port mappings (format: "host:container" or "port")
 }
 
 // HasTool checks if a tool is present in the configuration
