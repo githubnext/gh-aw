@@ -651,109 +651,10 @@ func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsL
 
 // logErrorAggregator and related functions have been removed since error patterns are no longer supported
 
-// aggregateLogErrors has been removed since error patterns are no longer supported
-func aggregateLogErrors(processedRuns []ProcessedRun, agg interface{}) []ErrorSummary {
-	// Return empty slice since error patterns have been removed
-	return []ErrorSummary{}
-}
-
-// isActionableError checks if an error message is actionable (user-relevant)
-// Returns false for internal debug messages, validation logs, JSON fragments, etc.
-func isActionableError(message string) bool {
-	msg := strings.ToLower(message)
-
-	// Filter out internal validation/debug messages
-	debugPatterns := []string{
-		"validation completed",
-		"executePromptDirectly",
-		"starting validate_errors",
-		"loaded", "error patterns",
-		"pattern ", "/16:", // Pattern testing logs
-		"validation completed in",
-		"starting error validation",
-		"error validation completed",
-		"const { main }",
-		"require(",
-		"perfect! the",
-		"failed as expected",
-	}
-
-	for _, pattern := range debugPatterns {
-		if strings.Contains(msg, pattern) {
-			return false
-		}
-	}
-
-	// Filter out JSON fragments and data structures
-	jsonPatterns := []string{
-		`"errorCodesToRetry"`,
-		`"description":`,
-		`"statement":`,
-		`"content":`,
-		`"onRequestError"`,
-		`[{`, `}]`, `"[`,
-	}
-
-	for _, pattern := range jsonPatterns {
-		if strings.Contains(message, pattern) {
-			return false
-		}
-	}
-
-	// Filter out MCP server logs (stderr output)
-	if strings.Contains(msg, "[mcp server") ||
-		strings.Contains(msg, "[safeoutputs]") ||
-		strings.Contains(msg, "send: {\"jsonrpc\"") {
-		return false
-	}
-
-	// Filter out Squid proxy logs
-	if strings.Contains(msg, "::1:") && strings.Contains(msg, "NONE_NONE:HIER_NONE") {
-		return false
-	}
-
-	// Filter out tool invocation result logs (these are outputs, not errors)
-	if strings.HasPrefix(msg, "tool invocation result:") {
-		return false
-	}
-
-	return true
-}
-
 // buildCombinedErrorsSummary has been removed since error patterns are no longer supported
 func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
 	// Return empty slice since error patterns have been removed
 	return []ErrorSummary{}
-}
-
-// buildErrorsSummary aggregates errors and warnings across all runs
-// Returns two slices: errorsSummary and warningsSummary
-// DEPRECATED: Use buildCombinedErrorsSummary instead
-func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSummary) {
-	// Get combined summary
-	combined := buildCombinedErrorsSummary(processedRuns)
-
-	// Separate into errors and warnings
-	var errorsSummary []ErrorSummary
-	var warningsSummary []ErrorSummary
-
-	for _, summary := range combined {
-		if summary.Type == "Error" {
-			errorsSummary = append(errorsSummary, summary)
-		} else {
-			warningsSummary = append(warningsSummary, summary)
-		}
-	}
-
-	// Sort each by count (descending)
-	sort.Slice(errorsSummary, func(i, j int) bool {
-		return errorsSummary[i].Count > errorsSummary[j].Count
-	})
-	sort.Slice(warningsSummary, func(i, j int) bool {
-		return warningsSummary[i].Count > warningsSummary[j].Count
-	})
-
-	return errorsSummary, warningsSummary
 }
 
 // renderLogsJSON outputs the logs data as JSON

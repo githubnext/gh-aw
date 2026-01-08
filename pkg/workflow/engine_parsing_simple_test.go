@@ -323,7 +323,6 @@ Line 5`,
 				metrics := engine.ParseLogMetrics(tt.logContent, tt.verbose)
 
 				// Basic validation - should return valid struct
-				}
 				if metrics.TokenUsage < 0 {
 					t.Errorf("TokenUsage should not be negative, got %d", metrics.TokenUsage)
 				}
