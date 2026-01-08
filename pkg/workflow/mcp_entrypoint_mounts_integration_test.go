@@ -56,7 +56,7 @@ func TestMCPServerEntrypointIntegration(t *testing.T) {
 		}
 	}
 
-	assert.Greater(t, entrypointIdx, 0, "--entrypoint should be in args")
+	assert.Positive(t, entrypointIdx, "--entrypoint should be in args")
 	assert.Greater(t, containerIdx, entrypointIdx, "Container should come after --entrypoint")
 	assert.Greater(t, verboseIdx, containerIdx, "EntrypointArgs should come after container")
 
@@ -119,7 +119,7 @@ func TestMCPServerMountsIntegration(t *testing.T) {
 		}
 	}
 
-	assert.Greater(t, firstVIdx, 0, "-v should be in args")
+	assert.Positive(t, firstVIdx, "-v should be in args")
 	assert.Greater(t, containerIdx, firstVIdx, "Container should come after -v flags")
 
 	// Note: parser.ParseMCPConfig preserves the Container/Mounts fields

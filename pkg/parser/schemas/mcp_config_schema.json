@@ -104,10 +104,7 @@
         "pattern": "^[^:]+:[^:]+:(ro|rw)$"
       },
       "description": "Volume mounts for container (format: 'source:dest:mode' where mode is 'ro' or 'rw')",
-      "examples": [
-        ["/host/data:/container/data:ro", "/host/config:/container/config:rw"],
-        ["/tmp/cache:/app/cache:rw"]
-      ]
+      "examples": [["/host/data:/container/data:ro", "/host/config:/container/config:rw"], ["/tmp/cache:/app/cache:rw"]]
     },
     "env": {
       "type": "object",

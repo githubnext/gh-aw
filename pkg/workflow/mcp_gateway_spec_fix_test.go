@@ -10,11 +10,11 @@ import (
 // TestMCPServerEntrypointField tests that MCP servers support optional entrypoint field
 func TestMCPServerEntrypointField(t *testing.T) {
 	tests := []struct {
-		name                string
-		mcpConfig           map[string]any
-		expectEntrypoint    string
+		name                 string
+		mcpConfig            map[string]any
+		expectEntrypoint     string
 		expectEntrypointArgs []string
-		expectError         bool
+		expectError          bool
 	}{
 		{
 			name: "entrypoint with entrypointArgs",
@@ -23,9 +23,9 @@ func TestMCPServerEntrypointField(t *testing.T) {
 				"entrypoint":     "/custom/entrypoint.sh",
 				"entrypointArgs": []any{"--verbose", "--port", "8080"},
 			},
-			expectEntrypoint:    "/custom/entrypoint.sh",
+			expectEntrypoint:     "/custom/entrypoint.sh",
 			expectEntrypointArgs: []string{"--verbose", "--port", "8080"},
-			expectError:         false,
+			expectError:          false,
 		},
 		{
 			name: "entrypoint without entrypointArgs",
@@ -33,9 +33,9 @@ func TestMCPServerEntrypointField(t *testing.T) {
 				"container":  "ghcr.io/example/server:latest",
 				"entrypoint": "/bin/sh",
 			},
-			expectEntrypoint:    "/bin/sh",
+			expectEntrypoint:     "/bin/sh",
 			expectEntrypointArgs: nil,
-			expectError:         false,
+			expectError:          false,
 		},
 		{
 			name: "entrypointArgs without entrypoint (existing behavior)",
@@ -43,18 +43,18 @@ func TestMCPServerEntrypointField(t *testing.T) {
 				"container":      "ghcr.io/example/server:latest",
 				"entrypointArgs": []any{"--config", "/etc/config.json"},
 			},
-			expectEntrypoint:    "",
+			expectEntrypoint:     "",
 			expectEntrypointArgs: []string{"--config", "/etc/config.json"},
-			expectError:         false,
+			expectError:          false,
 		},
 		{
 			name: "no entrypoint or entrypointArgs",
 			mcpConfig: map[string]any{
 				"container": "ghcr.io/example/server:latest",
 			},
-			expectEntrypoint:    "",
+			expectEntrypoint:     "",
 			expectEntrypointArgs: nil,
-			expectError:         false,
+			expectError:          false,
 		},
 	}
 
@@ -81,11 +81,11 @@ func TestMCPServerEntrypointField(t *testing.T) {
 // TestMCPServerMountsInServerConfig tests that mounts can be configured per MCP server
 func TestMCPServerMountsInServerConfig(t *testing.T) {
 	tests := []struct {
-		name          string
-		toolsConfig   map[string]any
-		serverName    string
-		expectMounts  []string
-		expectError   bool
+		name         string
+		toolsConfig  map[string]any
+		serverName   string
+		expectMounts []string
+		expectError  bool
 	}{
 		{
 			name: "mcp server with mounts",
