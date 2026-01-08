@@ -42,6 +42,7 @@ tools:
   github:
     toolsets:
       - default
+      - discussions
   cache-memory: true
   repo-memory:
     branch-name: memory/firewall-escape
@@ -349,21 +350,24 @@ Create a JSON file with your escape attempt results:
 
 ```json
 {
-  "last_updated": "2026-01-08T12:00:00Z",
-  "run_id": "12345678",
+  "last_updated": "[CURRENT_ISO_TIMESTAMP]",
+  "run_id": "[YOUR_RUN_ID]",
   "techniques": [
     {
-      "name": "Example Technique Name",
-      "category": "DNS-based",
-      "description": "Description of what was tried",
-      "result": "failure",
-      "date": "2026-01-08"
+      "name": "[TECHNIQUE_NAME]",
+      "category": "[CATEGORY]",
+      "description": "[WHAT_YOU_TRIED]",
+      "result": "[success|failure]",
+      "date": "[CURRENT_DATE]"
     }
   ]
 }
 ```
 
-**Instructions**: Replace the example values with your actual run ID, current date, and the techniques you attempted.
+**Instructions**: Replace the placeholder values in brackets with your actual values:
+- `[CURRENT_ISO_TIMESTAMP]`: Current time in ISO format (e.g., `2026-01-08T12:00:00Z`)
+- `[YOUR_RUN_ID]`: The GitHub run ID from `${{ github.run_id }}`
+- `[TECHNIQUE_NAME]`, `[CATEGORY]`, etc.: Your actual technique details
 
 ### techniques-tried.md
 
