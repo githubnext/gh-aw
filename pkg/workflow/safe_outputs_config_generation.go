@@ -231,10 +231,15 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.CreateProjects != nil {
-			safeOutputsConfig["create_project"] = generateMaxConfig(
+			config := generateMaxConfig(
 				data.SafeOutputs.CreateProjects.Max,
 				1, // default max
 			)
+			// Add target-owner if specified
+			if data.SafeOutputs.CreateProjects.TargetOwner != "" {
+				config["target_owner"] = data.SafeOutputs.CreateProjects.TargetOwner
+			}
+			safeOutputsConfig["create_project"] = config
 		}
 		if data.SafeOutputs.UpdateRelease != nil {
 			safeOutputsConfig["update_release"] = generateMaxConfig(

@@ -393,6 +393,17 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
+	// Extract mounts (volume mounts)
+	if mountsVal, hasMounts := mcpObj["mounts"]; hasMounts {
+		if mountsSlice, ok := mountsVal.([]any); ok {
+			for _, mount := range mountsSlice {
+				if mountStr, ok := mount.(string); ok {
+					mcpConfig.Mounts = append(mcpConfig.Mounts, mountStr)
+				}
+			}
+		}
+	}
+
 	return mcpConfig
 }
 

@@ -55,7 +55,9 @@ jobs:
                 'blocked',
                 'on-hold',
                 'waiting-for-feedback',
-                'needs-more-info'
+                'needs-more-info',
+                'no-bot',
+                'no-campaign'
               ];
               
               // Labels that indicate an issue is a GOOD candidate for auto-assignment
@@ -137,6 +139,13 @@ jobs:
                   const issueLabels = issue.labels.map(l => l.name.toLowerCase());
                   if (issueLabels.some(label => excludeLabels.map(l => l.toLowerCase()).includes(label))) {
                     core.info(`Skipping #${issue.number}: has excluded label`);
+                    return false;
+                  }
+                  
+                  // Exclude issues with campaign labels (campaign:*)
+                  // Campaign items are managed by campaign orchestrators
+                  if (issueLabels.some(label => label.startsWith('campaign:'))) {
+                    core.info(`Skipping #${issue.number}: has campaign label (managed by campaign orchestrator)`);
                     return false;
                   }
                   
@@ -260,7 +269,8 @@ The issue search has already been performed in a previous job with smart filteri
 
 **Filtering Applied:**
 - ✅ Only open issues
-- ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info
+- ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info, no-bot, no-campaign
+- ✅ Excluded issues with campaign labels (campaign:*) - these are managed by campaign orchestrators
 - ✅ Excluded issues that already have assignees
 - ✅ Excluded issues that have sub-issues (parent/organizing issues)
 - ✅ Prioritized issues with labels: good-first-issue, bug, security, documentation, enhancement, feature, performance, tech-debt, refactoring
@@ -399,15 +409,16 @@ Om nom nom! 🍪
 A successful run means:
 1. You reviewed the pre-searched, filtered, and prioritized issue list
 2. The search already excluded issues with problematic labels (wontfix, question, discussion, etc.)
-3. The search already excluded issues that already have assignees
-4. The search already excluded issues that have sub-issues (parent/organizing issues are not tasks)
-5. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
-6. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
-7. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
-8. You read and understood each issue
-9. You verified that the selected issues don't have overlapping concerns or file changes
-10. You assigned each issue to the Copilot agent using `assign_to_agent`
-11. You commented on each issue being assigned
+3. The search already excluded issues with campaign labels (campaign:*) as these are managed by campaign orchestrators
+4. The search already excluded issues that already have assignees
+5. The search already excluded issues that have sub-issues (parent/organizing issues are not tasks)
+6. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
+7. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+8. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+9. You read and understood each issue
+10. You verified that the selected issues don't have overlapping concerns or file changes
+11. You assigned each issue to the Copilot agent using `assign_to_agent`
+12. You commented on each issue being assigned
 
 ## Error Handling
 

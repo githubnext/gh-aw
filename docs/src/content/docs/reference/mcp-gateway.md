@@ -195,7 +195,8 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
     "apiKey": "string",
     "domain": "string",
     "startupTimeout": 30,
-    "toolTimeout": 60
+    "toolTimeout": 60,
+    "mounts": ["source:dest:mode"]
   }
 }
 ```
@@ -228,6 +229,7 @@ The optional `gateway` section configures gateway-specific behavior:
 | `domain` | string | localhost | Gateway domain (localhost or host.docker.internal) |
 | `startupTimeout` | integer | 30 | Server startup timeout in seconds |
 | `toolTimeout` | integer | 60 | Tool invocation timeout in seconds |
+| `mounts` | array[string] | [] | Volume mounts for gateway container (format: "source:dest:mode") |
 
 ### 4.2 Variable Expression Rendering
 
@@ -744,7 +746,28 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.2 Mixed Transport Configuration
+#### A.2 Gateway with Volume Mounts
+
+```json
+{
+  "mcpServers": {
+    "data-server": {
+      "container": "ghcr.io/example/data-mcp:latest",
+      "type": "stdio"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "apiKey": "gateway-secret-token",
+    "mounts": [
+      "/host/data:/container/data:ro",
+      "/host/config:/container/config:rw"
+    ]
+  }
+}
+```
+
+#### A.3 Mixed Transport Configuration
 
 ```json
 {
@@ -767,7 +790,7 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.3 GitHub MCP Server (Containerized)
+#### A.4 GitHub MCP Server (Containerized)
 
 ```json
 {
