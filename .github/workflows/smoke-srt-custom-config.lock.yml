@@ -143,11 +143,11 @@ jobs:
           echo "System configuration applied successfully"
       - name: Install Sandbox Runtime
         run: |
-          echo "Installing @anthropic-ai/sandbox-runtime@0.0.23 locally"
-          npm install @anthropic-ai/sandbox-runtime@0.0.23
+          echo "Installing @anthropic-ai/sandbox-runtime@0.0.25 locally"
+          npm install @anthropic-ai/sandbox-runtime@0.0.25
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
-        run: npm install --silent @github/copilot@0.0.375
+        run: npm install --silent @github/copilot@0.0.376
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -214,7 +214,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.375",
+              agent_version: "0.0.376",
               workflow_name: "Smoke SRT Custom Config",
               experimental: false,
               supports_tools_allowlist: true,
