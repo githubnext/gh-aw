@@ -196,6 +196,110 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineGitHubToolSetsGHToken(t *testing.T) {
+	engine := NewCopilotEngine()
+	
+	// Test with GitHub MCP tool enabled
+	workflowData := &WorkflowData{
+		Name: "test-workflow-with-github-tool",
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode": "remote",
+			},
+		},
+		ParsedTools: &Tools{
+			GitHub: &GitHubToolConfig{
+				Mode: "remote",
+			},
+		},
+	}
+	
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	
+	// Verify that GH_TOKEN is set when GitHub tool is present
+	// This enables gh CLI commands to work alongside the GitHub MCP server
+	if !strings.Contains(stepContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Errorf("Expected GH_TOKEN environment variable when GitHub tool is present:\n%s", stepContent)
+	}
+	
+	// Verify that GITHUB_MCP_SERVER_TOKEN is also set (for the MCP server itself)
+	if !strings.Contains(stepContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN environment variable when GitHub tool is present:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineGitHubToolWithCustomToken(t *testing.T) {
+	engine := NewCopilotEngine()
+	
+	// Test with GitHub MCP tool and custom token
+	workflowData := &WorkflowData{
+		Name: "test-workflow-with-custom-token",
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode":         "remote",
+				"github-token": "${{ secrets.CUSTOM_GITHUB_TOKEN }}",
+			},
+		},
+		ParsedTools: &Tools{
+			GitHub: &GitHubToolConfig{
+				Mode: "remote",
+			},
+		},
+	}
+	
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	
+	// Verify that GH_TOKEN uses the custom token
+	if !strings.Contains(stepContent, "GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}") {
+		t.Errorf("Expected GH_TOKEN to use custom token:\n%s", stepContent)
+	}
+	
+	// Verify that GITHUB_MCP_SERVER_TOKEN also uses the custom token
+	if !strings.Contains(stepContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}") {
+		t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN to use custom token:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineWithoutGitHubToolNoGHToken(t *testing.T) {
+	engine := NewCopilotEngine()
+	
+	// Test without GitHub MCP tool
+	workflowData := &WorkflowData{
+		Name:  "test-workflow-no-github-tool",
+		Tools: map[string]any{},
+		ParsedTools: &Tools{
+			// No GitHub tool configured
+		},
+	}
+	
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	
+	// Verify that GH_TOKEN is NOT set when GitHub tool is not present
+	if strings.Contains(stepContent, "GH_TOKEN:") {
+		t.Errorf("Expected GH_TOKEN to not be set when GitHub tool is not present:\n%s", stepContent)
+	}
+	
+	// Verify that GITHUB_MCP_SERVER_TOKEN is also NOT set
+	if strings.Contains(stepContent, "GITHUB_MCP_SERVER_TOKEN:") {
+		t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN to not be set when GitHub tool is not present:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineGetLogParserScript(t *testing.T) {
 	engine := NewCopilotEngine()
 	script := engine.GetLogParserScriptId()
