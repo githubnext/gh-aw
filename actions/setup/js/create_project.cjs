@@ -160,10 +160,15 @@ async function handler() {
     core.info("Starting create_project handler");
 
     // Load agent output
-    const agentOutput = await loadAgentOutput();
+    const result = await loadAgentOutput();
     core.info(`Loaded agent output, checking for create_project calls...`);
 
-    const createProjectCalls = agentOutput.filter(output => output.type === "create_project");
+    if (!result.success) {
+      core.info("No valid agent output found");
+      return;
+    }
+
+    const createProjectCalls = result.items.filter(output => output.type === "create_project");
 
     if (createProjectCalls.length === 0) {
       core.info("No create_project calls found in agent output");
@@ -230,7 +235,9 @@ async function handler() {
     }
 
     core.info("✓ All create_project operations completed successfully");
-  } catch (error) {
+  } catch (err) {
+    // prettier-ignore
+    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
     logGraphQLError(error, "create_project");
     core.setFailed(`Failed to create project: ${getErrorMessage(error)}`);
     throw error;
