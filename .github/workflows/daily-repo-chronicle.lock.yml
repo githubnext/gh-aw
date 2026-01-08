@@ -457,7 +457,11 @@ jobs:
                 "headers": {
                   "Authorization": "Bearer \${GH_AW_SAFE_OUTPUTS_API_KEY}"
                 },
-                "tools": ["*"]
+                "tools": ["*"],
+                "env": {
+                  "GH_AW_SAFE_OUTPUTS_PORT": "\${GH_AW_SAFE_OUTPUTS_PORT}",
+                  "GH_AW_SAFE_OUTPUTS_API_KEY": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
+                }
               }
             }
           }

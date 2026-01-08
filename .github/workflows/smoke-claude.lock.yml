@@ -540,6 +540,10 @@ jobs:
                 "headers": {
                   "Authorization": "Bearer $GH_AW_SAFE_OUTPUTS_API_KEY"
                 },
+                "env": {
+                  "GH_AW_SAFE_OUTPUTS_PORT": "$GH_AW_SAFE_OUTPUTS_PORT",
+                  "GH_AW_SAFE_OUTPUTS_API_KEY": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                }
               },
               "serena": {
                 "command": "uvx",
