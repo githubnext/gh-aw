@@ -58,6 +58,64 @@ func TestIsUnderWorkflowsDirectory(t *testing.T) {
 	}
 }
 
+func TestIsCustomAgentFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		filePath string
+		expected bool
+	}{
+		{
+			name:     "file under .github/agents with .md extension",
+			filePath: "/some/path/.github/agents/test-agent.md",
+			expected: true,
+		},
+		{
+			name:     "file under .github/agents with .agent.md extension",
+			filePath: "/some/path/.github/agents/feature-flag-remover.agent.md",
+			expected: true,
+		},
+		{
+			name:     "file under .github/agents subdirectory",
+			filePath: "/some/path/.github/agents/subdir/helper.md",
+			expected: true, // Still an agent file even in subdirectory
+		},
+		{
+			name:     "file outside .github/agents",
+			filePath: "/some/path/docs/instructions.md",
+			expected: false,
+		},
+		{
+			name:     "file in .github/workflows",
+			filePath: "/some/path/.github/workflows/test.md",
+			expected: false,
+		},
+		{
+			name:     "file in .github but not agents",
+			filePath: "/some/path/.github/ISSUE_TEMPLATE/bug.md",
+			expected: false,
+		},
+		{
+			name:     "relative path under agents",
+			filePath: ".github/agents/test-agent.md",
+			expected: true,
+		},
+		{
+			name:     "file under agents but not markdown",
+			filePath: ".github/agents/config.json",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isCustomAgentFile(tt.filePath)
+			if result != tt.expected {
+				t.Errorf("isCustomAgentFile(%q) = %v, want %v", tt.filePath, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestResolveIncludePath(t *testing.T) {
 	// Create temporary directory structure
 	tempDir, err := os.MkdirTemp("", "test_resolve")

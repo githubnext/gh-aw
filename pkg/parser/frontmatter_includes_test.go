@@ -690,3 +690,67 @@ This is a custom agent file with the infer field.`
 		t.Errorf("Expected markdown content not found in result")
 	}
 }
+
+// TestProcessIncludedFileWithAgentToolsArray verifies that custom agent files
+// with tools as an array (GitHub Copilot format) are processed without validation errors
+func TestProcessIncludedFileWithAgentToolsArray(t *testing.T) {
+	tempDir := t.TempDir()
+	agentsDir := filepath.Join(tempDir, ".github", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("Failed to create agents directory: %v", err)
+	}
+
+	// Create a test file with tools as an array (custom agent format)
+	testFile := filepath.Join(agentsDir, "feature-flag-remover.agent.md")
+	testContent := `---
+description: "Removes feature flags from codebase"
+tools:
+  [
+    "edit",
+    "search",
+    "execute/getTerminalOutput",
+    "execute/runInTerminal",
+    "read/terminalLastCommand",
+    "read/terminalSelection",
+    "execute/createAndRunTask",
+    "execute/getTaskOutput",
+    "execute/runTask",
+    "read/problems",
+    "search/changes",
+    "agent",
+    "runTasks",
+    "problems",
+    "changes",
+    "runSubagent",
+  ]
+---
+
+# Feature Flag Remover Agent
+
+This agent removes feature flags from the codebase.`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Process the included file - should not generate validation errors
+	// because custom agent files use a different tools format (array vs object)
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	if err != nil {
+		t.Fatalf("processIncludedFileWithVisited() error = %v, want nil", err)
+	}
+
+	if !strings.Contains(result, "# Feature Flag Remover Agent") {
+		t.Errorf("Expected markdown content not found in result")
+	}
+
+	// Also test that tools extraction skips agent files and returns empty object
+	toolsResult, err := processIncludedFileWithVisited(testFile, "", true, make(map[string]bool))
+	if err != nil {
+		t.Fatalf("processIncludedFileWithVisited(extractTools=true) error = %v, want nil", err)
+	}
+
+	if toolsResult != "{}" {
+		t.Errorf("processIncludedFileWithVisited(extractTools=true) = %q, want {}", toolsResult)
+	}
+}

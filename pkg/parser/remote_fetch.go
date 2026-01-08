@@ -39,6 +39,17 @@ func isUnderWorkflowsDirectory(filePath string) bool {
 	return !strings.Contains(afterWorkflows, "/")
 }
 
+// isCustomAgentFile checks if a file path is a custom agent file under .github/agents/
+// Custom agent files use GitHub Copilot's agent format, which differs from gh-aw workflow format.
+// These files have a different schema for the 'tools' field (array vs object).
+func isCustomAgentFile(filePath string) bool {
+	// Normalize the path to use forward slashes
+	normalizedPath := filepath.ToSlash(filePath)
+
+	// Check if the path contains .github/agents/ and ends with .md
+	return strings.Contains(normalizedPath, ".github/agents/") && strings.HasSuffix(strings.ToLower(normalizedPath), ".md")
+}
+
 // ResolveIncludePath resolves include path based on workflowspec format or relative path
 func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Resolving include path: file_path=%s, base_dir=%s", filePath, baseDir)
