@@ -487,10 +487,11 @@ func shouldGenerateMCPGateway(workflowData *WorkflowData) bool {
 
 // generateMCPGatewayStepInline generates the MCP gateway start logic inline in the Setup MCPs step
 // This adds the gateway configuration and start commands after the MCP config is generated
+// Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
 func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngine, workflowData *WorkflowData) {
 	gatewayConfig := workflowData.SandboxConfig.MCP
-	mcpServersLog.Printf("Adding MCP gateway start to Setup MCPs step: command=%s, container=%s, port=%d",
-		gatewayConfig.Command, gatewayConfig.Container, gatewayConfig.Port)
+	mcpServersLog.Printf("Adding MCP gateway start to Setup MCPs step: container=%s, port=%d",
+		gatewayConfig.Container, gatewayConfig.Port)
 
 	// Default values per specification
 	port := gatewayConfig.Port
@@ -541,62 +542,53 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 		}
 	}
 
-	// Determine command or container to run
-	if gatewayConfig.Command != "" {
-		// Build command line with args
-		cmdLine := gatewayConfig.Command
-		if len(gatewayConfig.Args) > 0 {
-			for _, arg := range gatewayConfig.Args {
-				cmdLine += " " + shellQuote(arg)
-			}
-		}
-		yaml.WriteString("          export MCP_GATEWAY_COMMAND=" + shellQuote(cmdLine) + "\n")
-	} else if gatewayConfig.Container != "" {
-		// Build container image with version
-		containerImage := gatewayConfig.Container
-		if gatewayConfig.Version != "" {
-			containerImage += ":" + gatewayConfig.Version
-		}
-
-		// Build container command with args
-		containerCmd := "docker run -i --rm --network host"
-
-		// Add environment variables to container
-		containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
-		if len(gatewayConfig.Env) > 0 {
-			envVarNames := make([]string, 0, len(gatewayConfig.Env))
-			for envVarName := range gatewayConfig.Env {
-				envVarNames = append(envVarNames, envVarName)
-			}
-			sort.Strings(envVarNames)
-			for _, envVarName := range envVarNames {
-				containerCmd += " -e " + envVarName
-			}
-		}
-
-		containerCmd += " " + containerImage
-
-		// Add entrypoint args if configured
-		if len(gatewayConfig.EntrypointArgs) > 0 {
-			for _, arg := range gatewayConfig.EntrypointArgs {
-				containerCmd += " " + shellQuote(arg)
-			}
-		}
-
-		// Add command args if configured
-		if len(gatewayConfig.Args) > 0 {
-			for _, arg := range gatewayConfig.Args {
-				containerCmd += " " + shellQuote(arg)
-			}
-		}
-
-		yaml.WriteString("          export MCP_GATEWAY_CONTAINER=" + shellQuote(containerCmd) + "\n")
-	} else {
-		mcpServersLog.Print("ERROR: No command or container specified for MCP gateway")
-		yaml.WriteString("          echo 'ERROR: sandbox.mcp must specify either command or container'\n")
+	// Validate that container is specified
+	if gatewayConfig.Container == "" {
+		mcpServersLog.Print("ERROR: No container specified for MCP gateway")
+		yaml.WriteString("          echo 'ERROR: sandbox.mcp must specify container (command-based execution is not supported)'\n")
 		yaml.WriteString("          exit 1\n")
 		return
 	}
+
+	// Build container image with version
+	containerImage := gatewayConfig.Container
+	if gatewayConfig.Version != "" {
+		containerImage += ":" + gatewayConfig.Version
+	}
+
+	// Build container command with args
+	containerCmd := "docker run -i --rm --network host"
+
+	// Add environment variables to container
+	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
+	if len(gatewayConfig.Env) > 0 {
+		envVarNames := make([]string, 0, len(gatewayConfig.Env))
+		for envVarName := range gatewayConfig.Env {
+			envVarNames = append(envVarNames, envVarName)
+		}
+		sort.Strings(envVarNames)
+		for _, envVarName := range envVarNames {
+			containerCmd += " -e " + envVarName
+		}
+	}
+
+	containerCmd += " " + containerImage
+
+	// Add entrypoint args if configured
+	if len(gatewayConfig.EntrypointArgs) > 0 {
+		for _, arg := range gatewayConfig.EntrypointArgs {
+			containerCmd += " " + shellQuote(arg)
+		}
+	}
+
+	// Add command args if configured
+	if len(gatewayConfig.Args) > 0 {
+		for _, arg := range gatewayConfig.Args {
+			containerCmd += " " + shellQuote(arg)
+		}
+	}
+
+	yaml.WriteString("          export MCP_GATEWAY_CONTAINER=" + shellQuote(containerCmd) + "\n")
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Run gateway start script\n")
