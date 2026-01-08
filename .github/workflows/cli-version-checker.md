@@ -1,5 +1,5 @@
 ---
-description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, Sandbox Runtime) for new versions
+description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, Sandbox Runtime, MCP Gateway) for new versions
 on:
   schedule: daily
   workflow_dispatch:
@@ -28,7 +28,7 @@ timeout-minutes: 45
 
 # CLI Version Checker
 
-Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, and Sandbox Runtime.
+Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, Sandbox Runtime, and MCP Gateway.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
@@ -69,6 +69,11 @@ For each CLI/MCP server:
 - **Sandbox Runtime**: Use `npm view @anthropic-ai/sandbox-runtime version`
   - Repository: https://github.com/anthropic-experimental/sandbox-runtime
   - Package: https://www.npmjs.com/package/@anthropic-ai/sandbox-runtime
+- **MCP Gateway**: `https://api.github.com/repos/githubnext/gh-aw-mcpg/releases/latest`
+  - Repository: https://github.com/githubnext/gh-aw-mcpg
+  - Release Notes: https://github.com/githubnext/gh-aw-mcpg/releases
+  - Docker Image: `ghcr.io/githubnext/gh-aw-mcpg:v{VERSION}`
+  - Used as default sandbox.agent container (see `pkg/constants/constants.go`)
 
 **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
 
@@ -110,6 +115,10 @@ For each update, analyze intermediate versions:
   - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/github/copilot-cli/pull/123`)
 - **Claude Code**: No public repository, rely on NPM metadata and CLI help output
 - **Playwright MCP**: Uses Playwright versioning, check NPM package metadata for changes
+- **MCP Gateway**: Fetch release notes from https://github.com/githubnext/gh-aw-mcpg/releases/tag/{VERSION}
+  - Parse release body for changelog entries
+  - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/githubnext/gh-aw-mcpg/pull/123`)
+  - Note: Used as default sandbox.agent container in MCP Gateway configuration
 
 **NPM Metadata Fallback**: When GitHub release notes are unavailable, use:
 - `npm view <package> --json` for package metadata
@@ -224,6 +233,7 @@ Template structure:
   - Codex: Always fetch from https://github.com/openai/codex/releases
   - GitHub MCP Server: Always fetch from https://github.com/github/github-mcp-server/releases
   - Playwright Browser: Always fetch from https://github.com/microsoft/playwright/releases
+  - MCP Gateway: Always fetch from https://github.com/githubnext/gh-aw-mcpg/releases
   - Copilot CLI: Try to fetch, but may be inaccessible (private repo)
   - Playwright MCP: Check NPM metadata, uses Playwright versioning
 - **EXPLORE SUBCOMMANDS**: Install and test CLI tools to discover new features via `--help` and explore each subcommand
