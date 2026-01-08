@@ -3,12 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"

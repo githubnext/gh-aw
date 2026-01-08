@@ -1,11 +1,12 @@
 package workflow
 
 import (
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"

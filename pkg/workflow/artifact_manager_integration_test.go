@@ -1,10 +1,11 @@
 package workflow
 
 import (
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"

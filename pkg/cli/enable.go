@@ -3,12 +3,13 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"

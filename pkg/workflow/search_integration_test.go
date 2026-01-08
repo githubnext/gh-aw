@@ -2,12 +2,13 @@ package workflow
 
 import (
 	"bytes"
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )

@@ -2,12 +2,13 @@ package workflow
 
 import (
 	"fmt"
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"

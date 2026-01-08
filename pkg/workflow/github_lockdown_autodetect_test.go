@@ -1,11 +1,12 @@
 package workflow
 
 import (
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestGitHubLockdownAutodetection(t *testing.T) {

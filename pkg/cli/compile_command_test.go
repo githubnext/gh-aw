@@ -4,12 +4,13 @@ package cli
 
 import (
 	"context"
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
