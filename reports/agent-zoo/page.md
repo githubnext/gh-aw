@@ -137,7 +137,7 @@ These agents monitor and analyze the agentic infrastructure itself:
 - **[GitHub MCP Tools Report](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/github-mcp-tools-report.md)**  -  Analyzes available MCP tools
 - **[Agent Performance Analyzer](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md)**  -  Meta-orchestrator for agent quality
 
-### 🚀 **Multi-Phase Project Agentic Workfows** (from Agentics Pack)
+### 🚀 **Multi-Phase Improver Workfows** (from Agentics Pack)
 
 These comprehensive agents perform sustained, multi-day improvement projects:
 
@@ -188,7 +188,6 @@ These agents enhance issue and pull request workflows:
 These agents manage structured improvement campaigns:
 
 - **[Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md)**  -  Creates and coordinates multi-step campaigns
-- **[Beads Worker](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/beads-worker.md)**  -  Executes ready beads (task units) from beads-equipped repos
 - **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md)**  -  Monitors and maintains workflow health
 
 ---
@@ -541,7 +540,7 @@ Agentic Workfows that triage, link, label, close, and coordinate issues and PRs.
 
 *Examples: [`Issue triage agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md), [`issue arborist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md), [`mergefest`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md), [`sub issue closer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/sub-issue-closer.md), [`changeset generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/changeset.md)*
 
-### 6. The Multi-Phase Project Agent 🔄
+### 6. The Multi-Phase Improver Agent 🔄
 **Progressive work across multiple days with human checkpoints**
 
 Agentic Workfows that tackle complex improvements too large for single runs. Three phases: (1) Research and create plan discussion, (2) Infer/setup build infrastructure, (3) Implement changes via PR. Check state each run to determine current phase. Enables ambitious goals like backlog reduction, performance optimization, test coverage improvement.
@@ -572,9 +571,9 @@ Agentic Workfows that analyze the agent ecosystem itself. Download workflow logs
 ### 10. The Meta-Agent Orchestrator 🚦
 **Orchestrate multi-step workflows via state machines**
 
-Agentic Workfows that coordinate complex workflows through campaigns or beads patterns. Track state across runs (open/in-progress/completed). Campaign pattern uses labeled issues and project boards. Beads pattern uses hourly workers for queued tasks. Includes workflow generators and dev monitors ([`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md)).
+Agentic Workfows that coordinate complex workflows through campaigns or task queue patterns. Track state across runs (open/in-progress/completed). Campaign pattern uses labeled issues and project boards. Includes workflow generators and dev monitors ([`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md)).
 
-*Examples: [`Campaign generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md), [`beads worker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/beads-worker.md), [`workflow generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md), [`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md)*
+*Examples: [`Campaign generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md), [`workflow generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md), [`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md)*
 
 ### 11. The ML & Analytics Agent 🤖
 **Advanced insights through machine learning and NLP**
@@ -712,8 +711,8 @@ As workflows grew to use multiple MCP servers, having agents that could validate
 ### 🎯 **Dispatcher Patterns Scale Command Complexity**
 Instead of one monolithic agent handling all requests, dispatcher agents could route to specialized sub-agents or commands. This made the system more maintainable and allowed for progressive feature addition.
 
-### 📿 **Beads Enable Task Queuing**
-The beads pattern provided a simple way to queue and distribute work across multiple workflow runs. Breaking large projects into discrete beads allowed incremental progress with clear state tracking.
+### 📿 **Task Queuing is Everywhere**
+The task queue pattern provided a simple way to queue and distribute work across multiple workflow runs. Breaking large projects into discrete tasks allowed incremental progress with clear state tracking, recording tasks as issues, discussions or project cards.
 
 ### 🤖 **ML Analysis Reveals Hidden Patterns**
 Applying clustering and NLP to agent interactions revealed usage patterns that weren't obvious from individual runs. This meta-analysis helped identify opportunities for consolidation and optimization.
@@ -723,6 +722,30 @@ Organization-level agents required careful permission management and rate limit 
 
 ### 📝 **Documentation Agentic Workfows Bridge Code and Context**
 Agentic Workfows that maintained glossaries, technical docs, and slide decks kept documentation synchronized with rapidly evolving codebases. They acted as "knowledge janitors," reducing staleness debt.
+
+---
+
+## Challenges We Encountered
+
+### **Permission Creep**
+
+As agents gained capabilities, there was a temptation to grant broader permissions. We had to constantly audit and prune permissions to maintain least privilege.
+
+### **Debugging Complexity**
+
+When agents misbehaved, tracing the root cause through multiple workflow runs and safe outputs was challenging. Improved logging and observability are needed.
+
+### **Repository Noise**
+
+Frequent agent runs created a lot of issues, PRs, and comments. We had to implement archival strategies to keep the repository manageable.
+
+### **Cost Management**
+
+Running many agents incurred significant costs. The portfolio analyst helped, but ongoing cost monitoring is essential.
+
+### **User Trust**
+
+Some team members were hesitant to engage with automated agents. Clear communication about capabilities and limitations helped build trust over time.
 
 ---
 
@@ -786,7 +809,7 @@ Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Krzysztof Cieślak, 
 [`artifacts-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/artifacts-summary.md), [`blog-auditor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/blog-auditor.md), [`copilot-pr-merged-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-merged-report.md), [`notion-issue-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/notion-issue-summary.md), [`pdf-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/pdf-summary.md), [`video-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/video-analyzer.md), [`weekly-issue-summary`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/weekly-issue-summary.md)
 
 *Pattern 10 - Event-Driven Coordinator:*
-[`beads-worker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/beads-worker.md), [`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md), [`docs-quality-maintenance-project67.campaign`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/docs-quality-maintenance-project67.campaign.md), [`docs-quality-maintenance-project67.campaign.g`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/docs-quality-maintenance-project67.campaign.g.md), [`file-size-reduction-project71.campaign`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/file-size-reduction-project71.campaign.md), [`file-size-reduction-project71.campaign.g`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/file-size-reduction-project71.campaign.g.md), [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md)
+[`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md), [`docs-quality-maintenance-project67.campaign`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/docs-quality-maintenance-project67.campaign.md), [`docs-quality-maintenance-project67.campaign.g`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/docs-quality-maintenance-project67.campaign.g.md), [`file-size-reduction-project71.campaign`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/file-size-reduction-project71.campaign.md), [`file-size-reduction-project71.campaign.g`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/file-size-reduction-project71.campaign.g.md), [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md)
 
 *Pattern 11 - ML & Analytics:*
 [`copilot-pr-nlp-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-nlp-analysis.md), [`copilot-pr-prompt-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-prompt-analysis.md)
