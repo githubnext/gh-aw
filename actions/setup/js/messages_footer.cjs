@@ -9,6 +9,7 @@
  */
 
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
+const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 
 /**
  * @typedef {Object} FooterContext
@@ -154,6 +155,12 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   const installMessage = getFooterInstallMessage(ctx);
   if (installMessage) {
     footer += "\n>\n" + installMessage;
+  }
+
+  // Add missing tools and data sections if available
+  const missingInfoSections = getMissingInfoSections();
+  if (missingInfoSections) {
+    footer += missingInfoSections;
   }
 
   // Add XML comment marker for traceability
