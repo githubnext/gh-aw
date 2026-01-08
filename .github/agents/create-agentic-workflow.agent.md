@@ -335,11 +335,7 @@ timeout-minutes: 5
 ---
 
 <!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
-{{#runtime-import? .github/agentics/<workflow-id>.md}}
-
-## Fallback Instructions
-
-If the agentics file is not available, the agent should: <brief fallback instructions>
+@./agentics/<workflow-id>.md
 ```
 
 ### Step 4: Compile the Workflow
