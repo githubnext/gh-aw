@@ -10,6 +10,21 @@ import (
 
 var mcpRendererLog = logger.New("workflow:mcp_renderer")
 
+// MCPConfigRendererUnified provides unified rendering for MCP configurations across different engines.
+//
+// Architecture Overview:
+// This renderer abstracts engine-specific differences through the MCPRendererOptions pattern:
+//
+// - Copilot:   IncludeCopilotFields=true, InlineArgs=true, Format="json"
+// - Claude:    IncludeCopilotFields=false, InlineArgs=false, Format="json"
+// - Codex:     IncludeCopilotFields=false, InlineArgs=false, Format="toml"
+// - Custom:    IncludeCopilotFields=false, InlineArgs=false, Format="json"
+//
+// The renderer delegates to shared functions in mcp-config.go for actual rendering logic.
+// This design allows engines to specify their requirements without duplicating rendering code.
+//
+// See docs/architecture/mcp-configuration-analysis.md for detailed documentation.
+
 // MCPRendererOptions contains configuration options for the unified MCP renderer
 type MCPRendererOptions struct {
 	// IncludeCopilotFields indicates if the engine requires "type" and "tools" fields (true for copilot engine)

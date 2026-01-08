@@ -14,6 +14,26 @@ import (
 
 var mcpLog = logger.New("workflow:mcp-config")
 
+// MCP Configuration Rendering Architecture
+//
+// This file contains shared rendering functions for MCP (Model Context Protocol) servers.
+// The architecture uses a hybrid approach:
+//
+// 1. Simple servers (Safe Outputs, Agentic Workflows):
+//    - Use renderBuiltinMCPServerBlock() for consistent rendering
+//    - Static configuration with no dynamic arguments
+//
+// 2. Complex servers (Playwright, Serena):
+//    - Use dedicated rendering functions
+//    - Handle dynamic arguments, conditional logic, and expression extraction
+//    - This apparent "duplication" is intentional - it provides flexibility for complex cases
+//
+// 3. Unified interface:
+//    - MCPConfigRendererUnified (in mcp_renderer.go) provides engine-agnostic interface
+//    - Engine-specific files (copilot_mcp.go, claude_mcp.go, etc.) delegate to these functions
+//
+// See docs/architecture/mcp-configuration-analysis.md for detailed architecture documentation.
+
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses Docker container to launch Playwright MCP for consistent browser environment
 // This is a shared function used by both Claude and Custom engines
@@ -24,6 +44,12 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast
 
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
 // Uses Docker container with the versioned Playwright MCP image for consistent browser environment
+//
+// Note: This function has dedicated rendering logic (not using renderBuiltinMCPServerBlock) because:
+// - Dynamic allowed domains based on playwright tool configuration
+// - Expression extraction and replacement for security
+// - Custom args injection
+// - Conditional domain-specific arguments (--allowed-hosts, --allowed-origins)
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
@@ -106,6 +132,11 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 }
 
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
+//
+// Note: This function has dedicated rendering logic (not using renderBuiltinMCPServerBlock) because:
+// - Custom args injection from serena tool configuration
+// - Project path substitution (${{ github.workspace }})
+// - uvx command with git repository URL
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
@@ -157,9 +188,20 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 }
 
 // renderBuiltinMCPServerBlock is a shared helper function that renders MCP server configuration blocks
-// for built-in servers (Safe Outputs and Agentic Workflows) with consistent formatting.
-// This eliminates code duplication between renderSafeOutputsMCPConfigWithOptions and
-// renderAgenticWorkflowsMCPConfigWithOptions by extracting the common YAML generation pattern.
+// for built-in servers (Safe Outputs, Agentic Workflows, Safe Inputs) with consistent formatting.
+//
+// This function eliminates code duplication for simple MCP servers that have:
+// - Static command and args (no dynamic configuration)
+// - Fixed set of environment variables
+// - No conditional logic based on tool configuration
+//
+// For complex servers with dynamic configuration (Playwright, Serena), use dedicated rendering functions
+// instead of this helper. The trade-off is intentional: readability and flexibility over DRY principle.
+//
+// Pattern used by:
+// - renderSafeOutputsMCPConfigWithOptions
+// - renderAgenticWorkflowsMCPConfigWithOptions  
+// - renderSafeInputsMCPConfigWithOptions (partial - it has additional HTTP config)
 func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command string, args []string, envVars []string, isLast bool, includeCopilotFields bool) {
 	yaml.WriteString("              \"" + serverID + "\": {\n")
 
