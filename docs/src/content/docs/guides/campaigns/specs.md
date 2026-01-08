@@ -109,7 +109,7 @@ governance:
 - `max-new-items-per-run`: Maximum number of new items to add to the project board per run (applies to agent write phase)
 - `max-discovery-items-per-run`: Maximum number of candidate items the discovery precomputation step will scan per run (default: 100)
 - `max-discovery-pages-per-run`: Maximum number of API result pages the discovery step will fetch per run (default: 10)
-- `opt-out-labels`: Labels that exclude an item from campaign tracking
+- `opt-out-labels`: Labels that exclude an item from campaign tracking. Common values include `["campaign:skip", "no-bot", "no-campaign"]`. Items with these labels will not be discovered by campaign orchestrators, and other workflows (like issue-monster) will also respect these labels.
 - `do-not-downgrade-done-items`: Prevent moving items backwards from "Done" status
 - `max-project-updates-per-run`: Maximum number of project board updates per run (default: 10)
 - `max-comments-per-run`: Maximum number of comments the orchestrator can post per run (default: 10)

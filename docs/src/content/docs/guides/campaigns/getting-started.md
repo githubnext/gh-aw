@@ -79,6 +79,15 @@ Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the da
 
 Apply the tracker label (for example `campaign:framework-upgrade`) to issues/PRs you want tracked. The orchestrator will pick them up on the next run.
 
+**Important: Campaign item protection**
+
+Items with campaign labels (`campaign:*`) are automatically protected from other automated workflows:
+- **Automatic exclusion**: Workflows like `issue-monster` skip issues with campaign labels
+- **Controlled by orchestrator**: Only the campaign orchestrator manages campaign items
+- **Manual opt-out**: Use labels like `no-bot` or `no-campaign` to exclude items from all automation
+
+This ensures your campaign items remain under the control of the campaign orchestrator and aren't interfered with by other workflows.
+
 ## Optional: repo-memory for durable state
 
 Enable repo-memory for campaigns using this layout: `memory/campaigns/<campaign-id>/cursor.json` and `memory/campaigns/<campaign-id>/metrics/<date>.json`. Campaign writes must include a cursor and at least one metrics snapshot.
