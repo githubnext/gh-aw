@@ -265,7 +265,7 @@ Some team members were hesitant to engage with automated agents. Clear communica
 
 ---
 
-## 12 Behavioural Patterns for Agentic Workfows
+## 12 Design Patterns for Agentic Workfows
 
 After developing these 145 agents, we identified 12 fundamental design patterns of successful agentic workflows:
 
