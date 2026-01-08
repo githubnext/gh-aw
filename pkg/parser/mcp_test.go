@@ -264,6 +264,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"}}, Name: "playwright",
@@ -286,6 +287,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:v1.41.0",
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
@@ -305,6 +307,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"}}, Name: "playwright",
@@ -327,6 +330,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:20",
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
@@ -349,6 +353,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:1.41",
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
@@ -371,6 +376,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:142",
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
