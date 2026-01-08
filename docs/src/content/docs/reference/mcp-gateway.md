@@ -232,7 +232,6 @@ The optional `gateway` section configures gateway-specific behavior:
 | `domain` | string | localhost | Gateway domain (localhost or host.docker.internal) |
 | `startupTimeout` | integer | 30 | Server startup timeout in seconds |
 | `toolTimeout` | integer | 60 | Tool invocation timeout in seconds |
-| `mounts` | array[string] | [] | **Deprecated**: Volume mounts for gateway container. Use per-server `mounts` field instead (format: "source:dest:mode") |
 
 ### 4.2 Variable Expression Rendering
 
@@ -772,30 +771,7 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.3 Legacy: Gateway with Volume Mounts (Deprecated)
-
-**Note**: Gateway-level mounts are deprecated. Use per-server mounts instead (see A.2).
-
-```json
-{
-  "mcpServers": {
-    "data-server": {
-      "container": "ghcr.io/example/data-mcp:latest",
-      "type": "stdio"
-    }
-  },
-  "gateway": {
-    "port": 8080,
-    "apiKey": "gateway-secret-token",
-    "mounts": [
-      "/host/data:/container/data:ro",
-      "/host/config:/container/config:rw"
-    ]
-  }
-}
-```
-
-#### A.4 Mixed Transport Configuration
+#### A.3 Mixed Transport Configuration
 
 ```json
 {
@@ -818,7 +794,7 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.5 GitHub MCP Server (Containerized)
+#### A.4 GitHub MCP Server (Containerized)
 
 ```json
 {

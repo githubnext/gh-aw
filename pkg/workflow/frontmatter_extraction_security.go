@@ -381,18 +381,6 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
-	// Note: mounts were moved from gateway config to individual MCP server configs
-	// Gateway-level mounts are deprecated but still supported for backward compatibility
-	if mountsVal, hasMounts := mcpObj["mounts"]; hasMounts {
-		if mountsSlice, ok := mountsVal.([]any); ok {
-			for _, mount := range mountsSlice {
-				if mountStr, ok := mount.(string); ok {
-					mcpConfig.Mounts = append(mcpConfig.Mounts, mountStr)
-				}
-			}
-		}
-	}
-
 	// Extract env (environment variables)
 	if envVal, hasEnv := mcpObj["env"]; hasEnv {
 		if envObj, ok := envVal.(map[string]any); ok {

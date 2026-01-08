@@ -71,13 +71,6 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
-	// Validate mounts syntax if specified in MCP gateway config
-	if sandboxConfig.MCP != nil && len(sandboxConfig.MCP.Mounts) > 0 {
-		if err := validateMountsSyntax(sandboxConfig.MCP.Mounts); err != nil {
-			return fmt.Errorf("invalid MCP gateway mount configuration: %w", err)
-		}
-	}
-
 	// Validate that SRT is only used with Copilot engine
 	if isSRTEnabled(workflowData) {
 		// Check if the sandbox-runtime feature flag is enabled

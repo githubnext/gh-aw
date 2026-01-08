@@ -134,23 +134,3 @@ func TestMCPServerMountsInServerConfig(t *testing.T) {
 		})
 	}
 }
-
-// TestGatewayMountsDeprecation tests that gateway-level mounts are deprecated
-func TestGatewayMountsDeprecation(t *testing.T) {
-	// This test documents the transition from gateway-level mounts to server-level mounts
-	// Gateway-level mounts should still work but should be considered deprecated
-
-	sandboxConfig := &SandboxConfig{
-		MCP: &MCPGatewayRuntimeConfig{
-			Container: "ghcr.io/example/gateway:latest",
-			Mounts: []string{
-				"/host/data:/container/data:ro",
-			},
-		},
-	}
-
-	// Gateway-level mounts should still be supported for backward compatibility
-	require.NotNil(t, sandboxConfig.MCP.Mounts)
-	assert.Len(t, sandboxConfig.MCP.Mounts, 1)
-	assert.Equal(t, "/host/data:/container/data:ro", sandboxConfig.MCP.Mounts[0])
-}
