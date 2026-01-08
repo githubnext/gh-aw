@@ -1,7 +1,7 @@
 package workflow
 
 import (
-"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 // mcp-config.go provides the shared logger for MCP configuration modules.

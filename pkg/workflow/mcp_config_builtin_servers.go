@@ -1,9 +1,9 @@
 package workflow
 
 import (
-"strings"
+	"strings"
 
-"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // mcp_config_builtin_servers.go contains built-in MCP server rendering functions.

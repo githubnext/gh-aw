@@ -1,11 +1,11 @@
 package workflow
 
 import (
-"fmt"
-"sort"
-"strings"
+	"fmt"
+	"sort"
+	"strings"
 
-"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // mcp_config_renderers.go contains the core MCP configuration rendering logic.

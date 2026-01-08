@@ -270,7 +270,6 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	return result, nil
 }
 
-
 func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 	// Check for direct type field
 	if mcpType, hasType := toolConfig["type"]; hasType {

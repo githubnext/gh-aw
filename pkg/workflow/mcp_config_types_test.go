@@ -340,8 +340,8 @@ func TestMCPConfigRenderer_FieldDefaults(t *testing.T) {
 	// Test that MCPConfigRenderer can be created with zero values
 	renderer := MCPConfigRenderer{}
 
-	assert.Equal(t, "", renderer.IndentLevel, "Default IndentLevel should be empty")
-	assert.Equal(t, "", renderer.Format, "Default Format should be empty")
+	assert.Empty(t, renderer.IndentLevel, "Default IndentLevel should be empty")
+	assert.Empty(t, renderer.Format, "Default Format should be empty")
 	assert.False(t, renderer.RequiresCopilotFields, "Default RequiresCopilotFields should be false")
 	assert.False(t, renderer.RewriteLocalhostToDocker, "Default RewriteLocalhostToDocker should be false")
 }

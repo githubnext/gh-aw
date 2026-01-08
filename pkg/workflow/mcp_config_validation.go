@@ -173,31 +173,6 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	return result, nil
 }
 
-// getTypeString returns a human-readable type name for error messages
-func getTypeString(value any) string {
-	if value == nil {
-		return "null"
-	}
-
-	switch value.(type) {
-	case int, int64, float64, float32:
-		return "number"
-	case bool:
-		return "boolean"
-	case map[string]any:
-		return "object"
-	case string:
-		return "string"
-	default:
-		// Check if it's any kind of slice/array by examining the type string
-		typeStr := fmt.Sprintf("%T", value)
-		if strings.HasPrefix(typeStr, "[]") {
-			return "array"
-		}
-		return "unknown"
-	}
-}
-
 // validateStringProperty validates that a property is a string and returns appropriate error message
 func validateStringProperty(toolName, propertyName string, value any, exists bool) error {
 	if !exists {
