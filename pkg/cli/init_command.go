@@ -47,7 +47,7 @@ With --codespaces flag:
 - Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --campaign flag:
-- Creates .github/agents/agentic-campaign-designer.agent.md with the Agentic Campaign Designer agent for gh-aw campaigns
+- Creates .github/agents/create-agentic-campaign.agent.md with the Agentic Campaign Designer agent for gh-aw campaigns
 
 With --completions flag:
 - Automatically detects your shell (bash, zsh, fish, or PowerShell)

@@ -19,21 +19,22 @@ This agent operates in two distinct modes:
 When triggered from a GitHub issue created via a "Create a Campaign" issue form:
 
 1. **Parse the Issue Form Data** - Extract campaign requirements from the issue body:
-   - **Campaign Name**: The `campaign_name` field from the issue form
-   - **Campaign Description**: The `campaign_description` field describing the campaign's purpose
-   - **Additional Context**: The optional `additional_context` field with extra requirements
+   - **Campaign Goal**: The `campaign_goal` field describing what the campaign should accomplish
+   - **Project Board Assignment**: Query the issue's project assignments to get the project URL
 
 2. **Generate the Campaign Specification** - Create a complete `.campaign.md` file without interaction:
+   - Derive a clear campaign name from the goal
    - Analyze requirements and determine campaign ID (kebab-case)
+   - Retrieve project URL from issue's project board assignment
    - Identify required workflows and their purposes
    - Determine owners, sponsors, and risk level
    - Configure allowed safe outputs for campaign operations
    - Apply governance and security best practices
 
 3. **Create the Campaign File** at `.github/workflows/<campaign-id>.campaign.md`:
-   - Use a kebab-case campaign ID derived from the campaign name (e.g., "Security Q1 2025" → "security-q1-2025")
+   - Use a kebab-case campaign ID derived from the goal (e.g., "Security Vulnerability Remediation" → "security-vulnerability-remediation")
    - **CRITICAL**: Before creating, check if the file exists. If it does, append a suffix like `-v2` or a timestamp
-   - Include complete frontmatter with all necessary configuration
+   - Include complete frontmatter with all necessary configuration including the project URL
    - Write a clear description of campaign goals and agent behavior
 
 4. **Compile the Campaign** using `gh aw compile <campaign-id>` to generate the orchestrator workflow
@@ -88,11 +89,13 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
 3. **Campaign Spec Fields**
 
-   Based on the conversation, determine values for:
+   Based on the conversation (Interactive Mode) or issue data (Issue Form Mode), determine values for:
    - `id` — stable identifier in kebab-case (e.g., `security-q1-2025`)
    - `name` — human-friendly title
    - `description` — short explanation of campaign purpose
    - `project-url` — GitHub Project URL for campaign dashboard
+     - **Issue Form Mode**: Retrieve from issue's project assignments using GitHub CLI
+     - **Interactive Mode**: Ask the user for the project URL
    - `workflows` — workflow IDs (basenames under `.github/workflows/` without `.md`)
    - `memory-paths` — repo-memory paths under `memory/campaigns/<campaign-id>-*/**`
    - `owners` — primary human owners
@@ -118,36 +121,50 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
 When processing a GitHub issue created via the campaign creation form, follow these steps:
 
-### Step 1: Parse the Issue Form
+### Step 1: Parse the Issue Form and Retrieve Project Assignment
 
 Extract the following fields from the issue body:
-- **Campaign Name** (required): Look for the "Campaign Name" section
-- **Campaign Description** (required): Look for the "Campaign Description" section
-- **Additional Context** (optional): Look for the "Additional Context" section
+- **Campaign Goal** (required): Look for the "What should this campaign accomplish?" section
+- **Project Board Assignment** (required): Query the issue's project board assignments using GitHub CLI
 
 Example issue body format:
 ```
-### Campaign Name
-Security Q1 2025
-
-### Campaign Description
+### What should this campaign accomplish?
 Automated security improvements and vulnerability remediation
-
-### Additional Context (Optional)
-Should track progress in a GitHub Project and allow creating issues and PRs
 ```
+
+**Important: Retrieve the Project Board URL from Issue Assignments**
+
+A project board has been automatically created and assigned to this issue. You must query this assignment using GitHub CLI (replace `ISSUE_NUMBER` with the actual issue number from `github.event.issue.number`):
+
+```bash
+gh issue view ISSUE_NUMBER --json projectItems --jq '.projectItems.nodes[0]?.project?.url // empty'
+```
+
+Alternatively, use the github-issue-query skill (from the repository root):
+
+```bash
+./skills/github-issue-query/query-issues.sh --jq '.[] | select(.number == ISSUE_NUMBER) | .projectItems.nodes[0]?.project?.url // empty'
+```
+
+**If no project is assigned:**
+- This should not happen as the campaign-generator workflow creates the project automatically
+- If it does happen, inform the user and ask them to re-run the campaign-generator workflow
+- Do not proceed with campaign creation without a valid project URL
 
 ### Step 2: Design the Campaign Specification
 
-Based on the parsed requirements, determine:
+Based on the parsed requirements and project assignment, determine:
 
-1. **Campaign ID**: Convert the campaign name to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025")
-2. **Workflows**: Identify workflows needed to implement the campaign
-3. **Owners**: Determine who will own and maintain the campaign
-4. **Risk Level**: Assess the risk level based on the campaign's scope
-5. **Safe Outputs**: Determine which safe outputs should be allowed
-6. **Approval Policy**: Define approval requirements based on risk level
-7. **Project Board Setup**: If the campaign uses a GitHub Project, recommend setting up custom fields:
+1. **Campaign Name**: Derive a clear campaign name from the goal (e.g., "Security Vulnerability Remediation", "Node.js Migration")
+2. **Campaign ID**: Convert the campaign name to kebab-case (e.g., "Security Vulnerability Remediation" → "security-vulnerability-remediation")
+3. **Project URL**: Use the project URL retrieved from the issue's project assignments (created automatically by campaign-generator)
+4. **Workflows**: Identify workflows needed to implement the campaign
+5. **Owners**: Determine who will own and maintain the campaign
+6. **Risk Level**: Assess the risk level based on the campaign's scope
+7. **Safe Outputs**: Determine which safe outputs should be allowed
+8. **Approval Policy**: Define approval requirements based on risk level
+9. **Project Board Setup**: A new empty project board is created for the campaign. You should configure custom fields as needed:
    - `Worker/Workflow` (single-select): Workflow names for swimlane grouping
    - `Priority` (single-select): High/Medium/Low for filtering
    - `Status` (single-select): Todo/In Progress/Blocked/Done
@@ -258,7 +275,7 @@ Run `gh aw compile <campaign-id>` to generate the campaign orchestrator workflow
 Create a PR with the campaign spec and generated files:
 - `.github/workflows/<campaign-id>.campaign.md` (campaign spec)
 - `.github/workflows/<campaign-id>.campaign.g.md` (generated orchestrator)
-- `.github/workflows/<campaign-id>.campaign.lock.yml` (compiled orchestrator)
+- `.github/workflows/<campaign-id>.campaign.g.lock.yml` (compiled orchestrator)
 
 Include in the PR description:
 - What the campaign does
