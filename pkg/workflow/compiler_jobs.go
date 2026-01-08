@@ -443,6 +443,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 // Patterns detected:
 //   - {{#runtime-import filepath}} or {{#runtime-import? filepath}} where filepath is not a URL
 //   - @./path or @../path (inline syntax - these must start with ./ or ../)
+//
 // URLs (http:// or https://) are excluded as they don't require repository checkout.
 func containsRuntimeImports(markdownContent string) bool {
 	if markdownContent == "" {
