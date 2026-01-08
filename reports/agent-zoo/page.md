@@ -212,298 +212,11 @@ Tools configuration, network permissions, data fetching logic, and agent instruc
 **⚡ Rapid Experimentation**  
 Creating a new workflow often meant writing just the agent-specific prompt and importing 3-5 shared components. We could prototype new agents in minutes.
 
-### The Shared Component Library
-
-The nursery organized shared components into two main directories:
-
-#### `.github/workflows/shared/` - Core Capabilities (35+ components)
-
-These components provided fundamental capabilities that many workflows needed:
-
-**Most Popular Shared Components:**
-- [**`reporting.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) (46 imports) - Report formatting guidelines, workflow run references, footer standards
-- [**`jqschema.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) (17 imports) - JSON querying and schema validation utilities
-- [**`python-dataviz.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/python-dataviz.md) (7 imports) - Python environment with NumPy, Pandas, Matplotlib, Seaborn
-- [**`trending-charts-simple.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/trending-charts-simple.md) (6 imports) - Quick setup for creating trend visualizations
-- [**`gh.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/gh.md) (4 imports) - Safe-input wrapper for GitHub CLI with authentication
-- [**`copilot-pr-data-fetch.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/copilot-pr-data-fetch.md) (4 imports) - Fetch and cache GitHub Copilot PR data
-
-**Specialized Components:**
-- [**`charts-with-trending.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/charts-with-trending.md) - Comprehensive trending with cache-memory integration
-- [**`ci-data-analysis.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/ci-data-analysis.md) - CI workflow analysis utilities
-- [**`session-analysis-charts.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/session-analysis-charts.md) - Copilot session visualization patterns
-- [**`keep-it-short.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/keep-it-short.md) - Prompt guidance for concise responses
-- [**`safe-output-app.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/safe-output-app.md) - Safe output application patterns
-
-#### `.github/workflows/shared/mcp/` - MCP Server Configurations (20+ servers)
-
-These components configured Model Context Protocol servers for specialized capabilities:
-
-**Most Used MCP Servers:**
-- [**`gh-aw.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/gh-aw.md) (12 imports) - GitHub Agentic Workflows MCP server with `logs` command
-- [**`tavily.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/tavily.md) (5 imports) - Web search via Tavily API
-- [**`markitdown.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/markitdown.md) (3 imports) - Document conversion (PDF, Office, images to Markdown)
-- [**`ast-grep.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/ast-grep.md) (2 imports) - Structural code search and analysis
-- [**`brave.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/brave.md) (2 imports) - Alternative web search via Brave API
-- [**`arxiv.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/arxiv.md) (2 imports) - Academic paper research
-- [**`notion.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/notion.md) (2 imports) - Notion workspace integration
-
-**Infrastructure & Analysis:**
-- [**`jupyter.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/jupyter.md) - Jupyter notebook environment with Docker services
-- [**`skillz.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/skillz.md) - Dynamic skill loading from `.github/skills/` directory
-- [**`context7.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/context7.md), [**`deepwiki.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/deepwiki.md), [**`microsoft-docs.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/microsoft-docs.md) - Specialized search and documentation
-- [**`slack.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/slack.md), [**`sentry.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/sentry.md), [**`datadog.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/datadog.md) - External service integrations
-
-### Import Patterns in Practice
-
-#### Pattern 1: Basic Reporting Setup
-
-The simplest pattern - just import reporting standards:
-
-```yaml
-imports:
-  - shared/reporting.md
-```
-
-Used by: [`semantic-function-refactor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/semantic-function-refactor.md), [`blog-auditor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/blog-auditor.md), [`daily-secrets-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-secrets-analysis.md) and others
-
-#### Pattern 2: Analysis with Tools
-
-Combine reporting with specialized analysis tools:
-
-```yaml
-imports:
-  - shared/reporting.md
-  - shared/jqschema.md
-  - shared/mcp/gh-aw.md
-```
-
-Used by: [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md), [`issue-arborist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md), [`smoke-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-detector.md) and others
-
-#### Pattern 3: Data Visualization Stack
-
-Full data analysis and visualization capabilities:
-
-```yaml
-imports:
-  - shared/reporting.md
-  - shared/jqschema.md
-  - shared/copilot-pr-data-fetch.md
-  - shared/trending-charts-simple.md
-```
-
-Used by: [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md), [`prompt-clustering-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/prompt-clustering-analysis.md), [`copilot-agent-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-agent-analysis.md) and others
-
-#### Pattern 4: Research Agent
-
-Web search and knowledge gathering:
-
-```yaml
-imports:
-  - shared/reporting.md
-  - shared/mcp/arxiv.md
-  - shared/mcp/tavily.md
-  - shared/mcp/microsoft-docs.md
-  - shared/mcp/deepwiki.md
-  - shared/mcp/context7.md
-  - shared/mcp/markitdown.md
-  - shared/jqschema.md
-```
-
-Used by: [`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md) (deep research agent with 8 imports!)
-
-#### Pattern 5: CI Analysis
-
-Specialized CI workflow analysis:
-
-```yaml
-imports:
-  - shared/ci-data-analysis.md
-  - shared/ci-optimization-strategies.md
-  - shared/reporting.md
-```
-
-Used by: [`ci-coach`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ci-coach.md)
-
-#### Pattern 6: Agent File Customization
-
-Import custom agent behavior files:
-
-```yaml
-imports:
-  - ../../skills/documentation/SKILL.md
-  - ../agents/technical-doc-writer.agent.md
-```
-
-Used by: [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md), [`technical-doc-writer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/technical-doc-writer.md)
-
-### Nested Imports: Shared Components Can Import Too
-
-Shared components themselves could import other shared components, creating a dependency graph that the compiler resolved automatically:
-
-```yaml
-# shared/charts-with-trending.md imports two other components
-imports:
-  - shared/python-dataviz.md
-  - shared/trends.md
-
-# shared/copilot-session-data-fetch.md imports jqschema
-imports:
-  - shared/jqschema.md
-```
-
-The compiler used **breadth-first traversal** to process imports deterministically, ensuring consistent behavior and detecting circular dependencies.
-
-### How Imports Merged Configuration
-
-The import system wasn't just textual inclusion - it performed **intelligent merging** of frontmatter configuration:
-
-**Tools** - Deep merge with array concatenation and deduplication
-```yaml
-# Main workflow gets both bash and github tools
-# Arrays like 'allowed' are concatenated and deduplicated
-```
-
-**MCP Servers** - Imported servers override top-level definitions
-```yaml
-# Importing shared/mcp/tavily.md provides the entire server config
-# No need to repeat URL, headers, or allowed patterns
-```
-
-**Network Permissions** - Union of all allowed domains
-```yaml
-# All imported network.allowed domains are accumulated
-# Duplicates removed, final list sorted alphabetically
-```
-
-**Steps** - Imported steps run before main workflow steps
-```yaml
-# shared/mcp/gh-aw.md includes setup steps that run first
-# Main workflow steps execute after imports
-```
-
-**Safe Outputs** - Main workflow overrides imported definitions
-```yaml
-# Provides defaults that workflows can selectively override
-```
-
-### Real-World Example: The [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) Agent
-
-The audit-workflows agent demonstrates imports at their best - combining 5 shared components to create a sophisticated meta-analysis agent:
-
-```yaml
-imports:
-  - shared/mcp/gh-aw.md        # MCP server with logs command
-  - shared/jqschema.md          # JSON processing utilities
-  - shared/reporting.md         # Report formatting standards
-  - shared/trending-charts-simple.md  # Trending visualization
-```
-
-**What this provides:**
-- ✅ MCP server with `logs` command for downloading workflow runs
-- ✅ Full Go build environment and gh-aw CLI tools
-- ✅ JSON schema validation and jq query utilities  
-- ✅ Python data visualization with Matplotlib
-- ✅ Report formatting guidelines and standards
-- ✅ Trending chart generation capabilities
-- ✅ Network permissions for GitHub, Python, Node
-- ✅ Cache-memory for persistent data storage
-
-The workflow itself only needed to specify its unique logic - everything else came from imports.
-
-### Statistics: Imports by the Numbers
-
-- **84 workflows** (65% of zoo) use the imports feature
-- **46 workflows** import [`reporting.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) (most popular component)
-- **17 workflows** import [`jqschema.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) (JSON utilities)
-- **12 workflows** import [`mcp/gh-aw.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/gh-aw.md) (meta-analysis server)
-- **35+ shared components** in `.github/workflows/shared/`
-- **20+ MCP server configs** in `.github/workflows/shared/mcp/`
-- **Average 2-3 imports** per workflow (some have 8+!)
-
-### Lessons Learned
-
-**✨ Imports Enabled Scale**  
-Without imports, maintaining 145 workflows would have been impossible. Updates that touched dozens of workflows became single-file changes.
-
-**🎯 Start with Shared Components**  
-We learned to ask "Can this be shared?" first. Components like [`reporting.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) and [`jqschema.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) emerged as universal patterns early on.
-
-**🔧 Layer by Abstraction Level**  
-The best shared components provided a single level of abstraction. Too generic meant workflows still needed boilerplate. Too specific meant limited reuse.
-
-**📦 MCP Configs are Perfect for Imports**  
-MCP server configurations with their network permissions, environment variables, and setup steps were ideal candidates for extraction into shared components.
-
-**⚠️ Version Control Matters**  
-For production workflows, we learned to pin shared component versions (via git refs) rather than always using latest. The import system supports `owner/repo/path@version` for stability.
-
-**🔄 Document What Gets Merged**  
-Clear documentation of merge semantics (tools merge, network unions, permissions validate) prevented confusion and made shared components predictable.
-
 ---
 
-## How Agentic Workfows Work
+## 12 Patterns for Flourishing Agentics
 
-Every agent in the zoo follows the same basic lifecycle:
-
-### 1. **Write** in Natural Language
-
-Agentic Workfows are defined in **Markdown files** using natural language prompts and declarative frontmatter:
-
-```
----
-description: Investigates failed CI workflows to identify root causes
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-permissions:
-  contents: read
-  issues: write
-tools:
-  github:
-    toolsets: [issues, pull-requests]
----
-
-When a CI workflow fails, investigate the logs...
-```
-
-### 2. **Compile** to Secure Workflows
-
-The natural language workflow compiles to a **locked YAML file** that runs on GitHub Actions:
-
-```
-# ci-doctor.lock.yml
-name: CI Doctor
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-# ... validated, locked execution plan
-```
-
-This compilation step ensures:
-- ✅ Permissions are minimal and explicit
-- ✅ Tools are allowlisted
-- ✅ Network access is controlled
-- ✅ Safe outputs are properly constrained
-
-### 3. **Run** and Produce Artifacts
-
-Agentic Workfows execute automatically and create **team-visible artifacts**:
-- 💬 Issue and PR comments
-- 📝 Discussion posts with detailed reports
-- 📎 Uploaded assets (charts, logs, data files)
-- 🔀 Pull requests for proposed changes
-
-Everything an agent does is auditable - no hidden side effects.
-
----
-
-## The 12 Core Patterns
-
-After running 145 agents continuously, we identified 12 fundamental patterns that capture the essential DNA of successful agentic workflows:
+After developing these 145 agents, we identified 12 fundamental design patterns of successful agentic workflows:
 
 ### 1. The Read-Only Analyst 🔬
 **Observe, analyze, and report without changing anything**
@@ -591,7 +304,7 @@ Agentic Workfows that guard repositories through vulnerability scanning, secret 
 
 ---
 
-## Agentic Workflow Ops Patterns
+## Agentic Ops
 
 Beyond the 12 core behavioral patterns that define what agents do, our nursery revealed several strategic design patterns for how to structure and organize agentic workflows at scale, in the context of the GitHub information primitives. These patterns emerged from building and operating workflows and represent battle-tested approaches to common challenges.
 
@@ -679,72 +392,69 @@ Discussions and assets create a natural "agent ledger." You can always trace wha
 
 ---
 
-## What We Learned
+## Conclusions
 
-### ✨ **Diversity Beats Perfection**
+The Agent Nursery was an ambitious experiment in scaling agentic workflows. After months of nurturing and observing, several key insights emerged about what works, what doesn't, and how to design effective agent ecosystems.
+
+✨ **Diversity Beats Perfection**
 No single agent can do everything. A collection of focused agents, each doing one thing well, proved more practical than trying to build a universal assistant.
 
-### 📊 **Guardrails Enable Innovation**
+📊 **Guardrails Enable Innovation**
 Counter-intuitively, strict constraints (safe outputs, limited permissions, allowlisted tools) made it *easier* to experiment. We knew the blast radius of any failure.
 
-### 🔄 **Meta-Agentic Workfows Are Essential**
+🔄 **Meta-Agentic Workfows Are Essential**
 Agentic Workfows that monitor agents became some of the most valuable. They caught issues early and helped us understand aggregate behavior.
 
-### 🎭 **Personality Matters**
+🎭 **Personality Matters**
 Agentic Workfows with clear "personalities" (the meticulous auditor, the helpful janitor, the creative poet) were easier for teams to understand and trust.
 
-### ⚖️ **Cost-Quality Tradeoffs Are Real**
+⚖️ **Cost-Quality Tradeoffs Are Real**
 Longer, more thorough analyses cost more but aren't always better. The portfolio analyst helped us identify which agents gave the best value.
 
-### 🔄 **Multi-Phase Workflows Enable Ambitious Goals**
+🔄 **Multi-Phase Workflows Enable Ambitious Goals**
 Breaking complex improvements into 3-phase workflows (research → setup → implement) allowed agents to tackle projects that would be too large for a single run. Each phase builds on the last, with human feedback between phases.
 
-### 💬 **Slash Commands Create Natural User Interfaces**
+💬 **Slash Commands Create Natural User Interfaces**
 ChatOps-style `/command` triggers made agents feel like natural team members. Users could invoke powerful capabilities with simple comments, and role-gating ensured only authorized users could trigger sensitive operations.
 
-### 🧪 **Heartbeats Build Confidence**
+🧪 **Heartbeats Build Confidence**
 Frequent, lightweight validation tests (every 12 hours) caught regressions quickly. These "heartbeat" agents ensured the infrastructure stayed healthy without manual monitoring.
 
-### 🔧 **MCP Inspection Is Essential**
+🔧 **MCP Inspection Is Essential**
 As workflows grew to use multiple MCP servers, having agents that could validate and report on tool availability became critical. The MCP inspector pattern prevented cryptic failures from misconfigured tools.
 
-### 🎯 **Dispatcher Patterns Scale Command Complexity**
+🎯 **Dispatcher Patterns Scale Command Complexity**
 Instead of one monolithic agent handling all requests, dispatcher agents could route to specialized sub-agents or commands. This made the system more maintainable and allowed for progressive feature addition.
 
-### 📿 **Task Queuing is Everywhere**
+📿 **Task Queuing is Everywhere**
 The task queue pattern provided a simple way to queue and distribute work across multiple workflow runs. Breaking large projects into discrete tasks allowed incremental progress with clear state tracking, recording tasks as issues, discussions or project cards.
 
-### 🤖 **ML Analysis Reveals Hidden Patterns**
+🤖 **ML Analysis Reveals Hidden Patterns**
 Applying clustering and NLP to agent interactions revealed usage patterns that weren't obvious from individual runs. This meta-analysis helped identify opportunities for consolidation and optimization.
 
-### 🏢 **Cross-Repo Agentic Workfows Need Special Care**
+🏢 **Cross-Repo Agentic Workfows Need Special Care**
 Organization-level agents required careful permission management and rate limit awareness. They proved valuable for understanding ecosystem health but needed deliberate scoping to avoid overwhelming repositories.
 
-### 📝 **Documentation Agentic Workfows Bridge Code and Context**
+📝 **Documentation Agentic Workfows Bridge Code and Context**
 Agentic Workfows that maintained glossaries, technical docs, and slide decks kept documentation synchronized with rapidly evolving codebases. They acted as "knowledge janitors," reducing staleness debt.
 
----
+### Challenges We Encountered
 
-## Challenges We Encountered
+Not everything was smooth sailing. We faced several challenges that provided valuable lessons:
 
-### **Permission Creep**
-
+**Permission Creep**
 As agents gained capabilities, there was a temptation to grant broader permissions. We had to constantly audit and prune permissions to maintain least privilege.
 
-### **Debugging Complexity**
-
+**Debugging Complexity**
 When agents misbehaved, tracing the root cause through multiple workflow runs and safe outputs was challenging. Improved logging and observability are needed.
 
-### **Repository Noise**
-
+**Repository Noise**
 Frequent agent runs created a lot of issues, PRs, and comments. We had to implement archival strategies to keep the repository manageable.
 
-### **Cost Management**
-
+**Cost Management**
 Running many agents incurred significant costs. The portfolio analyst helped, but ongoing cost monitoring is essential.
 
-### **User Trust**
-
+**User Trust**
 Some team members were hesitant to engage with automated agents. Clear communication about capabilities and limitations helped build trust over time.
 
 ---
@@ -779,7 +489,120 @@ The workflows in this nursery are fully remixable. Copy them, adapt them, and ma
 Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Krzysztof Cieślak,  Russell Horton, Ben De St Paer‑Gotch, Jiaxiao Zhou
 
 *Part of GitHub Next's exploration of Continuous AI - making AI-enriched automation as routine as CI/CD.*
+
 ---
+
+## Appendix: How Agentic Workfows Work
+
+Every agent in the zoo follows the same basic lifecycle:
+
+### 1. **Write** in Natural Language
+
+Agentic Workfows are defined in **Markdown files** using natural language prompts and declarative frontmatter:
+
+```
+---
+description: Investigates failed CI workflows to identify root causes
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+permissions:
+  contents: read
+  issues: write
+tools:
+  github:
+    toolsets: [issues, pull-requests]
+---
+
+When a CI workflow fails, investigate the logs...
+```
+
+### 2. **Compile** to Secure Workflows
+
+The natural language workflow compiles to a **locked YAML file** that runs on GitHub Actions:
+
+```
+# ci-doctor.lock.yml
+name: CI Doctor
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+# ... validated, locked execution plan
+```
+
+This compilation step ensures:
+- ✅ Permissions are minimal and explicit
+- ✅ Tools are allowlisted
+- ✅ Network access is controlled
+- ✅ Safe outputs are properly constrained
+
+### 3. **Run** and Produce Artifacts
+
+Agentic Workfows execute automatically and create **team-visible artifacts**:
+- 💬 Issue and PR comments
+- 📝 Discussion posts with detailed reports
+- 📎 Uploaded assets (charts, logs, data files)
+- 🔀 Pull requests for proposed changes
+
+Everything an agent does is auditable - no hidden side effects.
+
+---
+
+## Appendix: Imports and Sharing
+
+To promote code reuse and accelerate development, the nursery extensively utilized the import feature of GitHub Agentic Workflows. This allowed workflows to share common logic, utilities, and configurations, reducing duplication and ensuring consistency across the agent ecosystem.
+
+The nursery organized shared components into two main directories:
+
+#### `.github/workflows/shared/` - Core Capabilities (35+ components)
+
+These components provided fundamental capabilities that many workflows needed:
+
+**Most Popular Shared Components:**
+- [**`reporting.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) (46 imports) - Report formatting guidelines, workflow run references, footer standards
+- [**`jqschema.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) (17 imports) - JSON querying and schema validation utilities
+- [**`python-dataviz.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/python-dataviz.md) (7 imports) - Python environment with NumPy, Pandas, Matplotlib, Seaborn
+- [**`trending-charts-simple.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/trending-charts-simple.md) (6 imports) - Quick setup for creating trend visualizations
+- [**`gh.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/gh.md) (4 imports) - Safe-input wrapper for GitHub CLI with authentication
+- [**`copilot-pr-data-fetch.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/copilot-pr-data-fetch.md) (4 imports) - Fetch and cache GitHub Copilot PR data
+
+**Specialized Components:**
+- [**`charts-with-trending.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/charts-with-trending.md) - Comprehensive trending with cache-memory integration
+- [**`ci-data-analysis.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/ci-data-analysis.md) - CI workflow analysis utilities
+- [**`session-analysis-charts.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/session-analysis-charts.md) - Copilot session visualization patterns
+- [**`keep-it-short.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/keep-it-short.md) - Prompt guidance for concise responses
+- [**`safe-output-app.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/safe-output-app.md) - Safe output application patterns
+
+#### `.github/workflows/shared/mcp/` - MCP Server Configurations (20+ servers)
+
+These components configured Model Context Protocol servers for specialized capabilities:
+
+**Most Used MCP Servers:**
+- [**`gh-aw.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/gh-aw.md) (12 imports) - GitHub Agentic Workflows MCP server with `logs` command
+- [**`tavily.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/tavily.md) (5 imports) - Web search via Tavily API
+- [**`markitdown.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/markitdown.md) (3 imports) - Document conversion (PDF, Office, images to Markdown)
+- [**`ast-grep.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/ast-grep.md) (2 imports) - Structural code search and analysis
+- [**`brave.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/brave.md) (2 imports) - Alternative web search via Brave API
+- [**`arxiv.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/arxiv.md) (2 imports) - Academic paper research
+- [**`notion.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/notion.md) (2 imports) - Notion workspace integration
+
+**Infrastructure & Analysis:**
+- [**`jupyter.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/jupyter.md) - Jupyter notebook environment with Docker services
+- [**`skillz.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/skillz.md) - Dynamic skill loading from `.github/skills/` directory
+- [**`context7.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/context7.md), [**`deepwiki.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/deepwiki.md), [**`microsoft-docs.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/microsoft-docs.md) - Specialized search and documentation
+- [**`slack.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/slack.md), [**`sentry.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/sentry.md), [**`datadog.md`**](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/datadog.md) - External service integrations
+
+### Imports by the Numbers
+
+- **84 workflows** (65% of zoo) use the imports feature
+- **46 workflows** import [`reporting.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) (most popular component)
+- **17 workflows** import [`jqschema.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/jqschema.md) (JSON utilities)
+- **12 workflows** import [`mcp/gh-aw.md`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/gh-aw.md) (meta-analysis server)
+- **35+ shared components** in `.github/workflows/shared/`
+- **20+ MCP server configs** in `.github/workflows/shared/mcp/`
+- **Average 2-3 imports** per workflow (some have 8+!)
 
 ## Appendix: Complete Workflow Inventory
 
