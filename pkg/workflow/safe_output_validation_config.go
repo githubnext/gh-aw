@@ -244,6 +244,15 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"fields":         {Type: "object"},
 		},
 	},
+	"create_project": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"title":      {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"owner":      {Type: "string", Sanitize: true, MaxLength: 128},
+			"owner_type": {Type: "string", Enum: []string{"org", "user"}},
+			"item_url":   {Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/[^/]+/[^/]+/issues/\\d+", PatternError: "must be a full GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)"},
+		},
+	},
 	"create_project_status_update": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{

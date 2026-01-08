@@ -32,6 +32,7 @@ func getNoOpScript() string                    { return "" }
 func getNotifyCommentErrorScript() string      { return "" }
 func getUpdateProjectScript() string           { return "" }
 func getCopyProjectScript() string             { return "" }
+func getCreateProjectScript() string           { return "" }
 func getUploadAssetsScript() string            { return "" }
 
 // Public Get* functions return empty strings since embedded scripts were removed

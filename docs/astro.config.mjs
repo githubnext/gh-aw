@@ -148,6 +148,7 @@ export default defineConfig({
 						{ label: 'Getting Started', link: '/guides/campaigns/getting-started/' },
 						{ label: 'Project Management', link: '/guides/campaigns/project-management/' },
 						{ label: 'CLI Commands', link: '/guides/campaigns/cli-commands/' },
+						{ label: 'vs GitHub Security Campaigns', link: '/guides/campaigns/comparison-github-campaigns/' },
 					],
 				},
 				{

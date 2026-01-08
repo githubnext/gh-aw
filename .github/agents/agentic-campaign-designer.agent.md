@@ -135,7 +135,7 @@ Automated security improvements and vulnerability remediation
 
 **Important: Retrieve the Project Board URL from Issue Assignments**
 
-A project board has been automatically created from the campaign template and assigned to this issue. You must query this assignment using GitHub CLI (replace `ISSUE_NUMBER` with the actual issue number from `github.event.issue.number`):
+A project board has been automatically created and assigned to this issue. You must query this assignment using GitHub CLI (replace `ISSUE_NUMBER` with the actual issue number from `github.event.issue.number`):
 
 ```bash
 gh issue view ISSUE_NUMBER --json projectItems --jq '.projectItems.nodes[0]?.project?.url // empty'
@@ -164,7 +164,7 @@ Based on the parsed requirements and project assignment, determine:
 6. **Risk Level**: Assess the risk level based on the campaign's scope
 7. **Safe Outputs**: Determine which safe outputs should be allowed
 8. **Approval Policy**: Define approval requirements based on risk level
-9. **Project Board Setup**: The project board is created from a template that already includes recommended custom fields:
+9. **Project Board Setup**: A new empty project board is created for the campaign. You should configure custom fields as needed:
    - `Worker/Workflow` (single-select): Workflow names for swimlane grouping
    - `Priority` (single-select): High/Medium/Low for filtering
    - `Status` (single-select): Todo/In Progress/Blocked/Done

@@ -5,7 +5,7 @@ sidebar:
   badge: { text: 'Scheduled', variant: 'tip' }
 ---
 
-DailyOps workflows use scheduled automation to make incremental progress toward large goals through small, daily changes. Instead of overwhelming the team with major changes, work happens automatically in manageable pieces that are easy to review and integrate. This pattern transforms ambitious long-term goals into achievable daily tasks.
+DailyOps workflows automate incremental progress toward large goals through small, scheduled daily changes. Work happens automatically in manageable pieces that are easy to review and integrate.
 
 ## When to Use DailyOps
 
@@ -31,7 +31,10 @@ on:
 
 ### Phased Approach
 
-DailyOps workflows typically organize work into three sequential phases: **Research** (analyze state, create discussion with findings), **Configuration** (define steps, create config PR), and **Execution** (make small improvements, verify, create draft PRs). Each phase waits for maintainer approval before proceeding to the next.
+Work proceeds through three phases with maintainer approval between each:
+1. **Research** - Analyze state, create discussion with findings
+2. **Configuration** - Define steps, create config PR
+3. **Execution** - Make improvements, verify, create draft PRs
 
 ### Progress Tracking
 
@@ -84,19 +87,20 @@ All follow the phased approach with discussions for tracking and draft pull requ
 
 ## Implementation Guide
 
-**1. Define Your Goal** - Identify a large, ongoing goal (test coverage, performance, documentation sync, quality monitoring).
-
-**2. Design the Workflow** - Set weekday schedule, plan phases (research/config/execution), configure `safe-outputs` for discussions and PRs.
-
-**3. Start with Research** - First run analyzes current state, creates discussion with findings and strategy, exits for human review.
-
-**4. Configure and Test** - Once approved, create necessary configuration files, test them, submit config PR, exit.
-
-**5. Execute Daily** - With setup complete, select small focused areas, make improvements, verify, create draft PRs, update discussion.
+1. **Define Goal** - Identify ongoing goal (test coverage, performance, docs sync)
+2. **Design Workflow** - Set weekday schedule, configure `safe-outputs` for discussions/PRs
+3. **Research Phase** - Analyze state, create discussion, wait for approval
+4. **Config Phase** - Create config files, test, submit PR, wait for approval
+5. **Execute Daily** - Make small improvements, verify, create draft PRs, update discussion
 
 ## Best Practices
 
-Keep daily changes reviewable in 5-10 minutes. Use draft pull requests to signal human review needed. Track overall plan, daily progress, and issues in discussions. Handle failures gracefully by creating issues and exiting cleanly. Always enable `workflow_dispatch` for manual testing and debugging. Schedule for weekdays only to avoid change buildup during weekends.
+- Keep changes reviewable in 5-10 minutes
+- Use draft PRs to signal review needed
+- Track progress and issues in discussions
+- Handle failures by creating issues and exiting cleanly
+- Enable `workflow_dispatch` for manual testing
+- Schedule weekdays only to avoid weekend buildup
 
 
 ## Related Patterns
