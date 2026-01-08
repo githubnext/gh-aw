@@ -127,8 +127,15 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	// Check if file is under .github/workflows/ for strict validation
 	isWorkflowFile := isUnderWorkflowsDirectory(filePath)
 
-	// Always try strict validation first
-	validationErr := ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
+	// Check if file is a custom agent file (.github/agents/*.md)
+	// Custom agent files use GitHub Copilot's format where 'tools' is an array, not an object
+	isAgentFile := isCustomAgentFile(filePath)
+
+	// Always try strict validation first (but skip for agent files which have a different schema)
+	var validationErr error
+	if !isAgentFile {
+		validationErr = ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
+	}
 
 	if validationErr != nil {
 		if isWorkflowFile {
@@ -175,9 +182,12 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 				}
 
 				// Validate the tools, engine, network, and mcp-servers sections if present
+				// Skip tools validation for custom agent files as they use a different format (array vs object)
 				filteredFrontmatter := map[string]any{}
-				if tools, hasTools := result.Frontmatter["tools"]; hasTools {
-					filteredFrontmatter["tools"] = tools
+				if !isAgentFile {
+					if tools, hasTools := result.Frontmatter["tools"]; hasTools {
+						filteredFrontmatter["tools"] = tools
+					}
 				}
 				if engine, hasEngine := result.Frontmatter["engine"]; hasEngine {
 					filteredFrontmatter["engine"] = engine
@@ -200,6 +210,12 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	}
 
 	if extractTools {
+		// For custom agent files, skip tools extraction as they use a different format (array vs object)
+		// Agent files are meant to be passed directly to the engine (e.g., via --agent flag)
+		if isAgentFile {
+			return "{}", nil
+		}
+
 		// Extract tools from frontmatter, using filtered frontmatter for non-workflow files with validation errors
 		if validationErr == nil || isWorkflowFile {
 			// If validation passed or it's a workflow file (which must have valid frontmatter), use original extraction
