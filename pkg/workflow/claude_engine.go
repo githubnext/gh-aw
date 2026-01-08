@@ -265,6 +265,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 		claudeLog.Print("Added hostedtoolcache node mount to AWF container")
 
+		// Mount /opt/gh-aw as readonly for script and configuration files
+		awfArgs = append(awfArgs, "--mount", "/opt/gh-aw:/opt/gh-aw:ro")
+		claudeLog.Print("Added /opt/gh-aw mount as readonly to AWF container")
+
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 			// Sort mounts for consistent output

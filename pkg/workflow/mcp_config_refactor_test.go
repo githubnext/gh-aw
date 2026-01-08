@@ -127,7 +127,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"safeoutputs": {`,
 				`"type": "local"`,
 				`"command": "node"`,
-				`"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]`,
+				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				`"tools": ["*"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
@@ -146,7 +146,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"safeoutputs": {`,
 				`"command": "node"`,
-				`"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]`,
+				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				// Security fix: Now uses shell variables instead of GitHub expressions
 				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
 				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH"`,
@@ -333,7 +333,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`[mcp_servers.safeoutputs]`,
 		`command = "node"`,
 		`args = [`,
-		`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
+		`"/opt/gh-aw/safeoutputs/mcp-server.cjs"`,
 		`env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]`,
 	}
 
