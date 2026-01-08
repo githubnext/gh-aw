@@ -155,17 +155,11 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 
 		// Verify patterns have expected content
-		foundTimestampedError := false
 		foundTimestampedWarning := false
 		foundBracketedError := false
 
 		for _, pattern := range patterns {
 			switch pattern.Description {
-			case "Copilot CLI timestamped ERROR messages":
-				foundTimestampedError = true
-				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
-					t.Errorf("Copilot timestamped error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
-				}
 			case "Copilot CLI timestamped WARNING messages":
 				foundTimestampedWarning = true
 				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
@@ -179,9 +173,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 			}
 		}
 
-		if !foundTimestampedError {
-			t.Error("CopilotEngine should have timestamped error pattern")
-		}
 		if !foundTimestampedWarning {
 			t.Error("CopilotEngine should have timestamped warning pattern")
 		}

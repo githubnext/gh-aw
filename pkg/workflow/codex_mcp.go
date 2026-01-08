@@ -71,7 +71,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		default:
 			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
 			HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-				return e.renderCodexMCPConfig(yaml, toolName, toolConfig)
+				return e.renderCodexMCPConfigWithContext(yaml, toolName, toolConfig, workflowData)
 			})
 		}
 	}
@@ -94,15 +94,23 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          EOF\n")
 }
 
-// renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml
-func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any) error {
+// renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml
+// This version includes workflowData to determine if localhost URLs should be rewritten
+func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, workflowData *WorkflowData) error {
 	yaml.WriteString("          \n")
 	fmt.Fprintf(yaml, "          [mcp_servers.%s]\n", toolName)
 
+	// Determine if localhost URLs should be rewritten to host.docker.internal
+	// This is needed when firewall is enabled (agent is not disabled)
+	rewriteLocalhost := workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
+
 	// Use the shared MCP config renderer with TOML format
 	renderer := MCPConfigRenderer{
-		IndentLevel: "          ",
-		Format:      "toml",
+		IndentLevel:              "          ",
+		Format:                   "toml",
+		RewriteLocalhostToDocker: rewriteLocalhost,
 	}
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)

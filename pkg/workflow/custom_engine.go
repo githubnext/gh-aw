@@ -192,14 +192,17 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 			},
-			RenderCustomMCPConfig: e.renderCustomMCPConfig,
+			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+				return e.renderCustomMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
+			},
 		},
 	})
 }
 
-// renderCustomMCPConfig generates custom MCP server configuration using shared logic
-func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	return renderCustomMCPConfigWrapper(yaml, toolName, toolConfig, isLast)
+// renderCustomMCPConfigWithContext generates custom MCP server configuration using shared logic with workflow context
+// This version includes workflowData to determine if localhost URLs should be rewritten
+func (e *CustomEngine) renderCustomMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
+	return renderCustomMCPConfigWrapperWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 }
 
 // renderCacheMemoryMCPConfig generates the Memory MCP server configuration using shared logic
