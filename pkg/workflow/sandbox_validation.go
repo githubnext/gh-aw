@@ -63,11 +63,18 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 
 	sandboxConfig := workflowData.SandboxConfig
 
-	// Validate mounts syntax if specified
+	// Validate mounts syntax if specified in agent config
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 		if err := validateMountsSyntax(agentConfig.Mounts); err != nil {
 			return err
+		}
+	}
+
+	// Validate mounts syntax if specified in MCP gateway config
+	if sandboxConfig.MCP != nil && len(sandboxConfig.MCP.Mounts) > 0 {
+		if err := validateMountsSyntax(sandboxConfig.MCP.Mounts); err != nil {
+			return fmt.Errorf("invalid MCP gateway mount configuration: %w", err)
 		}
 	}
 

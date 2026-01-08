@@ -2312,6 +2312,34 @@
                 "api-key": {
                   "type": "string",
                   "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
+                },
+                "domain": {
+                  "type": "string",
+                  "enum": ["localhost", "host.docker.internal"],
+                  "description": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)"
+                },
+                "mounts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+                  },
+                  "description": "Volume mounts for the gateway container (format: 'source:dest:mode' where mode is 'ro' or 'rw')",
+                  "examples": [["/host/data:/container/data:ro", "/host/config:/container/config:rw"]]
+                },
+                "network": {
+                  "type": "string",
+                  "description": "Docker network mode for the gateway container (default: 'host')",
+                  "examples": ["host", "bridge", "none"]
+                },
+                "ports": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(\\d+:\\d+|\\d+)$"
+                  },
+                  "description": "Port mappings for the gateway container (format: 'host:container' or 'port')",
+                  "examples": [["8080:8080", "9090:9090"]]
                 }
               },
               "required": ["container"],

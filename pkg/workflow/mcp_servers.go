@@ -559,6 +559,17 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	// Build container command with args
 	containerCmd := "docker run -i --rm --network host"
 
+	// Add volume mounts if configured
+	if len(gatewayConfig.Mounts) > 0 {
+		// Sort mounts for stable code generation
+		sortedMounts := make([]string, len(gatewayConfig.Mounts))
+		copy(sortedMounts, gatewayConfig.Mounts)
+		sort.Strings(sortedMounts)
+		for _, mount := range sortedMounts {
+			containerCmd += " -v " + shellQuote(mount)
+		}
+	}
+
 	// Add environment variables to container
 	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
 	if len(gatewayConfig.Env) > 0 {
