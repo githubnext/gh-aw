@@ -73,7 +73,7 @@ Most safe output types support cross-repository operations. Exceptions are noted
 - [**Missing Data**](#missing-data-reporting-missing-data) (`missing-data`) — Report missing data required to achieve goals (max: unlimited, same-repo only)
 
 :::tip
-Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/)
+Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/). See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation and AI reasoning.
 :::
 
 ### Custom Safe Output Jobs (`jobs:`)
