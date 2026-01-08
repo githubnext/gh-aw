@@ -416,3 +416,301 @@ func TestRoundTripConversions(t *testing.T) {
 		}
 	})
 }
+
+func TestIsCampaignSpec(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "campaign spec file",
+			path:     "test.campaign.md",
+			expected: true,
+		},
+		{
+			name:     "campaign spec with path",
+			path:     ".github/workflows/prod.campaign.md",
+			expected: true,
+		},
+		{
+			name:     "campaign orchestrator",
+			path:     "test.campaign.g.md",
+			expected: false,
+		},
+		{
+			name:     "regular workflow",
+			path:     "test.md",
+			expected: false,
+		},
+		{
+			name:     "lock file",
+			path:     "test.lock.yml",
+			expected: false,
+		},
+		{
+			name:     "campaign lock file",
+			path:     "test.campaign.lock.yml",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsCampaignSpec(tt.path)
+			if result != tt.expected {
+				t.Errorf("IsCampaignSpec(%q) = %v, expected %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsCampaignOrchestrator(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "campaign orchestrator",
+			path:     "test.campaign.g.md",
+			expected: true,
+		},
+		{
+			name:     "campaign orchestrator with path",
+			path:     ".github/workflows/prod.campaign.g.md",
+			expected: true,
+		},
+		{
+			name:     "campaign spec",
+			path:     "test.campaign.md",
+			expected: false,
+		},
+		{
+			name:     "regular workflow",
+			path:     "test.md",
+			expected: false,
+		},
+		{
+			name:     "lock file",
+			path:     "test.lock.yml",
+			expected: false,
+		},
+		{
+			name:     "campaign lock file",
+			path:     "test.campaign.lock.yml",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsCampaignOrchestrator(tt.path)
+			if result != tt.expected {
+				t.Errorf("IsCampaignOrchestrator(%q) = %v, expected %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsAgenticWorkflow(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "regular workflow",
+			path:     "test.md",
+			expected: true,
+		},
+		{
+			name:     "workflow with path",
+			path:     ".github/workflows/weekly-research.md",
+			expected: true,
+		},
+		{
+			name:     "workflow with dots in name",
+			path:     "my.workflow.test.md",
+			expected: true,
+		},
+		{
+			name:     "campaign spec",
+			path:     "test.campaign.md",
+			expected: false,
+		},
+		{
+			name:     "campaign orchestrator",
+			path:     "test.campaign.g.md",
+			expected: false,
+		},
+		{
+			name:     "lock file",
+			path:     "test.lock.yml",
+			expected: false,
+		},
+		{
+			name:     "campaign lock file",
+			path:     "test.campaign.lock.yml",
+			expected: false,
+		},
+		{
+			name:     "no extension",
+			path:     "test",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsAgenticWorkflow(tt.path)
+			if result != tt.expected {
+				t.Errorf("IsAgenticWorkflow(%q) = %v, expected %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsLockFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "regular lock file",
+			path:     "test.lock.yml",
+			expected: true,
+		},
+		{
+			name:     "lock file with path",
+			path:     ".github/workflows/test.lock.yml",
+			expected: true,
+		},
+		{
+			name:     "campaign lock file",
+			path:     "test.campaign.lock.yml",
+			expected: true,
+		},
+		{
+			name:     "workflow file",
+			path:     "test.md",
+			expected: false,
+		},
+		{
+			name:     "campaign spec",
+			path:     "test.campaign.md",
+			expected: false,
+		},
+		{
+			name:     "campaign orchestrator",
+			path:     "test.campaign.g.md",
+			expected: false,
+		},
+		{
+			name:     "yaml file",
+			path:     "test.yml",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsLockFile(tt.path)
+			if result != tt.expected {
+				t.Errorf("IsLockFile(%q) = %v, expected %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsCampaignLockFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "campaign lock file",
+			path:     "test.campaign.lock.yml",
+			expected: true,
+		},
+		{
+			name:     "campaign lock file with path",
+			path:     ".github/workflows/prod.campaign.lock.yml",
+			expected: true,
+		},
+		{
+			name:     "regular lock file",
+			path:     "test.lock.yml",
+			expected: false,
+		},
+		{
+			name:     "campaign spec",
+			path:     "test.campaign.md",
+			expected: false,
+		},
+		{
+			name:     "campaign orchestrator",
+			path:     "test.campaign.g.md",
+			expected: false,
+		},
+		{
+			name:     "workflow file",
+			path:     "test.md",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsCampaignLockFile(tt.path)
+			if result != tt.expected {
+				t.Errorf("IsCampaignLockFile(%q) = %v, expected %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFileTypeHelpers_Exclusivity(t *testing.T) {
+	// Test that file types are mutually exclusive (except lock files)
+	testPaths := []string{
+		"test.md",
+		"test.campaign.md",
+		"test.campaign.g.md",
+		"test.lock.yml",
+		"test.campaign.lock.yml",
+	}
+
+	for _, path := range testPaths {
+		t.Run(path, func(t *testing.T) {
+			isCampaignSpec := IsCampaignSpec(path)
+			isCampaignOrch := IsCampaignOrchestrator(path)
+			isWorkflow := IsAgenticWorkflow(path)
+			isLock := IsLockFile(path)
+			isCampaignLock := IsCampaignLockFile(path)
+
+			// Count how many markdown types match (should be at most 1)
+			mdCount := 0
+			if isCampaignSpec {
+				mdCount++
+			}
+			if isCampaignOrch {
+				mdCount++
+			}
+			if isWorkflow {
+				mdCount++
+			}
+
+			if mdCount > 1 {
+				t.Errorf("Path %q matches multiple markdown types: spec=%v, orch=%v, workflow=%v",
+					path, isCampaignSpec, isCampaignOrch, isWorkflow)
+			}
+
+			// Campaign lock files should also be lock files
+			if isCampaignLock && !isLock {
+				t.Errorf("Path %q is a campaign lock file but not a lock file", path)
+			}
+		})
+	}
+}

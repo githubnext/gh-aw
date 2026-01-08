@@ -132,3 +132,80 @@ func CampaignOrchestratorToLockFile(orchestratorPath string) string {
 func CampaignSpecToLockFile(specPath string) string {
 	return strings.TrimSuffix(specPath, ".campaign.md") + ".campaign.lock.yml"
 }
+
+// IsCampaignSpec returns true if the file path is a campaign specification file.
+// Campaign specs end with .campaign.md and are user-authored files that define campaigns.
+//
+// Examples:
+//
+//	IsCampaignSpec("test.campaign.md")                          // returns true
+//	IsCampaignSpec(".github/workflows/prod.campaign.md")        // returns true
+//	IsCampaignSpec("test.campaign.g.md")                        // returns false (orchestrator)
+//	IsCampaignSpec("test.md")                                   // returns false (workflow)
+//	IsCampaignSpec("test.lock.yml")                             // returns false
+func IsCampaignSpec(path string) bool {
+	return strings.HasSuffix(path, ".campaign.md")
+}
+
+// IsCampaignOrchestrator returns true if the file path is a campaign orchestrator file.
+// Campaign orchestrators end with .campaign.g.md and are generated from campaign specs.
+// The .g. indicates "generated".
+//
+// Examples:
+//
+//	IsCampaignOrchestrator("test.campaign.g.md")                // returns true
+//	IsCampaignOrchestrator(".github/workflows/prod.campaign.g.md") // returns true
+//	IsCampaignOrchestrator("test.campaign.md")                  // returns false (spec)
+//	IsCampaignOrchestrator("test.md")                           // returns false (workflow)
+//	IsCampaignOrchestrator("test.lock.yml")                     // returns false
+func IsCampaignOrchestrator(path string) bool {
+	return strings.HasSuffix(path, ".campaign.g.md")
+}
+
+// IsAgenticWorkflow returns true if the file path is an agentic workflow file.
+// Agentic workflows end with .md but are NOT campaign specs or campaign orchestrators.
+//
+// Examples:
+//
+//	IsAgenticWorkflow("test.md")                                // returns true
+//	IsAgenticWorkflow("weekly-research.md")                     // returns true
+//	IsAgenticWorkflow(".github/workflows/workflow.md")          // returns true
+//	IsAgenticWorkflow("test.campaign.md")                       // returns false (campaign spec)
+//	IsAgenticWorkflow("test.campaign.g.md")                     // returns false (orchestrator)
+//	IsAgenticWorkflow("test.lock.yml")                          // returns false
+func IsAgenticWorkflow(path string) bool {
+	// Must end with .md
+	if !strings.HasSuffix(path, ".md") {
+		return false
+	}
+	// Must NOT be a campaign spec or orchestrator
+	return !IsCampaignSpec(path) && !IsCampaignOrchestrator(path)
+}
+
+// IsLockFile returns true if the file path is a compiled lock file.
+// Lock files end with .lock.yml and can be compiled from agentic workflows or campaign orchestrators.
+//
+// Examples:
+//
+//	IsLockFile("test.lock.yml")                                 // returns true
+//	IsLockFile("test.campaign.lock.yml")                        // returns true
+//	IsLockFile(".github/workflows/workflow.lock.yml")           // returns true
+//	IsLockFile("test.md")                                       // returns false
+//	IsLockFile("test.campaign.md")                              // returns false
+func IsLockFile(path string) bool {
+	return strings.HasSuffix(path, ".lock.yml")
+}
+
+// IsCampaignLockFile returns true if the file path is a compiled campaign lock file.
+// Campaign lock files end with .campaign.lock.yml and are compiled from campaign orchestrators.
+//
+// Examples:
+//
+//	IsCampaignLockFile("test.campaign.lock.yml")                // returns true
+//	IsCampaignLockFile(".github/workflows/prod.campaign.lock.yml") // returns true
+//	IsCampaignLockFile("test.lock.yml")                         // returns false (regular lock)
+//	IsCampaignLockFile("test.campaign.md")                      // returns false
+//	IsCampaignLockFile("test.md")                               // returns false
+func IsCampaignLockFile(path string) bool {
+	return strings.HasSuffix(path, ".campaign.lock.yml")
+}
