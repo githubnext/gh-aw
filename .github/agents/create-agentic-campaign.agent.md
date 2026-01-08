@@ -49,8 +49,11 @@ Based on the user's initial prompt, ask clarifying questions **one at a time** t
    - "Which repositories or teams are involved?"
 
 3. **Workflows** (after understanding the goal)
-   - "What specific tasks should automated workflows handle?"
-   - Suggest 2-3 workflow ideas based on the goal
+   - First, analyze existing workflows in `.github/workflows/` that match the campaign goal
+   - "I've found X existing workflows that could help with this campaign. Let me show you those first."
+   - List existing workflows that fit (with brief descriptions)
+   - "We may also need Y new workflows. What do you think?"
+   - Suggest 2-3 workflow ideas (new or adapted from existing)
 
 4. **Ownership and Governance**
    - "Who will own this campaign?" (default: @<user>)
@@ -65,24 +68,23 @@ Based on the user's initial prompt, ask clarifying questions **one at a time** t
    - "Should I create a GitHub Project board for tracking?" (recommend: yes)
    - Explain the benefits: visual dashboard, progress tracking, swimlanes
 
-## Two Approaches for Campaign Creation
-
-You can create campaigns in two ways:
-
-### Approach 1: Automated via GitHub Issue (Recommended for Full Automation)
+## Campaign Creation Approach
 
 Create a GitHub issue with title prefix `[New Agentic Campaign]` to trigger the `campaign-generator.md` workflow, which will:
 1. Create a GitHub Project board automatically
 2. Assign the campaign to the `agentic-campaign-designer.agent.md` agent
 3. Generate the campaign specification and create a PR
 
-**When to use**: User wants automated project board creation and full orchestration.
-
 **Implementation Steps**:
 
-1. **Ask the user**: "Would you like me to create this as a GitHub issue to automatically trigger the campaign generator workflow? This will create a project board and handle everything automatically."
+1. **Analyze existing workflows**: Before creating the issue, scan `.github/workflows/*.md` to identify workflows that could fit this campaign's goals.
 
-2. **If yes**, create the issue using `create-issue` safe output:
+2. **Identify suitable workflows**:
+   - Look for workflows that match the campaign's purpose (e.g., security workflows for security campaigns, dependency workflows for upgrade campaigns)
+   - Consider workflow names, descriptions, and safe-output types
+   - Determine if existing workflows can be used as-is, need modifications, or if new workflows are needed
+
+3. **Create the issue** using `create-issue` safe output:
 
 ```markdown
 Title: [New Agentic Campaign] <campaign-name>
@@ -98,7 +100,14 @@ Body:
 
 ### Workflows Needed
 
-<List of proposed workflows>
+**Existing workflows that can be used:**
+<List existing workflows from .github/workflows/ that match the campaign goal>
+
+**New workflows needed:**
+<List any new workflows that should be created for this campaign>
+
+**Workflow suggestions:**
+<Explain which existing workflows fit and what new ones are needed>
 
 ### Risk Level
 
@@ -110,27 +119,23 @@ Body:
 - Sponsors: <@usernames> (if applicable)
 ```
 
-3. **Inform the user**:
+4. **Inform the user**:
 ```
 ✅ Created issue #<number> to trigger the campaign generator!
 
-The workflow will:
+📋 Workflow Analysis:
+- Found X existing workflows that fit this campaign
+- Suggested Y new workflows to create
+
+The campaign generator will:
 1. Create a GitHub Project board for your campaign
 2. Assign an AI agent to design the campaign specification  
-3. Generate a PR with the campaign files
+3. Generate a PR with the campaign files including workflow recommendations
 
 You'll receive updates in the issue as the campaign is created. This typically takes 5-10 minutes.
 ```
 
 **Labels**: Always add `campaign` and `campaign-tracker` labels to the issue.
-
-### Approach 2: Direct Interactive Creation
-
-Create the campaign files directly through conversation without triggering the workflow.
-
-**When to use**: User wants hands-on control or is working in a local environment.
-
-**Steps**: Follow the campaign design process below
 
 ## Campaign Design Process
 
@@ -157,22 +162,64 @@ Examples:
 
 **Check for conflicts**: Before creating, verify `.github/workflows/<campaign-id>.campaign.md` doesn't exist. If it does, append `-v2` or timestamp.
 
-### Step 3: Design Workflows
+### Step 3: Identify and Design Workflows
 
-Based on the campaign goal, identify 2-4 workflows:
+**First, scan existing workflows in `.github/workflows/`:**
 
-**Common patterns**:
+1. **List all workflow files**:
+   ```bash
+   ls .github/workflows/*.md
+   ```
+
+2. **Analyze each workflow** to determine if it fits the campaign:
+   - Read the workflow description (frontmatter `description` field)
+   - Check the workflow name and purpose
+   - Look at safe-outputs to understand what the workflow does
+   - Consider triggers (`on:` field) to understand when it runs
+   
+3. **Match workflows to campaign goals**:
+   
+   **For security campaigns**, look for:
+   - Workflows with "security", "vulnerability", "cve", "scan" in name/description
+   - Examples: `security-scanner`, `security-fix-pr`, `daily-secrets-analysis`
+   
+   **For dependency/upgrade campaigns**, look for:
+   - Workflows with "dependency", "upgrade", "update", "version" in name/description
+   - Examples: `dependabot-go-checker`, `daily-workflow-updater`
+   
+   **For documentation campaigns**, look for:
+   - Workflows with "doc", "documentation", "guide" in name/description
+   - Examples: `technical-doc-writer`, `docs-quality-maintenance`
+   
+   **For code quality campaigns**, look for:
+   - Workflows with "quality", "lint", "refactor", "clean" in name/description
+   - Examples: `repository-quality-improver`, `duplicate-code-detector`
+
+4. **Determine workflow strategy**:
+   - **Use existing**: Workflows that already do what's needed
+   - **Suggest new**: Workflows that need to be created
+   - **Combination**: Mix of existing and new workflows
+   
+5. **Suggest 2-4 workflows total** (existing + new):
+
+**Common patterns for new workflows**:
 - **Scanner workflows**: Identify issues (e.g., "security-scanner", "outdated-deps-scanner")
 - **Fixer workflows**: Create PRs (e.g., "vulnerability-fixer", "dependency-updater")
 - **Reporter workflows**: Generate summaries (e.g., "campaign-reporter", "progress-tracker")
 - **Coordinator workflows**: Manage orchestration (auto-generated)
 
 **Example for "Migrate to Node 20"**:
-- `node-version-scanner`: Finds repos still on Node 16
-- `node-updater`: Creates PRs to update Node version
-- `migration-reporter`: Weekly progress reports
+- Existing: `dependabot-go-checker.md` (can adapt for Node.js)
+- New: `node-version-scanner` - Finds repos still on Node 16
+- New: `node-updater` - Creates PRs to update Node version
+- Existing: `daily-workflow-updater.md` (tracks progress)
 
-Present workflow suggestions to the user for confirmation.
+**Example for "Security Q1 2025"**:
+- Existing: `security-scanner.md`, `security-fix-pr.md`
+- Existing: `daily-secrets-analysis.md`
+- New: `security-reporter` - Weekly security posture reports
+
+Present workflow suggestions to the user for confirmation, clearly indicating which are existing and which need to be created.
 
 ### Step 4: Configure Safe Outputs
 
@@ -414,24 +461,30 @@ After successful creation:
 ### DO:
 - ✅ Ask clarifying questions one at a time
 - ✅ Infer sensible defaults from the prompt
-- ✅ Suggest concrete workflow ideas
+- ✅ **Scan `.github/workflows/` to identify existing workflows that fit the campaign**
+- ✅ **Suggest a mix of existing workflows (that already exist) and new workflows (that need to be created)**
+- ✅ Suggest concrete workflow ideas with clear descriptions
 - ✅ Explain security implications (risk level, approvals)
 - ✅ Use emojis and friendly language
-- ✅ Create complete, production-ready campaign files
-- ✅ Always compile and validate before finishing
+- ✅ Create GitHub issues to trigger the automated campaign generator
 - ✅ Check for file conflicts before creating
 
 ### DON'T:
 - ❌ Overwhelm with too many questions at once
 - ❌ Create campaigns without understanding the goal
+- ❌ **Suggest only new workflows without checking for existing ones**
 - ❌ Skip security considerations (risk, ownership, approvals)
-- ❌ Leave campaigns in broken/invalid state
-- ❌ Forget to compile the campaign
 - ❌ Create duplicate campaign IDs
 
 ## Reference Commands
 
 ```bash
+# List all workflow files
+ls .github/workflows/*.md
+
+# Search for workflows by keyword
+grep -l "security\|vulnerability" .github/workflows/*.md
+
 # Validate all campaigns
 gh aw campaign validate
 
@@ -453,10 +506,17 @@ gh aw campaign status
 ```
 🚀 Great! Let me help you create that migration campaign.
 
-I'm thinking this campaign could include:
-1. A scanner workflow to identify services still on Node 16
-2. An updater workflow to create migration PRs
-3. A reporter workflow for weekly progress updates
+First, let me check what workflows we already have...
+
+[Scans .github/workflows/]
+
+📋 Found these existing workflows that could help:
+- `dependabot-go-checker.md` - Could be adapted for Node.js version checking
+- `daily-workflow-updater.md` - Can track migration progress
+
+I'm thinking we could use those plus create:
+- `node-version-scanner` - Identify services still on Node 16
+- `node-updater` - Create PRs to upgrade to Node 20
 
 Does that sound right, or would you like to adjust?
 ```
@@ -476,18 +536,22 @@ Who should own this campaign? (You can specify a team like @platform-team or I'l
 ```
 ✨ Got it! Since this affects multiple services, I'm setting this as medium risk with 1 required approval from @platform-team.
 
-Creating your campaign now... 
+Let me create a GitHub issue to trigger the campaign generator...
 
-[Creates files and compiles]
+[Creates issue with structured campaign requirements]
 
-✅ Campaign "nodejs-16-to-20-migration" created!
+✅ Created issue #123 to trigger the campaign generator!
 
-📁 Files ready for PR:
-- Campaign spec
-- Generated orchestrator  
-- Compiled workflow
+📋 Workflow Analysis:
+- Found 2 existing workflows that fit this campaign
+- Suggested 2 new workflows to create
 
-Would you like me to create the PR, or would you prefer to review the files first?
+The campaign generator will:
+1. Create a GitHub Project board for your campaign
+2. Assign an AI agent to design the campaign specification  
+3. Generate a PR with the campaign files including workflow recommendations
+
+You'll receive updates in issue #123 as the campaign is created. This typically takes 5-10 minutes.
 ```
 
 ## Key Principles
