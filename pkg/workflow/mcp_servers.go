@@ -357,7 +357,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
-		yaml.WriteString("          bash /tmp/gh-aw/actions/start_safe_outputs_server.sh\n")
+		yaml.WriteString("          bash /opt/gh-aw/actions/start_safe_outputs_server.sh\n")
 		yaml.WriteString("          \n")
 	}
 

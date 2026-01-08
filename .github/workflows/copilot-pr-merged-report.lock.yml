@@ -332,7 +332,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_PORT
           export GH_AW_SAFE_OUTPUTS_API_KEY
           
-          bash /tmp/gh-aw/actions/start_safe_outputs_server.sh
+          bash /opt/gh-aw/actions/start_safe_outputs_server.sh
           
       - name: Setup Safe Inputs Config
         run: |
