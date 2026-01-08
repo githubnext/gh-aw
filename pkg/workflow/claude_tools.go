@@ -347,6 +347,15 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		}
 	}
 
+	// Handle safe outputs MCP server - add all safeoutputs tools if safe outputs are enabled
+	// This matches the Copilot engine behavior (copilot_engine_tools.go:79-81)
+	if HasSafeOutputsEnabled(safeOutputs) {
+		claudeToolsLog.Print("Safe outputs enabled, adding mcp__safeoutputs wildcard")
+		// Add wildcard permission for all safe outputs MCP tools
+		// This allows Claude to call any tool provided by the safeoutputs MCP server
+		allowedTools = append(allowedTools, "mcp__safeoutputs")
+	}
+
 	// Handle SafeOutputs requirement for file write access
 	if safeOutputs != nil {
 		// Check if a general "Write" permission is already granted
