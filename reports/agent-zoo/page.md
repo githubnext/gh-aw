@@ -10,21 +10,24 @@ Imagine a software repository where AI agents work alongside your team - not rep
 
 Over the course of this research project, we built and operated **over 100 autonomous agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These weren't hypothetical demos - they were working agents that:
 
-- Triaged incoming issues and generated weekly summaries
-- Diagnosed CI failures and coached teams on improvements
-- Performed code reviews with personality and critical analysis
-- Maintained documentation and improved test coverage
-- Monitored security compliance and validated network isolation
-- Analyzed agent performance and optimized workflows
-- Executed multi-day projects to reduce technical debt
-- Validated infrastructure through continuous smoke testing
-- Even wrote poetry to boost team morale
+- Triage incoming issues
+- Diagnose CI failures
+- Perform code reviews with personality and critical analysis
+- Maintain documentation
+- Improve test coverage
+- Monitor security compliance
+- Analyze agent performance
+- Optimize workflow efficiency
+- Generate release notes
+- Execute multi-day projects to reduce technical debt
+- Validate infrastructure through continuous smoke testing
+- Even write poetry to boost team morale
 
-Think of it as a real nursery: each agentic workflow has its own care requirements (triggers and permissions), nutrients (tools and data sources), and growth patterns (what it produces). Some are gentle caregivers that just read and report. Others are more proactive, proposing changes through pull requests. And a few are the gardeners themselves - meta-agents that monitor the health of all the other agents.
+Think of it as a nursery, or a zoo, or a collection: each agentic workflow has its own mode (triggers, permissions, schedules), needs (tools and data sources), and over time we learn and select. Some are simple, and just read and report. Others are more proactive, proposing changes through pull requests. And a few are meta-agents that monitor and improve the health of all the other workflows.
 
-We know we're taking things to an extreme here. Most repositories won't need dozens of agents. No one can read all these outputs. But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust.
+We know we're taking things to an extreme here. Most repositories won't need dozens of agentic workflows. No one can read all these outputs (except, of course, another workflow). But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust and use.
 
-The information in this report is up to date as of January 2026. Most of it is highly subjective, based on our experiences running these agentic workflows over several months. We welcome feedback and contributions to improve this living document.
+The information in this report is up to date as of January 2026. Most of it is highly subjective, based on our experiences running these agentic workflows over several months. We welcome feedback and contributions to improve this document.
 
 ### By the Numbers
 
@@ -37,26 +40,28 @@ At the time of writing the nursery comprises:
 - **Dozens of MCP servers** integrated for specialized capabilities
 - **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
 
+Links in this document point to specific commits to ensure stability as the nursery continues to evolve.
+
 ---
 
 ## Why Build a Nursery?
 
-When we started exploring agentic workflows, we faced a fundamental question: **What should repository-level agents actually do?**
+When we started exploring agentic workflows, we faced a fundamental question: **What should repository-level automated agentic workflows actually do?**
 
-The answer wasn't obvious. So instead of trying to build one "perfect" agent, we took a gardener's approach:
+The answer wasn't obvious. So instead of trying to build one "perfect" agent, we took a gardenermuch more heterogeneous approach:
 
-1. **Embrace diversity**  -  We created diverse agents for different tasks
+1. **Embrace diversity**  -  We created diverse agentic workflows for different tasks
 2. **Use them and improve them**  -  We ran them continuously in real development workflows
-3. **Document what thrives**  -  We identified which patterns worked and which failed
-4. **Share the knowledge**  -  We cataloged the common structures that made agents safe and effective
+3. **Identify what thrives**  -  We identified which patterns worked and which failed
+4. **Share the knowledge**  -  In this report we catalog the common structures that made agents safe and effective
 
-The nursery became both an experiment and a reference collection - a living library of patterns that others could study, adapt, and remix.
+The nursery becomes both an experiment and a reference collection - a living library of patterns that others could study, adapt, and remix. We think approach will work well for agentic incubation teams in other organizations too.
 
 ---
 
 ## Meet the Agentic Workflows
 
-OK, it's time to meet the agentic workflows in the Agent Nursery! Below is a curated selection of the most interesting and useful agentic workflows we developed and ran continuously in the `gh-aw` repository. Each is linked to its source Markdown file so you can explore how it works in detail.
+OK, it's time to meet the agentic workflows! Below is a curated selection of the most interesting and useful agentic workflows we developed and ran continuously in the `gh-aw` repository. Each is linked to its source Markdown file so you can explore how it works in detail.
 
 ### 🏥 **Triage & Summarization Agentic Workfows**
 
