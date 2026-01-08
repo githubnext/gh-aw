@@ -102,25 +102,25 @@ func (c *Compiler) buildCopyProjectStepConfig(data *WorkflowData, mainJobName st
 
 // buildCreateProjectStepConfig builds the configuration for creating a project
 func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-cfg := data.SafeOutputs.CreateProjects
+	cfg := data.SafeOutputs.CreateProjects
 
-var customEnvVars []string
-customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
-// Add target-owner default if configured
-if cfg.TargetOwner != "" {
-customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
-}
+	// Add target-owner default if configured
+	if cfg.TargetOwner != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
+	}
 
-condition := BuildSafeOutputType("create_project")
+	condition := BuildSafeOutputType("create_project")
 
-return SafeOutputStepConfig{
-StepName:      "Create Project",
-StepID:        "create_project",
-ScriptName:    "create_project",
-Script:        getCreateProjectScript(),
-CustomEnvVars: customEnvVars,
-Condition:     condition,
-Token:         cfg.GitHubToken,
-}
+	return SafeOutputStepConfig{
+		StepName:      "Create Project",
+		StepID:        "create_project",
+		ScriptName:    "create_project",
+		Script:        getCreateProjectScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
 }
