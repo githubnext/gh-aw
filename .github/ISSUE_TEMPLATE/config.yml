@@ -1,8 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: 📖 Documentation
-    url: https://githubnext.github.io/gh-aw/
-    about: View the full documentation for GitHub Agentic Workflows
-  - name: 💬 Discussions
-    url: https://github.com/githubnext/gh-aw/discussions
-    about: Ask questions and discuss with the community
