@@ -46,7 +46,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			},
 			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
 				renderer := createRenderer(isLast)
-				renderer.RenderSafeOutputsMCP(yaml)
+				renderer.RenderSafeOutputsMCP(yaml, workflowData)
 			},
 			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
 				renderer := createRenderer(isLast)

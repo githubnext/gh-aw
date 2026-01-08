@@ -219,8 +219,56 @@ func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 }
 
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
-func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
-	envVars := []string{
+// Only supports HTTP transport mode
+func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
+	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
+
+	// HTTP transport configuration - server started in separate step
+	// Add type field for HTTP (required by MCP specification for HTTP transport)
+	yaml.WriteString("                \"type\": \"http\",\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+	}
+
+	// HTTP URL using environment variable
+	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                \"url\": \"http://" + host + ":\\${GH_AW_SAFE_OUTPUTS_PORT}\",\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\",\n")
+	}
+
+	// Add Authorization header with API key
+	yaml.WriteString("                \"headers\": {\n")
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"Bearer \\${GH_AW_SAFE_OUTPUTS_API_KEY}\"\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
+	}
+	yaml.WriteString("                },\n")
+
+	// Add tools field for Copilot
+	if includeCopilotFields {
+		yaml.WriteString("                \"tools\": [\"*\"],\n")
+	}
+
+	// Add env block for server configuration environment variables
+	// Note: Tool-specific env vars are already set in the step's env block
+	// and don't need to be passed through the MCP config since the server uses HTTP transport
+	yaml.WriteString("                \"env\": {\n")
+
+	// Environment variables needed by safe-outputs MCP server
+	serverConfigVars := []string{
+		"GH_AW_SAFE_OUTPUTS_PORT",
+		"GH_AW_SAFE_OUTPUTS_API_KEY",
 		"GH_AW_MCP_LOG_DIR",
 		"GH_AW_SAFE_OUTPUTS",
 		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
@@ -235,15 +283,29 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		"DEFAULT_BRANCH",
 	}
 
-	renderBuiltinMCPServerBlock(
-		yaml,
-		constants.SafeOutputsMCPServerID,
-		"node",
-		[]string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
-		envVars,
-		isLast,
-		includeCopilotFields,
-	)
+	// Write environment variables with appropriate escaping
+	for i, envVar := range serverConfigVars {
+		isLastEnvVar := i == len(serverConfigVars)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+		}
+	}
+
+	yaml.WriteString("                }\n")
+	yaml.WriteString("              }")
+	if !isLast {
+		yaml.WriteString(",")
+	}
+	yaml.WriteString("\n")
 }
 
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options

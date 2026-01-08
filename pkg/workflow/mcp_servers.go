@@ -302,7 +302,62 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          EOF\n")
 
 		// Note: The MCP server entry point (mcp-server.cjs) is now copied by actions/setup
-		// from safe-outputs-mcp-server.cjs - no need to generate it here
+		// from safe-outputs-mcp-server-http.cjs for HTTP transport
+
+		// Step 2: Generate port and API key for safe-outputs HTTP server
+		yaml.WriteString("      - name: Generate Safe Outputs Server Config\n")
+		yaml.WriteString("        id: safe-outputs-config\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          # Generate random port between 3000-4000\n")
+		yaml.WriteString("          PORT=$((3000 + $RANDOM % 1000))\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Generate random API key\n")
+		yaml.WriteString("          API_KEY=$(openssl rand -hex 32)\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Output to GitHub Actions output variables\n")
+		yaml.WriteString("          {\n")
+		yaml.WriteString("            echo \"safe_outputs_api_key=${API_KEY}\"\n")
+		yaml.WriteString("            echo \"safe_outputs_port=${PORT}\"\n")
+		yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          echo \"Safe Outputs MCP server will run on port ${PORT}\"\n")
+		yaml.WriteString("          \n")
+
+		// Step 3: Start the HTTP server in the background
+		yaml.WriteString("      - name: Start Safe Outputs MCP HTTP Server\n")
+		yaml.WriteString("        id: safe-outputs-start\n")
+
+		// Add env block with step outputs
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}\n")
+		yaml.WriteString("          GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: \"true\"\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /tmp/gh-aw/safeoutputs/tools.json\n")
+
+		// Add assets-related environment variables if applicable
+		if workflowData.PublishAssets != nil {
+			if workflowData.PublishAssets.Branch != "" {
+				yaml.WriteString("          GH_AW_ASSETS_BRANCH: " + workflowData.PublishAssets.Branch + "\n")
+			}
+			if workflowData.PublishAssets.MaxSizeKB > 0 {
+				yaml.WriteString(fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.PublishAssets.MaxSizeKB))
+			}
+			if len(workflowData.PublishAssets.AllowedExtensions) > 0 {
+				yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: " + strings.Join(workflowData.PublishAssets.AllowedExtensions, ",") + "\n")
+			}
+		}
+
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
+		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_PORT\n")
+		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_API_KEY\n")
+		yaml.WriteString("          \n")
+
+		// Call the bundled shell script to start the server
+		yaml.WriteString("          bash /tmp/gh-aw/actions/start_safe_outputs_server.sh\n")
+		yaml.WriteString("          \n")
 	}
 
 	// Write safe-inputs MCP server if configured and feature flag is enabled

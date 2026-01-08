@@ -202,27 +202,39 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration
-func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder) {
+func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder, workflowData *WorkflowData) {
 	mcpRendererLog.Printf("Rendering Safe Outputs MCP: format=%s", r.options.Format)
 
 	if r.options.Format == "toml" {
-		r.renderSafeOutputsTOML(yaml)
+		r.renderSafeOutputsTOML(yaml, workflowData)
 		return
 	}
 
 	// JSON format
-	renderSafeOutputsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields)
+	renderSafeOutputsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
 }
 
 // renderSafeOutputsTOML generates Safe Outputs MCP configuration in TOML format
-func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) {
+// Uses HTTP transport exclusively
+func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
-	yaml.WriteString("          command = \"node\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
-	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
+	yaml.WriteString("          type = \"http\"\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+		mcpRendererLog.Print("Using localhost for safe-outputs (agent disabled)")
+	} else {
+		mcpRendererLog.Print("Using host.docker.internal for safe-outputs (agent enabled)")
+	}
+
+	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\"\n")
+	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_OUTPUTS_API_KEY\" }\n")
+	// Note: env_vars is not supported for HTTP transport in MCP configuration
+	// Environment variables are passed via the workflow job's env: section instead
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration
