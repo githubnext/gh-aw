@@ -371,6 +371,9 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
 		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		// Also set GH_TOKEN for GitHub CLI (gh) commands
+		// This enables workflows to use gh CLI alongside the GitHub MCP server
+		env["GH_TOKEN"] = effectiveToken
 	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
