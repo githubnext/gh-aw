@@ -12,7 +12,7 @@ const path = require("path");
  */
 function loadConfig(server) {
   // Read configuration from file
-  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/opt/gh-aw/safeoutputs/config.json";
   let safeOutputsConfigRaw;
 
   server.debug(`Reading config from file: ${configPath}`);

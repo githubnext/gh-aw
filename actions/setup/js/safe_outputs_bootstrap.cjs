@@ -55,7 +55,7 @@ function bootstrapSafeOutputsServer(logger) {
  * @param {Logger} logger - Logger instance for debug messages
  */
 function cleanupConfigFile(logger) {
-  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/opt/gh-aw/safeoutputs/config.json";
 
   try {
     if (fs.existsSync(configPath)) {

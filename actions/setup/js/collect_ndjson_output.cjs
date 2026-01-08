@@ -176,7 +176,7 @@ async function main() {
   }
   const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
   // Read config from file instead of environment variable
-  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/opt/gh-aw/safeoutputs/config.json";
   let safeOutputsConfig;
   core.info(`[INGESTION] Reading config from: ${configPath}`);
   try {
