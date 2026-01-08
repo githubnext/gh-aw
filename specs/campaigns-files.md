@@ -435,6 +435,47 @@ memory/campaigns/<campaign-id>/cursor.json
 4. Saves updated cursor back to repo-memory
 5. Next run picks up where previous run left off
 
+### Campaign Item Protection
+
+Campaign items are protected from being picked up by other workflows to prevent conflicts and ensure proper campaign orchestration.
+
+**Protection Mechanism**:
+- Items with `campaign:*` labels are automatically excluded from non-campaign workflows
+- The `update-project` safe output automatically applies `campaign:<id>` labels when adding items to campaign projects
+- Workflows like `issue-monster` check for campaign labels and skip those issues
+- Additional opt-out labels (`no-bot`, `no-campaign`) provide manual protection
+
+**Label Format**:
+```
+campaign:my-campaign-id
+campaign:security-q1-2025
+campaign:docs-quality-maintenance-project73
+```
+
+**How it's enforced**:
+
+1. **Automatic labeling**: When campaign orchestrators add items to projects, they apply the `campaign:<id>` label
+2. **Workflow filtering**: Other workflows (like issue-monster) filter out issues with `campaign:` prefix
+3. **Opt-out labels**: Items with `no-bot` or `no-campaign` labels are also excluded
+
+**Example filtering logic** (from issue-monster workflow):
+```javascript
+// Exclude issues with campaign labels (campaign:*)
+// Campaign items are managed by campaign orchestrators
+if (issueLabels.some(label => label.startsWith('campaign:'))) {
+  core.info(`Skipping #${issue.number}: has campaign label (managed by campaign orchestrator)`);
+  return false;
+}
+```
+
+**Governance Configuration**:
+```yaml
+governance:
+  opt-out-labels: ["no-campaign", "no-bot"]
+```
+
+This ensures that campaign items remain under the control of their respective campaign orchestrators and aren't interfered with by other automated workflows.
+
 ## For Third-Party Users
 
 ### Using gh-aw Compiler Outside This Repository
