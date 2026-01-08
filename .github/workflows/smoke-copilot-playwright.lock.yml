@@ -625,7 +625,7 @@ jobs:
               "playwright": {
                 "type": "local",
                 "command": "docker",
-                "args": ["run", "-i", "--rm", "--init", "--network", "host", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--save-trace"],
+                "args": ["run", "-i", "--rm", "--init", "--network", "host", "-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--save-trace"],
                 "tools": ["*"]
               },
               "safeinputs": {
