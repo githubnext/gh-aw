@@ -142,6 +142,10 @@ Yes. The two features operate at different layers and can complement each other:
    - Track remediation progress
    - Report metrics to leadership
 
+:::note
+This integration example requires GitHub Enterprise Cloud, as the REST API for creating Security Campaigns is only available in Enterprise Cloud accounts.
+:::
+
 **Workflow example**:
 ```yaml
 ---
