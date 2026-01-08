@@ -287,6 +287,8 @@ steps:
     run: npm ci
 ```
 
+Use custom steps to precompute data, filter triggers, or prepare context for AI agents. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation with AI reasoning.
+
 ## Post-Execution Steps (`post-steps:`)
 
 Add custom steps after agentic execution. Run after AI engine completes regardless of success/failure (unless conditional expressions are used).
@@ -320,7 +322,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-The agentic execution job waits for all custom jobs to complete. Custom jobs can share data through artifacts or job outputs.
+The agentic execution job waits for all custom jobs to complete. Custom jobs can share data through artifacts or job outputs. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for multi-job workflows.
 
 ### Job Outputs
 
