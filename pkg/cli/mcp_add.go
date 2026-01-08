@@ -133,7 +133,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	if err := checkAndSuggestSecrets(mcpConfig, verbose); err != nil {
 		// Don't fail the command if secret checking fails, just log a warning
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Could not check repository secrets: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check repository secrets: %v", err)))
 		}
 	}
 
@@ -169,7 +169,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 		case "stdio", "http", "docker":
 			transport = preferredTransport
 			if verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Using preferred transport: %s", transport)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using preferred transport: %s", transport)))
 			}
 		default:
 			return nil, fmt.Errorf("unsupported transport type: %s (supported: stdio, http, docker)", preferredTransport)

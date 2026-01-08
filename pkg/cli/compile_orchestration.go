@@ -223,7 +223,7 @@ func compileAllFilesInDirectory(
 
 	compileOrchestrationLog.Printf("Scanning for markdown files in %s", workflowsDir)
 	if config.Verbose {
-		fmt.Printf("Scanning for markdown files in %s\n", workflowsDir)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Scanning for markdown files in %s", workflowsDir)))
 	}
 
 	// Find all markdown files
@@ -238,7 +238,7 @@ func compileAllFilesInDirectory(
 
 	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))
 	if config.Verbose {
-		fmt.Printf("Found %d markdown files to compile\n", len(mdFiles))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
 	}
 
 	// Handle purge logic: collect existing files before compilation

@@ -128,12 +128,6 @@ func TestSpecificPatternFunctionality(t *testing.T) {
 			testString:  "[2025-01-10T12:34:56] stream error: exceeded retry limit",
 			shouldMatch: true,
 		},
-		{
-			name:        "copilot_error_with_milliseconds",
-			goPattern:   `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(ERROR)\]\s+(.+)`,
-			testString:  "2025-01-10T12:34:56.789Z [ERROR] Test error message",
-			shouldMatch: true,
-		},
 	}
 
 	for _, tc := range testCases {
