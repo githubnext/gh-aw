@@ -93,7 +93,7 @@ Use the `assign-to-agent` safe output to assign the Copilot agent who will:
 - Use the newly created project URL in the campaign spec
 - Create a pull request with the new campaign file
 
-The campaign-designer agent has detailed instructions in `.github/agents/agentic-campaign-designer.agent.md`
+The campaign-designer agent has detailed instructions in `.github/agents/create-agentic-campaign.agent.md`
 
 ### Step 4: Post Confirmation Comment
 
