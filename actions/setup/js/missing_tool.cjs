@@ -3,178 +3,83 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
-  const fs = require("fs");
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
 
-  // Get environment variables
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-  const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
-  const createIssue = process.env.GH_AW_MISSING_TOOL_CREATE_ISSUE === "true";
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "missing_tool";
 
-  core.info("Processing missing-tool reports...");
-  if (maxReports) {
-    core.info(`Maximum reports allowed: ${maxReports}`);
-  }
-  if (createIssue) {
-    core.info(`Issue creation enabled - will output create_missing_tool_issue message`);
-  }
+/**
+ * Main handler factory for missing_tool
+ * Returns a message handler function that processes individual missing_tool messages
+ * @type {HandlerFactoryFunction}
+ */
+async function main(config = {}) {
+  // Extract configuration
+  const maxCount = config.max || 0; // 0 means unlimited
 
-  /** @type {any[]} */
-  const missingTools = [];
+  core.info(`Max count: ${maxCount === 0 ? "unlimited" : maxCount}`);
 
-  // Return early if no agent output
-  if (!agentOutputFile.trim()) {
-    core.info("No agent output to process");
-    core.setOutput("tools_reported", JSON.stringify(missingTools));
-    core.setOutput("total_count", missingTools.length.toString());
-    return;
-  }
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
 
-  // Read agent output from file
-  let agentOutput;
-  try {
-    agentOutput = fs.readFileSync(agentOutputFile, "utf8");
-  } catch (error) {
-    core.info(`Agent output file not found or unreadable: ${getErrorMessage(error)}`);
-    core.setOutput("tools_reported", JSON.stringify(missingTools));
-    core.setOutput("total_count", missingTools.length.toString());
-    return;
-  }
-
-  if (agentOutput.trim() === "") {
-    core.info("No agent output to process");
-    core.setOutput("tools_reported", JSON.stringify(missingTools));
-    core.setOutput("total_count", missingTools.length.toString());
-    return;
-  }
-
-  core.info(`Agent output length: ${agentOutput.length}`);
-
-  // Parse the validated output JSON
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(agentOutput);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${getErrorMessage(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
-    core.setOutput("tools_reported", JSON.stringify(missingTools));
-    core.setOutput("total_count", missingTools.length.toString());
-    return;
-  }
-
-  core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-
-  // Process all parsed entries
-  for (const entry of validatedOutput.items) {
-    if (entry.type === "missing_tool") {
-      // Validate required fields
-      if (!entry.tool) {
-        core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
-        continue;
-      }
-      if (!entry.reason) {
-        core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
-        continue;
-      }
-
-      const missingTool = {
-        tool: entry.tool,
-        reason: entry.reason,
-        alternatives: entry.alternatives || null,
-        timestamp: new Date().toISOString(),
+  /**
+   * Message handler function that processes a single missing_tool message
+   * @param {Object} message - The missing_tool message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number} (unused for missing_tool)
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleMissingTool(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (maxCount > 0 && processedCount >= maxCount) {
+      core.warning(`Skipping missing_tool: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
       };
-
-      missingTools.push(missingTool);
-      core.info(`Recorded missing tool: ${missingTool.tool}`);
-
-      // Check max limit
-      if (maxReports && missingTools.length >= maxReports) {
-        core.info(`Reached maximum number of missing tool reports (${maxReports})`);
-        break;
-      }
     }
-  }
 
-  core.info(`Total missing tools reported: ${missingTools.length}`);
-
-  // Output results
-  core.setOutput("tools_reported", JSON.stringify(missingTools));
-  core.setOutput("total_count", missingTools.length.toString());
-
-  // Log details for debugging and create step summary
-  if (missingTools.length > 0) {
-    core.info("Missing tools summary:");
-
-    // Create structured summary for GitHub Actions step summary
-    core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
-
-    missingTools.forEach((tool, index) => {
-      core.info(`${index + 1}. Tool: ${tool.tool}`);
-      core.info(`   Reason: ${tool.reason}`);
-      if (tool.alternatives) {
-        core.info(`   Alternatives: ${tool.alternatives}`);
-      }
-      core.info(`   Reported at: ${tool.timestamp}`);
-      core.info("");
-
-      // Add to summary with structured formatting
-      core.summary.addRaw(`#### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
-
-      if (tool.alternatives) {
-        core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-      }
-
-      core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-    });
-
-    core.summary.write();
-
-    // If issue creation is enabled, append a create_missing_tool_issue message to the output
-    if (createIssue) {
-      const runId = context.runId;
-      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-
-      // Append to the validated output file so the safe outputs handler can pick it up
-      const createIssueMessage = {
-        type: "create_missing_tool_issue",
-        workflow_name: workflowName,
-        workflow_source: workflowSource,
-        workflow_source_url: workflowSourceURL,
-        run_url: runUrl,
-        missing_tools: missingTools,
+    // Validate required fields
+    if (!message.tool) {
+      core.warning(`missing_tool message missing 'tool' field: ${JSON.stringify(message)}`);
+      return {
+        success: false,
+        error: "Missing required field: tool",
       };
-
-      core.info(`Appending create_missing_tool_issue message to agent output`);
-
-      try {
-        // Read current validated output
-        const currentOutput = JSON.parse(agentOutput);
-
-        // Append the new message
-        if (!currentOutput.items) {
-          currentOutput.items = [];
-        }
-        currentOutput.items.push(createIssueMessage);
-
-        // Write back to the file
-        fs.writeFileSync(agentOutputFile, JSON.stringify(currentOutput, null, 2));
-        core.info(`✓ Appended create_missing_tool_issue message to ${agentOutputFile}`);
-      } catch (error) {
-        core.warning(`Failed to append create_missing_tool_issue message: ${getErrorMessage(error)}`);
-      }
     }
-  } else {
-    core.info("No missing tools reported in this workflow execution.");
-    core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
-  }
+
+    if (!message.reason) {
+      core.warning(`missing_tool message missing 'reason' field: ${JSON.stringify(message)}`);
+      return {
+        success: false,
+        error: "Missing required field: reason",
+      };
+    }
+
+    processedCount++;
+
+    const missingTool = {
+      tool: message.tool,
+      reason: message.reason,
+      alternatives: message.alternatives || null,
+      timestamp: new Date().toISOString(),
+    };
+
+    core.info(`✓ Recorded missing tool: ${missingTool.tool}`);
+    core.info(`   Reason: ${missingTool.reason}`);
+    if (missingTool.alternatives) {
+      core.info(`   Alternatives: ${missingTool.alternatives}`);
+    }
+
+    return {
+      success: true,
+      tool: missingTool.tool,
+      reason: missingTool.reason,
+      alternatives: missingTool.alternatives,
+      timestamp: missingTool.timestamp,
+    };
+  };
 }
 
 module.exports = { main };
