@@ -1,6 +1,7 @@
 ---
 name: "Playground: Org project update issue"
 description: Update issues on an org-owned Project Board
+engine: copilot
 on:
   workflow_dispatch:
 

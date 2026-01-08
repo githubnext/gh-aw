@@ -2,6 +2,7 @@
 id: docs-quality-maintenance-project73
 name: "Campaign: Documentation Quality & Maintenance (Project 73)"
 description: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
+engine: copilot
 version: v1
 project-url: "https://github.com/orgs/githubnext/projects/73"
 project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"

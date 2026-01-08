@@ -1,5 +1,6 @@
 ---
 description: Collects and reports on firewall log events to monitor network security and access patterns
+engine: copilot
 on:
   schedule:
     # Every day at 10am UTC

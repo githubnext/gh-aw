@@ -1,5 +1,6 @@
 ---
 description: Example workflow demonstrating proper permission provisioning and security best practices
+engine: copilot
 timeout-minutes: 5
 on:
   workflow_dispatch:

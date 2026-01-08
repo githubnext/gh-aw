@@ -1,5 +1,6 @@
 ---
 description: Creates issue summaries and syncs them to Notion for project management and tracking
+engine: copilot
 timeout-minutes: 5
 on:
   workflow_dispatch:

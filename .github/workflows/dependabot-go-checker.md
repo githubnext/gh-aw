@@ -1,5 +1,6 @@
 ---
 description: Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
+engine: copilot
 on:
   schedule:
     # Run every other business day: Monday, Wednesday, Friday at 9 AM UTC

@@ -1,5 +1,6 @@
 ---
 description: Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information
+engine: copilot
 on:
   workflow_run:
     workflows: ["Daily Perf Improver", "Daily Test Coverage Improver"]  # Monitor the CI workflow specifically

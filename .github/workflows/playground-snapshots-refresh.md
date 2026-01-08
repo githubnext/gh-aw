@@ -1,6 +1,7 @@
 ---
 name: Refresh playground snapshots
 description: Regenerates docs playground snapshots and adds AI-written job summaries
+engine: copilot
 on:
   workflow_dispatch:
   schedule:
