@@ -274,6 +274,12 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools: %v", err)))
 	}
 
+	// Extract missing data
+	missingData, err := extractMissingDataFromRun(runOutputDir, run, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data: %v", err)))
+	}
+
 	// Extract noops
 	noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose)
 	if noopErr != nil && verbose {
@@ -316,6 +322,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		FirewallAnalysis:        firewallAnalysis,
 		RedactedDomainsAnalysis: redactedDomainsAnalysis,
 		MissingTools:            missingTools,
+		MissingData:             missingData,
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
 		JobDetails:              jobDetails,
@@ -379,6 +386,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		FirewallAnalysis:        firewallAnalysis,
 		RedactedDomainsAnalysis: redactedDomainsAnalysis,
 		MissingTools:            missingTools,
+		MissingData:             missingData,
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
 		ArtifactsList:           artifacts,
@@ -779,6 +787,25 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 			}
 			if tool.Timestamp != "" {
 				fmt.Fprintf(&report, "- **Timestamp**: %s\n", tool.Timestamp)
+			}
+			report.WriteString("\n")
+		}
+	}
+
+	// Missing Data
+	if len(processedRun.MissingData) > 0 {
+		report.WriteString("## Missing Data\n\n")
+		for _, data := range processedRun.MissingData {
+			fmt.Fprintf(&report, "### %s\n\n", data.DataType)
+			fmt.Fprintf(&report, "- **Reason**: %s\n", data.Reason)
+			if data.Context != "" {
+				fmt.Fprintf(&report, "- **Context**: %s\n", data.Context)
+			}
+			if data.Alternatives != "" {
+				fmt.Fprintf(&report, "- **Alternatives**: %s\n", data.Alternatives)
+			}
+			if data.Timestamp != "" {
+				fmt.Fprintf(&report, "- **Timestamp**: %s\n", data.Timestamp)
 			}
 			report.WriteString("\n")
 		}
