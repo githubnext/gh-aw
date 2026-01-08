@@ -53,7 +53,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 	if inlineArgs {
 		// Inline format for Copilot
-		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"--network\", \"host\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
+		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"--network\", \"host\", \"-v\", \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
 			domainsStr := strings.Join(allowedDomains, ";")
 			yaml.WriteString(", \"--allowed-hosts\", \"" + domainsStr + "\"")
@@ -71,6 +71,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                  \"--init\",\n")
 		yaml.WriteString("                  \"--network\",\n")
 		yaml.WriteString("                  \"host\",\n")
+		yaml.WriteString("                  \"-v\",\n")
+		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\",\n")
 		yaml.WriteString("                  \"" + playwrightImage + "\",\n")
 		yaml.WriteString("                  \"--output-dir\",\n")
 		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
@@ -282,6 +284,8 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	yaml.WriteString("            \"--init\",\n")
 	yaml.WriteString("            \"--network\",\n")
 	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("            \"-v\",\n")
+	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\",\n")
 	yaml.WriteString("            \"" + playwrightImage + "\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
