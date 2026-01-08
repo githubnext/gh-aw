@@ -94,6 +94,9 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine copilot          # Filter logs by copilot engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --firewall                # Filter logs with firewall enabled
   ` + string(constants.CLIExtensionPrefix) + ` logs --no-firewall             # Filter logs without firewall
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-tool     # Filter logs with missing_tool messages
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-data     # Filter logs with missing_data messages
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output create-issue     # Filter logs with create_issue messages
   ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
@@ -165,6 +168,7 @@ Examples:
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			campaignOnly, _ := cmd.Flags().GetBool("campaign")
 			summaryFile, _ := cmd.Flags().GetString("summary-file")
+			safeOutputType, _ := cmd.Flags().GetString("safe-output")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -199,7 +203,7 @@ Examples:
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s", workflowName, count, engine)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile)
+			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile, safeOutputType)
 		},
 	}
 
@@ -218,6 +222,7 @@ Examples:
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().Bool("campaign", false, "Filter to only campaign orchestrator workflows")
+	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data)")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")

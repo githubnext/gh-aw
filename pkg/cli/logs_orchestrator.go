@@ -12,6 +12,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -38,8 +39,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string, safeOutputType string) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s, safeOutputType=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile, safeOutputType)
 
 	// Check context cancellation at the start
 	select {
@@ -293,6 +294,21 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 					if noFirewall && hasFirewall {
 						if verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
+						}
+						continue
+					}
+				}
+
+				// Apply safe output type filtering if --safe-output flag is specified
+				if safeOutputType != "" {
+					hasSafeOutputType, checkErr := runContainsSafeOutputType(result.LogsPath, safeOutputType, verbose)
+					if checkErr != nil && verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check safe output type for run %d: %v", result.Run.DatabaseID, checkErr)))
+					}
+
+					if !hasSafeOutputType {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, safeOutputType)))
 						}
 						continue
 					}
@@ -770,4 +786,67 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	}
 
 	return results
+}
+
+// normalizeSafeOutputType converts dashes to underscores for matching
+// This allows users to use either "missing-tool" or "missing_tool" interchangeably
+func normalizeSafeOutputType(safeOutputType string) string {
+return strings.ReplaceAll(safeOutputType, "-", "_")
+}
+
+// runContainsSafeOutputType checks if a run's agent_output.json contains a specific safe output type
+func runContainsSafeOutputType(runDir string, safeOutputType string, verbose bool) (bool, error) {
+// Normalize the type for comparison (convert dashes to underscores)
+normalizedType := normalizeSafeOutputType(safeOutputType)
+
+// Look for agent_output.json in the run directory
+agentOutputPath := filepath.Join(runDir, "agent_output.json")
+
+// Support both new flattened form and old directory form
+if stat, err := os.Stat(agentOutputPath); err != nil || stat.IsDir() {
+// Try old structure
+oldPath := filepath.Join(runDir, constants.AgentOutputArtifactName, constants.AgentOutputArtifactName)
+if _, err := os.Stat(oldPath); err == nil {
+agentOutputPath = oldPath
+} else {
+// No agent_output.json found
+return false, nil
+}
+}
+
+// Read the file
+content, err := os.ReadFile(agentOutputPath)
+if err != nil {
+// File doesn't exist or can't be read
+return false, nil
+}
+
+// Parse the JSON
+var safeOutput struct {
+Items []json.RawMessage `json:"items"`
+}
+
+if err := json.Unmarshal(content, &safeOutput); err != nil {
+return false, fmt.Errorf("failed to parse agent_output.json: %w", err)
+}
+
+// Check each item for the specified type
+for _, itemRaw := range safeOutput.Items {
+var item struct {
+Type string `json:"type"`
+}
+
+if err := json.Unmarshal(itemRaw, &item); err != nil {
+continue // Skip malformed items
+}
+
+// Normalize the item type for comparison
+normalizedItemType := normalizeSafeOutputType(item.Type)
+
+if normalizedItemType == normalizedType {
+return true, nil
+}
+}
+
+return false, nil
 }
