@@ -368,11 +368,17 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 		workflowData.SandboxConfig.Agent == nil ||
 		!workflowData.SandboxConfig.Agent.Disabled)
 
+	// Determine if we should preserve container fields (for MCP Gateway)
+	// When gateway is enabled, container/entrypoint/entrypointArgs should be preserved
+	// instead of being transformed to docker commands
+	preserveContainerFields := shouldGenerateMCPGateway(workflowData)
+
 	// Use the shared MCP config renderer with JSON format
 	renderer := MCPConfigRenderer{
 		IndentLevel:              "                ",
 		Format:                   "json",
 		RewriteLocalhostToDocker: rewriteLocalhost,
+		PreserveContainerFields:  preserveContainerFields,
 	}
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
@@ -400,6 +406,9 @@ type MCPConfigRenderer struct {
 	// RewriteLocalhostToDocker indicates if localhost URLs should be rewritten to host.docker.internal
 	// This is needed when the agent runs inside a firewall container and needs to access MCP servers on the host
 	RewriteLocalhostToDocker bool
+	// PreserveContainerFields indicates whether to preserve container/entrypoint fields instead of transforming to docker commands
+	// Set to true when using MCP Gateway, which handles container execution directly
+	PreserveContainerFields bool
 }
 
 // rewriteLocalhostToDockerHost rewrites localhost URLs to use host.docker.internal
@@ -432,14 +441,17 @@ func rewriteLocalhostToDockerHost(url string) string {
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
 // This function handles the common logic for rendering MCP configurations across different engines
 func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
-	mcpLog.Printf("Rendering MCP config for tool: %s, format: %s", toolName, renderer.Format)
+	mcpLog.Printf("Rendering MCP config for tool: %s, format: %s, preserveContainer: %t", toolName, renderer.Format, renderer.PreserveContainerFields)
 
 	// Get MCP configuration in the new format
-	mcpConfig, err := getMCPConfig(toolConfig, toolName)
+	// When PreserveContainerFields is true (gateway mode), don't transform container to docker commands
+	mcpConfig, err := getMCPConfig(toolConfig, toolName, !renderer.PreserveContainerFields)
 	if err != nil {
 		mcpLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
+
+	mcpLog.Printf("After getMCPConfig: container=%s, command=%s, entrypoint=%s", mcpConfig.Container, mcpConfig.Command, mcpConfig.Entrypoint)
 
 	// Extract secrets from headers for HTTP MCP tools (copilot engine only)
 	var headerSecrets map[string]string
@@ -457,7 +469,13 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
 		} else {
 			// JSON format - include copilot fields if required
-			propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
+			if renderer.PreserveContainerFields {
+				// When preserving container fields (gateway mode), use container format
+				propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "env", "tools"}
+			} else {
+				// Normal mode - use command format
+				propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
+			}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -499,6 +517,18 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 		case "command":
 			if mcpConfig.Command != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "container":
+			if mcpConfig.Container != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "entrypoint":
+			if mcpConfig.Entrypoint != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "entrypointArgs":
+			if len(mcpConfig.EntrypointArgs) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "args":
@@ -587,6 +617,35 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				fmt.Fprintf(yaml, "%s\"command\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Command, comma)
 			}
+		case "container":
+			// Render container field for JSON format (gateway mode)
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			fmt.Fprintf(yaml, "%s\"container\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Container, comma)
+		case "entrypoint":
+			// Render entrypoint field for JSON format (gateway mode)
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			fmt.Fprintf(yaml, "%s\"entrypoint\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Entrypoint, comma)
+		case "entrypointArgs":
+			// Render entrypointArgs field for JSON format (gateway mode)
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			fmt.Fprintf(yaml, "%s\"entrypointArgs\": [\n", renderer.IndentLevel)
+			for argIndex, arg := range mcpConfig.EntrypointArgs {
+				argComma := ","
+				if argIndex == len(mcpConfig.EntrypointArgs)-1 {
+					argComma = ""
+				}
+				fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
+			}
+			fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 		case "args":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%sargs = [\n", renderer.IndentLevel)
@@ -848,8 +907,17 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 }
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
-func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
+// The transformContainer parameter controls whether container fields should be transformed to docker commands.
+// Set to false when using MCP Gateway, which handles container execution directly.
+func getMCPConfig(toolConfig map[string]any, toolName string, transformContainer ...bool) (*parser.MCPServerConfig, error) {
 	mcpLog.Printf("Extracting MCP config for tool: %s", toolName)
+
+	// Default to true for backward compatibility
+	shouldTransform := true
+	if len(transformContainer) > 0 {
+		shouldTransform = transformContainer[0]
+		mcpLog.Printf("shouldTransform=%t for tool: %s", shouldTransform, toolName)
+	}
 
 	config := MapToolConfig(toolConfig)
 	result := &parser.MCPServerConfig{
@@ -1006,10 +1074,12 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		result.Allowed = allowed
 	}
 
-	// Handle container transformation for stdio type
-	if result.Type == "stdio" && result.Container != "" {
+	// Handle container transformation for stdio type (only when transformContainer is true)
+	if shouldTransform && result.Type == "stdio" && result.Container != "" {
+		mcpLog.Printf("Transforming container to docker command for tool: %s", toolName)
 		// Save user-provided args before transforming
 		userProvidedArgs := result.Args
+		entrypoint := result.Entrypoint
 		entrypointArgs := result.EntrypointArgs
 
 		// Transform container field to docker command and args
@@ -1031,6 +1101,11 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Args = append(result.Args, userProvidedArgs...)
 		}
 
+		// Add custom entrypoint if provided
+		if entrypoint != "" {
+			result.Args = append(result.Args, "--entrypoint", entrypoint)
+		}
+
 		// Build container image with version if provided
 		containerImage := result.Container
 		if result.Version != "" {
@@ -1045,9 +1120,10 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Args = append(result.Args, entrypointArgs...)
 		}
 
-		// Clear the container, version, and entrypointArgs fields since they're now part of the command
+		// Clear the container, version, entrypoint, and entrypointArgs fields since they're now part of the command
 		result.Container = ""
 		result.Version = ""
+		result.Entrypoint = ""
 		result.EntrypointArgs = nil
 	}
 

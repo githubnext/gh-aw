@@ -96,12 +96,19 @@ func (e *CopilotEngine) renderCopilotMCPConfigWithContext(yaml *strings.Builder,
 		workflowData.SandboxConfig.Agent == nil ||
 		!workflowData.SandboxConfig.Agent.Disabled)
 
+	// Determine if we should preserve container fields (for MCP Gateway)
+	// When gateway is enabled, container/entrypoint/entrypointArgs should be preserved
+	// instead of being transformed to docker commands
+	preserveContainerFields := shouldGenerateMCPGateway(workflowData)
+	copilotMCPLog.Printf("PreserveContainerFields=%t for tool: %s", preserveContainerFields, toolName)
+
 	// Use the shared renderer with copilot-specific requirements
 	renderer := MCPConfigRenderer{
 		Format:                   "json",
 		IndentLevel:              "                ",
 		RequiresCopilotFields:    true,
 		RewriteLocalhostToDocker: rewriteLocalhost,
+		PreserveContainerFields:  preserveContainerFields,
 	}
 
 	yaml.WriteString("              \"" + toolName + "\": {\n")
