@@ -23,7 +23,7 @@ var mcpRendererLog = logger.New("workflow:mcp_renderer")
 // The renderer delegates to shared functions in mcp-config.go for actual rendering logic.
 // This design allows engines to specify their requirements without duplicating rendering code.
 //
-// See docs/architecture/mcp-configuration-analysis.md for detailed documentation.
+// See specs/mcp-configuration-analysis.md for detailed documentation.
 
 // MCPRendererOptions contains configuration options for the unified MCP renderer
 type MCPRendererOptions struct {

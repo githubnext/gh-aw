@@ -32,7 +32,7 @@ var mcpLog = logger.New("workflow:mcp-config")
 //    - MCPConfigRendererUnified (in mcp_renderer.go) provides engine-agnostic interface
 //    - Engine-specific files (copilot_mcp.go, claude_mcp.go, etc.) delegate to these functions
 //
-// See docs/architecture/mcp-configuration-analysis.md for detailed architecture documentation.
+// See specs/mcp-configuration-analysis.md for detailed architecture documentation.
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses Docker container to launch Playwright MCP for consistent browser environment
