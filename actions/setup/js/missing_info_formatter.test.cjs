@@ -139,6 +139,7 @@ describe("missing_info_formatter.cjs", () => {
       const { formatNoopMessages } = formatter;
       expect(formatNoopMessages([])).toBe("");
       expect(formatNoopMessages(null)).toBe("");
+      expect(formatNoopMessages(undefined)).toBe("");
     });
 
     it("should escape special characters in noop messages", () => {
@@ -148,6 +149,17 @@ describe("missing_info_formatter.cjs", () => {
       const result = formatNoopMessages(messages);
       expect(result).toContain("&lt;special&gt;");
       expect(result).toContain("\\*\\*bold\\*\\*");
+    });
+
+    it("should handle multiple noop messages with proper formatting", () => {
+      const { formatNoopMessages } = formatter;
+      const messages = [{ message: "First message" }, { message: "Second message" }, { message: "Third message" }];
+
+      const result = formatNoopMessages(messages);
+      expect(result).toContain("- First message");
+      expect(result).toContain("- Second message");
+      expect(result).toContain("- Third message");
+      expect(result.split("\n")).toHaveLength(3);
     });
   });
 
@@ -167,6 +179,20 @@ describe("missing_info_formatter.cjs", () => {
       const { generateNoopMessagesSection } = formatter;
       expect(generateNoopMessagesSection([])).toBe("");
       expect(generateNoopMessagesSection(null)).toBe("");
+      expect(generateNoopMessagesSection(undefined)).toBe("");
+    });
+
+    it("should handle single and multiple noop messages", () => {
+      const { generateNoopMessagesSection } = formatter;
+
+      const singleMessage = [{ message: "Single message" }];
+      const singleResult = generateNoopMessagesSection(singleMessage);
+      expect(singleResult).toContain("Single message");
+
+      const multipleMessages = [{ message: "First" }, { message: "Second" }];
+      const multipleResult = generateNoopMessagesSection(multipleMessages);
+      expect(multipleResult).toContain("First");
+      expect(multipleResult).toContain("Second");
     });
   });
 
@@ -242,6 +268,27 @@ describe("missing_info_formatter.cjs", () => {
       expect(generateMissingInfoSections(null)).toBe("");
       expect(generateMissingInfoSections({})).toBe("");
       expect(generateMissingInfoSections({ missingTools: [], missingData: [] })).toBe("");
+      expect(generateMissingInfoSections({ missingTools: [], missingData: [], noopMessages: [] })).toBe("");
+    });
+
+    it("should maintain correct order: tools, data, noop", () => {
+      const { generateMissingInfoSections } = formatter;
+      const missings = {
+        missingTools: [{ tool: "docker", reason: "Need containers" }],
+        missingData: [{ data_type: "api_key", reason: "No credentials" }],
+        noopMessages: [{ message: "Analysis complete" }],
+      };
+
+      const result = generateMissingInfoSections(missings);
+
+      // Check that sections appear in correct order
+      const toolsIndex = result.indexOf("Missing Tools");
+      const dataIndex = result.indexOf("Missing Data");
+      const noopIndex = result.indexOf("No-Op Messages");
+
+      expect(toolsIndex).toBeGreaterThan(-1);
+      expect(dataIndex).toBeGreaterThan(toolsIndex);
+      expect(noopIndex).toBeGreaterThan(dataIndex);
     });
   });
 });

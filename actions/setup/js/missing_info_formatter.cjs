@@ -65,13 +65,9 @@ function formatMissingData(missingData) {
  * @returns {string} Formatted markdown list
  */
 function formatNoopMessages(noopMessages) {
-  if (!noopMessages || noopMessages.length === 0) return "";
+  if (!noopMessages?.length) return "";
 
-  const items = noopMessages.map(item => {
-    return `- ${escapeMarkdown(item.message)}`;
-  });
-
-  return items.join("\n");
+  return noopMessages.map(item => `- ${escapeMarkdown(item.message)}`).join("\n");
 }
 
 /**
@@ -104,7 +100,7 @@ function generateMissingDataSection(missingData) {
  * @returns {string} HTML details section or empty string
  */
 function generateNoopMessagesSection(noopMessages) {
-  if (!noopMessages || noopMessages.length === 0) return "";
+  if (!noopMessages?.length) return "";
 
   const content = formatNoopMessages(noopMessages);
   return `\n\n<details>\n<summary><b>No-Op Messages</b></summary>\n\n${content}\n\n</details>`;
@@ -118,21 +114,13 @@ function generateNoopMessagesSection(noopMessages) {
 function generateMissingInfoSections(missings) {
   if (!missings) return "";
 
-  let sections = "";
+  const sections = [
+    missings.missingTools && generateMissingToolsSection(missings.missingTools),
+    missings.missingData && generateMissingDataSection(missings.missingData),
+    missings.noopMessages && generateNoopMessagesSection(missings.noopMessages),
+  ];
 
-  if (missings.missingTools && missings.missingTools.length > 0) {
-    sections += generateMissingToolsSection(missings.missingTools);
-  }
-
-  if (missings.missingData && missings.missingData.length > 0) {
-    sections += generateMissingDataSection(missings.missingData);
-  }
-
-  if (missings.noopMessages && missings.noopMessages.length > 0) {
-    sections += generateNoopMessagesSection(missings.noopMessages);
-  }
-
-  return sections;
+  return sections.filter(Boolean).join("");
 }
 
 module.exports = {

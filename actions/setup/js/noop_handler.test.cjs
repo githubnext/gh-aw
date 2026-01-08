@@ -70,7 +70,72 @@ describe("noop_handler.cjs handler", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe("Missing required field: message");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing 'message' field"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing or invalid 'message' field"));
+    });
+
+    it("should reject message with empty string", async () => {
+      const message = {
+        type: "noop",
+        message: "",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Missing required field: message");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing or invalid 'message' field"));
+    });
+
+    it("should reject message with only whitespace", async () => {
+      const message = {
+        type: "noop",
+        message: "   ",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Missing required field: message");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing or invalid 'message' field"));
+    });
+
+    it("should reject message with non-string message field", async () => {
+      const message = {
+        type: "noop",
+        message: 123,
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Missing required field: message");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing or invalid 'message' field"));
+    });
+
+    it("should handle messages with special characters", async () => {
+      const message = {
+        type: "noop",
+        message: "Analysis complete: <tag> & \"quotes\" 'apostrophes'",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe("Analysis complete: <tag> & \"quotes\" 'apostrophes'");
+    });
+
+    it("should handle very long messages", async () => {
+      const longMessage = "A".repeat(1000);
+      const message = {
+        type: "noop",
+        message: longMessage,
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe(longMessage);
+      expect(result.message.length).toBe(1000);
     });
   });
 

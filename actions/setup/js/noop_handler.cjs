@@ -16,8 +16,8 @@ const HANDLER_TYPE = "noop";
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
-  // Extract configuration
-  const maxCount = config.max || 0; // 0 means unlimited
+  // Extract configuration with destructuring
+  const { max: maxCount = 0 } = config; // 0 means unlimited
 
   core.info(`Max count: ${maxCount === 0 ? "unlimited" : maxCount}`);
 
@@ -41,8 +41,9 @@ async function main(config = {}) {
     }
 
     // Validate required fields
-    if (!message.message) {
-      core.warning(`noop message missing 'message' field: ${JSON.stringify(message)}`);
+    const { message: messageText } = message;
+    if (!messageText || typeof messageText !== "string" || !messageText.trim()) {
+      core.warning(`noop message missing or invalid 'message' field: ${JSON.stringify(message)}`);
       return {
         success: false,
         error: "Missing required field: message",
@@ -51,17 +52,14 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const noopMessage = {
-      message: message.message,
-      timestamp: new Date().toISOString(),
-    };
+    const timestamp = new Date().toISOString();
 
-    core.info(`✓ Recorded noop message: ${noopMessage.message}`);
+    core.info(`✓ Recorded noop message: ${messageText}`);
 
     return {
       success: true,
-      message: noopMessage.message,
-      timestamp: noopMessage.timestamp,
+      message: messageText,
+      timestamp,
     };
   };
 }
