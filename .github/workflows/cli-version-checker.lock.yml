@@ -591,7 +591,11 @@ jobs:
           - **Claude Code**: Use `npm view @anthropic-ai/claude-code version` (faster than web-fetch)
             - No public GitHub repository
           - **Copilot CLI**: Use `npm view @github/copilot version`
-            - Repository: https://github.com/github/copilot-cli (may be private)
+            - Repository: https://github.com/github/copilot-cli
+            - **CRITICAL**: Always attempt to fetch and deeply analyze Copilot repository content
+            - Release Notes: https://github.com/github/copilot-cli/releases
+            - Changelog: https://github.com/github/copilot-cli/blob/main/CHANGELOG.md (or similar)
+            - README: https://github.com/github/copilot-cli/blob/main/README.md
           - **Codex**: Use `npm view @openai/codex version`
             - Repository: https://github.com/openai/codex
             - Release Notes: https://github.com/openai/codex/releases
@@ -627,7 +631,24 @@ jobs:
           - **Playwright Browser**: Fetch release notes from https://github.com/microsoft/playwright/releases/tag/v{VERSION}
             - Parse release body for changelog entries
             - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/microsoft/playwright/pull/12345`)
-          - **Copilot CLI**: Repository may be private, skip release notes if inaccessible
+          - **Copilot CLI**: **ALWAYS attempt deep analysis** - Repository: https://github.com/github/copilot-cli
+            - **CRITICAL**: Thoroughly read and analyze all available documentation:
+              1. **Release Notes**: Fetch from https://github.com/github/copilot-cli/releases/tag/v{VERSION}
+                 - Parse release highlights and feature descriptions
+                 - Extract breaking changes and deprecation notices
+                 - Note new commands, flags, and configuration options
+              2. **CHANGELOG.md**: Read from https://github.com/github/copilot-cli/blob/main/CHANGELOG.md (or equivalent)
+                 - Compare versions to identify all changes between current and new version
+                 - Categorize changes: Breaking, Features, Fixes, Security, Performance
+              3. **README.md**: Review https://github.com/github/copilot-cli/blob/main/README.md
+                 - Check for updated usage patterns and examples
+                 - Note new capabilities or configuration options
+              4. **Documentation Changes**: Look for changes in documentation files that indicate new features
+            - If repository is inaccessible (private), document the access limitation in the issue but still:
+              - Use `npm view @github/copilot --json` for detailed package metadata
+              - Compare CLI help output between versions (see "Tool Installation & Discovery" section)
+              - Check for any publicly available release announcements or blog posts
+            - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/github/copilot-cli/pull/123`)
           - **Claude Code**: No public repository, rely on NPM metadata and CLI help output
           - **Playwright MCP**: Uses Playwright versioning, check NPM package metadata for changes
           
