@@ -387,6 +387,40 @@ describe("Safe Output Handler Manager", () => {
       expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("create_agent_task"));
     });
 
+    it("should silently skip missing_tool messages (handled by standalone step)", async () => {
+      const messages = [
+        { type: "create_pull_request", title: "Test PR", body: "PR body" },
+        { type: "missing_tool", tool: "example-tool", reason: "Tool not available" },
+      ];
+
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
+
+      // Only create_pull_request handler is available
+      // missing_tool is handled by standalone missing_tool step
+      const handlers = new Map([["create_pull_request", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(2);
+
+      // First message should succeed
+      expect(result.results[0].success).toBe(true);
+      expect(result.results[0].type).toBe("create_pull_request");
+
+      // Second message should be skipped (standalone step)
+      expect(result.results[1].success).toBe(false);
+      expect(result.results[1].type).toBe("missing_tool");
+      expect(result.results[1].skipped).toBe(true);
+      expect(result.results[1].reason).toBe("Handled by standalone step");
+
+      // Should NOT have logged warning for missing_tool
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'missing_tool'"));
+
+      // Should have logged debug message
+      expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("missing_tool"));
+    });
+
     it("should track skipped message types for logging", async () => {
       const messages = [
         { type: "create_issue", title: "Issue" },

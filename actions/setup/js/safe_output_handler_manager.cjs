@@ -48,7 +48,7 @@ const HANDLER_MAP = {
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  */
-const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "update_project", "upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "update_project", "upload_asset", "noop", "missing_tool"]);
 
 /**
  * Load configuration for safe outputs
