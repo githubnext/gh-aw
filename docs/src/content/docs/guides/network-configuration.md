@@ -87,6 +87,7 @@ network:
 Both `example.com` and `*.example.com` match subdomains. Use wildcards when you want to explicitly document that subdomain access is expected.
 :::
 
+
 ## Protocol-Specific Filtering
 
 Restrict domains to specific protocols for enhanced security (Copilot engine with AWF firewall):

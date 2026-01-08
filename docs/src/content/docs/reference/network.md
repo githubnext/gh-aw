@@ -44,6 +44,13 @@ network:
     - "http://legacy.example.com"        # HTTP-only access
     - "example.org"                      # Both HTTP and HTTPS (default)
 
+# Protocol-specific domain filtering (Copilot engine only)
+network:
+  allowed:
+    - "https://secure.api.example.com"   # HTTPS-only access
+    - "http://legacy.example.com"        # HTTP-only access
+    - "example.org"                      # Both HTTP and HTTPS (default)
+
 # No network access
 network: {}
 
