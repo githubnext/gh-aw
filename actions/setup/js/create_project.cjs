@@ -235,7 +235,9 @@ async function handler() {
     }
 
     core.info("✓ All create_project operations completed successfully");
-  } catch (error) {
+  } catch (err) {
+    // prettier-ignore
+    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
     logGraphQLError(error, "create_project");
     core.setFailed(`Failed to create project: ${getErrorMessage(error)}`);
     throw error;
