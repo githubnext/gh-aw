@@ -520,7 +520,7 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 	if !strings.Contains(generated, "GH_AW_ENGINE_ID") {
 		t.Error("Should include engine ID environment variable")
 	}
-	
+
 	// Should include GH_AW_CUSTOM_ERROR_PATTERNS for user-configured patterns
 	if !strings.Contains(generated, "GH_AW_CUSTOM_ERROR_PATTERNS") {
 		t.Error("Should include custom error patterns environment variable")

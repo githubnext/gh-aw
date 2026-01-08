@@ -108,10 +108,10 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
-	
+
 	// Pass the engine ID so JavaScript can load appropriate patterns
 	fmt.Fprintf(yaml, "          GH_AW_ENGINE_ID: %s\n", engine.GetID())
-	
+
 	// Add custom error patterns if configured by user
 	if data.EngineConfig != nil && len(data.EngineConfig.ErrorPatterns) > 0 {
 		// Convert user-configured patterns to JavaScript-compatible format

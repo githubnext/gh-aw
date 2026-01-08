@@ -910,7 +910,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"}]"
+          GH_AW_ENGINE_ID: claude
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');

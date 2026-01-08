@@ -46,7 +46,7 @@ func TestErrorPatternsOnCopilotEngine(t *testing.T) {
 	if !strings.Contains(generated, "GH_AW_ENGINE_ID") {
 		t.Error("Should include engine ID environment variable")
 	}
-	
+
 	// Should include engine ID value
 	if !strings.Contains(generated, "GH_AW_ENGINE_ID: copilot") {
 		t.Error("Should include copilot engine ID")
