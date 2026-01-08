@@ -217,13 +217,15 @@ func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder) {
 }
 
 // renderSafeOutputsTOML generates Safe Outputs MCP configuration in TOML format
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
-	yaml.WriteString("          command = \"node\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"/opt/gh-aw/safeoutputs/mcp-server.cjs\",\n")
-	yaml.WriteString("          ]\n")
+	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
+	yaml.WriteString("          entrypoint = \"node\"\n")
+	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
+	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw\"]\n")
 	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
 }
 

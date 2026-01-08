@@ -255,6 +255,10 @@ const DefaultBunVersion Version = "1.1"
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion Version = "24"
 
+// DefaultNodeAlpineLTSImage is the default Node.js Alpine LTS container image for MCP servers
+// Using node:lts-alpine provides the latest LTS version with minimal footprint
+const DefaultNodeAlpineLTSImage = "node:lts-alpine"
+
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"
 

@@ -417,8 +417,10 @@ jobs:
               },
               "safeoutputs": {
                 "type": "local",
-                "command": "node",
-                "args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
+                "container": "node:lts-alpine",
+                "entrypoint": "node",
+                "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw"],
                 "tools": ["*"],
                 "env": {
                   "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
