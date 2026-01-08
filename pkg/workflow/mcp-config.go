@@ -385,46 +385,6 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 	return nil
 }
 
-// MCPConfigRenderer contains configuration options for rendering MCP config
-type MCPConfigRenderer struct {
-	// IndentLevel controls the indentation level for properties (e.g., "                " for JSON, "          " for TOML)
-	IndentLevel string
-	// Format specifies the output format ("json" for JSON-like, "toml" for TOML-like)
-	Format string
-	// RequiresCopilotFields indicates if the engine requires "type" and "tools" fields (true for copilot engine)
-	RequiresCopilotFields bool
-	// RewriteLocalhostToDocker indicates if localhost URLs should be rewritten to host.docker.internal
-	// This is needed when the agent runs inside a firewall container and needs to access MCP servers on the host
-	RewriteLocalhostToDocker bool
-}
-
-// rewriteLocalhostToDockerHost rewrites localhost URLs to use host.docker.internal
-// This is necessary when MCP servers run on the host machine but are accessed from within
-// a Docker container (e.g., when firewall/sandbox is enabled)
-func rewriteLocalhostToDockerHost(url string) string {
-	// Define the localhost patterns to replace and their docker equivalents
-	// Each pattern is a (prefix, replacement) pair
-	replacements := []struct {
-		prefix      string
-		replacement string
-	}{
-		{"http://localhost", "http://host.docker.internal"},
-		{"https://localhost", "https://host.docker.internal"},
-		{"http://127.0.0.1", "http://host.docker.internal"},
-		{"https://127.0.0.1", "https://host.docker.internal"},
-	}
-
-	for _, r := range replacements {
-		if strings.HasPrefix(url, r.prefix) {
-			newURL := r.replacement + url[len(r.prefix):]
-			mcpLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
-			return newURL
-		}
-	}
-
-	return url
-}
-
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
 // This function handles the common logic for rendering MCP configurations across different engines
 func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
@@ -759,89 +719,6 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	return nil
 }
 
-// ToolConfig represents a tool configuration interface for type safety
-type ToolConfig interface {
-	GetString(key string) (string, bool)
-	GetStringArray(key string) ([]string, bool)
-	GetStringMap(key string) (map[string]string, bool)
-	GetAny(key string) (any, bool)
-}
-
-// MapToolConfig implements ToolConfig for map[string]any
-type MapToolConfig map[string]any
-
-func (m MapToolConfig) GetString(key string) (string, bool) {
-	if value, exists := m[key]; exists {
-		if str, ok := value.(string); ok {
-			return str, true
-		}
-	}
-	return "", false
-}
-
-func (m MapToolConfig) GetStringArray(key string) ([]string, bool) {
-	if value, exists := m[key]; exists {
-		if arr, ok := value.([]any); ok {
-			result := make([]string, 0, len(arr))
-			for _, item := range arr {
-				if str, ok := item.(string); ok {
-					result = append(result, str)
-				}
-			}
-			return result, true
-		}
-		if arr, ok := value.([]string); ok {
-			return arr, true
-		}
-	}
-	return nil, false
-}
-
-func (m MapToolConfig) GetStringMap(key string) (map[string]string, bool) {
-	if value, exists := m[key]; exists {
-		if mapVal, ok := value.(map[string]any); ok {
-			result := make(map[string]string)
-			for k, v := range mapVal {
-				if str, ok := v.(string); ok {
-					result[k] = str
-				}
-			}
-			return result, true
-		}
-		if mapVal, ok := value.(map[string]string); ok {
-			return mapVal, true
-		}
-	}
-	return nil, false
-}
-
-func (m MapToolConfig) GetAny(key string) (any, bool) {
-	value, exists := m[key]
-	return value, exists
-}
-
-// collectHTTPMCPHeaderSecrets collects all secrets from HTTP MCP tool headers
-// Returns a map of environment variable names to their secret expressions
-func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
-	allSecrets := make(map[string]string)
-
-	for toolName, toolValue := range tools {
-		// Check if this is an MCP tool configuration
-		if toolConfig, ok := toolValue.(map[string]any); ok {
-			if hasMcp, mcpType := hasMCPConfig(toolConfig); hasMcp && mcpType == "http" {
-				// Extract MCP config to get headers
-				if mcpConfig, err := getMCPConfig(toolConfig, toolName); err == nil {
-					secrets := ExtractSecretsFromMap(mcpConfig.Headers)
-					for varName, expr := range secrets {
-						allSecrets[varName] = expr
-					}
-				}
-			}
-		}
-	}
-
-	return allSecrets
-}
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
 func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
