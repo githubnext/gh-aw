@@ -144,8 +144,6 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		CurrentSequence: currentSequence,
 		Turns:           turns,
 		TokenUsage:      totalTokenUsage,
-		LogContent:      logContent,
-		ErrorPatterns:   e.GetErrorPatterns(),
 	})
 
 	return metrics

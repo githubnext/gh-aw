@@ -9,10 +9,7 @@ describe("runtime_import", () => {
   let tempDir;
   let githubDir;
   (beforeEach(() => {
-    ((tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-import-test-"))),
-      (githubDir = path.join(tempDir, ".github")),
-      fs.mkdirSync(githubDir, { recursive: true }),
-      vi.clearAllMocks());
+    ((tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-import-test-"))), (githubDir = path.join(tempDir, ".github")), fs.mkdirSync(githubDir, { recursive: true }), vi.clearAllMocks());
   }),
     afterEach(() => {
       tempDir && fs.existsSync(tempDir) && fs.rmSync(tempDir, { recursive: !0, force: !0 });

@@ -464,10 +464,6 @@ func TestAuditDataJSONStructure(t *testing.T) {
 		TokenUsage:    5000,
 		EstimatedCost: 0.5,
 		Turns:         8,
-		Errors: []workflow.LogError{
-			{Type: "error", Message: "Test error", File: "test.log", Line: 10},
-			{Type: "warning", Message: "Test warning", File: "test.log", Line: 20},
-		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 5, MaxDuration: 2 * time.Second},
 		},

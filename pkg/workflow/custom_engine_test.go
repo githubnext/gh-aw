@@ -394,19 +394,7 @@ ERROR: Another error`
 
 	metrics := engine.ParseLogMetrics(logContent, false)
 
-	// Custom engine doesn't have its own error detection patterns
-	// It relies on Claude/Codex parsers which are tried first
-	// For plain text logs without structured format, no errors are detected
-	errorCount := CountErrors(metrics.Errors)
-	if errorCount != 0 {
-		t.Errorf("Expected 0 errors (custom engine has no error patterns), got %d", errorCount)
-	}
-
-	warningCount := CountWarnings(metrics.Errors)
-	if warningCount != 0 {
-		t.Errorf("Expected 0 warnings (custom engine has no error patterns), got %d", warningCount)
-	}
-
+	// Error patterns have been removed
 	if metrics.TokenUsage != 0 {
 		t.Errorf("Expected 0 token usage, got %d", metrics.TokenUsage)
 	}

@@ -12,18 +12,17 @@ var engineLog = logger.New("workflow:engine")
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID            string
-	Version       string
-	Model         string
-	MaxTurns      string
-	Concurrency   string // Agent job-level concurrency configuration (YAML format)
-	UserAgent     string
-	Env           map[string]string
-	Steps         []map[string]any
-	ErrorPatterns []ErrorPattern
-	Config        string
-	Args          []string
-	Firewall      *FirewallConfig // AWF firewall configuration
+	ID          string
+	Version     string
+	Model       string
+	MaxTurns    string
+	Concurrency string // Agent job-level concurrency configuration (YAML format)
+	UserAgent   string
+	Env         map[string]string
+	Steps       []map[string]any
+	Config      string
+	Args        []string
+	Firewall    *FirewallConfig // AWF firewall configuration
 }
 
 // NetworkPermissions represents network access permissions
@@ -139,50 +138,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					for _, step := range stepsArray {
 						if stepMap, ok := step.(map[string]any); ok {
 							config.Steps = append(config.Steps, stepMap)
-						}
-					}
-				}
-			}
-
-			// Extract optional 'error_patterns' field (array of error pattern objects)
-			if errorPatterns, hasErrorPatterns := engineObj["error_patterns"]; hasErrorPatterns {
-				if patternsArray, ok := errorPatterns.([]any); ok {
-					config.ErrorPatterns = make([]ErrorPattern, 0, len(patternsArray))
-					for _, patternRaw := range patternsArray {
-						if patternMap, ok := patternRaw.(map[string]any); ok {
-							pattern := ErrorPattern{}
-
-							// Extract pattern field (required)
-							if patternStr, ok := patternMap["pattern"].(string); ok {
-								pattern.Pattern = patternStr
-							} else {
-								continue // Skip invalid patterns without pattern field
-							}
-
-							// Extract level_group field (optional, defaults to 0)
-							if levelGroup, ok := patternMap["level_group"].(int); ok {
-								pattern.LevelGroup = levelGroup
-							} else if levelGroupFloat, ok := patternMap["level_group"].(float64); ok {
-								pattern.LevelGroup = int(levelGroupFloat)
-							} else if levelGroupUint64, ok := patternMap["level_group"].(uint64); ok {
-								pattern.LevelGroup = int(levelGroupUint64)
-							}
-
-							// Extract message_group field (optional, defaults to 0)
-							if messageGroup, ok := patternMap["message_group"].(int); ok {
-								pattern.MessageGroup = messageGroup
-							} else if messageGroupFloat, ok := patternMap["message_group"].(float64); ok {
-								pattern.MessageGroup = int(messageGroupFloat)
-							} else if messageGroupUint64, ok := patternMap["message_group"].(uint64); ok {
-								pattern.MessageGroup = int(messageGroupUint64)
-							}
-
-							// Extract description field (optional)
-							if description, ok := patternMap["description"].(string); ok {
-								pattern.Description = description
-							}
-
-							config.ErrorPatterns = append(config.ErrorPatterns, pattern)
 						}
 					}
 				}
