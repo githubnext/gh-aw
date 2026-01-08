@@ -135,6 +135,11 @@
       "version": "v3.0.2",
       "sha": "a21e55567b83cf3c3f3f9085d3038dc6cee02598"
     },
+    "githubnext/gh-aw/actions/setup@v0.34.5": {
+      "repo": "githubnext/gh-aw/actions/setup",
+      "version": "v0.34.5",
+      "sha": "3de4a6a6d15bb07764b207e40da8c7047474a335"
+    },
     "haskell-actions/setup@v2": {
       "repo": "haskell-actions/setup",
       "version": "v2.9.1",
