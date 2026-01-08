@@ -86,6 +86,10 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 	}
 	if hasSafeOutputs {
+		// Add server configuration env vars from step outputs
+		envVars["GH_AW_SAFE_OUTPUTS_PORT"] = "${{ steps.safe-outputs-config.outputs.safe_outputs_port }}"
+		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}"
+		
 		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
 		// Only add upload-assets env vars if upload-assets is configured
 		if workflowData.SafeOutputs.UploadAssets != nil {
