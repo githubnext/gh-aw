@@ -100,6 +100,22 @@ network:
     - "api.example.com"
 ```
 
+#### Default Mounted Volumes
+
+AWF automatically mounts several paths from the host into the container to enable agent functionality:
+
+| Host Path | Container Path | Mode | Purpose |
+|-----------|----------------|------|---------|
+| `/tmp` | `/tmp` | `rw` | Temporary files and cache |
+| `${GITHUB_WORKSPACE}` | `${GITHUB_WORKSPACE}` | `rw` | Repository workspace directory |
+| `/usr/bin/date` | `/usr/bin/date` | `ro` | Date utility |
+| `/usr/bin/gh` | `/usr/bin/gh` | `ro` | GitHub CLI binary |
+| `/usr/bin/yq` | `/usr/bin/yq` | `ro` | YAML processor |
+| `/usr/local/bin/copilot` | `/usr/local/bin/copilot` | `ro` | Copilot CLI binary |
+| `/home/runner/.copilot` | `/home/runner/.copilot` | `rw` | Copilot configuration and state |
+
+These default mounts ensure the agent has access to essential tools and the repository files. Custom mounts specified via `sandbox.agent.mounts` are added alongside these defaults.
+
 #### Custom AWF Configuration
 
 Use custom commands, arguments, and environment variables to replace the standard AWF installation with a custom setup:
