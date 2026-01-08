@@ -461,18 +461,18 @@
                   "examples": ["v1.41.0", 1.41, 20]
                 },
                 "allowed_domains": {
-                  "description": "Domains allowed for Playwright browser network access. Defaults to localhost only for security.",
+                  "description": "Domains allowed for Playwright browser network access. Supports wildcard patterns like '*.example.com' (matches sub.example.com and example.com). Defaults to localhost only for security.",
                   "oneOf": [
                     {
                       "type": "array",
-                      "description": "List of allowed domains or patterns (e.g., ['github.com', '*.example.com'])",
+                      "description": "List of allowed domains or wildcard patterns (e.g., ['github.com', '*.example.com'])",
                       "items": {
                         "type": "string"
                       }
                     },
                     {
                       "type": "string",
-                      "description": "Single allowed domain (e.g., 'github.com')"
+                      "description": "Single allowed domain or wildcard pattern (e.g., 'github.com', '*.cdn.example.com')"
                     }
                   ]
                 },
@@ -888,7 +888,7 @@
       "additionalProperties": false
     },
     "network": {
-      "description": "Network permissions configuration for allowed domains",
+      "description": "Network permissions configuration for allowed domains. Supports wildcard patterns like '*.example.com' (matches sub.example.com and example.com itself).",
       "oneOf": [
         {
           "type": "string",
@@ -901,7 +901,7 @@
           "properties": {
             "allowed": {
               "type": "array",
-              "description": "List of allowed domains or ecosystem identifiers",
+              "description": "List of allowed domains, wildcard patterns (e.g., '*.example.com'), or ecosystem identifiers (e.g., 'python', 'node')",
               "items": {
                 "type": "string"
               }

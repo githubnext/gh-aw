@@ -24,6 +24,7 @@ type LogsData struct {
 	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
 	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MissingData       []MissingDataSummary       `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
 	MCPFailures       []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
 	AccessLog         *AccessLogSummary          `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
 	FirewallLog       *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
@@ -56,6 +57,7 @@ type LogsSummary struct {
 	TotalErrors       int     `json:"total_errors" console:"header:Total Errors"`
 	TotalWarnings     int     `json:"total_warnings" console:"header:Total Warnings"`
 	TotalMissingTools int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
+	TotalMissingData  int     `json:"total_missing_data" console:"header:Total Missing Data"`
 }
 
 // RunData contains information about a single workflow run
@@ -73,7 +75,8 @@ type RunData struct {
 	Turns            int       `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount       int       `json:"error_count" console:"header:Errors"`
 	WarningCount     int       `json:"warning_count" console:"header:Warnings"`
-	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing"`
+	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing Tools"`
+	MissingDataCount int       `json:"missing_data_count" console:"header:Missing Data"`
 	CreatedAt        time.Time `json:"created_at" console:"header:Created"`
 	StartedAt        time.Time `json:"started_at,omitempty" console:"-"`
 	UpdatedAt        time.Time `json:"updated_at,omitempty" console:"-"`
@@ -137,6 +140,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalErrors int
 	var totalWarnings int
 	var totalMissingTools int
+	var totalMissingData int
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
@@ -153,6 +157,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalErrors += run.ErrorCount
 		totalWarnings += run.WarningCount
 		totalMissingTools += run.MissingToolCount
+		totalMissingData += run.MissingDataCount
 
 		// Extract agent/engine ID from aw_info.json
 		agentID := ""
@@ -175,6 +180,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			ErrorCount:       run.ErrorCount,
 			WarningCount:     run.WarningCount,
 			MissingToolCount: run.MissingToolCount,
+			MissingDataCount: run.MissingDataCount,
 			CreatedAt:        run.CreatedAt,
 			StartedAt:        run.StartedAt,
 			UpdatedAt:        run.UpdatedAt,
@@ -198,6 +204,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalErrors:       totalErrors,
 		TotalWarnings:     totalWarnings,
 		TotalMissingTools: totalMissingTools,
+		TotalMissingData:  totalMissingData,
 	}
 
 	// Build tool usage summary
@@ -208,6 +215,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 
 	// Build missing tools summary
 	missingTools := buildMissingToolsSummary(processedRuns)
+
+	// Build missing data summary
+	missingData := buildMissingDataSummary(processedRuns)
 
 	// Build MCP failures summary
 	mcpFailures := buildMCPFailuresSummary(processedRuns)
@@ -229,6 +239,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		ToolUsage:         toolUsage,
 		ErrorsAndWarnings: errorsAndWarnings,
 		MissingTools:      missingTools,
+		MissingData:       missingData,
 		MCPFailures:       mcpFailures,
 		AccessLog:         accessLog,
 		FirewallLog:       firewallLog,
@@ -426,6 +437,49 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 		},
 		// finalizeSummary: populate display fields for console rendering
 		func(summary *MissingToolSummary) {
+			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
+			summary.FirstReasonDisplay = summary.FirstReason
+		},
+	)
+
+	// Sort by count descending
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Count > result[j].Count
+	})
+
+	return result
+}
+
+// buildMissingDataSummary aggregates missing data across all runs
+func buildMissingDataSummary(processedRuns []ProcessedRun) []MissingDataSummary {
+	result := aggregateSummaryItems(
+		processedRuns,
+		// getItems: extract missing data from each run
+		func(pr ProcessedRun) []MissingDataReport {
+			return pr.MissingData
+		},
+		// getKey: use data type as the aggregation key
+		func(data MissingDataReport) string {
+			return data.DataType
+		},
+		// createSummary: create new summary for first occurrence
+		func(data MissingDataReport) *MissingDataSummary {
+			return &MissingDataSummary{
+				DataType:    data.DataType,
+				Count:       1,
+				Workflows:   []string{data.WorkflowName},
+				FirstReason: data.Reason,
+				RunIDs:      []int64{data.RunID},
+			}
+		},
+		// updateSummary: update existing summary with new occurrence
+		func(summary *MissingDataSummary, data MissingDataReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, data.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, data.RunID)
+		},
+		// finalizeSummary: populate display fields for console rendering
+		func(summary *MissingDataSummary) {
 			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
 			summary.FirstReasonDisplay = summary.FirstReason
 		},
@@ -649,218 +703,12 @@ func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsL
 	}
 }
 
-// logErrorAggregator defines how to aggregate log errors
-type logErrorAggregator struct {
-	// generateKey creates a unique key for deduplication
-	generateKey func(logErr workflow.LogError) string
-	// selectMap chooses which map to store the error in (for separate error/warning maps)
-	selectMap func(logErr workflow.LogError) map[string]*ErrorSummary
-	// sortResults sorts the final aggregated results
-	sortResults func(results []ErrorSummary)
-}
+// logErrorAggregator and related functions have been removed since error patterns are no longer supported
 
-// aggregateLogErrors extracts common error aggregation logic
-// It iterates through processedRuns, extracts metrics, resolves engine info,
-// and aggregates errors using the provided aggregator strategy
-func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []ErrorSummary {
-	reportLog.Printf("Aggregating log errors from %d runs", len(processedRuns))
-	aggregatedMap := make(map[string]*ErrorSummary)
-
-	for _, pr := range processedRuns {
-		// Extract metrics from run's logs
-		metrics := ExtractLogMetricsFromRun(pr)
-
-		// Get engine information for this run
-		engineID := ""
-		awInfoPath := filepath.Join(pr.Run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			engineID = info.EngineID
-		}
-
-		// Process each error/warning
-		for _, logErr := range metrics.Errors {
-			// Generate key for this error
-			key := agg.generateKey(logErr)
-
-			// Determine target map (if using multiple maps)
-			targetMap := aggregatedMap
-			if agg.selectMap != nil {
-				targetMap = agg.selectMap(logErr)
-			}
-
-			if existing, exists := targetMap[key]; exists {
-				// Increment count for existing error/warning
-				existing.Count++
-			} else {
-				// Capitalize the type for display
-				displayType := logErr.Type
-				switch displayType {
-				case "error":
-					displayType = "Error"
-				case "warning":
-					displayType = "Warning"
-				}
-
-				// Create new entry
-				targetMap[key] = &ErrorSummary{
-					Type:         displayType,
-					Message:      logErr.Message,
-					Count:        1,
-					PatternID:    logErr.PatternID,
-					Engine:       engineID,
-					RunID:        pr.Run.DatabaseID,
-					RunURL:       pr.Run.URL,
-					WorkflowName: pr.Run.WorkflowName,
-				}
-			}
-		}
-	}
-
-	// Convert map to slice
-	var results []ErrorSummary
-	for _, summary := range aggregatedMap {
-		results = append(results, *summary)
-	}
-
-	// Sort results using provided strategy
-	if agg.sortResults != nil {
-		agg.sortResults(results)
-	}
-
-	return results
-}
-
-// isActionableError checks if an error message is actionable (user-relevant)
-// Returns false for internal debug messages, validation logs, JSON fragments, etc.
-func isActionableError(message string) bool {
-	msg := strings.ToLower(message)
-
-	// Filter out internal validation/debug messages
-	debugPatterns := []string{
-		"validation completed",
-		"executePromptDirectly",
-		"starting validate_errors",
-		"loaded", "error patterns",
-		"pattern ", "/16:", // Pattern testing logs
-		"validation completed in",
-		"starting error validation",
-		"error validation completed",
-		"const { main }",
-		"require(",
-		"perfect! the",
-		"failed as expected",
-	}
-
-	for _, pattern := range debugPatterns {
-		if strings.Contains(msg, pattern) {
-			return false
-		}
-	}
-
-	// Filter out JSON fragments and data structures
-	jsonPatterns := []string{
-		`"errorCodesToRetry"`,
-		`"description":`,
-		`"statement":`,
-		`"content":`,
-		`"onRequestError"`,
-		`[{`, `}]`, `"[`,
-	}
-
-	for _, pattern := range jsonPatterns {
-		if strings.Contains(message, pattern) {
-			return false
-		}
-	}
-
-	// Filter out MCP server logs (stderr output)
-	if strings.Contains(msg, "[mcp server") ||
-		strings.Contains(msg, "[safeoutputs]") ||
-		strings.Contains(msg, "send: {\"jsonrpc\"") {
-		return false
-	}
-
-	// Filter out Squid proxy logs
-	if strings.Contains(msg, "::1:") && strings.Contains(msg, "NONE_NONE:HIER_NONE") {
-		return false
-	}
-
-	// Filter out tool invocation result logs (these are outputs, not errors)
-	if strings.HasPrefix(msg, "tool invocation result:") {
-		return false
-	}
-
-	return true
-}
-
-// buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
-// Filters out non-actionable errors like debug logs, JSON fragments, and internal messages
+// buildCombinedErrorsSummary has been removed since error patterns are no longer supported
 func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
-	agg := logErrorAggregator{
-		generateKey: func(logErr workflow.LogError) string {
-			// Create a combined key using type and message
-			return logErr.Type + ":" + logErr.Message
-		},
-		selectMap: nil, // Use single map
-		sortResults: func(results []ErrorSummary) {
-			sort.Slice(results, func(i, j int) bool {
-				// First sort by type (Error before Warning)
-				if results[i].Type != results[j].Type {
-					return results[i].Type == "Error"
-				}
-				// Then by count (descending)
-				return results[i].Count > results[j].Count
-			})
-		},
-	}
-
-	allErrors := aggregateLogErrors(processedRuns, agg)
-
-	// Filter out non-actionable errors
-	var actionableErrors []ErrorSummary
-	for _, err := range allErrors {
-		if isActionableError(err.Message) {
-			actionableErrors = append(actionableErrors, err)
-		}
-	}
-
-	// Limit to top 20 most common errors to keep output concise
-	maxErrors := 20
-	if len(actionableErrors) > maxErrors {
-		actionableErrors = actionableErrors[:maxErrors]
-	}
-
-	return actionableErrors
-}
-
-// buildErrorsSummary aggregates errors and warnings across all runs
-// Returns two slices: errorsSummary and warningsSummary
-// DEPRECATED: Use buildCombinedErrorsSummary instead
-func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSummary) {
-	// Get combined summary
-	combined := buildCombinedErrorsSummary(processedRuns)
-
-	// Separate into errors and warnings
-	var errorsSummary []ErrorSummary
-	var warningsSummary []ErrorSummary
-
-	for _, summary := range combined {
-		if summary.Type == "Error" {
-			errorsSummary = append(errorsSummary, summary)
-		} else {
-			warningsSummary = append(warningsSummary, summary)
-		}
-	}
-
-	// Sort each by count (descending)
-	sort.Slice(errorsSummary, func(i, j int) bool {
-		return errorsSummary[i].Count > errorsSummary[j].Count
-	})
-	sort.Slice(warningsSummary, func(i, j int) bool {
-		return warningsSummary[i].Count > warningsSummary[j].Count
-	})
-
-	return errorsSummary, warningsSummary
+	// Return empty slice since error patterns have been removed
+	return []ErrorSummary{}
 }
 
 // renderLogsJSON outputs the logs data as JSON

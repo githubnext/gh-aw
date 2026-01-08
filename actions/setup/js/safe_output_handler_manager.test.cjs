@@ -593,5 +593,88 @@ describe("Safe Output Handler Manager", () => {
       expect(parentTracked).toBeDefined();
       expect(parentTracked.type).toBe("create_issue");
     });
+
+    it("should collect missing_tool and missing_data messages and include in result", async () => {
+      const messages = [
+        {
+          type: "missing_tool",
+          tool: "docker",
+          reason: "Need containerization",
+          alternatives: "Use VM",
+        },
+        {
+          type: "create_issue",
+          title: "Test Issue",
+          body: "Issue body",
+        },
+        {
+          type: "missing_data",
+          data_type: "api_key",
+          reason: "API credentials missing",
+          context: "GitHub API access",
+        },
+        {
+          type: "missing_tool",
+          tool: "kubectl",
+          reason: "Kubernetes management",
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const handlers = new Map([
+        ["create_issue", mockCreateIssueHandler],
+        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["missing_data", vi.fn().mockResolvedValue({ success: true })],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.missings).toBeDefined();
+      expect(result.missings.missingTools).toHaveLength(2);
+      expect(result.missings.missingData).toHaveLength(1);
+
+      // Check missing tools
+      expect(result.missings.missingTools[0].tool).toBe("docker");
+      expect(result.missings.missingTools[0].reason).toBe("Need containerization");
+      expect(result.missings.missingTools[0].alternatives).toBe("Use VM");
+
+      expect(result.missings.missingTools[1].tool).toBe("kubectl");
+      expect(result.missings.missingTools[1].reason).toBe("Kubernetes management");
+      expect(result.missings.missingTools[1].alternatives).toBeNull();
+
+      // Check missing data
+      expect(result.missings.missingData[0].data_type).toBe("api_key");
+      expect(result.missings.missingData[0].reason).toBe("API credentials missing");
+      expect(result.missings.missingData[0].context).toBe("GitHub API access");
+    });
+
+    it("should return empty arrays when no missing messages present", async () => {
+      const messages = [
+        {
+          type: "create_issue",
+          title: "Test Issue",
+          body: "Issue body",
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const handlers = new Map([["create_issue", mockCreateIssueHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.missings).toBeDefined();
+      expect(result.missings.missingTools).toHaveLength(0);
+      expect(result.missings.missingData).toHaveLength(0);
+    });
   });
 });

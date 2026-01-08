@@ -2001,8 +2001,8 @@
       }
     },
     "network": {
-      "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain wildcard '*' in allowed domains. This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Controls web fetch and search capabilities.",
+      "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities.",
       "examples": [
         "defaults",
         {
@@ -2031,19 +2031,19 @@
           "properties": {
             "allowed": {
               "type": "array",
-              "description": "List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python', 'node', '*.example.com')",
+              "description": "List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python', 'node', '*.example.com'). Wildcard patterns match any subdomain AND the base domain.",
               "items": {
                 "type": "string",
-                "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
+                "description": "Domain name or ecosystem identifier. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself) and ecosystem names like 'python', 'node'."
               },
-              "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions."
+              "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions. Wildcard patterns like '*.example.com' are allowed; only standalone '*' is blocked in strict mode."
             },
             "blocked": {
               "type": "array",
               "description": "List of blocked domains or ecosystem identifiers (e.g., 'python', 'node', 'tracker.example.com'). Blocked domains take precedence over allowed domains.",
               "items": {
                 "type": "string",
-                "description": "Domain name or ecosystem identifier to block (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
+                "description": "Domain name or ecosystem identifier to block. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself) and ecosystem names like 'python', 'node'."
               },
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
             },
@@ -2265,19 +2265,13 @@
               "additionalProperties": false
             },
             "mcp": {
-              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled.",
+              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled. Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.",
               "type": "object",
               "properties": {
-                "command": {
-                  "type": "string",
-                  "$comment": "Mutually exclusive with 'container' - only one execution mode can be specified.",
-                  "description": "Custom command to execute the MCP gateway"
-                },
                 "container": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-                  "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified.",
-                  "description": "Container image for the MCP gateway executable"
+                  "description": "Container image for the MCP gateway executable (required)"
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -2289,14 +2283,13 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Arguments for command or docker run"
+                  "description": "Arguments for docker run"
                 },
                 "entrypointArgs": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "$comment": "Requires 'container' to be specified - entrypoint arguments only apply to container execution.",
                   "description": "Arguments to add after the container image (container entrypoint arguments)"
                 },
                 "env": {
@@ -2321,36 +2314,8 @@
                   "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 }
               },
-              "additionalProperties": false,
-              "anyOf": [
-                {
-                  "required": ["command"]
-                },
-                {
-                  "required": ["container"]
-                },
-                {}
-              ],
-              "not": {
-                "allOf": [
-                  {
-                    "required": ["command"]
-                  },
-                  {
-                    "required": ["container"]
-                  }
-                ]
-              },
-              "allOf": [
-                {
-                  "if": {
-                    "required": ["entrypointArgs"]
-                  },
-                  "then": {
-                    "required": ["container"]
-                  }
-                }
-              ]
+              "required": ["container"],
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -3792,6 +3757,42 @@
             }
           ]
         },
+        "create-project": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating new GitHub Projects v2 boards. Creates a new empty project that can be populated with issues and custom fields. Requires a Personal Access Token (PAT) or GitHub App token with Projects permissions; the GITHUB_TOKEN cannot be used. Safe output items use type=create_project and include: title (project name), owner (org/user login), owner_type ('org' or 'user', default: 'org'), and optional item_url (GitHub issue URL to add as first item). The target-owner can be configured in the workflow frontmatter to provide a default that the agent can use or override.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of create operations to perform (default: 1).",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Must have Projects write permission. Overrides global github-token if specified."
+                },
+                "target-owner": {
+                  "type": "string",
+                  "description": "Optional default target owner (organization or user login, e.g., 'myorg' or 'username') for the new project. If specified, the agent can omit the owner field in the tool call and this default will be used. The agent can still override by providing an owner in the tool call."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable project creation with default configuration (max=1)"
+            },
+            {
+              "enum": [null],
+              "description": "Alternative null value syntax"
+            }
+          ],
+          "default": {
+            "max": 1
+          }
+        },
         "create-project-status-update": {
           "oneOf": [
             {
@@ -4874,6 +4875,53 @@
             }
           ]
         },
+        "missing-data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for reporting missing data required to achieve workflow goals. Encourages AI agents to be truthful about data gaps instead of hallucinating information.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of missing data reports (default: unlimited)",
+                  "minimum": 1
+                },
+                "create-issue": {
+                  "type": "boolean",
+                  "description": "Whether to create or update GitHub issues when data is missing (default: true)",
+                  "default": true
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Prefix for issue titles when creating issues for missing data (default: '[missing data]')",
+                  "default": "[missing data]"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Labels to add to created issues for missing data",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable missing data reporting with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable missing data reporting (false). Missing data reporting is enabled by default when safe-outputs is configured."
+            }
+          ]
+        },
         "noop": {
           "oneOf": [
             {
@@ -5216,6 +5264,16 @@
               "description": "Custom installation instructions template appended to the footer. Available placeholders: {workflow_source}, {workflow_source_url}. Example: '> Install: `gh aw add {workflow_source}`'",
               "examples": ["> Install: `gh aw add {workflow_source}`", "> [Add this workflow]({workflow_source_url})"]
             },
+            "footer-workflow-recompile": {
+              "type": "string",
+              "description": "Custom footer message template for workflow recompile issues. Available placeholders: {workflow_name}, {run_url}, {repository}. Example: '> Workflow sync report by [{workflow_name}]({run_url}) for {repository}'",
+              "examples": ["> Workflow sync report by [{workflow_name}]({run_url}) for {repository}", "> Maintenance report by [{workflow_name}]({run_url})"]
+            },
+            "footer-workflow-recompile-comment": {
+              "type": "string",
+              "description": "Custom footer message template for comments on workflow recompile issues. Available placeholders: {workflow_name}, {run_url}, {repository}. Example: '> Update from [{workflow_name}]({run_url}) for {repository}'",
+              "examples": ["> Update from [{workflow_name}]({run_url}) for {repository}", "> Maintenance update by [{workflow_name}]({run_url})"]
+            },
             "staged-title": {
               "type": "string",
               "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
@@ -5350,8 +5408,8 @@
     "strict": {
       "type": "boolean",
       "default": true,
-      "$comment": "Strict mode enforces several security constraints that are validated in Go code (pkg/workflow/strict_mode_validation.go) rather than JSON Schema: (1) Write Permissions + Safe Outputs: When strict=true AND permissions contains write values (contents:write, issues:write, pull-requests:write), safe-outputs must be configured. This relationship is too complex for JSON Schema as it requires checking if ANY permission property has a 'write' value. (2) Network Requirements: When strict=true, the 'network' field must be present and cannot contain wildcard '*'. (3) MCP Container Network: Custom MCP servers with containers require explicit network configuration. (4) Action Pinning: Actions must be pinned to commit SHAs. These are enforced during compilation via validateStrictMode().",
-      "description": "Enable strict mode validation for enhanced security and compliance. Strict mode enforces: (1) Write Permissions - refuses contents:write, issues:write, pull-requests:write; requires safe-outputs instead, (2) Network Configuration - requires explicit network configuration with no wildcard '*' in allowed domains, (3) Action Pinning - enforces actions pinned to commit SHAs instead of tags/branches, (4) MCP Network - requires network configuration for custom MCP servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or disabled via 'strict: false'. CLI flag takes precedence over frontmatter (gh aw compile --strict enforces strict mode). Defaults to true. See: https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict",
+      "$comment": "Strict mode enforces several security constraints that are validated in Go code (pkg/workflow/strict_mode_validation.go) rather than JSON Schema: (1) Write Permissions + Safe Outputs: When strict=true AND permissions contains write values (contents:write, issues:write, pull-requests:write), safe-outputs must be configured. This relationship is too complex for JSON Schema as it requires checking if ANY permission property has a 'write' value. (2) Network Requirements: When strict=true, the 'network' field must be present and cannot contain standalone wildcard '*' (but patterns like '*.example.com' ARE allowed). (3) MCP Container Network: Custom MCP servers with containers require explicit network configuration. (4) Action Pinning: Actions must be pinned to commit SHAs. These are enforced during compilation via validateStrictMode().",
+      "description": "Enable strict mode validation for enhanced security and compliance. Strict mode enforces: (1) Write Permissions - refuses contents:write, issues:write, pull-requests:write; requires safe-outputs instead, (2) Network Configuration - requires explicit network configuration with no standalone wildcard '*' in allowed domains (patterns like '*.example.com' are allowed), (3) Action Pinning - enforces actions pinned to commit SHAs instead of tags/branches, (4) MCP Network - requires network configuration for custom MCP servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or disabled via 'strict: false'. CLI flag takes precedence over frontmatter (gh aw compile --strict enforces strict mode). Defaults to true. See: https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict",
       "examples": [true, false]
     },
     "safe-inputs": {

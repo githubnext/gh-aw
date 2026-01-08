@@ -53,7 +53,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 	if inlineArgs {
 		// Inline format for Copilot
-		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"--network\", \"host\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
+		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"--network\", \"host\", \"-v\", \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
 			domainsStr := strings.Join(allowedDomains, ";")
 			yaml.WriteString(", \"--allowed-hosts\", \"" + domainsStr + "\"")
@@ -71,6 +71,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                  \"--init\",\n")
 		yaml.WriteString("                  \"--network\",\n")
 		yaml.WriteString("                  \"host\",\n")
+		yaml.WriteString("                  \"-v\",\n")
+		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\",\n")
 		yaml.WriteString("                  \"" + playwrightImage + "\",\n")
 		yaml.WriteString("                  \"--output-dir\",\n")
 		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
@@ -239,7 +241,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		yaml,
 		constants.SafeOutputsMCPServerID,
 		"node",
-		[]string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
+		[]string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
 		envVars,
 		isLast,
 		includeCopilotFields,
@@ -282,6 +284,8 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	yaml.WriteString("            \"--init\",\n")
 	yaml.WriteString("            \"--network\",\n")
 	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("            \"-v\",\n")
+	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\",\n")
 	yaml.WriteString("            \"" + playwrightImage + "\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
@@ -307,7 +311,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
 	yaml.WriteString("          command = \"node\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
+	yaml.WriteString("            \"/opt/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
 	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
@@ -352,6 +356,39 @@ func renderCustomMCPConfigWrapper(yaml *strings.Builder, toolName string, toolCo
 	return nil
 }
 
+// renderCustomMCPConfigWrapperWithContext generates custom MCP server configuration wrapper with workflow context
+// This version includes workflowData to determine if localhost URLs should be rewritten
+func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
+	mcpLog.Printf("Rendering custom MCP config wrapper with context for tool: %s", toolName)
+	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
+
+	// Determine if localhost URLs should be rewritten to host.docker.internal
+	// This is needed when firewall is enabled (agent is not disabled)
+	rewriteLocalhost := workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
+
+	// Use the shared MCP config renderer with JSON format
+	renderer := MCPConfigRenderer{
+		IndentLevel:              "                ",
+		Format:                   "json",
+		RewriteLocalhostToDocker: rewriteLocalhost,
+	}
+
+	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
+	if err != nil {
+		return err
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+
+	return nil
+}
+
 // MCPConfigRenderer contains configuration options for rendering MCP config
 type MCPConfigRenderer struct {
 	// IndentLevel controls the indentation level for properties (e.g., "                " for JSON, "          " for TOML)
@@ -360,6 +397,36 @@ type MCPConfigRenderer struct {
 	Format string
 	// RequiresCopilotFields indicates if the engine requires "type" and "tools" fields (true for copilot engine)
 	RequiresCopilotFields bool
+	// RewriteLocalhostToDocker indicates if localhost URLs should be rewritten to host.docker.internal
+	// This is needed when the agent runs inside a firewall container and needs to access MCP servers on the host
+	RewriteLocalhostToDocker bool
+}
+
+// rewriteLocalhostToDockerHost rewrites localhost URLs to use host.docker.internal
+// This is necessary when MCP servers run on the host machine but are accessed from within
+// a Docker container (e.g., when firewall/sandbox is enabled)
+func rewriteLocalhostToDockerHost(url string) string {
+	// Define the localhost patterns to replace and their docker equivalents
+	// Each pattern is a (prefix, replacement) pair
+	replacements := []struct {
+		prefix      string
+		replacement string
+	}{
+		{"http://localhost", "http://host.docker.internal"},
+		{"https://localhost", "https://host.docker.internal"},
+		{"http://127.0.0.1", "http://host.docker.internal"},
+		{"https://127.0.0.1", "https://host.docker.internal"},
+	}
+
+	for _, r := range replacements {
+		if strings.HasPrefix(url, r.prefix) {
+			newURL := r.replacement + url[len(r.prefix):]
+			mcpLog.Printf("Rewriting localhost URL for Docker access: %s -> %s", url, newURL)
+			return newURL
+		}
+	}
+
+	return url
 }
 
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
@@ -600,14 +667,20 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 			}
 		case "url":
+			// Rewrite localhost URLs to host.docker.internal when running inside firewall container
+			// This allows MCP servers running on the host to be accessed from the container
+			urlValue := mcpConfig.URL
+			if renderer.RewriteLocalhostToDocker {
+				urlValue = rewriteLocalhostToDockerHost(urlValue)
+			}
 			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%surl = \"%s\"\n", renderer.IndentLevel, mcpConfig.URL)
+				fmt.Fprintf(yaml, "%surl = \"%s\"\n", renderer.IndentLevel, urlValue)
 			} else {
 				comma := ","
 				if isLast {
 					comma = ""
 				}
-				fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.URL, comma)
+				fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, urlValue, comma)
 			}
 		case "http_headers":
 			// TOML format for HTTP headers (Codex style)

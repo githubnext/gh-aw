@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,23 +71,10 @@ INFO: Configuration loaded`,
 			require.NoError(t, err, "Failed to create test log file")
 
 			// Parse the log file without an engine (fallback mode)
-			metrics, err := parseLogFileWithEngine(logFile, nil, false, false)
+			_, err = parseLogFileWithEngine(logFile, nil, false, false)
 			require.NoError(t, err, "parseLogFileWithEngine should not return an error")
 
-			// Count errors and warnings
-			errorCount := 0
-			warnCount := 0
-			for _, logErr := range metrics.Errors {
-				switch logErr.Type {
-				case "error":
-					errorCount++
-				case "warning":
-					warnCount++
-				}
-			}
-
-			assert.Equal(t, tt.expectedErrors, errorCount, "Error count mismatch")
-			assert.Equal(t, tt.expectedWarns, warnCount, "Warning count mismatch")
+			// Error patterns have been removed - no error/warning counting
 		})
 	}
 }
@@ -105,9 +91,9 @@ ERROR: Generic error
 	require.NoError(t, err)
 
 	// Test 1: No engine (fallback parser)
-	metricsNoEngine, err := parseLogFileWithEngine(logFile, nil, false, false)
+	_, err = parseLogFileWithEngine(logFile, nil, false, false)
 	require.NoError(t, err)
-	assert.NotEmpty(t, metricsNoEngine.Errors, "Fallback parser should detect errors")
+	// Error patterns have been removed - no error detection
 
 	// Test 2: With engine - the engine will parse using its own logic
 	// We're just testing that the code path works, actual parsing depends on engine
@@ -132,21 +118,8 @@ Done`
 	require.NoError(t, err)
 
 	// Parse without engine (simulating missing aw_info.json)
-	metrics, err := parseLogFileWithEngine(logFile, nil, false, false)
+	_, err = parseLogFileWithEngine(logFile, nil, false, false)
 	require.NoError(t, err)
 
-	// Verify that errors were detected
-	errorCount := 0
-	warnCount := 0
-	for _, logErr := range metrics.Errors {
-		switch logErr.Type {
-		case "error":
-			errorCount++
-		case "warning":
-			warnCount++
-		}
-	}
-
-	assert.Equal(t, 2, errorCount, "Should detect 2 errors")
-	assert.Equal(t, 1, warnCount, "Should detect 1 warning")
+	// Error patterns have been removed - no error/warning detection
 }

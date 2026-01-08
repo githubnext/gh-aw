@@ -197,10 +197,8 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 	// These patterns are designed to match the specific log format of the agent
 	turnPattern := regexp.MustCompile(`(?i)task.*iteration|agent.*turn|step.*\d+`)
 	toolCallPattern := regexp.MustCompile(`(?i)tool.*call|executing.*tool|calling.*(\w+)`)
-	errorPattern := regexp.MustCompile(`(?i)error|exception|failed`)
-	warningPattern := regexp.MustCompile(`(?i)warning|warn`)
 
-	for lineNum, line := range lines {
+	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -248,29 +246,6 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 				metrics.EstimatedCost += jsonMetrics.EstimatedCost
 			}
 		}
-
-		// Collect errors and warnings
-		lowerLine := strings.ToLower(line)
-		if errorPattern.MatchString(lowerLine) && !strings.Contains(lowerLine, "no error") {
-			message := logger.ExtractErrorMessage(line)
-			if message != "" {
-				metrics.Errors = append(metrics.Errors, workflow.LogError{
-					Line:    lineNum + 1,
-					Type:    "error",
-					Message: message,
-				})
-			}
-		}
-		if warningPattern.MatchString(lowerLine) {
-			message := logger.ExtractErrorMessage(line)
-			if message != "" {
-				metrics.Errors = append(metrics.Errors, workflow.LogError{
-					Line:    lineNum + 1,
-					Type:    "warning",
-					Message: message,
-				})
-			}
-		}
 	}
 
 	// Add final sequence if any
@@ -286,8 +261,8 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 	metrics.TokenUsage = maxTokenUsage
 	metrics.Turns = turns
 
-	copilotAgentLog.Printf("Parsed metrics: tokens=%d, cost=$%.4f, turns=%d, errors=%d",
-		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, len(metrics.Errors))
+	copilotAgentLog.Printf("Parsed metrics: tokens=%d, cost=$%.4f, turns=%d",
+		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 
 	return metrics
 }

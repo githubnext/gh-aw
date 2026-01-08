@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -78,7 +80,7 @@ ${{ needs.activation.outputs.text }}
 	}
 
 	// Read the compiled workflow
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -91,16 +93,17 @@ ${{ needs.activation.outputs.text }}
 		t.Error("Compiled workflow should contain interpolation and template rendering step")
 	}
 
-	// Verify GitHub expressions are properly wrapped in template conditionals
-	expectedWrappedExpressions := []string{
-		"{{#if ${{ github.event.issue.number }} }}",
-		"{{#if ${{ github.event.pull_request.number }} }}",
-		"{{#if ${{ needs.activation.outputs.text }} }}",
+	// Verify GitHub expressions are properly replaced with placeholders in template conditionals
+	// After the fix, expressions should be replaced with __GH_AW_*__ placeholders
+	expectedPlaceholderExpressions := []string{
+		"{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}",
+		"{{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}",
+		"{{#if __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__ }}",
 	}
 
-	for _, expectedExpr := range expectedWrappedExpressions {
+	for _, expectedExpr := range expectedPlaceholderExpressions {
 		if !strings.Contains(compiledStr, expectedExpr) {
-			t.Errorf("Compiled workflow should contain wrapped expression: %s", expectedExpr)
+			t.Errorf("Compiled workflow should contain placeholder expression: %s", expectedExpr)
 		}
 	}
 
@@ -173,7 +176,7 @@ This expression needs wrapping.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -258,7 +261,7 @@ Steps expression - will be wrapped.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -266,25 +269,27 @@ Steps expression - will be wrapped.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify all expressions are wrapped (simplified behavior)
-	if !strings.Contains(compiledStr, "{{#if ${{ github.event.issue.number }} }}") {
-		t.Error("GitHub expression should be wrapped")
+	// Verify all expressions are replaced with placeholders (correct behavior)
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}") {
+		t.Error("GitHub expression should be replaced with placeholder")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ steps.my_step.outputs.value }} }}") {
-		t.Error("Steps expression should be wrapped")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_STEPS_MY_STEP_OUTPUTS_VALUE__ }}") {
+		t.Error("Steps expression should be replaced with placeholder")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ true }} }}") {
-		t.Error("Literal 'true' should be wrapped")
+	// Verify that literal values are also replaced with placeholders
+	// true and false literals get normalized to __GH_AW_TRUE__ and __GH_AW_FALSE__
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_TRUE__ }}") {
+		t.Error("Literal 'true' should be replaced with placeholder")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ false }} }}") {
-		t.Error("Literal 'false' should be wrapped")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_FALSE__ }}") {
+		t.Error("Literal 'false' should be replaced with placeholder")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ some_variable }} }}") {
-		t.Error("Unknown variable should be wrapped")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_SOME_VARIABLE__ }}") {
+		t.Error("Unknown variable should be replaced with placeholder")
 	}
 
 	// Make sure we didn't create invalid double-wrapping

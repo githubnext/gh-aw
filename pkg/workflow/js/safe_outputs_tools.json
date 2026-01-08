@@ -867,5 +867,66 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "create_project",
+    "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title for the new project. Should be descriptive and unique within the owner's projects."
+        },
+        "owner": {
+          "type": "string",
+          "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter."
+        },
+        "owner_type": {
+          "type": "string",
+          "enum": ["org", "user"],
+          "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'."
+        },
+        "item_url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+$",
+          "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123')."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "missing_data",
+    "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "data_type",
+        "reason"
+      ],
+      "properties": {
+        "data_type": {
+          "type": "string",
+          "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Explanation of why this data is needed to complete the task (max 256 characters)."
+        },
+        "context": {
+          "type": "string",
+          "description": "Additional context about the missing data or where it should come from (max 256 characters)."
+        },
+        "alternatives": {
+          "type": "string",
+          "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters)."
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]

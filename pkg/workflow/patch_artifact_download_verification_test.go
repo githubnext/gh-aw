@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -49,7 +51,7 @@ in the consolidated safe_outputs job when create-pull-request is enabled.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -143,7 +145,7 @@ push-to-pull-request-branch is enabled.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -196,7 +198,7 @@ only non-PR safe outputs are enabled.
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

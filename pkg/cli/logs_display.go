@@ -32,7 +32,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 	logsDisplayLog.Printf("Displaying logs overview: runs=%d, verbose=%v", len(processedRuns), verbose)
 
 	// Prepare table data
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Noops", "Created", "Logs Path"}
+	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing Tools", "Missing Data", "Noops", "Created", "Logs Path"}
 	var rows [][]string
 
 	var totalTokens int
@@ -42,6 +42,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 	var totalErrors int
 	var totalWarnings int
 	var totalMissingTools int
+	var totalMissingData int
 	var totalNoops int
 
 	for _, pr := range processedRuns {
@@ -101,6 +102,25 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		}
 		totalMissingTools += run.MissingToolCount
 
+		// Format missing data
+		var missingDataStr string
+		if verbose && len(pr.MissingData) > 0 {
+			// In verbose mode, show actual data types
+			dataTypes := make([]string, len(pr.MissingData))
+			for i, data := range pr.MissingData {
+				dataTypes[i] = data.DataType
+			}
+			missingDataStr = strings.Join(dataTypes, ", ")
+			// Truncate if too long
+			if len(missingDataStr) > 30 {
+				missingDataStr = missingDataStr[:27] + "..."
+			}
+		} else {
+			// In normal mode, just show the count
+			missingDataStr = fmt.Sprintf("%d", run.MissingDataCount)
+		}
+		totalMissingData += run.MissingDataCount
+
 		// Format noops
 		var noopsStr string
 		if verbose && len(pr.Noops) > 0 {
@@ -150,6 +170,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 			errorsStr,
 			warningsStr,
 			missingToolsStr,
+			missingDataStr,
 			noopsStr,
 			run.CreatedAt.Format("2006-01-02"),
 			relPath,
@@ -169,6 +190,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		fmt.Sprintf("%d", totalErrors),
 		fmt.Sprintf("%d", totalWarnings),
 		fmt.Sprintf("%d", totalMissingTools),
+		fmt.Sprintf("%d", totalMissingData),
 		fmt.Sprintf("%d", totalNoops),
 		"",
 		"",

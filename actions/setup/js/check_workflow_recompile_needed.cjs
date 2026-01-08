@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker } = require("./messages_footer.cjs");
+const fs = require("fs");
 
 /**
  * Check if workflows need recompilation and create an issue if needed.
@@ -67,7 +69,7 @@ async function main() {
   }
 
   // Search for existing open issue about workflow recompilation
-  const issueTitle = "Workflows need recompilation";
+  const issueTitle = "[aw] agentic workflows out of sync";
   const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${issueTitle}"`;
 
   core.info(`Searching for existing issue with title: "${issueTitle}"`);
@@ -86,7 +88,22 @@ async function main() {
       // Add a comment to the existing issue with the new workflow run info
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
-      const commentBody = `Workflows are still out of sync as of ${new Date().toISOString()}.\n\nSee [workflow run](${runUrl}) for details.`;
+
+      // Get workflow metadata for footer
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
+      const repository = `${owner}/${repo}`;
+
+      // Create custom footer for workflow recompile comment
+      const ctx = {
+        workflowName,
+        runUrl,
+        repository,
+      };
+
+      const footer = getFooterWorkflowRecompileCommentMessage(ctx);
+      const xmlMarker = generateXMLMarker(workflowName, runUrl);
+
+      const commentBody = `Workflows are still out of sync as of ${new Date().toISOString()}.\n\nSee [workflow run](${runUrl}) for details.\n\n---\n${footer}\n\n${xmlMarker}`;
 
       await github.rest.issues.createComment({
         owner,
@@ -109,55 +126,36 @@ async function main() {
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
 
-  // Build the issue body with agentic instructions
-  const issueBody = `## Problem
+  // Read the issue template from the prompts directory
+  const templatePath = "/opt/gh-aw/prompts/workflow_recompile_issue.md";
+  let issueTemplate;
+  try {
+    issueTemplate = fs.readFileSync(templatePath, "utf8");
+  } catch (error) {
+    core.error(`Failed to read issue template from ${templatePath}: ${getErrorMessage(error)}`);
+    throw error;
+  }
 
-The workflow lock files (\`.lock.yml\`) are out of sync with their source markdown files (\`.md\`). This means the workflows that run in GitHub Actions are not using the latest configuration.
+  // Replace placeholders in the template
+  const diffContent = detailedDiff.substring(0, 50000) + (detailedDiff.length > 50000 ? "\n\n... (diff truncated)" : "");
+  const repository = `${owner}/${repo}`;
 
-## What needs to be done
+  let issueBody = issueTemplate.replace("{DIFF_CONTENT}", diffContent).replace("{REPOSITORY}", repository);
 
-The workflows need to be recompiled to regenerate the lock files from the markdown sources.
+  // Get workflow metadata for footer
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
 
-## Instructions for GitHub Copilot
+  // Create custom footer for workflow recompile issues
+  const ctx = {
+    workflowName,
+    runUrl,
+    repository,
+  };
 
-Please recompile all workflows by running the following command:
-
-\`\`\`bash
-make recompile
-\`\`\`
-
-This will:
-1. Build the latest version of \`gh-aw\`
-2. Compile all workflow markdown files to YAML lock files
-3. Ensure all workflows are up to date
-
-After recompiling, commit the changes with a message like:
-\`\`\`
-Recompile workflows to update lock files
-\`\`\`
-
-## Detected Changes
-
-The following workflow lock files have changes:
-
-<details>
-<summary>View diff</summary>
-
-\`\`\`diff
-${detailedDiff.substring(0, 50000)}${detailedDiff.length > 50000 ? "\n\n... (diff truncated)" : ""}
-\`\`\`
-
-</details>
-
-## References
-
-- **Failed Check:** [Workflow Run](${runUrl})
-- **Repository:** ${owner}/${repo}
-
----
-
-> This issue was automatically created by the agentics maintenance workflow.
-`;
+  // Use custom footer template if configured, with XML marker for traceability
+  const footer = getFooterWorkflowRecompileMessage(ctx);
+  const xmlMarker = generateXMLMarker(workflowName, runUrl);
+  issueBody += "\n\n---\n" + footer + "\n\n" + xmlMarker + "\n";
 
   try {
     const newIssue = await github.rest.issues.create({

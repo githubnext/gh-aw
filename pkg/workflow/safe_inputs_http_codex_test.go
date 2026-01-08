@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // TestCodexSafeInputsHTTPTransport verifies that Codex engine uses HTTP transport for safe-inputs
@@ -40,7 +42,7 @@ Test safe-inputs HTTP transport for Codex
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -86,7 +88,7 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Codex config should not use stdio transport (command = 'node'), should use HTTP")
 	}
 
-	if strings.Contains(codexConfigSection, `args = [`) && strings.Contains(codexConfigSection, `/tmp/gh-aw/safe-inputs/mcp-server.cjs`) {
+	if strings.Contains(codexConfigSection, `args = [`) && strings.Contains(codexConfigSection, `/opt/gh-aw/safe-inputs/mcp-server.cjs`) {
 		t.Error("Codex config should not use stdio transport with mcp-server.cjs args, should use HTTP")
 	}
 
@@ -149,7 +151,7 @@ Test safe-inputs with secrets
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

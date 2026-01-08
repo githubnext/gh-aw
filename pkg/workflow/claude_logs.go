@@ -31,7 +31,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	// Process line by line for error counting and fallback parsing
 	lines := strings.Split(logContent, "\n")
 
-	for lineNum, line := range lines {
+	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -61,31 +61,6 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 				continue
 			}
 		}
-
-		// Collect individual error and warning details
-		lowerLine := strings.ToLower(line)
-		if strings.Contains(lowerLine, "error") {
-			// Extract error message (remove timestamp and common prefixes)
-			message := logger.ExtractErrorMessage(line)
-			if message != "" {
-				metrics.Errors = append(metrics.Errors, LogError{
-					Line:    lineNum + 1, // 1-based line numbering
-					Type:    "error",
-					Message: message,
-				})
-			}
-		}
-		if strings.Contains(lowerLine, "warning") {
-			// Extract warning message (remove timestamp and common prefixes)
-			message := logger.ExtractErrorMessage(line)
-			if message != "" {
-				metrics.Errors = append(metrics.Errors, LogError{
-					Line:    lineNum + 1, // 1-based line numbering
-					Type:    "warning",
-					Message: message,
-				})
-			}
-		}
 	}
 
 	// If no result payload was found, use the maximum from streaming JSON
@@ -93,7 +68,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		metrics.TokenUsage = maxTokenUsage
 	}
 
-	claudeLogsLog.Printf("Parsed log metrics: tokens=%d, cost=$%.4f, turns=%d, errors=%d", metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, len(metrics.Errors))
+	claudeLogsLog.Printf("Parsed log metrics: tokens=%d, cost=$%.4f, turns=%d", metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 	return metrics
 }
 

@@ -64,6 +64,6 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 		yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 
 		// Add the JavaScript for checking out the PR branch
-		WriteJavaScriptToYAML(yaml, "const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs'); await main();")
+		WriteJavaScriptToYAML(yaml, "const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs'); await main();")
 	}
 }

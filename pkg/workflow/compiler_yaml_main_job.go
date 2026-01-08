@@ -90,7 +90,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	// This must be created before custom steps so they can use the temp directory
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
-	yaml.WriteString("        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh\n")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh\n")
 
 	// Add custom steps if present
 	if data.CustomSteps != "" {
@@ -296,9 +296,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add safe-outputs assets artifact upload (after agent execution)
 	// This creates a separate artifact for assets that will be downloaded by upload_assets job
 	generateSafeOutputsAssetsArtifactUpload(yaml, data)
-
-	// Add error validation for AI execution logs
-	c.generateErrorValidation(yaml, engine, data)
 
 	// Collect git patch path if safe-outputs with PR operations is configured
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server

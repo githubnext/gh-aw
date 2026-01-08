@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
@@ -43,7 +45,7 @@ Test workflow with custom pre-activation steps
 			t.Fatalf("CompileWorkflow() returned error: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -93,7 +95,7 @@ Test workflow with custom pre-activation outputs
 			t.Fatalf("CompileWorkflow() returned error: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -142,7 +144,7 @@ Test workflow with both custom steps and outputs
 			t.Fatalf("CompileWorkflow() returned error: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -224,7 +226,7 @@ Test that pre-activation is not added as a custom job
 			t.Fatalf("CompileWorkflow() returned error: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -283,7 +285,7 @@ Test that both pre-activation and pre_activation are imported
 			t.Fatalf("CompileWorkflow() returned error: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)

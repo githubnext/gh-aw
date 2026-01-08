@@ -12,7 +12,7 @@ import (
 // do not use require() statements with "actions/" paths or "@actions/*" npm packages.
 //
 // When these .cjs files are deployed to GitHub Actions runners, they are copied
-// to /tmp/gh-aw/actions/ as a flat directory structure. Any require() statements
+// to /opt/gh-aw/actions/ as a flat directory structure. Any require() statements
 // that reference "actions/..." paths or "@actions/*" npm packages would fail because:
 // 1. There's no parent "actions/" directory in the runtime environment
 // 2. All files are in the same flat directory
@@ -136,7 +136,7 @@ func TestCJSFilesNoActionsRequires(t *testing.T) {
 			t.Errorf("  - %s", violation)
 		}
 		t.Error("\nWhen .cjs files are deployed to GitHub Actions runners, they are copied")
-		t.Error("to /tmp/gh-aw/actions/ as a flat directory. Any require() statements that")
+		t.Error("to /opt/gh-aw/actions/ as a flat directory. Any require() statements that")
 		t.Error("reference 'actions/...' paths or '@actions/*' npm packages will fail at runtime")
 		t.Error("because:")
 		t.Error("  1. The parent 'actions/' directory structure doesn't exist")

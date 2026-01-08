@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -63,7 +65,7 @@ This workflow imports an MCP server with headers and url fields.
 	}
 
 	// Read the generated lock file
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	lockFileContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -120,7 +122,7 @@ imports:
 	}
 
 	// Verify lock file was created
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 		t.Fatal("Expected lock file to be created")
 	}
@@ -172,7 +174,7 @@ imports:
 	}
 
 	// Verify lock file was created
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 		t.Fatal("Expected lock file to be created")
 	}
@@ -220,7 +222,7 @@ imports:
 	}
 
 	// Verify lock file was created
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 		t.Fatal("Expected lock file to be created")
 	}

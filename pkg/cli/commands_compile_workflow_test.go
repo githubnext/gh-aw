@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -234,7 +236,7 @@ Test compilation with invalid engine.
 					t.Errorf("Expected no error but got: %v", err)
 				} else {
 					// Verify lock file was created
-					lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+					lockFile := stringutil.MarkdownToLockFile(workflowFile)
 					if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 						t.Errorf("Expected lock file %s to be created", lockFile)
 					}

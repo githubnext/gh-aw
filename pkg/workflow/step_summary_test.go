@@ -24,6 +24,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+features:
+  dangerous-permissions-write: true
 strict: false
 features:
   dangerous-permissions-write: true
@@ -250,7 +252,7 @@ This workflow tests the workflow overview for Claude engine.
 			}
 
 			// Verify workflow overview uses require to call the .cjs file
-			if !strings.Contains(lockContent, "const { generateWorkflowOverview } = require('/tmp/gh-aw/actions/generate_workflow_overview.cjs');") {
+			if !strings.Contains(lockContent, "const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');") {
 				t.Error("Expected workflow overview step to use require to invoke generate_workflow_overview.cjs")
 			}
 			if !strings.Contains(lockContent, "await generateWorkflowOverview(core);") {

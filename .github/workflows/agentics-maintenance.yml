@@ -54,15 +54,15 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
 
       - name: Close expired discussions
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/close_expired_discussions.cjs');
+            const { main } = require('/opt/gh-aw/actions/close_expired_discussions.cjs');
             await main();
 
   close-expired-issues:
@@ -80,15 +80,15 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
 
       - name: Close expired issues
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/close_expired_issues.cjs');
+            const { main } = require('/opt/gh-aw/actions/close_expired_issues.cjs');
             await main();
 
   compile-workflows:
@@ -120,15 +120,15 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
 
       - name: Check for out-of-sync workflows and create issue if needed
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/check_workflow_recompile_needed.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_workflow_recompile_needed.cjs');
             await main();
 
   zizmor-scan:

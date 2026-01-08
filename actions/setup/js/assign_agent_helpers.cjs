@@ -214,13 +214,47 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
   } catch (error) {
     const errorMessage = getErrorMessage(error);
 
+    // Check for 502 Bad Gateway errors - these often occur but the assignment still succeeds
+    // prettier-ignore
+    const err = /** @type {any} */ (error);
+    const is502Error = err?.response?.status === 502 || errorMessage.includes("502 Bad Gateway");
+
+    if (is502Error) {
+      core.warning(`Received 502 error from cloud gateway during agent assignment, but assignment may have succeeded`);
+      core.info(`502 error details logged for troubleshooting`);
+
+      // Log the 502 error details without failing
+      try {
+        if (error && typeof error === "object") {
+          const details = {
+            ...(err.errors && { errors: err.errors }),
+            ...(err.response && { response: err.response }),
+            ...(err.data && { data: err.data }),
+          };
+          const serialized = JSON.stringify(details, null, 2);
+          if (serialized !== "{}") {
+            core.info("502 error details (for troubleshooting):");
+            serialized
+              .split("\n")
+              .filter(line => line.trim())
+              .forEach(line => core.info(line));
+          }
+        }
+      } catch (loggingErr) {
+        const loggingErrMsg = loggingErr instanceof Error ? loggingErr.message : String(loggingErr);
+        core.debug(`Failed to serialize 502 error details: ${loggingErrMsg}`);
+      }
+
+      // Treat 502 as success since assignment typically succeeds despite the error
+      core.info(`Treating 502 error as success - agent assignment likely completed`);
+      return true;
+    }
+
     // Debug: surface the raw GraphQL error structure for troubleshooting fine-grained permission issues
     try {
       core.debug(`Raw GraphQL error message: ${errorMessage}`);
       if (error && typeof error === "object") {
         // Common GraphQL error shapes: error.errors (array), error.data, error.response
-        // prettier-ignore
-        const err = /** @type {any} */ (error);
         const details = {
           ...(err.errors && { errors: err.errors }),
           ...(err.response && { response: err.response }),

@@ -27,6 +27,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -393,7 +395,7 @@ func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purg
 
 	// Create expected files list
 	for _, mdFile := range mdFiles {
-		lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(mdFile)
 		data.expectedLockFiles = append(data.expectedLockFiles, lockFile)
 
 		if strings.HasSuffix(mdFile, ".campaign.md") {

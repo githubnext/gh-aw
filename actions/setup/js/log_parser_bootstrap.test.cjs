@@ -203,6 +203,40 @@ describe("log_parser_bootstrap.cjs", () => {
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile), (process.env.GH_AW_SAFE_OUTPUTS = "/non/existent/file.jsonl"));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false });
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.warning).not.toHaveBeenCalled(), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
+        }),
+        it("should transform conversation.md headers for Copilot parser", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const conversationMd = path.join(tmpDir, "conversation.md");
+          const conversationContent = `# Main Title
+
+## Section 1
+
+Some content here.
+
+### Subsection
+
+More content.`;
+
+          fs.writeFileSync(conversationMd, conversationContent);
+          process.env.GH_AW_AGENT_OUTPUT = tmpDir;
+
+          const mockParseLog = vi.fn();
+          runLogParser({ parseLog: mockParseLog, parserName: "Copilot", supportsDirectories: true });
+
+          // Should transform headers (# to ##, ## to ###, etc.)
+          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+          expect(summaryCall).toBeDefined();
+          expect(summaryCall[0]).toContain("## Main Title");
+          expect(summaryCall[0]).toContain("### Section 1");
+          expect(summaryCall[0]).toContain("#### Subsection");
+          // Verify the original header level was transformed (check start of line)
+          expect(summaryCall[0].split("\n")[0]).toBe("## Main Title");
+
+          // Parser should not be called since conversation.md is used directly
+          expect(mockParseLog).not.toHaveBeenCalled();
+
+          fs.unlinkSync(conversationMd);
+          fs.rmdirSync(tmpDir);
         }));
     }));
 });

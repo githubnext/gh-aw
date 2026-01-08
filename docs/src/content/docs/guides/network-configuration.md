@@ -68,16 +68,50 @@ network:
 
 ## Custom Domains
 
-Add specific domains for your services:
+Add specific domains for your services. Both base domains and wildcard patterns are supported:
 
 ```yaml
 network:
   allowed:
     - defaults
     - python
-    - "api.example.com"
-    - "*.cdn.example.com"  # Wildcard for subdomains
+    - "api.example.com"        # Matches api.example.com and subdomains
+    - "*.cdn.example.com"      # Wildcard: matches any subdomain of cdn.example.com
 ```
+
+**Wildcard pattern behavior:**
+- `*.example.com` matches `sub.example.com`, `deep.nested.example.com`, and `example.com`
+- Only single wildcards at the start are supported (e.g., `*.*.example.com` is invalid)
+
+:::tip
+Both `example.com` and `*.example.com` match subdomains. Use wildcards when you want to explicitly document that subdomain access is expected.
+:::
+
+
+## Protocol-Specific Filtering
+
+Restrict domains to specific protocols for enhanced security (Copilot engine with AWF firewall):
+
+```yaml
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - "https://secure.api.example.com"   # HTTPS-only
+    - "http://legacy.internal.com"       # HTTP-only (legacy systems)
+    - "example.org"                      # Both protocols (default)
+sandbox:
+  agent: awf  # Firewall enabled
+```
+
+**Use Cases:**
+- **HTTPS-only**: External APIs, production services
+- **HTTP-only**: Legacy internal systems, development endpoints
+- **Mixed**: Gradual HTTP → HTTPS migration
+
+**Validation:** Invalid protocols (e.g., `ftp://`) are rejected at compile time.
+
+See [Network Permissions - Protocol-Specific Filtering](/gh-aw/reference/network/#protocol-specific-domain-filtering) for complete details.
 
 ## Security Best Practices
 

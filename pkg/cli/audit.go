@@ -245,8 +245,8 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	run.TokenUsage = metrics.TokenUsage
 	run.EstimatedCost = metrics.EstimatedCost
 	run.Turns = metrics.Turns
-	run.ErrorCount = workflow.CountErrors(metrics.Errors)
-	run.WarningCount = workflow.CountWarnings(metrics.Errors)
+	run.ErrorCount = 0
+	run.WarningCount = 0
 	run.LogsPath = runOutputDir
 
 	// Calculate duration
@@ -272,6 +272,12 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	missingTools, err := extractMissingToolsFromRun(runOutputDir, run, verbose)
 	if err != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools: %v", err)))
+	}
+
+	// Extract missing data
+	missingData, err := extractMissingDataFromRun(runOutputDir, run, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data: %v", err)))
 	}
 
 	// Extract noops
@@ -316,6 +322,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		FirewallAnalysis:        firewallAnalysis,
 		RedactedDomainsAnalysis: redactedDomainsAnalysis,
 		MissingTools:            missingTools,
+		MissingData:             missingData,
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
 		JobDetails:              jobDetails,
@@ -379,6 +386,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		FirewallAnalysis:        firewallAnalysis,
 		RedactedDomainsAnalysis: redactedDomainsAnalysis,
 		MissingTools:            missingTools,
+		MissingData:             missingData,
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
 		ArtifactsList:           artifacts,
@@ -784,6 +792,25 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 		}
 	}
 
+	// Missing Data
+	if len(processedRun.MissingData) > 0 {
+		report.WriteString("## Missing Data\n\n")
+		for _, data := range processedRun.MissingData {
+			fmt.Fprintf(&report, "### %s\n\n", data.DataType)
+			fmt.Fprintf(&report, "- **Reason**: %s\n", data.Reason)
+			if data.Context != "" {
+				fmt.Fprintf(&report, "- **Context**: %s\n", data.Context)
+			}
+			if data.Alternatives != "" {
+				fmt.Fprintf(&report, "- **Alternatives**: %s\n", data.Alternatives)
+			}
+			if data.Timestamp != "" {
+				fmt.Fprintf(&report, "- **Timestamp**: %s\n", data.Timestamp)
+			}
+			report.WriteString("\n")
+		}
+	}
+
 	// No-Op Messages
 	if len(processedRun.Noops) > 0 {
 		report.WriteString("## No-Op Messages\n\n")
@@ -806,28 +833,6 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 			fmt.Fprintf(&report, "This run had **%d warning(s)**. ", run.WarningCount)
 		}
 		report.WriteString("\n\n")
-
-		// Display individual errors and warnings using compiler error format
-		if len(metrics.Errors) > 0 {
-			report.WriteString("### Errors and Warnings\n\n")
-			report.WriteString("```\n")
-			for _, logErr := range metrics.Errors {
-				// Create a CompilerError for formatting
-				compilerErr := console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   logErr.File,
-						Line:   logErr.Line,
-						Column: 1, // Default to column 1 for log errors
-					},
-					Type:    logErr.Type,
-					Message: logErr.Message,
-				}
-				// Format the error using console.FormatError and add to report
-				formattedErr := console.FormatError(compilerErr)
-				report.WriteString(formattedErr)
-			}
-			report.WriteString("```\n\n")
-		}
 	}
 
 	// Downloaded Files Section

@@ -9,6 +9,7 @@
  */
 
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
+const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 
 /**
  * @typedef {Object} FooterContext
@@ -64,6 +65,49 @@ function getFooterInstallMessage(ctx) {
 
   // Use custom installation message if configured
   return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
+}
+
+/**
+ * @typedef {Object} WorkflowRecompileContext
+ * @property {string} workflowName - Name of the workflow
+ * @property {string} runUrl - URL of the workflow run
+ * @property {string} repository - Repository name (owner/repo)
+ */
+
+/**
+ * Get the footer message for workflow recompile issues, using custom template if configured.
+ * @param {WorkflowRecompileContext} ctx - Context for footer generation
+ * @returns {string} Footer message for workflow recompile issues
+ */
+function getFooterWorkflowRecompileMessage(ctx) {
+  const messages = getMessages();
+
+  // Create context with both camelCase and snake_case keys
+  const templateContext = toSnakeCase(ctx);
+
+  // Default footer template - pirate themed! 🏴‍☠️
+  const defaultFooter = "> Ahoy! This treasure was crafted by [🏴‍☠️ {workflow_name}]({run_url})";
+
+  // Use custom workflow recompile footer if configured, otherwise use default footer
+  return messages?.footerWorkflowRecompile ? renderTemplate(messages.footerWorkflowRecompile, templateContext) : renderTemplate(defaultFooter, templateContext);
+}
+
+/**
+ * Get the footer message for comments on workflow recompile issues, using custom template if configured.
+ * @param {WorkflowRecompileContext} ctx - Context for footer generation
+ * @returns {string} Footer message for comments on workflow recompile issues
+ */
+function getFooterWorkflowRecompileCommentMessage(ctx) {
+  const messages = getMessages();
+
+  // Create context with both camelCase and snake_case keys
+  const templateContext = toSnakeCase(ctx);
+
+  // Default footer template - pirate themed! 🏴‍☠️
+  const defaultFooter = "> Ahoy! This update was brought to ye by [🏴‍☠️ {workflow_name}]({run_url})";
+
+  // Use custom workflow recompile comment footer if configured, otherwise use default footer
+  return messages?.footerWorkflowRecompileComment ? renderTemplate(messages.footerWorkflowRecompileComment, templateContext) : renderTemplate(defaultFooter, templateContext);
 }
 
 /**
@@ -156,6 +200,12 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     footer += "\n>\n" + installMessage;
   }
 
+  // Add missing tools and data sections if available
+  const missingInfoSections = getMissingInfoSections();
+  if (missingInfoSections) {
+    footer += missingInfoSections;
+  }
+
   // Add XML comment marker for traceability
   footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
 
@@ -166,6 +216,8 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
 module.exports = {
   getFooterMessage,
   getFooterInstallMessage,
+  getFooterWorkflowRecompileMessage,
+  getFooterWorkflowRecompileCommentMessage,
   generateFooterWithMessages,
   generateXMLMarker,
 };

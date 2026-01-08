@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // ============================================================================
@@ -93,7 +95,7 @@ This is a test workflow with cache-memory enabled.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -157,7 +159,7 @@ This is a test workflow without cache-memory.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -214,7 +216,7 @@ This is a test workflow with multiple cache-memory entries.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -281,7 +283,7 @@ This is a test workflow with playwright enabled.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -295,7 +297,7 @@ This is a test workflow with playwright enabled.
 	}
 
 	// Test 2: Verify the cat command for playwright prompt file is included
-	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/playwright_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/playwright_prompt.md\" >> \"$GH_AW_PROMPT\"") {
 		t.Error("Expected cat command for playwright prompt file in generated workflow")
 	}
 
@@ -335,7 +337,7 @@ This is a test workflow without playwright.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -388,7 +390,7 @@ This is a test workflow to verify playwright instructions come after temp folder
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -455,7 +457,7 @@ This is a test workflow with issue_comment trigger.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -469,7 +471,7 @@ This is a test workflow with issue_comment trigger.
 	}
 
 	// Test 2: Verify the cat command for PR context prompt file is included
-	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/pr_context_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/pr_context_prompt.md\" >> \"$GH_AW_PROMPT\"") {
 		t.Error("Expected cat command for PR context prompt file in generated workflow")
 	}
 
@@ -511,7 +513,7 @@ This is a test workflow with command trigger.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -560,7 +562,7 @@ This is a test workflow with push trigger only.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -611,7 +613,7 @@ This is a test workflow without contents read permission.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)

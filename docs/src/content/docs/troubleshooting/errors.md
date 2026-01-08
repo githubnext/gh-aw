@@ -384,11 +384,11 @@ strict mode: write permission 'contents: write' is not allowed
 
 ```text
 strict mode: wildcard '*' is not allowed in network.allowed domains
-```text
+```
 
-**Cause:** The workflow uses `*` wildcard in network.allowed domains when compiled with `--strict` flag. Strict mode requires specific domain patterns.
+**Cause:** The workflow uses a standalone `*` wildcard in network.allowed domains when compiled with `--strict` flag. Strict mode prohibits unrestricted network access via `*` but does allow specific wildcard patterns like `*.example.com`.
 
-**Solution:** Replace wildcard with specific domains (e.g., `githubusercontent.com` which automatically includes all subdomains) or use `network: defaults`.
+**Solution:** Replace the standalone `*` wildcard with specific domains, wildcard patterns (e.g., `*.cdn.example.com`), or ecosystem identifiers (e.g., `python`, `node`). Alternatively, use `network: defaults` for basic infrastructure access.
 
 ### HTTP MCP Tool Missing Required URL Field
 

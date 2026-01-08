@@ -193,10 +193,6 @@ Task step 1 complete
 				t.Errorf("Expected %d turns, got %d", tt.expectedTurns, metrics.Turns)
 			}
 
-			if tt.expectedErrors > 0 && len(metrics.Errors) != tt.expectedErrors {
-				t.Errorf("Expected %d errors/warnings, got %d", tt.expectedErrors, len(metrics.Errors))
-			}
-
 			if tt.expectedTools > 0 && len(metrics.ToolCalls) < 1 {
 				t.Errorf("Expected tool calls to be detected, got none")
 			}
@@ -336,10 +332,6 @@ Tool call: github_create_pr
 		t.Error("Expected tool calls to be extracted from agent log")
 	}
 
-	if len(metrics.Errors) < 1 {
-		t.Error("Expected errors to be extracted from agent log")
-	}
-
 	// Verify token usage was extracted (may not always be present in all logs)
 	// This is a best-effort check - token usage extraction from JSON is optional
 	if metrics.TokenUsage < 1 {
@@ -386,10 +378,6 @@ ERROR: Test error
 	// Verify fields are properly set
 	if metrics.Turns != 1 {
 		t.Errorf("Expected 1 turn, got %d", metrics.Turns)
-	}
-
-	if len(metrics.Errors) != 1 {
-		t.Errorf("Expected 1 error, got %d", len(metrics.Errors))
 	}
 
 	if len(metrics.ToolCalls) < 1 {

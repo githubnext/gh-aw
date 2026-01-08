@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
@@ -64,7 +64,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	}
 
 	// Always validate that the generated lock file is valid YAML (CLI requirement)
-	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(filePath)
 	if _, err := os.Stat(lockFile); err != nil {
 		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
 		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
@@ -132,7 +132,7 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	}
 
 	// Always validate that the generated lock file is valid YAML (CLI requirement)
-	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(filePath)
 	if _, err := os.Stat(lockFile); err != nil {
 		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
 		// Lock file doesn't exist (likely due to no-emit), skip YAML validation

@@ -336,11 +336,13 @@ type SafeOutputsConfig struct {
 	CreateAgentSessions             *CreateAgentSessionConfig              `yaml:"create-agent-session,omitempty"`         // Create GitHub Copilot agent sessions
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`               // Smart project board management (create/add/update)
 	CopyProjects                    *CopyProjectsConfig                    `yaml:"copy-project,omitempty"`                 // Copy GitHub Projects V2
+	CreateProjects                  *CreateProjectsConfig                  `yaml:"create-project,omitempty"`               // Create GitHub Projects V2
 	CreateProjectStatusUpdates      *CreateProjectStatusUpdateConfig       `yaml:"create-project-status-update,omitempty"` // Create GitHub project status updates
 	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`               // Link issues as sub-issues
 	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`                 // Hide comments
 	DispatchWorkflow                *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"`            // Dispatch workflow_dispatch events to other workflows
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`                 // Optional for reporting missing functionality
+	MissingData                     *MissingDataConfig                     `yaml:"missing-data,omitempty"`                 // Optional for reporting missing data required to achieve goals
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`                         // No-op output for logging only (always available as fallback)
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`             // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
@@ -358,14 +360,16 @@ type SafeOutputsConfig struct {
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages
 type SafeOutputMessagesConfig struct {
-	Footer            string `yaml:"footer,omitempty" json:"footer,omitempty"`                        // Custom footer message template
-	FooterInstall     string `yaml:"footer-install,omitempty" json:"footerInstall,omitempty"`         // Custom installation instructions template
-	StagedTitle       string `yaml:"staged-title,omitempty" json:"stagedTitle,omitempty"`             // Custom staged mode title template
-	StagedDescription string `yaml:"staged-description,omitempty" json:"stagedDescription,omitempty"` // Custom staged mode description template
-	RunStarted        string `yaml:"run-started,omitempty" json:"runStarted,omitempty"`               // Custom workflow activation message template
-	RunSuccess        string `yaml:"run-success,omitempty" json:"runSuccess,omitempty"`               // Custom workflow success message template
-	RunFailure        string `yaml:"run-failure,omitempty" json:"runFailure,omitempty"`               // Custom workflow failure message template
-	DetectionFailure  string `yaml:"detection-failure,omitempty" json:"detectionFailure,omitempty"`   // Custom detection job failure message template
+	Footer                         string `yaml:"footer,omitempty" json:"footer,omitempty"`                                                    // Custom footer message template
+	FooterInstall                  string `yaml:"footer-install,omitempty" json:"footerInstall,omitempty"`                                     // Custom installation instructions template
+	FooterWorkflowRecompile        string `yaml:"footer-workflow-recompile,omitempty" json:"footerWorkflowRecompile,omitempty"`                // Custom footer template for workflow recompile issues
+	FooterWorkflowRecompileComment string `yaml:"footer-workflow-recompile-comment,omitempty" json:"footerWorkflowRecompileComment,omitempty"` // Custom footer template for comments on workflow recompile issues
+	StagedTitle                    string `yaml:"staged-title,omitempty" json:"stagedTitle,omitempty"`                                         // Custom staged mode title template
+	StagedDescription              string `yaml:"staged-description,omitempty" json:"stagedDescription,omitempty"`                             // Custom staged mode description template
+	RunStarted                     string `yaml:"run-started,omitempty" json:"runStarted,omitempty"`                                           // Custom workflow activation message template
+	RunSuccess                     string `yaml:"run-success,omitempty" json:"runSuccess,omitempty"`                                           // Custom workflow success message template
+	RunFailure                     string `yaml:"run-failure,omitempty" json:"runFailure,omitempty"`                                           // Custom workflow failure message template
+	DetectionFailure               string `yaml:"detection-failure,omitempty" json:"detectionFailure,omitempty"`                               // Custom detection job failure message template
 }
 
 // MentionsConfig holds configuration for @mention filtering in safe outputs

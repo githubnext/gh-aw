@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
@@ -36,6 +38,16 @@ func TestCopilotEngine(t *testing.T) {
 
 	if engine.SupportsMaxTurns() {
 		t.Error("Expected copilot engine to not support max-turns yet")
+	}
+
+	// Test declared output files (session files are copied to logs folder)
+	outputFiles := engine.GetDeclaredOutputFiles()
+	if len(outputFiles) != 1 {
+		t.Errorf("Expected 1 declared output file, got %d", len(outputFiles))
+	}
+
+	if outputFiles[0] != "/tmp/gh-aw/sandbox/agent/logs/" {
+		t.Errorf("Expected declared output file to be logs folder, got %s", outputFiles[0])
 	}
 }
 
@@ -938,7 +950,7 @@ This workflow tests that Copilot log parsing uses the correct log file path.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)

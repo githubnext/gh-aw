@@ -60,7 +60,9 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
 			},
-			RenderCustomMCPConfig: e.renderCopilotMCPConfig,
+			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+				return e.renderCopilotMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
+			},
 		},
 		FilterTool: func(toolName string) bool {
 			// Filter out cache-memory for Copilot
@@ -83,14 +85,23 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
 }
 
-// renderCopilotMCPConfig generates custom MCP server configuration for Copilot CLI
-func (e *CopilotEngine) renderCopilotMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+// renderCopilotMCPConfigWithContext generates custom MCP server configuration for Copilot CLI
+// This version includes workflowData to determine if localhost URLs should be rewritten
+func (e *CopilotEngine) renderCopilotMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
 	copilotMCPLog.Printf("Rendering custom MCP config for tool: %s", toolName)
+
+	// Determine if localhost URLs should be rewritten to host.docker.internal
+	// This is needed when firewall is enabled (agent is not disabled)
+	rewriteLocalhost := workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
+
 	// Use the shared renderer with copilot-specific requirements
 	renderer := MCPConfigRenderer{
-		Format:                "json",
-		IndentLevel:           "                ",
-		RequiresCopilotFields: true,
+		Format:                   "json",
+		IndentLevel:              "                ",
+		RequiresCopilotFields:    true,
+		RewriteLocalhostToDocker: rewriteLocalhost,
 	}
 
 	yaml.WriteString("              \"" + toolName + "\": {\n")

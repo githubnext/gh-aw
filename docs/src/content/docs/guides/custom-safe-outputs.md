@@ -384,6 +384,7 @@ if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true') {
 
 ## Related Documentation
 
+- [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) - Mixing computation and AI reasoning
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Built-in safe output types
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options

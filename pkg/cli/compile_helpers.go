@@ -39,6 +39,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -382,7 +384,7 @@ func handleFileDeleted(mdFile string, verbose bool) {
 	}
 
 	// Regular workflow file - generate the corresponding lock file path
-	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
 
 	// Check if the lock file exists and remove it
 	if _, err := os.Stat(lockFile); err == nil {

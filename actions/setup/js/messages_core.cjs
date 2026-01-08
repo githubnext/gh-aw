@@ -16,6 +16,7 @@
  * - {operation} - Operation name (for staged mode titles/descriptions)
  * - {event_type} - Event type description (for run-started messages)
  * - {status} - Workflow status text (for run-failure messages)
+ * - {repository} - Repository name (for workflow recompile messages)
  *
  * Both camelCase and snake_case placeholder formats are supported.
  */
@@ -24,6 +25,8 @@
  * @typedef {Object} SafeOutputMessages
  * @property {string} [footer] - Custom footer message template
  * @property {string} [footerInstall] - Custom installation instructions template
+ * @property {string} [footerWorkflowRecompile] - Custom footer template for workflow recompile issues
+ * @property {string} [footerWorkflowRecompileComment] - Custom footer template for comments on workflow recompile issues
  * @property {string} [stagedTitle] - Custom staged mode title template
  * @property {string} [stagedDescription] - Custom staged mode description template
  * @property {string} [runStarted] - Custom workflow activation message template

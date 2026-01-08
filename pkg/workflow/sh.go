@@ -12,7 +12,7 @@ var shLog = logger.New("workflow:sh")
 
 // Prompt file paths at runtime (copied by setup action)
 const (
-	promptsDir           = "/tmp/gh-aw/prompts"
+	promptsDir           = "/opt/gh-aw/prompts"
 	prContextPromptFile  = "pr_context_prompt.md"
 	xpiaPromptFile       = "xpia_prompt.md"
 	tempFolderPromptFile = "temp_folder_prompt.md"
@@ -26,7 +26,7 @@ const (
 //go:embed prompts/github_context_prompt.md
 var githubContextPromptText string
 
-// WritePromptFileToYAML writes a shell command to cat a prompt file from /tmp/gh-aw/prompts/
+// WritePromptFileToYAML writes a shell command to cat a prompt file from /opt/gh-aw/prompts/
 // This replaces the previous approach of embedding prompt text in the binary.
 func WritePromptFileToYAML(yaml *strings.Builder, filename string, indent string) {
 	shLog.Printf("Writing prompt file reference to YAML: file=%s", filename)

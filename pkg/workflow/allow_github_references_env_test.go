@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -172,7 +174,7 @@ Test workflow with only specific repos allowed.
 			}
 
 			// Read the generated lock file
-			lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			lockContent, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)

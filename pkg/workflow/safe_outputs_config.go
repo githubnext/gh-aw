@@ -44,6 +44,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CopyProjects = copyProjectConfig
 			}
 
+			// Handle create-project
+			createProjectConfig := c.parseCreateProjectsConfig(outputMap)
+			if createProjectConfig != nil {
+				config.CreateProjects = createProjectConfig
+			}
+
 			// Handle create-project-status-update (project status updates)
 			createProjectStatusUpdateConfig := c.parseCreateProjectStatusUpdateConfig(outputMap)
 			if createProjectStatusUpdateConfig != nil {
@@ -224,6 +230,22 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if _, exists := outputMap["missing-tool"]; !exists {
 					config.MissingTool = &MissingToolConfig{
 						CreateIssue: false, // Auto-enabled missing-tool doesn't create issues by default
+						TitlePrefix: "",
+						Labels:      nil,
+					}
+				}
+			}
+
+			// Handle missing-data (parse configuration if present, or enable by default)
+			missingDataConfig := c.parseMissingDataConfig(outputMap)
+			if missingDataConfig != nil {
+				config.MissingData = missingDataConfig
+			} else {
+				// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
+				// Auto-enabled missing-data does NOT have create-issue enabled by default
+				if _, exists := outputMap["missing-data"]; !exists {
+					config.MissingData = &MissingDataConfig{
+						CreateIssue: false, // Auto-enabled missing-data doesn't create issues by default
 						TitlePrefix: "",
 						Labels:      nil,
 					}

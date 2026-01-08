@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -37,7 +39,7 @@ This workflow has a skip-if-no-match configuration.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -109,7 +111,7 @@ This workflow has both stop-after and skip-if-no-match.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -161,7 +163,7 @@ This workflow has skip-if-no-match but no role restrictions.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -210,7 +212,7 @@ This workflow uses object format with min parameter.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -262,7 +264,7 @@ This workflow uses object format but omits min (defaults to 1).
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
@@ -309,7 +311,7 @@ This workflow uses both skip-if-match and skip-if-no-match.
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)

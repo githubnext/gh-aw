@@ -20,6 +20,39 @@ var actionlintLog = logger.New("cli:actionlint")
 // actionlintVersion caches the actionlint version to avoid repeated Docker calls
 var actionlintVersion string
 
+// getActionlintDocsURL returns the documentation URL for a given actionlint error kind
+// Error kinds map to documentation anchors at https://github.com/rhysd/actionlint/blob/main/docs/checks.md
+func getActionlintDocsURL(kind string) string {
+	if kind == "" {
+		return "https://github.com/rhysd/actionlint/blob/main/docs/checks.md"
+	}
+
+	// Map error kind to documentation anchor
+	// Most kinds follow the pattern "check-{kind}" as the anchor
+	anchor := kind
+
+	// Special case mappings for kinds that don't follow the standard pattern
+	switch kind {
+	case "runner-label":
+		anchor = "check-runner-labels"
+	case "pyflakes":
+		anchor = "check-pyflakes-integ"
+	case "shellcheck":
+		anchor = "check-shellcheck-integ"
+	case "expression":
+		anchor = "check-syntax-expression"
+	case "syntax-check":
+		anchor = "check-syntax-expression"
+	default:
+		// For other kinds, try the standard "check-{kind}" pattern
+		if !strings.HasPrefix(anchor, "check-") {
+			anchor = "check-" + anchor
+		}
+	}
+
+	return fmt.Sprintf("https://github.com/rhysd/actionlint/blob/main/docs/checks.md#%s", anchor)
+}
+
 // actionlintStats tracks aggregate statistics across all actionlint validations
 var actionlintStats *ActionlintStats
 
@@ -338,10 +371,11 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, map[stri
 			errorType = "warning"
 		}
 
-		// Build message with kind if available
+		// Build message with kind and documentation URL if available
 		message := err.Message
 		if err.Kind != "" {
-			message = fmt.Sprintf("[%s] %s", err.Kind, err.Message)
+			docsURL := getActionlintDocsURL(err.Kind)
+			message = fmt.Sprintf("[%s] %s\n\n  📖 %s", err.Kind, err.Message, docsURL)
 		}
 
 		// Create and format CompilerError

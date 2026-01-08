@@ -460,6 +460,24 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["create_project_status_update"] = handlerConfig
 	}
 
+	if data.SafeOutputs.MissingTool != nil {
+		cfg := data.SafeOutputs.MissingTool
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		config["missing_tool"] = handlerConfig
+	}
+
+	if data.SafeOutputs.MissingData != nil {
+		cfg := data.SafeOutputs.MissingData
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		config["missing_data"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)

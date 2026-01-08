@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestCacheMemoryRestoreOnly(t *testing.T) {
@@ -135,7 +137,7 @@ tools:
 			}
 
 			// Read the generated lock file
-			lockPath := strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
+			lockPath := stringutil.MarkdownToLockFile(mdPath)
 			lockContent, err := os.ReadFile(lockPath)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)

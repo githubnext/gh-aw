@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // TestSafeInputsHTTPMode verifies that HTTP mode generates correct configuration
@@ -56,7 +58,7 @@ Test safe-inputs HTTP mode
 			}
 
 			// Read the generated lock file
-			lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
 			lockContent, err := os.ReadFile(lockPath)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -113,7 +115,7 @@ Test safe-inputs HTTP mode
 // extractMCPServerEntryPoint extracts the mcp-server.cjs entry point script from the YAML
 func extractMCPServerEntryPoint(yamlStr string) string {
 	// Find the mcp-server.cjs section
-	start := strings.Index(yamlStr, "cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs")
+	start := strings.Index(yamlStr, "cat > /opt/gh-aw/safe-inputs/mcp-server.cjs")
 	if start == -1 {
 		return ""
 	}

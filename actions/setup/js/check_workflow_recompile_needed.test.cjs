@@ -1,5 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
+import path from "path";
 
 describe("check_workflow_recompile_needed", () => {
   let mockCore;
@@ -7,8 +9,77 @@ describe("check_workflow_recompile_needed", () => {
   let mockContext;
   let mockExec;
   let originalGlobals;
+  const templatePath = "/opt/gh-aw/prompts/workflow_recompile_issue.md";
 
   beforeEach(() => {
+    // Create the template file for testing
+    const templateDir = path.dirname(templatePath);
+    if (!fs.existsSync(templateDir)) {
+      fs.mkdirSync(templateDir, { recursive: true });
+    }
+
+    const templateContent = `## Problem
+
+The workflow lock files (\`.lock.yml\`) are out of sync with their source markdown files (\`.md\`). This means the workflows that run in GitHub Actions are not using the latest configuration.
+
+## What needs to be done
+
+The workflows need to be recompiled to regenerate the lock files from the markdown sources.
+
+## Instructions
+
+Recompile all workflows using one of the following methods:
+
+### Using gh aw CLI
+
+\`\`\`bash
+gh aw compile --validate --verbose
+\`\`\`
+
+### Using gh-aw MCP Server
+
+If you have the gh-aw MCP server configured, use the \`compile\` tool:
+
+\`\`\`json
+{
+  "tool": "compile",
+  "arguments": {
+    "validate": true,
+    "verbose": true
+  }
+}
+\`\`\`
+
+This will:
+1. Build the latest version of \`gh-aw\`
+2. Compile all workflow markdown files to YAML lock files
+3. Ensure all workflows are up to date
+
+After recompiling, commit the changes with a message like:
+\`\`\`
+Recompile workflows to update lock files
+\`\`\`
+
+## Detected Changes
+
+The following workflow lock files have changes:
+
+<details>
+<summary>View diff</summary>
+
+\`\`\`diff
+{DIFF_CONTENT}
+\`\`\`
+
+</details>
+
+## References
+
+- **Repository:** {REPOSITORY}
+`;
+
+    fs.writeFileSync(templatePath, templateContent, "utf8");
+
     // Save original globals
     originalGlobals = {
       core: global.core,
@@ -69,11 +140,19 @@ describe("check_workflow_recompile_needed", () => {
   });
 
   afterEach(() => {
+    // Clean up the template file
+    if (fs.existsSync(templatePath)) {
+      fs.unlinkSync(templatePath);
+    }
+
     // Restore original globals
     global.core = originalGlobals.core;
     global.github = originalGlobals.github;
     global.context = originalGlobals.context;
     global.exec = originalGlobals.exec;
+
+    // Clear all mocks
+    vi.clearAllMocks();
   });
 
   it("should report no changes when workflows are up to date", async () => {
@@ -169,8 +248,8 @@ describe("check_workflow_recompile_needed", () => {
     expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
-      title: "Workflows need recompilation",
-      body: expect.stringContaining("Instructions for GitHub Copilot"),
+      title: "[aw] agentic workflows out of sync",
+      body: expect.stringContaining("Using gh aw CLI"),
       labels: ["maintenance", "workflows"],
     });
   });

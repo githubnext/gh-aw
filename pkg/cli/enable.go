@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -129,7 +131,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				found = true
 
 				// Determine lock file and GitHub status (if available)
-				lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+				lockFile := stringutil.MarkdownToLockFile(file)
 				lockFileBase := filepath.Base(lockFile)
 
 				githubWorkflow, exists := githubWorkflows[name]

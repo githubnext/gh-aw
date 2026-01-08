@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -73,7 +75,7 @@ Search the web for information.
 	}
 
 	// Verify the lock file was created
-	lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
 	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 		t.Fatal("Expected lock file to be created")
 	}
@@ -117,7 +119,7 @@ Search the web for information.
 	}
 
 	// Verify the lock file was created
-	lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
 	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 		t.Fatal("Expected lock file to be created")
 	}
@@ -172,7 +174,7 @@ Search the web for information.
 	}
 
 	// Verify the lock file was created
-	lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
 	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 		t.Fatal("Expected lock file to be created")
 	}

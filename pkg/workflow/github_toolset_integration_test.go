@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -138,7 +140,7 @@ This workflow combines toolsets with read-only mode.
 			}
 
 			// Read the generated YAML (same directory, .lock.yml extension)
-			yamlPath := strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
+			yamlPath := stringutil.MarkdownToLockFile(mdPath)
 			yamlContent, err := os.ReadFile(yamlPath)
 			if err != nil {
 				t.Fatalf("Failed to read generated YAML: %v", err)
@@ -196,7 +198,7 @@ This workflow tests remote mode with array toolsets.
 	}
 
 	// Read the generated YAML (same directory, .lock.yml extension)
-	yamlPath := strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
+	yamlPath := stringutil.MarkdownToLockFile(mdPath)
 	yamlContent, readErr := os.ReadFile(yamlPath)
 	if readErr != nil {
 		t.Fatalf("Failed to read generated YAML: %v", readErr)
@@ -334,7 +336,7 @@ Remote mode with toolsets and read-only.
 			}
 
 			// Read the generated YAML
-			yamlPath := strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
+			yamlPath := stringutil.MarkdownToLockFile(mdPath)
 			yamlContent, readErr := os.ReadFile(yamlPath)
 			if readErr != nil {
 				t.Fatalf("Failed to read generated YAML: %v", readErr)

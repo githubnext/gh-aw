@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -119,7 +121,7 @@ Test workflow with custom MCP container.`,
 			}
 
 			// Read generated lock file
-			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			yaml, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -134,8 +136,8 @@ Test workflow with custom MCP container.`,
 			// If we expect a step, verify the images are present
 			if tt.expectStep {
 				// Verify the script call is present
-				if !strings.Contains(string(yaml), "bash /tmp/gh-aw/actions/download_docker_images.sh") {
-					t.Error("Expected to find 'bash /tmp/gh-aw/actions/download_docker_images.sh' script call in generated YAML")
+				if !strings.Contains(string(yaml), "bash /opt/gh-aw/actions/download_docker_images.sh") {
+					t.Error("Expected to find 'bash /opt/gh-aw/actions/download_docker_images.sh' script call in generated YAML")
 				}
 				for _, expectedImage := range tt.expectedImages {
 					// Check that the image is being passed as an argument to the script
@@ -175,7 +177,7 @@ Test workflow.`
 	}
 
 	// Read generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	yaml, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

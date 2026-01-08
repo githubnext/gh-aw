@@ -4,20 +4,20 @@
 
 set -e
 
-cd /tmp/gh-aw/safe-inputs || exit 1
+cd /opt/gh-aw/safe-inputs || exit 1
 
 # Verify required files exist
 echo "Verifying safe-inputs setup..."
 
 # Check core configuration files
 if [ ! -f mcp-server.cjs ]; then
-  echo "ERROR: mcp-server.cjs not found in /tmp/gh-aw/safe-inputs"
-  ls -la /tmp/gh-aw/safe-inputs/
+  echo "ERROR: mcp-server.cjs not found in /opt/gh-aw/safe-inputs"
+  ls -la /opt/gh-aw/safe-inputs/
   exit 1
 fi
 if [ ! -f tools.json ]; then
-  echo "ERROR: tools.json not found in /tmp/gh-aw/safe-inputs"
-  ls -la /tmp/gh-aw/safe-inputs/
+  echo "ERROR: tools.json not found in /opt/gh-aw/safe-inputs"
+  ls -la /opt/gh-aw/safe-inputs/
   exit 1
 fi
 
@@ -48,13 +48,13 @@ for dep in "${REQUIRED_DEPS[@]}"; do
 done
 
 if [ ${#MISSING_FILES[@]} -gt 0 ]; then
-  echo "ERROR: Missing required dependency files in /tmp/gh-aw/safe-inputs/"
+  echo "ERROR: Missing required dependency files in /opt/gh-aw/safe-inputs/"
   for file in "${MISSING_FILES[@]}"; do
     echo "  - $file"
   done
   echo
   echo "Current directory contents:"
-  ls -la /tmp/gh-aw/safe-inputs/
+  ls -la /opt/gh-aw/safe-inputs/
   echo
   echo "These files should have been copied by the Setup Scripts action."
   echo "This usually indicates a problem with the actions/setup step."

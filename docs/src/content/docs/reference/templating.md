@@ -5,11 +5,12 @@ sidebar:
   order: 350
 ---
 
-Agentic workflows support three simple templating/substitution mechanisms: 
+Agentic workflows support four simple templating/substitution mechanisms: 
 
 * GitHub Actions expressions in frontmatter or markdown
 * Conditional Templating blocks in markdown
-* [Imports](/gh-aw/reference/imports/) in frontmatter or markdown
+* [Imports](/gh-aw/reference/imports/) in frontmatter or markdown (compile-time)
+* Runtime imports in markdown (runtime file/URL inclusion)
 
 ## GitHub Actions Expressions
 
@@ -79,9 +80,311 @@ You are analyzing PR #${{ github.event.pull_request.number }}.
 
 The template system supports only basic conditionals—no nesting, `else` clauses, variables, loops, or complex evaluation.
 
+## Runtime Imports
+
+Runtime imports allow you to include content from files and URLs directly within your workflow prompts **at runtime** during GitHub Actions execution. This differs from [frontmatter imports](/gh-aw/reference/imports/) which are processed at compile-time.
+
+**Security Note:** File imports are **restricted to the `.github` folder** in your repository. This ensures workflow configurations cannot access arbitrary files in your codebase.
+
+Runtime imports support two syntaxes:
+- **Macro syntax:** `{{#runtime-import filepath}}`
+- **Inline syntax:** `@./path` or `@../path` (convenient shorthand)
+
+Both syntaxes support:
+- Line range extraction (e.g., `:10-20` for lines 10-20)
+- URL fetching with automatic caching
+- Content sanitization (front matter removal, macro detection)
+- Automatic `.github/` prefix handling
+
+### Macro Syntax
+
+Use `{{#runtime-import filepath}}` to include file content at runtime. Optional imports use `{{#runtime-import? filepath}}` which don't fail if the file is missing.
+
+**Important:** All file paths are resolved within the `.github` folder. You can specify paths with or without the `.github/` prefix:
+
+```aw wrap
+---
+on: issues
+engine: copilot
+---
+
+# Code Review Agent
+
+Follow these coding guidelines:
+
+{{#runtime-import coding-standards.md}}
+<!-- Same as: {{#runtime-import .github/coding-standards.md}} -->
+
+Review the code changes and provide feedback.
+```
+
+**Line range extraction:**
+
+```aw wrap
+# Bug Fix Validator
+
+The original buggy code was (from .github/docs/auth.go):
+
+{{#runtime-import docs/auth.go:45-52}}
+
+Verify the fix addresses the issue.
+```
+
+**Optional imports:**
+
+```aw wrap
+# Issue Analyzer
+
+{{#runtime-import? shared-instructions.md}}
+
+Analyze issue #${{ github.event.issue.number }}.
+```
+
+### Inline Syntax (`@path`)
+
+The inline syntax provides a convenient shorthand that's converted to runtime-import macros before processing. **File paths must start with `./` or `../`** to be recognized as file references.
+
+**All file paths are resolved within the `.github` folder**, so `@./file.md` refers to `.github/file.md` in your repository.
+
+**Full file inclusion:**
+
+```aw wrap
+---
+on: pull_request
+engine: copilot
+---
+
+# Security Review
+
+Follow these security guidelines:
+
+@./security-checklist.md
+<!-- Loads from .github/security-checklist.md -->
+
+Review all code changes for security vulnerabilities.
+```
+
+**Line range extraction:**
+
+```aw wrap
+# Bug Analysis
+
+The issue appears to be in this function:
+
+@./docs/payment-processor.go:234-267
+<!-- Loads from .github/docs/payment-processor.go -->
+
+Compare with the test:
+
+@./docs/payment-processor-test.go:145-178
+<!-- Loads from .github/docs/payment-processor-test.go -->
+```
+
+**Multiple references:**
+
+```aw wrap
+# Documentation Update
+
+Current README header (from .github/docs/README.md):
+
+@./docs/README.md:1-10
+
+License information (from .github/docs/LICENSE):
+
+@./docs/LICENSE:1-5
+
+Ensure all documentation is consistent.
+```
+
+### URL Imports
+
+Both syntaxes support HTTP/HTTPS URLs. Fetched content is **cached for 1 hour** to reduce network requests. URLs are **not restricted to `.github` folder** - you can fetch any public URL.
+
+**Macro syntax:**
+
+```aw wrap
+{{#runtime-import https://raw.githubusercontent.com/org/repo/main/checklist.md}}
+```
+
+**Inline syntax:**
+
+```aw wrap
+@https://raw.githubusercontent.com/org/security/main/api-security.md
+```
+
+**URL with line range:**
+
+```aw wrap
+@https://example.com/standards.md:10-50
+```
+
+### Security Features
+
+All runtime imports include automatic security protections:
+
+**Content Sanitization:**
+- YAML front matter is automatically removed
+- HTML/XML comments are stripped
+- GitHub Actions expressions (`${{ ... }}`) are **rejected with error**
+
+This prevents:
+- Template injection attacks
+- Unintended variable expansion
+- Security vulnerabilities from imported content
+
+**Path Validation:**
+
+File paths are **restricted to the `.github` folder** to prevent access to arbitrary repository files:
+
+```aw wrap
+# ✅ Valid - Files in .github folder
+{{#runtime-import shared-instructions.md}}           # Loads .github/shared-instructions.md
+{{#runtime-import .github/shared-instructions.md}}  # Same - .github/ prefix is trimmed
+@./workflows/shared/template.md                     # Loads .github/workflows/shared/template.md
+@./docs/guide.md                                     # Loads .github/docs/guide.md
+
+# ❌ Invalid - Attempts to escape .github folder
+{{#runtime-import ../src/config.go}}                # Error: Must be within .github folder
+{{#runtime-import ../../etc/passwd}}                # Error: Must be within .github folder
+@../LICENSE                                         # Error: Must be within .github folder
+```
+
+**Email Address Handling:**
+
+The parser distinguishes between file references and email addresses:
+
+```aw wrap
+Contact: user@example.com    # Plain text (not processed)
+@./docs/readme.md           # File reference (processed, loads .github/docs/readme.md)
+```
+
+### Caching
+
+**URL caching** reduces network overhead:
+- Cache location: `/tmp/gh-aw/url-cache/`
+- Cache duration: 1 hour
+- Cache key: SHA256 hash of URL
+- Cache scope: Per workflow run (ephemeral)
+
+First URL fetch adds latency (~500ms-2s), subsequent accesses use cached content.
+
+### Syntax Comparison
+
+| Feature | Macro Syntax | Inline Syntax |
+|---------|--------------|---------------|
+| **Full file** | `{{#runtime-import file.md}}` | `@./file.md` |
+| **Line range** | `{{#runtime-import file.md:10-20}}` | `@./file.md:10-20` |
+| **URL** | `{{#runtime-import https://...}}` | `@https://...` |
+| **Optional** | `{{#runtime-import? file.md}}` | Not supported |
+| **Path scope** | `.github` folder only | `.github` folder only |
+| **Path format** | With or without `.github/` prefix | Must start with `./` or `../` |
+
+### Processing Order
+
+Runtime imports are processed as part of the overall templating pipeline:
+
+```
+1. {{#runtime-import}} macros processed (files and URLs)
+2. @./path and @https://... converted to macros, then processed
+3. ${GH_AW_EXPR_*} variable interpolation
+4. {{#if}} template conditionals rendered
+```
+
+The `@path` syntax is **pure syntactic sugar**—it converts to `{{#runtime-import}}` before processing.
+
+### Common Use Cases
+
+**1. Shared coding standards:**
+
+```aw wrap
+# Code Review Agent
+
+@./workflows/shared/review-standards.md
+<!-- Loads .github/workflows/shared/review-standards.md -->
+
+Review the pull request changes.
+```
+
+**2. External security checklists:**
+
+```aw wrap
+# Security Audit
+
+Follow this checklist:
+
+@https://company.com/security/api-checklist.md
+<!-- URLs are not restricted to .github folder -->
+```
+
+**3. Code context for analysis:**
+
+```aw wrap
+# Refactoring Assistant
+
+Current implementation (from .github/docs/engine.go):
+
+@./docs/engine.go:100-150
+
+Suggested improvements needed.
+```
+
+**4. License attribution:**
+
+```aw wrap
+# Generated Report
+
+## License
+
+@./docs/LICENSE:1-10
+<!-- Loads .github/docs/LICENSE -->
+```
+
+### Limitations
+
+- **`.github` folder only:** File paths are restricted to `.github` folder for security
+- **Relative paths only:** File paths must start with `./` or `../` for inline syntax
+- **No authentication:** URL fetching doesn't support private URLs with tokens
+- **No recursion:** Imported content cannot contain additional runtime imports
+- **Per-run cache:** URL cache doesn't persist across workflow runs
+- **Line numbers:** Refer to raw file content before front matter removal
+
+### Error Handling
+
+**File not found:**
+
+```
+Failed to process runtime import for missing.txt: 
+Runtime import file not found: missing.txt
+```
+
+**Invalid line range:**
+
+```
+Invalid start line 100 for file docs/main.go (total lines: 50)
+```
+
+**Path security violation:**
+
+```
+Security: Path ../../../etc/passwd must be within .github folder
+```
+
+**GitHub Actions macros detected:**
+
+```
+File template.md contains GitHub Actions macros (${{ ... }}) 
+which are not allowed in runtime imports
+```
+
+**URL fetch failure:**
+
+```
+Failed to fetch URL https://example.com/file.txt: HTTP 404
+```
+
 ## Related Documentation
 
 - [Markdown](/gh-aw/reference/markdown/) - Writing effective agentic markdown
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration
-- [Imports](/gh-aw/reference/imports/) - Imports
+- [Imports](/gh-aw/reference/imports/) - Compile-time imports in frontmatter

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
@@ -178,7 +180,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		// Check that lock files were created
 		for _, file := range testFiles {
-			lockFile := filepath.Join(workflowsDir, strings.TrimSuffix(file, ".md")+".lock.yml")
+			lockFile := filepath.Join(workflowsDir, stringutil.MarkdownToLockFile(file))
 			if _, statErr := os.Stat(lockFile); os.IsNotExist(statErr) {
 				t.Errorf("Expected lock file %s to be created", lockFile)
 			}

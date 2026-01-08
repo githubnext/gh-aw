@@ -42,7 +42,7 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 	return SafeOutputStepConfig{
 		StepName:        "Create Agent Session",
 		StepID:          "create_agent_session",
-		Script:          "const { main } = require('/tmp/gh-aw/actions/create_agent_session.cjs'); await main();",
+		Script:          "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
 		CustomEnvVars:   customEnvVars,
 		Condition:       condition,
 		Token:           cfg.GitHubToken,
@@ -98,4 +98,29 @@ func (c *Compiler) buildCopyProjectStepConfig(data *WorkflowData, mainJobName st
 		Condition:     condition,
 		Token:         cfg.GitHubToken,
 	}
+}
+
+// buildCreateProjectStepConfig builds the configuration for creating a project
+func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+cfg := data.SafeOutputs.CreateProjects
+
+var customEnvVars []string
+customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+// Add target-owner default if configured
+if cfg.TargetOwner != "" {
+customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
+}
+
+condition := BuildSafeOutputType("create_project")
+
+return SafeOutputStepConfig{
+StepName:      "Create Project",
+StepID:        "create_project",
+ScriptName:    "create_project",
+Script:        getCreateProjectScript(),
+CustomEnvVars: customEnvVars,
+Condition:     condition,
+Token:         cfg.GitHubToken,
+}
 }

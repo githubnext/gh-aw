@@ -9,7 +9,180 @@ import (
 
 var copilotLogsLog = logger.New("workflow:copilot_logs")
 
+// SessionEntry represents a single entry in a Copilot session JSONL file
+type SessionEntry struct {
+	Type     string                 `json:"type"`
+	Subtype  string                 `json:"subtype,omitempty"`
+	Message  *SessionMessage        `json:"message,omitempty"`
+	Usage    *SessionUsage          `json:"usage,omitempty"`
+	NumTurns int                    `json:"num_turns,omitempty"`
+	RawData  map[string]interface{} `json:"-"`
+}
+
+// SessionMessage represents the message field in session entries
+type SessionMessage struct {
+	Content []SessionContent `json:"content"`
+}
+
+// SessionContent represents content items in messages
+type SessionContent struct {
+	Type      string                 `json:"type"`
+	Text      string                 `json:"text,omitempty"`
+	ID        string                 `json:"id,omitempty"`
+	Name      string                 `json:"name,omitempty"`
+	Input     map[string]interface{} `json:"input,omitempty"`
+	ToolUseID string                 `json:"tool_use_id,omitempty"`
+	Content   string                 `json:"content,omitempty"`
+}
+
+// SessionUsage represents token usage in a session result entry
+type SessionUsage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
+}
+
+// parseSessionJSONL attempts to parse the log content as JSONL session format
+// Returns true if successful, false if the format is not recognized
+func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogMetrics, bool) {
+	var metrics LogMetrics
+	var totalTokenUsage int
+	toolCallMap := make(map[string]*ToolCallInfo)
+	var currentSequence []string
+	turns := 0
+
+	lines := strings.Split(logContent, "\n")
+	foundSessionEntry := false
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Skip empty lines and debug log lines
+		if trimmedLine == "" || !strings.HasPrefix(trimmedLine, "{") {
+			continue
+		}
+
+		// Try to parse as session entry
+		var entry SessionEntry
+		if err := json.Unmarshal([]byte(trimmedLine), &entry); err != nil {
+			continue
+		}
+
+		foundSessionEntry = true
+
+		// Handle different entry types
+		switch entry.Type {
+		case "system":
+			// System init entry - no action needed for metrics
+			if verbose {
+				copilotLogsLog.Printf("Found system init entry")
+			}
+
+		case "assistant":
+			// Assistant message with potential tool calls
+			if entry.Message != nil {
+				for _, content := range entry.Message.Content {
+					if content.Type == "tool_use" {
+						toolName := content.Name
+
+						// Track in sequence
+						currentSequence = append(currentSequence, toolName)
+
+						// Calculate input size
+						inputSize := 0
+						if content.Input != nil {
+							inputJSON, _ := json.Marshal(content.Input)
+							inputSize = len(inputJSON)
+						}
+
+						// Update or create tool call info
+						if toolInfo, exists := toolCallMap[toolName]; exists {
+							toolInfo.CallCount++
+							if inputSize > toolInfo.MaxInputSize {
+								toolInfo.MaxInputSize = inputSize
+							}
+						} else {
+							toolCallMap[toolName] = &ToolCallInfo{
+								Name:          toolName,
+								CallCount:     1,
+								MaxInputSize:  inputSize,
+								MaxOutputSize: 0,
+							}
+						}
+
+						if verbose {
+							copilotLogsLog.Printf("Found tool call: %s with input size %d", toolName, inputSize)
+						}
+					}
+				}
+			}
+
+		case "user":
+			// User message with tool results
+			if entry.Message != nil {
+				for _, content := range entry.Message.Content {
+					if content.Type == "tool_result" && content.ToolUseID != "" {
+						// Track output size
+						outputSize := len(content.Content)
+
+						// Try to find the tool by matching recent tools in sequence
+						// Since we don't have the tool ID mapping, we'll update the most recent matching tool
+						for toolName, toolInfo := range toolCallMap {
+							if outputSize > toolInfo.MaxOutputSize {
+								toolInfo.MaxOutputSize = outputSize
+								if verbose {
+									copilotLogsLog.Printf("Updated %s MaxOutputSize to %d bytes", toolName, outputSize)
+								}
+								break // Update first matching tool
+							}
+						}
+					}
+				}
+			}
+
+		case "result":
+			// Result entry with usage statistics
+			if entry.Usage != nil {
+				totalTokenUsage = entry.Usage.InputTokens + entry.Usage.OutputTokens
+				turns = entry.NumTurns
+
+				if verbose {
+					copilotLogsLog.Printf("Found result entry: input_tokens=%d, output_tokens=%d, num_turns=%d",
+						entry.Usage.InputTokens, entry.Usage.OutputTokens, turns)
+				}
+			}
+		}
+	}
+
+	// If we found no session entries, return false to indicate fallback needed
+	if !foundSessionEntry {
+		return metrics, false
+	}
+
+	// Save current sequence before finalizing
+	if len(currentSequence) > 0 {
+		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+	}
+
+	// Finalize metrics
+	copilotLogsLog.Printf("Session JSONL parsing complete: totalTokenUsage=%d, turns=%d, toolCalls=%d",
+		totalTokenUsage, turns, len(toolCallMap))
+
+	FinalizeToolMetrics(FinalizeToolMetricsOptions{
+		Metrics:         &metrics,
+		ToolCallMap:     toolCallMap,
+		CurrentSequence: currentSequence,
+		Turns:           turns,
+		TokenUsage:      totalTokenUsage,
+	})
+
+	return metrics, true
+}
+
 // ParseLogMetrics implements engine-specific log parsing for Copilot CLI.
+//
+// Parsing Strategy:
+// 1. First attempts to parse as JSONL session format (from ~/.copilot/session-state/*.jsonl)
+// 2. Falls back to debug log format if JSONL parsing fails or finds no entries
 //
 // Token Counting Behavior:
 // Copilot CLI makes multiple API calls during a workflow run (one per turn).
@@ -22,6 +195,15 @@ var copilotLogsLog = logger.New("workflow:copilot_logs")
 //
 // This matches the behavior of the JavaScript parser in parse_copilot_log.cjs.
 func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	// Try parsing as JSONL session format first
+	if metrics, success := e.parseSessionJSONL(logContent, verbose); success {
+		copilotLogsLog.Printf("Successfully parsed session JSONL format")
+		return metrics
+	}
+
+	// Fall back to debug log format parsing
+	copilotLogsLog.Printf("JSONL parsing failed or no entries found, falling back to debug log format")
+
 	var metrics LogMetrics
 	var totalTokenUsage int
 
@@ -144,8 +326,6 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		CurrentSequence: currentSequence,
 		Turns:           turns,
 		TokenUsage:      totalTokenUsage,
-		LogContent:      logContent,
-		ErrorPatterns:   e.GetErrorPatterns(),
 	})
 
 	return metrics
@@ -254,10 +434,16 @@ func (e *CopilotEngine) GetLogFileForParsing() string {
 	return "/tmp/gh-aw/sandbox/agent/logs/"
 }
 
-// GetFirewallLogsCollectionStep returns empty steps as firewall logs are at a known location
+// GetFirewallLogsCollectionStep returns steps for collecting firewall logs and copying session state files
 func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
-	// Collection step removed - firewall logs are now at a known location
-	return []GitHubActionStep{}
+	var steps []GitHubActionStep
+
+	// Add step to copy Copilot session state files to logs folder
+	// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+	sessionCopyStep := generateCopilotSessionFileCopyStep()
+	steps = append(steps, sessionCopyStep)
+
+	return steps
 }
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
@@ -285,4 +471,31 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
 	// Return empty step - cleanup steps have been removed
 	return GitHubActionStep([]string{})
+}
+
+// generateCopilotSessionFileCopyStep generates a step to copy Copilot session state files
+// from ~/.copilot/session-state/ to /tmp/gh-aw/sandbox/agent/logs/
+// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+func generateCopilotSessionFileCopyStep() GitHubActionStep {
+	var step []string
+
+	step = append(step, "      - name: Copy Copilot session state files to logs")
+	step = append(step, "        if: always()")
+	step = append(step, "        continue-on-error: true")
+	step = append(step, "        run: |")
+	step = append(step, "          # Copy Copilot session state files to logs folder for artifact collection")
+	step = append(step, "          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them")
+	step = append(step, "          SESSION_STATE_DIR=\"$HOME/.copilot/session-state\"")
+	step = append(step, "          LOGS_DIR=\"/tmp/gh-aw/sandbox/agent/logs\"")
+	step = append(step, "          ")
+	step = append(step, "          if [ -d \"$SESSION_STATE_DIR\" ]; then")
+	step = append(step, "            echo \"Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR\"")
+	step = append(step, "            mkdir -p \"$LOGS_DIR\"")
+	step = append(step, "            cp -v \"$SESSION_STATE_DIR\"/*.jsonl \"$LOGS_DIR/\" 2>/dev/null || true")
+	step = append(step, "            echo \"Session state files copied successfully\"")
+	step = append(step, "          else")
+	step = append(step, "            echo \"No session-state directory found at $SESSION_STATE_DIR\"")
+	step = append(step, "          fi")
+
+	return GitHubActionStep(step)
 }

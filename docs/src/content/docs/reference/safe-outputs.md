@@ -70,9 +70,10 @@ Most safe output types support cross-repository operations. Exceptions are noted
 
 - [**No-Op**](#no-op-logging-noop) (`noop`) — Log completion message for transparency (max: 1, same-repo only)
 - [**Missing Tool**](#missing-tool-reporting-missing-tool) (`missing-tool`) — Report missing tools (max: unlimited, same-repo only)
+- [**Missing Data**](#missing-data-reporting-missing-data) (`missing-data`) — Report missing data required to achieve goals (max: unlimited, same-repo only)
 
 :::tip
-Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/)
+Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/). See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation and AI reasoning.
 :::
 
 ### Custom Safe Output Jobs (`jobs:`)
@@ -531,6 +532,51 @@ safe-outputs:
   create-issue:           # missing-tool enabled automatically
   missing-tool: false     # explicitly disable
 ```
+
+### Missing Data Reporting (`missing-data:`)
+
+Enabled by default. Allows AI agents to report missing data required to achieve their goals, encouraging truthfulness over hallucination.
+
+```yaml wrap
+safe-outputs:
+  missing-data:
+    create-issue: true          # create GitHub issues for missing data
+    title-prefix: "[data]"      # prefix for issue titles (default: "[missing data]")
+    labels: [data, blocked]     # labels to attach to issues
+    max: 10                     # max reports per run (default: unlimited)
+```
+
+**Why Missing Data Matters**
+
+AI agents work best when they acknowledge data gaps instead of inventing information. By explicitly reporting missing data, agents:
+- **Ensure accuracy**: Prevent hallucinations and incorrect outputs
+- **Enable improvement**: Help teams identify gaps in documentation, APIs, or configuration
+- **Demonstrate responsibility**: Show honest behavior that should be encouraged
+
+**Agent Output Format**
+
+```json
+{
+  "type": "missing_data",
+  "data_type": "user_preferences",
+  "reason": "User preferences database not accessible",
+  "context": "Needed to customize dashboard layout",
+  "alternatives": "Could use default settings"
+}
+```
+
+**Required Fields**: `data_type`, `reason`  
+**Optional Fields**: `context`, `alternatives`
+
+**Issue Creation**
+
+When `create-issue: true`, the agent creates or updates GitHub issues documenting missing data with:
+- Detailed explanation of what data is needed and why
+- Context about how the data would be used
+- Possible alternatives if the data cannot be provided
+- Encouragement message praising the agent's truthfulness
+
+This rewards honest AI behavior and helps teams improve data accessibility for future agent runs.
 
 ### Discussion Creation (`create-discussion:`)
 

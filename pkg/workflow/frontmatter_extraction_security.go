@@ -295,7 +295,8 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 }
 
 // extractMCPGatewayConfig extracts MCP gateway configuration from frontmatter
-// Supports object format with command/container, port, apiKey, domain, env, etc.
+// Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
+// Direct command execution is not supported.
 func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig {
 	// Handle nil or boolean false
 	if mcpVal == nil {
@@ -305,7 +306,7 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		return nil
 	}
 
-	// Handle object format: { command: "...", container: "...", port: ..., args: [...], env: {...} }
+	// Handle object format: { container: "...", port: ..., args: [...], env: {...} }
 	mcpObj, ok := mcpVal.(map[string]any)
 	if !ok {
 		frontmatterExtractionSecurityLog.Printf("MCP gateway configuration is not an object: %T", mcpVal)
@@ -314,14 +315,7 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 
 	mcpConfig := &MCPGatewayRuntimeConfig{}
 
-	// Extract command (mutually exclusive with container)
-	if commandVal, hasCommand := mcpObj["command"]; hasCommand {
-		if commandStr, ok := commandVal.(string); ok {
-			mcpConfig.Command = commandStr
-		}
-	}
-
-	// Extract container (mutually exclusive with command)
+	// Extract container (required for MCP gateway)
 	if containerVal, hasContainer := mcpObj["container"]; hasContainer {
 		if containerStr, ok := containerVal.(string); ok {
 			mcpConfig.Container = containerStr

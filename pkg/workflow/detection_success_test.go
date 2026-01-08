@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -38,7 +40,7 @@ Create an issue.
 	}
 
 	// Read the compiled YAML
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	yamlBytes, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read compiled YAML: %v", err)
@@ -61,7 +63,7 @@ Create an issue.
 	}
 
 	// Check that the script uses require to load the parse_threat_detection_results.cjs file
-	if !strings.Contains(yaml, "require('/tmp/gh-aw/actions/parse_threat_detection_results.cjs')") {
+	if !strings.Contains(yaml, "require('/opt/gh-aw/actions/parse_threat_detection_results.cjs')") {
 		t.Error("Parse results step doesn't use require to load parse_threat_detection_results.cjs")
 	}
 
@@ -106,7 +108,7 @@ Create outputs.
 	}
 
 	// Read the compiled YAML
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	yamlBytes, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read compiled YAML: %v", err)

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -44,7 +46,7 @@ This workflow has a secret reference and safe-outputs.
 	}
 
 	// Read the generated lock file to verify step order
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -109,7 +111,7 @@ This workflow has no secret references.
 	}
 
 	// Read the generated lock file to verify secret redaction step exists
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -159,7 +161,7 @@ This workflow uploads artifacts.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

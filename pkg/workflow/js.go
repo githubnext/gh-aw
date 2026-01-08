@@ -32,6 +32,7 @@ func getNoOpScript() string                    { return "" }
 func getNotifyCommentErrorScript() string      { return "" }
 func getUpdateProjectScript() string           { return "" }
 func getCopyProjectScript() string             { return "" }
+func getCreateProjectScript() string           { return "" }
 func getUploadAssetsScript() string            { return "" }
 
 // Public Get* functions return empty strings since embedded scripts were removed
@@ -42,7 +43,7 @@ func GetJavaScriptSources() map[string]string {
 
 func GetLogParserScript(name string) string {
 	// Return non-empty placeholder to indicate parser exists
-	// Actual script is loaded at runtime via require() from /tmp/gh-aw/actions/
+	// Actual script is loaded at runtime via require() from /opt/gh-aw/actions/
 	return "EXTERNAL_SCRIPT"
 }
 

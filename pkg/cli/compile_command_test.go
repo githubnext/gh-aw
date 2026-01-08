@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -395,7 +397,7 @@ This is a test workflow.
 	}
 
 	// Verify lock file was not created
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	if _, err := os.Stat(lockFile); !os.IsNotExist(err) {
 		t.Error("Lock file should not exist with noEmit flag")
 	}
@@ -444,7 +446,7 @@ This is a test workflow.
 	}
 
 	// Verify lock file was created
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 		t.Error("Lock file should have been created")
 	}

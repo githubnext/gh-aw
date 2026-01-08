@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -60,7 +62,7 @@ Normal content here.
 	}
 
 	// Read the compiled workflow
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -77,26 +79,27 @@ Normal content here.
 		t.Error("Interpolation and template rendering step should use github-script action")
 	}
 
-	// Verify that GitHub expressions are wrapped in ${{ }}
-	if !strings.Contains(compiledStr, "{{#if ${{ github.event.issue.number }} }}") {
-		t.Error("Compiled workflow should contain wrapped github.event.issue.number expression")
+	// Verify that GitHub expressions are replaced with placeholders
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}") {
+		t.Error("Compiled workflow should contain placeholder for github.event.issue.number expression")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ github.actor }} }}") {
-		t.Error("Compiled workflow should contain wrapped github.actor expression")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_ACTOR__ }}") {
+		t.Error("Compiled workflow should contain placeholder for github.actor expression")
 	}
 
-	// Verify that literal values are also wrapped (simplified behavior)
-	if !strings.Contains(compiledStr, "{{#if ${{ true }} }}") {
-		t.Error("Compiled workflow should contain wrapped literal true")
+	// Verify that literal values are also replaced with placeholders
+	// true and false literals get normalized to __GH_AW_TRUE__ and __GH_AW_FALSE__
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_TRUE__ }}") {
+		t.Error("Compiled workflow should contain placeholder for literal true")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${{ false }} }}") {
-		t.Error("Compiled workflow should contain wrapped literal false")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_FALSE__ }}") {
+		t.Error("Compiled workflow should contain placeholder for literal false")
 	}
 
 	// Verify the setupGlobals helper is used
-	if !strings.Contains(compiledStr, "const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs')") {
+	if !strings.Contains(compiledStr, "const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs')") {
 		t.Error("Template rendering step should use setupGlobals helper")
 	}
 
@@ -105,7 +108,7 @@ Normal content here.
 	}
 
 	// Verify the interpolate_prompt script is loaded via require
-	if !strings.Contains(compiledStr, "const { main } = require('/tmp/gh-aw/actions/interpolate_prompt.cjs')") {
+	if !strings.Contains(compiledStr, "const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs')") {
 		t.Error("Template rendering step should require interpolate_prompt.cjs")
 	}
 
@@ -155,7 +158,7 @@ Normal content without conditionals.
 	}
 
 	// Read the compiled workflow
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -209,7 +212,7 @@ Normal content without conditionals in markdown.
 	}
 
 	// Read the compiled workflow
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	compiledYAML, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read compiled workflow: %v", err)

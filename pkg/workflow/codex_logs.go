@@ -68,12 +68,10 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		CurrentSequence: currentSequence,
 		Turns:           turns,
 		TokenUsage:      totalTokenUsage,
-		LogContent:      logContent,
-		ErrorPatterns:   e.GetErrorPatterns(),
 	})
 
-	codexLogsLog.Printf("Parsed Codex metrics: turns=%d, token_usage=%d, tool_calls=%d, errors=%d",
-		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls), len(metrics.Errors))
+	codexLogsLog.Printf("Parsed Codex metrics: turns=%d, token_usage=%d, tool_calls=%d",
+		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
 
 	return metrics
 }

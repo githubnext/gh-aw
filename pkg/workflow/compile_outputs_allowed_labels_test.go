@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -243,7 +245,7 @@ This workflow tests that allowed-labels are passed to safe output jobs.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockBytes, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)

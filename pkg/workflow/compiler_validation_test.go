@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
@@ -150,7 +152,7 @@ This is a test workflow with nested env.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -232,7 +234,7 @@ This is a test workflow.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -576,7 +578,7 @@ This is a test workflow to verify description field rendering.
 			}
 
 			// Read the generated lock file
-			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			lockFile := stringutil.MarkdownToLockFile(testFile)
 			content, err := os.ReadFile(lockFile)
 			if err != nil {
 				t.Fatalf("Failed to read generated lock file: %v", err)

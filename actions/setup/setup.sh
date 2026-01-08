@@ -15,7 +15,7 @@
 set -e
 
 # Get destination from input or use default
-DESTINATION="${INPUT_DESTINATION:-/tmp/gh-aw/actions}"
+DESTINATION="${INPUT_DESTINATION:-/opt/gh-aw/actions}"
 
 echo "Copying activation files to ${DESTINATION}"
 
@@ -94,7 +94,7 @@ fi
 echo "Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
 # Copy prompt markdown files to their expected directory
-PROMPTS_DEST="/tmp/gh-aw/prompts"
+PROMPTS_DEST="/opt/gh-aw/prompts"
 echo "Copying prompt markdown files to ${PROMPTS_DEST}"
 mkdir -p "${PROMPTS_DEST}"
 
@@ -116,7 +116,7 @@ else
 fi
 
 # Copy safe-inputs files to their expected directory
-SAFE_INPUTS_DEST="/tmp/gh-aw/safe-inputs"
+SAFE_INPUTS_DEST="/opt/gh-aw/safe-inputs"
 echo "Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
 mkdir -p "${SAFE_INPUTS_DEST}"
 
@@ -167,7 +167,7 @@ fi
 echo "Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUTS_DEST}"
 
 # Copy safe-outputs files to their expected directory
-SAFE_OUTPUTS_DEST="/tmp/gh-aw/safeoutputs"
+SAFE_OUTPUTS_DEST="/opt/gh-aw/safeoutputs"
 echo "Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 mkdir -p "${SAFE_OUTPUTS_DEST}"
 

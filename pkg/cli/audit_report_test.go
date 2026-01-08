@@ -1000,13 +1000,6 @@ func TestBuildAuditDataComplete(t *testing.T) {
 		TokenUsage:    25000,
 		EstimatedCost: 0.75,
 		Turns:         8,
-		Errors: []workflow.LogError{
-			{File: "agent.log", Line: 10, Type: "error", Message: "Test error 1"},
-			{File: "agent.log", Line: 20, Type: "error", Message: "Test error 2"},
-			{File: "agent.log", Line: 30, Type: "error", Message: "Test error 3"},
-			{File: "agent.log", Line: 40, Type: "warning", Message: "Test warning 1"},
-			{File: "agent.log", Line: 50, Type: "warning", Message: "Test warning 2"},
-		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 15, MaxInputSize: 500, MaxOutputSize: 2000, MaxDuration: 5 * time.Second},
 			{Name: "github_issue_read", CallCount: 8, MaxInputSize: 100, MaxOutputSize: 5000, MaxDuration: 2 * time.Second},
@@ -1049,16 +1042,6 @@ func TestBuildAuditDataComplete(t *testing.T) {
 	t.Run("Jobs", func(t *testing.T) {
 		if len(auditData.Jobs) != 2 {
 			t.Errorf("Expected 2 jobs, got %d", len(auditData.Jobs))
-		}
-	})
-
-	// Verify errors and warnings are split correctly
-	t.Run("ErrorsAndWarnings", func(t *testing.T) {
-		if len(auditData.Errors) != 3 {
-			t.Errorf("Expected 3 errors, got %d", len(auditData.Errors))
-		}
-		if len(auditData.Warnings) != 2 {
-			t.Errorf("Expected 2 warnings, got %d", len(auditData.Warnings))
 		}
 	})
 
@@ -1167,7 +1150,6 @@ func TestBuildAuditDataMinimal(t *testing.T) {
 	// Empty slices should be nil or empty, not cause panics
 	// We just want to ensure no panics occur accessing these fields
 	_ = auditData.Jobs
-	_ = auditData.Errors
 }
 
 func TestRenderJSONComplete(t *testing.T) {

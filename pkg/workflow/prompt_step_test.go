@@ -134,7 +134,7 @@ func TestPromptStepRefactoringConsistency(t *testing.T) {
 			t.Error("Expected GH_AW_PROMPT env variable not found")
 		}
 		// After refactoring, we use cat command to read the file
-		if !strings.Contains(result, `cat "/tmp/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"`) {
+		if !strings.Contains(result, `cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"`) {
 			t.Error("Expected cat command for temp folder prompt file not found")
 		}
 	})

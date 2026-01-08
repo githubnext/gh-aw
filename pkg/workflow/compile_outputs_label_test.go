@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -222,7 +224,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockBytes, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatal(err)
@@ -301,7 +303,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockBytes, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatal(err)
@@ -742,7 +744,7 @@ This workflow tests that missing allowed field is now optional.
 	}
 
 	// Verify the workflow was compiled successfully
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 		t.Fatal("Expected lock file to be created")
 	}

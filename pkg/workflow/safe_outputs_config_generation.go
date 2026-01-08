@@ -185,6 +185,33 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 
 			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}
+		if data.SafeOutputs.MissingData != nil {
+			// Generate config for missing_data with issue creation support
+			missingDataConfig := make(map[string]any)
+
+			// Add max if set
+			if data.SafeOutputs.MissingData.Max > 0 {
+				missingDataConfig["max"] = data.SafeOutputs.MissingData.Max
+			}
+
+			// Add issue creation config if enabled
+			if data.SafeOutputs.MissingData.CreateIssue {
+				createIssueConfig := make(map[string]any)
+				createIssueConfig["max"] = 1 // Only create one issue per workflow run
+
+				if data.SafeOutputs.MissingData.TitlePrefix != "" {
+					createIssueConfig["title_prefix"] = data.SafeOutputs.MissingData.TitlePrefix
+				}
+
+				if len(data.SafeOutputs.MissingData.Labels) > 0 {
+					createIssueConfig["labels"] = data.SafeOutputs.MissingData.Labels
+				}
+
+				safeOutputsConfig["create_missing_data_issue"] = createIssueConfig
+			}
+
+			safeOutputsConfig["missing_data"] = missingDataConfig
+		}
 		if data.SafeOutputs.UpdateProjects != nil {
 			safeOutputsConfig["update_project"] = generateMaxConfig(
 				data.SafeOutputs.UpdateProjects.Max,
@@ -200,6 +227,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.CopyProjects != nil {
 			safeOutputsConfig["copy_project"] = generateMaxConfig(
 				data.SafeOutputs.CopyProjects.Max,
+				1, // default max
+			)
+		}
+		if data.SafeOutputs.CreateProjects != nil {
+			safeOutputsConfig["create_project"] = generateMaxConfig(
+				data.SafeOutputs.CreateProjects.Max,
 				1, // default max
 			)
 		}
@@ -514,6 +547,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.MissingTool != nil {
 		enabledTools["missing_tool"] = true
 	}
+	if data.SafeOutputs.MissingData != nil {
+		enabledTools["missing_data"] = true
+	}
 	if data.SafeOutputs.UpdateRelease != nil {
 		enabledTools["update_release"] = true
 	}
@@ -534,6 +570,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	}
 	if data.SafeOutputs.CopyProjects != nil {
 		enabledTools["copy_project"] = true
+	}
+	if data.SafeOutputs.CreateProjects != nil {
+		enabledTools["create_project"] = true
 	}
 	// Note: dispatch_workflow tools are generated dynamically below, not from the static tools list
 

@@ -55,14 +55,17 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 			},
-			RenderCustomMCPConfig: e.renderClaudeMCPConfig,
+			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+				return e.renderClaudeMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
+			},
 		},
 	})
 }
 
-// renderClaudeMCPConfig generates custom MCP server configuration for a single tool in Claude workflow mcp-servers.json
-func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	return renderCustomMCPConfigWrapper(yaml, toolName, toolConfig, isLast)
+// renderClaudeMCPConfigWithContext generates custom MCP server configuration for a single tool in Claude workflow mcp-servers.json
+// This version includes workflowData to determine if localhost URLs should be rewritten
+func (e *ClaudeEngine) renderClaudeMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
+	return renderCustomMCPConfigWrapperWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 }
 
 // renderCacheMemoryMCPConfig handles cache-memory configuration without MCP server mounting

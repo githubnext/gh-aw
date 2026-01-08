@@ -24,7 +24,7 @@ func TestRenderBuiltinMCPServerBlock(t *testing.T) {
 			name:     "SafeOutputs Copilot format",
 			serverID: constants.SafeOutputsMCPServerID,
 			command:  "node",
-			args:     []string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
+			args:     []string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
 			envVars: []string{
 				"GH_AW_SAFE_OUTPUTS",
 				"GH_AW_ASSETS_BRANCH",
@@ -35,7 +35,7 @@ func TestRenderBuiltinMCPServerBlock(t *testing.T) {
 				`"safeoutputs": {`,
 				`"type": "local"`,
 				`"command": "node"`,
-				`"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]`,
+				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				`"tools": ["*"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
@@ -48,7 +48,7 @@ func TestRenderBuiltinMCPServerBlock(t *testing.T) {
 			name:     "SafeOutputs Claude format",
 			serverID: constants.SafeOutputsMCPServerID,
 			command:  "node",
-			args:     []string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
+			args:     []string{"/opt/gh-aw/safeoutputs/mcp-server.cjs"},
 			envVars: []string{
 				"GH_AW_SAFE_OUTPUTS",
 				"GH_AW_ASSETS_BRANCH",
@@ -58,7 +58,7 @@ func TestRenderBuiltinMCPServerBlock(t *testing.T) {
 			expectedContent: []string{
 				`"safeoutputs": {`,
 				`"command": "node"`,
-				`"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]`,
+				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
 				`"GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH"`,

@@ -82,7 +82,7 @@ func TestXPIAPromptInWorkflow(t *testing.T) {
 	}
 
 	// Check that the cat command to the XPIA prompt file is included
-	if !strings.Contains(output, "cat \"/tmp/gh-aw/prompts/xpia_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(output, "cat \"/opt/gh-aw/prompts/xpia_prompt.md\" >> \"$GH_AW_PROMPT\"") {
 		t.Error("Expected cat command for XPIA prompt file")
 	}
 }

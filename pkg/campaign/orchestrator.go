@@ -103,9 +103,9 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 			"with": map[string]any{
 				"github-token": "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				"script": `
-const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io);
-const { main } = require('/tmp/gh-aw/actions/campaign_discovery.cjs');
+const { main } = require('/opt/gh-aw/actions/campaign_discovery.cjs');
 await main();
 `,
 			},

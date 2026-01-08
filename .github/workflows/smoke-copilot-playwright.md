@@ -103,7 +103,7 @@ post-steps:
       docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null || true
   - name: Upload Playwright Debug Logs
     if: always()
-    uses: actions/upload-artifact@v5
+    uses: actions/upload-artifact@v6
     with:
       name: playwright-debug-logs-${{ github.run_id }}
       path: /tmp/gh-aw/playwright-debug-logs/

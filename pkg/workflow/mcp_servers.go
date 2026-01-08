@@ -252,12 +252,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Step 1: Write config files (config.json, tools.json, validation.json)
 		yaml.WriteString("      - name: Write Safe Outputs Config\n")
 		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          mkdir -p /opt/gh-aw/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs\n")
 
 		// Write the safe-outputs configuration to config.json
 		if safeOutputConfig != "" {
-			yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'\n")
+			yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'\n")
 			yaml.WriteString("          " + safeOutputConfig + "\n")
 			yaml.WriteString("          EOF\n")
 		}
@@ -269,7 +270,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			// Fall back to empty array on error
 			filteredToolsJSON = "[]"
 		}
-		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'\n")
+		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'\n")
 		// Write each line of the indented JSON with proper YAML indentation
 		for _, line := range strings.Split(filteredToolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
@@ -294,7 +295,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			mcpServersLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
 			validationConfigJSON = "{}"
 		}
-		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'\n")
+		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'\n")
 		// Write each line of the indented JSON with proper YAML indentation
 		for _, line := range strings.Split(validationConfigJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
@@ -311,11 +312,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Step 1: Write config files (JavaScript files are now copied by actions/setup)
 		yaml.WriteString("      - name: Setup Safe Inputs Config\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs/logs\n")
+		yaml.WriteString("          mkdir -p /opt/gh-aw/safe-inputs/logs\n")
 
 		// Generate the tools.json configuration file
 		toolsJSON := generateSafeInputsToolsConfig(workflowData.SafeInputs)
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'\n")
+		yaml.WriteString("          cat > /opt/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'\n")
 		for _, line := range strings.Split(toolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
@@ -323,12 +324,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 		// Generate the MCP server entry point
 		safeInputsMCPServer := generateSafeInputsMCPServerScript(workflowData.SafeInputs)
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'\n")
+		yaml.WriteString("          cat > /opt/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'\n")
 		for _, line := range FormatJavaScriptForYAML(safeInputsMCPServer) {
 			yaml.WriteString(line)
 		}
 		yaml.WriteString("          EOFSI\n")
-		yaml.WriteString("          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs\n")
+		yaml.WriteString("          chmod +x /opt/gh-aw/safe-inputs/mcp-server.cjs\n")
 		yaml.WriteString("          \n")
 
 		// Step 2: Generate tool files (js/py/sh)
@@ -347,7 +348,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			if toolConfig.Script != "" {
 				// JavaScript tool
 				toolScript := generateSafeInputJavaScriptToolScript(toolConfig)
-				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.cjs << 'EOFJS_%s'\n", toolName, toolName)
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.cjs << 'EOFJS_%s'\n", toolName, toolName)
 				for _, line := range FormatJavaScriptForYAML(toolScript) {
 					yaml.WriteString(line)
 				}
@@ -355,25 +356,25 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			} else if toolConfig.Run != "" {
 				// Shell script tool
 				toolScript := generateSafeInputShellToolScript(toolConfig)
-				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.sh << 'EOFSH_%s'\n", toolName, toolName)
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.sh << 'EOFSH_%s'\n", toolName, toolName)
 				for _, line := range strings.Split(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          EOFSH_%s\n", toolName)
-				fmt.Fprintf(yaml, "          chmod +x /tmp/gh-aw/safe-inputs/%s.sh\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/safe-inputs/%s.sh\n", toolName)
 			} else if toolConfig.Py != "" {
 				// Python script tool
 				toolScript := generateSafeInputPythonToolScript(toolConfig)
-				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.py << 'EOFPY_%s'\n", toolName, toolName)
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.py << 'EOFPY_%s'\n", toolName, toolName)
 				for _, line := range strings.Split(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          EOFPY_%s\n", toolName)
-				fmt.Fprintf(yaml, "          chmod +x /tmp/gh-aw/safe-inputs/%s.py\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/safe-inputs/%s.py\n", toolName)
 			} else if toolConfig.Go != "" {
 				// Go script tool
 				toolScript := generateSafeInputGoToolScript(toolConfig)
-				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.go << 'EOFGO_%s'\n", toolName, toolName)
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.go << 'EOFGO_%s'\n", toolName, toolName)
 				for _, line := range strings.Split(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
@@ -431,7 +432,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
-		yaml.WriteString("          bash /tmp/gh-aw/actions/start_safe_inputs_server.sh\n")
+		yaml.WriteString("          bash /opt/gh-aw/actions/start_safe_inputs_server.sh\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -486,10 +487,11 @@ func shouldGenerateMCPGateway(workflowData *WorkflowData) bool {
 
 // generateMCPGatewayStepInline generates the MCP gateway start logic inline in the Setup MCPs step
 // This adds the gateway configuration and start commands after the MCP config is generated
+// Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
 func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngine, workflowData *WorkflowData) {
 	gatewayConfig := workflowData.SandboxConfig.MCP
-	mcpServersLog.Printf("Adding MCP gateway start to Setup MCPs step: command=%s, container=%s, port=%d",
-		gatewayConfig.Command, gatewayConfig.Container, gatewayConfig.Port)
+	mcpServersLog.Printf("Adding MCP gateway start to Setup MCPs step: container=%s, port=%d",
+		gatewayConfig.Container, gatewayConfig.Port)
 
 	// Default values per specification
 	port := gatewayConfig.Port
@@ -540,66 +542,57 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 		}
 	}
 
-	// Determine command or container to run
-	if gatewayConfig.Command != "" {
-		// Build command line with args
-		cmdLine := gatewayConfig.Command
-		if len(gatewayConfig.Args) > 0 {
-			for _, arg := range gatewayConfig.Args {
-				cmdLine += " " + shellQuote(arg)
-			}
-		}
-		yaml.WriteString("          export MCP_GATEWAY_COMMAND=" + shellQuote(cmdLine) + "\n")
-	} else if gatewayConfig.Container != "" {
-		// Build container image with version
-		containerImage := gatewayConfig.Container
-		if gatewayConfig.Version != "" {
-			containerImage += ":" + gatewayConfig.Version
-		}
-
-		// Build container command with args
-		containerCmd := "docker run -i --rm --network host"
-
-		// Add environment variables to container
-		containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
-		if len(gatewayConfig.Env) > 0 {
-			envVarNames := make([]string, 0, len(gatewayConfig.Env))
-			for envVarName := range gatewayConfig.Env {
-				envVarNames = append(envVarNames, envVarName)
-			}
-			sort.Strings(envVarNames)
-			for _, envVarName := range envVarNames {
-				containerCmd += " -e " + envVarName
-			}
-		}
-
-		containerCmd += " " + containerImage
-
-		// Add entrypoint args if configured
-		if len(gatewayConfig.EntrypointArgs) > 0 {
-			for _, arg := range gatewayConfig.EntrypointArgs {
-				containerCmd += " " + shellQuote(arg)
-			}
-		}
-
-		// Add command args if configured
-		if len(gatewayConfig.Args) > 0 {
-			for _, arg := range gatewayConfig.Args {
-				containerCmd += " " + shellQuote(arg)
-			}
-		}
-
-		yaml.WriteString("          export MCP_GATEWAY_CONTAINER=" + shellQuote(containerCmd) + "\n")
-	} else {
-		mcpServersLog.Print("ERROR: No command or container specified for MCP gateway")
-		yaml.WriteString("          echo 'ERROR: sandbox.mcp must specify either command or container'\n")
+	// Validate that container is specified
+	if gatewayConfig.Container == "" {
+		mcpServersLog.Print("ERROR: No container specified for MCP gateway")
+		yaml.WriteString("          echo 'ERROR: sandbox.mcp must specify container (command-based execution is not supported)'\n")
 		yaml.WriteString("          exit 1\n")
 		return
 	}
 
+	// Build container image with version
+	containerImage := gatewayConfig.Container
+	if gatewayConfig.Version != "" {
+		containerImage += ":" + gatewayConfig.Version
+	}
+
+	// Build container command with args
+	containerCmd := "docker run -i --rm --network host"
+
+	// Add environment variables to container
+	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
+	if len(gatewayConfig.Env) > 0 {
+		envVarNames := make([]string, 0, len(gatewayConfig.Env))
+		for envVarName := range gatewayConfig.Env {
+			envVarNames = append(envVarNames, envVarName)
+		}
+		sort.Strings(envVarNames)
+		for _, envVarName := range envVarNames {
+			containerCmd += " -e " + envVarName
+		}
+	}
+
+	containerCmd += " " + containerImage
+
+	// Add entrypoint args if configured
+	if len(gatewayConfig.EntrypointArgs) > 0 {
+		for _, arg := range gatewayConfig.EntrypointArgs {
+			containerCmd += " " + shellQuote(arg)
+		}
+	}
+
+	// Add command args if configured
+	if len(gatewayConfig.Args) > 0 {
+		for _, arg := range gatewayConfig.Args {
+			containerCmd += " " + shellQuote(arg)
+		}
+	}
+
+	yaml.WriteString("          export MCP_GATEWAY_CONTAINER=" + shellQuote(containerCmd) + "\n")
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Run gateway start script\n")
-	yaml.WriteString("          bash /tmp/gh-aw/actions/start_mcp_gateway.sh\n")
+	yaml.WriteString("          bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 }
 
 // shellQuote adds shell quoting to a string if needed
@@ -972,6 +965,6 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const determineAutomaticLockdown = require('/tmp/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
+	yaml.WriteString("            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
 	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
 }

@@ -120,7 +120,7 @@ jobs:
           echo "✓ No secrets detected in SBOM files"
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-artifacts
           path: |

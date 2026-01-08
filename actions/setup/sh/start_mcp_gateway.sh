@@ -2,6 +2,7 @@
 # Start MCP Gateway
 # This script starts the MCP gateway process that proxies MCP servers through a unified HTTP endpoint
 # Following the MCP Gateway Specification: https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/reference/mcp-gateway.md
+# Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
 
 set -e
 
@@ -9,8 +10,7 @@ set -e
 # - MCP_GATEWAY_PORT: Port for the gateway HTTP server
 # - MCP_GATEWAY_DOMAIN: Domain for gateway URL (localhost or host.docker.internal)
 # - MCP_GATEWAY_API_KEY: API key for gateway authentication
-# - MCP_GATEWAY_COMMAND: Command to execute (optional, mutually exclusive with CONTAINER)
-# - MCP_GATEWAY_CONTAINER: Container image to run (optional, mutually exclusive with COMMAND)
+# - MCP_GATEWAY_CONTAINER: Container image to run (required)
 
 # Validate required environment variables
 if [ -z "$MCP_GATEWAY_PORT" ]; then
@@ -28,6 +28,12 @@ if [ -z "$MCP_GATEWAY_API_KEY" ]; then
   exit 1
 fi
 
+# Validate that container is specified (command execution is not supported per spec)
+if [ -z "$MCP_GATEWAY_CONTAINER" ]; then
+  echo "ERROR: MCP_GATEWAY_CONTAINER must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)"
+  exit 1
+fi
+
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs/gateway
 
@@ -40,26 +46,15 @@ echo "Gateway input configuration:"
 cat /tmp/gh-aw/mcp-config/gateway-input.json
 echo ""
 
-# Start gateway process (either command or container)
-if [ -n "$MCP_GATEWAY_COMMAND" ]; then
-  # Direct command execution
-  echo "Starting gateway with command: $MCP_GATEWAY_COMMAND"
-  cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_COMMAND \
-    > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
-elif [ -n "$MCP_GATEWAY_CONTAINER" ]; then
-  # Container execution
-  echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
-  cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
-    --network host \
-    -e MCP_GATEWAY_PORT \
-    -e MCP_GATEWAY_DOMAIN \
-    -e MCP_GATEWAY_API_KEY \
-    $MCP_GATEWAY_CONTAINER \
-    > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
-else
-  echo "ERROR: Either MCP_GATEWAY_COMMAND or MCP_GATEWAY_CONTAINER must be set"
-  exit 1
-fi
+# Start gateway process with container
+echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
+cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
+  --network host \
+  -e MCP_GATEWAY_PORT \
+  -e MCP_GATEWAY_DOMAIN \
+  -e MCP_GATEWAY_API_KEY \
+  $MCP_GATEWAY_CONTAINER \
+  > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"

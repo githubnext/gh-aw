@@ -288,14 +288,6 @@ func TestGenerateAuditReport(t *testing.T) {
 		TokenUsage:    1500,
 		EstimatedCost: 0.025,
 		Turns:         5,
-		Errors: []workflow.LogError{
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    42,
-				Type:    "warning",
-				Message: "Example warning message",
-			},
-		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_issue_read",
@@ -461,40 +453,7 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 		LogsPath:     "/tmp/gh-aw/error-logs",
 	}
 
-	metrics := LogMetrics{
-		Errors: []workflow.LogError{
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    10,
-				Type:    "error",
-				Message: "Failed to initialize tool",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    15,
-				Type:    "error",
-				Message: "Connection timeout",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    102,
-				Type:    "error",
-				Message: "Permission denied",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    20,
-				Type:    "warning",
-				Message: "Deprecated API usage",
-			},
-			{
-				File:    "/tmp/gh-aw/error-logs/agent.log",
-				Line:    156,
-				Type:    "warning",
-				Message: "Resource limit approaching",
-			},
-		},
-	}
+	metrics := LogMetrics{}
 
 	processedRun := ProcessedRun{
 		Run: run,
@@ -517,24 +476,24 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 		t.Error("Report should mention warning count")
 	}
 
-	// Verify individual errors are displayed
-	if !strings.Contains(report, "### Errors and Warnings") {
-		t.Error("Report should contain 'Errors and Warnings' section")
-	}
-	if !strings.Contains(report, "Failed to initialize tool") {
-		t.Error("Report should contain first error message")
-	}
-	if !strings.Contains(report, "Connection timeout") {
-		t.Error("Report should contain second error message")
-	}
-	if !strings.Contains(report, "Deprecated API usage") {
-		t.Error("Report should contain warning message")
-	}
-
-	// Verify the format includes file and line information
-	if !strings.Contains(report, "agent.log:10:") {
-		t.Error("Report should contain file:line format for first error")
-	}
+	// Note: Individual error/warning extraction was removed from buildAuditData
+	// The errors/warnings section generation and individual error display
+	// is no longer performed
+	// if !strings.Contains(report, "### Errors and Warnings") {
+	// 	t.Error("Report should contain 'Errors and Warnings' section")
+	// }
+	// if !strings.Contains(report, "Failed to initialize tool") {
+	// 	t.Error("Report should contain first error message")
+	// }
+	// if !strings.Contains(report, "Connection timeout") {
+	// 	t.Error("Report should contain second error message")
+	// }
+	// if !strings.Contains(report, "Deprecated API usage") {
+	// 	t.Error("Report should contain warning message")
+	// }
+	// if !strings.Contains(report, "agent.log:10:") {
+	// 	t.Error("Report should contain file:line format for first error")
+	// }
 }
 
 func TestGenerateAuditReportArtifacts(t *testing.T) {
@@ -641,26 +600,6 @@ func TestBuildAuditData(t *testing.T) {
 		TokenUsage:    1500,
 		EstimatedCost: 0.025,
 		Turns:         5,
-		Errors: []workflow.LogError{
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    42,
-				Type:    "warning",
-				Message: "Example warning message",
-			},
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    50,
-				Type:    "error",
-				Message: "Example error message",
-			},
-			{
-				File:    "/tmp/gh-aw/logs/agent.log",
-				Line:    60,
-				Type:    "error",
-				Message: "Another error message",
-			},
-		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_issue_read",
@@ -730,13 +669,15 @@ func TestBuildAuditData(t *testing.T) {
 		t.Errorf("Expected warning count 1, got %d", auditData.Metrics.WarningCount)
 	}
 
-	// Verify errors and warnings are properly split
-	if len(auditData.Errors) != 2 {
-		t.Errorf("Expected 2 errors, got %d", len(auditData.Errors))
-	}
-	if len(auditData.Warnings) != 1 {
-		t.Errorf("Expected 1 warning, got %d", len(auditData.Warnings))
-	}
+	// Note: Error and warning extraction was removed from buildAuditData
+	// The error/warning counts in metrics are preserved but individual error/warning
+	// extraction via pattern matching is no longer performed
+	// if len(auditData.Errors) != 2 {
+	// 	t.Errorf("Expected 2 errors, got %d", len(auditData.Errors))
+	// }
+	// if len(auditData.Warnings) != 1 {
+	// 	t.Errorf("Expected 1 warning, got %d", len(auditData.Warnings))
+	// }
 
 	// Verify tool usage
 	if len(auditData.ToolUsage) != 1 {

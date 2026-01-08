@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -52,7 +54,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 	if workflowData.StopTime != "" {
 		stopAfterLog.Printf("Stop-after value specified: %s", workflowData.StopTime)
 		// Check if there's already a lock file with a stop time (recompilation case)
-		lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
+		lockFile := stringutil.MarkdownToLockFile(markdownPath)
 		existingStopTime := ExtractStopTimeFromLockFile(lockFile)
 
 		// If refresh flag is set, always regenerate the stop time

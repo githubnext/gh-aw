@@ -1,11 +1,11 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-01-06  
-**Source**: [Ubuntu2404-Readme.md](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md)  
+**Last Updated**: 2026-01-08  
+**Source**: [Ubuntu2404-Readme.md (20260105)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260105/images/ubuntu/Ubuntu2404-Readme.md)  
 **Ubuntu Version**: 24.04.3 LTS  
-**Image Version**: 20251215.174.1  
+**Image Version**: 20260105.202.1  
 **Kernel Version**: 6.11.0-1018-azure  
-**Systemd Version**: 255.4-1ubuntu8.11  
+**Systemd Version**: 255.4-1ubuntu8.12  
 
 ## Overview
 
@@ -37,7 +37,7 @@ The Ubuntu 24.04 runner image includes:
 - **Distribution**: Ubuntu 24.04.3 LTS
 - **Kernel**: 6.11.0-1018-azure
 - **Architecture**: x86_64
-- **Systemd**: 255.4-1ubuntu8.11
+- **Systemd**: 255.4-1ubuntu8.12
 
 ## Language Runtimes
 
@@ -62,14 +62,14 @@ The Ubuntu 24.04 runner image includes:
   - pip 24.0
   - pip3 24.0
   - Pipx 1.8.0
-  - Miniconda 25.9.1
+  - Miniconda 25.11.1
 - **Additional Tools**: virtualenv, poetry support via pipx
 
 ### Ruby
 - **Installed Version**: 3.2.3
-- **Cached Versions**: 3.2.9, 3.3.10, 3.4.7
+- **Cached Versions**: 3.2.9, 3.3.10, 3.4.8
 - **Package Manager**: RubyGems 3.4.20
-- **Tools**: Bundler, Fastlane 2.229.1
+- **Tools**: Bundler, Fastlane 2.230.0
 
 ### Go
 - **Cached Versions**: 1.22.12, 1.23.12, 1.24.11, 1.25.5
@@ -82,11 +82,11 @@ The Ubuntu 24.04 runner image includes:
   - 17.0.17+10 (default) (JAVA_HOME_17_X64)
   - 21.0.9+10 (JAVA_HOME_21_X64)
   - 25.0.1+8 (JAVA_HOME_25_X64)
-- **Build Tools**: Maven 3.9.11, Gradle 9.2.1, Ant 1.10.14
+- **Build Tools**: Maven 3.9.12, Gradle 9.2.1, Ant 1.10.14
 
 ### PHP
 - **Version**: 8.3.6
-- **Composer**: 2.9.2
+- **Composer**: 2.9.3
 - **PHPUnit**: 8.5.50
 - **Extensions**: Xdebug (enabled), PCOV (installed but disabled)
 
@@ -98,16 +98,16 @@ The Ubuntu 24.04 runner image includes:
 - **Rustdoc**: 1.92.0
 
 ### Haskell
-- **GHC**: 9.12.2
-- **Cabal**: 3.16.0.0
+- **GHC**: 9.14.1
+- **Cabal**: 3.16.1.0
 - **GHCup**: 0.1.50.2
-- **Stack**: 3.7.1
+- **Stack**: 3.9.1
 
 ### Other Languages
 - **Bash**: 5.2.21(1)-release
 - **Perl**: 5.38.2
-- **Julia**: 1.12.2
-- **Kotlin**: 2.2.21-release-469
+- **Julia**: 1.12.3
+- **Kotlin**: 2.3.0-release-356
 - **Swift**: 6.2.3
 
 ### Compilers
@@ -132,8 +132,8 @@ The Ubuntu 24.04 runner image includes:
 - **Skopeo**: 1.13.3
 
 ### Kubernetes Tools
-- **kubectl**: 1.34.3
-- **Kind**: 0.30.0
+- **kubectl**: 1.35.0
+- **Kind**: 0.31.0
 - **Minikube**: 1.37.0
 - **Helm**: 3.19.4
 - **Kustomize**: 5.8.0
@@ -181,16 +181,16 @@ The Ubuntu 24.04 runner image includes:
 - **GitHub CLI**: 2.83.2
 
 ### Cloud CLIs
-- **AWS CLI**: 2.32.17
+- **AWS CLI**: 2.32.29
 - **AWS CLI Session Manager Plugin**: 1.2.764.0
-- **AWS SAM CLI**: 1.150.1
+- **AWS SAM CLI**: 1.151.0
 - **Azure CLI**: 2.81.0
 - **Azure CLI (azure-devops)**: 1.0.2
-- **Google Cloud CLI**: 549.0.1
+- **Google Cloud CLI**: 550.0.0
 
 ### Infrastructure as Code
-- **Terraform**: Not pre-installed
-- **Pulumi**: 3.212.0
+- **Terraform**: Not pre-installed (install via Homebrew or direct download)
+- **Pulumi**: 3.214.0
 - **Packer**: 1.14.3
 - **Bicep**: 0.39.26
 - **Ansible**: 2.20.1
@@ -199,17 +199,17 @@ The Ubuntu 24.04 runner image includes:
 - **Lerna**: 9.0.3
 - **Parcel**: 2.16.3
 - **Newman**: 6.2.1
-- **Fastlane**: 2.229.1
+- **Fastlane**: 2.230.0
 
 ## Testing Tools
 
 ### Browsers & Drivers
-- **Google Chrome**: 143.0.7499.109
-- **ChromeDriver**: 143.0.7499.42
+- **Google Chrome**: 143.0.7499.169
+- **ChromeDriver**: 143.0.7499.169
 - **Chromium**: 143.0.7499.0
-- **Microsoft Edge**: 143.0.3650.80
-- **Microsoft Edge WebDriver**: 143.0.3650.80
-- **Mozilla Firefox**: 146.0
+- **Microsoft Edge**: 143.0.3650.96
+- **Microsoft Edge WebDriver**: 143.0.3650.96
+- **Mozilla Firefox**: 146.0.1
 - **Geckodriver**: 0.36.0
 - **Selenium Server**: 4.39.0
 
@@ -235,7 +235,7 @@ Both web servers are pre-installed but not running by default.
 ### Android SDK
 - **Command Line Tools**: 12.0
 - **Build Tools**: 34.0.0, 35.0.0, 35.0.1, 36.0.0, 36.1.0
-- **Platform Tools**: 36.0.0
+- **Platform Tools**: 36.0.2
 - **Platforms**: android-34 (rev 3), android-35 (rev 2), android-36 (rev 2), plus extension versions
 - **NDK Versions**: 26.3.11579264, 27.3.13750724 (default), 28.2.13676358, 29.0.14206865
 - **CMake**: 3.31.5, 4.1.2
@@ -257,7 +257,7 @@ ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
 - **PowerShell**: 7.4.13
 - **Modules**:
   - Az: 12.5.0
-  - Microsoft.Graph: 2.33.0
+  - Microsoft.Graph: 2.34.0
   - Pester: 5.7.1
   - PSScriptAnalyzer: 1.24.0
 
@@ -709,10 +709,35 @@ The GitHub Actions runner environment has several aspects that cannot be perfect
 - **Deprecations**: GitHub announces runner image deprecations months in advance
 - **This Document**: Should be refreshed quarterly or when significant runner updates occur
 
+## Upcoming Changes & Announcements
+
+As of the 20260105 image version, the following changes are planned:
+
+1. **Docker Update (February 9, 2026)**:
+   - Docker Server and Client → version 29.1.x
+   - Docker Compose → version 2.40.3
+
+2. **Azure PowerShell Module (January 26, 2026)**:
+   - Azure PowerShell Module → version 14.6.0
+
+3. **Ubuntu 22.04 Deprecations (January 12, 2026)**:
+   - Pre-cached Docker images removed
+   - Additional Haskell (GHC) instances removed
+
+4. **Android SDK Changes (January 12, 2026)**:
+   - Android SDK platforms and build tools older than version 34 removed
+   - Android NDK 26 removed; NDK 27 becomes default
+
+5. **Python Changes (January 12, 2026)**:
+   - Python 3.9 removed
+   - Python 3.12 becomes the default on Windows images
+
+For the latest announcements, see the [runner-images repository announcements](https://github.com/actions/runner-images#announcements).
+
 ## References
 
 - **Runner Image Repository**: [actions/runner-images](https://github.com/actions/runner-images)
-- **Documentation Source**: [Ubuntu2404-Readme.md](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md)
+- **Documentation Source**: [Ubuntu2404-Readme.md (20260105)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260105/images/ubuntu/Ubuntu2404-Readme.md)
 - **Ubuntu Documentation**: [Ubuntu 24.04 (Noble Numbat)](https://ubuntu.com/blog/tag/ubuntu-24-04-lts)
 - **Docker Documentation**: [Docker Build Guide](https://docs.docker.com/build/)
 - **GitHub Actions Documentation**: [Using GitHub-hosted runners](https://docs.github.com/en/actions/using-github-hosted-runners)

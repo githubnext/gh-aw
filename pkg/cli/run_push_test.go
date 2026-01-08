@@ -4,10 +4,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -189,7 +189,7 @@ This is a test workflow without a lock file.
 	}
 	assert.True(t, fileSet[workflowPath], "Should include workflow .md file")
 
-	lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
 	assert.True(t, fileSet[lockFilePath], "Should include auto-generated lock .yml file")
 }
 

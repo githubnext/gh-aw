@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -37,7 +39,7 @@ This workflow uses repo memory.
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -97,7 +99,7 @@ This workflow uses custom repo memory configuration.
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -154,7 +156,7 @@ This workflow uses multiple repo memories.
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -221,7 +223,7 @@ This workflow has file validation.
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -239,7 +241,7 @@ This workflow has file validation.
 	}
 
 	// Check that push_repo_memory.cjs is being required (not inlined)
-	if !strings.Contains(lockFile, "require('/tmp/gh-aw/actions/push_repo_memory.cjs')") {
+	if !strings.Contains(lockFile, "require('/opt/gh-aw/actions/push_repo_memory.cjs')") {
 		t.Error("Expected push_repo_memory script to be loaded via require")
 	}
 
@@ -282,7 +284,7 @@ This workflow has repo-memory disabled.
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

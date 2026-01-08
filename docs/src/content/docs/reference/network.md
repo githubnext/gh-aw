@@ -31,11 +31,25 @@ network:
     - node                 # Node.js/NPM ecosystem
     - "api.example.com"    # Custom domain
 
-# Custom domains (automatically includes subdomains)
+# Custom domains with wildcard patterns
 network:
   allowed:
-    - "api.example.com"      # Exact domain
-    - "trusted.com"          # Includes all *.trusted.com subdomains
+    - "api.example.com"      # Exact domain (also matches subdomains)
+    - "*.cdn.example.com"    # Wildcard: matches any subdomain of cdn.example.com
+
+# Protocol-specific domain filtering (Copilot engine only)
+network:
+  allowed:
+    - "https://secure.api.example.com"   # HTTPS-only access
+    - "http://legacy.example.com"        # HTTP-only access
+    - "example.org"                      # Both HTTP and HTTPS (default)
+
+# Protocol-specific domain filtering (Copilot engine only)
+network:
+  allowed:
+    - "https://secure.api.example.com"   # HTTPS-only access
+    - "http://legacy.example.com"        # HTTP-only access
+    - "example.org"                      # Both HTTP and HTTPS (default)
 
 # No network access
 network: {}
@@ -111,11 +125,57 @@ Network permissions follow the principle of least privilege with four access lev
 1. **Default Allow List** (`network: defaults`): Basic infrastructure only
 2. **Selective Access** (`network: { allowed: [...] }`): Only listed domains/ecosystems are accessible
 3. **No Access** (`network: {}`): All network access denied
-4. **Automatic Subdomain Matching**: AWF automatically matches all subdomains of allowed domains (e.g., `github.com` allows `api.github.com`, `raw.githubusercontent.com`, etc.)
+4. **Automatic Subdomain Matching**: Listed domains automatically match all subdomains (e.g., `github.com` allows `api.github.com`, `raw.githubusercontent.com`, etc.)
+5. **Wildcard Patterns**: Use `*.example.com` to explicitly match any subdomain of `example.com`
 
-:::note
-AWF does not support wildcard syntax like `*.example.com`. Instead, listing a domain automatically includes all its subdomains. Use `example.com` to allow access to `example.com`, `api.example.com`, `sub.api.example.com`, etc.
+## Protocol-Specific Domain Filtering
+
+For fine-grained security control, you can restrict domains to specific protocols (HTTP or HTTPS only). This is particularly useful when:
+- Working with legacy systems that only support HTTP
+- Ensuring secure connections by restricting to HTTPS-only
+- Migrating from HTTP to HTTPS gradually
+
+:::tip[Copilot Engine Support]
+Protocol-specific filtering is currently supported by the Copilot engine with AWF firewall enabled. Domains without protocol prefixes allow both HTTP and HTTPS traffic (backward compatible).
 :::
+
+### Usage Examples
+
+```yaml wrap
+engine: copilot
+network:
+  allowed:
+    - "https://secure.api.example.com"   # HTTPS-only access
+    - "http://legacy.example.com"        # HTTP-only access  
+    - "example.org"                      # Both protocols (default)
+    - "https://*.api.example.com"        # HTTPS wildcard
+```
+
+**Compiled to AWF:**
+```bash
+--allow-domains ...,example.org,http://legacy.example.com,https://secure.api.example.com,...
+```
+
+### Supported Protocols
+
+- `https://` - HTTPS-only access
+- `http://` - HTTP-only access
+- No prefix - Both HTTP and HTTPS (backward compatible)
+
+:::caution[Protocol Validation]
+Invalid protocols (e.g., `ftp://`, `ws://`) are rejected at compile time with a clear error message:
+```
+error: network.allowed[0]: domain pattern 'ftp://invalid.example.com' 
+has invalid protocol, only 'http://' and 'https://' are allowed
+```
+:::
+
+### Best Practices
+
+- **Prefer HTTPS**: Use `https://` prefix for all external APIs and services
+- **Legacy Systems**: Only use `http://` for internal or legacy systems that don't support HTTPS
+- **Default Behavior**: Omit the protocol prefix for domains that should accept both protocols
+- **Gradual Migration**: Use protocol-specific filtering to migrate from HTTP to HTTPS incrementally
 
 ## Content Sanitization
 
@@ -177,12 +237,9 @@ When enabled, AWF:
 - Wraps the Copilot CLI execution command
 - Enforces domain allowlisting using the `--allow-domains` flag
 - Automatically includes all subdomains (e.g., `github.com` allows `api.github.com`)
+- Supports wildcard patterns (e.g., `*.cdn.example.com` matches `img.cdn.example.com`)
 - Logs all network activity for audit purposes
 - Blocks access to domains not explicitly allowed
-
-:::caution
-AWF does not support wildcard syntax. Do not use patterns like `*.example.com`. Instead, list the base domain (e.g., `example.com`) which automatically includes all subdomains.
-:::
 
 ### Firewall Log Level
 
@@ -245,9 +302,33 @@ When the firewall is disabled:
 
 For production workflows, enabling the firewall is recommended for better network security.
 
+## Wildcard Domain Patterns
+
+Use wildcard patterns (`*.example.com`) to match any subdomain of a domain. Wildcards provide explicit control when you need to allow a family of subdomains.
+
+```yaml wrap
+network:
+  allowed:
+    - defaults
+    - "*.cdn.example.com"     # Matches img.cdn.example.com, static.cdn.example.com
+    - "*.storage.example.com" # Matches files.storage.example.com
+```
+
+**Wildcard matching behavior:**
+- `*.example.com` matches `subdomain.example.com` and `deep.nested.example.com`
+- `*.example.com` also matches the base domain `example.com`
+- Only a single wildcard at the start is allowed (e.g., `*.*.example.com` is invalid)
+- The wildcard must be followed by a dot and domain (e.g., `*` alone is not allowed in strict mode)
+
+:::tip[When to Use Wildcards vs Base Domains]
+Both approaches work for subdomain matching:
+- **Base domain** (`example.com`): Simpler syntax, automatically matches all subdomains
+- **Wildcard pattern** (`*.example.com`): Explicit about subdomain matching intent, useful when you want to clearly document that subdomains are expected
+:::
+
 ## Best Practices
 
-Follow the principle of least privilege by only allowing access to domains and ecosystems actually needed. Prefer ecosystem identifiers over listing individual domains. When adding custom domains, use the base domain (e.g., `trusted.com`) which automatically includes all subdomains—do not use wildcard syntax like `*.trusted.com`.
+Follow the principle of least privilege by only allowing access to domains and ecosystems actually needed. Prefer ecosystem identifiers over listing individual domains. For custom domains, both base domains (e.g., `trusted.com`) and wildcard patterns (e.g., `*.trusted.com`) work for subdomain matching.
 
 ## Troubleshooting
 

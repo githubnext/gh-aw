@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -51,7 +50,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/" + parserScriptName + ".cjs');\n")
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/" + parserScriptName + ".cjs');\n")
 	yaml.WriteString("            await main();\n")
 }
 
@@ -69,7 +68,7 @@ func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load safe-inputs log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/parse_safe_inputs_logs.cjs');\n")
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');\n")
 	yaml.WriteString("            await main();\n")
 }
 
@@ -82,68 +81,4 @@ func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {
 		return goPattern[4:] // Remove (?i) prefix
 	}
 	return goPattern
-}
-
-// convertErrorPatternsToJavaScript converts a slice of Go error patterns to JavaScript-compatible patterns
-func (c *Compiler) convertErrorPatternsToJavaScript(goPatterns []ErrorPattern) []ErrorPattern {
-	jsPatterns := make([]ErrorPattern, len(goPatterns))
-	for i, pattern := range goPatterns {
-		jsPatterns[i] = ErrorPattern{
-			Pattern:      c.convertGoPatternToJavaScript(pattern.Pattern),
-			LevelGroup:   pattern.LevelGroup,
-			MessageGroup: pattern.MessageGroup,
-			Description:  pattern.Description,
-		}
-	}
-	return jsPatterns
-}
-
-// generateErrorValidation generates a step that validates the agent's logs for errors
-func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, data *WorkflowData) {
-	// Concatenate engine error patterns and configured error patterns
-	var errorPatterns []ErrorPattern
-
-	// Add engine-defined patterns
-	enginePatterns := engine.GetErrorPatterns()
-	errorPatterns = append(errorPatterns, enginePatterns...)
-
-	// Add user-configured patterns from engine config
-	if data.EngineConfig != nil && len(data.EngineConfig.ErrorPatterns) > 0 {
-		errorPatterns = append(errorPatterns, data.EngineConfig.ErrorPatterns...)
-	}
-
-	// Skip if no error patterns are available
-	if len(errorPatterns) == 0 {
-		return
-	}
-
-	// Convert Go regex patterns to JavaScript-compatible patterns
-	jsCompatiblePatterns := c.convertErrorPatternsToJavaScript(errorPatterns)
-
-	// Get the log file path for validation (may be different from stdout/stderr log)
-	logFileForValidation := engine.GetLogFileForParsing()
-
-	yaml.WriteString("      - name: Validate agent logs for errors\n")
-	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
-
-	// Add JavaScript-compatible error patterns as a single JSON array
-	patternsJSON, err := json.Marshal(jsCompatiblePatterns)
-	if err != nil {
-		// Skip if patterns can't be marshaled
-		return
-	}
-	fmt.Fprintf(yaml, "          GH_AW_ERROR_PATTERNS: %q\n", string(patternsJSON))
-
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-
-	// Use the setup_globals helper to store GitHub Actions objects in global scope
-	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-	// Load error validation script from external file using require()
-	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');\n")
-	yaml.WriteString("            await main();\n")
 }

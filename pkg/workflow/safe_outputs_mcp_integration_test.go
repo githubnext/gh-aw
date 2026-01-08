@@ -53,7 +53,7 @@ Test safe outputs workflow with MCP server integration.
 	// So we don't check for cat command anymore, we just check the MCP config references it
 
 	// Check that safe-outputs configuration file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
+	if !strings.Contains(yamlStr, "cat > /opt/gh-aw/safeoutputs/config.json") {
 		t.Error("Expected safe-outputs configuration to be written to config.json file")
 	}
 
@@ -64,7 +64,7 @@ Test safe outputs workflow with MCP server integration.
 
 	// Check that the MCP server is configured with correct command
 	if !strings.Contains(yamlStr, `"command": "node"`) ||
-		!strings.Contains(yamlStr, `"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`) {
+		!strings.Contains(yamlStr, `"/opt/gh-aw/safeoutputs/mcp-server.cjs"`) {
 		t.Error("Expected safeoutputs MCP server to be configured with node command")
 	}
 
@@ -74,7 +74,7 @@ Test safe outputs workflow with MCP server integration.
 	}
 
 	// Check that config file is created
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
+	if !strings.Contains(yamlStr, "cat > /opt/gh-aw/safeoutputs/config.json") {
 		t.Error("Expected config file to be created")
 	}
 
@@ -119,7 +119,7 @@ Test workflow without safe outputs.
 	// The check is now redundant since we removed the cat command entirely
 
 	// Check that safe-outputs configuration file is NOT written
-	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
+	if strings.Contains(yamlStr, "cat > /opt/gh-aw/safeoutputs/config.json") {
 		t.Error("Expected safe-outputs configuration to NOT be written when safe-outputs are disabled")
 	}
 
@@ -172,7 +172,7 @@ Test safe outputs workflow with Codex engine.
 	// So we don't check for cat command anymore
 
 	// Check that safe-outputs configuration file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
+	if !strings.Contains(yamlStr, "cat > /opt/gh-aw/safeoutputs/config.json") {
 		t.Error("Expected safe-outputs configuration to be written to config.json file")
 	}
 

@@ -115,13 +115,13 @@ func generateStaticPromptStep(yaml *strings.Builder, description string, promptT
 }
 
 // generateStaticPromptStepFromFile generates a workflow step for appending a prompt file
-// from /tmp/gh-aw/prompts/ to the prompt file. This is the preferred approach as it
+// from /opt/gh-aw/prompts/ to the prompt file. This is the preferred approach as it
 // keeps prompt content in markdown files instead of embedding in the binary.
 //
 // Parameters:
 //   - yaml: The string builder to write the YAML to
 //   - description: The name of the workflow step (e.g., "Append XPIA security instructions to prompt")
-//   - promptFilename: The filename of the prompt in /tmp/gh-aw/prompts/ (e.g., "xpia_prompt.md")
+//   - promptFilename: The filename of the prompt in /opt/gh-aw/prompts/ (e.g., "xpia_prompt.md")
 //   - shouldInclude: Whether to generate the step (false means skip generation entirely)
 func generateStaticPromptStepFromFile(yaml *strings.Builder, description string, promptFilename string, shouldInclude bool) {
 	promptStepHelperLog.Printf("Generating static prompt step from file: description=%s, file=%s, shouldInclude=%t", description, promptFilename, shouldInclude)

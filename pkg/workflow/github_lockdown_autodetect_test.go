@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestGitHubLockdownAutodetection(t *testing.T) {
@@ -122,7 +124,7 @@ Test auto-determination with remote GitHub MCP.
 			}
 
 			// Read the generated lock file
-			lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
 			lockContent, err := os.ReadFile(lockPath)
 			if err != nil {
 				t.Fatalf("Failed to read lock file: %v", err)
@@ -207,7 +209,7 @@ Test automatic lockdown determination with Claude.
 	}
 
 	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockContent, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

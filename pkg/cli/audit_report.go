@@ -24,6 +24,7 @@ type AuditData struct {
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
 	MissingTools            []MissingToolReport      `json:"missing_tools,omitempty"`
+	MissingData             []MissingDataReport      `json:"missing_data,omitempty"`
 	Noops                   []NoopReport             `json:"noops,omitempty"`
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures,omitempty"`
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
@@ -196,22 +197,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 	// Build downloaded files list
 	downloadedFiles := extractDownloadedFiles(run.LogsPath)
 
-	// Build errors and warnings lists
+	// No error/warning extraction since error patterns have been removed
 	var errors []ErrorInfo
 	var warnings []ErrorInfo
-	for _, logErr := range metrics.Errors {
-		errInfo := ErrorInfo{
-			File:    logErr.File,
-			Line:    logErr.Line,
-			Type:    logErr.Type,
-			Message: logErr.Message,
-		}
-		if strings.ToLower(logErr.Type) == "error" {
-			errors = append(errors, errInfo)
-		} else {
-			warnings = append(warnings, errInfo)
-		}
-	}
 
 	// Build tool usage
 	var toolUsage []ToolUsageInfo
@@ -279,6 +267,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		Jobs:                    jobs,
 		DownloadedFiles:         downloadedFiles,
 		MissingTools:            processedRun.MissingTools,
+		MissingData:             processedRun.MissingData,
 		Noops:                   processedRun.Noops,
 		MCPFailures:             processedRun.MCPFailures,
 		FirewallAnalysis:        processedRun.FirewallAnalysis,

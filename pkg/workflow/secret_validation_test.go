@@ -78,7 +78,7 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 			docsURL:     "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
 			wantStrings: []string{
 				"Validate CODEX_API_KEY or OPENAI_API_KEY secret",
-				"run: /tmp/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
+				"run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
 				"CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
 				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
 			},
@@ -97,7 +97,7 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 			}
 
 			// Verify it calls the validate_multi_secret.sh script
-			if !strings.Contains(stepContent, "/tmp/gh-aw/actions/validate_multi_secret.sh") {
+			if !strings.Contains(stepContent, "/opt/gh-aw/actions/validate_multi_secret.sh") {
 				t.Error("Expected step to call validate_multi_secret.sh script")
 			}
 
@@ -182,7 +182,7 @@ func TestCodexEngineHasSecretValidation(t *testing.T) {
 	}
 
 	// Should call the validate_multi_secret.sh script with both secret names
-	if !strings.Contains(firstStep, "/tmp/gh-aw/actions/validate_multi_secret.sh") {
+	if !strings.Contains(firstStep, "/opt/gh-aw/actions/validate_multi_secret.sh") {
 		t.Error("Should call validate_multi_secret.sh script")
 	}
 	if !strings.Contains(firstStep, "CODEX_API_KEY OPENAI_API_KEY") {

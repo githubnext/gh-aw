@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 )
@@ -72,7 +74,7 @@ func TestGenerateArtifactsReference(t *testing.T) {
 		}
 
 		// Read the compiled lock file to extract artifact information
-		lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+		lockPath := stringutil.MarkdownToLockFile(workflowPath)
 		lockContent, err := os.ReadFile(lockPath)
 		if err != nil {
 			t.Logf("Warning: Failed to read lock file for %s: %v", workflowName, err)

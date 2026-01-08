@@ -143,7 +143,7 @@ jobs:
 	yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
 
       - name: Close expired discussions
         uses: ` + GetActionPin("actions/github-script") + `
@@ -152,9 +152,9 @@ jobs:
 `)
 
 	// Add the close expired discussions script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+	yaml.WriteString(`            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/close_expired_discussions.cjs');
+            const { main } = require('/opt/gh-aw/actions/close_expired_discussions.cjs');
             await main();
 `)
 
@@ -183,7 +183,7 @@ jobs:
 	yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
 
       - name: Close expired issues
         uses: ` + GetActionPin("actions/github-script") + `
@@ -192,9 +192,9 @@ jobs:
 `)
 
 	// Add the close expired issues script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+	yaml.WriteString(`            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/close_expired_issues.cjs');
+            const { main } = require('/opt/gh-aw/actions/close_expired_issues.cjs');
             await main();
 `)
 
@@ -247,15 +247,15 @@ jobs:
       - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
-          destination: /tmp/gh-aw/actions
+          destination: /opt/gh-aw/actions
 
       - name: Check for out-of-sync workflows and create issue if needed
         uses: ` + GetActionPin("actions/github-script") + `
         with:
           script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/check_workflow_recompile_needed.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_workflow_recompile_needed.cjs');
             await main();
 
   zizmor-scan:

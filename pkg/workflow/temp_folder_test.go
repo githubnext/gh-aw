@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestTempFolderPromptIncluded(t *testing.T) {
@@ -38,7 +40,7 @@ This is a test workflow to verify temp folder instructions are included.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -52,7 +54,7 @@ This is a test workflow to verify temp folder instructions are included.
 	}
 
 	// Test 2: Verify the cat command for temp folder prompt file is included
-	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/temp_folder_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/temp_folder_prompt.md\" >> \"$GH_AW_PROMPT\"") {
 		t.Error("Expected cat command for temp folder prompt file in generated workflow")
 	}
 
@@ -90,7 +92,7 @@ This is a test workflow to verify temp folder instructions come after XPIA.
 	}
 
 	// Read the generated lock file
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)

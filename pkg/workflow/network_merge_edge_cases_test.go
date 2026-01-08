@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -58,7 +60,7 @@ imports:
 			t.Fatal(err)
 		}
 
-		lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+		lockPath := stringutil.MarkdownToLockFile(workflowPath)
 		content, err := os.ReadFile(lockPath)
 		if err != nil {
 			t.Fatal(err)
@@ -131,7 +133,7 @@ imports:
 		}
 
 		// Should still compile successfully with github.com
-		lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+		lockPath := stringutil.MarkdownToLockFile(workflowPath)
 		content, err := os.ReadFile(lockPath)
 		if err != nil {
 			t.Fatal(err)
