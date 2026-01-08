@@ -260,7 +260,6 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 			TokenUsage:    1000,
 			EstimatedCost: 0.05,
 			Turns:         5,
-			Errors:        []workflow.LogError{},
 		},
 		AccessAnalysis: &DomainAnalysis{
 			DomainBuckets: DomainBuckets{

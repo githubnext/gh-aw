@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,33 +31,10 @@ Warning: Memory usage approaching limit
 	require.NoError(t, err)
 
 	// Extract metrics without verbose output
-	metrics, err := extractLogMetrics(tempDir, false)
+	_, err = extractLogMetrics(tempDir, false)
 	require.NoError(t, err, "extractLogMetrics should succeed even without aw_info.json")
 
-	// Count errors and warnings
-	errorCount := 0
-	warnCount := 0
-	for _, logErr := range metrics.Errors {
-		switch logErr.Type {
-		case "error":
-			errorCount++
-		case "warning":
-			warnCount++
-		}
-	}
-
-	// Verify that the fallback parser detected the errors and warnings
-	assert.Equal(t, 2, errorCount, "Should detect 2 errors")
-	assert.Equal(t, 2, warnCount, "Should detect 2 warnings")
-
-	// Verify that individual error messages were captured
-	assert.Len(t, metrics.Errors, 4, "Should have 4 total error/warning entries")
-
-	// Verify error messages are populated
-	for _, logErr := range metrics.Errors {
-		assert.NotEmpty(t, logErr.Message, "Error message should not be empty")
-		assert.Positive(t, logErr.Line, "Line number should be set")
-	}
+	// Error patterns have been removed - no error/warning detection
 }
 
 // TestLogsCommand_DisplayWithFallbackMetrics tests that the logs display
@@ -82,7 +58,7 @@ Warning: Disk space low`
 	require.NoError(t, err)
 
 	// Extract metrics
-	metrics, err := extractLogMetrics(runDir, false)
+	_, err = extractLogMetrics(runDir, false)
 	require.NoError(t, err)
 
 	// Create a WorkflowRun with the extracted metrics
@@ -96,25 +72,9 @@ Warning: Disk space low`
 		LogsPath:     runDir,
 	}
 
-	// Apply the metrics to the run (simulating what the orchestrator does)
+	// Error patterns have been removed - error/warning counts are set to 0
 	run.ErrorCount = 0
 	run.WarningCount = 0
-	for _, logErr := range metrics.Errors {
-		switch logErr.Type {
-		case "error":
-			run.ErrorCount++
-		case "warning":
-			run.WarningCount++
-		}
-	}
-
-	// Verify that error and warning counts are correctly populated
-	assert.Equal(t, 3, run.ErrorCount, "Should have 3 errors")
-	assert.Equal(t, 2, run.WarningCount, "Should have 2 warnings")
-
-	// These counts should now display in the table instead of zeros
-	assert.Positive(t, run.ErrorCount, "Error count should be greater than 0")
-	assert.Positive(t, run.WarningCount, "Warning count should be greater than 0")
 }
 
 // TestLogsCommand_MixedRunsWithAndWithoutEngine tests that the logs command
@@ -151,21 +111,8 @@ func TestLogsCommand_MixedRunsWithAndWithoutEngine(t *testing.T) {
 	require.NoError(t, err)
 
 	// Extract metrics for run without aw_info.json
-	metrics2, err := extractLogMetrics(run2Dir, false)
+	_, err = extractLogMetrics(run2Dir, false)
 	require.NoError(t, err)
 
-	// Verify that fallback parser still works for run without aw_info.json
-	errorCount := 0
-	warnCount := 0
-	for _, logErr := range metrics2.Errors {
-		switch logErr.Type {
-		case "error":
-			errorCount++
-		case "warning":
-			warnCount++
-		}
-	}
-
-	assert.Equal(t, 1, errorCount, "Run 2 (fallback) should detect 1 error")
-	assert.Equal(t, 1, warnCount, "Run 2 (fallback) should detect 1 warning")
+	// Error patterns have been removed - no error/warning detection
 }

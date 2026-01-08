@@ -519,59 +519,6 @@ func TestConvertGoPatternToJavaScript(t *testing.T) {
 	}
 }
 
-// ========================================
-// convertErrorPatternsToJavaScript Tests
-// ========================================
-
-// TestConvertErrorPatternsToJavaScript tests the convertErrorPatternsToJavaScript method
-func TestConvertErrorPatternsToJavaScript(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
-
-	patterns := []ErrorPattern{
-		{
-			Pattern:      "(?i)error",
-			LevelGroup:   1,
-			MessageGroup: 2,
-			Description:  "Error pattern",
-		},
-		{
-			Pattern:      "warning",
-			LevelGroup:   0,
-			MessageGroup: 1,
-			Description:  "Warning pattern",
-		},
-	}
-
-	result := compiler.convertErrorPatternsToJavaScript(patterns)
-
-	if len(result) != len(patterns) {
-		t.Errorf("Expected %d patterns, got %d", len(patterns), len(result))
-	}
-
-	// First pattern should have (?i) removed
-	if result[0].Pattern != "error" {
-		t.Errorf("Expected first pattern to be 'error', got %q", result[0].Pattern)
-	}
-
-	// Second pattern should remain unchanged
-	if result[1].Pattern != "warning" {
-		t.Errorf("Expected second pattern to be 'warning', got %q", result[1].Pattern)
-	}
-
-	// Check that other fields are preserved
-	if result[0].LevelGroup != 1 {
-		t.Errorf("Expected LevelGroup to be preserved")
-	}
-	if result[0].Description != "Error pattern" {
-		t.Errorf("Expected Description to be preserved")
-	}
-}
-
-// ========================================
-// addCustomStepsAsIs Tests
-// ========================================
-
-// TestAddCustomStepsAsIsBasic tests the addCustomStepsAsIs method
 func TestAddCustomStepsAsIsBasic(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 

@@ -297,9 +297,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This creates a separate artifact for assets that will be downloaded by upload_assets job
 	generateSafeOutputsAssetsArtifactUpload(yaml, data)
 
-	// Add error validation for AI execution logs
-	c.generateErrorValidation(yaml, engine, data)
-
 	// Collect git patch path if safe-outputs with PR operations is configured
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch

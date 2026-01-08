@@ -1122,15 +1122,7 @@ Now I'll implement the solution.
 	if metrics.TokenUsage != 0 {
 		t.Errorf("Expected token usage 0 from generic logs, got %d", metrics.TokenUsage)
 	}
-	// Custom engine has no error patterns, so it won't detect errors in plain text
-	warningCount := workflow.CountWarnings(metrics.Errors)
-	if warningCount != 0 {
-		t.Errorf("Expected warning count 0 from generic logs (custom engine has no error patterns), got %d", warningCount)
-	}
-	errorCount := workflow.CountErrors(metrics.Errors)
-	if errorCount != 0 {
-		t.Errorf("Expected error count 0 from generic logs (custom engine has no error patterns), got %d", errorCount)
-	}
+	// Error patterns have been removed - no error/warning counting
 }
 
 func TestRunIDFilteringLogic(t *testing.T) {

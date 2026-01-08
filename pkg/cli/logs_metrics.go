@@ -160,20 +160,14 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 			// Aggregate tool sequences and tool calls
 			metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
 			metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
-
-			// Aggregate errors and set file path
-			for _, logErr := range fileMetrics.Errors {
-				logErr.File = path // Set the file path for this error
-				metrics.Errors = append(metrics.Errors, logErr)
-			}
 		}
 
 		return nil
 	})
 
 	if logsMetricsLog.Enabled() {
-		logsMetricsLog.Printf("Metrics extraction completed: tokens=%d, cost=%.4f, turns=%d, errors=%d",
-			metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, len(metrics.Errors))
+		logsMetricsLog.Printf("Metrics extraction completed: tokens=%d, cost=%.4f, turns=%d",
+			metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 	}
 	return metrics, err
 }
