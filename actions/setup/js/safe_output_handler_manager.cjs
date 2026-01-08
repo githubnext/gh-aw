@@ -43,6 +43,8 @@ const HANDLER_MAP = {
   dispatch_workflow: "./dispatch_workflow.cjs",
   create_missing_tool_issue: "./create_missing_tool_issue.cjs",
   missing_tool: "./missing_tool.cjs",
+  create_missing_data_issue: "./create_missing_data_issue.cjs",
+  missing_data: "./missing_data.cjs",
 };
 
 /**

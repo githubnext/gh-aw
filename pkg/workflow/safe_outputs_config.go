@@ -230,6 +230,22 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle missing-data (parse configuration if present, or enable by default)
+			missingDataConfig := c.parseMissingDataConfig(outputMap)
+			if missingDataConfig != nil {
+				config.MissingData = missingDataConfig
+			} else {
+				// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
+				// Auto-enabled missing-data does NOT have create-issue enabled by default
+				if _, exists := outputMap["missing-data"]; !exists {
+					config.MissingData = &MissingDataConfig{
+						CreateIssue: false, // Auto-enabled missing-data doesn't create issues by default
+						TitlePrefix: "",
+						Labels:      nil,
+					}
+				}
+			}
+
 			// Handle noop (parse configuration if present, or enable by default as fallback)
 			noopConfig := c.parseNoOpConfig(outputMap)
 			if noopConfig != nil {
