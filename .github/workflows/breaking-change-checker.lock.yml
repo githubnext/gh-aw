@@ -403,6 +403,11 @@ jobs:
                 }
               }
             }
+            ,
+            "gateway": {
+              "port": 8080,
+              "domain": "host.docker.internal"
+            }
           }
           EOF
           echo "-------START MCP CONFIG-----------"
