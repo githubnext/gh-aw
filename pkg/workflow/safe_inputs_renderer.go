@@ -77,15 +77,10 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 		host = "localhost"
 	}
 
-	// HTTP URL using environment variable
+	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation
 	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
-	if includeCopilotFields {
-		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                \"url\": \"http://" + host + ":\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
-	} else {
-		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\",\n")
-	}
+	// Note: awmg validates URL format before variable resolution, so we must expand the port variable
+	yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\",\n")
 
 	// Add Authorization header with API key
 	yaml.WriteString("                \"headers\": {\n")

@@ -624,7 +624,7 @@ jobs:
               },
               "safeinputs": {
                 "type": "http",
-                "url": "http://host.docker.internal:\${GH_AW_SAFE_INPUTS_PORT}",
+                "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
                 "headers": {
                   "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
                 }
@@ -660,7 +660,7 @@ jobs:
               }
             },
             "gateway": {
-              "port": "${MCP_GATEWAY_PORT}",
+              "port": $MCP_GATEWAY_PORT,
               "domain": "${MCP_GATEWAY_DOMAIN}",
               "apiKey": "${MCP_GATEWAY_API_KEY}"
             }

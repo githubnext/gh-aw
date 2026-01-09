@@ -741,7 +741,8 @@ func RenderJSONMCPConfig(
 		// Add gateway section (needed for gateway to process)
 		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
 		yaml.WriteString("            \"gateway\": {\n")
-		fmt.Fprintf(yaml, "              \"port\": \"${MCP_GATEWAY_PORT}\",\n")
+		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
+		fmt.Fprintf(yaml, "              \"port\": $MCP_GATEWAY_PORT,\n")
 		fmt.Fprintf(yaml, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
 		fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
 		yaml.WriteString("            }\n")
