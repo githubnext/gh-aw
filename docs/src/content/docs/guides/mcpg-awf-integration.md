@@ -5,7 +5,7 @@ sidebar:
   order: 280
 ---
 
-This guide shows you how to run the **gh-aw-mcpg** gateway on the host and let **gh-aw-firewall (AWF)** agents reach it over HTTP from inside the firewall, with an external view of the security boundaries.
+This guide explains how the **gh-aw-mcpg** gateway and **gh-aw-firewall (AWF)** work together in compiled workflows. It is educational only—you normally do **not** start mcpg or AWF yourself. The compiler provisions and wires these components automatically.
 
 ## Tested versions
 
@@ -48,136 +48,27 @@ This guide shows you how to run the **gh-aw-mcpg** gateway on the host and let *
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+## How it is provisioned
 
-- Docker with access to the Docker socket
-- `gh-aw-firewall` v0.8.2 or later
-- `gh-aw-mcpg` image `ghcr.io/githubnext/gh-aw-mcpg:v0.0.10` or later
+When you compile a workflow with the Copilot engine and AWF sandbox, the compiler:
 
-## Step 1: Start the MCP gateway container
+- Starts the **gh-aw-mcpg** gateway container (including default GitHub/fetch/memory servers).
+- Launches the AWF Squid proxy and agent containers with wiring to reach the gateway.
+- Generates the MCP client configuration that points the agent to the gateway and injects it into the run.
 
-The gateway ships with default MCP servers (GitHub, fetch, memory).
+You do not need to start Docker containers or create MCP config files yourself.
 
-```bash
-export GITHUB_PERSONAL_ACCESS_TOKEN="YOUR_GITHUB_PERSONAL_ACCESS_TOKEN"
+## What you configure in workflows
 
-docker run -d --name mcpg-gateway \
-  --restart unless-stopped \
-  -p 80:8000 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -e "GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN}" \
-  ghcr.io/githubnext/gh-aw-mcpg:v0.0.10
-```
-
-Check readiness:
-
-```bash
-curl http://127.0.0.1:80/health
-# Returns: OK
-```
-
-:::note
-The container listens on port 8000 internally and is published on port 80 on the host.
-:::
-
-:::tip
-If port 80 requires elevated privileges on your host, change the mapping (for example `-p 8080:8000`) and update the MCP client URL to `http://host.docker.internal:8080/mcp/github`.
-:::
-
-### Optional: custom gateway configuration
-
-Create `/tmp/mcpg-config.json`:
-
-```json
-{
-  "mcpServers": {
-    "github": {
-      "type": "local",
-      "container": "ghcr.io/github/github-mcp-server:latest",
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
-      }
-    }
-  }
-}
-```
-
-Mount it when starting the container:
-
-```bash
-docker run -d --name mcpg-gateway \
-  --restart unless-stopped \
-  -p 80:8000 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /tmp/mcpg-config.json:/config.json:ro \
-  -e "GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN}" \
-  -e "CONFIG_FILE=/config.json" \
-  ghcr.io/githubnext/gh-aw-mcpg:v0.0.10
-```
-
-## Step 2: Create MCP client config for Copilot
-
-Save `/tmp/mcp-gateway-config.json`:
-
-```json
-{
-  "mcpServers": {
-    "github-gateway": {
-      "type": "http",
-      "url": "http://host.docker.internal/mcp/github",
-      "headers": {
-      "Authorization": "Bearer SESSION_TOKEN"
-      },
-      "tools": ["*"]
-    }
-  }
-}
-```
-
-Key settings:
-
-- `type: "http"` connects over HTTP instead of spawning a local process.
-- `host.docker.internal` reaches the host from inside AWF containers.
-- `headers` carries a Bearer token for gateway authentication; use any opaque string to identify the session (for example, `Bearer awf-session`).
-
-## Step 3: Run AWF with Copilot CLI
-
-```bash
-export GITHUB_TOKEN="YOUR_COPILOT_TOKEN"
-export GITHUB_PERSONAL_ACCESS_TOKEN="YOUR_GITHUB_MCP_TOKEN"
-
-sudo -E awf \
-  --build-local \
-  --env-all \
-  --enable-host-access \
-  --env "GITHUB_TOKEN=${GITHUB_TOKEN}" \
-  --env "GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN}" \
-  --mount /tmp:/tmp:rw \
-  --allow-domains 'host.docker.internal,api.github.com,api.enterprise.githubcopilot.com,*.githubusercontent.com,github.com,registry.npmjs.org,registry.npmjs.com' \
-  -- npx -y @github/copilot@0.0.365 \
-    --disable-builtin-mcps \
-    --additional-mcp-config @/tmp/mcp-gateway-config.json \
-    --allow-all-tools \
-    --allow-all-paths \
-    --prompt "List the 3 most recent open issues from containerd/runwasi"
-```
-
-### Command breakdown
-
-| Flag | Purpose |
-|------|---------|
-| `--build-local` | Build AWF containers from source |
-| `--env-all` | Pass all host environment variables |
-| `--enable-host-access` | Adds `host.docker.internal` to agent and Squid |
-| `--mount /tmp:/tmp:rw` | Shares MCP config into the agent container |
-| `--allow-domains ...` | Whitelists gateway and GitHub endpoints |
-| `--disable-builtin-mcps` | Prevents spawning the built-in GitHub MCP |
-| `--additional-mcp-config` | Points Copilot CLI to the gateway config |
+- **Frontmatter:** Set `engine: copilot` and `sandbox.agent: awf`.
+- **Network allowlist:** Keep domains minimal (gateway host plus required GitHub/Copilot endpoints).
+- **Tokens:** Use separate PATs for Copilot (`GITHUB_TOKEN`) and the GitHub MCP server (`GITHUB_PERSONAL_ACCESS_TOKEN`) with least-privilege scopes.
+- **Optional MCP servers:** Add additional entries under `mcp-servers:` if you need more than the default GitHub/fetch/memory servers.
 
 ## Security model
 
-- **Controlled egress:** All agent traffic exits through the AWF Squid proxy. The domain allowlist you pass to `--allow-domains` is the enforcement point.
-- **Explicit host reachability:** `--enable-host-access` is required for agents to talk to `host.docker.internal`; without it, host services remain unreachable.
+- **Controlled egress:** All agent traffic exits through the AWF Squid proxy. The domain allowlist you set in frontmatter is the enforcement point.
+- **Explicit host reachability:** Host access is opt-in; without it, agents cannot reach host services.
 - **Gateway auth header:** The MCP client sends an opaque bearer value (any unguessable string) in `headers.Authorization`, which the gateway treats as a session identifier.
 - **Token separation:** Use separate PATs for Copilot (`GITHUB_TOKEN`) and the GitHub MCP server (`GITHUB_PERSONAL_ACCESS_TOKEN`) with least-privilege scopes.
 - **Minimal allowlist:** Keep the allowlist limited to the gateway and required GitHub/Copilot endpoints.
