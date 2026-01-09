@@ -265,6 +265,10 @@ const DefaultNodeVersion Version = "24"
 // Using node:lts-alpine provides the latest LTS version with minimal footprint
 const DefaultNodeAlpineLTSImage = "node:lts-alpine"
 
+// DefaultPythonAlpineLTSImage is the default Python Alpine LTS container image for MCP servers
+// Using python:alpine provides the latest stable version with minimal footprint
+const DefaultPythonAlpineLTSImage = "python:alpine"
+
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"
 
