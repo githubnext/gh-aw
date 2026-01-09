@@ -241,7 +241,7 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 
 // applySandboxDefaults applies default values to sandbox configuration
 // If no sandbox config exists, creates one with awf as default agent
-// If sandbox config exists but has no agent, sets agent to awf
+// If sandbox config exists but has no agent, sets agent to awf (unless using legacy Type field)
 func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConfig) *SandboxConfig {
 	// If no sandbox config exists, create one with awf as default
 	if sandboxConfig == nil {
@@ -251,6 +251,13 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 				Type: SandboxTypeAWF,
 			},
 		}
+	}
+
+	// If sandbox config exists with legacy Type field set, don't override with awf default
+	// The legacy Type field indicates explicit sandbox configuration
+	if sandboxConfig.Type != "" {
+		sandboxLog.Printf("Sandbox config uses legacy Type field: %s, preserving it", sandboxConfig.Type)
+		return sandboxConfig
 	}
 
 	// If sandbox config exists but has no agent, set agent to awf
