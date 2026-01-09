@@ -5,7 +5,7 @@ sidebar:
   order: 280
 ---
 
-This guide shows you how to run the **gh-aw-mcpg** gateway on the host and let **gh-aw-firewall (AWF)** agents reach it over HTTP from inside the firewall.
+This guide shows you how to run the **gh-aw-mcpg** gateway on the host and let **gh-aw-firewall (AWF)** agents reach it over HTTP from inside the firewall, with an external view of the security boundaries.
 
 ## Tested versions
 
@@ -126,7 +126,7 @@ Save `/tmp/mcp-gateway-config.json`:
       "type": "http",
       "url": "http://host.docker.internal/mcp/github",
       "headers": {
-        "Authorization": "Bearer SESSION_TOKEN"
+      "Authorization": "Bearer SESSION_TOKEN"
       },
       "tools": ["*"]
     }
@@ -174,15 +174,14 @@ sudo -E awf \
 | `--disable-builtin-mcps` | Prevents spawning the built-in GitHub MCP |
 | `--additional-mcp-config` | Points Copilot CLI to the gateway config |
 
-## How it works
+## Security model
 
-1. AWF starts Squid and agent containers.
-2. The agent runs Copilot CLI with the HTTP MCP config.
-3. Copilot calls `http://host.docker.internal/mcp/github`.
-4. iptables NAT routes port 80 through Squid (172.30.0.10:3128).
-5. Squid CONNECTs to `host.docker.internal`, reaching the gateway.
-6. The gateway forwards requests to the GitHub MCP server container.
-7. Responses flow back through Squid to Copilot.
+- **Controlled egress:** All agent traffic exits through the AWF Squid proxy. The domain allowlist you pass to `--allow-domains` is the enforcement point.
+- **Explicit host reachability:** `--enable-host-access` is required for agents to talk to `host.docker.internal`; without it, host services remain unreachable.
+- **Gateway auth header:** The MCP client sends an opaque bearer value (any unguessable string) in `headers.Authorization`, which the gateway treats as a session identifier.
+- **Token separation:** Use separate PATs for Copilot (`GITHUB_TOKEN`) and the GitHub MCP server (`GITHUB_PERSONAL_ACCESS_TOKEN`) with least-privilege scopes.
+- **Minimal allowlist:** Keep the allowlist limited to the gateway and required GitHub/Copilot endpoints.
+- **Auditability:** AWF firewall logs capture CONNECT attempts and allowlist decisions; review them when tightening access.
 
 ## Required tokens
 
@@ -217,6 +216,12 @@ sudo -E awf \
 ## Security considerations
 
 1. `--enable-host-access` allows access to host services; use only in trusted environments.
-2. The Bearer token is session identification, not hardened auth. Keep the gateway on trusted networks.
+2. The bearer value is session identification, not hardened auth. Keep the gateway on trusted networks.
 3. `--env-all` passes all host environment variables into the agent; avoid storing extra secrets in the shell.
 4. Keep the domain allowlist as small as possible.
+
+## Related docs
+
+- [Using MCPs](/gh-aw/guides/mcps/)
+- [Network Configuration Guide](/gh-aw/guides/network-configuration/)
+- [Security Guide](/gh-aw/guides/security/)
