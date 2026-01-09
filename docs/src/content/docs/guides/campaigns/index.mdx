@@ -1,0 +1,152 @@
+---
+title: Agentic Campaigns
+description: Coordinate AI agents across multiple workflow runs with structured, goal-driven initiatives tracked in GitHub Projects.
+tableOfContents: true
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import FeatureCard from '../../../../components/FeatureCard.astro';
+import FeatureGrid from '../../../../components/FeatureGrid.astro';
+
+## What are agentic campaigns?
+
+Agentic campaigns coordinate [AI agents](/gh-aw/reference/glossary/#agent) across multiple workflow runs to achieve specific goals. Instead of one-off automation, campaigns provide structured coordination: clear objectives, measurable progress (KPIs), and a unified dashboard (GitHub Project) that tracks work from start to completion.
+
+**How it works:**
+1. **Define** - Create a `.campaign.md` spec with your objective, KPIs, and worker workflows
+2. **Compile** - Run `gh aw compile` to generate the orchestrator workflow
+3. **Track** - GitHub Project automatically reflects progress as workflows execute
+4. **Complete** - Campaign reaches its goal with full visibility and governance
+
+### Campaigns vs Workflows
+
+| Agentic Workflow | Agentic Campaign |
+|------------------|------------------|
+| Executes single task | Coordinates multiple tasks toward a goal |
+| Event-triggered or scheduled | Strategic initiative over time |
+| Standalone automation | Orchestrated with shared progress tracking |
+| Success/failure per run | Success measured by KPIs across runs |
+
+## Key Features
+
+<FeatureGrid columns={3}>
+  <FeatureCard icon="goal" title="Clear Objectives" href="/gh-aw/guides/campaigns/specs/#core-fields-what-they-do">
+    Define what success looks like with objectives and measurable KPIs
+  </FeatureCard>
+  <FeatureCard icon="project" title="Unified Dashboard" href="/gh-aw/guides/campaigns/project-management/">
+    GitHub Project board provides single source of truth for campaign status
+  </FeatureCard>
+  <FeatureCard icon="workflow" title="Worker Coordination" href="/gh-aw/guides/campaigns/specs/#workflows">
+    Reuse existing agentic workflows as workers in campaigns
+  </FeatureCard>
+  <FeatureCard icon="git-branch" title="Durable State" href="/gh-aw/guides/campaigns/specs/#durable-state-repo-memory">
+    Persist progress with repo-memory for resumable campaigns
+  </FeatureCard>
+  <FeatureCard icon="shield" title="Governance Controls" href="/gh-aw/guides/campaigns/specs/#governance-pacing--safety">
+    Rate limits and safety controls keep campaigns predictable
+  </FeatureCard>
+  <FeatureCard icon="graph" title="Progress Tracking" href="/gh-aw/guides/campaigns/specs/#metrics-snapshots">
+    Automatic metrics snapshots track velocity and completion estimates
+  </FeatureCard>
+</FeatureGrid>
+
+## Example: Framework Upgrade Campaign
+
+Here's a simple campaign that coordinates dependency upgrades across services:
+
+```yaml
+---
+id: framework-upgrade
+name: "Framework Upgrade"
+project-url: "https://github.com/orgs/myorg/projects/42"
+tracker-label: "campaign:framework-upgrade"
+
+objective: "Upgrade all services to Framework vNext with zero downtime."
+kpis:
+  - id: services_upgraded
+    name: "Services upgraded"
+    priority: primary
+    direction: "increase"
+    target: 50
+
+workflows:
+  - framework-upgrade-worker
+
+governance:
+  max-new-items-per-run: 10
+  max-discovery-items-per-run: 100
+---
+
+Coordinate systematic upgrades across all services.
+```
+
+The `gh aw compile` command generates an orchestrator workflow that:
+- Discovers work items using the tracker label
+- Updates the GitHub Project board automatically
+- Tracks metrics and progress toward the 50-service goal
+- Coordinates worker workflows that do the actual upgrades
+
+## Campaign Patterns
+
+<FeatureGrid columns={3}>
+  <FeatureCard icon="package" title="Migration Campaigns" badge="systematic">
+    Coordinate systematic changes across repositories or services
+  </FeatureCard>
+  <FeatureCard icon="shield-check" title="Security Remediation" badge="time-bound">
+    Track and resolve security vulnerabilities with clear deadlines
+  </FeatureCard>
+  <FeatureCard icon="beaker" title="Quality Initiatives" badge="ongoing">
+    Improve test coverage, documentation, or code quality over time
+  </FeatureCard>
+  <FeatureCard icon="tools" title="Refactoring Projects" badge="phased">
+    Execute large-scale refactoring with milestone tracking
+  </FeatureCard>
+  <FeatureCard icon="rocket" title="Feature Rollouts" badge="coordinated">
+    Deploy features across teams with unified progress visibility
+  </FeatureCard>
+  <FeatureCard icon="sync" title="Compliance Audits" badge="recurring">
+    Maintain compliance standards with periodic campaigns
+  </FeatureCard>
+</FeatureGrid>
+
+## Getting Started
+
+<CardGrid>
+  <Card title="Quick Start" icon="rocket">
+    Create your first campaign in 5 steps.
+    
+    [Get Started →](/gh-aw/guides/campaigns/getting-started/)
+  </Card>
+  <Card title="Campaign Specs" icon="document">
+    Learn the campaign specification format and configuration options.
+    
+    [View Specs →](/gh-aw/guides/campaigns/specs/)
+  </Card>
+  <Card title="Project Management" icon="list-unordered">
+    Set up GitHub Project boards for campaign dashboards.
+    
+    [Setup Projects →](/gh-aw/guides/campaigns/project-management/)
+  </Card>
+  <Card title="CLI Commands" icon="terminal">
+    Reference for campaign compilation and management commands.
+    
+    [CLI Reference →](/gh-aw/guides/campaigns/cli-commands/)
+  </Card>
+</CardGrid>
+
+## Campaign Architecture
+
+Campaigns consist of three key components:
+
+1. **Campaign Spec** (`.campaign.md`) - The contract defining objectives, KPIs, governance, and wiring
+2. **Orchestrator Workflow** (`.campaign.lock.yml`) - Generated workflow that coordinates the campaign
+3. **Worker Workflows** - Your existing agentic workflows that do the actual work
+
+The orchestrator discovers work items, updates the project board, and coordinates workers. Workers remain campaign-agnostic and focus on their specific tasks (opening PRs, running fixes, etc.).
+
+<div style="max-width: 600px; margin: 3rem auto; text-align: center;">
+
+> **Multi-Agent Coordination**  
+> Campaigns enable meta-orchestration where specialized agents manage the agent ecosystem itself, coordinating multiple workflows toward shared goals.
+
+</div>
