@@ -611,7 +611,7 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 		}
 	}
 
-	yaml.WriteString("          export MCP_GATEWAY_CONTAINER=" + shellQuote(containerCmd) + "\n")
+	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + shellQuote(containerCmd) + "\n")
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Run gateway start script\n")

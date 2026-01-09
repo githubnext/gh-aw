@@ -10,7 +10,7 @@ set -e
 # - MCP_GATEWAY_PORT: Port for the gateway HTTP server
 # - MCP_GATEWAY_DOMAIN: Domain for gateway URL (localhost or host.docker.internal)
 # - MCP_GATEWAY_API_KEY: API key for gateway authentication
-# - MCP_GATEWAY_CONTAINER: Container image to run (required)
+# - MCP_GATEWAY_DOCKER_COMMAND: Container image to run (required)
 
 # Validate required environment variables
 if [ -z "$MCP_GATEWAY_PORT" ]; then
@@ -29,8 +29,8 @@ if [ -z "$MCP_GATEWAY_API_KEY" ]; then
 fi
 
 # Validate that container is specified (command execution is not supported per spec)
-if [ -z "$MCP_GATEWAY_CONTAINER" ]; then
-  echo "ERROR: MCP_GATEWAY_CONTAINER must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)"
+if [ -z "$MCP_GATEWAY_DOCKER_COMMAND" ]; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)"
   exit 1
 fi
 
@@ -39,26 +39,26 @@ mkdir -p /tmp/gh-aw/mcp-logs/gateway
 
 # Validate container syntax first (before accessing files)
 # Container should be a valid docker command starting with "docker run"
-if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE '^docker run'; then
-  echo "ERROR: MCP_GATEWAY_CONTAINER has incorrect syntax"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE '^docker run'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax"
   echo "Expected: docker run command with image and arguments"
-  echo "Got: $MCP_GATEWAY_CONTAINER"
+  echo "Got: $MCP_GATEWAY_DOCKER_COMMAND"
   exit 1
 fi
 
 # Validate container command includes required flags
-if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE -- '-i'; then
-  echo "ERROR: MCP_GATEWAY_CONTAINER must include -i flag for interactive mode"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '-i'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -i flag for interactive mode"
   exit 1
 fi
 
-if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE -- '--rm'; then
-  echo "ERROR: MCP_GATEWAY_CONTAINER must include --rm flag for cleanup"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--rm'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --rm flag for cleanup"
   exit 1
 fi
 
-if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE -- '--network host'; then
-  echo "ERROR: MCP_GATEWAY_CONTAINER must include --network host flag"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network host'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network host flag"
   exit 1
 fi
 
@@ -85,9 +85,9 @@ cat /tmp/gh-aw/mcp-config/gateway-input.json
 echo ""
 
 # Start gateway process with container
-echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
-# Note: MCP_GATEWAY_CONTAINER is the full docker command with all flags and image
-cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_CONTAINER \
+echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
+# Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags and image
+cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_DOCKER_COMMAND \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!
