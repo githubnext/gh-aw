@@ -290,3 +290,164 @@ func TestGatewayMCPRootConfig_Roundtrip(t *testing.T) {
 	assert.Equal(t, original.Gateway.Port, restored.Gateway.Port, "Gateway port should match")
 	assert.Equal(t, original.Gateway.APIKey, restored.Gateway.APIKey, "Gateway API key should match")
 }
+
+func TestBuildGatewayMCPServerConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  GitHubMCPDockerOptions
+		validate func(t *testing.T, config *GatewayMCPServerConfig)
+	}{
+		{
+			name: "basic stdio server",
+			options: GitHubMCPDockerOptions{
+				DockerImageVersion: "v0.27.0",
+				Toolsets:           "default",
+				IncludeTypeField:   false,
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, "ghcr.io/github/github-mcp-server:v0.27.0", config.Container)
+				assert.Equal(t, "stdio", config.Type)
+				assert.Contains(t, config.Env, "GITHUB_PERSONAL_ACCESS_TOKEN")
+				assert.Contains(t, config.Env, "GITHUB_TOOLSETS")
+				assert.Equal(t, "default", config.Env["GITHUB_TOOLSETS"])
+			},
+		},
+		{
+			name: "copilot server with tools field",
+			options: GitHubMCPDockerOptions{
+				DockerImageVersion: "v0.27.0",
+				Toolsets:           "repos,issues",
+				IncludeTypeField:   true,
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, []string{"*"}, config.Tools)
+				assert.Contains(t, config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"], "\\${")
+			},
+		},
+		{
+			name: "read-only server",
+			options: GitHubMCPDockerOptions{
+				DockerImageVersion: "v0.27.0",
+				ReadOnly:           true,
+				Toolsets:           "default",
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, "1", config.Env["GITHUB_READ_ONLY"])
+			},
+		},
+		{
+			name: "lockdown mode server",
+			options: GitHubMCPDockerOptions{
+				DockerImageVersion: "v0.27.0",
+				Lockdown:           true,
+				Toolsets:           "default",
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, "1", config.Env["GITHUB_LOCKDOWN_MODE"])
+			},
+		},
+		{
+			name: "lockdown from step",
+			options: GitHubMCPDockerOptions{
+				DockerImageVersion: "v0.27.0",
+				LockdownFromStep:   true,
+				Toolsets:           "default",
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, "$GITHUB_MCP_LOCKDOWN", config.Env["GITHUB_LOCKDOWN_MODE"])
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := BuildGatewayMCPServerConfig(tt.options)
+			require.NotNil(t, config)
+			tt.validate(t, config)
+		})
+	}
+}
+
+func TestBuildGatewayMCPServerConfigFromRemote(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  GitHubMCPRemoteOptions
+		validate func(t *testing.T, config *GatewayMCPServerConfig)
+	}{
+		{
+			name: "basic http server",
+			options: GitHubMCPRemoteOptions{
+				AuthorizationValue: "Bearer test-token",
+				Toolsets:           "default",
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, "http", config.Type)
+				assert.Equal(t, "https://api.githubcopilot.com/mcp/", config.URL)
+				assert.Equal(t, "Bearer test-token", config.Headers["Authorization"])
+			},
+		},
+		{
+			name: "read-only http server",
+			options: GitHubMCPRemoteOptions{
+				AuthorizationValue: "Bearer test-token",
+				ReadOnly:           true,
+				Toolsets:           "default",
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, "true", config.Headers["X-MCP-Readonly"])
+			},
+		},
+		{
+			name: "copilot http server with tools",
+			options: GitHubMCPRemoteOptions{
+				AuthorizationValue: "Bearer test-token",
+				IncludeToolsField:  true,
+				Toolsets:           "default",
+			},
+			validate: func(t *testing.T, config *GatewayMCPServerConfig) {
+				assert.Equal(t, []string{"*"}, config.Tools)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := BuildGatewayMCPServerConfigFromRemote(tt.options)
+			require.NotNil(t, config)
+			tt.validate(t, config)
+		})
+	}
+}
+
+func TestRenderGatewayMCPConfigJSON(t *testing.T) {
+	config := &GatewayMCPRootConfig{
+		MCPServers: map[string]*GatewayMCPServerConfig{
+			"github": {
+				Container: "ghcr.io/github/github-mcp-server:v0.27.0",
+				Type:      "stdio",
+				Env: map[string]string{
+					"GITHUB_PERSONAL_ACCESS_TOKEN": "test-token",
+				},
+			},
+		},
+		Gateway: &GatewayConfig{
+			Port:   8080,
+			APIKey: "test-key",
+			Domain: "localhost",
+		},
+	}
+
+	result, err := RenderGatewayMCPConfigJSON(config)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	// Verify it's valid JSON by unmarshaling
+	var decoded GatewayMCPRootConfig
+	err = json.Unmarshal([]byte(result), &decoded)
+	require.NoError(t, err)
+
+	// Verify structure
+	assert.Len(t, decoded.MCPServers, 1)
+	assert.NotNil(t, decoded.Gateway)
+	assert.Equal(t, 8080, decoded.Gateway.Port)
+}
