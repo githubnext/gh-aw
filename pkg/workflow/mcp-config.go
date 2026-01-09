@@ -88,8 +88,12 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("],\n")
 	} else {
 		yaml.WriteString("                \"args\": [\n")
-		for _, arg := range dockerArgs {
-			yaml.WriteString("                  \"" + arg + "\",\n")
+		for i, arg := range dockerArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(dockerArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
 		}
 		yaml.WriteString("                ],\n")
 	}
@@ -118,8 +122,12 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("],\n")
 	} else {
 		yaml.WriteString("                \"entrypointArgs\": [\n")
-		for _, arg := range entrypointArgs {
-			yaml.WriteString("                  \"" + arg + "\",\n")
+		for i, arg := range entrypointArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(entrypointArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
 		}
 		yaml.WriteString("                ],\n")
 	}
@@ -164,7 +172,7 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	} else {
 		yaml.WriteString("                \"args\": [\n")
 		yaml.WriteString("                  \"--network\",\n")
-		yaml.WriteString("                  \"host\",\n")
+		yaml.WriteString("                  \"host\"\n")
 		yaml.WriteString("                ],\n")
 	}
 

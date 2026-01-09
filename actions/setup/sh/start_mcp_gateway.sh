@@ -76,10 +76,19 @@ echo "-------END MCP CONFIG-----------"
 echo ""
 
 # Validate configuration is valid JSON
-if ! echo "$MCP_CONFIG" | jq empty 2>/dev/null; then
+if ! echo "$MCP_CONFIG" | jq empty 2>/tmp/gh-aw/mcp-config/jq-error.log; then
   echo "ERROR: Configuration is not valid JSON"
+  echo ""
+  echo "JSON validation error:"
+  if [ -f /tmp/gh-aw/mcp-config/jq-error.log ]; then
+    cat /tmp/gh-aw/mcp-config/jq-error.log
+  fi
+  echo ""
   echo "Configuration content:"
-  echo "$MCP_CONFIG"
+  echo "$MCP_CONFIG" | head -50
+  if [ $(echo "$MCP_CONFIG" | wc -l) -gt 50 ]; then
+    echo "... (truncated, showing first 50 lines)"
+  fi
   exit 1
 fi
 
