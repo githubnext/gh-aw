@@ -465,11 +465,43 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+	
+	// Export gateway environment variables BEFORE rendering MCP config
+	// This allows the config file to reference these variables via ${VAR} syntax
+	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
+	ensureDefaultMCPGatewayConfig(workflowData)
+	gatewayConfig := workflowData.SandboxConfig.MCP
+	
+	port := gatewayConfig.Port
+	if port == 0 {
+		port = int(DefaultMCPGatewayPort)
+	}
+	
+	domain := gatewayConfig.Domain
+	if domain == "" {
+		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+			domain = "localhost"
+		} else {
+			domain = "host.docker.internal"
+		}
+	}
+	
+	apiKey := gatewayConfig.APIKey
+	if apiKey == "" {
+		// Generate random API key at runtime
+		apiKey = "$(openssl rand -base64 45 | tr -d '/+=')"
+	}
+	
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Export gateway environment variables for MCP config\n")
+	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
+	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
+	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+	yaml.WriteString("          \n")
+	
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 
 	// MCP gateway is now mandatory - always add gateway start logic
-	// Ensure default MCP configuration is set if not provided
-	ensureDefaultMCPGatewayConfig(workflowData)
 	generateMCPGatewayStepInline(yaml, engine, workflowData)
 }
 
@@ -547,9 +579,7 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Start MCP gateway\n")
-	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
-	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
-	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+	// Note: MCP_GATEWAY_PORT, MCP_GATEWAY_DOMAIN, and MCP_GATEWAY_API_KEY are already exported above
 
 	// Export engine type for agent-specific conversion
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
