@@ -14,10 +14,10 @@
     },
     "gateway": {
       "$ref": "#/definitions/gatewayConfig",
-      "description": "Optional gateway-specific configuration for the MCP Gateway service."
+      "description": "Gateway-specific configuration for the MCP Gateway service."
     }
   },
-  "required": ["mcpServers"],
+  "required": ["mcpServers", "gateway"],
   "additionalProperties": false,
   "definitions": {
     "mcpServerConfig": {
@@ -120,14 +120,13 @@
     },
     "gatewayConfig": {
       "type": "object",
-      "description": "Gateway-specific configuration for the MCP Gateway service. All fields are optional with sensible defaults.",
+      "description": "Gateway-specific configuration for the MCP Gateway service.",
       "properties": {
         "port": {
           "type": "integer",
           "description": "HTTP server port for the gateway. The gateway exposes endpoints at http://{domain}:{port}/",
           "minimum": 1,
-          "maximum": 65535,
-          "default": 8080
+          "maximum": 65535
         },
         "apiKey": {
           "type": "string",
@@ -137,8 +136,7 @@
         "domain": {
           "type": "string",
           "description": "Gateway domain for constructing URLs. Use 'localhost' for local development or 'host.docker.internal' when the gateway runs in a container and needs to access the host.",
-          "enum": ["localhost", "host.docker.internal"],
-          "default": "localhost"
+          "enum": ["localhost", "host.docker.internal"]
         },
         "startupTimeout": {
           "type": "integer",
@@ -153,6 +151,7 @@
           "default": 60
         }
       },
+      "required": ["port", "domain"],
       "additionalProperties": false
     }
   },
@@ -168,6 +167,7 @@
       },
       "gateway": {
         "port": 8080,
+        "domain": "localhost",
         "apiKey": "gateway-secret-token"
       }
     },
@@ -186,6 +186,7 @@
       },
       "gateway": {
         "port": 8080,
+        "domain": "localhost",
         "startupTimeout": 60,
         "toolTimeout": 120
       }
@@ -207,6 +208,7 @@
       },
       "gateway": {
         "port": 8080,
+        "domain": "localhost",
         "apiKey": "gateway-secret-token"
       }
     }
