@@ -505,44 +505,30 @@ jobs:
                 "url": "http://host.docker.internal:8765"
               },
               "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
-                  "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.27.0"
-                ],
+                "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               },
               "playwright": {
-                "command": "docker",
+                "container": "mcr.microsoft.com/playwright/mcp",
                 "args": [
-                  "run",
-                  "-i",
-                  "--rm",
                   "--init",
                   "--network",
                   "host",
-                  "-v",
-                  "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-                  "mcr.microsoft.com/playwright/mcp",
+                ],
+                "entrypointArgs": [
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
                   "--allowed-hosts",
                   "localhost;localhost:*;127.0.0.1;127.0.0.1:*",
                   "--allowed-origins",
-                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*"
-                ]
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*",
+                ],
+                "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs"]
               },
               "safeoutputs": {
                 "container": "node:lts-alpine",
@@ -565,17 +551,20 @@ jobs:
                 }
               },
               "serena": {
-                "command": "uvx",
+                "container": "ghcr.io/oraios/serena:latest",
                 "args": [
-                  "--from",
-                  "git+https://github.com/oraios/serena",
-                  "serena",
+                  "--network",
+                  "host",
+                ],
+                "entrypoint": "serena",
+                "entrypointArgs": [
                   "start-mcp-server",
                   "--context",
                   "codex",
                   "--project",
                   "${{ github.workspace }}"
-                ]
+                ],
+                "mounts": ["${{ github.workspace }}:${{ github.workspace }}"]
               }
             }
           }

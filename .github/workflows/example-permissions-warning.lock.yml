@@ -164,22 +164,12 @@ jobs:
             "mcpServers": {
               "github": {
                 "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
-                  "-e",
-                  "GITHUB_TOOLSETS=repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.27.0"
-                ],
+                "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_TOOLSETS": "repos,issues,pull_requests"
                 }
               }
             }

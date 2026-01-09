@@ -24,22 +24,16 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				EffectiveToken:     "${{ secrets.GITHUB_TOKEN }}",
 			},
 			expected: []string{
-				`"command": "docker"`,
-				`"run"`,
-				`"-i"`,
-				`"--rm"`,
-				`"-e"`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
-				`"GITHUB_TOOLSETS=default"`,
-				`"ghcr.io/github/github-mcp-server:latest"`,
+				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 				`"env": {`,
-				// Security fix: Now uses shell environment variable instead of GitHub Actions expression
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
+				`"GITHUB_TOOLSETS": "default"`,
 			},
 			notFound: []string{
 				`"type": "local"`,
 				`"tools":`,
-				`"GITHUB_READ_ONLY=1"`,
+				`"command": "docker"`,
+				`"run"`,
 			},
 		},
 		{
@@ -55,15 +49,17 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 			},
 			expected: []string{
 				`"type": "local"`,
-				`"command": "docker"`,
+				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 				`"tools": [`,
 				`"create_issue"`,
 				`"issue_read"`,
-				// Security fix: Now uses shell environment variable (with backslash for Copilot CLI interpolation)
+				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_TOOLSETS": "default"`,
 			},
 			notFound: []string{
-				`"GITHUB_READ_ONLY=1"`,
+				`"command": "docker"`,
+				`"run"`,
 			},
 		},
 		{
@@ -75,13 +71,18 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				CustomArgs:         nil,
 				IncludeTypeField:   false,
 				AllowedTools:       nil,
-				EffectiveToken:     "${{ secrets.TOKEN }}",
+				EffectiveToken:     "",
 			},
 			expected: []string{
-				`"GITHUB_READ_ONLY=1"`,
-				`"ghcr.io/github/github-mcp-server:v1.0.0"`,
+				`"container": "ghcr.io/github/github-mcp-server:v1.0.0"`,
+				`"env": {`,
+				`"GITHUB_READ_ONLY": "1"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
+				`"GITHUB_TOOLSETS": "default"`,
 			},
-			notFound: []string{},
+			notFound: []string{
+				`"command": "docker"`,
+			},
 		},
 		{
 			name: "Custom args provided",
@@ -92,13 +93,17 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				CustomArgs:         []string{"--verbose", "--debug"},
 				IncludeTypeField:   false,
 				AllowedTools:       nil,
-				EffectiveToken:     "${{ secrets.TOKEN }}",
+				EffectiveToken:     "",
 			},
 			expected: []string{
+				`"container": "ghcr.io/github/github-mcp-server:latest"`,
+				`"args": [`,
 				`"--verbose"`,
 				`"--debug"`,
 			},
-			notFound: []string{},
+			notFound: []string{
+				`"command": "docker"`,
+			},
 		},
 		{
 			name: "Copilot with wildcard tools (no allowed tools specified)",
@@ -108,14 +113,17 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				DockerImageVersion: "latest",
 				CustomArgs:         nil,
 				IncludeTypeField:   true,
-				AllowedTools:       nil,
+				AllowedTools:       nil, // When nil, should default to wildcard
 				EffectiveToken:     "",
 			},
 			expected: []string{
 				`"type": "local"`,
+				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 				`"tools": ["*"]`,
 			},
-			notFound: []string{},
+			notFound: []string{
+				`"command": "docker"`,
+			},
 		},
 		{
 			name: "Custom toolsets",
@@ -126,12 +134,15 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				CustomArgs:         nil,
 				IncludeTypeField:   false,
 				AllowedTools:       nil,
-				EffectiveToken:     "${{ secrets.TOKEN }}",
+				EffectiveToken:     "",
 			},
 			expected: []string{
-				`"GITHUB_TOOLSETS=repos,issues,pull_requests"`,
+				`"container": "ghcr.io/github/github-mcp-server:latest"`,
+				`"GITHUB_TOOLSETS": "repos,issues,pull_requests"`,
 			},
-			notFound: []string{},
+			notFound: []string{
+				`"command": "docker"`,
+			},
 		},
 	}
 
@@ -173,20 +184,20 @@ func TestRenderGitHubMCPDockerConfig_OutputStructure(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify the order of key elements
+	// Verify the order of key elements (new format: type -> container -> args -> tools -> env)
 	typeIndex := strings.Index(output, `"type": "local"`)
-	commandIndex := strings.Index(output, `"command": "docker"`)
+	containerIndex := strings.Index(output, `"container": "ghcr.io/github/github-mcp-server:latest"`)
 	argsIndex := strings.Index(output, `"args": [`)
 	toolsIndex := strings.Index(output, `"tools": [`)
 	envIndex := strings.Index(output, `"env": {`)
 
-	if typeIndex == -1 || commandIndex == -1 || argsIndex == -1 || toolsIndex == -1 || envIndex == -1 {
+	if typeIndex == -1 || containerIndex == -1 || argsIndex == -1 || toolsIndex == -1 || envIndex == -1 {
 		t.Fatalf("Missing required JSON structure elements in output:\n%s", output)
 	}
 
-	// Verify order: type -> command -> args -> tools -> env
-	if typeIndex >= commandIndex || commandIndex >= argsIndex || argsIndex >= toolsIndex || toolsIndex >= envIndex {
-		t.Errorf("JSON elements are not in expected order. Indices: type=%d, command=%d, args=%d, tools=%d, env=%d\nOutput:\n%s",
-			typeIndex, commandIndex, argsIndex, toolsIndex, envIndex, output)
+	// Verify order: type -> container -> args -> tools -> env
+	if typeIndex >= containerIndex || containerIndex >= argsIndex || argsIndex >= toolsIndex || toolsIndex >= envIndex {
+		t.Errorf("JSON elements are not in expected order. Indices: type=%d, container=%d, args=%d, tools=%d, env=%d\nOutput:\n%s",
+			typeIndex, containerIndex, argsIndex, toolsIndex, envIndex, output)
 	}
 }

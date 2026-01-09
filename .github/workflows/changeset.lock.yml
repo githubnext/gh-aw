@@ -453,20 +453,9 @@ jobs:
           user_agent = "changeset-generator"
           startup_timeout_sec = 120
           tool_timeout_sec = 60
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "-e",
-            "GITHUB_READ_ONLY=1",
-            "-e",
-            "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-            "ghcr.io/github/github-mcp-server:v0.27.0"
-          ]
-          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+          container = "ghcr.io/github/github-mcp-server:v0.27.0"
+          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests" }
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
           
           [mcp_servers.safeoutputs]
           container = "node:lts-alpine"
