@@ -38,22 +38,6 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []str
 		}
 	}
 
-	// Collect sandbox.mcp container (MCP gateway)
-	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.MCP != nil {
-		mcpGateway := workflowData.SandboxConfig.MCP
-		if mcpGateway.Container != "" {
-			image := mcpGateway.Container
-			if mcpGateway.Version != "" {
-				image += ":" + mcpGateway.Version
-			}
-			if !imageSet[image] {
-				images = append(images, image)
-				imageSet[image] = true
-				dockerLog.Printf("Added sandbox.mcp container: %s", image)
-			}
-		}
-	}
-
 	// Collect images from custom MCP tools with container configurations
 	for toolName, toolValue := range tools {
 		if mcpConfig, ok := toolValue.(map[string]any); ok {

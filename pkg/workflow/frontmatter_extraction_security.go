@@ -183,10 +183,8 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		config.Agent = c.extractAgentSandboxConfig(agentVal)
 	}
 
-	if mcpVal, hasMCP := sandboxObj["mcp"]; hasMCP {
-		frontmatterExtractionSecurityLog.Print("Extracting MCP gateway configuration")
-		config.MCP = c.extractMCPGatewayConfig(mcpVal)
-	}
+	// sandbox.mcp feature removed - MCP gateway is no longer supported
+	// Skip extraction of sandbox.mcp configuration
 
 	// If we found agent field, return the new format config
 	if config.Agent != nil {

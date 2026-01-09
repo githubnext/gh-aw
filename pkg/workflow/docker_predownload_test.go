@@ -68,7 +68,7 @@ Test workflow.`,
 			expectStep: true,
 		},
 		{
-			name: "GitHub remote mode does not generate GitHub MCP docker image but still downloads MCP gateway",
+			name: "GitHub remote mode does not generate GitHub MCP docker image or MCP gateway",
 			frontmatter: `---
 on: issues
 engine: claude
@@ -80,9 +80,9 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				// No images expected - GitHub remote mode and MCP gateway removed
 			},
-			expectStep: true,
+			expectStep: false,
 		},
 		{
 			name: "Custom MCP server with container",
@@ -100,13 +100,12 @@ mcp-servers:
 Test workflow with custom MCP container.`,
 			expectedImages: []string{
 				"ghcr.io/github/github-mcp-server:v0.27.0",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
 				"myorg/custom-mcp:v1.0.0",
 			},
 			expectStep: true,
 		},
 		{
-			name: "Sandbox MCP gateway container is predownloaded with default version",
+			name: "Sandbox MCP gateway container is no longer predownloaded (feature removed)",
 			frontmatter: `---
 on: issues
 engine: claude
@@ -115,15 +114,14 @@ tools:
 ---
 
 # Test
-Test workflow - sandbox.mcp gateway should be predownloaded.`,
+Test workflow - sandbox.mcp gateway feature removed.`,
 			expectedImages: []string{
 				"ghcr.io/github/github-mcp-server:v0.27.0",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
 			},
 			expectStep: true,
 		},
 		{
-			name: "Sandbox MCP gateway with custom version",
+			name: "Sandbox MCP gateway with custom version (feature removed - config ignored)",
 			frontmatter: `---
 on: issues
 engine: claude
@@ -136,10 +134,9 @@ tools:
 ---
 
 # Test
-Test workflow with custom sandbox.mcp version.`,
+Test workflow with custom sandbox.mcp version (ignored).`,
 			expectedImages: []string{
 				"ghcr.io/github/github-mcp-server:v0.27.0",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.5",
 			},
 			expectStep: true,
 		},

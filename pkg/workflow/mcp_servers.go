@@ -195,9 +195,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		mcpServersLog.Printf("Collected %d MCP tools: %v", len(mcpTools), mcpTools)
 	}
 
-	// Ensure MCP gateway config has defaults set before collecting Docker images
-	ensureDefaultMCPGatewayConfig(workflowData)
-
+	// MCP gateway feature removed - sandbox.mcp is no longer supported
 	// Collect all Docker images that will be used and generate download step
 	dockerImages := collectDockerImages(tools, workflowData)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
@@ -467,10 +465,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 
-	// MCP gateway is now mandatory - always add gateway start logic
-	// Ensure default MCP configuration is set if not provided
-	ensureDefaultMCPGatewayConfig(workflowData)
-	generateMCPGatewayStepInline(yaml, engine, workflowData)
+	// MCP gateway feature removed - sandbox.mcp is no longer supported
 }
 
 // ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
