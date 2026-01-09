@@ -277,6 +277,19 @@ test_validation_functions_exist() {
   fi
 }
 
+# Test 10: Verify apiKey is redacted in logs
+test_apikey_redaction() {
+  echo ""
+  echo "Test 10: Verify apiKey redaction in configuration logging"
+  
+  # Check that the script uses jq to redact apiKey when logging config
+  if grep -q 'jq.*gateway.apiKey.*REDACTED' "$SCRIPT_PATH"; then
+    print_result "apiKey is redacted when logging config" "PASS"
+  else
+    print_result "apiKey should be redacted when logging config" "FAIL"
+  fi
+}
+
 # Run all tests
 echo "=== Testing start_mcp_gateway.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -290,6 +303,7 @@ test_container_missing_i_flag
 test_container_missing_rm_flag
 test_container_missing_network_flag
 test_validation_functions_exist
+test_apikey_redaction
 
 # Print summary
 echo ""

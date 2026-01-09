@@ -75,5 +75,5 @@ jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
 
 echo "Copilot configuration written to /home/runner/.copilot/mcp-config.json"
 echo ""
-echo "Converted configuration:"
-cat /home/runner/.copilot/mcp-config.json
+echo "Converted configuration (sensitive values redacted):"
+jq '.mcpServers |= with_entries(.value.headers.Authorization = "[REDACTED]")' /home/runner/.copilot/mcp-config.json

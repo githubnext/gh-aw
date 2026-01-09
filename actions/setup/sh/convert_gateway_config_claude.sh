@@ -75,5 +75,5 @@ jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
 
 echo "Claude configuration written to /tmp/gh-aw/mcp-config/mcp-servers.json"
 echo ""
-echo "Converted configuration:"
-cat /tmp/gh-aw/mcp-config/mcp-servers.json
+echo "Converted configuration (sensitive values redacted):"
+jq '.mcpServers |= with_entries(.value.headers.Authorization = "[REDACTED]")' /tmp/gh-aw/mcp-config/mcp-servers.json

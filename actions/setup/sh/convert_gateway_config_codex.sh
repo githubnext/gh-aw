@@ -72,5 +72,5 @@ jq -r --arg apiKey "$MCP_GATEWAY_API_KEY" '
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
 echo ""
-echo "Converted configuration:"
-cat /tmp/gh-aw/mcp-config/config.toml
+echo "Converted configuration (sensitive values redacted):"
+sed 's/\(Authorization = "\)[^"]*"/\1[REDACTED]"/' /tmp/gh-aw/mcp-config/config.toml

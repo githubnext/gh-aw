@@ -50,9 +50,10 @@ fi
 echo "Reading MCP configuration from stdin..."
 MCP_CONFIG=$(cat)
 
-# Log the configuration for debugging
+# Log the configuration for debugging (censoring sensitive fields per MCP Gateway Specification section 7)
 echo "-------START MCP CONFIG-----------"
-echo "$MCP_CONFIG"
+# Use jq to redact apiKey if JSON is valid, otherwise fall back to raw output
+echo "$MCP_CONFIG" | jq 'if .gateway.apiKey then .gateway.apiKey = "[REDACTED]" else . end' 2>/dev/null || echo "$MCP_CONFIG"
 echo "-------END MCP CONFIG-----------"
 echo ""
 
