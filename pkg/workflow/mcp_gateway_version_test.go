@@ -83,3 +83,38 @@ func TestMCPGatewayVersionConstantValue(t *testing.T) {
 	require.True(t, constants.DefaultMCPGatewayVersion.IsValid(),
 		"DefaultMCPGatewayVersion should be valid")
 }
+
+// TestMCPGatewayDebugEnvironmentVariable tests that DEBUG is handled by the shell script
+// DEBUG="*" is set directly in start_mcp_gateway.sh and not in the generated YAML
+func TestMCPGatewayDebugEnvironmentVariable(t *testing.T) {
+	// Create a minimal workflow data structure
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID: "awf",
+			},
+			MCP: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/githubnext/gh-aw-mcpg",
+				Version:   "v0.0.10",
+			},
+		},
+	}
+
+	// Create a simple copilot engine
+	engine := &CopilotEngine{}
+
+	// Generate the MCP gateway step
+	var yaml strings.Builder
+	generateMCPGatewayStepInline(&yaml, engine, workflowData)
+
+	// Verify the output does NOT contain the DEBUG environment variable export
+	// (it's now hardcoded in the shell script instead)
+	output := yaml.String()
+	assert.NotContains(t, output, "export DEBUG=\"*\"",
+		"Generated YAML should not contain DEBUG environment variable export (it's in the shell script)")
+
+	// Verify the output does NOT contain DEBUG in the docker run command
+	// (it's now hardcoded in the shell script instead)
+	assert.NotContains(t, output, "-e DEBUG",
+		"Generated YAML should not pass DEBUG to the docker container (it's in the shell script)")
+}
