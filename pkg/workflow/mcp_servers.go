@@ -530,6 +530,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	containerCmd += " -e MCP_GATEWAY_DOMAIN"
 	containerCmd += " -e MCP_GATEWAY_API_KEY"
 	containerCmd += " -e DEBUG=\"*\""
+	containerCmd += " -e NO_COLOR=1" // Disable ANSI color codes in gateway output
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {
@@ -633,7 +634,7 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 	// Replace ${GITHUB_WORKSPACE} with a placeholder that we'll handle specially
 	// We want: 'docker run ... -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ...'
 	// This closes the single quote, adds the variable in double quotes, then reopens single quote
-	
+
 	// Split on ${GITHUB_WORKSPACE} to handle it specially
 	if strings.Contains(cmd, "${GITHUB_WORKSPACE}") {
 		parts := strings.Split(cmd, "${GITHUB_WORKSPACE}")
@@ -651,7 +652,7 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 		result.WriteString("'")
 		return result.String()
 	}
-	
+
 	// No GITHUB_WORKSPACE variable, use normal quoting
 	return shellQuote(cmd)
 }
