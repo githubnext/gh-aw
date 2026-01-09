@@ -25,33 +25,11 @@ sandbox:
 sandbox:
   agent: srt
 
-# Disable firewall for the agent
-sandbox:
-  agent: false
+# Or omit sandbox entirely to use the default (awf)
 ```
 
-#### Disabling the Firewall
-
-To disable the firewall for the agent while keeping network permissions for content sanitization:
-
-```yaml wrap
-engine: copilot
-network:
-  allowed:
-    - defaults
-    - python
-sandbox:
-  agent: false
-```
-
-When `sandbox.agent: false`:
-- The agent runs without firewall enforcement
-- Network permissions still apply for content sanitization
-- Useful during development or when the firewall is incompatible with your workflow
-- For production workflows, enabling the firewall is recommended for better security
-
-:::note
-Setting `sandbox.agent: false` replaces the deprecated `network.firewall: false` configuration.
+:::note[Default Behavior]
+If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: awf`. The agent sandbox is now mandatory for all workflows.
 :::
 
 ### MCP Gateway (Experimental)

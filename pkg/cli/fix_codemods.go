@@ -123,7 +123,7 @@ func getNetworkFirewallCodemod() Codemod {
 	return Codemod{
 		ID:           "network-firewall-migration",
 		Name:         "Migrate network.firewall to sandbox.agent",
-		Description:  "Replaces deprecated 'network.firewall' field with 'sandbox.agent' (false for disabled firewall, awf for enabled)",
+		Description:  "Removes deprecated 'network.firewall' field (firewall is now always enabled via sandbox.agent: awf default)",
 		IntroducedIn: "0.1.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			// Check if network.firewall exists
@@ -143,15 +143,8 @@ func getNetworkFirewallCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Determine the sandbox.agent value based on firewall value
-			// firewall: true -> sandbox.agent: awf
-			// firewall: false or null -> sandbox.agent: false
-			var sandboxAgentValue string
-			if firewallValue == true {
-				sandboxAgentValue = "awf"
-			} else {
-				sandboxAgentValue = "false"
-			}
+			// Note: We no longer set sandbox.agent: false since the firewall is mandatory
+			// The firewall is always enabled via the default sandbox.agent: awf
 
 			// Parse frontmatter to get raw lines
 			result, err := parser.ExtractFrontmatterFromContent(content)
@@ -236,18 +229,14 @@ func getNetworkFirewallCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Add sandbox.agent if not already present
+			// Add sandbox.agent if not already present AND if firewall was explicitly true
+			// (no need to add sandbox.agent: awf if firewall was false, since awf is now the default)
 			_, hasSandbox := frontmatter["sandbox"]
-			if !hasSandbox {
-				// Create the appropriate sandbox lines based on firewall value
-				var sandboxLines []string
-				if sandboxAgentValue == "awf" {
-					sandboxLines = []string{
-						"sandbox:",
-						"  agent: awf  # Firewall enabled (migrated from network.firewall)",
-					}
-				} else {
-					sandboxLines = getSandboxAgentFalseLines()
+			if !hasSandbox && firewallValue == true {
+				// Only add sandbox.agent: awf if firewall was explicitly set to true
+				sandboxLines := []string{
+					"sandbox:",
+					"  agent: awf  # Firewall enabled (migrated from network.firewall)",
 				}
 
 				// Try to place it after network block if we found firewall
@@ -282,11 +271,11 @@ func getNetworkFirewallCodemod() Codemod {
 						frontmatterLines = append(frontmatterLines, sandboxLines...)
 					}
 
-					codemodsLog.Printf("Added sandbox.agent: %s", sandboxAgentValue)
+					codemodsLog.Print("Added sandbox.agent: awf (firewall was explicitly enabled)")
 				} else {
 					// Just append at the end
 					frontmatterLines = append(frontmatterLines, sandboxLines...)
-					codemodsLog.Printf("Added sandbox.agent: %s at end", sandboxAgentValue)
+					codemodsLog.Print("Added sandbox.agent: awf at end (firewall was explicitly enabled)")
 				}
 			}
 
@@ -301,7 +290,7 @@ func getNetworkFirewallCodemod() Codemod {
 			}
 
 			newContent := strings.Join(lines, "\n")
-			codemodsLog.Printf("Applied network.firewall migration (firewall: %v -> sandbox.agent: %s)", firewallValue, sandboxAgentValue)
+			codemodsLog.Printf("Applied network.firewall removal (firewall: %v removed, firewall now always enabled via sandbox.agent: awf default)", firewallValue)
 			return newContent, true, nil
 		},
 	}
