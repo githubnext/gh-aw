@@ -560,10 +560,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	switch mcpType {
 	case "stdio":
 		if renderer.Format == "toml" {
-			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
+			propertyOrder = []string{"container", "entrypoint", "entrypointArgs", "mounts", "args", "env", "proxy-args", "registry"}
 		} else {
 			// JSON format - include copilot fields if required
-			propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
+			// Per MCP Gateway Specification v1.0.0, use container/entrypoint/entrypointArgs/mounts instead of command
+			propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "tools", "args", "env", "proxy-args", "registry"}
 		}
 	case "http":
 		if renderer.Format == "toml" {
