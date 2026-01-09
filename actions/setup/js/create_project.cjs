@@ -207,10 +207,8 @@ async function main(config = {}) {
         const issueNumber = context.payload?.issue?.number;
 
         if (issueTitle) {
-          // Extract campaign name from issue title (e.g., "[New Agentic Campaign] Do X" -> "Do X")
-          const campaignMatch = issueTitle.match(/^\[New Agentic Campaign\]\s*(.+)$/i);
-          const campaignName = campaignMatch ? campaignMatch[1] : issueTitle;
-          title = `Campaign: ${campaignName}`;
+          // Use the issue title directly as the campaign name (no prefix extraction needed)
+          title = `Campaign: ${issueTitle}`;
           core.info(`Generated campaign title from issue: "${title}"`);
         } else if (issueNumber) {
           // Fallback to issue number if no title is available
