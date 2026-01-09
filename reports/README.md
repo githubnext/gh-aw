@@ -59,6 +59,23 @@ Side-by-side comparisons showing:
 
 ---
 
+### 4. Implementation Plan (Detailed Specification)
+**File**: [`campaign-creation-implementation-plan.md`](./campaign-creation-implementation-plan.md)  
+**Size**: 48 KB  
+**Read Time**: 30 minutes
+
+Step-by-step implementation guide with:
+- Detailed architecture changes
+- Phase-by-phase implementation tasks
+- Code examples and file structures
+- Testing strategy and acceptance criteria
+- Rollback plan and risk mitigation
+- Success metrics and timeline
+
+**Best for**: Engineers implementing the refactoring, project managers, detailed planning
+
+---
+
 ## 🎯 Key Finding: 95%+ Code Duplication
 
 Three agent files contain nearly identical campaign design instructions:
@@ -116,7 +133,7 @@ Three agent files contain nearly identical campaign design instructions:
 → Read: Visual Code Comparison (10 min)
 
 **Plan the implementation**
-→ Read: Full Analysis Report, Implementation Roadmap section (5 min)
+→ Read: Implementation Plan (30 min)
 
 **Review all findings in detail**
 → Read: Full Analysis Report (20 min)
@@ -124,73 +141,89 @@ Three agent files contain nearly identical campaign design instructions:
 **Present to stakeholders**
 → Use: Executive Summary + Visual Comparison (15 min total)
 
-**Make implementation decisions**
-→ Read: Full Analysis Report, Optimization Recommendations section (10 min)
+**Implement the refactoring**
+→ Read: Implementation Plan, follow phase-by-phase guide (30 min)
 
 ---
 
 ## 🚀 Implementation Phases
 
-### Phase 1: Quick Wins (Week 1)
-- Document agent file relationships
-- Add workflow suggestions to issue body
-- Clarify template purposes
+**Detailed specifications**: See [`campaign-creation-implementation-plan.md`](./campaign-creation-implementation-plan.md)
 
-**Outcome**: Better documentation, improved context passing
+### Phase 1: Foundation (Week 1)
+- Create workflow catalog (`.github/workflow-catalog.yml`)
+- Create issue form template (`.github/ISSUE_TEMPLATE/new-agentic-campaign.yml`)
+- Implement `update-issue` safe output
+- Update campaign-generator.md with catalog query and spec generation
+- Configure assign-to-agent trigger
+
+**Outcome**: Optimized two-phase architecture with deterministic discovery
 
 ### Phase 2: Consolidation (Week 2-3)
-- Create `.github/agents/shared/campaign-design-instructions.md`
-- Extract common sections from agent files
+- Create shared instructions (`pkg/campaign/prompts/campaign_creation_instructions.md`)
+- Extract duplicated logic from 3 agent files
 - Update agents to import shared instructions
+- Handle template file (delete or deprecate)
+- Decide on CCA agent (remove or repurpose)
 - Comprehensive testing
 
 **Outcome**: 69% code reduction, zero duplication
 
-### Phase 3: Catalog (Month 2+)
-- Design workflow catalog schema
-- Create `.github/workflow-catalog.yml`
-- Populate with existing workflows
-- Update agents to query catalog
+### Phase 3: Future Enhancements
+- Dry-run mode for testing
+- Webhook notifications
+- Performance metrics tracking
+- Enhanced workflow catalog with auto-updates
+- Campaign analytics dashboard
 
-**Outcome**: Long-term maintainability improvement
+**Outcome**: Advanced UX optimizations
 
 ---
 
 ## 📋 Checklist for Implementation
 
+**Detailed implementation guide**: See [`campaign-creation-implementation-plan.md`](./campaign-creation-implementation-plan.md)
+
 ### Before Starting
 - [ ] Review executive summary with team
+- [ ] Review implementation plan
 - [ ] Prioritize optimizations
 - [ ] Assign owner for each phase
 - [ ] Set timeline and milestones
 
-### Phase 1 (Quick Wins)
-- [ ] Create `docs/architecture/agent-system.md`
-- [ ] Document template vs agent file relationship
-- [ ] Update issue body template with workflow suggestions
-- [ ] Test workflow suggestion passing
+### Phase 1: Foundation (Week 1)
+- [ ] Create `.github/workflow-catalog.yml` with all workflows
+- [ ] Create `.github/ISSUE_TEMPLATE/new-agentic-campaign.yml`
+- [ ] Implement `update-issue` safe output in `pkg/workflow/safe_outputs.go`
+- [ ] Create `actions/update-issue/action.yml`
+- [ ] Update `campaign-generator.md` with catalog query
+- [ ] Add spec generation logic to generator
+- [ ] Configure assign-to-agent trigger (workflow dispatch)
+- [ ] Test end-to-end flow
 
-### Phase 2 (Consolidation)
-- [ ] Create `.github/agents/shared/` directory
-- [ ] Extract campaign design logic to shared file
-- [ ] Update CCA agent to import shared instructions
-- [ ] Update designer agent to import shared instructions
-- [ ] Update template to import shared instructions
-- [ ] Test CCA-triggered flow
-- [ ] Test issue-triggered flow
-- [ ] Verify zero regressions
+### Phase 2: Consolidation (Week 2-3)
+- [ ] Create `pkg/campaign/prompts/` directory
+- [ ] Create `campaign_creation_instructions.md` with shared logic
+- [ ] Extract duplicated logic from CCA agent
+- [ ] Extract duplicated logic from designer agent
+- [ ] Update generator to import shared instructions
+- [ ] Update designer to import shared instructions
+- [ ] Handle template file (delete/deprecate)
+- [ ] Decide on CCA agent (remove/repurpose)
+- [ ] Test consolidated flow
+- [ ] Verify zero code duplication
 - [ ] Update documentation
 
-### Phase 3 (Catalog)
-- [ ] Design workflow catalog YAML schema
-- [ ] Create `.github/workflow-catalog.yml`
-- [ ] Populate with existing workflow categories
-- [ ] Update shared instructions to reference catalog
-- [ ] Create `docs/reference/workflow-catalog.md`
-- [ ] Test catalog queries from agents
+### Phase 3: Future Enhancements
+- [ ] Implement dry-run mode
+- [ ] Add webhook notifications
+- [ ] Create performance metrics tracking
+- [ ] Add workflow health checks
+- [ ] Implement auto-catalog updates
 
 ### After Implementation
 - [ ] Measure code reduction (target: 69%)
+- [ ] Measure execution time (target: 2-3 min)
 - [ ] Measure update time (target: 3-5 min)
 - [ ] Monitor for drift (target: zero incidents)
 - [ ] Update training materials
