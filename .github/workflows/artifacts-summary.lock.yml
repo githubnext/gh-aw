@@ -567,10 +567,10 @@ jobs:
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
-          The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
+          While the gh CLI is authenticated in GitHub Actions, you MUST use safe output tools instead of gh commands for GitHub operations. Safe output tools provide structured data for downstream jobs, enable preview mode, and ensure proper error handling.
           </important>
           <instructions>
-          To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
+          To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content or using gh commands will NOT work - the workflow requires actual tool calls.
           
           **Available tools**: create_discussion, missing_tool, noop
           
