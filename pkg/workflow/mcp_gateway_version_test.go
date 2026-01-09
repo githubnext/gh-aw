@@ -50,9 +50,7 @@ func TestMCPGatewayDefaultVersion(t *testing.T) {
 						Version:   tt.version,
 					},
 				},
-				Features: map[string]any{
-					string(constants.MCPGatewayFeatureFlag): true,
-				},
+				// MCP gateway is now mandatory, no feature flag needed
 			}
 
 			// Create a simple copilot engine (we just need something that implements the interface)
@@ -74,7 +72,7 @@ func TestMCPGatewayDefaultVersion(t *testing.T) {
 // TestMCPGatewayVersionConstantValue ensures the constant has the expected value
 func TestMCPGatewayVersionConstantValue(t *testing.T) {
 	// This test documents the expected version and will fail if it changes
-	expectedVersion := "v0.0.9"
+	expectedVersion := "v0.0.10"
 	actualVersion := string(constants.DefaultMCPGatewayVersion)
 
 	assert.Equal(t, expectedVersion, actualVersion,
