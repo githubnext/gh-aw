@@ -235,7 +235,10 @@ const DefaultGitHubMCPServerVersion Version = "v0.27.0"
 const DefaultFirewallVersion Version = "v0.8.2"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.9"
+const DefaultMCPGatewayVersion Version = "v0.0.10"
+
+// DefaultMCPGatewayContainer is the default container image for the MCP Gateway
+const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
 
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
 const DefaultSandboxRuntimeVersion Version = "0.0.25"
@@ -261,6 +264,10 @@ const DefaultNodeVersion Version = "24"
 // DefaultNodeAlpineLTSImage is the default Node.js Alpine LTS container image for MCP servers
 // Using node:lts-alpine provides the latest LTS version with minimal footprint
 const DefaultNodeAlpineLTSImage = "node:lts-alpine"
+
+// DefaultPythonAlpineLTSImage is the default Python Alpine LTS container image for MCP servers
+// Using python:alpine provides the latest stable version with minimal footprint
+const DefaultPythonAlpineLTSImage = "python:alpine"
 
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"

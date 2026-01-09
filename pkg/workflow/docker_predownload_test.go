@@ -68,7 +68,7 @@ Test workflow.`,
 			expectStep: true,
 		},
 		{
-			name: "GitHub remote mode does not generate docker image download",
+			name: "GitHub remote mode does not generate GitHub MCP docker image but still downloads MCP gateway",
 			frontmatter: `---
 on: issues
 engine: claude
@@ -79,8 +79,10 @@ tools:
 
 # Test
 Test workflow.`,
-			expectedImages: nil,
-			expectStep:     false,
+			expectedImages: []string{
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+			},
+			expectStep: true,
 		},
 		{
 			name: "Custom MCP server with container",
@@ -98,7 +100,85 @@ mcp-servers:
 Test workflow with custom MCP container.`,
 			expectedImages: []string{
 				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
 				"myorg/custom-mcp:v1.0.0",
+			},
+			expectStep: true,
+		},
+		{
+			name: "Sandbox MCP gateway container is predownloaded with default version",
+			frontmatter: `---
+on: issues
+engine: claude
+tools:
+  github:
+---
+
+# Test
+Test workflow - sandbox.mcp gateway should be predownloaded.`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+			},
+			expectStep: true,
+		},
+		{
+			name: "Sandbox MCP gateway with custom version",
+			frontmatter: `---
+on: issues
+engine: claude
+sandbox:
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.5
+tools:
+  github:
+---
+
+# Test
+Test workflow with custom sandbox.mcp version.`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.5",
+			},
+			expectStep: true,
+		},
+		{
+			name: "Safe outputs MCP server container is predownloaded",
+			frontmatter: `---
+on: issues
+engine: claude
+tools:
+  github:
+safe-outputs:
+  create-issue:
+---
+
+# Test
+Test workflow - safe outputs MCP server should use node:lts-alpine.`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				"node:lts-alpine",
+			},
+			expectStep: true,
+		},
+		{
+			name: "Safe outputs without GitHub tool still includes node:lts-alpine",
+			frontmatter: `---
+on: issues
+engine: claude
+safe-outputs:
+  create-issue:
+network:
+  allowed: ["api.github.com"]
+---
+
+# Test
+Test workflow - safe outputs MCP server without GitHub tool.`,
+			expectedImages: []string{
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				"node:lts-alpine",
 			},
 			expectStep: true,
 		},

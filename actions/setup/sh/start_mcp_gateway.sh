@@ -3,57 +3,106 @@
 # This script starts the MCP gateway process that proxies MCP servers through a unified HTTP endpoint
 # Following the MCP Gateway Specification: https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/reference/mcp-gateway.md
 # Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
+#
+# This script reads the MCP configuration from stdin and pipes it to the gateway container.
 
 set -e
 
 # Required environment variables:
-# - MCP_GATEWAY_PORT: Port for the gateway HTTP server
-# - MCP_GATEWAY_DOMAIN: Domain for gateway URL (localhost or host.docker.internal)
-# - MCP_GATEWAY_API_KEY: API key for gateway authentication
-# - MCP_GATEWAY_CONTAINER: Container image to run (required)
-
-# Validate required environment variables
-if [ -z "$MCP_GATEWAY_PORT" ]; then
-  echo "ERROR: MCP_GATEWAY_PORT environment variable is required"
-  exit 1
-fi
-
-if [ -z "$MCP_GATEWAY_DOMAIN" ]; then
-  echo "ERROR: MCP_GATEWAY_DOMAIN environment variable is required"
-  exit 1
-fi
-
-if [ -z "$MCP_GATEWAY_API_KEY" ]; then
-  echo "ERROR: MCP_GATEWAY_API_KEY environment variable is required"
-  exit 1
-fi
+# - MCP_GATEWAY_DOCKER_COMMAND: Container image to run (required)
 
 # Validate that container is specified (command execution is not supported per spec)
-if [ -z "$MCP_GATEWAY_CONTAINER" ]; then
-  echo "ERROR: MCP_GATEWAY_CONTAINER must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)"
+if [ -z "$MCP_GATEWAY_DOCKER_COMMAND" ]; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)"
   exit 1
 fi
 
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs/gateway
+mkdir -p /tmp/gh-aw/mcp-config
 
-# Build gateway configuration with runtime values
-echo "Building gateway configuration..."
-cat /home/runner/.copilot/mcp-config.json | jq --arg port "$MCP_GATEWAY_PORT" --arg apiKey "$MCP_GATEWAY_API_KEY" --arg domain "$MCP_GATEWAY_DOMAIN" \
-  '.gateway = { port: ($port | tonumber), apiKey: $apiKey, domain: $domain }' > /tmp/gh-aw/mcp-config/gateway-input.json
+# Validate container syntax first (before accessing files)
+# Container should be a valid docker command starting with "docker run"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE '^docker run'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax"
+  echo "Expected: docker run command with image and arguments"
+  echo "Got: $MCP_GATEWAY_DOCKER_COMMAND"
+  exit 1
+fi
 
-echo "Gateway input configuration:"
-cat /tmp/gh-aw/mcp-config/gateway-input.json
+# Validate container command includes required flags
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '-i'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -i flag for interactive mode"
+  exit 1
+fi
+
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--rm'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --rm flag for cleanup"
+  exit 1
+fi
+
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network host'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network host flag"
+  exit 1
+fi
+
+# Read MCP configuration from stdin
+echo "Reading MCP configuration from stdin..."
+MCP_CONFIG=$(cat)
+
+# Log the configuration for debugging
+echo "-------START MCP CONFIG-----------"
+echo "$MCP_CONFIG"
+echo "-------END MCP CONFIG-----------"
+echo ""
+
+# Validate configuration is valid JSON
+if ! echo "$MCP_CONFIG" | jq empty 2>/tmp/gh-aw/mcp-config/jq-error.log; then
+  echo "ERROR: Configuration is not valid JSON"
+  echo ""
+  echo "JSON validation error:"
+  if [ -f /tmp/gh-aw/mcp-config/jq-error.log ]; then
+    cat /tmp/gh-aw/mcp-config/jq-error.log
+  fi
+  echo ""
+  echo "Configuration content:"
+  echo "$MCP_CONFIG" | head -50
+  if [ $(echo "$MCP_CONFIG" | wc -l) -gt 50 ]; then
+    echo "... (truncated, showing first 50 lines)"
+  fi
+  exit 1
+fi
+
+# Validate gateway section exists and has required fields
+echo "Validating gateway configuration..."
+if ! echo "$MCP_CONFIG" | jq -e '.gateway' >/dev/null 2>&1; then
+  echo "ERROR: Configuration is missing required 'gateway' section"
+  echo "Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required"
+  exit 1
+fi
+
+if ! echo "$MCP_CONFIG" | jq -e '.gateway.port' >/dev/null 2>&1; then
+  echo "ERROR: Gateway configuration is missing required 'port' field"
+  exit 1
+fi
+
+if ! echo "$MCP_CONFIG" | jq -e '.gateway.domain' >/dev/null 2>&1; then
+  echo "ERROR: Gateway configuration is missing required 'domain' field"
+  exit 1
+fi
+
+if ! echo "$MCP_CONFIG" | jq -e '.gateway.apiKey' >/dev/null 2>&1; then
+  echo "ERROR: Gateway configuration is missing required 'apiKey' field"
+  exit 1
+fi
+
+echo "Configuration validated successfully"
 echo ""
 
 # Start gateway process with container
-echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
-cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
-  --network host \
-  -e MCP_GATEWAY_PORT \
-  -e MCP_GATEWAY_DOMAIN \
-  -e MCP_GATEWAY_API_KEY \
-  $MCP_GATEWAY_CONTAINER \
+echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
+# Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags and image
+echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND -v /opt:/opt:ro /tmp:/tmp:rw -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!
@@ -78,7 +127,11 @@ done
 
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
   echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
-  echo "Gateway stderr logs:"
+  echo ""
+  echo "Gateway stdout (errors are written here per MCP Gateway Specification):"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  echo ""
+  echo "Gateway stderr logs (debug output):"
   cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
@@ -103,6 +156,24 @@ done
 # Verify output was written
 if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   echo "ERROR: Gateway did not write output configuration"
+  echo ""
+  echo "Gateway stdout (should contain error or config):"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  echo ""
+  echo "Gateway stderr logs:"
+  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  kill $GATEWAY_PID 2>/dev/null || true
+  exit 1
+fi
+
+# Check if output contains an error payload instead of valid configuration
+# Per MCP Gateway Specification v1.0.0 section 9.1, errors are written to stdout as error payloads
+if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; then
+  echo "ERROR: Gateway returned an error payload instead of configuration"
+  echo ""
+  echo "Gateway error details:"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json
+  echo ""
   echo "Gateway stderr logs:"
   cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true

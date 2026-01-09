@@ -267,10 +267,10 @@ See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network
 ### Disabling the Firewall
 
 :::caution[Deprecated]
-The `network.firewall` field is deprecated. Use `sandbox.agent: false` instead to disable the firewall for the agent.
+The `network.firewall` field is deprecated. The agent sandbox is now mandatory and defaults to AWF. See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 :::
 
-To disable the firewall, use `sandbox.agent: false`:
+The firewall is always enabled via the default `sandbox.agent: awf` configuration:
 
 ```yaml wrap
 engine: copilot
@@ -279,8 +279,7 @@ network:
     - defaults
     - python
     - "api.example.com"
-sandbox:
-  agent: false
+# sandbox.agent defaults to 'awf' if not specified
 ```
 
 **Legacy approach (deprecated):**

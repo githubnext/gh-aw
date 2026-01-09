@@ -14,6 +14,29 @@ import (
 
 var mcpLog = logger.New("workflow:mcp-config")
 
+// WellKnownContainer represents a container configuration for a well-known command
+type WellKnownContainer struct {
+	Image      string // Container image (e.g., "node:lts-alpine")
+	Entrypoint string // Entrypoint command (e.g., "npx")
+}
+
+// getWellKnownContainer returns the appropriate container configuration for well-known commands
+// This enables automatic containerization of stdio MCP servers based on their command
+func getWellKnownContainer(command string) *WellKnownContainer {
+	wellKnownContainers := map[string]*WellKnownContainer{
+		"npx": {
+			Image:      constants.DefaultNodeAlpineLTSImage,
+			Entrypoint: "npx",
+		},
+		"uvx": {
+			Image:      constants.DefaultPythonAlpineLTSImage,
+			Entrypoint: "uvx",
+		},
+	}
+
+	return wellKnownContainers[command]
+}
+
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses Docker container to launch Playwright MCP for consistent browser environment
 // This is a shared function used by both Claude and Custom engines
@@ -23,7 +46,8 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast
 }
 
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
-// Uses Docker container with the versioned Playwright MCP image for consistent browser environment
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
@@ -39,56 +63,77 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 	// Use official Playwright MCP Docker image (no version tag - only one image)
 	playwrightImage := "mcr.microsoft.com/playwright/mcp"
-	// Use MCP package version from constants for output-dir identification
-	_ = "@playwright/mcp@" + args.MCPPackageVersion
 
 	yaml.WriteString("              \"playwright\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
-	yaml.WriteString("                \"command\": \"docker\",\n")
+	// MCP Gateway spec fields for containerized stdio servers
+	yaml.WriteString("                \"container\": \"" + playwrightImage + "\",\n")
 
+	// Docker runtime args (goes before container image in docker run command)
+	// These are additional flags for docker run like --init and --network
+	dockerArgs := []string{"--init", "--network", "host"}
 	if inlineArgs {
-		// Inline format for Copilot
-		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"--network\", \"host\", \"-v\", \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(allowedDomains) > 0 {
-			domainsStr := strings.Join(allowedDomains, ";")
-			yaml.WriteString(", \"--allowed-hosts\", \"" + domainsStr + "\"")
-			yaml.WriteString(", \"--allowed-origins\", \"" + domainsStr + "\"")
+		yaml.WriteString("                \"args\": [")
+		for i, arg := range dockerArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
 		}
-		// Append custom args if present
-		writeArgsToYAMLInline(yaml, customArgs)
-		yaml.WriteString("]")
+		yaml.WriteString("],\n")
 	} else {
-		// Multi-line format for Claude/Custom
 		yaml.WriteString("                \"args\": [\n")
-		yaml.WriteString("                  \"run\",\n")
-		yaml.WriteString("                  \"-i\",\n")
-		yaml.WriteString("                  \"--rm\",\n")
-		yaml.WriteString("                  \"--init\",\n")
-		yaml.WriteString("                  \"--network\",\n")
-		yaml.WriteString("                  \"host\",\n")
-		yaml.WriteString("                  \"-v\",\n")
-		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\",\n")
-		yaml.WriteString("                  \"" + playwrightImage + "\",\n")
-		yaml.WriteString("                  \"--output-dir\",\n")
-		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(allowedDomains) > 0 {
-			domainsStr := strings.Join(allowedDomains, ";")
-			yaml.WriteString(",\n")
-			yaml.WriteString("                  \"--allowed-hosts\",\n")
-			yaml.WriteString("                  \"" + domainsStr + "\",\n")
-			yaml.WriteString("                  \"--allowed-origins\",\n")
-			yaml.WriteString("                  \"" + domainsStr + "\"")
+		for i, arg := range dockerArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(dockerArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
 		}
-		// Append custom args if present
-		writeArgsToYAML(yaml, customArgs, "                  ")
-		yaml.WriteString("\n")
-		yaml.WriteString("                ]")
+		yaml.WriteString("                ],\n")
 	}
+
+	// Build entrypoint args for Playwright MCP server (goes after container image)
+	entrypointArgs := []string{"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"}
+	if len(allowedDomains) > 0 {
+		domainsStr := strings.Join(allowedDomains, ";")
+		entrypointArgs = append(entrypointArgs, "--allowed-hosts", domainsStr)
+		entrypointArgs = append(entrypointArgs, "--allowed-origins", domainsStr)
+	}
+	// Append custom args if present
+	if len(customArgs) > 0 {
+		entrypointArgs = append(entrypointArgs, customArgs...)
+	}
+
+	// Render entrypointArgs
+	if inlineArgs {
+		yaml.WriteString("                \"entrypointArgs\": [")
+		for i, arg := range entrypointArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("],\n")
+	} else {
+		yaml.WriteString("                \"entrypointArgs\": [\n")
+		for i, arg := range entrypointArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(entrypointArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("                ],\n")
+	}
+
+	// Add volume mounts
+	yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]")
 
 	// Add tools field for Copilot
 	if includeCopilotFields {
@@ -106,30 +151,42 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 }
 
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses Docker container format as specified by Serena: ghcr.io/oraios/serena:latest
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	yaml.WriteString("              \"serena\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
-	yaml.WriteString("                \"command\": \"uvx\",\n")
+	// Use Serena's Docker container image
+	yaml.WriteString("                \"container\": \"ghcr.io/oraios/serena:latest\",\n")
 
+	// Docker runtime args (--network host for network access)
 	if inlineArgs {
-		// Inline format for Copilot
-		yaml.WriteString("                \"args\": [\"--from\", \"git+https://github.com/oraios/serena\", \"serena\", \"start-mcp-server\", \"--context\", \"codex\", \"--project\", \"${{ github.workspace }}\"")
+		yaml.WriteString("                \"args\": [\"--network\", \"host\"],\n")
+	} else {
+		yaml.WriteString("                \"args\": [\n")
+		yaml.WriteString("                  \"--network\",\n")
+		yaml.WriteString("                  \"host\"\n")
+		yaml.WriteString("                ],\n")
+	}
+
+	// Serena entrypoint
+	yaml.WriteString("                \"entrypoint\": \"serena\",\n")
+
+	// Entrypoint args for Serena MCP server
+	if inlineArgs {
+		yaml.WriteString("                \"entrypointArgs\": [\"start-mcp-server\", \"--context\", \"codex\", \"--project\", \"${{ github.workspace }}\"")
 		// Append custom args if present
 		writeArgsToYAMLInline(yaml, customArgs)
-		yaml.WriteString("]")
+		yaml.WriteString("],\n")
 	} else {
-		// Multi-line format for Claude/Custom
-		yaml.WriteString("                \"args\": [\n")
-		yaml.WriteString("                  \"--from\",\n")
-		yaml.WriteString("                  \"git+https://github.com/oraios/serena\",\n")
-		yaml.WriteString("                  \"serena\",\n")
+		yaml.WriteString("                \"entrypointArgs\": [\n")
 		yaml.WriteString("                  \"start-mcp-server\",\n")
 		yaml.WriteString("                  \"--context\",\n")
 		yaml.WriteString("                  \"codex\",\n")
@@ -138,8 +195,11 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 		// Append custom args if present
 		writeArgsToYAML(yaml, customArgs, "                  ")
 		yaml.WriteString("\n")
-		yaml.WriteString("                ]")
+		yaml.WriteString("                ],\n")
 	}
+
+	// Add volume mount for workspace access
+	yaml.WriteString("                \"mounts\": [\"${{ github.workspace }}:${{ github.workspace }}\"]")
 
 	// Add tools field for Copilot
 	if includeCopilotFields {
@@ -174,9 +234,9 @@ type BuiltinMCPServerOptions struct {
 func renderBuiltinMCPServerBlock(opts BuiltinMCPServerOptions) {
 	opts.Yaml.WriteString("              \"" + opts.ServerID + "\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if opts.IncludeCopilotFields {
-		opts.Yaml.WriteString("                \"type\": \"local\",\n")
+		opts.Yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	opts.Yaml.WriteString("                \"command\": \"" + opts.Command + "\",\n")
@@ -254,9 +314,9 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	// This will be transformed to Docker command by getMCPConfig transformation logic
 	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	// MCP Gateway spec fields for containerized stdio servers
@@ -314,7 +374,8 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 }
 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex
-// Uses Docker container with the versioned Playwright MCP image for consistent browser environment
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
@@ -324,17 +385,17 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
-	yaml.WriteString("          command = \"docker\"\n")
+	yaml.WriteString("          container = \"" + playwrightImage + "\"\n")
+
+	// Docker runtime args (goes before container image in docker run command)
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"run\",\n")
-	yaml.WriteString("            \"-i\",\n")
-	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"--init\",\n")
 	yaml.WriteString("            \"--network\",\n")
 	yaml.WriteString("            \"host\",\n")
-	yaml.WriteString("            \"-v\",\n")
-	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\",\n")
-	yaml.WriteString("            \"" + playwrightImage + "\",\n")
+	yaml.WriteString("          ]\n")
+
+	// Entrypoint args for Playwright MCP server (goes after container image)
+	yaml.WriteString("          entrypointArgs = [\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
@@ -351,6 +412,9 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
+
+	// Add volume mounts
+	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]\n")
 }
 
 // renderSafeOutputsMCPConfigTOML generates the Safe Outputs MCP server configuration in TOML format for Codex
@@ -595,11 +659,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if isLast {
 				comma = ""
 			}
-			// For copilot CLI, convert "stdio" to "local"
+			// Type field - per MCP Gateway Specification v1.0.0
+			// Use "stdio" for containerized servers, "http" for HTTP servers
 			typeValue := mcpConfig.Type
-			if typeValue == "stdio" && renderer.RequiresCopilotFields {
-				typeValue = "local"
-			}
 			fmt.Fprintf(yaml, "%s\"type\": \"%s\"%s\n", renderer.IndentLevel, typeValue, comma)
 		case "tools":
 			// Render tools field for JSON format (copilot engine) - default to all tools
@@ -1054,6 +1116,23 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	// Extract allowed tools
 	if allowed, hasAllowed := config.GetStringArray("allowed"); hasAllowed {
 		result.Allowed = allowed
+	}
+
+	// Automatically assign well-known containers for stdio MCP servers based on command
+	// This ensures all stdio servers work with the MCP Gateway which requires containerization
+	if result.Type == "stdio" && result.Container == "" && result.Command != "" {
+		containerConfig := getWellKnownContainer(result.Command)
+		if containerConfig != nil {
+			mcpLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
+			result.Container = containerConfig.Image
+			result.Entrypoint = containerConfig.Entrypoint
+			// Move command to entrypointArgs and preserve existing args after it
+			if result.Command != "" {
+				result.EntrypointArgs = append([]string{result.Command}, result.Args...)
+				result.Args = nil // Clear args since they're now in entrypointArgs
+			}
+			result.Command = "" // Clear command since it's now the entrypoint
+		}
 	}
 
 	// Handle container transformation for stdio type

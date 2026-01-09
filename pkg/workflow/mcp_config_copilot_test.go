@@ -74,10 +74,11 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				RequiresCopilotFields: false,
 			},
 			expectedContent: []string{
-				`"type": "stdio"`,
-				`"command": "npx"`,
+				// After auto-containerization, npx becomes docker with npx in args
+				`"command": "docker"`,
 				`"args": [`,
 				`"env": {`,
+				`"node:lts-alpine"`, // Auto-assigned container for npx
 			},
 			unexpectedContent: []string{
 				`"tools":`, // should NOT include tools field

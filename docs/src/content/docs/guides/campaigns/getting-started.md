@@ -100,18 +100,72 @@ This ensures your campaign items remain under the control of the campaign orches
 
 Enable repo-memory for campaigns using this layout: `memory/campaigns/<campaign-id>/cursor.json` and `memory/campaigns/<campaign-id>/metrics/<date>.json`. Campaign writes must include a cursor and at least one metrics snapshot.
 
-## Start an agentic campaign with GitHub Issue Forms
+## Automated campaign creation
 
-This repo also includes a "🚀 Start an Agentic Campaign" issue form. Use it when you want to capture intent first and let an agent scaffold the spec in a PR.
+For a more streamlined experience, you can use the automated campaign creation flow. Create an issue with the title prefix `[New Agentic Campaign]` followed by your campaign name.
 
-### Creating the Campaign Issue
+### How it works (Two-Phase Flow)
 
-**Recommended:** Create from your project board (Open board → "Add item" → "Create new issue" → Select "🚀 Start an Agentic Campaign" template). The project will be automatically assigned.
+The campaign creation process uses an optimized two-phase architecture:
 
-**Alternative:** Create from Issues → New Issue → Select "🚀 Start an Agentic Campaign". Remember to assign the project manually before submitting.
+**Phase 1 - Campaign Generator Workflow** (~30 seconds):
+1. Automatically triggered when you create an issue with `[New Agentic Campaign]` prefix
+2. Creates a GitHub Project board for your campaign
+3. Discovers relevant workflows from the local repository and the [agentics collection](https://github.com/githubnext/agentics)
+4. Generates the complete campaign specification (`.github/workflows/<id>.campaign.md`)
+5. Writes the campaign file to the repository
+6. Updates the issue with campaign details and project board link
 
-Submitting the form creates a campaign issue (your campaign hub), validates the project board, generates the campaign spec (`.github/workflows/<id>.campaign.md`) in a PR, and configures tracking. Manage your campaign from the issue—workflow files are implementation details.
+**Phase 2 - Compilation** (~1-2 minutes):
+1. Automatically assigns a Copilot Coding Agent to compile the campaign
+2. Runs `gh aw compile <campaign-id>` to generate the orchestrator
+3. Creates a pull request with all campaign files:
+   - `.github/workflows/<id>.campaign.md` (specification)
+   - `.github/workflows/<id>.campaign.g.md` (debug artifact, not tracked in git)
+   - `.github/workflows/<id>.campaign.lock.yml` (compiled workflow)
+
+**Why two phases?** The `gh aw compile` command requires the gh-aw CLI binary, which is only available in Copilot Coding Agent sessions. GitHub Actions runners cannot compile campaigns directly.
+
+### Creating a Campaign
+
+**Option 1: Simple issue creation**
+1. Go to Issues → New Issue
+2. Set title to: `[New Agentic Campaign] Your Campaign Name`
+3. In the issue body, describe your campaign goal (e.g., "Upgrade all services to Node.js 20" or "Improve test coverage across repositories")
+4. Submit the issue
+
+**Option 2: Using issue forms (if configured)**
+1. Go to Issues → New Issue → Select "🚀 Start an Agentic Campaign" template
+2. Fill in the form fields
+3. Submit the issue
+
+### Workflow Discovery
+
+The campaign generator automatically discovers and suggests workflows from:
+
+- **Local workflows**: Existing workflows in your `.github/workflows/` directory
+- **Agentics collection**: 17 reusable workflows from [githubnext/agentics](https://github.com/githubnext/agentics):
+  - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
+  - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
+  - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
+
+The generator uses a workflow catalog (`.github/workflow-catalog.yml`) for deterministic discovery in <1 second vs 2-3 minutes of filesystem scanning.
+
+### What you get
+
+After the two-phase process completes (typically 2-3 minutes total):
+
+1. **Campaign specification file** - Complete `.campaign.md` with your objectives, KPIs, and workflow configuration
+2. **GitHub Project board** - Automatic dashboard for tracking campaign progress
+3. **Compiled orchestrator** - Ready-to-run `.campaign.lock.yml` workflow
+4. **Pull request** - All files ready for review and merge
+5. **Issue updates** - Your original issue is updated with campaign details and links
 
 ### Benefits
 
-Using issue forms captures intent over syntax, validates required fields, lowers the barrier to entry, provides a traceable command center, automates spec generation, and handles project assignment automatically.
+- **Fast**: 60% faster than the previous flow (5-10 min → 2-3 min)
+- **Comprehensive**: Discovers both local and external workflows automatically
+- **Transparent**: Issue updates provide real-time status throughout creation
+- **Deterministic**: Workflow catalog enables consistent, fast discovery
+- **Intelligent**: AI-powered workflow matching based on your campaign goals
+- **Single source of truth**: All campaign design logic consolidated in one place

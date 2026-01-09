@@ -224,7 +224,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.27.0 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/memory mcp/notion
+        run: bash /opt/gh-aw/actions/download_docker_images.sh @sentry/mcp-server@0.26.0 docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.10 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/memory mcp/notion microsoft-fabric-rti-mcp node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -440,12 +440,20 @@ jobs:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="8080"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -e DEBUG="*" ghcr.io/githubnext/gh-aw-mcpg:v0.0.10'
+          
           mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
+          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "arxiv": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "search_arxiv",
@@ -460,7 +468,7 @@ jobs:
                 ]
               },
               "ast-grep": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "*"
@@ -473,7 +481,7 @@ jobs:
                 ]
               },
               "brave-search": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "*"
@@ -491,7 +499,7 @@ jobs:
                 }
               },
               "context7": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "get-library-docs",
@@ -539,8 +547,8 @@ jobs:
                 ]
               },
               "fabric-rti": {
-                "type": "local",
-                "command": "uvx",
+                "type": "stdio",
+                "command": "docker",
                 "tools": [
                   "kusto_known_services",
                   "kusto_query",
@@ -557,6 +565,19 @@ jobs:
                   "get_eventstream_definition"
                 ],
                 "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "AZURE_CLIENT_ID",
+                  "-e",
+                  "AZURE_CLIENT_SECRET",
+                  "-e",
+                  "AZURE_TENANT_ID",
+                  "--entrypoint",
+                  "uvx",
+                  "python:alpine",
+                  "uvx",
                   "microsoft-fabric-rti-mcp"
                 ],
                 "env": {
@@ -573,36 +594,25 @@ jobs:
                 ]
               },
               "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN",
-                  "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.27.0"
-                ],
+                "type": "stdio",
+                "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               },
               "markitdown": {
-                "type": "local",
+                "type": "stdio",
                 "command": "markitdown-mcp",
                 "tools": [
                   "*"
                 ]
               },
               "memory": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "store_memory",
@@ -627,7 +637,7 @@ jobs:
                 ]
               },
               "notion": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "search_pages",
@@ -648,7 +658,7 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "local",
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
@@ -670,8 +680,8 @@ jobs:
                 }
               },
               "sentry": {
-                "type": "local",
-                "command": "npx",
+                "type": "stdio",
+                "command": "docker",
                 "tools": [
                   "whoami",
                   "find_organizations",
@@ -689,6 +699,19 @@ jobs:
                   "get_doc"
                 ],
                 "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "OPENAI_API_KEY",
+                  "-e",
+                  "SENTRY_ACCESS_TOKEN",
+                  "-e",
+                  "SENTRY_HOST",
+                  "--entrypoint",
+                  "npx",
+                  "node:lts-alpine",
+                  "npx",
                   "@sentry/mcp-server@0.26.0"
                 ],
                 "env": {
@@ -698,9 +721,12 @@ jobs:
                 }
               },
               "serena": {
-                "type": "local",
-                "command": "uvx",
-                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "type": "stdio",
+                "container": "ghcr.io/oraios/serena:latest",
+                "args": ["--network", "host"],
+                "entrypoint": "serena",
+                "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "mounts": ["${{ github.workspace }}:${{ github.workspace }}"],
                 "tools": ["*"]
               },
               "tavily": {
@@ -716,16 +742,14 @@ jobs:
                   "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
                 }
               }
+            },
+            "gateway": {
+              "port": "${MCP_GATEWAY_PORT}",
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}"
             }
           }
-          EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+          MCPCONFIG_EOF
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0

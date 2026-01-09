@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -127,7 +128,8 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 }
 
 // renderPlaywrightTOML generates Playwright MCP configuration in TOML format
-// Uses Docker container with the versioned Playwright MCP image for consistent browser environment
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightTool any) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
@@ -137,17 +139,17 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
-	yaml.WriteString("          command = \"docker\"\n")
+	yaml.WriteString("          container = \"" + playwrightImage + "\"\n")
+
+	// Docker runtime args (goes before container image in docker run command)
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"run\",\n")
-	yaml.WriteString("            \"-i\",\n")
-	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"--init\",\n")
 	yaml.WriteString("            \"--network\",\n")
 	yaml.WriteString("            \"host\",\n")
-	yaml.WriteString("            \"-v\",\n")
-	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\",\n")
-	yaml.WriteString("            \"" + playwrightImage + "\",\n")
+	yaml.WriteString("          ]\n")
+
+	// Entrypoint args for Playwright MCP server (goes after container image)
+	yaml.WriteString("          entrypointArgs = [\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
@@ -164,6 +166,9 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
+
+	// Add volume mounts
+	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]\n")
 }
 
 // RenderSerenaMCP generates Serena MCP server configuration
@@ -180,16 +185,26 @@ func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serena
 }
 
 // renderSerenaTOML generates Serena MCP configuration in TOML format
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses Docker container format as specified by Serena: ghcr.io/oraios/serena:latest
 func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.serena]\n")
-	yaml.WriteString("          command = \"uvx\"\n")
+	yaml.WriteString("          container = \"ghcr.io/oraios/serena:latest\"\n")
+
+	// Docker runtime args (--network host for network access)
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"--from\",\n")
-	yaml.WriteString("            \"git+https://github.com/oraios/serena\",\n")
-	yaml.WriteString("            \"serena\",\n")
+	yaml.WriteString("            \"--network\",\n")
+	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("          ]\n")
+
+	// Serena entrypoint
+	yaml.WriteString("          entrypoint = \"serena\"\n")
+
+	// Entrypoint args for Serena MCP server
+	yaml.WriteString("          entrypointArgs = [\n")
 	yaml.WriteString("            \"start-mcp-server\",\n")
 	yaml.WriteString("            \"--context\",\n")
 	yaml.WriteString("            \"codex\",\n")
@@ -201,6 +216,9 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
+
+	// Add volume mount for workspace access
+	yaml.WriteString("          mounts = [\"${{ github.workspace }}:${{ github.workspace }}\"]\n")
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration
@@ -340,42 +358,61 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		// Use bearer_token_env_var for authentication
 		yaml.WriteString("          bearer_token_env_var = \"GH_AW_GITHUB_TOKEN\"\n")
 	} else {
-		// Local mode - use Docker-based GitHub MCP server (default)
+		// Local mode - use Docker-based GitHub MCP server with MCP Gateway spec format
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
 
-		yaml.WriteString("          command = \"docker\"\n")
-		yaml.WriteString("          args = [\n")
-		yaml.WriteString("            \"run\",\n")
-		yaml.WriteString("            \"-i\",\n")
-		yaml.WriteString("            \"--rm\",\n")
-		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+		// MCP Gateway spec fields for containerized stdio servers
+		yaml.WriteString("          container = \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+
+		// Append custom args if present (these are Docker runtime args, go before container image)
+		if len(customArgs) > 0 {
+			yaml.WriteString("          args = [\n")
+			for _, arg := range customArgs {
+				yaml.WriteString("            \"" + arg + "\",\n")
+			}
+			yaml.WriteString("          ]\n")
+		}
+
+		// Build environment variables
+		envVars := make(map[string]string)
+		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GH_AW_GITHUB_TOKEN"
+
 		if readOnly {
-			yaml.WriteString("            \"-e\",\n")
-			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
+			envVars["GITHUB_READ_ONLY"] = "1"
 		}
 
 		if lockdown {
-			yaml.WriteString("            \"-e\",\n")
-			yaml.WriteString("            \"GITHUB_LOCKDOWN_MODE=1\",\n")
+			envVars["GITHUB_LOCKDOWN_MODE"] = "1"
 		}
 
-		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
-		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_TOOLSETS=" + toolsets + "\",\n")
+		envVars["GITHUB_TOOLSETS"] = toolsets
 
-		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+		// Write environment variables in sorted order for deterministic output
+		envKeys := make([]string, 0, len(envVars))
+		for key := range envVars {
+			envKeys = append(envKeys, key)
+		}
+		sort.Strings(envKeys)
 
-		// Append custom args if present
-		writeArgsToYAML(yaml, customArgs, "            ")
+		yaml.WriteString("          env = { ")
+		for i, key := range envKeys {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			fmt.Fprintf(yaml, "\"%s\" = \"%s\"", key, envVars[key])
+		}
+		yaml.WriteString(" }\n")
 
-		yaml.WriteString("\n")
-		yaml.WriteString("          ]\n")
-
-		// Use env_vars array to reference environment variables instead of embedding secrets
-		// The actual secret values are set in the execution step's env block
-		yaml.WriteString("          env_vars = [\"GITHUB_PERSONAL_ACCESS_TOKEN\"]\n")
+		// Use env_vars array to reference environment variables
+		yaml.WriteString("          env_vars = [")
+		for i, key := range envKeys {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			fmt.Fprintf(yaml, "\"%s\"", key)
+		}
+		yaml.WriteString("]\n")
 	}
 }
 
@@ -456,7 +493,7 @@ type GitHubMCPDockerOptions struct {
 	DockerImageVersion string
 	// CustomArgs are additional arguments to append to the Docker command
 	CustomArgs []string
-	// IncludeTypeField indicates whether to include the "type": "local" field (Copilot needs it, Claude doesn't)
+	// IncludeTypeField indicates whether to include the "type": "stdio" field (Copilot needs it, Claude doesn't)
 	IncludeTypeField bool
 	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
 	AllowedTools []string
@@ -465,53 +502,30 @@ type GitHubMCPDockerOptions struct {
 }
 
 // RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).
-// This shared function extracts the duplicate pattern from Claude and Copilot engines.
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypointArgs, and env fields.
 //
 // Parameters:
 //   - yaml: The string builder for YAML output
 //   - options: GitHub MCP Docker rendering options
 func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
 	// Add type field if needed (Copilot requires this, Claude doesn't)
+	// Per MCP Gateway Specification v1.0.0 section 4.1.2, use "stdio" for containerized servers
 	if options.IncludeTypeField {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
-	yaml.WriteString("                \"command\": \"docker\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"run\",\n")
-	yaml.WriteString("                  \"-i\",\n")
-	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+	// MCP Gateway spec fields for containerized stdio servers
+	yaml.WriteString("                \"container\": \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\",\n")
 
-	if options.ReadOnly {
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
+	// Append custom args if present (these are Docker runtime args, go before container image)
+	if len(options.CustomArgs) > 0 {
+		yaml.WriteString("                \"args\": [\n")
+		for _, arg := range options.CustomArgs {
+			yaml.WriteString("                  \"" + arg + "\",\n")
+		}
+		yaml.WriteString("                ],\n")
 	}
-
-	if options.LockdownFromStep {
-		// Security: Use environment variable instead of template expression to prevent template injection
-		// The GITHUB_MCP_LOCKDOWN env var is set in Setup MCPs step from step output
-		// Value is already converted to "1" or "0" in the environment variable
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_LOCKDOWN_MODE=$GITHUB_MCP_LOCKDOWN\",\n")
-	} else if options.Lockdown {
-		// Use explicit lockdown value from configuration
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_LOCKDOWN_MODE=1\",\n")
-	}
-
-	// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
-	yaml.WriteString("                  \"-e\",\n")
-	fmt.Fprintf(yaml, "                  \"GITHUB_TOOLSETS=%s\",\n", options.Toolsets)
-
-	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\"")
-
-	// Append custom args if present
-	writeArgsToYAML(yaml, options.CustomArgs, "                  ")
-
-	yaml.WriteString("\n")
-	yaml.WriteString("                ],\n")
 
 	// Add tools field if provided (Copilot uses this, Claude doesn't)
 	if len(options.AllowedTools) > 0 {
@@ -529,19 +543,56 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		yaml.WriteString("                \"tools\": [\"*\"],\n")
 	}
 
-	// Add env section
+	// Add env section for GitHub MCP server environment variables
 	yaml.WriteString("                \"env\": {\n")
-	// Use shell environment variable instead of GitHub Actions expression to prevent template injection
-	// The actual GitHub expression is set in the step's env: block
-	// Copilot uses escaped variables (\${VAR}), others use plain variables ($VAR)
+
+	// Build environment variables map
+	envVars := make(map[string]string)
+
+	// GitHub token (always required)
 	if options.IncludeTypeField {
 		// Copilot engine: use escaped variable for Copilot CLI to interpolate
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"")
+		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "\\${GITHUB_MCP_SERVER_TOKEN}"
 	} else {
 		// Non-Copilot engines (Claude/Custom): use plain shell variable
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$GITHUB_MCP_SERVER_TOKEN\"")
+		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
 	}
-	yaml.WriteString("\n")
+
+	// Read-only mode
+	if options.ReadOnly {
+		envVars["GITHUB_READ_ONLY"] = "1"
+	}
+
+	// Lockdown mode
+	if options.LockdownFromStep {
+		// Security: Use environment variable instead of template expression to prevent template injection
+		// The GITHUB_MCP_LOCKDOWN env var is set in Setup MCPs step from step output
+		// Value is already converted to "1" or "0" in the environment variable
+		envVars["GITHUB_LOCKDOWN_MODE"] = "$GITHUB_MCP_LOCKDOWN"
+	} else if options.Lockdown {
+		// Use explicit lockdown value from configuration
+		envVars["GITHUB_LOCKDOWN_MODE"] = "1"
+	}
+
+	// Toolsets (always configured, defaults to "default")
+	envVars["GITHUB_TOOLSETS"] = options.Toolsets
+
+	// Write environment variables in sorted order for deterministic output
+	envKeys := make([]string, 0, len(envVars))
+	for key := range envVars {
+		envKeys = append(envKeys, key)
+	}
+	sort.Strings(envKeys)
+
+	for i, key := range envKeys {
+		isLast := i == len(envKeys)-1
+		comma := ""
+		if !isLast {
+			comma = ","
+		}
+		fmt.Fprintf(yaml, "                  \"%s\": \"%s\"%s\n", key, envVars[key], comma)
+	}
+
 	yaml.WriteString("                }\n")
 }
 
@@ -654,10 +705,10 @@ func RenderJSONMCPConfig(
 	workflowData *WorkflowData,
 	options JSONMCPConfigOptions,
 ) {
-	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools, path=%s", len(mcpTools), options.ConfigPath)
+	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools", len(mcpTools))
 
-	// Write config file header
-	fmt.Fprintf(yaml, "          cat > %s << EOF\n", options.ConfigPath)
+	// Start the JSON structure inline (will be piped to gateway script)
+	yaml.WriteString("          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -709,31 +760,22 @@ func RenderJSONMCPConfig(
 		}
 	}
 
-	// Write config file footer
-	yaml.WriteString("            }\n")
-
-	// Add gateway section if configured (needed for awmg to rewrite config)
+	// Write config file footer - but don't add newline yet if we need to add gateway
 	if options.GatewayConfig != nil {
-		yaml.WriteString("            ,\n")
+		yaml.WriteString("            },\n")
+		// Add gateway section (needed for gateway to process)
+		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
 		yaml.WriteString("            \"gateway\": {\n")
-		fmt.Fprintf(yaml, "              \"port\": %d", options.GatewayConfig.Port)
-		if options.GatewayConfig.APIKey != "" {
-			yaml.WriteString(",\n")
-			fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
-		}
-		if options.GatewayConfig.Domain != "" {
-			yaml.WriteString(",\n")
-			fmt.Fprintf(yaml, "              \"domain\": \"%s\"", options.GatewayConfig.Domain)
-		}
-		yaml.WriteString("\n")
+		fmt.Fprintf(yaml, "              \"port\": \"${MCP_GATEWAY_PORT}\",\n")
+		fmt.Fprintf(yaml, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
+		fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
+		yaml.WriteString("            }\n")
+	} else {
 		yaml.WriteString("            }\n")
 	}
 
 	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
+	yaml.WriteString("          MCPCONFIG_EOF\n")
 
-	// Add any post-EOF commands (e.g., debug output for Copilot)
-	if options.PostEOFCommands != nil {
-		options.PostEOFCommands(yaml)
-	}
+	// Note: Post-EOF commands are no longer needed since we pipe directly to the gateway script
 }

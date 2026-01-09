@@ -19,7 +19,7 @@
 // File Cleanup:
 //   - purgeOrphanedLockFiles() - Remove orphaned .lock.yml files
 //   - purgeInvalidFiles() - Remove .invalid.yml files
-//   - purgeOrphanedCampaignOrchestrators() - No-op (deprecated, .campaign.g.md files are debug artifacts)
+//   - purgeOrphanedCampaignOrchestrators() - Remove orphaned .campaign.g.md files
 //   - purgeOrphanedCampaignOrchestratorLockFiles() - Remove orphaned .campaign.lock.yml files
 //
 // These functions abstract batch operations, allowing the main compile
@@ -195,14 +195,65 @@ func purgeInvalidFiles(workflowsDir string, verbose bool) error {
 	return nil
 }
 
-// purgeOrphanedCampaignOrchestrators is deprecated and no longer removes .campaign.g.md files.
-// These files are now treated as debug artifacts (ignored by git) and can be regenerated
-// by running `gh aw compile`. They are kept on disk to help developers understand the
-// generated workflow content.
+// purgeOrphanedCampaignOrchestrators removes orphaned .campaign.g.md files.
+// These are generated from .campaign.md source files, and should be deleted
+// when their source .campaign.md file is removed.
 func purgeOrphanedCampaignOrchestrators(workflowsDir string, expectedCampaignDefinitions []string, verbose bool) error {
-	compileBatchOperationsLog.Printf("Skipping purge of campaign orchestrators (they are debug artifacts)")
-	// No longer purge .campaign.g.md files - they're debug artifacts in .gitignore
-	// Users can delete them manually if desired, or regenerate with `gh aw compile`
+	compileBatchOperationsLog.Printf("Purging orphaned campaign orchestrators in %s", workflowsDir)
+
+	// Find all existing campaign orchestrator files (.campaign.g.md)
+	existingCampaignOrchestratorFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.campaign.g.md"))
+	if err != nil {
+		return fmt.Errorf("failed to find existing campaign orchestrator files: %w", err)
+	}
+
+	if len(existingCampaignOrchestratorFiles) == 0 {
+		compileBatchOperationsLog.Print("No campaign orchestrator files found")
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .campaign.g.md files", len(existingCampaignOrchestratorFiles))))
+	}
+
+	// Build a set of expected campaign definition files
+	expectedCampaignSet := make(map[string]bool)
+	for _, campaignDef := range expectedCampaignDefinitions {
+		expectedCampaignSet[campaignDef] = true
+	}
+
+	// Find orphaned orchestrator files
+	var orphanedOrchestratorFiles []string
+	for _, orchestratorFile := range existingCampaignOrchestratorFiles {
+		// Derive the expected source campaign definition file name
+		// e.g., "example.campaign.g.md" -> "example.campaign.md"
+		baseName := filepath.Base(orchestratorFile)
+		sourceName := strings.TrimSuffix(baseName, ".campaign.g.md") + ".campaign.md"
+		sourcePath := filepath.Join(workflowsDir, sourceName)
+
+		// Check if the source campaign definition exists
+		if !expectedCampaignSet[sourcePath] {
+			orphanedOrchestratorFiles = append(orphanedOrchestratorFiles, orchestratorFile)
+		}
+	}
+
+	// Delete orphaned campaign orchestrator files
+	if len(orphanedOrchestratorFiles) > 0 {
+		for _, orphanedFile := range orphanedOrchestratorFiles {
+			if err := os.Remove(orphanedFile); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned campaign orchestrator file %s: %v", filepath.Base(orphanedFile), err)))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed orphaned campaign orchestrator file: %s", filepath.Base(orphanedFile))))
+			}
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .campaign.g.md files", len(orphanedOrchestratorFiles))))
+		}
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .campaign.g.md files found to purge"))
+	}
+
+	compileBatchOperationsLog.Printf("Purged %d orphaned campaign orchestrator files", len(orphanedOrchestratorFiles))
 	return nil
 }
 

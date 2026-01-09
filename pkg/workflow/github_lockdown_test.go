@@ -121,9 +121,9 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 			},
 			expected: []string{
 				`"type": "local"`,
-				`"GITHUB_LOCKDOWN_MODE=1"`,
-				`"GITHUB_TOOLSETS=default"`,
-				`"ghcr.io/github/github-mcp-server:latest"`,
+				`"GITHUB_LOCKDOWN_MODE": "1"`,
+				`"GITHUB_TOOLSETS": "default"`,
+				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 			},
 			notFound: []string{},
 		},
@@ -139,11 +139,11 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 			},
 			expected: []string{
 				`"type": "local"`,
-				`"GITHUB_TOOLSETS=default"`,
-				`"ghcr.io/github/github-mcp-server:latest"`,
+				`"GITHUB_TOOLSETS": "default"`,
+				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 			},
 			notFound: []string{
-				`"GITHUB_LOCKDOWN_MODE=1"`,
+				`"GITHUB_LOCKDOWN_MODE"`,
 			},
 		},
 		{
@@ -157,9 +157,9 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 				AllowedTools:       nil,
 			},
 			expected: []string{
-				`"GITHUB_READ_ONLY=1"`,
-				`"GITHUB_LOCKDOWN_MODE=1"`,
-				`"ghcr.io/github/github-mcp-server:v1.0.0"`,
+				`"GITHUB_READ_ONLY": "1"`,
+				`"GITHUB_LOCKDOWN_MODE": "1"`,
+				`"container": "ghcr.io/github/github-mcp-server:v1.0.0"`,
 			},
 			notFound: []string{},
 		},

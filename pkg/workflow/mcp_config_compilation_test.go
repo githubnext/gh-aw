@@ -107,9 +107,15 @@ Please use the markitdown MCP server to convert HTML to markdown.
 		t.Errorf("Generated YAML does not contain markitdown MCP server configuration")
 	}
 
-	// Verify the MCP server has correct configuration
-	if !strings.Contains(yamlContent, `"command": "npx"`) {
-		t.Errorf("Generated YAML does not contain correct npx command")
+	// Verify the MCP server has been auto-containerized with docker command
+	// The npx command should now be containerized using node:lts-alpine
+	if !strings.Contains(yamlContent, `"command": "docker"`) {
+		t.Errorf("Generated YAML does not contain docker command (expected auto-containerization)")
+	}
+
+	// Verify npx appears in the docker args (as entrypoint)
+	if !strings.Contains(yamlContent, `"npx"`) {
+		t.Errorf("Generated YAML does not contain npx in docker args")
 	}
 
 	if !strings.Contains(yamlContent, `"@microsoft/markitdown"`) {
@@ -118,6 +124,11 @@ Please use the markitdown MCP server to convert HTML to markdown.
 
 	if !strings.Contains(yamlContent, `"registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown"`) {
 		t.Errorf("Generated YAML does not contain correct registry URL")
+	}
+
+	// Verify Node Alpine LTS container is used for npx command
+	if !strings.Contains(yamlContent, `"node:lts-alpine"`) {
+		t.Errorf("Generated YAML does not contain node:lts-alpine container (expected for npx auto-containerization)")
 	}
 }
 

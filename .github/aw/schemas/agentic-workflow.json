@@ -2050,7 +2050,7 @@
             "firewall": {
               "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
               "deprecated": true,
-              "x-deprecation-message": "Use 'sandbox.agent: false' instead to disable the firewall for the agent",
+              "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
               "oneOf": [
                 {
                   "type": "null",
@@ -2114,13 +2114,9 @@
               "description": "Legacy sandbox type field (use agent instead)"
             },
             "agent": {
-              "description": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses Anthropic Sandbox Runtime, or 'false' to disable firewall",
+              "description": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses Anthropic Sandbox Runtime. Defaults to 'awf' if not specified.",
+              "default": "awf",
               "oneOf": [
-                {
-                  "type": "boolean",
-                  "enum": [false],
-                  "description": "Set to false to disable the agent firewall"
-                },
                 {
                   "type": "string",
                   "enum": ["awf", "srt"],

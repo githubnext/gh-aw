@@ -175,7 +175,7 @@ features:
 ```
 
 :::note[Firewall Configuration]
-The `features.firewall` field has been removed. Use `network.firewall` (deprecated) or preferably `sandbox.agent: false` to disable the firewall. See [Network Permissions](/gh-aw/reference/network/) and [Sandbox Configuration](/gh-aw/reference/sandbox/).
+The `features.firewall` field has been removed. The agent sandbox is now mandatory and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 :::
 
 ### AI Engine (`engine:`)

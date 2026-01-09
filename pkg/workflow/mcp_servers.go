@@ -195,8 +195,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		mcpServersLog.Printf("Collected %d MCP tools: %v", len(mcpTools), mcpTools)
 	}
 
+	// Ensure MCP gateway config has defaults set before collecting Docker images
+	ensureDefaultMCPGatewayConfig(workflowData)
+
 	// Collect all Docker images that will be used and generate download step
-	dockerImages := collectDockerImages(tools)
+	dockerImages := collectDockerImages(tools, workflowData)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
 
 	// If no MCP tools, no configuration needed
@@ -462,38 +465,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
-	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 
-	// If MCP gateway is enabled, add gateway start logic to the same step
-	if shouldGenerateMCPGateway(workflowData) {
-		generateMCPGatewayStepInline(yaml, engine, workflowData)
-	}
-}
-
-// shouldGenerateMCPGateway checks if MCP gateway should be generated
-func shouldGenerateMCPGateway(workflowData *WorkflowData) bool {
-	// Check if feature flag is enabled
-	if !isFeatureEnabled(constants.MCPGatewayFeatureFlag, workflowData) {
-		return false
-	}
-
-	// Check if sandbox.mcp is configured
-	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.MCP == nil {
-		return false
-	}
-
-	return true
-}
-
-// generateMCPGatewayStepInline generates the MCP gateway start logic inline in the Setup MCPs step
-// This adds the gateway configuration and start commands after the MCP config is generated
-// Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
-func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngine, workflowData *WorkflowData) {
+	// Export gateway environment variables and build docker command BEFORE rendering MCP config
+	// This allows the config to be piped directly to the gateway script
+	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
+	ensureDefaultMCPGatewayConfig(workflowData)
 	gatewayConfig := workflowData.SandboxConfig.MCP
-	mcpServersLog.Printf("Adding MCP gateway start to Setup MCPs step: container=%s, port=%d",
-		gatewayConfig.Container, gatewayConfig.Port)
 
-	// Default values per specification
 	port := gatewayConfig.Port
 	if port == 0 {
 		port = int(DefaultMCPGatewayPort)
@@ -501,7 +479,6 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 
 	domain := gatewayConfig.Domain
 	if domain == "" {
-		// Default to host.docker.internal when agent is enabled (AWF), localhost when disabled
 		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 			domain = "localhost"
 		} else {
@@ -509,23 +486,19 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 		}
 	}
 
-	// Generate API key if not provided (temporary key per spec section 7.2)
 	apiKey := gatewayConfig.APIKey
 	if apiKey == "" {
 		// Generate random API key at runtime
 		apiKey = "$(openssl rand -base64 45 | tr -d '/+=')"
-		mcpServersLog.Print("API key will be generated at runtime")
-	} else {
-		mcpServersLog.Print("Using configured API key")
 	}
 
 	yaml.WriteString("          \n")
-	yaml.WriteString("          # Start MCP gateway\n")
+	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
 
-	// Export engine type for agent-specific conversion
+	// Export engine type
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
 
 	// Add user-configured environment variables
@@ -542,28 +515,16 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 		}
 	}
 
-	// Validate that container is specified
-	if gatewayConfig.Container == "" {
-		mcpServersLog.Print("ERROR: No container specified for MCP gateway")
-		yaml.WriteString("          echo 'ERROR: sandbox.mcp must specify container (command-based execution is not supported)'\n")
-		yaml.WriteString("          exit 1\n")
-		return
-	}
-
-	// Build container image with version
+	// Build container command
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
 		containerImage += ":" + gatewayConfig.Version
 	} else {
-		// Use default version if not specified
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 
-	// Build container command with args
 	containerCmd := "docker run -i --rm --network host"
-
-	// Add environment variables to container
-	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
+	containerCmd += " -e DEBUG=\"*\""
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {
@@ -577,25 +538,57 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 
 	containerCmd += " " + containerImage
 
-	// Add entrypoint args if configured
 	if len(gatewayConfig.EntrypointArgs) > 0 {
 		for _, arg := range gatewayConfig.EntrypointArgs {
 			containerCmd += " " + shellQuote(arg)
 		}
 	}
 
-	// Add command args if configured
 	if len(gatewayConfig.Args) > 0 {
 		for _, arg := range gatewayConfig.Args {
 			containerCmd += " " + shellQuote(arg)
 		}
 	}
 
-	yaml.WriteString("          export MCP_GATEWAY_CONTAINER=" + shellQuote(containerCmd) + "\n")
-
+	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + shellQuote(containerCmd) + "\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          # Run gateway start script\n")
-	yaml.WriteString("          bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
+
+	// Render MCP config - this will pipe directly to the gateway script
+	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+}
+
+// ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
+// The MCP gateway is mandatory and defaults to GitHubnext/gh-aw-mcpg
+func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
+	}
+
+	// Ensure SandboxConfig exists
+	if workflowData.SandboxConfig == nil {
+		workflowData.SandboxConfig = &SandboxConfig{}
+	}
+
+	// Ensure MCP gateway config exists with defaults
+	if workflowData.SandboxConfig.MCP == nil {
+		mcpServersLog.Print("No MCP gateway configuration found, setting default configuration")
+		workflowData.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+			Container: constants.DefaultMCPGatewayContainer,
+			Version:   string(constants.DefaultMCPGatewayVersion),
+			Port:      int(DefaultMCPGatewayPort),
+		}
+	} else {
+		// Fill in defaults for missing fields
+		if workflowData.SandboxConfig.MCP.Container == "" {
+			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
+		}
+		if workflowData.SandboxConfig.MCP.Version == "" {
+			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
+		}
+		if workflowData.SandboxConfig.MCP.Port == 0 {
+			workflowData.SandboxConfig.MCP.Port = int(DefaultMCPGatewayPort)
+		}
+	}
 }
 
 // shellQuote adds shell quoting to a string if needed
@@ -606,6 +599,26 @@ func shellQuote(s string) string {
 		return "'" + s + "'"
 	}
 	return s
+}
+
+// buildMCPGatewayConfig builds the gateway configuration for inclusion in MCP config files
+// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required with port and domain
+func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
+	if workflowData == nil {
+		return nil
+	}
+
+	// Ensure default configuration is set
+	ensureDefaultMCPGatewayConfig(workflowData)
+
+	// Return gateway config with required fields populated
+	// Use ${...} syntax for environment variable references that will be resolved by the gateway at runtime
+	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
+	return &MCPGatewayRuntimeConfig{
+		Port:   int(DefaultMCPGatewayPort), // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
+		Domain: "${MCP_GATEWAY_DOMAIN}",    // Gateway variable expression
+		APIKey: "${MCP_GATEWAY_API_KEY}",   // Gateway variable expression
+	}
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

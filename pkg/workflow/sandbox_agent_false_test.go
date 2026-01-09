@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-func TestSandboxAgentFalseDisablesFirewall(t *testing.T) {
-	t.Run("sandbox.agent: false disables firewall", func(t *testing.T) {
+func TestSandboxAgentMandatory(t *testing.T) {
+	t.Run("sandbox.agent: false is rejected", func(t *testing.T) {
 		// Create temp directory for test workflows
 		workflowsDir := t.TempDir()
 
@@ -20,11 +20,10 @@ network:
     - github.com
 sandbox:
   agent: false
-strict: false
 on: workflow_dispatch
 ---
 
-Test workflow to verify sandbox.agent: false disables firewall.
+Test workflow to verify sandbox.agent: false is rejected.
 `
 
 		workflowPath := filepath.Join(workflowsDir, "test-agent-false.md")
@@ -35,29 +34,15 @@ Test workflow to verify sandbox.agent: false disables firewall.
 
 		// Compile the workflow
 		compiler := NewCompiler(false, "", "test")
-		compiler.SetSkipValidation(true)
 
-		if err := compiler.CompileWorkflow(workflowPath); err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
-
-		// Read the compiled workflow
-		lockPath := filepath.Join(workflowsDir, "test-agent-false.lock.yml")
-		lockContent, err := os.ReadFile(lockPath)
-		if err != nil {
-			t.Fatalf("Failed to read compiled workflow: %v", err)
-		}
-
-		lockStr := string(lockContent)
-
-		// Verify that AWF installation is NOT present
-		if strings.Contains(lockStr, "gh-aw-firewall") {
-			t.Error("Expected AWF firewall to be disabled, but found gh-aw-firewall in lock file")
-		}
-
-		// Verify that AWF wrapper is NOT used in the run step
-		if strings.Contains(lockStr, "awf-wrapper") {
-			t.Error("Expected AWF wrapper to be disabled, but found awf-wrapper in lock file")
+		// Should fail due to schema validation error
+		if err := compiler.CompileWorkflow(workflowPath); err == nil {
+			t.Fatal("Expected compilation to fail with sandbox.agent: false, but it succeeded")
+		} else {
+			// Verify error message mentions that boolean is not allowed
+			if !strings.Contains(err.Error(), "got boolean") || !strings.Contains(err.Error(), "/sandbox/agent") {
+				t.Errorf("Expected error message to mention boolean value not allowed for sandbox.agent, got: %v", err)
+			}
 		}
 	})
 
@@ -107,7 +92,7 @@ Test workflow to verify sandbox.agent: awf enables firewall.
 		}
 	})
 
-	t.Run("sandbox.agent: false prevents default firewall enablement", func(t *testing.T) {
+	t.Run("default sandbox enables firewall (awf)", func(t *testing.T) {
 		// Create temp directory for test workflows
 		workflowsDir := t.TempDir()
 
@@ -117,16 +102,13 @@ network:
   allowed:
     - defaults
     - github.com
-sandbox:
-  agent: false
-strict: false
 on: workflow_dispatch
 ---
 
-Test workflow to verify sandbox.agent: false prevents default firewall enablement.
+Test workflow to verify default sandbox.agent behavior (awf).
 `
 
-		workflowPath := filepath.Join(workflowsDir, "test-no-default-firewall.md")
+		workflowPath := filepath.Join(workflowsDir, "test-default-firewall.md")
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write workflow file: %v", err)
@@ -141,7 +123,7 @@ Test workflow to verify sandbox.agent: false prevents default firewall enablemen
 		}
 
 		// Read the compiled workflow
-		lockPath := filepath.Join(workflowsDir, "test-no-default-firewall.lock.yml")
+		lockPath := filepath.Join(workflowsDir, "test-default-firewall.lock.yml")
 		lockContent, err := os.ReadFile(lockPath)
 		if err != nil {
 			t.Fatalf("Failed to read compiled workflow: %v", err)
@@ -149,9 +131,9 @@ Test workflow to verify sandbox.agent: false prevents default firewall enablemen
 
 		lockStr := string(lockContent)
 
-		// With network restrictions but sandbox.agent: false, firewall should NOT be enabled by default
-		if strings.Contains(lockStr, "gh-aw-firewall") {
-			t.Error("Expected firewall to be disabled with sandbox.agent: false, but found gh-aw-firewall in lock file")
+		// With network restrictions and no sandbox config, firewall should be enabled by default
+		if !strings.Contains(lockStr, "gh-aw-firewall") {
+			t.Error("Expected firewall to be enabled by default with network restrictions, but did not find gh-aw-firewall in lock file")
 		}
 	})
 }
@@ -192,20 +174,17 @@ Test workflow to verify network.firewall still works (deprecated).
 }
 
 func TestSandboxAgentFalseExtraction(t *testing.T) {
-	t.Run("extractAgentSandboxConfig handles false", func(t *testing.T) {
+	t.Run("extractAgentSandboxConfig rejects false", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 
-		// Test with false value
+		// Test with false value - should return nil now (invalid)
 		agentConfig := compiler.extractAgentSandboxConfig(false)
-		if agentConfig == nil {
-			t.Fatal("Expected agentConfig to be non-nil for false value")
-		}
-		if !agentConfig.Disabled {
-			t.Error("Expected agentConfig.Disabled to be true")
+		if agentConfig != nil {
+			t.Error("Expected agentConfig to be nil for false value (no longer supported)")
 		}
 	})
 
-	t.Run("extractAgentSandboxConfig handles true (invalid)", func(t *testing.T) {
+	t.Run("extractAgentSandboxConfig rejects true (invalid)", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 
 		// Test with true value (should be invalid)
