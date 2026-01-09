@@ -14,6 +14,29 @@ import (
 
 var mcpLog = logger.New("workflow:mcp-config")
 
+// WellKnownContainer represents a container configuration for a well-known command
+type WellKnownContainer struct {
+	Image      string // Container image (e.g., "node:lts-alpine")
+	Entrypoint string // Entrypoint command (e.g., "npx")
+}
+
+// getWellKnownContainer returns the appropriate container configuration for well-known commands
+// This enables automatic containerization of stdio MCP servers based on their command
+func getWellKnownContainer(command string) *WellKnownContainer {
+	wellKnownContainers := map[string]*WellKnownContainer{
+		"npx": {
+			Image:      constants.DefaultNodeAlpineLTSImage,
+			Entrypoint: "npx",
+		},
+		"uvx": {
+			Image:      constants.DefaultPythonAlpineLTSImage,
+			Entrypoint: "uvx",
+		},
+	}
+
+	return wellKnownContainers[command]
+}
+
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses Docker container to launch Playwright MCP for consistent browser environment
 // This is a shared function used by both Claude and Custom engines
@@ -1054,6 +1077,23 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	// Extract allowed tools
 	if allowed, hasAllowed := config.GetStringArray("allowed"); hasAllowed {
 		result.Allowed = allowed
+	}
+
+	// Automatically assign well-known containers for stdio MCP servers based on command
+	// This ensures all stdio servers work with the MCP Gateway which requires containerization
+	if result.Type == "stdio" && result.Container == "" && result.Command != "" {
+		containerConfig := getWellKnownContainer(result.Command)
+		if containerConfig != nil {
+			mcpLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
+			result.Container = containerConfig.Image
+			result.Entrypoint = containerConfig.Entrypoint
+			// Move command to entrypointArgs and preserve existing args after it
+			if result.Command != "" {
+				result.EntrypointArgs = append([]string{result.Command}, result.Args...)
+				result.Args = nil // Clear args since they're now in entrypointArgs
+			}
+			result.Command = "" // Clear command since it's now the entrypoint
+		}
 	}
 
 	// Handle container transformation for stdio type
