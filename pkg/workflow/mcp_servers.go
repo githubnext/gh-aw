@@ -582,7 +582,8 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 		if workflowData.SandboxConfig.MCP.Container == "" {
 			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
 		}
-		if workflowData.SandboxConfig.MCP.Version == "" {
+		// Replace empty or "latest" with the pinned default version
+		if workflowData.SandboxConfig.MCP.Version == "" || workflowData.SandboxConfig.MCP.Version == "latest" {
 			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
 		}
 		if workflowData.SandboxConfig.MCP.Port == 0 {
