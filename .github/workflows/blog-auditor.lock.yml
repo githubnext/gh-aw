@@ -368,7 +368,7 @@ jobs:
                 "args": [
                   "--init",
                   "--network",
-                  "host",
+                  "host"
                 ],
                 "entrypointArgs": [
                   "--output-dir",
@@ -376,7 +376,7 @@ jobs:
                   "--allowed-hosts",
                   "localhost;localhost:*;127.0.0.1;127.0.0.1:*;githubnext.com;www.githubnext.com",
                   "--allowed-origins",
-                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;githubnext.com;www.githubnext.com",
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;githubnext.com;www.githubnext.com"
                 ],
                 "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs"]
               },

@@ -704,7 +704,7 @@ jobs:
                 "args": [
                   "--init",
                   "--network",
-                  "host",
+                  "host"
                 ],
                 "entrypointArgs": [
                   "--output-dir",
@@ -712,7 +712,7 @@ jobs:
                   "--allowed-hosts",
                   "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com",
                   "--allowed-origins",
-                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com",
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com"
                 ],
                 "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs"]
               },
@@ -751,7 +751,7 @@ jobs:
                 "container": "ghcr.io/oraios/serena:latest",
                 "args": [
                   "--network",
-                  "host",
+                  "host"
                 ],
                 "entrypoint": "serena",
                 "entrypointArgs": [

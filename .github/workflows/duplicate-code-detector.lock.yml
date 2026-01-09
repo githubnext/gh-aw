@@ -457,7 +457,7 @@ jobs:
                 "container": "ghcr.io/oraios/serena:latest",
                 "args": [
                   "--network",
-                  "host",
+                  "host"
                 ],
                 "entrypoint": "serena",
                 "entrypointArgs": [

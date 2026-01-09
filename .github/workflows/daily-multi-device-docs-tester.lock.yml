@@ -422,7 +422,7 @@ jobs:
                 "args": [
                   "--init",
                   "--network",
-                  "host",
+                  "host"
                 ],
                 "entrypointArgs": [
                   "--output-dir",
@@ -430,7 +430,7 @@ jobs:
                   "--allowed-hosts",
                   "localhost;localhost:*;127.0.0.1;127.0.0.1:*",
                   "--allowed-origins",
-                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*",
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*"
                 ],
                 "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs"]
               },
