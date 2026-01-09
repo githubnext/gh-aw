@@ -530,6 +530,29 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	containerCmd += " -e MCP_GATEWAY_DOMAIN"
 	containerCmd += " -e MCP_GATEWAY_API_KEY"
 	containerCmd += " -e DEBUG=\"*\""
+	// Pass environment variables that MCP servers reference in their config
+	// These are needed because awmg v0.0.12+ validates and resolves ${VAR} patterns at config load time
+	// Environment variables used by safeoutputs MCP server
+	containerCmd += " -e GH_AW_MCP_LOG_DIR"
+	containerCmd += " -e GH_AW_SAFE_OUTPUTS"
+	containerCmd += " -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH"
+	containerCmd += " -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH"
+	containerCmd += " -e GH_AW_ASSETS_BRANCH"
+	containerCmd += " -e GH_AW_ASSETS_MAX_SIZE_KB"
+	containerCmd += " -e GH_AW_ASSETS_ALLOWED_EXTS"
+	containerCmd += " -e DEFAULT_BRANCH"
+	// Environment variables used by GitHub MCP server
+	containerCmd += " -e GITHUB_MCP_SERVER_TOKEN"
+	containerCmd += " -e GITHUB_MCP_LOCKDOWN"
+	// Standard GitHub Actions environment variables
+	containerCmd += " -e GITHUB_REPOSITORY"
+	containerCmd += " -e GITHUB_SERVER_URL"
+	containerCmd += " -e GITHUB_SHA"
+	containerCmd += " -e GITHUB_WORKSPACE"
+	containerCmd += " -e GITHUB_TOKEN"
+	// Environment variables used by safeinputs MCP server
+	containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
+	containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {

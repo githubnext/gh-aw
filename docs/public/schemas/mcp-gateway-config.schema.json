@@ -63,10 +63,10 @@
         },
         "mounts": {
           "type": "array",
-          "description": "Volume mounts for the container. Format: 'source:dest:mode' where mode is 'ro' (read-only) or 'rw' (read-write). Example: '/host/data:/container/data:ro'",
+          "description": "Volume mounts for the container. Format: 'source:dest' or 'source:dest:mode' where mode is 'ro' (read-only) or 'rw' (read-write). Example: '/host/data:/container/data:ro'",
           "items": {
             "type": "string",
-            "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+            "pattern": "^[^:]+:[^:]+(:(ro|rw))?$"
           },
           "default": []
         },
@@ -85,6 +85,14 @@
             "type": "string"
           },
           "default": []
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool filter for the MCP server. Use ['*'] to allow all tools, or specify a list of tool names to allow. This field is passed through to agent configurations.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
         }
       },
       "required": ["container"],
@@ -109,6 +117,22 @@
         "headers": {
           "type": "object",
           "description": "HTTP headers to include in requests to the server. Commonly used for authentication (e.g., Authorization: 'Bearer ${API_TOKEN}'). Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool filter for the MCP server. Use ['*'] to allow all tools, or specify a list of tool names to allow. This field is passed through to agent configurations.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables to pass through for variable resolution. Values may contain variable expressions using '${VARIABLE_NAME}' syntax, which will be resolved from the process environment.",
           "additionalProperties": {
             "type": "string"
           },

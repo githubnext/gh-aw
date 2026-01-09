@@ -168,7 +168,7 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          ]\n")
 
 	// Add volume mounts
-	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]\n")
+	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
 }
 
 // RenderSerenaMCP generates Serena MCP server configuration
@@ -218,7 +218,7 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 	yaml.WriteString("          ]\n")
 
 	// Add volume mount for workspace access
-	yaml.WriteString("          mounts = [\"${{ github.workspace }}:${{ github.workspace }}\"]\n")
+	yaml.WriteString("          mounts = [\"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration
@@ -243,7 +243,7 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) 
 	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
-	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw\"]\n")
+	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"]\n")
 	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
 }
 
@@ -527,21 +527,9 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		yaml.WriteString("                ],\n")
 	}
 
-	// Add tools field if provided (Copilot uses this, Claude doesn't)
-	if len(options.AllowedTools) > 0 {
-		yaml.WriteString("                \"tools\": [\n")
-		for i, tool := range options.AllowedTools {
-			comma := ","
-			if i == len(options.AllowedTools)-1 {
-				comma = ""
-			}
-			fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
-		}
-		yaml.WriteString("                ],\n")
-	} else if options.IncludeTypeField {
-		// Copilot always includes tools field, even if empty (uses wildcard)
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
+	// config compatible with the schema which doesn't have the tools field.
 
 	// Add env section for GitHub MCP server environment variables
 	yaml.WriteString("                \"env\": {\n")
@@ -658,28 +646,15 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	writeHeadersToYAML(yaml, headers, "                  ")
 
 	// Close headers section
-	if options.IncludeToolsField || options.IncludeEnvSection {
+	if options.IncludeEnvSection {
 		yaml.WriteString("                },\n")
 	} else {
 		yaml.WriteString("                }\n")
 	}
 
-	// Add tools field if needed (Copilot uses this, Claude doesn't)
-	if options.IncludeToolsField {
-		if len(options.AllowedTools) > 0 {
-			yaml.WriteString("                \"tools\": [\n")
-			for i, tool := range options.AllowedTools {
-				comma := ","
-				if i == len(options.AllowedTools)-1 {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
-			}
-			yaml.WriteString("                ],\n")
-		} else {
-			yaml.WriteString("                \"tools\": [\"*\"],\n")
-		}
-	}
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
+	// config compatible with the schema which doesn't have the tools field.
 
 	// Add env section if needed (Copilot uses this, Claude doesn't)
 	if options.IncludeEnvSection {
@@ -766,7 +741,8 @@ func RenderJSONMCPConfig(
 		// Add gateway section (needed for gateway to process)
 		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
 		yaml.WriteString("            \"gateway\": {\n")
-		fmt.Fprintf(yaml, "              \"port\": \"${MCP_GATEWAY_PORT}\",\n")
+		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
+		fmt.Fprintf(yaml, "              \"port\": $MCP_GATEWAY_PORT,\n")
 		fmt.Fprintf(yaml, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
 		fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
 		yaml.WriteString("            }\n")
