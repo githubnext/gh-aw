@@ -565,7 +565,10 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	containerCmd := "docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp:rw"
 
 	// Add environment variables to container
+	// Include gateway config vars and secrets needed by MCP servers
 	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
+	// Pass through GITHUB_MCP_SERVER_TOKEN as GITHUB_PERSONAL_ACCESS_TOKEN for GitHub MCP server
+	containerCmd += " -e GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_MCP_SERVER_TOKEN}"
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {
