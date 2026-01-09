@@ -493,7 +493,7 @@ type GitHubMCPDockerOptions struct {
 	DockerImageVersion string
 	// CustomArgs are additional arguments to append to the Docker command
 	CustomArgs []string
-	// IncludeTypeField indicates whether to include the "type": "local" field (Copilot needs it, Claude doesn't)
+	// IncludeTypeField indicates whether to include the "type": "stdio" field (Copilot needs it, Claude doesn't)
 	IncludeTypeField bool
 	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
 	AllowedTools []string
@@ -510,8 +510,9 @@ type GitHubMCPDockerOptions struct {
 //   - options: GitHub MCP Docker rendering options
 func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
 	// Add type field if needed (Copilot requires this, Claude doesn't)
+	// Per MCP Gateway Specification v1.0.0 section 4.1.2, use "stdio" for containerized servers
 	if options.IncludeTypeField {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	// MCP Gateway spec fields for containerized stdio servers
