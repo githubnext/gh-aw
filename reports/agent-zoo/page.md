@@ -5,11 +5,9 @@ At GitHub Next, we have the privilege of collaborating with amazing people acros
 
 <div align="right"> <img src="peli.png" alt="Peli de Halleux" width="250" /> </div>
 
-Peli's Agent Factory is a research collaboration between GitHub Next and Microsoft Research (MSR), exploring what happens when you build and operate dozens of specialized AI agents within a real software repository. While this is a collaboration in every sense, those of us at GitHub Next have decided to name the project after Peli de Halleux, because of his remarkable energhy and creativity in helping us reimagine the frontier of automated, proactive, agentic AI software development.
+Peli's Agent Factory is a research collaboration between GitHub Next and Peli de Halleux from Microsoft Research, exploring what happens when you build and operate dozens of specialized AI agents within a real software repository.
 
-In this project, you'll explore with us a collection of over 145 automated agentic workflows that each solve specific problems in software development. These agents are not hypothetical demos - they are working agents that handle real development tasks. Along the way we'll share the lessons we've learned, the design patterns we've discovered, and the practical techniques for building and operating your own agentic workflows.
-
-Software development is changing rapidly with the advent of AI. Peli's Agent Factory is our attempt to understand how to harness this change to make software development more efficient, collaborative, and enjoyable. Entering Peli's factory is like entering a new room, a new world of possibilities - one that may unfold differently for each repository, company or software community. We invite you to explore, learn, and contribute to this exciting journey.
+Software development is changing rapidly. In this project, you'll explore with us a collection of over 145 automated agentic workflows. These are working agents that handle real development tasks. Peli's Agent Factory is our attempt to understand how to harness automated agentic AI to make software development more efficient, collaborative, and enjoyable. Entering Peli's Agent Factory is like a new world of possibilities - one that may unfolds differently for each repository, company or software community. We invite you to explore and learn with us.
 
 ## What is Peli's Agent Factory?
 
