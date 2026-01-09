@@ -25,8 +25,10 @@ name: "Campaign Generator - Optimized Phase 1"
 "on":
   issues:
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
+    # names: # Label filtering applied via job conditions
+    # - create-agentic-campaign # Label filtering applied via job conditions
     types:
-    - opened
+    - labeled
   workflow_dispatch: null
 
 permissions:
@@ -43,8 +45,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && (startsWith(github.event.issue.title, '[New Agentic Campaign]') ||
-      github.event_name == 'workflow_dispatch')
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
+      (github.event.label.name == 'create-agentic-campaign')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -827,9 +829,9 @@ jobs:
           
           Use the `update-issue` safe output to update issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
           
-          **Update the title:**
+          **Update the title** (if needed to add campaign name):
           ```
-          [New Agentic Campaign] <campaign-name>
+          <campaign-name>
           ```
           
           **Update the body** with formatted campaign information:
@@ -1512,7 +1514,8 @@ jobs:
           if-no-files-found: ignore
 
   pre_activation:
-    if: startsWith(github.event.issue.title, '[New Agentic Campaign]') || github.event_name == 'workflow_dispatch'
+    if: >
+      (github.event_name != 'issues') || ((github.event.action != 'labeled') || (github.event.label.name == 'create-agentic-campaign'))
     runs-on: ubuntu-slim
     permissions:
       contents: read

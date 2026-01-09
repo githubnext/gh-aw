@@ -46,6 +46,9 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 
 Instead of writing complex YAML configurations, you describe your automation goals in plain markdown. AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can understand and execute instructions) then execute these workflows safely with built-in security controls, making intelligent decisions based on context.
 
+> [!WARNING]
+> GitHub Agentic Workflows is in early development and may change significantly. Using agentic workflows requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
+
 **How it works:**
 1. **Write** - Create a `.md` file with your automation instructions in natural language
 2. **Compile** - Run `gh aw compile` to transform it into a secure GitHub Actions workflow (`.lock.yml`)

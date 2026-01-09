@@ -47,6 +47,28 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("daily around 2pm utc+1")
 	f.Add("daily around 11pm utc-3")
 
+	// Daily between schedules (fuzzy with time range)
+	f.Add("daily between 9:00 and 17:00")
+	f.Add("daily between 9am and 5pm")
+	f.Add("daily between midnight and noon")
+	f.Add("daily between noon and midnight")
+	f.Add("daily between 22:00 and 02:00")
+	f.Add("daily between 10pm and 2am")
+	f.Add("daily between 8:30 and 18:45")
+	f.Add("daily between 6am and 6pm")
+	f.Add("daily between 1am and 11pm")
+	f.Add("daily between 00:00 and 23:59")
+	f.Add("daily between 12am and 11:59pm")
+	f.Add("daily between 23:00 and 01:00")
+	f.Add("daily between 11pm and 1am")
+	f.Add("daily between 7:15 and 16:45")
+	f.Add("daily between 3:30am and 8:30pm")
+	f.Add("daily between 9am utc-5 and 5pm utc-5")
+	f.Add("daily between 8:00 utc+9 and 17:00 utc+9")
+	f.Add("daily between 10:00 utc+0 and 14:00 utc+0")
+	f.Add("daily between 9am utc-8 and 5pm utc-8")
+	f.Add("daily between 8:00 utc+05:30 and 18:00 utc+05:30")
+
 	// Weekly schedules
 	f.Add("weekly on monday")
 	f.Add("weekly on monday at 06:30")
@@ -189,6 +211,27 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("every 10 minutes around 12:00")
 	f.Add("hourly around 12:00")
 
+	// Invalid between schedules
+	f.Add("daily between")
+	f.Add("daily between 9:00")
+	f.Add("daily between and")
+	f.Add("daily between 9:00 and")
+	f.Add("daily between 9:00 17:00")
+	f.Add("daily between 9:00 and 9:00")
+	f.Add("daily between midnight and midnight")
+	f.Add("daily between noon and noon")
+	f.Add("daily between 3pm and 15:00")
+	f.Add("daily between 25:00 and 17:00")
+	f.Add("daily between 9:00 and 25:00")
+	f.Add("daily between abc and def")
+	f.Add("daily between 9am and")
+	f.Add("daily between and 5pm")
+	f.Add("daily between and and")
+	f.Add("weekly between monday and friday")
+	f.Add("monthly between 1 and 15")
+	f.Add("every 10 minutes between 9:00 and 17:00")
+	f.Add("hourly between 9:00 and 17:00")
+
 	// Invalid UTC offsets
 	f.Add("daily at 12:00 utc+25")
 	f.Add("daily at 12:00 utc-15")
@@ -311,6 +354,7 @@ func FuzzScheduleParser(f *testing.F) {
 				// - "FUZZY:DAILY * * *" (4 fields)
 				// - "FUZZY:HOURLY/N * * *" (4 fields)
 				// - "FUZZY:DAILY_AROUND:HH:MM * * *" (4 fields but with colon-separated time in first field)
+				// - "FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M * * *" (4 fields with 4 colon-separated values in first field)
 				fields := strings.Fields(cron)
 				if len(fields) != 4 {
 					t.Errorf("ParseSchedule returned invalid fuzzy cron format with %d fields (expected 4): %q for input: %q", len(fields), cron, input)
@@ -324,6 +368,17 @@ func FuzzScheduleParser(f *testing.F) {
 					timeParts := strings.Split(timePart, ":")
 					if len(timeParts) != 2 {
 						t.Errorf("ParseSchedule returned invalid FUZZY:DAILY_AROUND format (expected HH:MM): %q for input: %q", cron, input)
+					}
+				}
+
+				// For FUZZY:DAILY_BETWEEN, validate the time range format
+				if strings.HasPrefix(cron, "FUZZY:DAILY_BETWEEN:") {
+					// Extract the time range from FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M
+					firstField := fields[0]
+					timePart := strings.TrimPrefix(firstField, "FUZZY:DAILY_BETWEEN:")
+					timeParts := strings.Split(timePart, ":")
+					if len(timeParts) != 4 {
+						t.Errorf("ParseSchedule returned invalid FUZZY:DAILY_BETWEEN format (expected START_H:START_M:END_H:END_M): %q for input: %q", cron, input)
 					}
 				}
 			} else {
