@@ -53,12 +53,13 @@ func TestMCPGatewayDefaultVersion(t *testing.T) {
 				// MCP gateway is now mandatory, no feature flag needed
 			}
 
-			// Create a simple copilot engine (we just need something that implements the interface)
+			// Create a compiler and engine
+			compiler := &Compiler{}
 			engine := &CopilotEngine{}
 
 			// Generate the MCP gateway step
 			var yaml strings.Builder
-			generateMCPGatewayStepInline(&yaml, engine, workflowData)
+			compiler.generateMCPSetup(&yaml, nil, engine, workflowData)
 
 			// Verify the output contains the expected container image with version
 			output := yaml.String()
@@ -87,7 +88,7 @@ func TestMCPGatewayVersionConstantValue(t *testing.T) {
 // TestMCPGatewayDebugEnvironmentVariable tests that DEBUG is included in the container command
 // DEBUG="*" enables debug logging in the MCP gateway and is added by the Go code
 func TestMCPGatewayDebugEnvironmentVariable(t *testing.T) {
-	// Create a minimal workflow data structure
+	// Create a minimal workflow data structure with a tool to trigger MCP setup
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
@@ -98,17 +99,58 @@ func TestMCPGatewayDebugEnvironmentVariable(t *testing.T) {
 				Version:   "v0.0.10",
 			},
 		},
+		Tools: map[string]any{
+			"github": true, // Enable a tool so MCP setup is triggered
+		},
 	}
 
-	// Create a simple copilot engine
+	// Create a compiler and engine
+	compiler := &Compiler{}
 	engine := &CopilotEngine{}
 
 	// Generate the MCP gateway step
 	var yaml strings.Builder
-	generateMCPGatewayStepInline(&yaml, engine, workflowData)
+	compiler.generateMCPSetup(&yaml, nil, engine, workflowData)
 
 	// Verify the output contains DEBUG in the docker container command
 	output := yaml.String()
 	assert.Contains(t, output, `-e DEBUG="*"`,
 		"Generated YAML should pass DEBUG to the docker container for debug logging")
+}
+
+// TestMCPGatewayPortMapping tests that port mapping is used instead of --network host
+func TestMCPGatewayPortMapping(t *testing.T) {
+	// Create a minimal workflow data structure with default port and a tool
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID: "awf",
+			},
+			MCP: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/githubnext/gh-aw-mcpg",
+				Version:   "v0.0.10",
+			},
+		},
+		Tools: map[string]any{
+			"github": true, // Enable a tool so MCP setup is triggered
+		},
+	}
+
+	// Create a compiler and engine
+	compiler := &Compiler{}
+	engine := &CopilotEngine{}
+
+	// Generate the MCP gateway step
+	var yaml strings.Builder
+	compiler.generateMCPSetup(&yaml, nil, engine, workflowData)
+
+	output := yaml.String()
+
+	// Verify the output uses port mapping with host port 80 and internal port 8000
+	assert.Contains(t, output, "-p 80:8000",
+		"Generated YAML should use port mapping -p 80:8000")
+
+	// Verify --network host is NOT used
+	assert.NotContains(t, output, "--network host",
+		"Generated YAML should NOT use --network host")
 }

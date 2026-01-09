@@ -60,8 +60,8 @@ if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--rm'; then
   exit 1
 fi
 
-if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network host'; then
-  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network host flag"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '-p [0-9]+:[0-9]+'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -p PORT:PORT flag for port mapping"
   exit 1
 fi
 
