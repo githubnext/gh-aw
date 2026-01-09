@@ -10,6 +10,7 @@ sidebar:
 **Version**: 1.0.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
+**JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
 **Editor**: GitHub Agentic Workflows Team
 
 ---
@@ -174,6 +175,8 @@ The gateway operates in a headless mode:
 ### 4.1 Configuration Format
 
 The gateway MUST accept configuration via stdin in JSON format conforming to the MCP configuration file schema.
+
+**JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)
 
 #### 4.1.1 Configuration Structure
 
