@@ -611,32 +611,13 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 	// Ensure default configuration is set
 	ensureDefaultMCPGatewayConfig(workflowData)
 
-	gatewayConfig := workflowData.SandboxConfig.MCP
-
-	// Set default port if not configured
-	port := gatewayConfig.Port
-	if port == 0 {
-		port = int(DefaultMCPGatewayPort)
-	}
-
-	// Set default domain if not configured
-	// Default to host.docker.internal when agent is enabled (AWF), localhost when disabled
-	domain := gatewayConfig.Domain
-	if domain == "" {
-		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
-			domain = "localhost"
-		} else {
-			domain = "host.docker.internal"
-		}
-	}
-
 	// Return gateway config with required fields populated
 	// Use ${...} syntax for environment variable references that will be resolved by the gateway at runtime
 	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
 	return &MCPGatewayRuntimeConfig{
-		Port:   port,                     // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
-		Domain: "${MCP_GATEWAY_DOMAIN}",  // Gateway variable expression
-		APIKey: "${MCP_GATEWAY_API_KEY}", // Gateway variable expression
+		Port:   int(DefaultMCPGatewayPort), // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
+		Domain: "${MCP_GATEWAY_DOMAIN}",    // Gateway variable expression
+		APIKey: "${MCP_GATEWAY_API_KEY}",   // Gateway variable expression
 	}
 }
 
