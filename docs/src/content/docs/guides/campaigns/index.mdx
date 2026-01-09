@@ -4,7 +4,6 @@ description: Coordinate AI agents across multiple workflow runs with structured,
 tableOfContents: true
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
 import FeatureCard from '../../../../components/FeatureCard.astro';
 import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
@@ -93,28 +92,20 @@ When compiled, this generates an orchestrator that discovers work, tracks progre
 
 ## Getting Started
 
-<CardGrid>
-  <Card title="Quick Start" icon="rocket">
-    Create your first campaign in 5 steps.
-    
-    [Get Started →](/gh-aw/guides/campaigns/getting-started/)
-  </Card>
-  <Card title="Campaign Specs" icon="document">
-    Learn the campaign specification format and configuration options.
-    
-    [View Specs →](/gh-aw/guides/campaigns/specs/)
-  </Card>
-  <Card title="Project Management" icon="list-unordered">
-    Set up GitHub Project boards for campaign dashboards.
-    
-    [Setup Projects →](/gh-aw/guides/campaigns/project-management/)
-  </Card>
-  <Card title="CLI Commands" icon="terminal">
-    Reference for campaign compilation and management commands.
-    
-    [CLI Reference →](/gh-aw/guides/campaigns/cli-commands/)
-  </Card>
-</CardGrid>
+<FeatureGrid columns={2}>
+  <FeatureCard icon="rocket" title="Quick Start" href="/gh-aw/guides/campaigns/getting-started/">
+    Create your first campaign in 5 steps
+  </FeatureCard>
+  <FeatureCard icon="book" title="Campaign Specs" href="/gh-aw/guides/campaigns/specs/">
+    Learn the specification format and configuration options
+  </FeatureCard>
+  <FeatureCard icon="project" title="Project Management" href="/gh-aw/guides/campaigns/project-management/">
+    Set up GitHub Project boards for campaign dashboards
+  </FeatureCard>
+  <FeatureCard icon="terminal" title="CLI Commands" href="/gh-aw/guides/campaigns/cli-commands/">
+    Reference for campaign compilation and management
+  </FeatureCard>
+</FeatureGrid>
 
 ## How It Works
 
