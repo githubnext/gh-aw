@@ -630,6 +630,45 @@ The gateway SHOULD:
 3. Attempt automatic recovery for transient failures
 4. Provide clear client feedback about server status
 
+### 9.5 Troubleshooting and Debugging
+
+#### 9.5.1 Verbose Logging
+
+The gateway implementation SHOULD support verbose logging via the `DEBUG` environment variable. When set, the gateway MUST emit detailed diagnostic information to stderr, including:
+
+- Server startup sequence details
+- Configuration processing steps
+- HTTP request/response pairs
+- Server communication events
+- Container lifecycle events
+
+**Example:**
+
+```bash
+DEBUG=* gh-aw-mcpg < config.json
+```
+
+This enables maximum verbosity for troubleshooting gateway startup and runtime issues.
+
+#### 9.5.2 Common Failure Scenarios
+
+| Scenario | Symptom | Debug Approach |
+|----------|---------|----------------|
+| Gateway fails to start | Process exits with status 1 | Check stderr logs for startup errors; verify configuration syntax |
+| Server not responding | Timeout errors in requests | Check server container logs; verify server health endpoint |
+| Authentication failures | 401/403 HTTP errors | Verify API key configuration; check environment variables |
+| Configuration errors | Parse errors on startup | Validate JSON syntax; check variable expressions |
+
+#### 9.5.3 Log Collection
+
+When reporting gateway issues, the following artifacts SHOULD be collected:
+
+1. Gateway stderr logs (`/tmp/gh-aw/mcp-logs/gateway/stderr.log`)
+2. Input configuration file
+3. Gateway output configuration (if available)
+4. Server container logs (if applicable)
+5. Environment variable status (redacting secrets)
+
 ---
 
 ## 10. Compliance Testing

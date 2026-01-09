@@ -83,3 +83,83 @@ func TestMCPGatewayVersionConstantValue(t *testing.T) {
 	require.True(t, constants.DefaultMCPGatewayVersion.IsValid(),
 		"DefaultMCPGatewayVersion should be valid")
 }
+
+// TestMCPGatewayDebugEnvironmentVariable tests that DEBUG env var is passed to gateway container
+func TestMCPGatewayDebugEnvironmentVariable(t *testing.T) {
+	tests := []struct {
+		name        string
+		envVars     map[string]string
+		shouldFind  []string
+		description string
+	}{
+		{
+			name: "DEBUG environment variable is passed through",
+			envVars: map[string]string{
+				"DEBUG": "*",
+			},
+			shouldFind: []string{
+				"export DEBUG=*",
+				"-e DEBUG",
+			},
+			description: "DEBUG env var should be exported and added to docker command",
+		},
+		{
+			name: "Multiple environment variables including DEBUG",
+			envVars: map[string]string{
+				"DEBUG":       "gateway:*",
+				"CUSTOM_VAR":  "value",
+				"ANOTHER_VAR": "test",
+			},
+			shouldFind: []string{
+				"export DEBUG=gateway:*",
+				"export CUSTOM_VAR=value",
+				"export ANOTHER_VAR=test",
+				"-e DEBUG",
+				"-e CUSTOM_VAR",
+				"-e ANOTHER_VAR",
+			},
+			description: "All env vars including DEBUG should be exported and passed to container",
+		},
+		{
+			name:    "No DEBUG variable",
+			envVars: map[string]string{},
+			shouldFind: []string{
+				"export MCP_GATEWAY_PORT",
+				"export MCP_GATEWAY_DOMAIN",
+			},
+			description: "Gateway should work without DEBUG env var",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create workflow data with DEBUG env var in sandbox.mcp.env
+			workflowData := &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID: "awf",
+					},
+					MCP: &MCPGatewayRuntimeConfig{
+						Container: "ghcr.io/githubnext/gh-aw-mcpg",
+						Version:   "v0.0.10",
+						Env:       tt.envVars,
+					},
+				},
+			}
+
+			// Create copilot engine
+			engine := &CopilotEngine{}
+
+			// Generate the MCP gateway step
+			var yaml strings.Builder
+			generateMCPGatewayStepInline(&yaml, engine, workflowData)
+
+			// Verify the output contains expected strings
+			output := yaml.String()
+			for _, expectedString := range tt.shouldFind {
+				assert.Contains(t, output, expectedString,
+					"%s: Output should contain: %s", tt.description, expectedString)
+			}
+		})
+	}
+}

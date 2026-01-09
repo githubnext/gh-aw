@@ -16,8 +16,11 @@ sandbox:
     
     # Environment variables for the gateway
     env:
+      # Enable verbose gateway logging for troubleshooting
+      # Gateway logs are written to /tmp/gh-aw/mcp-logs/gateway/stderr.log
+      # Use DEBUG=* for maximum verbosity, or DEBUG=gateway:* for gateway-specific logs
+      DEBUG: "*"
       LOG_LEVEL: debug
-      DEBUG: "true"
 
 tools:
   bash: ["*"]

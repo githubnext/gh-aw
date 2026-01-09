@@ -11,6 +11,9 @@ set -e
 # - MCP_GATEWAY_DOMAIN: Domain for gateway URL (localhost or host.docker.internal)
 # - MCP_GATEWAY_API_KEY: API key for gateway authentication
 # - MCP_GATEWAY_CONTAINER: Container image to run (required)
+#
+# Optional environment variables:
+# - DEBUG: Enable verbose logging in gateway (e.g., DEBUG=* for all logs)
 
 # Validate required environment variables
 if [ -z "$MCP_GATEWAY_PORT" ]; then
@@ -48,12 +51,7 @@ echo ""
 
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
-cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
-  --network host \
-  -e MCP_GATEWAY_PORT \
-  -e MCP_GATEWAY_DOMAIN \
-  -e MCP_GATEWAY_API_KEY \
-  $MCP_GATEWAY_CONTAINER \
+cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_CONTAINER \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!

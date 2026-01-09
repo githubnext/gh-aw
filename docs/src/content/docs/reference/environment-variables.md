@@ -207,6 +207,26 @@ jobs:
 
 ## Debugging Environment Variables
 
+### Verbose Logging for MCP Gateway
+
+Enable detailed diagnostic logging for the MCP gateway using the `DEBUG` environment variable in the `sandbox.mcp.env` scope:
+
+```yaml wrap
+---
+sandbox:
+  mcp:
+    env:
+      DEBUG: "*"  # Enable all debug logs
+---
+```
+
+This enables verbose logging for gateway startup, server communication, and runtime operations. Gateway logs are written to `/tmp/gh-aw/mcp-logs/gateway/stderr.log`.
+
+**Common debug patterns:**
+- `DEBUG=*` - All gateway logs (recommended for troubleshooting)
+- `DEBUG=gateway:*` - Gateway-specific logs only
+- `DEBUG=server:*` - MCP server communication logs only
+
 **View all available variables:**
 ```yaml wrap
 jobs:
