@@ -61,13 +61,13 @@ persistence = "none"
 TOML_EOF
 
 # Convert each server from JSON to TOML format
+# Note: Codex requires explicit type = "http" for HTTP transport
 jq -r --arg apiKey "$MCP_GATEWAY_API_KEY" '
-  .mcpServers | to_entries[] | 
+  .mcpServers | to_entries[] |
   "[mcp_servers.\(.key)]\n" +
+  "type = \"http\"\n" +
   "url = \"\(.value.url)\"\n" +
-  "\n" +
-  "[mcp_servers.\(.key).headers]\n" +
-  "Authorization = \"\($apiKey)\"\n"
+  "headers = { Authorization = \"\($apiKey)\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
