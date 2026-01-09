@@ -101,7 +101,7 @@ echo ""
 
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
-# Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags and image
+# Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
 echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
