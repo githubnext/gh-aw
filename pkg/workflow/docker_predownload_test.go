@@ -68,7 +68,7 @@ Test workflow.`,
 			expectStep: true,
 		},
 		{
-			name: "GitHub remote mode does not generate docker image download",
+			name: "GitHub remote mode does not generate GitHub MCP docker image but still downloads MCP gateway",
 			frontmatter: `---
 on: issues
 engine: claude
@@ -79,8 +79,10 @@ tools:
 
 # Test
 Test workflow.`,
-			expectedImages: nil,
-			expectStep:     false,
+			expectedImages: []string{
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+			},
+			expectStep: true,
 		},
 		{
 			name: "Custom MCP server with container",
