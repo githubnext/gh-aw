@@ -516,7 +516,7 @@ jobs:
           EOF
           
           # Generate JSON config for MCP gateway
-          cat << 'MCPCONFIG_EOF' | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {

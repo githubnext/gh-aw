@@ -453,7 +453,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -e DEBUG="*" ghcr.io/githubnext/gh-aw-mcpg:v0.0.10'
           
           mkdir -p /home/runner/.copilot
-          cat << 'MCPCONFIG_EOF' | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "agentic_workflows": {
