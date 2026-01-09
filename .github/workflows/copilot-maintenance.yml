@@ -1,0 +1,44 @@
+name: Copilot Maintenance
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # Daily at 2:00 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  delete-old-copilot-branches:
+    name: Delete Old Copilot Branches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0  # Fetch all history for all branches
+          persist-credentials: false
+
+      - name: Authenticate GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | gh auth login --with-token
+
+      - name: Run copilot branch cleanup script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Running copilot branch cleanup script..."
+          ./scripts/delete-old-copilot-branches.sh
+
+      - name: Execute deletion commands
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Executing deletion commands..."
+          ./scripts/delete-old-copilot-branches.sh | grep "git push origin --delete" | while read -r cmd; do
+            echo "Executing: $cmd"
+            eval "$cmd" || echo "Failed to delete branch (may already be deleted)"
+          done
+          echo "✓ Copilot branch cleanup completed"
