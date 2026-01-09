@@ -19,6 +19,7 @@ sandbox:
   agent: awf
   mcp:
     container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.9
     port: 8080
 network:
   allowed:
