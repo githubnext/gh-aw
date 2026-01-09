@@ -13,12 +13,9 @@ permissions:
   issues: read
 name: Smoke Copilot No Firewall
 engine: copilot
-sandbox:
-  agent: false
-  #mcp:
-  #  container: ghcr.io/githubnext/awmg
-  #  version: latest
-  #  port: 8080
+# Note: Sandbox set to "default" (no agent sandbox) to allow MCP gateway to run
+# The MCP gateway is now mandatory and will be automatically configured
+sandbox: default
 imports:
   - shared/gh.md
 tools:
