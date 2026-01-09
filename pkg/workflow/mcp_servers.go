@@ -195,8 +195,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		mcpServersLog.Printf("Collected %d MCP tools: %v", len(mcpTools), mcpTools)
 	}
 
+	// Ensure MCP gateway config has defaults set before collecting Docker images
+	ensureDefaultMCPGatewayConfig(workflowData)
+
 	// Collect all Docker images that will be used and generate download step
-	dockerImages := collectDockerImages(tools)
+	dockerImages := collectDockerImages(tools, workflowData)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
 
 	// If no MCP tools, no configuration needed
