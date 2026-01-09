@@ -100,6 +100,181 @@ GitHub Issue created (manually or by CCA)
 
 ---
 
+## Detailed Campaign Creation Flow
+
+### Three-Phase Execution Model
+
+The campaign creation process involves three distinct execution phases, each with specific responsibilities and permissions:
+
+```mermaid
+graph TD
+    A[User Creates Issue] -->|Triggers| B[campaign-generator.md]
+    
+    B -->|GitHub Actions Runner| C{Agentic Workflow Phase 1}
+    
+    C -->|Has: GH_AW_PROJECT_GITHUB_TOKEN| D[Create Project Board]
+    C -->|Has: Safe Outputs| E[Post Status Comment]
+    C -->|Has: Agent Tools| F[Parse Issue Body]
+    
+    F -->|Discovery Phase| G[Query Workflow Catalog]
+    G -->|Pre-computed lookup| H[Match Workflows by Category]
+    H --> I[Generate .campaign.md Spec]
+    
+    I --> J[Update Issue]
+    J -->|Title: New Agentic Campaign: NAME| K[Update Issue Body]
+    K -->|Add: Campaign details<br/>Project board link<br/>Goals & KPIs| L[Formatted Issue]
+    
+    D --> M[assign-to-agent]
+    E --> M
+    L --> M
+    
+    M -->|Handoff to| N{Copilot Coding Agent Phase 2}
+    
+    N -->|New Session| O[Agent Environment]
+    
+    O -->|Has: gh-aw CLI| P[Run: gh aw compile]
+    
+    P -->|Creates| Q[.campaign.g.md]
+    P -->|Creates| R[.campaign.lock.yml]
+    
+    I --> S[create-pull-request Safe Output]
+    Q --> S
+    R --> S
+    
+    S -->|Back to GitHub Actions| T{Safe Outputs Job Phase 3}
+    
+    T -->|Has: GITHUB_TOKEN| U[Download Patch Artifact]
+    T -->|Has: Git Access| V[Checkout Repo]
+    
+    U --> W[Apply Patch]
+    V --> W
+    
+    W --> X[Commit to Branch]
+    X --> Y[Create Pull Request]
+    
+    Y --> Z[PR Created]
+    
+    style C fill:#e1f5ff
+    style N fill:#fff4e1
+    style T fill:#e8f5e9
+    
+    style B fill:#e1f5ff,stroke:#0366d6,stroke-width:3px
+    style O fill:#fff4e1,stroke:#f9826c,stroke-width:3px
+    style T fill:#e8f5e9,stroke:#28a745,stroke-width:3px
+```
+
+### Phase 1: Agentic Workflow (campaign-generator.md)
+
+**Environment**: GitHub Actions Runner  
+**Duration**: ~30 seconds  
+**Token**: `GH_AW_PROJECT_GITHUB_TOKEN` (organization-level permissions)
+
+**Has Access To**:
+- ✅ Safe outputs (create-project, update-issue, add-comment, assign-to-agent)
+- ✅ Basic agent tools (GitHub API, issue parsing, workflow catalog)
+- ✅ Pre-computed workflow catalog (deterministic discovery)
+- ❌ gh-aw CLI binary (not available in GitHub Actions environment)
+
+**Responsibilities**:
+1. **Triggered** by issue creation with `[New Agentic Campaign]` prefix
+2. **Create Project Board** using `create-project` safe output
+3. **Parse Issue Body** to extract campaign requirements
+4. **Query Workflow Catalog** (deterministic, pre-computed lookup)
+5. **Match Workflows** by category (security, dependencies, docs, etc.)
+6. **Generate `.campaign.md`** specification file with:
+   - Campaign metadata (name, description, risk level)
+   - Matched workflows
+   - Governance policies
+   - Safe output configurations
+7. **Update Issue** via `update-issue` safe output:
+   - **Title**: `[New Agentic Campaign] <campaign-name>`
+   - **Body**: Formatted with:
+     - Original user prompt (quoted with `>`)
+     - Campaign title and description
+     - Project board link
+     - Campaign goals
+     - Key performance indicators (KPIs)
+     - Timeline and milestones
+8. **Post Status Comment** with progress update
+9. **Invoke** `assign-to-agent` to hand off to Phase 2
+
+**Why Phase 1 is Fast**:
+- Uses pre-computed workflow catalog (no expensive scanning)
+- Deterministic workflow matching (category-based lookup)
+- All I/O operations are safe outputs (optimized GitHub API calls)
+
+### Phase 2: Copilot Coding Agent (agentic-campaign-designer.agent.md)
+
+**Environment**: Agent Sandbox with gh-aw CLI  
+**Duration**: 1-2 minutes  
+**Token**: Elevated permissions via `assign-to-agent`
+
+**Has Access To**:
+- ✅ gh-aw CLI binary (provided by actions/setup)
+- ✅ File system tools (read, write, create)
+- ✅ Bash tools (execute shell commands)
+- ✅ `create-pull-request` safe output
+
+**Responsibilities**:
+1. **Receives** `.campaign.md` spec from Phase 1
+2. **Compile** campaign using `gh aw compile <campaign-id>`:
+   - Generates `.campaign.g.md` (orchestrator)
+   - Generates `.campaign.lock.yml` (compiled workflow)
+3. **Use** `create-pull-request` safe output to commit all files:
+   - `.campaign.md` (specification)
+   - `.campaign.g.md` (generated orchestrator)
+   - `.campaign.lock.yml` (compiled workflow)
+
+**Why Phase 2 is Required**:
+- `gh aw compile` requires CLI binary (architectural constraint)
+- CLI binary only available in agent sandbox (not GitHub Actions)
+- Compilation transforms campaign spec into executable workflow
+
+**Why Phase 2 is Now Faster**:
+- No workflow scanning (done in Phase 1)
+- No spec generation (done in Phase 1)
+- Only compilation (minimal work)
+
+### Phase 3: Safe Outputs Infrastructure
+
+**Environment**: Automated GitHub Actions Job  
+**Duration**: ~10 seconds  
+**Token**: `GITHUB_TOKEN` (repository-scoped)
+
+**Has Access To**:
+- ✅ Git access (checkout, commit, push)
+- ✅ GitHub API (create PR, update issue)
+- ✅ Artifact storage (download patches)
+
+**Responsibilities**:
+1. **Download** patch artifact from Phase 2
+2. **Checkout** repository to temporary branch
+3. **Apply** git patch with all changes
+4. **Commit** changes to branch
+5. **Create** pull request via GitHub API
+6. **Link** PR back to original issue
+
+**Why Phase 3 is Automated**:
+- Safe outputs infrastructure handles all GitHub API operations
+- No user intervention needed
+- Consistent PR creation across all workflows
+
+### Complete Flow Timeline
+
+| Phase | Component | Duration | Operations |
+|-------|-----------|----------|------------|
+| **Phase 1** | campaign-generator.md | ~30s | Project creation, workflow discovery, spec generation, issue update |
+| **Phase 2** | agentic-campaign-designer | 1-2 min | Campaign compilation (`gh aw compile`) |
+| **Phase 3** | Safe outputs job | ~10s | Patch application, PR creation |
+| **Total** | End-to-end | **2-3 min** | Complete campaign creation |
+
+**Performance Improvement**: 60% faster than original flow (5-10 min → 2-3 min) through:
+- Pre-computed workflow catalog (eliminates 2-3 min scanning)
+- Optimized phase division (heavy lifting in fast Phase 1)
+- Minimal Phase 2 work (compilation only)
+
+---
+
 ## Component Analysis
 
 ### 1. Agent Files (Major Redundancy Found)

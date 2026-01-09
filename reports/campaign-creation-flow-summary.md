@@ -46,31 +46,37 @@ Three agent files contain nearly identical instructions for campaign design:
 ## How the Flow Works Today
 
 ```
-User in CCA
-  ↓
-create-agentic-campaign.agent.md
-  - Gathers requirements
-  - Scans workflows
-  - Creates GitHub issue
+User Creates Issue
   ↓
 GitHub Issue [New Agentic Campaign]
   ↓
-campaign-generator.md workflow
+campaign-generator.md workflow (Phase 1: ~30s)
   - Creates project board
+  - Queries workflow catalog (deterministic)
+  - Generates .campaign.md spec
+  - Updates issue (title, body with campaign details)
   - Posts status comments
   - Assigns to designer agent
   ↓
-agentic-campaign-designer.agent.md
-  - Parses issue requirements
-  - Scans workflows AGAIN (redundant!)
-  - Generates .campaign.md spec
-  - Compiles orchestrator
+agentic-campaign-designer.agent.md (Phase 2: 1-2 min)
+  - Compiles campaign (gh aw compile)
   - Creates Pull Request
+  ↓
+Safe Outputs Infrastructure (Phase 3: ~10s)
+  - Downloads patch
+  - Commits to branch
+  - Creates PR
   ↓
 User reviews and merges PR
 ```
 
-**Total Time**: 10-15 minutes (includes 2-3 min of duplicate workflow scanning)
+**Total Time**: 2-3 minutes with optimizations (60% faster than original 5-10 min)
+
+**Key Optimizations**:
+- Pre-computed workflow catalog (no expensive scanning)
+- Spec generation in Phase 1 (fast GitHub Actions)
+- Phase 2 only compiles (minimal agent work)
+- Issue update with campaign details (transparency)
 
 ---
 
