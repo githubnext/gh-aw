@@ -153,9 +153,9 @@ Uses imported serena tool.
 		t.Error("Expected compiled workflow to contain serena tool")
 	}
 
-	// Verify serena command
-	if !strings.Contains(workflowData, "git+https://github.com/oraios/serena") {
-		t.Error("Expected compiled workflow to contain serena git repository")
+	// Verify serena container (now using Docker instead of uvx)
+	if !strings.Contains(workflowData, "ghcr.io/oraios/serena:latest") {
+		t.Error("Expected compiled workflow to contain serena Docker container")
 	}
 
 	// Verify language service setup for Go
@@ -318,8 +318,8 @@ Uses all imported tools.
 	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
 		t.Error("Expected compiled workflow to contain playwright Docker image")
 	}
-	if !strings.Contains(workflowData, "git+https://github.com/oraios/serena") {
-		t.Error("Expected compiled workflow to contain serena git repository")
+	if !strings.Contains(workflowData, "ghcr.io/oraios/serena:latest") {
+		t.Error("Expected compiled workflow to contain serena Docker container")
 	}
 	if !strings.Contains(workflowData, "example.com") {
 		t.Error("Expected compiled workflow to contain example.com domain for playwright")
