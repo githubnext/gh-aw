@@ -196,7 +196,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	// Collect all Docker images that will be used and generate download step
-	dockerImages := collectDockerImages(tools)
+	dockerImages := collectDockerImages(tools, workflowData.SafeOutputs)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
 
 	// If no MCP tools, no configuration needed

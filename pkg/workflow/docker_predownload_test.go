@@ -102,6 +102,24 @@ Test workflow with custom MCP container.`,
 			},
 			expectStep: true,
 		},
+		{
+			name: "Safe outputs MCP server includes node:lts-alpine",
+			frontmatter: `---
+on: issues
+engine: claude
+safe-outputs:
+  create-issue:
+    title-prefix: "Test"
+---
+
+# Test
+Test workflow with safe outputs.`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"node:lts-alpine",
+			},
+			expectStep: true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -5,13 +5,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var dockerLog = logger.New("workflow:docker")
 
 // collectDockerImages collects all Docker images used in MCP configurations
-func collectDockerImages(tools map[string]any) []string {
+func collectDockerImages(tools map[string]any, safeOutputs *SafeOutputsConfig) []string {
 	var images []string
 	imageSet := make(map[string]bool) // Use a set to avoid duplicates
 
@@ -32,6 +33,15 @@ func collectDockerImages(tools map[string]any) []string {
 	// Check for Playwright tool (uses Docker image - no version tag, only one image)
 	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
 		image := "mcr.microsoft.com/playwright/mcp"
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+		}
+	}
+
+	// Check for safe-outputs MCP server (uses node:lts-alpine image)
+	if HasSafeOutputsEnabled(safeOutputs) {
+		image := constants.DefaultNodeAlpineLTSImage
 		if !imageSet[image] {
 			images = append(images, image)
 			imageSet[image] = true
