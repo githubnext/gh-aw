@@ -118,9 +118,6 @@ fi
 echo "Configuration validated successfully"
 echo ""
 
-# Save config for reference (optional)
-echo "$MCP_CONFIG" > /tmp/gh-aw/mcp-config/gateway-input.json
-
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags and image
