@@ -550,6 +550,7 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+	yaml.WriteString("          export DEBUG=\"*\"\n")
 
 	// Export engine type for agent-specific conversion
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
@@ -582,7 +583,7 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	containerCmd := "docker run -i --rm --network host"
 
 	// Add environment variables to container
-	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
+	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG"
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {
