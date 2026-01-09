@@ -194,7 +194,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.10
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs

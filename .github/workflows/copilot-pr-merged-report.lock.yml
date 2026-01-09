@@ -157,8 +157,6 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.8.2 bash
           which awf
           awf --version
-      - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/githubnext/gh-aw-mcpg:v0.0.10
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
