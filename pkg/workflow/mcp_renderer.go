@@ -708,7 +708,7 @@ func RenderJSONMCPConfig(
 	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools", len(mcpTools))
 
 	// Start the JSON structure inline (will be piped to gateway script)
-	yaml.WriteString("          cat << 'MCPCONFIG_EOF' | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
+	yaml.WriteString("          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
