@@ -316,7 +316,7 @@ type MCPGatewayRuntimeConfig struct {
 	Args           []string          `yaml:"args,omitempty"`           // Arguments for docker run
 	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint
 	Env            map[string]string `yaml:"env,omitempty"`            // Environment variables for the gateway
-	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
+	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8000)
 	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
 	Domain         string            `yaml:"domain,omitempty"`         // Domain for gateway URL (localhost or host.docker.internal)
 }

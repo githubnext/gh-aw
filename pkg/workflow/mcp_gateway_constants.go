@@ -2,7 +2,6 @@ package workflow
 
 const (
 	// DefaultMCPGatewayPort is the default port for the MCP gateway
-	// This constant is kept for backwards compatibility with existing configurations
-	// even though the awmg gateway binary has been removed.
-	DefaultMCPGatewayPort = 8080
+	// This matches the default port used by gh-aw-mcpg container (8000)
+	DefaultMCPGatewayPort = 8000
 )
