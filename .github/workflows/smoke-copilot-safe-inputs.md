@@ -13,6 +13,14 @@ permissions:
   issues: read
 name: Smoke Copilot Safe Inputs
 engine: copilot
+sandbox:
+  agent: awf
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.9
+    port: 8080
+features:
+  mcp-gateway: true
 network:
   allowed:
     - defaults

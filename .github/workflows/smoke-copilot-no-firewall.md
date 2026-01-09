@@ -15,10 +15,10 @@ name: Smoke Copilot No Firewall
 engine: copilot
 sandbox:
   agent: false
-  #mcp:
-  #  container: ghcr.io/githubnext/awmg
-  #  version: latest
-  #  port: 8080
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.9
+    port: 8080
 imports:
   - shared/gh.md
 tools:

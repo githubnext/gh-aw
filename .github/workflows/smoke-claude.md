@@ -17,6 +17,14 @@ engine:
   id: claude
   max-turns: 15
 strict: true
+sandbox:
+  agent: awf
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.9
+    port: 8080
+features:
+  mcp-gateway: true
 imports:
   - shared/mcp-pagination.md
 network:

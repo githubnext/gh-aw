@@ -31,6 +31,12 @@ network:
     - android.clients.google.com # Chrome internal
 sandbox:
   agent: awf  # Firewall enabled
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.9
+    port: 8080
+features:
+  mcp-gateway: true
 tools:
   cache-memory: true
   edit:

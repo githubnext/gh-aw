@@ -14,6 +14,14 @@ permissions:
 name: Smoke Codex
 engine: codex
 strict: true
+sandbox:
+  agent: awf
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.9
+    port: 8080
+features:
+  mcp-gateway: true
 network:
   allowed:
     - defaults
