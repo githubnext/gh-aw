@@ -1,14 +1,13 @@
 # Peli's Agent Factory
-
 **An exploration of automated agentic workflows at scale**
 
 At GitHub Next, we have the privilege of collaborating with amazing people across GitHub and the broader AI community to explore the future of software development. In this project, we introduce one of our collaborations - one we're calling **Peli's Agent Factory**.
 
-<img src="peli.png" alt="Peli de Halleux" width="250" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" /> Peli's Agent Factory is a research collaboration between GitHub Next and Microsoft Research (MSR), exploring what happens when you build and operate dozens of specialized AI agents within a real software repository. While this is a collaboration in every sense, those of us at GitHub Next have decided to name the project after Peli de Halleux, because of his remarkable energhy and creativity in helping us reimagine the frontier of automated, proactive, agentic AI software development.
+<div align="right"> <img src="peli.png" alt="Peli de Halleux" width="250" /> </div>
 
-In this project, you'll explore with us a collection of over 145 automated agentic workflows that each solve specific problems in software development. These agents are not hypothetical demos - they are working agents that handle real development tasks. Along the way we'll share the lessons we've learned, the design patterns we've discovered, and the practical techniques for building and operating your own agentic workflows.
+Peli's Agent Factory is a research collaboration between GitHub Next and Peli de Halleux from Microsoft Research, exploring what happens when you build and operate dozens of specialized AI agents within a real software repository.
 
-Software development is changing rapidly with the advent of AI. Peli's Agent Factory is our attempt to understand how to harness this change to make software development more efficient, collaborative, and enjoyable. Entering Peli's factory is like entering a new room, a new world of possibilities - one that may unfold differently for each repository, company or software community. We invite you to explore, learn, and contribute to this exciting journey.
+Software development is changing rapidly. In this project, you'll explore with us a collection of over 145 automated agentic workflows. These are working agents that handle real development tasks. Peli's Agent Factory is our attempt to understand how to harness automated agentic AI to make software development more efficient, collaborative, and enjoyable. Entering Peli's Agent Factory is like a new world of possibilities - one that may unfolds differently for each repository, company or software community. We invite you to explore and learn with us.
 
 ## What is Peli's Agent Factory?
 
@@ -23,16 +22,6 @@ Imagine a software repository where AI agents work alongside your team - not rep
 - Execute multi-day projects to reduce technical debt
 
 Think of this as an incubation lab where each agent has its own mode of operation, needs, and interactions. Some are simple read-only analysts. Others proactively propose changes through pull requests. A few are meta-agents that monitor and improve the health of all the other workflows.
-
-## The Factory at a Glance
-
-- **145 total workflows** demonstrating diverse agent patterns
-- **12 core design patterns** consolidating all observed behaviors
-- **9 operational patterns** for GitHub-native agent orchestration
-- **128 workflows** in the main [`gh-aw`](https://github.com/githubnext/gh-aw) repository
-- **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
-- **Dozens of MCP servers** integrated for specialized capabilities
-- **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
 
 ## Explore the Factory
 
@@ -59,6 +48,16 @@ Rather than trying to build one "perfect" agent, we took a gardener's approach:
 4. **Share the knowledge** - Catalog the structures that made agents safe and effective
 
 The factory becomes both an experiment and a reference collection - a living library of patterns that others can study, adapt, and remix.
+
+## The Factory at a Glance
+
+- **145 total workflows** demonstrating diverse agent patterns
+- **12 core design patterns** consolidating all observed behaviors
+- **9 operational patterns** for GitHub-native agent orchestration
+- **128 workflows** in the main [`gh-aw`](https://github.com/githubnext/gh-aw) repository
+- **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
+- **Dozens of MCP servers** integrated for specialized capabilities
+- **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
 
 ## Try It Yourself
 
