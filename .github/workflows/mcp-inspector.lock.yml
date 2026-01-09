@@ -224,7 +224,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.10 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/memory mcp/notion node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh @sentry/mcp-server@0.26.0 docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.10 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/memory mcp/notion microsoft-fabric-rti-mcp node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -540,7 +540,7 @@ jobs:
               },
               "fabric-rti": {
                 "type": "local",
-                "command": "uvx",
+                "command": "docker",
                 "tools": [
                   "kusto_known_services",
                   "kusto_query",
@@ -557,6 +557,19 @@ jobs:
                   "get_eventstream_definition"
                 ],
                 "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "AZURE_CLIENT_ID",
+                  "-e",
+                  "AZURE_CLIENT_SECRET",
+                  "-e",
+                  "AZURE_TENANT_ID",
+                  "--entrypoint",
+                  "uvx",
+                  "python:alpine",
+                  "uvx",
                   "microsoft-fabric-rti-mcp"
                 ],
                 "env": {
@@ -660,7 +673,7 @@ jobs:
               },
               "sentry": {
                 "type": "local",
-                "command": "npx",
+                "command": "docker",
                 "tools": [
                   "whoami",
                   "find_organizations",
@@ -678,6 +691,19 @@ jobs:
                   "get_doc"
                 ],
                 "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "OPENAI_API_KEY",
+                  "-e",
+                  "SENTRY_ACCESS_TOKEN",
+                  "-e",
+                  "SENTRY_HOST",
+                  "--entrypoint",
+                  "npx",
+                  "node:lts-alpine",
+                  "npx",
                   "@sentry/mcp-server@0.26.0"
                 ],
                 "env": {
