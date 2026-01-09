@@ -14,6 +14,14 @@ permissions:
 name: Smoke Codex Firewall
 engine: codex
 strict: true
+sandbox:
+  agent: awf
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.9
+    port: 8080
+features:
+  mcp-gateway: true
 network:
   allowed:
     - defaults
@@ -53,6 +61,7 @@ This workflow validates that the Codex engine works correctly with AWF (Applicat
 4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 5. **Blocked Domain Testing**: Attempt to access a domain NOT in the allowed list (e.g., example.com) using curl - this should fail or be blocked
 6. **Protocol Filtering Testing**: Verify that the AWF command includes the protocol-specific domain `https://api.github.com` in the --allow-domains flag. Check logs to confirm HTTPS prefix is preserved
+7. **MCP Gateway Testing**: Check that the MCP gateway started successfully by verifying `/tmp/gh-aw/mcp-logs/gateway/` contains startup logs and `/tmp/gh-aw/mcp-config/gateway-input.json` exists
 
 ## Output
 
