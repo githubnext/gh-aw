@@ -11,6 +11,11 @@ on:
         required: false
         type: boolean
         default: false
+      max_branches:
+        description: 'Maximum number of branches to delete'
+        required: false
+        type: number
+        default: 1
 
 permissions:
   contents: write
@@ -68,6 +73,7 @@ jobs:
       - name: Run copilot branch cleanup script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '1' }}
         run: |
           echo "Running copilot branch cleanup script..."
           ./scripts/delete-old-copilot-branches.sh
@@ -76,6 +82,7 @@ jobs:
         if: github.event.inputs.delete_branches == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '1' }}
         run: |
           echo "Executing deletion commands..."
           ./scripts/delete-old-copilot-branches.sh | \
