@@ -760,17 +760,17 @@ func RenderJSONMCPConfig(
 		}
 	}
 
-	// Write config file footer
-	yaml.WriteString("            }\n")
-
-	// Add gateway section if configured (needed for gateway to process)
-	// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
+	// Write config file footer - but don't add newline yet if we need to add gateway
 	if options.GatewayConfig != nil {
-		yaml.WriteString("            ,\n")
+		yaml.WriteString("            },\n")
+		// Add gateway section (needed for gateway to process)
+		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
 		yaml.WriteString("            \"gateway\": {\n")
 		fmt.Fprintf(yaml, "              \"port\": \"${MCP_GATEWAY_PORT}\",\n")
 		fmt.Fprintf(yaml, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
 		fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
+		yaml.WriteString("            }\n")
+	} else {
 		yaml.WriteString("            }\n")
 	}
 
