@@ -524,6 +524,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	containerCmd := "docker run -i --rm --network host"
+	containerCmd += " -v /var/run/docker.sock:/var/run/docker.sock" // Enable docker-in-docker for MCP gateway
+	// Pass required gateway environment variables
+	containerCmd += " -e MCP_GATEWAY_PORT"
+	containerCmd += " -e MCP_GATEWAY_DOMAIN"
+	containerCmd += " -e MCP_GATEWAY_API_KEY"
 	containerCmd += " -e DEBUG=\"*\""
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
@@ -592,7 +597,8 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 		if workflowData.SandboxConfig.MCP.Container == "" {
 			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
 		}
-		if workflowData.SandboxConfig.MCP.Version == "" {
+		// Replace empty or "latest" with the pinned default version
+		if workflowData.SandboxConfig.MCP.Version == "" || workflowData.SandboxConfig.MCP.Version == "latest" {
 			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
 		}
 		if workflowData.SandboxConfig.MCP.Port == 0 {
@@ -627,7 +633,7 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 	// Replace ${GITHUB_WORKSPACE} with a placeholder that we'll handle specially
 	// We want: 'docker run ... -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ...'
 	// This closes the single quote, adds the variable in double quotes, then reopens single quote
-	
+
 	// Split on ${GITHUB_WORKSPACE} to handle it specially
 	if strings.Contains(cmd, "${GITHUB_WORKSPACE}") {
 		parts := strings.Split(cmd, "${GITHUB_WORKSPACE}")
@@ -645,7 +651,7 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 		result.WriteString("'")
 		return result.String()
 	}
-	
+
 	// No GITHUB_WORKSPACE variable, use normal quoting
 	return shellQuote(cmd)
 }

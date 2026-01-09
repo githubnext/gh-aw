@@ -57,9 +57,9 @@ func TestMCPGatewayCustomMounts(t *testing.T) {
 // TestMCPGatewayMountsInDockerCommand tests the docker command generation with mounts
 func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 	tests := []struct {
-		name           string
-		mounts         []string
-		expectedInCmd  []string
+		name          string
+		mounts        []string
+		expectedInCmd []string
 	}{
 		{
 			name: "default mounts",
@@ -101,14 +101,14 @@ func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 			// Build the container command (similar to what's done in mcp_servers.go)
 			containerImage := gatewayConfig.Container + ":" + gatewayConfig.Version
 			containerCmd := "docker run -i --rm --network host"
-			
+
 			// Add volume mounts (not individually quoted since entire command will be quoted)
 			if len(gatewayConfig.Mounts) > 0 {
 				for _, mount := range gatewayConfig.Mounts {
 					containerCmd += " -v " + mount
 				}
 			}
-			
+
 			containerCmd += " " + containerImage
 
 			// Verify that expected mount flags are in the command
