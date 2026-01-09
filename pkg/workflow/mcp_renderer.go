@@ -781,6 +781,14 @@ func RenderJSONMCPConfig(
 
 	yaml.WriteString("          }\n")
 	yaml.WriteString("          EOF\n")
+	yaml.WriteString("\n")
+
+	// Validate the generated MCP gateway configuration against the specification
+	// Per MCP Gateway Specification v1.0.0, the configuration must conform to the schema
+	mcpRendererLog.Printf("Adding MCP gateway JSON validation for config: %s", options.ConfigPath)
+	yaml.WriteString("          # Validate MCP gateway configuration against MCP Gateway Specification v1.0.0\n")
+	yaml.WriteString("          bash /tmp/gh-aw/actions/validate_mcp_gateway_json.sh " + options.ConfigPath + "\n")
+	yaml.WriteString("\n")
 
 	// Add any post-EOF commands (e.g., debug output for Copilot)
 	if options.PostEOFCommands != nil {

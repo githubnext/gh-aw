@@ -504,6 +504,10 @@ jobs:
             }
           }
           EOF
+
+          # Validate MCP gateway configuration against MCP Gateway Specification v1.0.0
+          bash /tmp/gh-aw/actions/validate_mcp_gateway_json.sh /home/runner/.copilot/mcp-config.json
+
           echo "-------START MCP CONFIG-----------"
           cat /home/runner/.copilot/mcp-config.json
           echo "-------END MCP CONFIG-----------"
