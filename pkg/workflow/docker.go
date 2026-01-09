@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -35,6 +36,16 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []str
 		if !imageSet[image] {
 			images = append(images, image)
 			imageSet[image] = true
+		}
+	}
+
+	// Check for safe-outputs MCP server (uses node:lts-alpine container)
+	if workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		image := constants.DefaultNodeAlpineLTSImage
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+			dockerLog.Printf("Added safe-outputs MCP server container: %s", image)
 		}
 	}
 
