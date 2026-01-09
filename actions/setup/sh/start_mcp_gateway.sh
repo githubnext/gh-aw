@@ -9,26 +9,7 @@
 set -e
 
 # Required environment variables:
-# - MCP_GATEWAY_PORT: Port for the gateway HTTP server
-# - MCP_GATEWAY_DOMAIN: Domain for gateway URL (localhost or host.docker.internal)
-# - MCP_GATEWAY_API_KEY: API key for gateway authentication
 # - MCP_GATEWAY_DOCKER_COMMAND: Container image to run (required)
-
-# Validate required environment variables
-if [ -z "$MCP_GATEWAY_PORT" ]; then
-  echo "ERROR: MCP_GATEWAY_PORT environment variable is required"
-  exit 1
-fi
-
-if [ -z "$MCP_GATEWAY_DOMAIN" ]; then
-  echo "ERROR: MCP_GATEWAY_DOMAIN environment variable is required"
-  exit 1
-fi
-
-if [ -z "$MCP_GATEWAY_API_KEY" ]; then
-  echo "ERROR: MCP_GATEWAY_API_KEY environment variable is required"
-  exit 1
-fi
 
 # Validate that container is specified (command execution is not supported per spec)
 if [ -z "$MCP_GATEWAY_DOCKER_COMMAND" ]; then
@@ -121,7 +102,7 @@ echo ""
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags and image
-echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND \
+echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND -v /opt:/opt:ro /tmp:/tmp:rw -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!
