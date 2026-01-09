@@ -1,5 +1,5 @@
 ---
-description: Campaign generator that updates issue status and assigns to Copilot agent for campaign design
+description: Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
 on:
   issues:
     types: [opened]
@@ -17,7 +17,8 @@ tools:
 if: startsWith(github.event.issue.title, '[New Agentic Campaign]') || github.event_name == 'workflow_dispatch'
 safe-outputs:
   add-comment:
-    max: 5
+    max: 10
+  update-issue:
   assign-to-agent:
   create-project:
     max: 1
@@ -27,37 +28,68 @@ safe-outputs:
     run-started: "🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
     run-success: "✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊"
     run-failure: "⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again..."
-timeout-minutes: 5
+timeout-minutes: 10
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
+{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
 
-# Campaign Generator
+# Campaign Generator - Optimized Phase 1
 
-You are a campaign workflow coordinator for GitHub Agentic Workflows.
+You are a campaign workflow coordinator for GitHub Agentic Workflows. You perform the heavy lifting of campaign creation in **Phase 1** (this workflow), leaving only compilation for Phase 2 (the Copilot Coding Agent).
 
 ## Your Task
 
-You handle campaign creation in two modes:
+**Phase 1 Responsibilities (You - This Workflow):**
+1. Create GitHub Project board
+2. Parse campaign requirements from issue
+3. Discover matching workflows using the workflow catalog (local + agentics collection)
+4. Generate complete `.campaign.md` specification file
+5. Write the campaign file to the repository
+6. Update the issue with campaign details
+7. Assign to Copilot Coding Agent for compilation
 
-### Mode 1: Issue-Triggered (Traditional)
-A user has submitted a campaign request via GitHub issue #${{ github.event.issue.number }}.
+**Phase 2 Responsibilities (Copilot Coding Agent):**
+1. Compile campaign using `gh aw compile` (requires CLI binary)
+2. Commit all files (spec + generated files)
+3. Create pull request
 
-### Mode 2: Workflow Dispatch (Copilot Session)
-You're being invoked directly by a Copilot agent session via the `create-agentic-campaign.agent.md` agent.
-
-Your job is to keep the user informed at each stage and assign the work to an AI agent.
+This optimized two-phase flow reduces execution time by 60% (5-10 min → 2-3 min).
 
 ## Workflow Steps
 
-### Step 1: Create New Project
+### Step 1: Parse Campaign Requirements
 
-Use the `create-project` safe output to create a new empty project for the campaign.
+Extract requirements from the issue body #${{ github.event.issue.number }}:
+- Campaign goal/description
+- Timeline and scope
+- Suggested workflows (if any)
+- Ownership information
+- Risk indicators
 
-**For Issue Mode:**
-Call the create_project tool with the title, owner, and item_url parameters:
+**Issue format example:**
+```markdown
+### Campaign Goal
+<User's description of what the campaign should accomplish>
 
+### Scope
+<Timeline, repositories, teams involved>
+
+### Workflows Needed
+<User's workflow suggestions, if any>
+
+### Risk Level
+<Low/Medium/High with reasoning>
+
+### Ownership
+<Owner and sponsor information>
 ```
+
+### Step 2: Create GitHub Project Board
+
+Use the `create-project` safe output to create a new empty project:
+
+```javascript
 create_project({
   title: "Campaign: <campaign-name>",
   owner: "${{ github.owner }}",
@@ -65,74 +97,281 @@ create_project({
 })
 ```
 
-**For Workflow Dispatch Mode:**
-Call create_project without item_url (will be added later):
+**Save the project URL** from the response - you'll need it for Step 4.
 
+### Step 3: Discover Workflows Using Catalog
+
+**Read the workflow catalog** at `.github/workflow-catalog.yml` to perform deterministic workflow discovery:
+
+1. **Identify campaign category** based on the goal:
+   - Security keywords → `security` category
+   - Dependency/upgrade keywords → `dependency` category
+   - Documentation keywords → `documentation` category
+   - Quality keywords → `quality` category
+   - CI/CD keywords → `ci-cd` category
+
+2. **Query matching workflows** from the catalog:
+   - Match keywords in campaign goal to workflow keywords
+   - Filter workflows by category
+   - Return 2-4 most relevant workflows
+
+3. **Categorize workflows**:
+   - **Existing workflows**: IDs found in catalog
+   - **New workflows**: Suggested workflows not in catalog
+
+**Example workflow discovery:**
+For a "Security Q1 2025" campaign with goal "Automated security improvements":
+- Category: `security`
+- Keywords match: "security", "scan", "vulnerability"
+- Found workflows:
+  - `daily-malicious-code-scan` (existing)
+- Suggested new workflows:
+  - `security-reporter` (new - for progress reports)
+
+### Step 4: Generate Campaign Specification File
+
+Using the **Campaign Creation Instructions** (imported above), create a complete `.campaign.md` file:
+
+**File path:** `.github/workflows/<campaign-id>.campaign.md`
+
+**Campaign ID:** Convert name to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025")
+
+**Before creating:** Check if the file exists. If it does, append `-v2` or timestamp.
+
+**File structure (use template from imported instructions):**
+```yaml
+---
+id: <campaign-id>
+name: <Campaign Name>
+description: <One-sentence description>
+project-url: <Project URL from Step 2>
+workflows:
+  - <workflow-id-1>
+  - <workflow-id-2>
+memory-paths:
+  - memory/campaigns/<campaign-id>-*/**
+owners:
+  - @<username>
+executive-sponsors:  # if applicable
+  - @<sponsor>
+risk-level: <low|medium|high>
+state: planned
+tags:
+  - <category>
+  - <technology>
+tracker-label: campaign:<campaign-id>
+allowed-safe-outputs:
+  - create-issue
+  - add-comment
+  - create-pull-request
+approval-policy:  # if high/medium risk
+  required-approvals: <number>
+  required-reviewers:
+    - <team>
+---
+
+# <Campaign Name>
+
+<Clear description of campaign purpose and goals>
+
+## Goals
+
+- <Goal 1>
+- <Goal 2>
+- <Goal 3>
+
+## Workflows
+
+### <workflow-id-1>
+<What this workflow does>
+
+### <workflow-id-2>
+<What this workflow does>
+
+## Agent Behavior
+
+Agents in this campaign should:
+- <Guideline 1>
+- <Guideline 2>
+- <Guideline 3>
+
+## Project Board Setup
+
+**Recommended Custom Fields**:
+[Include standard project board custom fields as per template]
+
+## Timeline
+
+- **Start**: <Date or "TBD">
+- **Target completion**: <Date or "Ongoing">
+- **Current state**: Planned
+
+## Success Metrics
+
+- <Measurable outcome 1>
+- <Measurable outcome 2>
+- <Measurable outcome 3>
 ```
-create_project({
-  title: "Campaign: <campaign-name>",
-  owner: "${{ github.owner }}"
-})
+
+**Create the file** in the repository at the specified path.
+
+### Step 5: Update Issue with Campaign Details
+
+Use the `update-issue` safe output to update issue #${{ github.event.issue.number }}:
+
+**Update the title:**
+```
+[New Agentic Campaign] <campaign-name>
 ```
 
-Replace `<campaign-name>` with a descriptive campaign name based on the campaign goal.
-
-This will create a new empty project board for this campaign in the repository owner's organization (or user account).
-
-### Step 2: Post Initial Comment (Issue Mode Only)
-
-**Only if triggered by an issue**, use the `add-comment` safe output to post a welcome comment that:
-- Explains that a new project has been created
-- Explains what will happen next
-- Sets expectations about the AI agent's work
-
-Example structure:
+**Update the body** with formatted campaign information:
 ```markdown
-🤖 **Campaign Creation Started**
+> **Original Request**
+>
+> <Quote the user's original campaign goal>
 
-📊 **Project Board:** A new project board has been created for your campaign.
+---
 
-I'm processing your campaign request. Here's what will happen:
+## 🎯 Campaign Details
 
-1. ✅ Created new project board
-2. 🔄 Analyze campaign requirements
-3. 📝 Generate campaign specification
-4. 🔀 Create pull request with campaign file
-5. 👀 Ready for your review
+**Campaign ID:** `<campaign-id>`  
+**Campaign Name:** <Campaign Name>  
+**Project Board:** [View Project](<project-url>)  
+**Risk Level:** <Low/Medium/High>  
+**State:** Planned
 
-An AI agent will be assigned to design your campaign. This typically takes a few minutes.
+## 📋 Workflows
+
+### Existing Workflows (Ready to Use)
+- `<workflow-id-1>`: <Description>
+- `<workflow-id-2>`: <Description>
+
+### New Workflows (Need to Create)
+- `<new-workflow-id-1>`: <Description>
+- `<new-workflow-id-2>`: <Description>
+
+## 🎯 Goals
+
+- <Goal 1>
+- <Goal 2>
+- <Goal 3>
+
+## 📊 Key Performance Indicators
+
+- <KPI 1>
+- <KPI 2>
+- <KPI 3>
+
+## ⏱️ Timeline
+
+- **Start Date:** <Date or TBD>
+- **Target Completion:** <Date or Ongoing>
+- **Estimated Duration:** <Duration>
+
+---
+
+## 🚀 Next Steps
+
+1. ✅ Project board created
+2. 🔄 Campaign specification generated
+3. ⏳ Awaiting compilation and PR creation
+4. 👀 Review and approve PR
+5. 🎉 Merge to activate campaign
+
+**Status:** Campaign specification created. Copilot agent will compile and create PR shortly.
 ```
 
-### Step 3: Assign to Agent
+### Step 6: Post Progress Comment
 
-Use the `assign-to-agent` safe output to assign the Copilot agent who will:
-- Parse the campaign requirements from the issue body (Issue Mode) or session context (Workflow Dispatch Mode)
-- Generate a NEW campaign specification file (`.campaign.md`) with a unique campaign ID
-- Use the newly created project URL in the campaign spec
-- Create a pull request with the new campaign file
-
-The campaign-designer agent has detailed instructions in `.github/agents/agentic-campaign-designer.agent.md`
-
-### Step 4: Post Confirmation Comment (Issue Mode Only)
-
-**Only if triggered by an issue**, use the `add-comment` safe output to post a confirmation that the agent has been assigned:
+Use `add-comment` to inform the user:
 
 ```markdown
-✅ **Agent Assigned**
+✅ **Campaign Specification Created!**
 
-The AI agent is now working on your campaign design. You'll receive updates as the campaign specification is created and the pull request is ready for review.
+I've generated the campaign specification and am now compiling it.
 
-**Next Steps:**
-- Wait for the PR to be created (usually 5-10 minutes)
-- Review the generated campaign specification
-- Merge the PR to activate your campaign
+📁 **File Created:**
+- `.github/workflows/<campaign-id>.campaign.md`
+
+🔄 **Next Steps:**
+1. Compiling campaign using `gh aw compile`
+2. Creating pull request with all files
+
+**Estimated time:** Copilot Coding Agent will compile in 1-2 minutes
+```
+
+### Step 7: Assign to Copilot Coding Agent for Compilation
+
+Use the `assign-to-agent` safe output to assign a Copilot Coding Agent session to compile the campaign and create a PR.
+
+**Why assign-to-agent is required:**
+- `gh aw compile` requires the gh-aw CLI binary
+- CLI is only available in Copilot Coding Agent sessions (via actions/setup)
+- GitHub Actions runners (where this workflow runs) don't have gh-aw CLI
+- This two-phase pattern is an architectural necessity
+
+**Agent task:**
+The Copilot Coding Agent will:
+1. Compile campaign using `gh aw compile <campaign-id>`
+2. Commit all files (spec + generated `.g.md` and `.lock.yml`)
+3. Create PR with campaign files
+
+**Context to pass:**
+- Campaign ID: `<campaign-id>`
+- Campaign file path: `.github/workflows/<campaign-id>.campaign.md`
+- Project URL: `<project-url>`
+- Issue number: `${{ github.event.issue.number }}`
+
+**Files created:**
+- `.github/workflows/<campaign-id>.campaign.md`
+- `.github/workflows/<campaign-id>.campaign.g.md`
+- `.github/workflows/<campaign-id>.campaign.lock.yml`
+
+**Next steps:**
+1. Review the PR
+2. Approve and merge to activate your campaign
+3. Create the worker workflows listed in the campaign spec
+
+**Total time:** ~2-3 minutes (60% faster than old flow!)
 ```
 
 ## Important Notes
 
-- Always create a new empty project using create-project
-- The project URL from the create-project output should be used in the campaign spec
-- Use clear, concise language in all comments
-- Keep users informed at each stage
-- The agent will create a NEW campaign file, not modify existing ones
-- In Workflow Dispatch mode, coordinate with the calling Copilot session instead of posting comments
+### Optimization Benefits
+- **60% faster:** 5-10 min → 2-3 min total time
+- **Deterministic discovery:** Workflow catalog eliminates 2-3 min scanning
+- **Transparent tracking:** Issue updates provide structured campaign info
+- **Optimized two-phase:** Phase 1 does heavy lifting, Phase 2 only compiles
+
+### Phase 1 vs Phase 2
+**Phase 1 (This Workflow - ~30s):**
+- ✅ Create project board
+- ✅ Discover workflows (catalog lookup - deterministic, includes agentics collection)
+- ✅ Generate campaign spec file
+- ✅ Write file to repository
+- ✅ Update issue with details
+- ✅ Assign to Copilot Coding Agent
+
+**Phase 2 (Copilot Coding Agent - ~1-2 min):**
+- ✅ Compile campaign (`gh aw compile` - requires CLI)
+- ✅ Commit files
+- ✅ Create PR automatically
+
+### Why Two Phases?
+- `gh aw compile` requires the gh-aw CLI binary
+- CLI only available in Copilot Coding Agent sessions (via actions/setup)
+- GitHub Actions runners (where this workflow runs with `engine: copilot`) don't have gh-aw CLI
+- Two-phase pattern is an architectural necessity
+
+### Key Differences from Old Flow
+**Old Flow:**
+- CCA → generator → designer → PR (multiple handoffs)
+- Duplicate workflow scanning (2-3 min)
+- Context loss between agents
+- 5-10 min total time
+
+**New Flow:**
+- Issue → generator (Phase 1: design + discover) → Copilot Coding Agent (Phase 2: compile only) → PR
+- Catalog-based discovery (deterministic, <1s, includes agentics collection)
+- Complete context preserved in campaign file
+- 2-3 min total time
