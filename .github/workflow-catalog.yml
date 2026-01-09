@@ -293,3 +293,102 @@ categories:
 # - Categories can be extended as new workflow types emerge
 # - Keywords should be lowercase and cover common search terms
 # - Safe outputs help campaign designers understand workflow capabilities
+
+# External Workflow Collections:
+# Workflows can also be sourced from external collections like the "agentics" collection
+# at https://github.com/githubnext/agentics. When suggesting workflows for campaigns,
+# consider both this repository's workflows and workflows from the agentics collection.
+
+external_collections:
+  agentics:
+    url: https://github.com/githubnext/agentics
+    description: "A sample family of reusable GitHub Agentic Workflows"
+    categories:
+      triage_analysis:
+        description: "Depth triage and analysis workflows"
+        workflows:
+          - id: issue-triage
+            name: "Issue Triage"
+            description: "Triage issues and pull requests"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/issue-triage.md
+          
+          - id: ci-doctor
+            name: "CI Doctor"
+            description: "Monitor CI workflows and investigate failures automatically"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/ci-doctor.md
+          
+          - id: repo-ask
+            name: "Repo Ask"
+            description: "Intelligent research assistant for repository questions and analysis"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/repo-ask.md
+          
+          - id: daily-accessibility-review
+            name: "Daily Accessibility Review"
+            description: "Review application accessibility by automatically running and using the application"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-accessibility-review.md
+          
+          - id: q-workflow-optimizer
+            name: "Q - Workflow Optimizer"
+            description: "Expert system that analyzes and optimizes agentic workflows"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/q.md
+      
+      research_planning:
+        description: "Research, status, and planning workflows"
+        workflows:
+          - id: weekly-research
+            name: "Weekly Research"
+            description: "Collect research updates and industry trends"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/weekly-research.md
+          
+          - id: daily-team-status
+            name: "Daily Team Status"
+            description: "Assess repository activity and create status reports"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-team-status.md
+          
+          - id: daily-plan
+            name: "Daily Plan"
+            description: "Update planning issues for team coordination"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-plan.md
+          
+          - id: plan-command
+            name: "Plan Command"
+            description: "Break down issues into actionable sub-tasks with /plan command"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/plan.md
+      
+      coding_development:
+        description: "Coding and development workflows"
+        workflows:
+          - id: daily-progress
+            name: "Daily Progress"
+            description: "Automated daily feature development following a structured roadmap"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-progress.md
+          
+          - id: daily-dependency-updater
+            name: "Daily Dependency Updater"
+            description: "Update dependencies and create pull requests"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-dependency-updates.md
+          
+          - id: update-docs
+            name: "Regular Documentation Update"
+            description: "Update documentation automatically"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/update-docs.md
+          
+          - id: pr-fix
+            name: "PR Fix"
+            description: "Analyze failing CI checks and implement fixes for pull requests"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/pr-fix.md
+          
+          - id: daily-adhoc-qa
+            name: "Daily Adhoc QA"
+            description: "Perform adhoc explorative quality assurance tasks"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-qa.md
+          
+          - id: daily-test-coverage-improver
+            name: "Daily Test Coverage Improver"
+            description: "Improve test coverage by adding meaningful tests to under-tested areas"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-test-improver.md
+          
+          - id: daily-performance-improver
+            name: "Daily Performance Improver"
+            description: "Analyze and improve code performance through benchmarking and optimization"
+            docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-perf-improver.md

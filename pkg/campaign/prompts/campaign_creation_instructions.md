@@ -30,61 +30,102 @@ Convert campaign names to kebab-case identifiers:
 
 When identifying workflows for a campaign, follow this systematic approach:
 
-1. **List all workflow files:**
+1. **Check the workflow catalog** (`.github/workflow-catalog.yml`):
+   - Query local workflows organized by category
+   - Check external collections like the "agentics" collection
+   - Use keywords to find matching workflows
+
+2. **List all local workflow files:**
    ```bash
    ls .github/workflows/*.md
    ```
 
-2. **Analyze each workflow** to determine fit:
+3. **Analyze each workflow** to determine fit:
    - Read the workflow description (frontmatter `description` field)
    - Check the workflow name and purpose
    - Look at safe-outputs to understand what the workflow does
    - Consider triggers (`on:` field) to understand when it runs
 
-3. **Match workflows to campaign goals:**
+4. **Consider external workflow collections:**
+   
+   **Agentics Collection** (https://github.com/githubnext/agentics):
+   A family of reusable GitHub Agentic Workflows that can be installed in any repository.
+   
+   Categories available:
+   - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
+   - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
+   - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
+   
+   When suggesting workflows, include both local workflows and workflows from the agentics collection.
+
+5. **Match workflows to campaign goals:**
 
    **For security campaigns**, look for:
    - Workflows with "security", "vulnerability", "cve", "scan" in name/description
-   - Examples: `security-scanner`, `security-fix-pr`, `daily-secrets-analysis`
+   - Local examples: `security-scanner`, `security-fix-pr`, `daily-secrets-analysis`
+   - Agentics examples: `ci-doctor` (for CI security), `repo-ask` (for security questions)
    
    **For dependency/upgrade campaigns**, look for:
    - Workflows with "dependency", "upgrade", "update", "version" in name/description
-   - Examples: `dependabot-go-checker`, `daily-workflow-updater`
+   - Local examples: `dependabot-go-checker`, `daily-workflow-updater`
+   - Agentics examples: `daily-dependency-updater`, `pr-fix` (for failing dependencies)
    
    **For documentation campaigns**, look for:
    - Workflows with "doc", "documentation", "guide" in name/description
-   - Examples: `technical-doc-writer`, `docs-quality-maintenance`
+   - Local examples: `technical-doc-writer`, `docs-quality-maintenance`
+   - Agentics examples: `update-docs`, `weekly-research` (for documentation research)
    
    **For code quality campaigns**, look for:
    - Workflows with "quality", "lint", "refactor", "clean" in name/description
-   - Examples: `repository-quality-improver`, `duplicate-code-detector`
+   - Local examples: `repository-quality-improver`, `duplicate-code-detector`
+   - Agentics examples: `daily-test-coverage-improver`, `daily-performance-improver`, `daily-adhoc-qa`
+   
+   **For CI/CD and workflow optimization campaigns**, look for:
+   - Agentics examples: `ci-doctor`, `q-workflow-optimizer`, `pr-fix`
+   
+   **For team coordination campaigns**, look for:
+   - Agentics examples: `daily-team-status`, `daily-plan`, `plan-command`, `issue-triage`
 
-4. **Determine workflow strategy:**
-   - **Use existing**: Workflows that already do what's needed
+6. **Determine workflow strategy:**
+   - **Use existing local**: Workflows in `.github/workflows/` that already do what's needed
+   - **Use existing from agentics**: Workflows from the agentics collection that can be installed
    - **Suggest new**: Workflows that need to be created
-   - **Combination**: Mix of existing and new workflows
+   - **Combination**: Mix of local, agentics, and new workflows
 
-5. **Suggest 2-4 workflows total** (existing + new)
+7. **Suggest 2-4 workflows total** (local + agentics + new)
 
 ### Common Workflow Patterns
 
 **Scanner workflows**: Identify issues (e.g., "security-scanner", "outdated-deps-scanner")
-**Fixer workflows**: Create PRs (e.g., "vulnerability-fixer", "dependency-updater")
-**Reporter workflows**: Generate summaries (e.g., "campaign-reporter", "progress-tracker")
+**Fixer workflows**: Create PRs (e.g., "vulnerability-fixer", "dependency-updater", "pr-fix")
+**Reporter workflows**: Generate summaries (e.g., "campaign-reporter", "progress-tracker", "daily-team-status")
 **Coordinator workflows**: Manage orchestration (auto-generated)
+**Triage workflows**: Organize and prioritize work (e.g., "issue-triage", "plan-command")
 
 ### Examples
 
 **For "Migrate to Node 20" campaign:**
-- Existing: `dependabot-go-checker.md` (can adapt for Node.js)
+- Local existing: `dependabot-go-checker.md` (can adapt for Node.js)
+- Agentics: `daily-dependency-updater` (from agentics collection)
 - New: `node-version-scanner` - Finds repos still on Node 16
-- New: `node-updater` - Creates PRs to update Node version
-- Existing: `daily-workflow-updater.md` (tracks progress)
+- Agentics: `pr-fix` (from agentics collection - fixes failing PRs during migration)
 
 **For "Security Q1 2025" campaign:**
-- Existing: `security-scanner.md`, `security-fix-pr.md`
-- Existing: `daily-secrets-analysis.md`
+- Local existing: `security-scanner.md`, `security-fix-pr.md`, `daily-secrets-analysis.md`
+- Agentics: `ci-doctor` (from agentics collection - monitors CI for security issues)
 - New: `security-reporter` - Weekly security posture reports
+
+**For "Improve Code Quality" campaign:**
+- Agentics: `daily-test-coverage-improver` (from agentics collection)
+- Agentics: `daily-performance-improver` (from agentics collection)
+- Agentics: `daily-adhoc-qa` (from agentics collection)
+- Local existing: `repository-quality-improver`
+
+**For "Team Coordination" campaign:**
+- Agentics: `issue-triage` (from agentics collection)
+- Agentics: `daily-team-status` (from agentics collection)
+- Agentics: `daily-plan` (from agentics collection)
+- Agentics: `plan-command` (from agentics collection)
 
 ---
 
