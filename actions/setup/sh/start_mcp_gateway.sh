@@ -57,11 +57,13 @@ echo "Gateway started with PID: $GATEWAY_PID"
 echo ""
 
 # Wait for gateway to be ready using /health endpoint
+# Note: The gateway runs with --network host, so we use localhost for health checks
+# (host.docker.internal is only resolvable from inside a container)
 echo "Waiting for gateway to be ready..."
 MAX_ATTEMPTS=30
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  if curl -f -s "http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health" > /dev/null 2>&1; then
+  if curl -f -s "http://localhost:${MCP_GATEWAY_PORT}/health" > /dev/null 2>&1; then
     echo "Gateway is ready!"
     break
   fi
