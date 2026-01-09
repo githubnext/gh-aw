@@ -84,8 +84,8 @@ func TestMCPGatewayVersionConstantValue(t *testing.T) {
 		"DefaultMCPGatewayVersion should be valid")
 }
 
-// TestMCPGatewayDebugEnvironmentVariable tests that DEBUG is handled by the shell script
-// DEBUG="*" is set directly in start_mcp_gateway.sh and not in the generated YAML
+// TestMCPGatewayDebugEnvironmentVariable tests that DEBUG is included in the container command
+// DEBUG="*" enables debug logging in the MCP gateway and is added by the Go code
 func TestMCPGatewayDebugEnvironmentVariable(t *testing.T) {
 	// Create a minimal workflow data structure
 	workflowData := &WorkflowData{
@@ -107,14 +107,8 @@ func TestMCPGatewayDebugEnvironmentVariable(t *testing.T) {
 	var yaml strings.Builder
 	generateMCPGatewayStepInline(&yaml, engine, workflowData)
 
-	// Verify the output does NOT contain the DEBUG environment variable export
-	// (it's now hardcoded in the shell script instead)
+	// Verify the output contains DEBUG in the docker container command
 	output := yaml.String()
-	assert.NotContains(t, output, "export DEBUG=\"*\"",
-		"Generated YAML should not contain DEBUG environment variable export (it's in the shell script)")
-
-	// Verify the output does NOT contain DEBUG in the docker run command
-	// (it's now hardcoded in the shell script instead)
-	assert.NotContains(t, output, "-e DEBUG",
-		"Generated YAML should not pass DEBUG to the docker container (it's in the shell script)")
+	assert.Contains(t, output, `-e DEBUG="*"`,
+		"Generated YAML should pass DEBUG to the docker container for debug logging")
 }
