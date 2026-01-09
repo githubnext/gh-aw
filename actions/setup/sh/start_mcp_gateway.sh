@@ -87,7 +87,6 @@ echo ""
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
 # Note: MCP_GATEWAY_CONTAINER is the full docker command with all flags and image
-# Environment variables (including DEBUG) are configured in the Go code that builds this command
 cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_CONTAINER \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
