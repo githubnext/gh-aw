@@ -23,16 +23,6 @@ Imagine a software repository where AI agents work alongside your team - not rep
 
 Think of this as an incubation lab where each agent has its own mode of operation, needs, and interactions. Some are simple read-only analysts. Others proactively propose changes through pull requests. A few are meta-agents that monitor and improve the health of all the other workflows.
 
-## The Factory at a Glance
-
-- **145 total workflows** demonstrating diverse agent patterns
-- **12 core design patterns** consolidating all observed behaviors
-- **9 operational patterns** for GitHub-native agent orchestration
-- **128 workflows** in the main [`gh-aw`](https://github.com/githubnext/gh-aw) repository
-- **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
-- **Dozens of MCP servers** integrated for specialized capabilities
-- **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
-
 ## Explore the Factory
 
 We've documented our journey through a series of detailed articles:
@@ -58,6 +48,16 @@ Rather than trying to build one "perfect" agent, we took a gardener's approach:
 4. **Share the knowledge** - Catalog the structures that made agents safe and effective
 
 The factory becomes both an experiment and a reference collection - a living library of patterns that others can study, adapt, and remix.
+
+## The Factory at a Glance
+
+- **145 total workflows** demonstrating diverse agent patterns
+- **12 core design patterns** consolidating all observed behaviors
+- **9 operational patterns** for GitHub-native agent orchestration
+- **128 workflows** in the main [`gh-aw`](https://github.com/githubnext/gh-aw) repository
+- **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
+- **Dozens of MCP servers** integrated for specialized capabilities
+- **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
 
 ## Try It Yourself
 
