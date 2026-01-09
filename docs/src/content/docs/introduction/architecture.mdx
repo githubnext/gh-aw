@@ -185,6 +185,15 @@ network:
     - "api.example.com"  # Custom domain
 ```
 
+## gh-aw-mcpg gateway + AWF (Copilot)
+
+- **Provisioned for you:** When you compile a workflow with `engine: copilot` and `sandbox.agent: awf`, the compiler starts the `gh-aw-mcpg` gateway on the host, launches the AWF Squid proxy and agent containers, and injects MCP client config that points the agent to the gateway.
+- **Default servers:** The gateway includes GitHub, fetch, and memory MCP servers; add more via `mcp-servers:` in frontmatter.
+- **Network control:** All agent traffic egresses through AWF; the `network.allowed` list in frontmatter is the enforcement point.
+- **Host access is opt-in:** The firewall only exposes `host.docker.internal` when explicitly allowed, preventing accidental host reachability.
+- **Credential separation:** Use distinct PATs—`GITHUB_TOKEN` for Copilot and `GITHUB_PERSONAL_ACCESS_TOKEN` for the GitHub MCP server—with least-privilege scopes.
+- **Auditing:** Firewall logs capture CONNECT attempts and allow/deny decisions; review them when tightening allowlists.
+
 ## MCP Server Sandboxing
 
 Model Context Protocol (MCP) servers run in isolated containers with explicit tool filtering, preventing unauthorized access and limiting the attack surface.
