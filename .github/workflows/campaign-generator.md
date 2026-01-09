@@ -2,7 +2,8 @@
 description: Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
 on:
   issues:
-    types: [opened]
+    types: [labeled]
+    names: ["create-agentic-campaign"]
     lock-for-agent: true
   workflow_dispatch:
   reaction: "eyes"
@@ -14,7 +15,6 @@ engine: copilot
 tools:
   github:
     toolsets: [default]
-if: startsWith(github.event.issue.title, '[New Agentic Campaign]') || github.event_name == 'workflow_dispatch'
 safe-outputs:
   add-comment:
     max: 10
@@ -219,9 +219,9 @@ Agents in this campaign should:
 
 Use the `update-issue` safe output to update issue #${{ github.event.issue.number }}:
 
-**Update the title:**
+**Update the title** (if needed to add campaign name):
 ```
-[New Agentic Campaign] <campaign-name>
+<campaign-name>
 ```
 
 **Update the body** with formatted campaign information:

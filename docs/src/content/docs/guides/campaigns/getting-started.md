@@ -102,14 +102,14 @@ Enable repo-memory for campaigns using this layout: `memory/campaigns/<campaign-
 
 ## Automated campaign creation
 
-For a more streamlined experience, you can use the automated campaign creation flow. Create an issue with the title prefix `[New Agentic Campaign]` followed by your campaign name.
+For a more streamlined experience, you can use the automated campaign creation flow. Create an issue and apply the `create-agentic-campaign` label to trigger the campaign generator.
 
 ### How it works (Two-Phase Flow)
 
 The campaign creation process uses an optimized two-phase architecture:
 
 **Phase 1 - Campaign Generator Workflow** (~30 seconds):
-1. Automatically triggered when you create an issue with `[New Agentic Campaign]` prefix
+1. Automatically triggered when you apply the `create-agentic-campaign` label to an issue
 2. Creates a GitHub Project board for your campaign
 3. Discovers relevant workflows from the local repository and the [agentics collection](https://github.com/githubnext/agentics)
 4. Generates the complete campaign specification (`.github/workflows/<id>.campaign.md`)
@@ -130,14 +130,16 @@ The campaign creation process uses an optimized two-phase architecture:
 
 **Option 1: Simple issue creation**
 1. Go to Issues → New Issue
-2. Set title to: `[New Agentic Campaign] Your Campaign Name`
-3. In the issue body, describe your campaign goal (e.g., "Upgrade all services to Node.js 20" or "Improve test coverage across repositories")
-4. Submit the issue
+2. Set a descriptive title for your campaign (e.g., "Upgrade all services to Node.js 20")
+3. In the issue body, describe your campaign goal, scope, and requirements
+4. Apply the `create-agentic-campaign` label to the issue
+5. The campaign generator will automatically trigger
 
 **Option 2: Using issue forms (if configured)**
 1. Go to Issues → New Issue → Select "🚀 Start an Agentic Campaign" template
 2. Fill in the form fields
-3. Submit the issue
+3. The issue form will automatically apply the `create-agentic-campaign` label
+4. Submit the issue
 
 ### Workflow Discovery
 
