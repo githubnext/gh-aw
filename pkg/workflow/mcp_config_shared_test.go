@@ -103,8 +103,9 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			isLast: false,
 			wantContains: []string{
 				`"safeoutputs": {`,
-				`"command": "node"`,
-				`"/opt/gh-aw/safeoutputs/mcp-server.cjs"`,
+				`"container": "node:lts-alpine"`,
+				`"entrypoint": "node"`,
+				`"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				`"GH_AW_SAFE_OUTPUTS"`,
 				`"GH_AW_ASSETS_BRANCH"`,
 				`"GH_AW_ASSETS_MAX_SIZE_KB"`,
@@ -117,7 +118,8 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			isLast: true,
 			wantContains: []string{
 				`"safeoutputs": {`,
-				`"command": "node"`,
+				`"container": "node:lts-alpine"`,
+				`"entrypoint": "node"`,
 				`"GH_AW_SAFE_OUTPUTS"`,
 			},
 			wantEnding: "}\n",

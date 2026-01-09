@@ -464,36 +464,59 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 
-	// If MCP gateway is enabled, add gateway start logic to the same step
-	if shouldGenerateMCPGateway(workflowData) {
-		generateMCPGatewayStepInline(yaml, engine, workflowData)
-	}
+	// MCP gateway is now mandatory - always add gateway start logic
+	// Ensure default MCP configuration is set if not provided
+	ensureDefaultMCPGatewayConfig(workflowData)
+	generateMCPGatewayStepInline(yaml, engine, workflowData)
 }
 
-// shouldGenerateMCPGateway checks if MCP gateway should be generated
-func shouldGenerateMCPGateway(workflowData *WorkflowData) bool {
-	// Check if feature flag is enabled
-	if !isFeatureEnabled(constants.MCPGatewayFeatureFlag, workflowData) {
-		return false
+// ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
+// The MCP gateway is mandatory and defaults to GitHubnext/gh-aw-mcpg
+func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
 	}
 
-	// Check if sandbox.mcp is configured
-	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.MCP == nil {
-		return false
+	// Ensure SandboxConfig exists
+	if workflowData.SandboxConfig == nil {
+		workflowData.SandboxConfig = &SandboxConfig{}
 	}
 
-	return true
+	// Ensure MCP gateway config exists with defaults
+	if workflowData.SandboxConfig.MCP == nil {
+		mcpServersLog.Print("No MCP gateway configuration found, setting default configuration")
+		workflowData.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+			Container: constants.DefaultMCPGatewayContainer,
+			Version:   string(constants.DefaultMCPGatewayVersion),
+			Port:      int(DefaultMCPGatewayPort),
+		}
+	} else {
+		// Fill in defaults for missing fields
+		if workflowData.SandboxConfig.MCP.Container == "" {
+			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
+		}
+		if workflowData.SandboxConfig.MCP.Version == "" {
+			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
+		}
+		if workflowData.SandboxConfig.MCP.Port == 0 {
+			workflowData.SandboxConfig.MCP.Port = int(DefaultMCPGatewayPort)
+		}
+	}
 }
 
 // generateMCPGatewayStepInline generates the MCP gateway start logic inline in the Setup MCPs step
 // This adds the gateway configuration and start commands after the MCP config is generated
 // Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
+// The MCP gateway is now mandatory and defaults to GitHubnext/gh-aw-mcpg.
 func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngine, workflowData *WorkflowData) {
+	// Ensure default configuration is set
+	ensureDefaultMCPGatewayConfig(workflowData)
+
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	mcpServersLog.Printf("Adding MCP gateway start to Setup MCPs step: container=%s, port=%d",
 		gatewayConfig.Container, gatewayConfig.Port)
 
-	// Default values per specification
+	// Default values per specification (should already be set by ensureDefaultMCPGatewayConfig)
 	port := gatewayConfig.Port
 	if port == 0 {
 		port = int(DefaultMCPGatewayPort)
@@ -542,20 +565,13 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 		}
 	}
 
-	// Validate that container is specified
-	if gatewayConfig.Container == "" {
-		mcpServersLog.Print("ERROR: No container specified for MCP gateway")
-		yaml.WriteString("          echo 'ERROR: sandbox.mcp must specify container (command-based execution is not supported)'\n")
-		yaml.WriteString("          exit 1\n")
-		return
-	}
-
+	// Container is now always set by ensureDefaultMCPGatewayConfig
 	// Build container image with version
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
 		containerImage += ":" + gatewayConfig.Version
 	} else {
-		// Use default version if not specified
+		// Use default version if not specified (should already be set)
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 

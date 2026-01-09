@@ -129,8 +129,9 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"safeoutputs": {`,
 				`"type": "local"`,
-				`"command": "node"`,
-				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
+				`"container": "node:lts-alpine"`,
+				`"entrypoint": "node"`,
+				`"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				`"tools": ["*"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
@@ -139,6 +140,8 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`              }`,
 			},
 			unexpectedContent: []string{
+				`"command": "node"`,
+				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				`${{ env.`,
 			},
 		},
@@ -148,8 +151,9 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"safeoutputs": {`,
-				`"command": "node"`,
-				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
+				`"container": "node:lts-alpine"`,
+				`"entrypoint": "node"`,
+				`"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				// Security fix: Now uses shell variables instead of GitHub expressions
 				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
 				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH"`,
@@ -159,6 +163,8 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
+				`"command": "node"`,
+				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				`\\${`,
 				// Verify GitHub expressions are NOT in the output (security fix)
 				`${{ env.`,
@@ -334,13 +340,16 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 
 	expectedContent := []string{
 		`[mcp_servers.safeoutputs]`,
-		`command = "node"`,
-		`args = [`,
-		`"/opt/gh-aw/safeoutputs/mcp-server.cjs"`,
+		`container = "node:lts-alpine"`,
+		`entrypoint = "node"`,
+		`entrypointArgs = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
+		`mounts = ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw"]`,
 		`env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]`,
 	}
 
 	unexpectedContent := []string{
+		`command = "node"`,
+		`args = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
 		`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
 		`${{ toJSON(`,
 		`env = {`, // Should use env_vars instead
