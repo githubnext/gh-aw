@@ -10,19 +10,6 @@ import (
 
 var codemodsLog = logger.New("cli:codemods")
 
-const (
-	// Migration comment for network.firewall to sandbox.agent
-	sandboxAgentComment = "# Firewall disabled (migrated from network.firewall)"
-)
-
-// getSandboxAgentFalseLines returns the standard lines for adding sandbox.agent: false
-func getSandboxAgentFalseLines() []string {
-	return []string{
-		"sandbox:",
-		"  agent: false  " + sandboxAgentComment,
-	}
-}
-
 // Codemod represents a single code transformation that can be applied to workflow files
 type Codemod struct {
 	ID           string // Unique identifier for the codemod
@@ -904,7 +891,7 @@ func getSandboxAgentFalseRemovalCodemod() Codemod {
 
 				if inSandboxBlock {
 					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-					
+
 					// Check if we've left the sandbox block
 					if len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") && len(currentIndent) <= len(sandboxIndent) && strings.Contains(line, ":") {
 						inSandboxBlock = false
@@ -930,11 +917,7 @@ func getSandboxAgentFalseRemovalCodemod() Codemod {
 				codemodsLog.Print("Removed empty sandbox block")
 			} else {
 				// Use the sandbox: line from frontmatterLines
-				finalLines := make([]string, 0, len(frontmatterLines))
-				for _, line := range frontmatterLines {
-					finalLines = append(finalLines, line)
-				}
-				cleanedLines = finalLines
+				cleanedLines = append([]string{}, frontmatterLines...)
 			}
 
 			// Reconstruct the content

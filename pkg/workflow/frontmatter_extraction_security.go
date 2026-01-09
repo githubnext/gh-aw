@@ -169,7 +169,7 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	// Check for new format: { agent: ..., mcp: ... }
 	if agentVal, hasAgent := sandboxObj["agent"]; hasAgent {
 		frontmatterExtractionSecurityLog.Print("Extracting agent sandbox configuration")
-		
+
 		// Check if agent is set to false (boolean) - this is no longer supported
 		if agentBool, ok := agentVal.(bool); ok && !agentBool {
 			// Return a marker config that will be caught during validation
@@ -179,7 +179,7 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 				},
 			}
 		}
-		
+
 		config.Agent = c.extractAgentSandboxConfig(agentVal)
 	}
 
