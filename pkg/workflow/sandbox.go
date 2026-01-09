@@ -238,3 +238,28 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 	sandboxLog.Printf("Generated SRT config: %s", string(jsonBytes))
 	return string(jsonBytes), nil
 }
+
+// applySandboxDefaults applies default values to sandbox configuration
+// If no sandbox config exists, creates one with awf as default agent
+// If sandbox config exists but has no agent, sets agent to awf
+func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConfig) *SandboxConfig {
+	// If no sandbox config exists, create one with awf as default
+	if sandboxConfig == nil {
+		sandboxLog.Print("No sandbox config found, creating default with agent: awf")
+		return &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		}
+	}
+
+	// If sandbox config exists but has no agent, set agent to awf
+	if sandboxConfig.Agent == nil {
+		sandboxLog.Print("Sandbox config exists without agent, setting default agent: awf")
+		sandboxConfig.Agent = &AgentSandboxConfig{
+			Type: SandboxTypeAWF,
+		}
+	}
+
+	return sandboxConfig
+}

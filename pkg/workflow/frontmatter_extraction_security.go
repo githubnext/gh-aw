@@ -169,6 +169,17 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	// Check for new format: { agent: ..., mcp: ... }
 	if agentVal, hasAgent := sandboxObj["agent"]; hasAgent {
 		frontmatterExtractionSecurityLog.Print("Extracting agent sandbox configuration")
+		
+		// Check if agent is set to false (boolean) - this is no longer supported
+		if agentBool, ok := agentVal.(bool); ok && !agentBool {
+			// Return a marker config that will be caught during validation
+			return &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Disabled: true, // This will be caught by validation
+				},
+			}
+		}
+		
 		config.Agent = c.extractAgentSandboxConfig(agentVal)
 	}
 
@@ -200,15 +211,9 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 
 // extractAgentSandboxConfig extracts agent sandbox configuration
 func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
-	// Handle boolean format: false (to disable firewall)
-	if agentBool, ok := agentVal.(bool); ok {
-		if !agentBool {
-			// agent: false means disable firewall
-			return &AgentSandboxConfig{
-				Disabled: true,
-			}
-		}
-		// agent: true is not a valid configuration
+	// Handle boolean format: REJECTED - sandbox.agent: false is no longer supported
+	if _, ok := agentVal.(bool); ok {
+		// Both true and false are invalid - must use string or object format
 		return nil
 	}
 

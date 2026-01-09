@@ -519,6 +519,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		SecretMasking:       secretMasking,
 	}
 
+	// Apply defaults to sandbox config
+	workflowData.SandboxConfig = applySandboxDefaults(workflowData.SandboxConfig, engineConfig)
+
 	// Use shared action cache and resolver from the compiler
 	// This ensures cache is shared across all workflows during compilation
 	actionCache, actionResolver := c.getSharedActionResolver()
