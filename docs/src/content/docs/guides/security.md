@@ -190,6 +190,22 @@ roles: all                         # High risk in public repos
 
 Permission checks occur at runtime. Failed checks auto-cancel with warnings. Use `roles: all` with caution.
 
+## AW Security Response owner set
+
+Each repository has a named security maintainer to triage and patch
+issues quickly:
+
+| Repository       | Owner       |
+| ---------------- | ----------- |
+| `gh-aw-firewall` | @mossaka    |
+| `gh-aw`          | @pelikhan   |
+| `gh-aw-mcpg`     | @lpcox      |
+
+:::note
+Owners are accountable for acknowledging security alerts and driving
+remediation end to end.
+:::
+
 ### Authorization and Token Management
 
 Token precedence (highest to lowest): individual safe-output `github-token` → safe-outputs global → top-level → default (`${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`).
