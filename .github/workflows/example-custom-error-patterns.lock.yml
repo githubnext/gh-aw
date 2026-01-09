@@ -160,7 +160,7 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {

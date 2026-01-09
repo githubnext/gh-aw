@@ -388,7 +388,7 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {
@@ -399,7 +399,7 @@ jobs:
                 }
               },
               "playwright": {
-                "type": "local",
+                "type": "stdio",
                 "container": "mcr.microsoft.com/playwright/mcp",
                 "args": ["--init", "--network", "host"],
                 "entrypointArgs": ["--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*"],
@@ -407,7 +407,7 @@ jobs:
                 "tools": ["*"]
               },
               "safeoutputs": {
-                "type": "local",
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],

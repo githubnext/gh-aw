@@ -445,7 +445,7 @@ jobs:
           {
             "mcpServers": {
               "arxiv": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "search_arxiv",
@@ -460,7 +460,7 @@ jobs:
                 ]
               },
               "ast-grep": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "*"
@@ -473,7 +473,7 @@ jobs:
                 ]
               },
               "brave-search": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "*"
@@ -491,7 +491,7 @@ jobs:
                 }
               },
               "context7": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "get-library-docs",
@@ -539,7 +539,7 @@ jobs:
                 ]
               },
               "fabric-rti": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "kusto_known_services",
@@ -586,7 +586,7 @@ jobs:
                 ]
               },
               "github": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {
@@ -597,14 +597,14 @@ jobs:
                 }
               },
               "markitdown": {
-                "type": "local",
+                "type": "stdio",
                 "command": "markitdown-mcp",
                 "tools": [
                   "*"
                 ]
               },
               "memory": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "store_memory",
@@ -629,7 +629,7 @@ jobs:
                 ]
               },
               "notion": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "search_pages",
@@ -650,7 +650,7 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "local",
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
@@ -672,7 +672,7 @@ jobs:
                 }
               },
               "sentry": {
-                "type": "local",
+                "type": "stdio",
                 "command": "docker",
                 "tools": [
                   "whoami",
@@ -713,7 +713,7 @@ jobs:
                 }
               },
               "serena": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/oraios/serena:latest",
                 "args": ["--network", "host"],
                 "entrypoint": "serena",

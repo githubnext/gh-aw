@@ -389,7 +389,7 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {
@@ -400,7 +400,7 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "local",
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
@@ -422,7 +422,7 @@ jobs:
                 }
               },
               "serena": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/oraios/serena:latest",
                 "args": ["--network", "host"],
                 "entrypoint": "serena",

@@ -434,7 +434,7 @@ jobs:
           {
             "mcpServers": {
               "agentic_workflows": {
-                "type": "local",
+                "type": "stdio",
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
                 "tools": ["*"],
@@ -443,7 +443,7 @@ jobs:
                 }
               },
               "github": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {
@@ -454,7 +454,7 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "local",
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],

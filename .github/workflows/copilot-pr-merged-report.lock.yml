@@ -455,7 +455,7 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "local",
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],

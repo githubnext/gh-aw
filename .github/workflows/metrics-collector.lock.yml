@@ -195,7 +195,7 @@ jobs:
           {
             "mcpServers": {
               "agentic_workflows": {
-                "type": "local",
+                "type": "stdio",
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
                 "tools": ["*"],
