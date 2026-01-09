@@ -428,7 +428,6 @@ jobs:
           {
             "mcpServers": {
               "arxiv": {
-                "type": "stdio",
                 "command": "docker",
                 "args": [
                   "run",
@@ -438,7 +437,6 @@ jobs:
                 ]
               },
               "context7": {
-                "type": "stdio",
                 "command": "docker",
                 "args": [
                   "run",
@@ -453,7 +451,6 @@ jobs:
                 }
               },
               "deepwiki": {
-                "type": "http",
                 "url": "https://mcp.deepwiki.com/sse"
               },
               "github": {
@@ -477,11 +474,9 @@ jobs:
                 }
               },
               "markitdown": {
-                "type": "stdio",
                 "command": "markitdown-mcp"
               },
               "microsoftdocs": {
-                "type": "http",
                 "url": "https://learn.microsoft.com/api/mcp"
               },
               "safeoutputs": {
@@ -505,7 +500,6 @@ jobs:
                 }
               },
               "tavily": {
-                "type": "http",
                 "url": "https://mcp.tavily.com/mcp/",
                 "headers": {
                   "Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}"

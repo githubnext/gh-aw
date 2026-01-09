@@ -370,7 +370,6 @@ jobs:
           {
             "mcpServers": {
               "ast-grep": {
-                "type": "stdio",
                 "command": "docker",
                 "args": [
                   "run",
