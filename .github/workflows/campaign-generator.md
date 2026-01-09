@@ -8,7 +8,7 @@ on:
   reaction: "eyes"
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: copilot
 tools:
