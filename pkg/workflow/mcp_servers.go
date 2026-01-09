@@ -539,7 +539,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Add volume mounts
 	if len(gatewayConfig.Mounts) > 0 {
 		for _, mount := range gatewayConfig.Mounts {
-			containerCmd += " -v " + shellQuote(mount)
+			containerCmd += " -v " + mount
 		}
 	}
 

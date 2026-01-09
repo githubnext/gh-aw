@@ -71,7 +71,7 @@ func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 			expectedInCmd: []string{
 				"-v /opt:/opt:ro",
 				"-v /tmp:/tmp:rw",
-				"-v '${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw'",
+				"-v ${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
 			},
 		},
 		{
@@ -80,7 +80,7 @@ func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 				"/path with spaces:/container:ro",
 			},
 			expectedInCmd: []string{
-				"-v '/path with spaces:/container:ro'",
+				"-v /path with spaces:/container:ro",
 			},
 		},
 		{
@@ -102,10 +102,10 @@ func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 			containerImage := gatewayConfig.Container + ":" + gatewayConfig.Version
 			containerCmd := "docker run -i --rm --network host"
 			
-			// Add volume mounts
+			// Add volume mounts (not individually quoted since entire command will be quoted)
 			if len(gatewayConfig.Mounts) > 0 {
 				for _, mount := range gatewayConfig.Mounts {
-					containerCmd += " -v " + shellQuote(mount)
+					containerCmd += " -v " + mount
 				}
 			}
 			
