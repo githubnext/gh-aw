@@ -524,7 +524,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 	
 	containerCmd := "docker run -i --rm --network host"
-	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG=\"*\""
+	containerCmd += " -e DEBUG=\"*\""
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {
