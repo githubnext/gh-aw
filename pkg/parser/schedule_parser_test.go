@@ -145,6 +145,88 @@ func TestParseSchedule(t *testing.T) {
 			expectedOrig: "daily around noon utc+2",
 		},
 
+		// Daily between schedules (fuzzy with time range)
+		{
+			name:         "daily between 9:00 and 17:00",
+			input:        "daily between 9:00 and 17:00",
+			expectedCron: "FUZZY:DAILY_BETWEEN:9:0:17:0 * * *",
+			expectedOrig: "daily between 9:00 and 17:00",
+		},
+		{
+			name:         "daily between 9am and 5pm",
+			input:        "daily between 9am and 5pm",
+			expectedCron: "FUZZY:DAILY_BETWEEN:9:0:17:0 * * *",
+			expectedOrig: "daily between 9am and 5pm",
+		},
+		{
+			name:         "daily between midnight and noon",
+			input:        "daily between midnight and noon",
+			expectedCron: "FUZZY:DAILY_BETWEEN:0:0:12:0 * * *",
+			expectedOrig: "daily between midnight and noon",
+		},
+		{
+			name:         "daily between noon and midnight",
+			input:        "daily between noon and midnight",
+			expectedCron: "FUZZY:DAILY_BETWEEN:12:0:0:0 * * *",
+			expectedOrig: "daily between noon and midnight",
+		},
+		{
+			name:         "daily between 22:00 and 02:00",
+			input:        "daily between 22:00 and 02:00",
+			expectedCron: "FUZZY:DAILY_BETWEEN:22:0:2:0 * * *",
+			expectedOrig: "daily between 22:00 and 02:00",
+		},
+		{
+			name:         "daily between 10pm and 2am",
+			input:        "daily between 10pm and 2am",
+			expectedCron: "FUZZY:DAILY_BETWEEN:22:0:2:0 * * *",
+			expectedOrig: "daily between 10pm and 2am",
+		},
+		{
+			name:         "daily between 8:30 and 18:45",
+			input:        "daily between 8:30 and 18:45",
+			expectedCron: "FUZZY:DAILY_BETWEEN:8:30:18:45 * * *",
+			expectedOrig: "daily between 8:30 and 18:45",
+		},
+		{
+			name:         "daily between 9am utc-5 and 5pm utc-5",
+			input:        "daily between 9am utc-5 and 5pm utc-5",
+			expectedCron: "FUZZY:DAILY_BETWEEN:14:0:22:0 * * *",
+			expectedOrig: "daily between 9am utc-5 and 5pm utc-5",
+		},
+		{
+			name:         "daily between 8:00 utc+9 and 17:00 utc+9",
+			input:        "daily between 8:00 utc+9 and 17:00 utc+9",
+			expectedCron: "FUZZY:DAILY_BETWEEN:23:0:8:0 * * *",
+			expectedOrig: "daily between 8:00 utc+9 and 17:00 utc+9",
+		},
+
+		// Daily between error cases
+		{
+			name:           "daily between missing and",
+			input:          "daily between 9:00 17:00 extra",
+			shouldError:    true,
+			errorSubstring: "missing 'and' keyword",
+		},
+		{
+			name:           "daily between missing end time",
+			input:          "daily between 9:00 and",
+			shouldError:    true,
+			errorSubstring: "invalid 'between' format",
+		},
+		{
+			name:           "daily between same time",
+			input:          "daily between 9:00 and 9:00",
+			shouldError:    true,
+			errorSubstring: "start and end times cannot be the same",
+		},
+		{
+			name:           "daily between incomplete",
+			input:          "daily between 9:00",
+			shouldError:    true,
+			errorSubstring: "invalid 'between' format",
+		},
+
 		// Hourly schedules
 		{
 			name:         "hourly",
@@ -1193,6 +1275,143 @@ func TestIsWeeklyCron(t *testing.T) {
 				t.Errorf("IsWeeklyCron(%q) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestScatterScheduleDailyBetween(t *testing.T) {
+	tests := []struct {
+		name               string
+		fuzzyCron          string
+		workflowIdentifier string
+		startHour          int
+		startMinute        int
+		endHour            int
+		endMinute          int
+		expectError        bool
+	}{
+		{
+			name:               "valid fuzzy daily between 9am-5pm",
+			fuzzyCron:          "FUZZY:DAILY_BETWEEN:9:0:17:0 * * *",
+			workflowIdentifier: "workflow1",
+			startHour:          9,
+			startMinute:        0,
+			endHour:            17,
+			endMinute:          0,
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy daily between 8:30-18:45",
+			fuzzyCron:          "FUZZY:DAILY_BETWEEN:8:30:18:45 * * *",
+			workflowIdentifier: "workflow2",
+			startHour:          8,
+			startMinute:        30,
+			endHour:            18,
+			endMinute:          45,
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy daily between midnight-noon",
+			fuzzyCron:          "FUZZY:DAILY_BETWEEN:0:0:12:0 * * *",
+			workflowIdentifier: "workflow3",
+			startHour:          0,
+			startMinute:        0,
+			endHour:            12,
+			endMinute:          0,
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy daily between 22:00-02:00 (crossing midnight)",
+			fuzzyCron:          "FUZZY:DAILY_BETWEEN:22:0:2:0 * * *",
+			workflowIdentifier: "workflow4",
+			startHour:          22,
+			startMinute:        0,
+			endHour:            2,
+			endMinute:          0,
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy daily between noon-midnight",
+			fuzzyCron:          "FUZZY:DAILY_BETWEEN:12:0:0:0 * * *",
+			workflowIdentifier: "workflow5",
+			startHour:          12,
+			startMinute:        0,
+			endHour:            0,
+			endMinute:          0,
+			expectError:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ScatterSchedule(tt.fuzzyCron, tt.workflowIdentifier)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			// Check that result is a valid cron expression
+			if !IsCronExpression(result) {
+				t.Errorf("ScatterSchedule returned invalid cron: %s", result)
+			}
+			// Check that result is daily pattern
+			if !IsDailyCron(result) {
+				t.Errorf("ScatterSchedule returned non-daily cron: %s", result)
+			}
+
+			// Parse the returned cron to check it's within the range
+			fields := strings.Fields(result)
+			minute, _ := strconv.Atoi(fields[0])
+			hour, _ := strconv.Atoi(fields[1])
+
+			// Calculate time in minutes
+			resultMinutes := hour*60 + minute
+			startMinutes := tt.startHour*60 + tt.startMinute
+			endMinutes := tt.endHour*60 + tt.endMinute
+
+			// Check if result is within the range
+			inRange := false
+			if endMinutes > startMinutes {
+				// Normal case: range within a single day
+				inRange = resultMinutes >= startMinutes && resultMinutes < endMinutes
+			} else {
+				// Range crosses midnight
+				inRange = resultMinutes >= startMinutes || resultMinutes < endMinutes
+			}
+
+			if !inRange {
+				t.Errorf("Scattered time %d:%02d is not within range %d:%02d to %d:%02d",
+					hour, minute, tt.startHour, tt.startMinute, tt.endHour, tt.endMinute)
+			}
+		})
+	}
+}
+
+func TestScatterScheduleDailyBetweenDeterministic(t *testing.T) {
+	// Test that scattering is deterministic - same input produces same output
+	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
+
+	results := make([]string, len(workflows))
+	for i, wf := range workflows {
+		cron, err := ScatterSchedule("FUZZY:DAILY_BETWEEN:9:0:17:0 * * *", wf)
+		if err != nil {
+			t.Fatalf("ScatterSchedule failed for workflow %s: %v", wf, err)
+		}
+		results[i] = cron
+	}
+
+	// Check that workflow-a (index 0 and 3) got the same result
+	if results[0] != results[3] {
+		t.Errorf("Same workflow produced different schedules: %s vs %s", results[0], results[3])
+	}
+
+	// Check that different workflows got different results (with high probability)
+	if results[0] == results[1] && results[1] == results[2] {
+		t.Logf("Warning: All different workflows got the same schedule (unlikely but possible): %s", results[0])
 	}
 }
 
