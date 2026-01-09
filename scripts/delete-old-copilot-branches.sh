@@ -3,7 +3,7 @@
 #
 # This script identifies copilot/* branches that:
 # - Have a closed or merged PR, OR have no PR at all
-# - Last commit is at least 1 day old
+# - Last commit is at least 7 days old
 #
 # The script outputs git commands to delete these branches.
 #
@@ -62,12 +62,12 @@ if ! gh auth status &> /dev/null; then
     exit 1
 fi
 
-echo "Finding copilot/* branches with closed/merged PRs or no PR (last commit 1+ day old)..."
+echo "Finding copilot/* branches with closed/merged PRs or no PR (last commit 7+ days old)..."
 echo ""
 
 # Get current time in seconds since epoch
 current_time=$(date +%s)
-one_day_ago=$((current_time - 86400))
+seven_days_ago=$((current_time - 604800))
 
 # Track branches to delete
 branches_to_delete=()
@@ -109,10 +109,10 @@ while IFS= read -r branch; do
         continue
     fi
     
-    # Check if commit is at least 1 day old
-    if [ "$commit_date" -ge "$one_day_ago" ]; then
-        commit_age_hours=$(( (current_time - commit_date) / 3600 ))
-        echo -e "  ${YELLOW}⏱️  Last commit is only ${commit_age_hours}h old (< 24h), skipping${NC}"
+    # Check if commit is at least 7 days old
+    if [ "$commit_date" -ge "$seven_days_ago" ]; then
+        commit_age_days=$(( (current_time - commit_date) / 86400 ))
+        echo -e "  ${YELLOW}⏱️  Last commit is only ${commit_age_days} day(s) old (< 7 days), skipping${NC}"
         echo ""
         continue
     fi
@@ -152,7 +152,7 @@ if [ ${#branches_to_delete[@]} -eq 0 ]; then
     echo ""
     echo "All copilot/* branches either:"
     echo "  - Have open PRs"
-    echo "  - Have recent commits (< 24h old)"
+    echo "  - Have recent commits (< 7 days old)"
 else
     echo -e "${GREEN}Found ${#branches_to_delete[@]} branch(es) to delete:${NC}"
     echo ""
