@@ -512,7 +512,7 @@ jobs:
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
           export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
           export GH_AW_ENGINE="codex"
-          export MCP_GATEWAY_CONTAINER='docker run -i --rm --network host -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY ghcr.io/githubnext/gh-aw-mcpg:v0.0.10'
+          export MCP_GATEWAY_CONTAINER='docker run -i --rm --network host -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" ghcr.io/githubnext/gh-aw-mcpg:v0.0.10'
           
           # Run gateway start script
           bash /opt/gh-aw/actions/start_mcp_gateway.sh

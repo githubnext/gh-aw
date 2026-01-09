@@ -11,11 +11,11 @@ import (
 // TestGetWellKnownContainer tests the well-known container mapping for common commands
 func TestGetWellKnownContainer(t *testing.T) {
 	tests := []struct {
-		name            string
-		command         string
-		expectedImage   string
-		expectedEntry   string
-		shouldBeNil     bool
+		name          string
+		command       string
+		expectedImage string
+		expectedEntry string
+		shouldBeNil   bool
 	}{
 		{
 			name:          "npx command maps to Node Alpine LTS",
@@ -62,12 +62,12 @@ func TestGetWellKnownContainer(t *testing.T) {
 // are automatically assigned appropriate containers
 func TestAutoContainerAssignment(t *testing.T) {
 	tests := []struct {
-		name              string
-		toolConfig        map[string]any
-		toolName          string
-		expectedContainer string
+		name               string
+		toolConfig         map[string]any
+		toolName           string
+		expectedContainer  string
 		expectedEntrypoint string
-		expectError       bool
+		expectError        bool
 	}{
 		{
 			name: "npx command gets Node Alpine container",
@@ -131,7 +131,7 @@ func TestAutoContainerAssignment(t *testing.T) {
 			if tt.expectedContainer != "" && tt.expectedEntrypoint != "" {
 				// The container should have been transformed to docker command
 				assert.Equal(t, "docker", result.Command, "Expected docker command after container transformation")
-				
+
 				// Verify the container image is in the args
 				containerImageFound := false
 				for _, arg := range result.Args {

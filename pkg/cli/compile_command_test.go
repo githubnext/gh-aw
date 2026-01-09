@@ -1048,10 +1048,10 @@ This orchestrator has a source .campaign.md file.`
 		t.Error("Orphaned campaign orchestrator lock file should have been purged")
 	}
 
-	// Verify orphaned orchestrator .md file was NOT deleted
-	// .campaign.g.md files are now treated as debug artifacts and kept for developer reference
-	if _, err := os.Stat(orphanedOrchestratorMd); os.IsNotExist(err) {
-		t.Error("Orphaned campaign orchestrator .md file should NOT be purged (kept as debug artifact)")
+	// Verify orphaned orchestrator .md file was deleted
+	// With the new behavior, .campaign.g.md files should be purged when orphaned
+	if _, err := os.Stat(orphanedOrchestratorMd); !os.IsNotExist(err) {
+		t.Error("Orphaned campaign orchestrator .md file should have been purged")
 	}
 
 	// Verify the valid orchestrator was NOT deleted (it has a source campaign definition)

@@ -37,6 +37,44 @@ fi
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs/gateway
 
+# Validate container syntax first (before accessing files)
+# Container should be a valid docker command starting with "docker run"
+if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE '^docker run'; then
+  echo "ERROR: MCP_GATEWAY_CONTAINER has incorrect syntax"
+  echo "Expected: docker run command with image and arguments"
+  echo "Got: $MCP_GATEWAY_CONTAINER"
+  exit 1
+fi
+
+# Validate container command includes required flags
+if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE -- '-i'; then
+  echo "ERROR: MCP_GATEWAY_CONTAINER must include -i flag for interactive mode"
+  exit 1
+fi
+
+if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE -- '--rm'; then
+  echo "ERROR: MCP_GATEWAY_CONTAINER must include --rm flag for cleanup"
+  exit 1
+fi
+
+if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE -- '--network host'; then
+  echo "ERROR: MCP_GATEWAY_CONTAINER must include --network host flag"
+  exit 1
+fi
+
+# Validate configuration file exists
+if [ ! -f "/home/runner/.copilot/mcp-config.json" ]; then
+  echo "ERROR: Configuration file not found at /home/runner/.copilot/mcp-config.json"
+  echo "The MCP configuration file must be created before starting the gateway"
+  exit 1
+fi
+
+# Validate configuration file is valid JSON
+if ! jq empty /home/runner/.copilot/mcp-config.json 2>/dev/null; then
+  echo "ERROR: Configuration file /home/runner/.copilot/mcp-config.json is not valid JSON"
+  exit 1
+fi
+
 # Build gateway configuration with runtime values
 echo "Building gateway configuration..."
 cat /home/runner/.copilot/mcp-config.json | jq --arg port "$MCP_GATEWAY_PORT" --arg apiKey "$MCP_GATEWAY_API_KEY" --arg domain "$MCP_GATEWAY_DOMAIN" \
@@ -48,13 +86,8 @@ echo ""
 
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_CONTAINER"
-cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
-  --network host \
-  -e MCP_GATEWAY_PORT \
-  -e MCP_GATEWAY_DOMAIN \
-  -e MCP_GATEWAY_API_KEY \
-  -e DEBUG="*" \
-  $MCP_GATEWAY_CONTAINER \
+# Note: MCP_GATEWAY_CONTAINER is the full docker command with all flags and image
+cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_CONTAINER \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!

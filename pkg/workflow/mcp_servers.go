@@ -582,7 +582,8 @@ func generateMCPGatewayStepInline(yaml *strings.Builder, engine CodingAgentEngin
 	containerCmd := "docker run -i --rm --network host"
 
 	// Add environment variables to container
-	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY"
+	// DEBUG="*" enables debug logging in the MCP gateway
+	containerCmd += " -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG=\"*\""
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {

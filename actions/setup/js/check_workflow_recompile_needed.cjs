@@ -103,7 +103,7 @@ async function main() {
       const footer = getFooterWorkflowRecompileCommentMessage(ctx);
       const xmlMarker = generateXMLMarker(workflowName, runUrl);
 
-      const commentBody = `Workflows are still out of sync as of ${new Date().toISOString()}.\n\nSee [workflow run](${runUrl}) for details.\n\n---\n${footer}\n\n${xmlMarker}`;
+      const commentBody = `Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`;
 
       await github.rest.issues.createComment({
         owner,
