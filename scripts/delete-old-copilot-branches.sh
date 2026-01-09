@@ -17,6 +17,7 @@
 #
 # Environment Variables:
 #   GITHUB_TOKEN - Optional. GitHub token for authentication (useful in CI/CD)
+#   MAX_BRANCHES - Optional. Maximum number of branches to delete (default: unlimited)
 #
 # Exit codes:
 #   0 - Success
@@ -68,6 +69,9 @@ echo ""
 # Get current time in seconds since epoch
 current_time=$(date +%s)
 seven_days_ago=$((current_time - 604800))
+
+# Get max branches limit from environment variable (default: unlimited)
+max_branches=${MAX_BRANCHES:-0}
 
 # Track branches to delete
 branches_to_delete=()
@@ -125,19 +129,29 @@ while IFS= read -r branch; do
     # Search for PRs from this branch
     pr_status=$(gh pr list --head "$branch" --state all --json number,state,headRefName --jq '.[0] | select(.headRefName == "'"$branch"'") | .state' 2>/dev/null || echo "")
     
+    should_delete=false
+    
     if [ -z "$pr_status" ]; then
         # No PR found - include for deletion
         echo -e "  ${GREEN}✓ No PR found${NC}"
-        branches_to_delete+=("$branch")
-        echo -e "  ${GREEN}→ Will be deleted${NC}"
+        should_delete=true
     elif [ "$pr_status" = "CLOSED" ] || [ "$pr_status" = "MERGED" ]; then
         # PR is closed or merged - include for deletion
         echo -e "  ${GREEN}✓ PR is ${pr_status}${NC}"
-        branches_to_delete+=("$branch")
-        echo -e "  ${GREEN}→ Will be deleted${NC}"
+        should_delete=true
     else
         # PR is still open - skip
         echo -e "  ${YELLOW}⚠️  PR is ${pr_status}, skipping${NC}"
+    fi
+    
+    if [ "$should_delete" = true ]; then
+        # Check if we've reached the max branches limit
+        if [ "$max_branches" -gt 0 ] && [ ${#branches_to_delete[@]} -ge "$max_branches" ]; then
+            echo -e "  ${YELLOW}⚠️  Max branches limit ($max_branches) reached, skipping${NC}"
+        else
+            branches_to_delete+=("$branch")
+            echo -e "  ${GREEN}→ Will be deleted${NC}"
+        fi
     fi
     
     echo ""
@@ -153,8 +167,15 @@ if [ ${#branches_to_delete[@]} -eq 0 ]; then
     echo "All copilot/* branches either:"
     echo "  - Have open PRs"
     echo "  - Have recent commits (< 7 days old)"
+    if [ "$max_branches" -gt 0 ]; then
+        echo "  - Or the max branches limit ($max_branches) was reached"
+    fi
 else
-    echo -e "${GREEN}Found ${#branches_to_delete[@]} branch(es) to delete:${NC}"
+    echo -e "${GREEN}Found ${#branches_to_delete[@]} branch(es) to delete"
+    if [ "$max_branches" -gt 0 ]; then
+        echo -e " (limited to $max_branches)"
+    fi
+    echo -e ":${NC}"
     echo ""
     
     echo "# Commands to delete branches:"
