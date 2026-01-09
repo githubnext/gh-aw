@@ -211,6 +211,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		codexEngineLog.Printf("Pinned AWF image tag to %s", awfImageTag)
 
+		// Enable host access when MCP servers are configured (for MCP gateway access via host.docker.internal)
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			codexEngineLog.Print("Enabled host access for MCP gateway")
+		}
+
 		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
 
 		// Add custom args if specified in firewall config
