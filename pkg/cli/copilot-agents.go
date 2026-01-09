@@ -107,28 +107,6 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 	return nil
 }
 
-// cleanupOldAgentFile removes an old agent file from .github/agents/ if it exists
-func cleanupOldAgentFile(agentFileName string, verbose bool) error {
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return nil // Not in a git repository, skip
-	}
-
-	oldPath := filepath.Join(gitRoot, ".github", "agents", agentFileName)
-
-	// Check if the old file exists and remove it
-	if _, err := os.Stat(oldPath); err == nil {
-		if err := os.Remove(oldPath); err != nil {
-			return fmt.Errorf("failed to remove old agent file: %w", err)
-		}
-		if verbose {
-			fmt.Printf("Removed old agent file: %s\n", oldPath)
-		}
-	}
-
-	return nil
-}
-
 // ensureCopilotInstructions ensures that .github/aw/github-agentic-workflows.md contains the copilot instructions
 func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
 	// First, clean up the old file location if it exists
