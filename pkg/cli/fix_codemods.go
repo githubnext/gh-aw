@@ -36,6 +36,7 @@ func GetAllCodemods() []Codemod {
 		getWritePermissionsCodemod(),
 		getAgentTaskToAgentSessionCodemod(),
 		getSandboxAgentFalseRemovalCodemod(),
+		getSandboxMCPRemovalCodemod(),
 	}
 }
 
@@ -932,6 +933,177 @@ func getSandboxAgentFalseRemovalCodemod() Codemod {
 
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied sandbox.agent: false removal")
+			return newContent, true, nil
+		},
+	}
+}
+
+// getSandboxMCPRemovalCodemod creates a codemod for removing sandbox.mcp configuration
+func getSandboxMCPRemovalCodemod() Codemod {
+	return Codemod{
+		ID:           "sandbox-mcp-removal",
+		Name:         "Remove deprecated sandbox.mcp configuration",
+		Description:  "Removes 'sandbox.mcp' configuration as the MCP gateway feature is no longer supported",
+		IntroducedIn: "0.6.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// Check if sandbox.mcp exists
+			sandboxValue, hasSandbox := frontmatter["sandbox"]
+			if !hasSandbox {
+				return content, false, nil
+			}
+
+			sandboxMap, ok := sandboxValue.(map[string]any)
+			if !ok {
+				return content, false, nil
+			}
+
+			// Check if mcp field exists in sandbox
+			_, hasMCP := sandboxMap["mcp"]
+			if !hasMCP {
+				return content, false, nil
+			}
+
+			// Parse frontmatter to get raw lines
+			result, err := parser.ExtractFrontmatterFromContent(content)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
+			}
+
+			// Find and remove the mcp line (and all nested properties) within the sandbox block
+			var modified bool
+			var inSandboxBlock bool
+			var sandboxIndent string
+			var inMCPBlock bool
+			var mcpIndent string
+
+			frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
+
+			for i, line := range result.FrontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				// Track if we're in the sandbox block
+				if strings.HasPrefix(trimmedLine, "sandbox:") {
+					inSandboxBlock = true
+					sandboxIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					frontmatterLines = append(frontmatterLines, line)
+					continue
+				}
+
+				// Check if we've left the sandbox block (new top-level key with same or less indentation)
+				if inSandboxBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(currentIndent) <= len(sandboxIndent) && strings.Contains(line, ":") {
+						inSandboxBlock = false
+					}
+				}
+
+				// Remove mcp line if in sandbox block
+				if inSandboxBlock && strings.HasPrefix(trimmedLine, "mcp:") {
+					modified = true
+					inMCPBlock = true
+					mcpIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					codemodsLog.Printf("Removed sandbox.mcp on line %d", i+1)
+					continue
+				}
+
+				// Skip nested properties under mcp (lines with greater indentation)
+				if inMCPBlock {
+					// Empty lines within the mcp block should be removed
+					if len(trimmedLine) == 0 {
+						continue
+					}
+
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+
+					// Comments need to check indentation
+					if strings.HasPrefix(trimmedLine, "#") {
+						if len(currentIndent) > len(mcpIndent) {
+							// Comment is nested under mcp, remove it
+							codemodsLog.Printf("Removed nested mcp comment on line %d: %s", i+1, trimmedLine)
+							continue
+						}
+						// Comment is at same or less indentation, exit mcp block and keep it
+						inMCPBlock = false
+						frontmatterLines = append(frontmatterLines, line)
+						continue
+					}
+
+					// If this line has more indentation than mcp, it's a nested property
+					if len(currentIndent) > len(mcpIndent) {
+						codemodsLog.Printf("Removed nested mcp property on line %d: %s", i+1, trimmedLine)
+						continue
+					}
+					// We've exited the mcp block (found a line at same or less indentation)
+					inMCPBlock = false
+				}
+
+				frontmatterLines = append(frontmatterLines, line)
+			}
+
+			if !modified {
+				return content, false, nil
+			}
+
+			// Check if sandbox block is now empty or only has agent (if agent is the only remaining field)
+			// If sandbox is empty, remove it
+			var cleanedLines []string
+			inSandboxBlock = false
+			sandboxLineIndex := -1
+			hasSandboxContent := false
+
+			for i, line := range frontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				if strings.HasPrefix(trimmedLine, "sandbox:") {
+					inSandboxBlock = true
+					sandboxIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					sandboxLineIndex = i
+					continue
+				}
+
+				if inSandboxBlock {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+
+					// Check if we've left the sandbox block
+					if len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") && len(currentIndent) <= len(sandboxIndent) && strings.Contains(line, ":") {
+						inSandboxBlock = false
+					} else if len(trimmedLine) > 0 && len(currentIndent) > len(sandboxIndent) {
+						// Found content in sandbox block
+						hasSandboxContent = true
+					}
+				}
+
+				cleanedLines = append(cleanedLines, line)
+			}
+
+			// If sandbox block had no content, remove it
+			if !hasSandboxContent && sandboxLineIndex >= 0 {
+				// Remove the sandbox: line
+				finalLines := make([]string, 0, len(cleanedLines))
+				for i, line := range cleanedLines {
+					if i != sandboxLineIndex {
+						finalLines = append(finalLines, line)
+					}
+				}
+				cleanedLines = finalLines
+				codemodsLog.Print("Removed empty sandbox block")
+			} else {
+				// Keep sandbox: line from frontmatterLines
+				cleanedLines = append([]string{}, frontmatterLines...)
+			}
+
+			// Reconstruct the content
+			var lines []string
+			lines = append(lines, "---")
+			lines = append(lines, cleanedLines...)
+			lines = append(lines, "---")
+			if result.Markdown != "" {
+				lines = append(lines, "")
+				lines = append(lines, result.Markdown)
+			}
+
+			newContent := strings.Join(lines, "\n")
+			codemodsLog.Print("Applied sandbox.mcp removal")
 			return newContent, true, nil
 		},
 	}

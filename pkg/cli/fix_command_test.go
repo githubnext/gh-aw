@@ -611,3 +611,138 @@ This is a test workflow with safe-inputs mode field.
 		t.Error("Expected test-tool description to be preserved")
 	}
 }
+
+func TestFixCommand_SandboxMCPRemoval(t *testing.T) {
+// Create a temporary directory for test files
+tmpDir := t.TempDir()
+workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+// Create a workflow with sandbox.mcp configuration
+content := `---
+on:
+  workflow_dispatch:
+
+sandbox:
+  agent: awf
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.10
+    port: 8080
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+
+if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+t.Fatalf("Failed to create test file: %v", err)
+}
+
+// Get the sandbox.mcp removal codemod
+sandboxMCPCodemod := getCodemodByID("sandbox-mcp-removal")
+if sandboxMCPCodemod == nil {
+t.Fatal("sandbox-mcp-removal codemod not found")
+}
+
+// Process the file
+fixed, err := processWorkflowFile(workflowFile, []Codemod{*sandboxMCPCodemod}, true, false)
+if err != nil {
+t.Fatalf("Failed to process workflow file: %v", err)
+}
+
+if !fixed {
+t.Error("Expected file to be fixed, but no changes were made")
+}
+
+// Read the updated content
+updatedContent, err := os.ReadFile(workflowFile)
+if err != nil {
+t.Fatalf("Failed to read updated file: %v", err)
+}
+
+updatedStr := string(updatedContent)
+
+// Verify the mcp block is removed
+if strings.Contains(updatedStr, "mcp:") {
+t.Error("Expected mcp field to be removed, but it still exists")
+}
+
+if strings.Contains(updatedStr, "container: ghcr.io/githubnext/gh-aw-mcpg") {
+t.Error("Expected mcp container field to be removed, but it still exists")
+}
+
+// Verify sandbox.agent still exists
+if !strings.Contains(updatedStr, "sandbox:") {
+t.Error("Expected sandbox block to remain")
+}
+
+if !strings.Contains(updatedStr, "agent: awf") {
+t.Error("Expected agent: awf to remain in sandbox block")
+}
+}
+
+func TestFixCommand_SandboxMCPRemovalWithEmptySandbox(t *testing.T) {
+// Create a temporary directory for test files
+tmpDir := t.TempDir()
+workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+// Create a workflow with only sandbox.mcp (no agent)
+content := `---
+on:
+  workflow_dispatch:
+
+sandbox:
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.10
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+
+if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+t.Fatalf("Failed to create test file: %v", err)
+}
+
+// Get the sandbox.mcp removal codemod
+sandboxMCPCodemod := getCodemodByID("sandbox-mcp-removal")
+if sandboxMCPCodemod == nil {
+t.Fatal("sandbox-mcp-removal codemod not found")
+}
+
+// Process the file
+fixed, err := processWorkflowFile(workflowFile, []Codemod{*sandboxMCPCodemod}, true, false)
+if err != nil {
+t.Fatalf("Failed to process workflow file: %v", err)
+}
+
+if !fixed {
+t.Error("Expected file to be fixed, but no changes were made")
+}
+
+// Read the updated content
+updatedContent, err := os.ReadFile(workflowFile)
+if err != nil {
+t.Fatalf("Failed to read updated file: %v", err)
+}
+
+updatedStr := string(updatedContent)
+
+// Verify the mcp block and entire sandbox block are removed since sandbox is now empty
+if strings.Contains(updatedStr, "mcp:") {
+t.Error("Expected mcp field to be removed, but it still exists")
+}
+
+if strings.Contains(updatedStr, "sandbox:") {
+t.Error("Expected empty sandbox block to be removed, but it still exists")
+}
+}
