@@ -193,10 +193,7 @@
           "container": "ghcr.io/example/data-mcp:latest",
           "entrypoint": "/custom/entrypoint.sh",
           "entrypointArgs": ["--config", "/app/config.json"],
-          "mounts": [
-            "/host/data:/container/data:ro",
-            "/host/config:/container/config:rw"
-          ],
+          "mounts": ["/host/data:/container/data:ro", "/host/config:/container/config:rw"],
           "type": "stdio"
         }
       },
