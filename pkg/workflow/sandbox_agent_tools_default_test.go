@@ -92,22 +92,19 @@ Test workflow to verify sandbox.agent: srt enables edit and bash tools.
 		assert.Contains(t, lockStr, "bash", "Expected bash tool to be enabled by default with sandbox.agent: srt")
 	})
 
-	t.Run("sandbox.agent: false does NOT enable edit and bash tools", func(t *testing.T) {
+	t.Run("default sandbox (awf) does NOT enable edit and bash tools", func(t *testing.T) {
 		// Create temp directory for test workflows
 		workflowsDir := t.TempDir()
 
 		markdown := `---
 engine: copilot
-sandbox:
-  agent: false
-strict: false
 on: workflow_dispatch
 ---
 
-Test workflow to verify sandbox.agent: false does not enable tools by default.
+Test workflow to verify default sandbox.agent (awf) does not enable extra tools.
 `
 
-		workflowPath := filepath.Join(workflowsDir, "test-agent-false-tools.md")
+		workflowPath := filepath.Join(workflowsDir, "test-default-awf-tools.md")
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err, "Failed to write workflow file")
 
@@ -119,7 +116,7 @@ Test workflow to verify sandbox.agent: false does not enable tools by default.
 		require.NoError(t, err, "Compilation failed")
 
 		// Read the compiled workflow
-		lockPath := filepath.Join(workflowsDir, "test-agent-false-tools.lock.yml")
+		lockPath := filepath.Join(workflowsDir, "test-default-awf-tools.lock.yml")
 		lockContent, err := os.ReadFile(lockPath)
 		require.NoError(t, err, "Failed to read compiled workflow")
 
@@ -127,7 +124,7 @@ Test workflow to verify sandbox.agent: false does not enable tools by default.
 
 		// Verify that edit tool is NOT present (unless explicitly added)
 		// We check that edit is not in the tools list by looking for the edit tool configuration
-		// Since we're not setting tools explicitly, edit should not be added when agent is disabled
+		// Since we're not setting tools explicitly, edit should not be added by default
 
 		// Count occurrences of "edit" to see if it's actually configured as a tool
 		// (edit might appear in comments or other contexts)
@@ -136,7 +133,7 @@ Test workflow to verify sandbox.agent: false does not enable tools by default.
 		// If edit appears very few times, it's likely just in comments
 		// A proper tool configuration would have multiple references
 		if editCount > 10 {
-			t.Errorf("Expected edit tool to NOT be enabled by default with sandbox.agent: false, but found %d occurrences", editCount)
+			t.Errorf("Expected edit tool to NOT be enabled by default with sandbox.agent: awf, but found %d occurrences", editCount)
 		}
 	})
 
