@@ -23,9 +23,14 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		})
 	}
 
+	// Build gateway configuration for MCP config
+	// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required
+	gatewayConfig := buildMCPGatewayConfig(workflowData)
+
 	// Use shared JSON MCP config renderer with unified renderer methods
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		GatewayConfig: gatewayConfig,
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)

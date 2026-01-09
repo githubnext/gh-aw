@@ -26,9 +26,14 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		})
 	}
 
+	// Build gateway configuration for MCP config
+	// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required
+	gatewayConfig := buildMCPGatewayConfig(workflowData)
+
 	// Use shared JSON MCP config renderer with unified renderer methods
 	options := JSONMCPConfigOptions{
-		ConfigPath: "/home/runner/.copilot/mcp-config.json",
+		ConfigPath:    "/home/runner/.copilot/mcp-config.json",
+		GatewayConfig: gatewayConfig,
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)

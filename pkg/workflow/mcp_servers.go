@@ -628,6 +628,46 @@ func shellQuote(s string) string {
 	return s
 }
 
+// buildMCPGatewayConfig builds the gateway configuration for inclusion in MCP config files
+// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required with port and domain
+func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
+	if workflowData == nil {
+		return nil
+	}
+
+	// Ensure default configuration is set
+	ensureDefaultMCPGatewayConfig(workflowData)
+
+	gatewayConfig := workflowData.SandboxConfig.MCP
+
+	// Set default port if not configured
+	port := gatewayConfig.Port
+	if port == 0 {
+		port = int(DefaultMCPGatewayPort)
+	}
+
+	// Set default domain if not configured
+	// Default to host.docker.internal when agent is enabled (AWF), localhost when disabled
+	domain := gatewayConfig.Domain
+	if domain == "" {
+		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+			domain = "localhost"
+		} else {
+			domain = "host.docker.internal"
+		}
+	}
+
+	// Return gateway config with required fields populated
+	return &MCPGatewayRuntimeConfig{
+		Port:   port,
+		Domain: domain,
+		// Note: APIKey is intentionally not included here
+		// It will be generated at runtime by the start_mcp_gateway.sh script
+		// and added to the config via jq transformation
+	}
+}
+
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties
