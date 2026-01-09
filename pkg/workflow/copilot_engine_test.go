@@ -706,7 +706,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 			isLast:     false,
 			expectedStrs: []string{
 				`"github": {`,
-				`"type": "local",`,
+				`"type": "stdio",`,
 				`"command": "docker",`,
 				`"args": [`,
 				`"run",`,
@@ -729,7 +729,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 			isLast: true,
 			expectedStrs: []string{
 				`"github": {`,
-				`"type": "local",`,
+				`"type": "stdio",`,
 				`"command": "docker",`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
 				`"ghcr.io/github/github-mcp-server:v1.2.3"`,
@@ -747,7 +747,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 			isLast: true,
 			expectedStrs: []string{
 				`"github": {`,
-				`"type": "local",`,
+				`"type": "stdio",`,
 				`"tools": [`,
 				`"list_workflows"`,
 				`"get_repository"`,
@@ -807,19 +807,18 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Verify the MCP config structure
+	// Verify the MCP config structure (spec-compliant format)
 	expectedStrs := []string{
 		"mkdir -p /home/runner/.copilot",
 		`cat > /home/runner/.copilot/mcp-config.json << EOF`,
 		`"mcpServers": {`,
 		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:custom-version"`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
+		`"type": "stdio",`,
+		`"container": "ghcr.io/github/github-mcp-server:custom-version"`,
 		`"env": {`,
 		`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-		`"tools": ["*"]`,
+		`"tools": [`,
+		`"*"`,
 		"EOF",
 		"-------START MCP CONFIG-----------",
 		"cat /home/runner/.copilot/mcp-config.json",
@@ -848,17 +847,15 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Verify both tools are configured
+	// Verify both tools are configured (spec-compliant format)
 	expectedStrs := []string{
 		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:v0.27.0"`,
+		`"type": "stdio",`,
+		`"container": "ghcr.io/github/github-mcp-server:v0.27.0"`,
 		`},`, // GitHub should NOT be last (comma after closing brace)
 		`"playwright": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"mcr.microsoft.com/playwright/mcp"`,
+		`"type": "stdio",`,
+		`"container": "mcr.microsoft.com/playwright/mcp"`,
 		`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 	}
 

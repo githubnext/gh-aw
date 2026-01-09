@@ -509,76 +509,49 @@ type GitHubMCPDockerOptions struct {
 //   - yaml: The string builder for YAML output
 //   - options: GitHub MCP Docker rendering options
 func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
-	// Add type field if needed (Copilot requires this, Claude doesn't)
+	// Build the config using the new builder
+	config := BuildGatewayMCPServerConfig(options)
+	
+	// Marshal to JSON and write to yaml builder
+	// We need to output the fields manually to maintain precise formatting control
+	// and compatibility with the existing indentation structure
+	
+	// Type field (stdio per spec, not "local")
 	if options.IncludeTypeField {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
-	// MCP Gateway spec fields for containerized stdio servers
-	yaml.WriteString("                \"container\": \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\",\n")
+	// Container field (MCP Gateway spec required field for stdio servers)
+	yaml.WriteString("                \"container\": \"" + config.Container + "\",\n")
 
-	// Append custom args if present (these are Docker runtime args, go before container image)
-	if len(options.CustomArgs) > 0 {
+	// Docker runtime args if present
+	if len(config.Args) > 0 {
 		yaml.WriteString("                \"args\": [\n")
-		for _, arg := range options.CustomArgs {
+		for _, arg := range config.Args {
 			yaml.WriteString("                  \"" + arg + "\",\n")
 		}
 		yaml.WriteString("                ],\n")
 	}
 
-	// Add tools field if provided (Copilot uses this, Claude doesn't)
-	if len(options.AllowedTools) > 0 {
+	// Tools field (Copilot-specific, not part of spec)
+	if len(config.Tools) > 0 {
 		yaml.WriteString("                \"tools\": [\n")
-		for i, tool := range options.AllowedTools {
+		for i, tool := range config.Tools {
 			comma := ","
-			if i == len(options.AllowedTools)-1 {
+			if i == len(config.Tools)-1 {
 				comma = ""
 			}
 			fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
 		}
 		yaml.WriteString("                ],\n")
-	} else if options.IncludeTypeField {
-		// Copilot always includes tools field, even if empty (uses wildcard)
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
 	}
 
-	// Add env section for GitHub MCP server environment variables
+	// Environment variables (MCP Gateway spec field)
 	yaml.WriteString("                \"env\": {\n")
 
-	// Build environment variables map
-	envVars := make(map[string]string)
-
-	// GitHub token (always required)
-	if options.IncludeTypeField {
-		// Copilot engine: use escaped variable for Copilot CLI to interpolate
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "\\${GITHUB_MCP_SERVER_TOKEN}"
-	} else {
-		// Non-Copilot engines (Claude/Custom): use plain shell variable
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
-	}
-
-	// Read-only mode
-	if options.ReadOnly {
-		envVars["GITHUB_READ_ONLY"] = "1"
-	}
-
-	// Lockdown mode
-	if options.LockdownFromStep {
-		// Security: Use environment variable instead of template expression to prevent template injection
-		// The GITHUB_MCP_LOCKDOWN env var is set in Setup MCPs step from step output
-		// Value is already converted to "1" or "0" in the environment variable
-		envVars["GITHUB_LOCKDOWN_MODE"] = "$GITHUB_MCP_LOCKDOWN"
-	} else if options.Lockdown {
-		// Use explicit lockdown value from configuration
-		envVars["GITHUB_LOCKDOWN_MODE"] = "1"
-	}
-
-	// Toolsets (always configured, defaults to "default")
-	envVars["GITHUB_TOOLSETS"] = options.Toolsets
-
 	// Write environment variables in sorted order for deterministic output
-	envKeys := make([]string, 0, len(envVars))
-	for key := range envVars {
+	envKeys := make([]string, 0, len(config.Env))
+	for key := range config.Env {
 		envKeys = append(envKeys, key)
 	}
 	sort.Strings(envKeys)
@@ -589,7 +562,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		if !isLast {
 			comma = ","
 		}
-		fmt.Fprintf(yaml, "                  \"%s\": \"%s\"%s\n", key, envVars[key], comma)
+		fmt.Fprintf(yaml, "                  \"%s\": \"%s\"%s\n", key, config.Env[key], comma)
 	}
 
 	yaml.WriteString("                }\n")

@@ -595,7 +595,7 @@ func TestCustomEngineGitHubMCPDockerConfig(t *testing.T) {
 			}
 
 			// Verify no "type" field (custom engine should be like Claude)
-			if strings.Contains(output, `"type": "local"`) {
+			if strings.Contains(output, `"type": "stdio"`) {
 				t.Errorf("Custom engine should not include type field")
 			}
 		})

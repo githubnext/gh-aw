@@ -651,11 +651,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if isLast {
 				comma = ""
 			}
-			// For copilot CLI, convert "stdio" to "local"
+			// Output type field as-is per MCP Gateway Specification v1.0.0
+			// The spec requires "stdio" or "http", not "local"
 			typeValue := mcpConfig.Type
-			if typeValue == "stdio" && renderer.RequiresCopilotFields {
-				typeValue = "local"
-			}
 			fmt.Fprintf(yaml, "%s\"type\": \"%s\"%s\n", renderer.IndentLevel, typeValue, comma)
 		case "tools":
 			// Render tools field for JSON format (copilot engine) - default to all tools
