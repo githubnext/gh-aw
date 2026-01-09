@@ -7,9 +7,6 @@
 **An exploration of automated agentic workflows at scale**
 
 At GitHub Next, we have the privilege of collaborating with amazing people across GitHub and the broader AI community to explore the future of software development. In this project, we introduce one of our collaborations - one we're calling **Peli's Agent Factory**.
-
-Peli's Agent Factory is a research collaboration between GitHub Next and Microsoft Research (MSR), exploring what happens when you build and operate dozens of specialized AI agents within a real software repository. While this is a collaboration in every sense, those of us at GitHub Next have decided to name the project after Peli de Halleux, because of his remarkable energhy and creativity in helping us reimagine the frontier of automated, proactive, agentic AI software development.
-
 </td>
 <td width="30%">
 
@@ -18,6 +15,9 @@ Peli's Agent Factory is a research collaboration between GitHub Next and Microso
 </td>
 </tr>
 </table>
+
+
+Peli's Agent Factory is a research collaboration between GitHub Next and Microsoft Research (MSR), exploring what happens when you build and operate dozens of specialized AI agents within a real software repository. While this is a collaboration in every sense, those of us at GitHub Next have decided to name the project after Peli de Halleux, because of his remarkable energhy and creativity in helping us reimagine the frontier of automated, proactive, agentic AI software development.
 
 In this project, you'll explore with us a collection of over 145 automated agentic workflows that each solve specific problems in software development. These agents are not hypothetical demos - they are working agents that handle real development tasks. Along the way we'll share the lessons we've learned, the design patterns we've discovered, and the practical techniques for building and operating your own agentic workflows.
 
