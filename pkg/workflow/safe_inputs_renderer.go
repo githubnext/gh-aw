@@ -98,10 +98,9 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	}
 	yaml.WriteString("                },\n")
 
-	// Add tools field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
+	// config compatible with the schema which doesn't have the tools field.
 
 	// Add env block for server configuration environment variables only
 	// Note: Tool-specific env vars (like GH_AW_GH_TOKEN) are already set in the step's env block

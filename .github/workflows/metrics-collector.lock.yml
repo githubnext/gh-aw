@@ -206,7 +206,6 @@ jobs:
                 "type": "stdio",
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
-                "tools": ["*"],
                 "env": {
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
                 }
@@ -220,7 +219,6 @@ jobs:
                   "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "context,repos,issues,pull_requests"
                 },
-                "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }

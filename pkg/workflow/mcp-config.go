@@ -133,15 +133,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	}
 
 	// Add volume mounts
-	yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]")
+	yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]\n")
 
-	// Add tools field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString(",\n")
-		yaml.WriteString("                \"tools\": [\"*\"]")
-	}
-
-	yaml.WriteString("\n")
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
 
 	if isLast {
 		yaml.WriteString("              }\n")
@@ -199,15 +194,10 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	}
 
 	// Add volume mount for workspace access
-	yaml.WriteString("                \"mounts\": [\"${{ github.workspace }}:${{ github.workspace }}\"]")
+	yaml.WriteString("                \"mounts\": [\"${{ github.workspace }}:${{ github.workspace }}\"]\n")
 
-	// Add tools field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString(",\n")
-		yaml.WriteString("                \"tools\": [\"*\"]")
-	}
-
-	yaml.WriteString("\n")
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
 
 	if isLast {
 		yaml.WriteString("              }\n")
@@ -251,10 +241,8 @@ func renderBuiltinMCPServerBlock(opts BuiltinMCPServerOptions) {
 	}
 	opts.Yaml.WriteString("],\n")
 
-	// Add tools field for Copilot
-	if opts.IncludeCopilotFields {
-		opts.Yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
 
 	opts.Yaml.WriteString("                \"env\": {\n")
 
@@ -325,10 +313,8 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	yaml.WriteString("                \"entrypointArgs\": [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"mounts\": [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw\"],\n")
 
-	// Add tools field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
 
 	// Write environment variables
 	yaml.WriteString("                \"env\": {\n")

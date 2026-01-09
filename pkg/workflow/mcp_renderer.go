@@ -527,21 +527,9 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		yaml.WriteString("                ],\n")
 	}
 
-	// Add tools field if provided (Copilot uses this, Claude doesn't)
-	if len(options.AllowedTools) > 0 {
-		yaml.WriteString("                \"tools\": [\n")
-		for i, tool := range options.AllowedTools {
-			comma := ","
-			if i == len(options.AllowedTools)-1 {
-				comma = ""
-			}
-			fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
-		}
-		yaml.WriteString("                ],\n")
-	} else if options.IncludeTypeField {
-		// Copilot always includes tools field, even if empty (uses wildcard)
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
+	// config compatible with the schema which doesn't have the tools field.
 
 	// Add env section for GitHub MCP server environment variables
 	yaml.WriteString("                \"env\": {\n")
@@ -658,28 +646,15 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	writeHeadersToYAML(yaml, headers, "                  ")
 
 	// Close headers section
-	if options.IncludeToolsField || options.IncludeEnvSection {
+	if options.IncludeEnvSection {
 		yaml.WriteString("                },\n")
 	} else {
 		yaml.WriteString("                }\n")
 	}
 
-	// Add tools field if needed (Copilot uses this, Claude doesn't)
-	if options.IncludeToolsField {
-		if len(options.AllowedTools) > 0 {
-			yaml.WriteString("                \"tools\": [\n")
-			for i, tool := range options.AllowedTools {
-				comma := ","
-				if i == len(options.AllowedTools)-1 {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
-			}
-			yaml.WriteString("                ],\n")
-		} else {
-			yaml.WriteString("                \"tools\": [\"*\"],\n")
-		}
-	}
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
+	// config compatible with the schema which doesn't have the tools field.
 
 	// Add env section if needed (Copilot uses this, Claude doesn't)
 	if options.IncludeEnvSection {
