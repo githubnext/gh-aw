@@ -1,8 +1,10 @@
 # Peli's Agent Factory
 
+<img src="peli.png" alt="Peli de Halleux" width="350" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+
 **An exploration of automated agentic workflows at scale**
 
-At GitHub Next, we have the extraordinary privilege of collaorating with amazing people across GitHub, Microsoft, and the broader AI community to explore the future of software development. The results of this can be exciting, surprising and serendipitous. In this project, we introduce one of our collaborations - one we're calling **Peli's Agent Factory**.
+At GitHub Next, we have the privilege of collaborating with amazing people across GitHub and the broader AI community to explore the future of software development. In this project, we introduce one of our collaborations - one we're calling **Peli's Agent Factory**.
 
 Peli's Agent Factory is a research collaboration between GitHub Next and Microsoft Research (MSR), exploring what happens when you build and operate dozens of specialized AI agents within a real software repository. While this is a collaboration in every sense, those of us at GitHub Next have decided to name the project after Peli de Halleux, because of his remarkable energhy and creativity in helping us reimagine the frontier of automated, proactive, agentic AI software development.
 
