@@ -111,6 +111,10 @@ jobs:
       issues: read
       pull-requests: read
     env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_AW_ASSETS_ALLOWED_EXTS: ""
+      GH_AW_ASSETS_BRANCH: ""
+      GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json

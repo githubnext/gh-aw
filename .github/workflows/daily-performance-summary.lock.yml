@@ -88,6 +88,7 @@ jobs:
     concurrency:
       group: "gh-aw-codex-${{ github.workflow }}"
     env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
