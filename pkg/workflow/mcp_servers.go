@@ -658,12 +658,11 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 	}
 
 	// Return gateway config with required fields populated
+	// APIKey is set as an environment variable reference that will be resolved at runtime
 	return &MCPGatewayRuntimeConfig{
 		Port:   port,
 		Domain: domain,
-		// Note: APIKey is intentionally not included here
-		// It will be generated at runtime by the start_mcp_gateway.sh script
-		// and added to the config via jq transformation
+		APIKey: "$MCP_GATEWAY_API_KEY", // Environment variable reference
 	}
 }
 

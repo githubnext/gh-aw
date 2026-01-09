@@ -766,16 +766,9 @@ func RenderJSONMCPConfig(
 	if options.GatewayConfig != nil {
 		yaml.WriteString("            ,\n")
 		yaml.WriteString("            \"gateway\": {\n")
-		fmt.Fprintf(yaml, "              \"port\": %d", options.GatewayConfig.Port)
-		if options.GatewayConfig.APIKey != "" {
-			yaml.WriteString(",\n")
-			fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
-		}
-		if options.GatewayConfig.Domain != "" {
-			yaml.WriteString(",\n")
-			fmt.Fprintf(yaml, "              \"domain\": \"%s\"", options.GatewayConfig.Domain)
-		}
-		yaml.WriteString("\n")
+		fmt.Fprintf(yaml, "              \"port\": %d,\n", options.GatewayConfig.Port)
+		fmt.Fprintf(yaml, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
+		fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
 		yaml.WriteString("            }\n")
 	}
 

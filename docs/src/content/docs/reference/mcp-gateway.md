@@ -232,7 +232,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 |-------|------|----------|-------------|
 | `port` | integer | Yes | HTTP server port |
 | `domain` | string | Yes | Gateway domain (localhost or host.docker.internal) |
-| `apiKey` | string | No | API key for authentication |
+| `apiKey` | string | Yes | API key for authentication |
 | `startupTimeout` | integer | No | Server startup timeout in seconds (default: 30) |
 | `toolTimeout` | integer | No | Tool invocation timeout in seconds (default: 60) |
 

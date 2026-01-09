@@ -109,10 +109,32 @@ if ! jq empty "$MCP_CONFIG_PATH" 2>/dev/null; then
   exit 1
 fi
 
-# Build gateway configuration with runtime values
-echo "Building gateway configuration..."
-cat "$MCP_CONFIG_PATH" | jq --arg port "$MCP_GATEWAY_PORT" --arg apiKey "$MCP_GATEWAY_API_KEY" --arg domain "$MCP_GATEWAY_DOMAIN" \
-  '.gateway = { port: ($port | tonumber), apiKey: $apiKey, domain: $domain }' > /tmp/gh-aw/mcp-config/gateway-input.json
+# Validate gateway section exists and has required fields
+echo "Validating gateway configuration..."
+if ! jq -e '.gateway' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
+  echo "ERROR: Configuration file is missing required 'gateway' section"
+  echo "Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required"
+  exit 1
+fi
+
+if ! jq -e '.gateway.port' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
+  echo "ERROR: Gateway configuration is missing required 'port' field"
+  exit 1
+fi
+
+if ! jq -e '.gateway.domain' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
+  echo "ERROR: Gateway configuration is missing required 'domain' field"
+  exit 1
+fi
+
+if ! jq -e '.gateway.apiKey' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
+  echo "ERROR: Gateway configuration is missing required 'apiKey' field"
+  exit 1
+fi
+
+# Copy config to gateway input location (configuration is complete, no transformation needed)
+echo "Using MCP configuration as gateway input..."
+cp "$MCP_CONFIG_PATH" /tmp/gh-aw/mcp-config/gateway-input.json
 
 echo "Gateway input configuration:"
 cat /tmp/gh-aw/mcp-config/gateway-input.json

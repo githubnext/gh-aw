@@ -134,8 +134,8 @@ test_container_missing_docker_run() {
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
-  # Create valid JSON config
-  echo '{"mcpServers":{}}' > "$fake_home/.copilot/mcp-config.json"
+  # Create valid JSON config with required gateway section
+  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
@@ -160,8 +160,8 @@ test_container_missing_i_flag() {
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
-  # Create valid JSON config
-  echo '{"mcpServers":{}}' > "$fake_home/.copilot/mcp-config.json"
+  # Create valid JSON config with required gateway section
+  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
@@ -186,8 +186,8 @@ test_container_missing_rm_flag() {
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
-  # Create valid JSON config
-  echo '{"mcpServers":{}}' > "$fake_home/.copilot/mcp-config.json"
+  # Create valid JSON config with required gateway section
+  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
@@ -212,8 +212,8 @@ test_container_missing_network_flag() {
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
-  # Create valid JSON config
-  echo '{"mcpServers":{}}' > "$fake_home/.copilot/mcp-config.json"
+  # Create valid JSON config with required gateway section
+  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
