@@ -30,9 +30,6 @@ var agenticWorkflowAgentTemplate string
 //go:embed templates/debug-agentic-workflow.agent.md
 var debugAgenticWorkflowAgentTemplate string
 
-//go:embed templates/agentic-campaign-designer.agent.md
-var agenticCampaignDesignerAgentTemplate string
-
 //go:embed templates/upgrade-agentic-workflows.md
 var upgradeAgenticWorkflowAgentTemplate string
 

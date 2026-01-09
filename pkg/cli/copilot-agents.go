@@ -188,16 +188,6 @@ func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error 
 	return ensureAgentFromTemplate("debug-agentic-workflow.agent.md", debugAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureAgenticCampaignDesignerAgent ensures that .github/agents/agentic-campaign-designer.agent.md contains the agentic campaign designer agent
-func ensureAgenticCampaignDesignerAgent(verbose bool, skipInstructions bool) error {
-	// First, clean up the old agent file in .github/agents/ if it has the old name
-	if err := cleanupOldAgentFile("campaign-designer.agent.md", verbose); err != nil {
-		return err
-	}
-
-	return ensureAgentFromTemplate("agentic-campaign-designer.agent.md", agenticCampaignDesignerAgentTemplate, verbose, skipInstructions)
-}
-
 // ensureUpgradeAgenticWorkflowAgent ensures that .github/agents/upgrade-agentic-workflows.md contains the upgrade workflow agent
 func ensureUpgradeAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
 	return ensureAgentFromTemplate("upgrade-agentic-workflows.md", upgradeAgenticWorkflowAgentTemplate, verbose, skipInstructions)

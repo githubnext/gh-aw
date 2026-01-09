@@ -89,18 +89,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created upgrade agentic workflow agent"))
 	}
 
-	// Write agentic campaign designer agent if requested
-	if campaign {
-		initLog.Print("Writing agentic campaign designer agent")
-		if err := ensureAgenticCampaignDesignerAgent(verbose, false); err != nil {
-			initLog.Printf("Failed to write agentic campaign designer agent: %v", err)
-			return fmt.Errorf("failed to write agentic campaign designer agent: %w", err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agentic campaign designer agent"))
-		}
-	}
-
 	// Configure MCP if requested
 	if mcp {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")

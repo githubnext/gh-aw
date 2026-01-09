@@ -1,5 +1,5 @@
 ---
-description: Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
+description: All-in-one campaign generator that creates project board, discovers workflows, generates campaign spec, compiles, and creates PR
 on:
   issues:
     types: [opened]
@@ -19,8 +19,8 @@ safe-outputs:
   add-comment:
     max: 10
   update-issue:
-    max: 1
-  assign-to-agent:
+  create-pull-request:
+    labels: [campaign, automation]
   create-project:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
@@ -35,9 +35,9 @@ timeout-minutes: 10
 {{#runtime-import? .github/shared-instructions.md}}
 {{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
 
-# Campaign Generator - Optimized Phase 1
+# Campaign Generator - All-in-One
 
-You are a campaign workflow coordinator for GitHub Agentic Workflows. You perform the heavy lifting of campaign creation in **Phase 1** (this workflow), leaving only compilation for Phase 2 (the Copilot agent).
+You are a campaign workflow coordinator for GitHub Agentic Workflows. You handle the complete campaign creation process in a single agentic workflow, eliminating the need for separate agent files or handoffs.
 
 ## Your Task
 
@@ -48,14 +48,12 @@ You are a campaign workflow coordinator for GitHub Agentic Workflows. You perfor
 4. Generate complete `.campaign.md` specification file
 5. Write the campaign file to the repository
 6. Update the issue with campaign details
-7. Assign to Copilot agent for compilation only
+7. Compile campaign using `gh aw compile`
+8. Create pull request with all generated files
 
-**Phase 2 Responsibilities (Copilot Agent):**
-1. Compile campaign using `gh aw compile`
-2. Commit all files (spec + generated files)
-3. Create pull request
+**No Phase 2 needed** - All work happens in this single agentic workflow.
 
-This optimized flow reduces execution time by 60% (5-10 min → 2-3 min).
+This optimized flow reduces execution time by 60% (5-10 min → 2-3 min) and eliminates agent handoffs.
 
 ## Workflow Steps
 
@@ -289,42 +287,108 @@ Use `add-comment` to inform the user:
 ```markdown
 ✅ **Campaign Specification Created!**
 
-I've completed Phase 1 of campaign creation:
-
-✅ Created GitHub Project board
-✅ Discovered matching workflows from catalog
-✅ Generated campaign specification file
-✅ Updated this issue with campaign details
+I've generated the campaign specification and am now compiling it.
 
 📁 **File Created:**
 - `.github/workflows/<campaign-id>.campaign.md`
 
-🔄 **Next Phase:**
-A Copilot agent will now compile the campaign and create a pull request. This typically takes 1-2 minutes.
+🔄 **Next Steps:**
+1. Compiling campaign using `gh aw compile`
+2. Creating pull request with all files
 
-**What happens next:**
-1. Agent compiles campaign using `gh aw compile`
-2. Agent creates PR with campaign + generated files
-3. You review and approve the PR
-4. Merge to activate your campaign!
-
-**Estimated time:** 1-2 minutes for compilation
+**Estimated time:** 1-2 minutes
 ```
 
-### Step 7: Assign to Copilot Agent for Compilation
+### Step 7: Compile the Campaign
 
-Use the `assign-to-agent` safe output to assign `.github/agents/agentic-campaign-designer.agent.md`:
+Run the gh-aw compile command to generate the orchestrator:
 
-Pass the following context:
-- Campaign ID: `<campaign-id>`
-- Campaign file path: `.github/workflows/<campaign-id>.campaign.md`
-- Project URL: `<project-url>`
-- Issue number: `${{ github.event.issue.number }}`
+```bash
+gh aw compile <campaign-id>
+```
 
-The agent's simplified task:
-1. Run `gh aw compile <campaign-id>`
-2. Commit all files (spec + generated `.g.md` and `.lock.yml`)
-3. Create PR with standard template
+This generates:
+- `.github/workflows/<campaign-id>.campaign.g.md` (orchestrator)
+- `.github/workflows/<campaign-id>.campaign.lock.yml` (compiled workflow)
+
+**If compilation fails:**
+- Review the error messages
+- Check for syntax issues in the campaign file frontmatter
+- Fix any issues found
+- Re-compile until successful
+- Report errors to the issue if you can't fix them
+
+### Step 8: Create Pull Request
+
+Use the `create-pull-request` safe output to create a PR with all campaign files:
+
+```markdown
+## New Campaign: <Campaign Name>
+
+Fixes #${{ github.event.issue.number }}
+
+### Purpose
+<Brief description of what this campaign accomplishes>
+
+### Campaign Details
+- **Campaign ID:** `<campaign-id>`
+- **Project Board:** [View Project](<project-url>)
+- **Risk Level:** <Low/Medium/High>
+- **State:** Planned
+
+### Workflows
+- `<workflow-id-1>`: <Description>
+- `<workflow-id-2>`: <Description>
+
+### Files Created
+- `.github/workflows/<campaign-id>.campaign.md` (campaign specification)
+- `.github/workflows/<campaign-id>.campaign.g.md` (generated orchestrator)
+- `.github/workflows/<campaign-id>.campaign.lock.yml` (compiled workflow)
+
+### Next Steps
+1. Review the campaign specification
+2. Approve this pull request
+3. Merge to activate the campaign
+4. Create/update the worker workflows listed above
+
+### Links
+- Original issue: #${{ github.event.issue.number }}
+- [Campaign documentation](https://githubnext.github.io/gh-aw/guides/campaigns/)
+
+---
+
+**Generated by:** campaign-generator workflow  
+**Total time:** ~2-3 minutes
+```
+
+### Step 9: Post Success Comment
+
+Use `add-comment` to inform the user:
+
+```markdown
+✅ **Campaign Created and PR Ready!**
+
+I've completed campaign creation:
+
+✅ Created GitHub Project board
+✅ Generated campaign specification
+✅ Compiled campaign workflows
+✅ Created pull request
+
+📝 **Pull Request:** #<pr-number>
+
+**Files created:**
+- `.github/workflows/<campaign-id>.campaign.md`
+- `.github/workflows/<campaign-id>.campaign.g.md`
+- `.github/workflows/<campaign-id>.campaign.lock.yml`
+
+**Next steps:**
+1. Review the PR
+2. Approve and merge to activate your campaign
+3. Create the worker workflows listed in the campaign spec
+
+**Total time:** ~2-3 minutes (60% faster than old flow!)
+```
 
 ## Important Notes
 
@@ -332,26 +396,23 @@ The agent's simplified task:
 - **60% faster:** 5-10 min → 2-3 min total time
 - **Deterministic discovery:** Workflow catalog eliminates 2-3 min scanning
 - **Transparent tracking:** Issue updates provide structured campaign info
-- **Simplified Phase 2:** Agent only compiles, doesn't design
+- **Single workflow:** No agent handoffs - everything in one agentic workflow
 
-### Phase 1 vs Phase 2
-**Phase 1 (This Workflow - ~30s):**
+### All-in-One Workflow
+**This Workflow (~2-3 min):**
 - ✅ Create project board
 - ✅ Discover workflows (catalog lookup - deterministic)
 - ✅ Generate campaign spec file
 - ✅ Write file to repository
 - ✅ Update issue with details
-
-**Phase 2 (Copilot Agent - ~1-2 min):**
-- ✅ Compile campaign (`gh aw compile` requires CLI)
-- ✅ Commit files
+- ✅ Compile campaign (`gh aw compile`)
 - ✅ Create PR automatically
 
-### Why Two Phases?
-- `gh aw compile` requires the gh-aw CLI binary
-- CLI only available in Copilot agent context (via actions/setup)
-- GitHub Actions runners don't have gh-aw CLI
-- Two-step pattern is architectural necessity
+### Why Single Phase Works
+- campaign-generator.md uses `engine: copilot`
+- gh-aw CLI available in Copilot agent context (via actions/setup)
+- Can perform all operations: parse, discover, generate, compile, PR
+- No need for separate agent files or handoffs
 
 ### Key Differences from Old Flow
 **Old Flow:**
@@ -361,7 +422,7 @@ The agent's simplified task:
 - 5-10 min total time
 
 **New Flow:**
-- Issue → generator (heavy lifting) → designer (compile only) → PR
+- Issue → generator (all-in-one) → PR
 - Catalog-based discovery (deterministic, <1s)
-- Complete context preserved in campaign file
+- Complete context preserved in single workflow
 - 2-3 min total time
