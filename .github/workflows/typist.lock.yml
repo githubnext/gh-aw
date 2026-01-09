@@ -402,8 +402,7 @@ jobs:
                 ],
                 "mounts": ["${{ github.workspace }}:${{ github.workspace }}"]
               }
-            }
-            ,
+            },
             "gateway": {
               "port": "${MCP_GATEWAY_PORT}",
               "domain": "${MCP_GATEWAY_DOMAIN}",

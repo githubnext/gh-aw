@@ -500,8 +500,7 @@ jobs:
                   "Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}"
                 }
               }
-            }
-            ,
+            },
             "gateway": {
               "port": "${MCP_GATEWAY_PORT}",
               "domain": "${MCP_GATEWAY_DOMAIN}",

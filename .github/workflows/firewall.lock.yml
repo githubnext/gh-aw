@@ -173,8 +173,7 @@ jobs:
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               }
-            }
-            ,
+            },
             "gateway": {
               "port": "${MCP_GATEWAY_PORT}",
               "domain": "${MCP_GATEWAY_DOMAIN}",

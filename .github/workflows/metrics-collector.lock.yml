@@ -217,8 +217,7 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               }
-            }
-            ,
+            },
             "gateway": {
               "port": "${MCP_GATEWAY_PORT}",
               "domain": "${MCP_GATEWAY_DOMAIN}",
