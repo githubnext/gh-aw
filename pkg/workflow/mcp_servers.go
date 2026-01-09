@@ -536,6 +536,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// Add volume mounts
+	if len(gatewayConfig.Mounts) > 0 {
+		for _, mount := range gatewayConfig.Mounts {
+			containerCmd += " -v " + shellQuote(mount)
+		}
+	}
+
 	containerCmd += " " + containerImage
 
 	if len(gatewayConfig.EntrypointArgs) > 0 {
@@ -587,6 +594,16 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 		}
 		if workflowData.SandboxConfig.MCP.Port == 0 {
 			workflowData.SandboxConfig.MCP.Port = int(DefaultMCPGatewayPort)
+		}
+	}
+
+	// Ensure default mounts are set if not provided
+	if len(workflowData.SandboxConfig.MCP.Mounts) == 0 {
+		mcpServersLog.Print("Setting default gateway mounts")
+		workflowData.SandboxConfig.MCP.Mounts = []string{
+			"/opt:/opt:ro",
+			"/tmp:/tmp:rw",
+			"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
 		}
 	}
 }
