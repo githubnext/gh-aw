@@ -11,7 +11,7 @@ import (
 var dockerLog = logger.New("workflow:docker")
 
 // collectDockerImages collects all Docker images used in MCP configurations
-func collectDockerImages(tools map[string]any) []string {
+func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []string {
 	var images []string
 	imageSet := make(map[string]bool) // Use a set to avoid duplicates
 
@@ -35,6 +35,22 @@ func collectDockerImages(tools map[string]any) []string {
 		if !imageSet[image] {
 			images = append(images, image)
 			imageSet[image] = true
+		}
+	}
+
+	// Collect sandbox.mcp container (MCP gateway)
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.MCP != nil {
+		mcpGateway := workflowData.SandboxConfig.MCP
+		if mcpGateway.Container != "" {
+			image := mcpGateway.Container
+			if mcpGateway.Version != "" {
+				image += ":" + mcpGateway.Version
+			}
+			if !imageSet[image] {
+				images = append(images, image)
+				imageSet[image] = true
+				dockerLog.Printf("Added sandbox.mcp container: %s", image)
+			}
 		}
 	}
 
