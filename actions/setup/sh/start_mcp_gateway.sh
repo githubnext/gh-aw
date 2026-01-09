@@ -149,7 +149,11 @@ done
 
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
   echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
-  echo "Gateway stderr logs:"
+  echo ""
+  echo "Gateway stdout (errors are written here per MCP Gateway Specification):"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  echo ""
+  echo "Gateway stderr logs (debug output):"
   cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
@@ -174,6 +178,24 @@ done
 # Verify output was written
 if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   echo "ERROR: Gateway did not write output configuration"
+  echo ""
+  echo "Gateway stdout (should contain error or config):"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  echo ""
+  echo "Gateway stderr logs:"
+  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  kill $GATEWAY_PID 2>/dev/null || true
+  exit 1
+fi
+
+# Check if output contains an error payload instead of valid configuration
+# Per MCP Gateway Specification v1.0.0 section 9.1, errors are written to stdout as error payloads
+if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; then
+  echo "ERROR: Gateway returned an error payload instead of configuration"
+  echo ""
+  echo "Gateway error details:"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json
+  echo ""
   echo "Gateway stderr logs:"
   cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true
