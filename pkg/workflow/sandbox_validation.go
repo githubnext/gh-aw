@@ -57,11 +57,20 @@ func validateMountsSyntax(mounts []string) error {
 // validateSandboxConfig validates the sandbox configuration
 // Returns an error if the configuration is invalid
 func validateSandboxConfig(workflowData *WorkflowData) error {
-	if workflowData == nil || workflowData.SandboxConfig == nil {
+	if workflowData == nil {
+		return nil
+	}
+
+	if workflowData.SandboxConfig == nil {
 		return nil // No sandbox config is valid
 	}
 
 	sandboxConfig := workflowData.SandboxConfig
+
+	// Check if sandbox.agent: false was specified (now unsupported)
+	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		return fmt.Errorf("'sandbox.agent: false' is no longer supported. The agent sandbox is now mandatory and defaults to 'awf'. To migrate this workflow, remove the 'sandbox.agent: false' line. Use 'gh aw fix' to automatically update workflows")
+	}
 
 	// Validate mounts syntax if specified in agent config
 	agentConfig := getAgentConfig(workflowData)

@@ -137,33 +137,19 @@ jobs:
         run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Install Sandbox Runtime System Dependencies
-        run: |
-          echo "Installing system dependencies for Sandbox Runtime"
-          sudo apt-get update
-          sudo apt-get install -y ripgrep bubblewrap socat
-          echo "System dependencies installed successfully"
-          echo "Verifying installations:"
-          rg --version
-          bwrap --version
-          socat -V
-      - name: Configure System for Sandbox Runtime
-        run: |
-          echo "Disabling AppArmor namespace restrictions for bubblewrap"
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          echo "System configuration applied successfully"
-      - name: Install Sandbox Runtime
-        run: |
-          echo "Installing @anthropic-ai/sandbox-runtime@0.0.25 locally"
-          npm install @anthropic-ai/sandbox-runtime@0.0.25
-          echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
-        run: npm install --silent @github/copilot@0.0.376
+        run: |
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          
+          # Execute the installer with the specified version
+          export VERSION=0.0.376 && sudo bash /tmp/copilot-install.sh
+          
+          # Cleanup
+          rm -f /tmp/copilot-install.sh
+          
+          # Verify installation
+          copilot --version
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -567,210 +553,12 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-
-          # Pre-create required directories for Sandbox Runtime
-          mkdir -p /home/runner/.copilot
-          mkdir -p /tmp/claude
-
-          # Create .srt-settings.json
-          cat > .srt-settings.json << 'SRT_CONFIG_EOF'
-          {
-            "network": {
-              "allowedDomains": [
-                "*.githubcopilot.com",
-                "*.githubusercontent.com",
-                "api.business.githubcopilot.com",
-                "api.enterprise.githubcopilot.com",
-                "api.github.com",
-                "api.githubcopilot.com",
-                "api.individual.githubcopilot.com",
-                "api.npms.io",
-                "api.snapcraft.io",
-                "archive.ubuntu.com",
-                "azure.archive.ubuntu.com",
-                "bun.sh",
-                "codeload.github.com",
-                "crl.geotrust.com",
-                "crl.globalsign.com",
-                "crl.identrust.com",
-                "crl.sectigo.com",
-                "crl.thawte.com",
-                "crl.usertrust.com",
-                "crl.verisign.com",
-                "crl3.digicert.com",
-                "crl4.digicert.com",
-                "crls.ssl.com",
-                "deb.nodesource.com",
-                "deno.land",
-                "example.com",
-                "get.pnpm.io",
-                "github-cloud.githubusercontent.com",
-                "github-cloud.s3.amazonaws.com",
-                "github.com",
-                "github.githubassets.com",
-                "host.docker.internal",
-                "json-schema.org",
-                "json.schemastore.org",
-                "keyserver.ubuntu.com",
-                "lfs.github.com",
-                "nodejs.org",
-                "npm.pkg.github.com",
-                "npmjs.com",
-                "npmjs.org",
-                "objects.githubusercontent.com",
-                "ocsp.digicert.com",
-                "ocsp.geotrust.com",
-                "ocsp.globalsign.com",
-                "ocsp.identrust.com",
-                "ocsp.sectigo.com",
-                "ocsp.ssl.com",
-                "ocsp.thawte.com",
-                "ocsp.usertrust.com",
-                "ocsp.verisign.com",
-                "packagecloud.io",
-                "packages.cloud.google.com",
-                "packages.microsoft.com",
-                "ppa.launchpad.net",
-                "raw.githubusercontent.com",
-                "registry.bower.io",
-                "registry.npmjs.com",
-                "registry.npmjs.org",
-                "registry.yarnpkg.com",
-                "repo.yarnpkg.com",
-                "s.symcb.com",
-                "s.symcd.com",
-                "security.ubuntu.com",
-                "skimdb.npmjs.com",
-                "ts-crl.ws.symantec.com",
-                "ts-ocsp.ws.symantec.com",
-                "www.npmjs.com",
-                "www.npmjs.org",
-                "yarnpkg.com"
-              ],
-              "blockedDomains": [],
-              "allowUnixSockets": [
-                "/var/run/docker.sock"
-              ],
-              "allowLocalBinding": false,
-              "allowAllUnixSockets": true
-            },
-            "filesystem": {
-              "denyRead": [],
-              "allowWrite": [
-                ".",
-                "/tmp",
-                "/home/runner/.copilot",
-                "/home/runner"
-              ],
-              "denyWrite": []
-            },
-            "enableWeakerNestedSandbox": true
-          }
-          SRT_CONFIG_EOF
-
-          # Create Node.js wrapper script for SRT
-          cat > ./.srt-wrapper.js << 'SRT_WRAPPER_EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            try {
-              // Load the sandbox configuration from .srt-settings.json
-              const configData = readFileSync('.srt-settings.json', 'utf-8');
-              const config = JSON.parse(configData);
-
-              // Initialize the sandbox (starts proxy servers, etc.)
-              await SandboxManager.initialize(config);
-
-              // Collect required environment variables for the sandboxed process
-              // These need to be explicitly passed because bwrap doesn't inherit env vars
-              // NOTE: Do NOT include GITHUB_TOKEN or GH_TOKEN here - they conflict with
-              // COPILOT_GITHUB_TOKEN. The Copilot CLI checks these tokens and if it finds
-              // the GitHub Actions default GITHUB_TOKEN (which is not valid for Copilot auth),
-              // it will fail with "No authentication information found" even when
-              // COPILOT_GITHUB_TOKEN is correctly set.
-              const requiredEnvVars = [
-                'COPILOT_GITHUB_TOKEN',
-                'COPILOT_AGENT_RUNNER_TYPE',
-                'XDG_CONFIG_HOME',
-                'GITHUB_STEP_SUMMARY',
-                'GITHUB_HEAD_REF',
-                'GITHUB_REF_NAME',
-                'GITHUB_WORKSPACE',
-                'GH_AW_PROMPT',
-                'GH_AW_MCP_CONFIG',
-                'GITHUB_MCP_SERVER_TOKEN',
-                'GH_AW_SAFE_OUTPUTS',
-                'GH_AW_STARTUP_TIMEOUT',
-                'GH_AW_TOOL_TIMEOUT',
-                'GH_AW_MAX_TURNS',
-              ];
-
-              // Build environment variable export statements for the command
-              // Use 'export' with semicolon to ensure variables propagate through nested bash invocations
-              const envPrefix = requiredEnvVars
-                .filter(key => process.env[key] !== undefined)
-                .map(key => {
-                  const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
-                  return "export " + key + "='" + value + "';";
-                })
-                .join(' ');
-
-              // The command to run
-              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}';
-
-              // Prepend environment variables to the command
-              const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
-
-              // Wrap the command with sandbox restrictions
-              const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
-
-              // Execute the sandboxed command
-              const child = spawn(sandboxedCommand, {
-                shell: true,
-                stdio: 'inherit',
-                env: process.env
-              });
-
-              // Handle exit
-              child.on('exit', async (code) => {
-                // Cleanup when done
-                await SandboxManager.reset();
-                process.exit(code || 0);
-              });
-
-              // Handle errors
-              child.on('error', async (err) => {
-                console.error('Error executing command:', err);
-                await SandboxManager.reset();
-                process.exit(1);
-              });
-            } catch (err) {
-              console.error('Fatal error:', err);
-              try {
-                await SandboxManager.reset();
-              } catch (cleanupErr) {
-                console.error('Error during cleanup:', cleanupErr);
-              }
-              process.exit(1);
-            }
-          }
-
-          main();
-          SRT_WRAPPER_EOF
-
-          # Run the Node.js wrapper script
-          node ./.srt-wrapper.js 2>&1 | tee /tmp/gh-aw/agent-stdio.log
-
-          # Move preserved Copilot logs to expected location
-          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)"
-          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
-            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/sandbox/agent/logs/"
-            mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/sandbox/agent/logs/ || true
-            rmdir "$COPILOT_LOGS_DIR" || true
-          fi
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+          mkdir -p /tmp/
+          mkdir -p /tmp/gh-aw/
+          mkdir -p /tmp/gh-aw/agent/
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

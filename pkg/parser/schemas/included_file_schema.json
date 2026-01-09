@@ -909,7 +909,7 @@
             "firewall": {
               "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
               "deprecated": true,
-              "x-deprecation-message": "Use 'sandbox.agent: false' instead to disable the firewall for the agent",
+              "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
               "oneOf": [
                 {
                   "type": "null",

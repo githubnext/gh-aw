@@ -77,13 +77,15 @@ network:
 
 Advanced configuration: set `firewall.version` (defaults to latest), `log-level` (debug, info, warn, error), or `args` for additional AWF arguments. Use `firewall: false` or `"disable"` to disable.
 
-### Disabling the Firewall
+### Agent Sandbox
 
-:::caution[Deprecated]
-The `network.firewall: false` configuration is deprecated. Use `sandbox.agent: false` instead.
+:::note[Mandatory Sandbox]
+The agent sandbox is now mandatory for all workflows and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 :::
 
-Disable firewall enforcement with `sandbox.agent: false`. Network permissions still apply for content sanitization. Legacy approach: `strict: false` with `network.firewall: false` (deprecated).
+The sandbox configuration is controlled via the `sandbox.agent` field:
+- **AWF (default)**: Network egress control through domain-based access controls
+- **SRT**: Enhanced isolation using Anthropic's Sandbox Runtime (experimental, Copilot only)
 
 See [Network Permissions](/gh-aw/reference/network/) for domain configuration details.
 
