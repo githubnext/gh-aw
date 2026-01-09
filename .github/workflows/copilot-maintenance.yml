@@ -4,7 +4,13 @@ name: Copilot Maintenance
 on:
   schedule:
     - cron: "0 2 * * *"  # Daily at 2:00 AM UTC
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      delete_branches:
+        description: 'Delete branches (if false, only preview)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -35,6 +41,7 @@ jobs:
           ./scripts/delete-old-copilot-branches.sh
 
       - name: Execute deletion commands
+        if: github.event.inputs.delete_branches == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -47,3 +54,17 @@ jobs:
                 echo "Failed to delete branch (may already be deleted)"
             done
           echo "✓ Copilot branch cleanup completed"
+
+      - name: Preview mode notice
+        if: github.event.inputs.delete_branches != 'true'
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "⚠️  PREVIEW MODE - No branches were deleted"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "To delete branches, re-run this workflow with:"
+          echo "  delete_branches: true"
+          echo ""
+          echo "See the 'Run copilot branch cleanup script' step"
+          echo "for the list of branches that would be deleted."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
