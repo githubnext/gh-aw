@@ -317,7 +317,7 @@ gh aw campaign new my-campaign-id      # Scaffold new spec
 gh aw campaign validate                # Validate specs (fails on problems)
 ```
 
-See [Agentic campaigns guide](/gh-aw/guides/campaigns/) for full spec and defaults. Alternative: use "🚀 Start an Agentic Campaign" issue form ([docs](/gh-aw/guides/campaigns/getting-started/#start-an-agentic-campaign-with-github-issue-forms)).
+See [Agentic campaigns guide](/gh-aw/guides/campaigns/) for full spec and defaults. Alternative: create an issue with `[New Agentic Campaign]` prefix to trigger automated campaign creation ([docs](/gh-aw/guides/campaigns/getting-started/#automated-campaign-creation)).
 
 ### Management
 
