@@ -37,20 +37,7 @@ fi
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs/gateway
 
-# Validate configuration file exists
-if [ ! -f "/home/runner/.copilot/mcp-config.json" ]; then
-  echo "ERROR: Configuration file not found at /home/runner/.copilot/mcp-config.json"
-  echo "The MCP configuration file must be created before starting the gateway"
-  exit 1
-fi
-
-# Validate configuration file is valid JSON
-if ! jq empty /home/runner/.copilot/mcp-config.json 2>/dev/null; then
-  echo "ERROR: Configuration file /home/runner/.copilot/mcp-config.json is not valid JSON"
-  exit 1
-fi
-
-# Validate container syntax
+# Validate container syntax first (before accessing files)
 # Container should be a valid docker command starting with "docker run"
 if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE '^docker run'; then
   echo "ERROR: MCP_GATEWAY_CONTAINER has incorrect syntax"
@@ -72,6 +59,19 @@ fi
 
 if ! echo "$MCP_GATEWAY_CONTAINER" | grep -qE -- '--network host'; then
   echo "ERROR: MCP_GATEWAY_CONTAINER must include --network host flag"
+  exit 1
+fi
+
+# Validate configuration file exists
+if [ ! -f "/home/runner/.copilot/mcp-config.json" ]; then
+  echo "ERROR: Configuration file not found at /home/runner/.copilot/mcp-config.json"
+  echo "The MCP configuration file must be created before starting the gateway"
+  exit 1
+fi
+
+# Validate configuration file is valid JSON
+if ! jq empty /home/runner/.copilot/mcp-config.json 2>/dev/null; then
+  echo "ERROR: Configuration file /home/runner/.copilot/mcp-config.json is not valid JSON"
   exit 1
 fi
 
