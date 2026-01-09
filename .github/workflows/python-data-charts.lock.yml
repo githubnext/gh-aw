@@ -429,12 +429,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="8080"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" ghcr.io/githubnext/gh-aw-mcpg:v0.0.10'
+          
           mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
+          cat << 'MCPCONFIG_EOF' | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "agentic_workflows": {
-                "type": "local",
+                "type": "stdio",
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
                 "tools": ["*"],
@@ -443,7 +451,7 @@ jobs:
                 }
               },
               "github": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
                 "tools": ["*"],
                 "env": {
@@ -454,7 +462,7 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "local",
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
@@ -475,26 +483,14 @@ jobs:
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
               }
+            },
+            "gateway": {
+              "port": "${MCP_GATEWAY_PORT}",
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}"
             }
           }
-          EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
-          
-          # Start MCP gateway
-          export MCP_GATEWAY_PORT="8080"
-          export MCP_GATEWAY_DOMAIN="host.docker.internal"
-          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
-          export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_CONTAINER='docker run -i --rm --network host -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" ghcr.io/githubnext/gh-aw-mcpg:v0.0.10'
-          
-          # Run gateway start script
-          bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          MCPCONFIG_EOF
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0

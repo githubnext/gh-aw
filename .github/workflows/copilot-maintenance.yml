@@ -27,6 +27,44 @@ jobs:
           fetch-depth: 0  # Fetch all history for all branches
           persist-credentials: false
 
+      - name: Setup Scripts
+        uses: ./actions/setup
+
+      - name: Check admin permissions
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_REQUIRED_ROLES: "admin"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { checkRepositoryPermission } = require('/opt/gh-aw/actions/check_permissions_utils.cjs');
+            
+            const actor = context.actor;
+            const { owner, repo } = context.repo;
+            
+            // Only check permissions for workflow_dispatch events (manual triggers)
+            // Schedule events are trusted
+            if (context.eventName === 'workflow_dispatch') {
+              core.info(`Checking if user '${actor}' has admin permissions for branch deletion`);
+              
+              const result = await checkRepositoryPermission(actor, owner, repo, ['admin']);
+              
+              if (result.error) {
+                core.setFailed(`Permission check failed: ${result.error}`);
+                return;
+              }
+              
+              if (!result.authorized) {
+                core.setFailed(`Access denied: Only repository administrators can delete branches. User '${actor}' has '${result.permission}' permission but requires 'admin'.`);
+                return;
+              }
+              
+              core.info(`✅ User '${actor}' has admin access - authorized to delete branches`);
+            } else {
+              core.info(`✅ Scheduled event - permission check skipped`);
+            }
+
       - name: Run copilot branch cleanup script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
