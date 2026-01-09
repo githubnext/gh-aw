@@ -1,8 +1,8 @@
 #!/bin/bash
-# delete-old-copilot-branches.sh - Find and delete old copilot/* branches with closed/merged PRs
+# delete-old-copilot-branches.sh - Find and delete old copilot/* branches
 #
 # This script identifies copilot/* branches that:
-# - Have a closed or merged PR
+# - Have a closed or merged PR, OR have no PR at all
 # - Last commit is at least 1 day old
 #
 # The script outputs git commands to delete these branches.
@@ -62,7 +62,7 @@ if ! gh auth status &> /dev/null; then
     exit 1
 fi
 
-echo "Finding copilot/* branches with closed/merged PRs (last commit 1+ day old)..."
+echo "Finding copilot/* branches with closed/merged PRs or no PR (last commit 1+ day old)..."
 echo ""
 
 # Get current time in seconds since epoch
@@ -126,17 +126,17 @@ while IFS= read -r branch; do
     pr_status=$(gh pr list --head "$branch" --state all --json number,state,headRefName --jq '.[0] | select(.headRefName == "'"$branch"'") | .state' 2>/dev/null || echo "")
     
     if [ -z "$pr_status" ]; then
-        echo -e "  ${YELLOW}⚠️  No PR found for this branch, skipping${NC}"
-        echo ""
-        continue
-    fi
-    
-    # Check if PR is closed or merged
-    if [ "$pr_status" = "CLOSED" ] || [ "$pr_status" = "MERGED" ]; then
+        # No PR found - include for deletion
+        echo -e "  ${GREEN}✓ No PR found${NC}"
+        branches_to_delete+=("$branch")
+        echo -e "  ${GREEN}→ Will be deleted${NC}"
+    elif [ "$pr_status" = "CLOSED" ] || [ "$pr_status" = "MERGED" ]; then
+        # PR is closed or merged - include for deletion
         echo -e "  ${GREEN}✓ PR is ${pr_status}${NC}"
         branches_to_delete+=("$branch")
         echo -e "  ${GREEN}→ Will be deleted${NC}"
     else
+        # PR is still open - skip
         echo -e "  ${YELLOW}⚠️  PR is ${pr_status}, skipping${NC}"
     fi
     
@@ -153,7 +153,6 @@ if [ ${#branches_to_delete[@]} -eq 0 ]; then
     echo "All copilot/* branches either:"
     echo "  - Have open PRs"
     echo "  - Have recent commits (< 24h old)"
-    echo "  - Have no associated PR"
 else
     echo -e "${GREEN}Found ${#branches_to_delete[@]} branch(es) to delete:${NC}"
     echo ""
