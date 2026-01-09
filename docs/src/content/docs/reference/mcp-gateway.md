@@ -10,6 +10,7 @@ sidebar:
 **Version**: 1.0.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
+**JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
 **Editor**: GitHub Agentic Workflows Team
 
 ---
@@ -175,6 +176,8 @@ The gateway operates in a headless mode:
 
 The gateway MUST accept configuration via stdin in JSON format conforming to the MCP configuration file schema.
 
+**JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)
+
 #### 4.1.1 Configuration Structure
 
 ```json
@@ -223,15 +226,15 @@ Each server configuration MUST support:
 
 #### 4.1.3 Gateway Configuration Fields
 
-The optional `gateway` section configures gateway-specific behavior:
+The `gateway` section is required and configures gateway-specific behavior:
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `port` | integer | 8080 | HTTP server port |
-| `apiKey` | string | (none) | API key for authentication |
-| `domain` | string | localhost | Gateway domain (localhost or host.docker.internal) |
-| `startupTimeout` | integer | 30 | Server startup timeout in seconds |
-| `toolTimeout` | integer | 60 | Tool invocation timeout in seconds |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `port` | integer | Yes | HTTP server port |
+| `domain` | string | Yes | Gateway domain (localhost or host.docker.internal) |
+| `apiKey` | string | No | API key for authentication |
+| `startupTimeout` | integer | No | Server startup timeout in seconds (default: 30) |
+| `toolTimeout` | integer | No | Tool invocation timeout in seconds (default: 60) |
 
 ### 4.2 Variable Expression Rendering
 
@@ -743,6 +746,7 @@ Implementations SHOULD provide:
   },
   "gateway": {
     "port": 8080,
+    "domain": "localhost",
     "apiKey": "gateway-secret-token"
   }
 }
@@ -766,6 +770,7 @@ Implementations SHOULD provide:
   },
   "gateway": {
     "port": 8080,
+    "domain": "localhost",
     "apiKey": "gateway-secret-token"
   }
 }
@@ -788,6 +793,7 @@ Implementations SHOULD provide:
   },
   "gateway": {
     "port": 8080,
+    "domain": "localhost",
     "startupTimeout": 60,
     "toolTimeout": 120
   }
@@ -805,6 +811,10 @@ Implementations SHOULD provide:
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
     }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost"
   }
 }
 ```
