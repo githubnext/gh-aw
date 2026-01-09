@@ -53,6 +53,7 @@ cat /tmp/gh-aw/mcp-config/gateway-input.json | docker run -i --rm \
   -e MCP_GATEWAY_PORT \
   -e MCP_GATEWAY_DOMAIN \
   -e MCP_GATEWAY_API_KEY \
+  -e DEBUG="*" \
   $MCP_GATEWAY_CONTAINER \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
