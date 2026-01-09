@@ -74,20 +74,9 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			// Cache-memory is handled as a simple file share, not an MCP server
 			return toolName != "cache-memory"
 		},
-		PostEOFCommands: func(yaml *strings.Builder) {
-			// Add debug output
-			yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
-			yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
-			yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
-			yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
-			yaml.WriteString("          find /home/runner/.copilot\n")
-		},
 	}
 
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, options)
-	//GITHUB_COPILOT_CLI_MODE
-	yaml.WriteString("          echo \"HOME: $HOME\"\n")
-	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
 }
 
 // renderCopilotMCPConfigWithContext generates custom MCP server configuration for Copilot CLI

@@ -3,6 +3,8 @@
 # This script starts the MCP gateway process that proxies MCP servers through a unified HTTP endpoint
 # Following the MCP Gateway Specification: https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/reference/mcp-gateway.md
 # Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
+#
+# This script reads the MCP configuration from stdin and pipes it to the gateway container.
 
 set -e
 
@@ -36,6 +38,7 @@ fi
 
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs/gateway
+mkdir -p /tmp/gh-aw/mcp-config
 
 # Validate container syntax first (before accessing files)
 # Container should be a valid docker command starting with "docker run"
@@ -62,88 +65,57 @@ if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network host'; then
   exit 1
 fi
 
-# Determine MCP config file location based on engine type
-# The gateway expects JSON input conforming to MCP Gateway Specification v1.0.0
-if [ -n "$GH_AW_ENGINE" ]; then
-  ENGINE_TYPE="$GH_AW_ENGINE"
-elif [ -f "/home/runner/.copilot" ] || [ -n "$GITHUB_COPILOT_CLI_MODE" ]; then
-  ENGINE_TYPE="copilot"
-elif [ -f "/tmp/gh-aw/mcp-config/config.toml" ]; then
-  ENGINE_TYPE="codex"
-elif [ -f "/tmp/gh-aw/mcp-config/mcp-servers.json" ]; then
-  ENGINE_TYPE="claude"
-else
-  ENGINE_TYPE="unknown"
-fi
+# Read MCP configuration from stdin
+echo "Reading MCP configuration from stdin..."
+MCP_CONFIG=$(cat)
 
-# Set config path based on engine type
-case "$ENGINE_TYPE" in
-  copilot)
-    MCP_CONFIG_PATH="/home/runner/.copilot/mcp-config.json"
-    ;;
-  codex)
-    MCP_CONFIG_PATH="/tmp/gh-aw/mcp-config/mcp-servers.json"
-    ;;
-  claude)
-    MCP_CONFIG_PATH="/tmp/gh-aw/mcp-config/mcp-servers.json"
-    ;;
-  *)
-    # Default to Copilot location for unknown engines
-    MCP_CONFIG_PATH="/home/runner/.copilot/mcp-config.json"
-    ;;
-esac
+# Log the configuration for debugging
+echo "-------START MCP CONFIG-----------"
+echo "$MCP_CONFIG"
+echo "-------END MCP CONFIG-----------"
+echo ""
 
-echo "Engine type: $ENGINE_TYPE"
-echo "MCP config path: $MCP_CONFIG_PATH"
-
-# Validate configuration file exists
-if [ ! -f "$MCP_CONFIG_PATH" ]; then
-  echo "ERROR: Configuration file not found at $MCP_CONFIG_PATH"
-  echo "The MCP configuration file must be created before starting the gateway"
-  exit 1
-fi
-
-# Validate configuration file is valid JSON
-if ! jq empty "$MCP_CONFIG_PATH" 2>/dev/null; then
-  echo "ERROR: Configuration file $MCP_CONFIG_PATH is not valid JSON"
+# Validate configuration is valid JSON
+if ! echo "$MCP_CONFIG" | jq empty 2>/dev/null; then
+  echo "ERROR: Configuration is not valid JSON"
+  echo "Configuration content:"
+  echo "$MCP_CONFIG"
   exit 1
 fi
 
 # Validate gateway section exists and has required fields
 echo "Validating gateway configuration..."
-if ! jq -e '.gateway' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
-  echo "ERROR: Configuration file is missing required 'gateway' section"
+if ! echo "$MCP_CONFIG" | jq -e '.gateway' >/dev/null 2>&1; then
+  echo "ERROR: Configuration is missing required 'gateway' section"
   echo "Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required"
   exit 1
 fi
 
-if ! jq -e '.gateway.port' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
+if ! echo "$MCP_CONFIG" | jq -e '.gateway.port' >/dev/null 2>&1; then
   echo "ERROR: Gateway configuration is missing required 'port' field"
   exit 1
 fi
 
-if ! jq -e '.gateway.domain' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
+if ! echo "$MCP_CONFIG" | jq -e '.gateway.domain' >/dev/null 2>&1; then
   echo "ERROR: Gateway configuration is missing required 'domain' field"
   exit 1
 fi
 
-if ! jq -e '.gateway.apiKey' "$MCP_CONFIG_PATH" >/dev/null 2>&1; then
+if ! echo "$MCP_CONFIG" | jq -e '.gateway.apiKey' >/dev/null 2>&1; then
   echo "ERROR: Gateway configuration is missing required 'apiKey' field"
   exit 1
 fi
 
-# Copy config to gateway input location (configuration is complete, no transformation needed)
-echo "Using MCP configuration as gateway input..."
-cp "$MCP_CONFIG_PATH" /tmp/gh-aw/mcp-config/gateway-input.json
-
-echo "Gateway input configuration:"
-cat /tmp/gh-aw/mcp-config/gateway-input.json
+echo "Configuration validated successfully"
 echo ""
+
+# Save config for reference (optional)
+echo "$MCP_CONFIG" > /tmp/gh-aw/mcp-config/gateway-input.json
 
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags and image
-cat /tmp/gh-aw/mcp-config/gateway-input.json | $MCP_GATEWAY_DOCKER_COMMAND \
+echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!

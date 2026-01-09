@@ -705,10 +705,10 @@ func RenderJSONMCPConfig(
 	workflowData *WorkflowData,
 	options JSONMCPConfigOptions,
 ) {
-	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools, path=%s", len(mcpTools), options.ConfigPath)
+	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools", len(mcpTools))
 
-	// Write config file header
-	fmt.Fprintf(yaml, "          cat > %s << EOF\n", options.ConfigPath)
+	// Start the JSON structure inline (will be piped to gateway script)
+	yaml.WriteString("          cat << 'MCPCONFIG_EOF' | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -775,10 +775,7 @@ func RenderJSONMCPConfig(
 	}
 
 	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
+	yaml.WriteString("          MCPCONFIG_EOF\n")
 
-	// Add any post-EOF commands (e.g., debug output for Copilot)
-	if options.PostEOFCommands != nil {
-		options.PostEOFCommands(yaml)
-	}
+	// Note: Post-EOF commands are no longer needed since we pipe directly to the gateway script
 }
