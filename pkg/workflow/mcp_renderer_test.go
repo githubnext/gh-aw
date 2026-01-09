@@ -182,8 +182,15 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"safeoutputs": {`) {
 		t.Error("Expected safeoutputs server ID")
 	}
-	if !strings.Contains(output, `"command": "node"`) {
-		t.Error("Expected node command")
+	// Verify container-based approach
+	if !strings.Contains(output, `"container": "node:lts-alpine"`) {
+		t.Error("Expected container field")
+	}
+	if !strings.Contains(output, `"entrypoint": "node"`) {
+		t.Error("Expected entrypoint field")
+	}
+	if !strings.Contains(output, `"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`) {
+		t.Error("Expected entrypointArgs field")
 	}
 	// Check for env var with backslash escaping (Copilot format)
 	if !strings.Contains(output, `\${`) {
@@ -233,12 +240,18 @@ func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify TOML format
+	// Verify TOML format with container-based approach
 	if !strings.Contains(output, "[mcp_servers.safeoutputs]") {
 		t.Error("Expected TOML section header")
 	}
-	if !strings.Contains(output, `command = "node"`) {
-		t.Error("Expected TOML command format")
+	if !strings.Contains(output, `container = "node:lts-alpine"`) {
+		t.Error("Expected TOML container format")
+	}
+	if !strings.Contains(output, `entrypoint = "node"`) {
+		t.Error("Expected TOML entrypoint format")
+	}
+	if !strings.Contains(output, `entrypointArgs = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`) {
+		t.Error("Expected TOML entrypointArgs format")
 	}
 	if !strings.Contains(output, "env_vars = [") {
 		t.Error("Expected TOML env_vars array")
