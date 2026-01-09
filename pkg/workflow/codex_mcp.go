@@ -92,6 +92,65 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 
 	yaml.WriteString("          EOF\n")
+
+	// Also generate JSON config for MCP gateway
+	// Per MCP Gateway Specification v1.0.0 section 4.1, the gateway requires JSON input
+	// This JSON config is used by the gateway, while the TOML config above is used by Codex
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
+
+	// Build gateway configuration
+	gatewayConfig := buildMCPGatewayConfig(workflowData)
+
+	// Use shared JSON renderer for gateway input
+	createJSONRenderer := func(isLast bool) *MCPConfigRendererUnified {
+		return NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false, // Gateway doesn't need Copilot fields
+			InlineArgs:           false, // Use standard multi-line format
+			Format:               "json",
+			IsLast:               isLast,
+		})
+	}
+
+	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		GatewayConfig: gatewayConfig,
+		Renderers: MCPToolRenderers{
+			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+				renderer := createJSONRenderer(isLast)
+				renderer.RenderGitHubMCP(yaml, githubTool, workflowData)
+			},
+			RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
+				renderer := createJSONRenderer(isLast)
+				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
+			},
+			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
+				renderer := createJSONRenderer(isLast)
+				renderer.RenderSerenaMCP(yaml, serenaTool)
+			},
+			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+				// Cache-memory is not used as MCP server
+			},
+			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
+				renderer := createJSONRenderer(isLast)
+				renderer.RenderAgenticWorkflowsMCP(yaml)
+			},
+			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
+				renderer := createJSONRenderer(isLast)
+				renderer.RenderSafeOutputsMCP(yaml)
+			},
+			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
+				renderer := createJSONRenderer(isLast)
+				renderer.RenderSafeInputsMCP(yaml, safeInputs, workflowData)
+			},
+			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
+			},
+			RenderCustomMCPConfig: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+				return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
+			},
+		},
+	})
 }
 
 // renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml
@@ -116,6 +175,37 @@ func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, too
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// renderCodexJSONMCPConfigWithContext generates custom MCP server configuration in JSON format for gateway
+// This is used to generate the JSON config file that the MCP gateway reads
+func (e *CodexEngine) renderCodexJSONMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
+	// Determine if localhost URLs should be rewritten to host.docker.internal
+	rewriteLocalhost := workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
+
+	// Use the shared renderer with JSON format for gateway
+	renderer := MCPConfigRenderer{
+		Format:                   "json",
+		IndentLevel:              "              ",
+		RewriteLocalhostToDocker: rewriteLocalhost,
+	}
+
+	yaml.WriteString("              \"" + toolName + "\": {\n")
+
+	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
+	if err != nil {
+		return err
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
 	}
 
 	return nil

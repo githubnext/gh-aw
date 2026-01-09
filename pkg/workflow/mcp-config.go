@@ -66,9 +66,9 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 	yaml.WriteString("              \"playwright\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	// MCP Gateway spec fields for containerized stdio servers
@@ -88,8 +88,12 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("],\n")
 	} else {
 		yaml.WriteString("                \"args\": [\n")
-		for _, arg := range dockerArgs {
-			yaml.WriteString("                  \"" + arg + "\",\n")
+		for i, arg := range dockerArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(dockerArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
 		}
 		yaml.WriteString("                ],\n")
 	}
@@ -118,8 +122,12 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("],\n")
 	} else {
 		yaml.WriteString("                \"entrypointArgs\": [\n")
-		for _, arg := range entrypointArgs {
-			yaml.WriteString("                  \"" + arg + "\",\n")
+		for i, arg := range entrypointArgs {
+			yaml.WriteString("                  \"" + arg + "\"")
+			if i < len(entrypointArgs)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
 		}
 		yaml.WriteString("                ],\n")
 	}
@@ -150,9 +158,9 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 
 	yaml.WriteString("              \"serena\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	// Use Serena's Docker container image
@@ -164,7 +172,7 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	} else {
 		yaml.WriteString("                \"args\": [\n")
 		yaml.WriteString("                  \"--network\",\n")
-		yaml.WriteString("                  \"host\",\n")
+		yaml.WriteString("                  \"host\"\n")
 		yaml.WriteString("                ],\n")
 	}
 
@@ -226,9 +234,9 @@ type BuiltinMCPServerOptions struct {
 func renderBuiltinMCPServerBlock(opts BuiltinMCPServerOptions) {
 	opts.Yaml.WriteString("              \"" + opts.ServerID + "\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if opts.IncludeCopilotFields {
-		opts.Yaml.WriteString("                \"type\": \"local\",\n")
+		opts.Yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	opts.Yaml.WriteString("                \"command\": \"" + opts.Command + "\",\n")
@@ -306,9 +314,9 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	// This will be transformed to Docker command by getMCPConfig transformation logic
 	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
 
-	// Add type field for Copilot
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	// MCP Gateway spec fields for containerized stdio servers
@@ -651,11 +659,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if isLast {
 				comma = ""
 			}
-			// For copilot CLI, convert "stdio" to "local"
+			// Type field - per MCP Gateway Specification v1.0.0
+			// Use "stdio" for containerized servers, "http" for HTTP servers
 			typeValue := mcpConfig.Type
-			if typeValue == "stdio" && renderer.RequiresCopilotFields {
-				typeValue = "local"
-			}
 			fmt.Fprintf(yaml, "%s\"type\": \"%s\"%s\n", renderer.IndentLevel, typeValue, comma)
 		case "tools":
 			// Render tools field for JSON format (copilot engine) - default to all tools

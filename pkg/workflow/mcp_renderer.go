@@ -493,7 +493,7 @@ type GitHubMCPDockerOptions struct {
 	DockerImageVersion string
 	// CustomArgs are additional arguments to append to the Docker command
 	CustomArgs []string
-	// IncludeTypeField indicates whether to include the "type": "local" field (Copilot needs it, Claude doesn't)
+	// IncludeTypeField indicates whether to include the "type": "stdio" field (Copilot needs it, Claude doesn't)
 	IncludeTypeField bool
 	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
 	AllowedTools []string
@@ -510,8 +510,9 @@ type GitHubMCPDockerOptions struct {
 //   - options: GitHub MCP Docker rendering options
 func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
 	// Add type field if needed (Copilot requires this, Claude doesn't)
+	// Per MCP Gateway Specification v1.0.0 section 4.1.2, use "stdio" for containerized servers
 	if options.IncludeTypeField {
-		yaml.WriteString("                \"type\": \"local\",\n")
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
 	// MCP Gateway spec fields for containerized stdio servers
@@ -704,10 +705,10 @@ func RenderJSONMCPConfig(
 	workflowData *WorkflowData,
 	options JSONMCPConfigOptions,
 ) {
-	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools, path=%s", len(mcpTools), options.ConfigPath)
+	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools", len(mcpTools))
 
-	// Write config file header
-	fmt.Fprintf(yaml, "          cat > %s << EOF\n", options.ConfigPath)
+	// Start the JSON structure inline (will be piped to gateway script)
+	yaml.WriteString("          cat << 'MCPCONFIG_EOF' | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -759,31 +760,22 @@ func RenderJSONMCPConfig(
 		}
 	}
 
-	// Write config file footer
-	yaml.WriteString("            }\n")
-
-	// Add gateway section if configured (needed for awmg to rewrite config)
+	// Write config file footer - but don't add newline yet if we need to add gateway
 	if options.GatewayConfig != nil {
-		yaml.WriteString("            ,\n")
+		yaml.WriteString("            },\n")
+		// Add gateway section (needed for gateway to process)
+		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
 		yaml.WriteString("            \"gateway\": {\n")
-		fmt.Fprintf(yaml, "              \"port\": %d", options.GatewayConfig.Port)
-		if options.GatewayConfig.APIKey != "" {
-			yaml.WriteString(",\n")
-			fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
-		}
-		if options.GatewayConfig.Domain != "" {
-			yaml.WriteString(",\n")
-			fmt.Fprintf(yaml, "              \"domain\": \"%s\"", options.GatewayConfig.Domain)
-		}
-		yaml.WriteString("\n")
+		fmt.Fprintf(yaml, "              \"port\": \"${MCP_GATEWAY_PORT}\",\n")
+		fmt.Fprintf(yaml, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
+		fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
+		yaml.WriteString("            }\n")
+	} else {
 		yaml.WriteString("            }\n")
 	}
 
 	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
+	yaml.WriteString("          MCPCONFIG_EOF\n")
 
-	// Add any post-EOF commands (e.g., debug output for Copilot)
-	if options.PostEOFCommands != nil {
-		options.PostEOFCommands(yaml)
-	}
+	// Note: Post-EOF commands are no longer needed since we pipe directly to the gateway script
 }

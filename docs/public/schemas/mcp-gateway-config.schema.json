@@ -123,10 +123,18 @@
       "description": "Gateway-specific configuration for the MCP Gateway service.",
       "properties": {
         "port": {
-          "type": "integer",
-          "description": "HTTP server port for the gateway. The gateway exposes endpoints at http://{domain}:{port}/",
-          "minimum": 1,
-          "maximum": 65535
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ],
+          "description": "HTTP server port for the gateway. The gateway exposes endpoints at http://{domain}:{port}/. Can be an integer (1-65535) or a variable expression like '${MCP_GATEWAY_PORT}'."
         },
         "apiKey": {
           "type": "string",
@@ -134,9 +142,17 @@
           "minLength": 1
         },
         "domain": {
-          "type": "string",
-          "description": "Gateway domain for constructing URLs. Use 'localhost' for local development or 'host.docker.internal' when the gateway runs in a container and needs to access the host.",
-          "enum": ["localhost", "host.docker.internal"]
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["localhost", "host.docker.internal"]
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ],
+          "description": "Gateway domain for constructing URLs. Use 'localhost' for local development or 'host.docker.internal' when the gateway runs in a container and needs to access the host. Can also be a variable expression like '${MCP_GATEWAY_DOMAIN}'."
         },
         "startupTimeout": {
           "type": "integer",
@@ -151,7 +167,7 @@
           "default": 60
         }
       },
-      "required": ["port", "domain"],
+      "required": ["port", "domain", "apiKey"],
       "additionalProperties": false
     }
   },
