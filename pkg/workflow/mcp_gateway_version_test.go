@@ -83,3 +83,32 @@ func TestMCPGatewayVersionConstantValue(t *testing.T) {
 	require.True(t, constants.DefaultMCPGatewayVersion.IsValid(),
 		"DefaultMCPGatewayVersion should be valid")
 }
+
+// TestMCPGatewayDebugEnvironmentVariable tests that DEBUG is included in the container command
+// DEBUG="*" enables debug logging in the MCP gateway and is added by the Go code
+func TestMCPGatewayDebugEnvironmentVariable(t *testing.T) {
+	// Create a minimal workflow data structure
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID: "awf",
+			},
+			MCP: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/githubnext/gh-aw-mcpg",
+				Version:   "v0.0.10",
+			},
+		},
+	}
+
+	// Create a simple copilot engine
+	engine := &CopilotEngine{}
+
+	// Generate the MCP gateway step
+	var yaml strings.Builder
+	generateMCPGatewayStepInline(&yaml, engine, workflowData)
+
+	// Verify the output contains DEBUG in the docker container command
+	output := yaml.String()
+	assert.Contains(t, output, `-e DEBUG="*"`,
+		"Generated YAML should pass DEBUG to the docker container for debug logging")
+}

@@ -31,7 +31,6 @@ name: "Weekly Issue Summary"
 "on":
   schedule:
   - cron: "0 15 * * 1"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions:
