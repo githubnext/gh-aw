@@ -445,8 +445,7 @@ jobs:
           {
             "mcpServers": {
               "arxiv": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "search_arxiv",
                   "get_paper_details",
@@ -460,8 +459,7 @@ jobs:
                 ]
               },
               "ast-grep": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "*"
                 ],
@@ -473,8 +471,7 @@ jobs:
                 ]
               },
               "brave-search": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "*"
                 ],
@@ -491,8 +488,7 @@ jobs:
                 }
               },
               "context7": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "get-library-docs",
                   "resolve-library-id"
@@ -539,8 +535,7 @@ jobs:
                 ]
               },
               "fabric-rti": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "kusto_known_services",
                   "kusto_query",
@@ -586,9 +581,11 @@ jobs:
                 ]
               },
               "github": {
-                "type": "local",
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
-                "tools": ["*"],
+                "tools": [
+                  "*"
+                ],
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
@@ -597,15 +594,13 @@ jobs:
                 }
               },
               "markitdown": {
-                "type": "local",
-                "command": "markitdown-mcp",
+                "type": "stdio",
                 "tools": [
                   "*"
                 ]
               },
               "memory": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "store_memory",
                   "retrieve_memory",
@@ -629,8 +624,7 @@ jobs:
                 ]
               },
               "notion": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "search_pages",
                   "get_page",
@@ -672,8 +666,7 @@ jobs:
                 }
               },
               "sentry": {
-                "type": "local",
-                "command": "docker",
+                "type": "stdio",
                 "tools": [
                   "whoami",
                   "find_organizations",

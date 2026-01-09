@@ -429,7 +429,6 @@ jobs:
             "mcpServers": {
               "arxiv": {
                 "type": "stdio",
-                "command": "docker",
                 "args": [
                   "run",
                   "--rm",
@@ -439,7 +438,6 @@ jobs:
               },
               "context7": {
                 "type": "stdio",
-                "command": "docker",
                 "args": [
                   "run",
                   "--rm",
@@ -466,8 +464,7 @@ jobs:
                 }
               },
               "markitdown": {
-                "type": "stdio",
-                "command": "markitdown-mcp"
+                "type": "stdio"
               },
               "microsoftdocs": {
                 "type": "http",

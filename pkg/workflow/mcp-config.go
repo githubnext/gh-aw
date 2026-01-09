@@ -600,6 +600,22 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if renderer.RequiresCopilotFields {
 				existingProperties = append(existingProperties, prop)
 			}
+		case "container":
+			if mcpConfig.Container != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "entrypoint":
+			if mcpConfig.Entrypoint != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "entrypointArgs":
+			if len(mcpConfig.EntrypointArgs) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "mounts":
+			if len(mcpConfig.Mounts) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
 		case "command":
 			if mcpConfig.Command != "" {
 				existingProperties = append(existingProperties, prop)
@@ -676,6 +692,70 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			} else {
 				fmt.Fprintf(yaml, "%s\"tools\": [\n", renderer.IndentLevel)
 				fmt.Fprintf(yaml, "%s  \"*\"\n", renderer.IndentLevel)
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
+			}
+		case "container":
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%scontainer = \"%s\"\n", renderer.IndentLevel, mcpConfig.Container)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"container\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Container, comma)
+			}
+		case "entrypoint":
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%sentrypoint = \"%s\"\n", renderer.IndentLevel, mcpConfig.Entrypoint)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"entrypoint\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Entrypoint, comma)
+			}
+		case "entrypointArgs":
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%sentrypointArgs = [\n", renderer.IndentLevel)
+				for _, arg := range mcpConfig.EntrypointArgs {
+					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
+				}
+				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"entrypointArgs\": [\n", renderer.IndentLevel)
+				for argIndex, arg := range mcpConfig.EntrypointArgs {
+					argComma := ","
+					if argIndex == len(mcpConfig.EntrypointArgs)-1 {
+						argComma = ""
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
+				}
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
+			}
+		case "mounts":
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%smounts = [\n", renderer.IndentLevel)
+				for _, mount := range mcpConfig.Mounts {
+					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, mount)
+				}
+				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"mounts\": [\n", renderer.IndentLevel)
+				for mountIndex, mount := range mcpConfig.Mounts {
+					mountComma := ","
+					if mountIndex == len(mcpConfig.Mounts)-1 {
+						mountComma = ""
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, mount, mountComma)
+				}
 				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
 		case "command":
@@ -1129,7 +1209,20 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	}
 
 	// Handle container transformation for stdio type
-	if result.Type == "stdio" && result.Container != "" {
+	// NOTE: Transformation to docker command is DISABLED per MCP Gateway Specification v1.0.0
+	// The spec requires using container, entrypoint, entrypointArgs, and mounts fields directly
+	// NOT converting them to "command": "docker" with args
+	// See: docs/src/content/docs/reference/mcp-gateway.md section 4.1.2
+	//
+	// Previous behavior (now disabled):
+	// - Converted container field to "command": "docker"
+	// - Built docker run command with -v mounts and -e env vars in args array
+	// - Cleared container/entrypoint/entrypointArgs/mounts fields
+	//
+	// New behavior (spec-compliant):
+	// - Keep container, entrypoint, entrypointArgs, mounts fields as-is
+	// - Let the MCP Gateway handle containerization
+	if false && result.Type == "stdio" && result.Container != "" {
 		// Save user-provided args before transforming
 		userProvidedArgs := result.Args
 		entrypoint := result.Entrypoint
