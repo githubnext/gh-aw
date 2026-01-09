@@ -31,6 +31,10 @@ tools:
   bash:
     - "*"
   serena: ["go"]
+sandbox:
+  mcp:
+    container: "ghcr.io/githubnext/gh-aw-mcpg"
+    version: latest
 safe-outputs:
     add-comment:
       hide-older-comments: true
