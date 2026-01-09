@@ -95,8 +95,14 @@ During compilation, a `.campaign.g.md` file is generated locally as a debug arti
 
 See the [compile command documentation](/gh-aw/setup/cli/#compile) for details.
 
-## Alternative: GitHub Issue Forms
+## Alternative: Automated Campaign Creation
 
-For a low-code/no-code method, use the "🚀 Start an Agentic Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. 
+For a streamlined, fully-automated method, create an issue with the title prefix `[New Agentic Campaign]` followed by your campaign name. This triggers an optimized two-phase campaign creation flow:
 
-See the [Getting Started guide](/gh-aw/guides/campaigns/getting-started/#start-an-agentic-campaign-with-github-issue-forms) for details.
+**Phase 1 - Campaign Generator** (~30 seconds): Automatically creates a GitHub Project board, discovers relevant workflows from the local repository and [agentics collection](https://github.com/githubnext/agentics), generates the complete campaign specification, and updates the issue with details.
+
+**Phase 2 - Compilation** (~1-2 minutes): Automatically assigns a Copilot Coding Agent to compile the campaign using `gh aw compile` and create a pull request with all campaign files.
+
+Total time: 2-3 minutes (60% faster than the previous flow).
+
+See the [Getting Started guide](/gh-aw/guides/campaigns/getting-started/#automated-campaign-creation) for complete details on the automated creation process.
