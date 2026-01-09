@@ -120,6 +120,46 @@ Test workflow with safe outputs.`,
 			},
 			expectStep: true,
 		},
+		{
+			name: "Safe outputs with create-pull-request includes node:lts-alpine",
+			frontmatter: `---
+on: issues
+engine: codex
+safe-outputs:
+  create-pull-request:
+    title-prefix: "PR: "
+---
+
+# Test
+Test workflow with PR creation.`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"node:lts-alpine",
+			},
+			expectStep: true,
+		},
+		{
+			name: "Multiple safe outputs includes node:lts-alpine once",
+			frontmatter: `---
+on: issues
+engine: claude
+safe-outputs:
+  create-issue:
+    title-prefix: "Issue: "
+  create-pull-request:
+    title-prefix: "PR: "
+  add-comment:
+    target: issue
+---
+
+# Test
+Test workflow with multiple safe outputs.`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"node:lts-alpine",
+			},
+			expectStep: true,
+		},
 	}
 
 	for _, tt := range tests {
