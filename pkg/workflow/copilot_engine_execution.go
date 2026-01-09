@@ -284,6 +284,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			copilotExecLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
 		}
 
+		// Enable host access when MCP gateway is enabled
+		// This allows AWF containers to connect back to the gateway running on the host
+		if shouldGenerateMCPGateway(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			copilotExecLog.Print("Added --enable-host-access for MCP gateway connectivity")
+		}
+
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
 
 		// Add blocked domains if specified
