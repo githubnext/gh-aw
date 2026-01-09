@@ -1,9 +1,10 @@
+---
 name: Copilot Maintenance
 
 on:
   schedule:
     - cron: "0 2 * * *"  # Daily at 2:00 AM UTC
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -14,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        # v4.2.2
         with:
           fetch-depth: 0  # Fetch all history for all branches
           persist-credentials: false
@@ -37,8 +39,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Executing deletion commands..."
-          ./scripts/delete-old-copilot-branches.sh | grep "git push origin --delete" | while read -r cmd; do
-            echo "Executing: $cmd"
-            eval "$cmd" || echo "Failed to delete branch (may already be deleted)"
-          done
+          ./scripts/delete-old-copilot-branches.sh | \
+            grep "git push origin --delete" | \
+            while read -r cmd; do
+              echo "Executing: $cmd"
+              eval "$cmd" || \
+                echo "Failed to delete branch (may already be deleted)"
+            done
           echo "✓ Copilot branch cleanup completed"
