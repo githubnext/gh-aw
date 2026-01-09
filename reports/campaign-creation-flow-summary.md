@@ -58,14 +58,10 @@ campaign-generator.md workflow (Phase 1: ~30s)
   - Posts status comments
   - Assigns to designer agent
   ↓
-agentic-campaign-designer.agent.md (Phase 2: 1-2 min)
+Copilot Coding Agent Session (Phase 2: 1-2 min)
   - Compiles campaign (gh aw compile)
-  - Creates Pull Request
-  ↓
-Safe Outputs Infrastructure (Phase 3: ~10s)
-  - Downloads patch
-  - Commits to branch
-  - Creates PR
+  - Commits files to branch
+  - Creates Pull Request automatically
   ↓
 User reviews and merges PR
 ```

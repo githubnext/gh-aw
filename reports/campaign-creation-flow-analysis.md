@@ -137,30 +137,19 @@ graph TD
     P -->|Creates| Q[.campaign.g.md]
     P -->|Creates| R[.campaign.lock.yml]
     
-    I --> S[create-pull-request Safe Output]
-    Q --> S
+    Q --> S[Commit Files]
     R --> S
+    I --> S
     
-    S -->|Back to GitHub Actions| T{Safe Outputs Job Phase 3}
+    S --> T[Create Pull Request Automatically]
     
-    T -->|Has: GITHUB_TOKEN| U[Download Patch Artifact]
-    T -->|Has: Git Access| V[Checkout Repo]
-    
-    U --> W[Apply Patch]
-    V --> W
-    
-    W --> X[Commit to Branch]
-    X --> Y[Create Pull Request]
-    
-    Y --> Z[PR Created]
+    T --> U[PR Created]
     
     style C fill:#e1f5ff
     style N fill:#fff4e1
-    style T fill:#e8f5e9
     
     style B fill:#e1f5ff,stroke:#0366d6,stroke-width:3px
     style O fill:#fff4e1,stroke:#f9826c,stroke-width:3px
-    style T fill:#e8f5e9,stroke:#28a745,stroke-width:3px
 ```
 
 ### Phase 1: Agentic Workflow (campaign-generator.md)
@@ -205,7 +194,7 @@ graph TD
 
 ### Phase 2: Copilot Coding Agent (agentic-campaign-designer.agent.md)
 
-**Environment**: Agent Sandbox with gh-aw CLI  
+**Environment**: Copilot Coding Agent Session  
 **Duration**: 1-2 minutes  
 **Token**: Elevated permissions via `assign-to-agent`
 
@@ -213,17 +202,18 @@ graph TD
 - ✅ gh-aw CLI binary (provided by actions/setup)
 - ✅ File system tools (read, write, create)
 - ✅ Bash tools (execute shell commands)
-- ✅ `create-pull-request` safe output
+- ✅ Git operations (commit, push)
 
 **Responsibilities**:
 1. **Receives** `.campaign.md` spec from Phase 1
 2. **Compile** campaign using `gh aw compile <campaign-id>`:
    - Generates `.campaign.g.md` (orchestrator)
    - Generates `.campaign.lock.yml` (compiled workflow)
-3. **Use** `create-pull-request` safe output to commit all files:
+3. **Commit** all campaign files:
    - `.campaign.md` (specification)
    - `.campaign.g.md` (generated orchestrator)
    - `.campaign.lock.yml` (compiled workflow)
+4. **Create Pull Request** automatically (Copilot coding agent sessions open PRs by default)
 
 **Why Phase 2 is Required**:
 - `gh aw compile` requires CLI binary (architectural constraint)
@@ -235,43 +225,25 @@ graph TD
 - No spec generation (done in Phase 1)
 - Only compilation (minimal work)
 
-### Phase 3: Safe Outputs Infrastructure
+**Key Difference from Agentic Workflows**:
+- Copilot coding agent sessions have direct git access
+- No safe outputs infrastructure needed
+- PR creation is automatic, not via safe output job
 
-**Environment**: Automated GitHub Actions Job  
-**Duration**: ~10 seconds  
-**Token**: `GITHUB_TOKEN` (repository-scoped)
-
-**Has Access To**:
-- ✅ Git access (checkout, commit, push)
-- ✅ GitHub API (create PR, update issue)
-- ✅ Artifact storage (download patches)
-
-**Responsibilities**:
-1. **Download** patch artifact from Phase 2
-2. **Checkout** repository to temporary branch
-3. **Apply** git patch with all changes
-4. **Commit** changes to branch
-5. **Create** pull request via GitHub API
-6. **Link** PR back to original issue
-
-**Why Phase 3 is Automated**:
-- Safe outputs infrastructure handles all GitHub API operations
-- No user intervention needed
-- Consistent PR creation across all workflows
 
 ### Complete Flow Timeline
 
 | Phase | Component | Duration | Operations |
 |-------|-----------|----------|------------|
 | **Phase 1** | campaign-generator.md | ~30s | Project creation, workflow discovery, spec generation, issue update |
-| **Phase 2** | agentic-campaign-designer | 1-2 min | Campaign compilation (`gh aw compile`) |
-| **Phase 3** | Safe outputs job | ~10s | Patch application, PR creation |
+| **Phase 2** | Copilot coding agent session | 1-2 min | Campaign compilation, commit files, create PR automatically |
 | **Total** | End-to-end | **2-3 min** | Complete campaign creation |
 
 **Performance Improvement**: 60% faster than original flow (5-10 min → 2-3 min) through:
 - Pre-computed workflow catalog (eliminates 2-3 min scanning)
 - Optimized phase division (heavy lifting in fast Phase 1)
 - Minimal Phase 2 work (compilation only)
+- No safe outputs overhead (Copilot coding agent creates PR directly)
 
 ---
 
