@@ -133,7 +133,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	}
 
 	// Add volume mounts
-	yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]\n")
+	yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.
@@ -194,7 +194,7 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	}
 
 	// Add volume mount for workspace access
-	yaml.WriteString("                \"mounts\": [\"${{ github.workspace }}:${{ github.workspace }}\"]\n")
+	yaml.WriteString("                \"mounts\": [\"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.
@@ -311,7 +311,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	yaml.WriteString("                \"container\": \"" + constants.DefaultNodeAlpineLTSImage + "\",\n")
 	yaml.WriteString("                \"entrypoint\": \"node\",\n")
 	yaml.WriteString("                \"entrypointArgs\": [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"],\n")
-	yaml.WriteString("                \"mounts\": [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw\"],\n")
+	yaml.WriteString("                \"mounts\": [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"],\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.
@@ -400,7 +400,7 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	yaml.WriteString("          ]\n")
 
 	// Add volume mounts
-	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs\"]\n")
+	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
 }
 
 // renderSafeOutputsMCPConfigTOML generates the Safe Outputs MCP server configuration in TOML format for Codex
@@ -412,7 +412,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
-	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw\"]\n")
+	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"]\n")
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
 	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
 }

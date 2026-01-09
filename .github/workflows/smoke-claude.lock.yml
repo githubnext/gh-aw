@@ -624,24 +624,20 @@ jobs:
                   "--allowed-origins",
                   "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com"
                 ],
-                "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs"]
+                "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"]
               },
               "safeinputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
                 "headers": {
                   "Authorization": "Bearer $GH_AW_SAFE_INPUTS_API_KEY"
-                },
-                "env": {
-                  "GH_AW_SAFE_INPUTS_PORT": "$GH_AW_SAFE_INPUTS_PORT",
-                  "GH_AW_SAFE_INPUTS_API_KEY": "$GH_AW_SAFE_INPUTS_API_KEY"
                 }
               },
               "safeoutputs": {
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
-                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
                 "env": {
                   "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
                   "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
@@ -671,7 +667,7 @@ jobs:
                   "--project",
                   "${{ github.workspace }}"
                 ],
-                "mounts": ["${{ github.workspace }}:${{ github.workspace }}"]
+                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
               }
             },
             "gateway": {

@@ -528,7 +528,7 @@ jobs:
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
-                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
                 "env": {
                   "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
@@ -550,7 +550,7 @@ jobs:
                 "args": ["--network", "host"],
                 "entrypoint": "serena",
                 "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
-                "mounts": ["${{ github.workspace }}:${{ github.workspace }}"]
+                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
               },
               "tavily": {
                 "type": "http",

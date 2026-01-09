@@ -455,10 +455,6 @@ jobs:
                 "url": "http://host.docker.internal:\${GH_AW_SAFE_INPUTS_PORT}",
                 "headers": {
                   "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
-                },
-                "env": {
-                  "GH_AW_SAFE_INPUTS_PORT": "\${GH_AW_SAFE_INPUTS_PORT}",
-                  "GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}"
                 }
               },
               "safeoutputs": {
@@ -466,7 +462,7 @@ jobs:
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
-                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
                 "env": {
                   "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
