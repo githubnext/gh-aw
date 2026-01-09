@@ -27,12 +27,6 @@ jobs:
           fetch-depth: 0  # Fetch all history for all branches
           persist-credentials: false
 
-      - name: Authenticate GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "$GH_TOKEN" | gh auth login --with-token
-
       - name: Run copilot branch cleanup script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
