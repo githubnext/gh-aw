@@ -99,6 +99,36 @@ mcp-servers:
       API_KEY: "${{ secrets.MCP_API_KEY }}"
 ```
 
+### MCP Gateway Configuration Debugging
+
+When using the MCP Gateway to proxy multiple MCP servers, you may need to debug how gateway configurations are converted to engine-specific formats (Copilot, Claude, or Codex). Enable detailed logging using the `DEBUG` environment variable:
+
+```bash wrap
+# Enable gateway configuration conversion logging
+DEBUG=convert_gateway_config
+
+# Or enable all debug logging
+DEBUG=*
+```
+
+The debug logs show:
+- **Environment validation**: Confirms required variables are set
+- **Input file details**: File size and contents
+- **Server discovery**: Number and names of servers being converted
+- **Transformation steps**: JQ operations and field modifications
+- **Output verification**: Confirms output files were written correctly
+
+Example debug output:
+```
+[DEBUG convert_gateway_config_copilot] === Starting Copilot configuration conversion ===
+[DEBUG convert_gateway_config_copilot] Found 2 server(s) to convert
+[DEBUG convert_gateway_config_copilot]   - github
+[DEBUG convert_gateway_config_copilot]   - playwright
+[DEBUG convert_gateway_config_copilot] ✓ jq transformation completed successfully
+```
+
+See [Debug Logging](/gh-aw/setup/cli/#debug-logging) in the CLI reference for more DEBUG patterns.
+
 ### Playwright Network Access Denied
 
 Add blocked domains to the `allowed_domains` list:

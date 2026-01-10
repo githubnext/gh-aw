@@ -425,10 +425,16 @@ Completes workflow names, engine names (copilot, claude, codex), and directory p
 Enable detailed debugging with namespace, message, and time diffs. Zero overhead when disabled.
 
 ```bash wrap
-DEBUG=* gh aw compile                # All logs
-DEBUG=cli:* gh aw compile            # CLI only
-DEBUG=*,-tests gh aw compile         # All except tests
+DEBUG=* gh aw compile                       # All logs
+DEBUG=cli:* gh aw compile                   # CLI only
+DEBUG=*,-tests gh aw compile                # All except tests
+DEBUG=convert_gateway_config gh aw compile  # MCP Gateway config conversion only
 ```
+
+Common debug namespaces:
+- `cli:*` - CLI command execution
+- `workflow:*` - Workflow compilation
+- `convert_gateway_config` - MCP Gateway configuration conversion (Copilot, Claude, Codex)
 
 Use `--verbose` flag for user-facing details instead of DEBUG.
 
