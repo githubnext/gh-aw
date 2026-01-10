@@ -494,3 +494,359 @@ Test workflow with all input types`
 		}
 	}
 }
+
+// TestWorkflowDispatchInputEdgeCases tests edge cases for input definitions
+func TestWorkflowDispatchInputEdgeCases(t *testing.T) {
+	tests := []struct {
+		name           string
+		markdown       string
+		wantErrContain string
+		skipValidation bool
+	}{
+		{
+			name: "empty description allowed",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      input1:
+        description: ''
+        type: string
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "missing description allowed",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      input1:
+        type: string
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "zero as number default",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        type: number
+        default: 0
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "negative number default",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      offset:
+        type: number
+        default: -100
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "large number default",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        type: number
+        default: 999999
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "float number default",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      ratio:
+        type: number
+        default: 3.14159
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "empty string default",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      value:
+        type: string
+        default: ''
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "choice without default",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        type: choice
+        options:
+          - dev
+          - prod
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "single choice option",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      single:
+        type: choice
+        options:
+          - only-option
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "many choice options",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        type: choice
+        options:
+          - us-east-1
+          - us-west-1
+          - us-west-2
+          - eu-west-1
+          - eu-central-1
+          - ap-southeast-1
+          - ap-southeast-2
+          - ap-northeast-1
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "all inputs not required",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      optional1:
+        type: string
+        required: false
+      optional2:
+        type: boolean
+        required: false
+      optional3:
+        type: number
+        required: false
+engine: copilot
+---
+# Test Workflow`,
+		},
+		{
+			name: "mixed required and optional",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      required_input:
+        type: string
+        required: true
+      optional_input:
+        type: string
+        required: false
+      default_required_input:
+        type: string
+engine: copilot
+---
+# Test Workflow`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory
+			tmpDir := t.TempDir()
+
+			// Write markdown file
+			workflowPath := filepath.Join(tmpDir, "test.md")
+			err := os.WriteFile(workflowPath, []byte(tt.markdown), 0600)
+			if err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Compile workflow
+			compiler := NewCompiler(false, "", "test")
+
+			err = compiler.CompileWorkflow(workflowPath)
+
+			if tt.wantErrContain != "" {
+				if err == nil {
+					t.Fatalf("Expected error containing %q, got nil", tt.wantErrContain)
+				}
+				if !strings.Contains(err.Error(), tt.wantErrContain) {
+					t.Fatalf("Expected error containing %q, got %q", tt.wantErrContain, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Compilation failed: %v", err)
+			}
+
+			// Read compiled YAML
+			outputPath := filepath.Join(tmpDir, "test.lock.yml")
+			yamlContent, err := os.ReadFile(outputPath)
+			if err != nil {
+				t.Fatalf("Failed to read compiled file: %v", err)
+			}
+
+			// Parse YAML to ensure it's valid
+			var workflow map[string]any
+			err = yaml.Unmarshal(yamlContent, &workflow)
+			if err != nil {
+				t.Fatalf("Failed to parse compiled YAML: %v", err)
+			}
+
+			// Basic validation that workflow_dispatch exists
+			onSection, ok := workflow["on"].(map[string]any)
+			if !ok {
+				t.Fatalf("Expected 'on' to be a map")
+			}
+
+			workflowDispatch, ok := onSection["workflow_dispatch"].(map[string]any)
+			if !ok {
+				t.Fatalf("Expected 'workflow_dispatch' to be a map")
+			}
+
+			inputs, ok := workflowDispatch["inputs"].(map[string]any)
+			if !ok {
+				t.Fatalf("Expected 'inputs' to be a map")
+			}
+
+			if len(inputs) == 0 {
+				t.Fatalf("Expected at least one input")
+			}
+		})
+	}
+}
+
+// TestParseInputDefinitionEdgeCases tests edge cases for ParseInputDefinition
+func TestParseInputDefinitionEdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   map[string]any
+		validate func(t *testing.T, result *InputDefinition)
+	}{
+		{
+			name:   "nil default value",
+			config: map[string]any{"type": "string", "default": nil},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if result.Default != nil {
+					t.Errorf("Expected nil default, got %v", result.Default)
+				}
+			},
+		},
+		{
+			name:   "zero number default",
+			config: map[string]any{"type": "number", "default": 0},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if result.Default != 0 {
+					t.Errorf("Expected default 0, got %v", result.Default)
+				}
+			},
+		},
+		{
+			name:   "false boolean default",
+			config: map[string]any{"type": "boolean", "default": false},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if result.Default != false {
+					t.Errorf("Expected default false, got %v", result.Default)
+				}
+			},
+		},
+		{
+			name:   "empty string default",
+			config: map[string]any{"type": "string", "default": ""},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if result.Default != "" {
+					t.Errorf("Expected empty string default, got %v", result.Default)
+				}
+			},
+		},
+		{
+			name:   "options as []string",
+			config: map[string]any{"type": "choice", "options": []string{"a", "b", "c"}},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if len(result.Options) != 3 {
+					t.Errorf("Expected 3 options, got %d", len(result.Options))
+				}
+			},
+		},
+		{
+			name:   "options as []any",
+			config: map[string]any{"type": "choice", "options": []any{"x", "y", "z"}},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if len(result.Options) != 3 {
+					t.Errorf("Expected 3 options, got %d", len(result.Options))
+				}
+			},
+		},
+		{
+			name:   "empty options array",
+			config: map[string]any{"type": "choice", "options": []any{}},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if len(result.Options) != 0 {
+					t.Errorf("Expected 0 options, got %d", len(result.Options))
+				}
+			},
+		},
+		{
+			name:   "required not specified defaults to false",
+			config: map[string]any{"type": "string"},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if result.Required {
+					t.Errorf("Expected required to be false by default")
+				}
+			},
+		},
+		{
+			name:   "all fields empty",
+			config: map[string]any{},
+			validate: func(t *testing.T, result *InputDefinition) {
+				if result == nil {
+					t.Errorf("Expected non-nil result")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseInputDefinition(tt.config)
+			if result == nil {
+				t.Fatal("ParseInputDefinition returned nil")
+			}
+			tt.validate(t, result)
+		})
+	}
+}
