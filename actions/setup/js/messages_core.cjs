@@ -33,6 +33,8 @@
  * @property {string} [runSuccess] - Custom workflow success message template
  * @property {string} [runFailure] - Custom workflow failure message template
  * @property {string} [detectionFailure] - Custom detection job failure message template
+ * @property {string} [agentFailureIssue] - Custom footer template for agent failure tracking issues
+ * @property {string} [agentFailureComment] - Custom footer template for comments on agent failure tracking issues
  * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
  */
 
