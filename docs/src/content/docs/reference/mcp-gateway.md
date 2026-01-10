@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.2.0  
+**Version**: 1.3.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -650,11 +650,13 @@ The following endpoints MUST NOT require authentication:
 GET /health HTTP/1.1
 ```
 
-Response:
+**Response Format**:
 
 ```json
 {
   "status": "healthy" | "unhealthy",
+  "specVersion": "string",
+  "gatewayVersion": "string",
   "servers": {
     "server-name": {
       "status": "running" | "stopped" | "error",
@@ -663,6 +665,30 @@ Response:
   }
 }
 ```
+
+**Response Fields**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `status` | string | Yes | Overall gateway health status: "healthy" or "unhealthy" |
+| `specVersion` | string | Yes | MCP Gateway Specification version (e.g., "1.3.0") |
+| `gatewayVersion` | string | Yes | Gateway implementation version (e.g., "0.1.0") |
+| `servers` | object | Yes | Map of server names to their health status |
+| `servers[name].status` | string | Yes | Server status: "running", "stopped", or "error" |
+| `servers[name].uptime` | integer | No | Server uptime in seconds |
+
+**Requirements**:
+
+The gateway MUST include the following version information in the `/health` endpoint response:
+
+1. **`specVersion`**: The version of this MCP Gateway Specification that the implementation conforms to. This field MUST use semantic versioning (MAJOR.MINOR.PATCH format).
+2. **`gatewayVersion`**: The version of the gateway implementation itself. This field MUST use semantic versioning and represents the specific build or release version of the gateway software.
+
+These version fields enable clients to:
+- Verify specification compatibility
+- Detect implementation versions for debugging
+- Track deployment versions across environments
+- Ensure feature availability based on specification version
 
 ### 8.2 Health Check Behavior
 
@@ -799,6 +825,10 @@ A conforming implementation MUST pass the following test categories:
 - **T-HLT-003**: Readiness probe accuracy
 - **T-HLT-004**: Server status reporting
 - **T-HLT-005**: Automatic restart behavior
+- **T-HLT-006**: Health response includes specVersion field
+- **T-HLT-007**: Health response includes gatewayVersion field
+- **T-HLT-008**: specVersion uses semantic versioning format
+- **T-HLT-009**: gatewayVersion uses semantic versioning format
 
 #### 10.1.7 Configuration Output Tests
 
@@ -1070,6 +1100,15 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.3.0 (Draft)
+
+- **Added**: Health endpoint version information requirements (Section 8.1.1)
+  - `/health` endpoint MUST include `specVersion` field with MCP Gateway Specification version
+  - `/health` endpoint MUST include `gatewayVersion` field with gateway implementation version
+  - Both version fields MUST use semantic versioning format (MAJOR.MINOR.PATCH)
+- **Added**: Health monitoring compliance tests for version fields (T-HLT-006 through T-HLT-009)
+- **Improved**: Health endpoint documentation with detailed field descriptions and requirements
 
 ### Version 1.2.0 (Draft)
 
