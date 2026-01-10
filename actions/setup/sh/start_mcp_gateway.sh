@@ -235,6 +235,11 @@ if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; the
   exit 1
 fi
 
+# Log gateway version for debugging and troubleshooting
+GATEWAY_VERSION=$(jq -r '.gateway.version // "unknown"' /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null)
+echo "Gateway version: $GATEWAY_VERSION"
+echo ""
+
 # Convert gateway output to agent-specific format
 echo "Converting gateway configuration to agent format..."
 export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json

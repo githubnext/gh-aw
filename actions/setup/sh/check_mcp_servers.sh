@@ -135,9 +135,12 @@ while IFS= read -r SERVER_NAME; do
     AUTH_HEADER=$(echo "$SERVER_CONFIG" | jq -r '.headers.Authorization' 2>/dev/null)
     echo "Authentication: From gateway config (${AUTH_HEADER:0:20}...)"
   else
-    echo "WARNING: No Authorization header in gateway configuration for: $SERVER_NAME"
+    echo "ERROR: No Authorization header in gateway configuration for: $SERVER_NAME"
     echo "The gateway should have included authentication headers in its output."
-    echo "Skipping authentication check..."
+    echo "This indicates the gateway failed to properly configure the server."
+    SERVERS_FAILED=$((SERVERS_FAILED + 1))
+    echo ""
+    continue
   fi
   echo ""
   
