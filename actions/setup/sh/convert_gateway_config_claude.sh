@@ -7,7 +7,6 @@ set -e
 
 # Required environment variable:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
-# - MCP_GATEWAY_API_KEY: API key for gateway authentication
 
 if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"
@@ -16,11 +15,6 @@ fi
 
 if [ ! -f "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: Gateway output file not found: $MCP_GATEWAY_OUTPUT"
-  exit 1
-fi
-
-if [ -z "$MCP_GATEWAY_API_KEY" ]; then
-  echo "ERROR: MCP_GATEWAY_API_KEY environment variable is required"
   exit 1
 fi
 
@@ -57,12 +51,11 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 # Claude uses "type": "http" for HTTP-based MCP servers.
 # The "tools" field is removed as it's Copilot-specific.
 
-jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
+jq '
   .mcpServers |= with_entries(
     .value |= (
       (.type = "http") |
-      (del(.tools)) |
-      (if .headers then . else . + {"headers": {"Authorization": $apiKey}} end)
+      (del(.tools))
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /tmp/gh-aw/mcp-config/mcp-servers.json

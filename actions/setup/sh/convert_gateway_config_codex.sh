@@ -7,7 +7,6 @@ set -e
 
 # Required environment variable:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
-# - MCP_GATEWAY_API_KEY: API key for gateway authentication
 
 if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"
@@ -16,11 +15,6 @@ fi
 
 if [ ! -f "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: Gateway output file not found: $MCP_GATEWAY_OUTPUT"
-  exit 1
-fi
-
-if [ -z "$MCP_GATEWAY_API_KEY" ]; then
-  echo "ERROR: MCP_GATEWAY_API_KEY environment variable is required"
   exit 1
 fi
 
@@ -60,17 +54,13 @@ persistence = "none"
 
 TOML_EOF
 
-jq -r --arg apiKey "$MCP_GATEWAY_API_KEY" '
+jq -r '
   .mcpServers | to_entries[] | 
   "[mcp_servers.\(.key)]\n" +
   "url = \"\(.value.url)\"\n" +
   "\n" +
   "[mcp_servers.\(.key).headers]\n" +
-  if .value.headers.Authorization then
-    "Authorization = \"\(.value.headers.Authorization)\"\n"
-  else
-    "Authorization = \"\($apiKey)\"\n"
-  end
+  "Authorization = \"\(.value.headers.Authorization)\"\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"

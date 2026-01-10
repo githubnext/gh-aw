@@ -7,7 +7,6 @@ set -e
 
 # Required environment variable:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
-# - MCP_GATEWAY_API_KEY: API key for gateway authentication
 
 if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"
@@ -16,11 +15,6 @@ fi
 
 if [ ! -f "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: Gateway output file not found: $MCP_GATEWAY_OUTPUT"
-  exit 1
-fi
-
-if [ -z "$MCP_GATEWAY_API_KEY" ]; then
-  echo "ERROR: MCP_GATEWAY_API_KEY environment variable is required"
   exit 1
 fi
 
@@ -58,11 +52,10 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 # The main difference is that Copilot requires the "tools" field.
 # We also need to ensure headers use the actual API key value, not a placeholder.
 
-jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
+jq '
   .mcpServers |= with_entries(
     .value |= (
-      (if .tools then . else . + {"tools": ["*"]} end) |
-      (if .headers then . else . + {"headers": {"Authorization": $apiKey}} end)
+      if .tools then . else . + {"tools": ["*"]} end
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json

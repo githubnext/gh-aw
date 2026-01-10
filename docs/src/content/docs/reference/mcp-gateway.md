@@ -535,7 +535,7 @@ After successful initialization, the gateway MUST:
    }
    ```
    
-   **REQUIRED**: The `headers` object MUST be present in each server configuration and MUST include the `Authorization` header with the API key value. The `Authorization` header value MUST contain the API key directly, NOT using the Bearer authentication scheme.
+   **REQUIRED**: The `headers` object MUST be present in each server configuration and MUST include the `Authorization` header with the API key value. The `Authorization` header value MUST contain the API key directly, NOT using the Bearer authentication scheme. The gateway is responsible for generating and including appropriate authentication credentials - client-side configuration converters MUST NOT modify or supplement the headers provided by the gateway.
 
 3. Write configuration as a single JSON document
 4. Flush stdout buffer
