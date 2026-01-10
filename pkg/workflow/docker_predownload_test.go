@@ -80,7 +80,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.14",
 			},
 			expectStep: true,
 		},
@@ -100,7 +100,7 @@ mcp-servers:
 Test workflow with custom MCP container.`,
 			expectedImages: []string{
 				"ghcr.io/github/github-mcp-server:v0.27.0",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.14",
 				"myorg/custom-mcp:v1.0.0",
 			},
 			expectStep: true,
@@ -118,7 +118,7 @@ tools:
 Test workflow - sandbox.mcp gateway should be predownloaded.`,
 			expectedImages: []string{
 				"ghcr.io/github/github-mcp-server:v0.27.0",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.14",
 			},
 			expectStep: true,
 		},
@@ -158,7 +158,7 @@ safe-outputs:
 Test workflow - safe outputs MCP server should use node:lts-alpine.`,
 			expectedImages: []string{
 				"ghcr.io/github/github-mcp-server:v0.27.0",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.14",
 				"node:lts-alpine",
 			},
 			expectStep: true,
@@ -177,7 +177,7 @@ network:
 # Test
 Test workflow - safe outputs MCP server without GitHub tool.`,
 			expectedImages: []string{
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.10",
+				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.14",
 				"node:lts-alpine",
 			},
 			expectStep: true,
@@ -231,7 +231,7 @@ Test workflow - safe outputs MCP server without GitHub tool.`,
 }
 
 func TestDockerImagePredownloadOrdering(t *testing.T) {
-	// Test that the "Downloading container images" step comes before "Setup MCPs"
+	// Test that the "Downloading container images" step comes before "Start MCP gateway"
 	frontmatter := `---
 on: issues
 engine: claude
@@ -267,18 +267,18 @@ Test workflow.`
 
 	// Find the positions of both steps
 	downloadPos := strings.Index(yamlStr, "Downloading container images")
-	setupPos := strings.Index(yamlStr, "Setup MCPs")
+	setupPos := strings.Index(yamlStr, "Start MCP gateway")
 
 	if downloadPos == -1 {
 		t.Fatal("Expected 'Downloading container images' step not found")
 	}
 
 	if setupPos == -1 {
-		t.Fatal("Expected 'Setup MCPs' step not found")
+		t.Fatal("Expected 'Start MCP gateway' step not found")
 	}
 
 	// Verify the download step comes before setup step
 	if downloadPos > setupPos {
-		t.Errorf("Expected 'Downloading container images' to come before 'Setup MCPs', but found it after")
+		t.Errorf("Expected 'Downloading container images' to come before 'Start MCP gateway', but found it after")
 	}
 }

@@ -183,8 +183,8 @@ on:
 #     types: [opened, reopened]
 #   pull_request:
 #     types: [opened, synchronize]
-#   schedule:
-#     - cron: "0 9 * * 1"  # Every Monday at 9 AM UTC
+#   schedule: daily  # Fuzzy daily schedule (scattered execution time)
+#   # schedule: weekly on monday  # Fuzzy weekly schedule
 
 # Permissions - what can this workflow access?
 permissions:

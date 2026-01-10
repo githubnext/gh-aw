@@ -25,8 +25,10 @@ name: "Campaign Generator - Optimized Phase 1"
 "on":
   issues:
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
+    # names: # Label filtering applied via job conditions
+    # - create-agentic-campaign # Label filtering applied via job conditions
     types:
-    - opened
+    - labeled
   workflow_dispatch: null
 
 permissions:
@@ -43,8 +45,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && (startsWith(github.event.issue.title, '[New Agentic Campaign]') ||
-      github.event_name == 'workflow_dispatch')
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
+      (github.event.label.name == 'create-agentic-campaign')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -112,6 +114,10 @@ jobs:
       issues: read
       pull-requests: read
     env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_AW_ASSETS_ALLOWED_EXTS: ""
+      GH_AW_ASSETS_BRANCH: ""
+      GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
@@ -196,7 +202,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.10 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.14 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -516,7 +522,8 @@ jobs:
             }
           }
           EOF
-      - name: Setup MCPs
+      - name: Start MCP gateway
+        id: start-mcp-gateway
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
@@ -528,8 +535,11 @@ jobs:
           export MCP_GATEWAY_PORT="8080"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
           export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          
+          # Register API key as secret to mask it from logs
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -e DEBUG="*" ghcr.io/githubnext/gh-aw-mcpg:v0.0.10'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.14'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -538,7 +548,6 @@ jobs:
               "github": {
                 "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.27.0",
-                "tools": ["*"],
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
@@ -551,8 +560,7 @@ jobs:
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
-                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw"],
-                "tools": ["*"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
                 "env": {
                   "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
@@ -570,7 +578,7 @@ jobs:
               }
             },
             "gateway": {
-              "port": "${MCP_GATEWAY_PORT}",
+              "port": $MCP_GATEWAY_PORT,
               "domain": "${MCP_GATEWAY_DOMAIN}",
               "apiKey": "${MCP_GATEWAY_API_KEY}"
             }
@@ -705,34 +713,88 @@ jobs:
           
           **Save the project URL** from the response - you'll need it for Step 4.
           
-          ### Step 3: Discover Workflows Using Catalog
+          ### Step 3: Discover Workflows Dynamically
           
-          **Read the workflow catalog** at `.github/workflow-catalog.yml` to perform deterministic workflow discovery:
+          **Perform comprehensive workflow discovery by scanning the filesystem:**
           
-          1. **Identify campaign category** based on the goal:
-             - Security keywords → `security` category
-             - Dependency/upgrade keywords → `dependency` category
-             - Documentation keywords → `documentation` category
-             - Quality keywords → `quality` category
-             - CI/CD keywords → `ci-cd` category
+          1. **Dynamically scan for agentic workflows**:
+             ```bash
+             ls .github/workflows/*.md
+             ```
+             
+             For each agentic workflow file (`.md`):
+             - Parse the YAML frontmatter to extract:
+               * `description` - What the workflow does
+               * `on` - Trigger configuration
+               * `safe-outputs` or `safe_outputs` - GitHub operations
+             - Match description to campaign keywords
+             - Categorize by purpose (security, quality, docs, CI/CD, etc.)
+             
+             **Example workflow analysis:**
+             - `daily-malicious-code-scan.md` → Security category (keywords: "malicious", "security", "scan")
+             - `glossary-maintainer.md` → Documentation category (keywords: "glossary", "documentation")
+             - `ci-doctor.md` → CI/CD category (keywords: "ci", "workflow", "investigate")
           
-          2. **Query matching workflows** from the catalog:
-             - Match keywords in campaign goal to workflow keywords
-             - Filter workflows by category
-             - Return 2-4 most relevant workflows
+          2. **Dynamically scan for regular workflows**:
+             ```bash
+             ls .github/workflows/*.yml | grep -v ".lock.yml"
+             ```
+             
+             For each regular workflow file:
+             - Read the workflow name (`name:` field in YAML)
+             - Check the trigger configuration (`on:` field)
+             - Scan jobs to understand functionality (testing, security, docs, etc.)
+             - Match workflow name/purpose to campaign category
+             - Assess if it could benefit from AI enhancement
+             
+             **Examples of assessment:**
+             - `security-scan.yml` (runs Gosec, govulncheck, Trivy)
+               → Could add: AI vulnerability prioritization, automated remediation
+             - `ci.yml` (runs tests, builds)
+               → Could add: AI test failure analysis, flaky test detection
+             - `docs.yml` (builds documentation)
+               → Could add: AI quality analysis, gap identification
+             - `link-check.yml` (validates markdown links)
+               → Could add: Alternative link suggestions, archive.org fallbacks
           
-          3. **Categorize workflows**:
-             - **Existing workflows**: IDs found in catalog
-             - **New workflows**: Suggested workflows not in catalog
+          3. **Include external workflow collections**:
+             
+             **Agentics Collection** (https://github.com/githubnext/agentics):
+             Reference reusable workflows that can be installed:
+             - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
+             - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
+             - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
+          
+          4. **Categorize discovered workflows**:
+             - **Existing agentic workflows**: Found by scanning `.md` files and parsing frontmatter
+             - **Regular workflows to enhance**: Found by scanning `.yml` files (excluding `.lock.yml`)
+             - **External workflows**: From agentics collection
+             - **New workflows**: Suggested workflows not found
           
           **Example workflow discovery:**
+          
           For a "Security Q1 2025" campaign with goal "Automated security improvements":
-          - Category: `security`
-          - Keywords match: "security", "scan", "vulnerability"
-          - Found workflows:
-            - `daily-malicious-code-scan` (existing)
-          - Suggested new workflows:
-            - `security-reporter` (new - for progress reports)
+          
+          1. **From agentic workflow scan**: 
+             - Scanned `.github/workflows/*.md`, parsed frontmatter
+             - Found workflows with "security" keywords in description:
+               * `daily-malicious-code-scan.md` (existing agentic)
+          
+          2. **From regular workflow scan**:
+             - Scanned `.github/workflows/*.yml` (excluding `.lock.yml`)
+             - Found regular workflows: `security-scan.yml`, `codeql.yml`, `license-check.yml`
+             - Assessed each for AI enhancement potential:
+               * `security-scan.yml` → High potential (vulnerability prioritization, automated fixes)
+               * `codeql.yml` → High potential (natural language explanations, fix suggestions)
+               * `license-check.yml` → Medium potential (compatibility analysis, alternative dependencies)
+          
+          3. **From external collections**:
+             - `ci-doctor` (from agentics - monitors CI for security issues)
+          
+          4. **Suggested new**:
+             - `security-reporter` - Weekly security posture reports
+          
+          **Result**: 1 agentic + 2-3 regular to enhance + 1 external + 1 new = comprehensive coverage
           
           ### Step 4: Generate Campaign Specification File
           
@@ -825,9 +887,9 @@ jobs:
           
           Use the `update-issue` safe output to update issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
           
-          **Update the title:**
+          **Update the title** (if needed to add campaign name):
           ```
-          [New Agentic Campaign] <campaign-name>
+          <campaign-name>
           ```
           
           **Update the body** with formatted campaign information:
@@ -1163,6 +1225,11 @@ jobs:
           else
             echo "No session-state directory found at $SESSION_STATE_DIR"
           fi
+      - name: Stop MCP gateway
+        if: always()
+        continue-on-error: true
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1224,6 +1291,15 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
+            await main();
+      - name: Parse MCP gateway logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
             await main();
       - name: Firewall summary
         if: always()
@@ -1510,7 +1586,8 @@ jobs:
           if-no-files-found: ignore
 
   pre_activation:
-    if: startsWith(github.event.issue.title, '[New Agentic Campaign]') || github.event_name == 'workflow_dispatch'
+    if: >
+      (github.event_name != 'issues') || ((github.event.action != 'labeled') || (github.event.label.name == 'create-agentic-campaign'))
     runs-on: ubuntu-slim
     permissions:
       contents: read

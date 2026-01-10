@@ -129,6 +129,7 @@ export default defineConfig({
 						{ label: 'MultiRepoOps', link: '/guides/multirepoops/' },
 						{ label: 'SideRepoOps', link: '/guides/siderepoops/' },
 						{ label: 'TrialOps', link: '/guides/trialops/' },
+						{ label: 'AgenticImport', link: '/guides/agentic-import/' },
 					],
 				},
 				{
@@ -159,6 +160,7 @@ export default defineConfig({
 						{ label: 'Frontmatter', link: '/reference/frontmatter/' },
 						{ label: 'Frontmatter (Full)', link: '/reference/frontmatter-full/' },
 						{ label: 'Triggers', link: '/reference/triggers/' },
+						{ label: 'Schedule Syntax', link: '/reference/schedule-syntax/' },
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Permissions', link: '/reference/permissions/' },
 						{ label: 'AI Engines', link: '/reference/engines/' },

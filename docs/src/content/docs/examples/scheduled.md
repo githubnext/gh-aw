@@ -37,7 +37,7 @@ on:
     - cron: "0 */6 * * *"    # Every 6 hours
 ```
 
-See the [Triggers reference](/gh-aw/reference/triggers/#scheduled-triggers-schedule) for complete syntax options.
+See the [Schedule Syntax reference](/gh-aw/reference/schedule-syntax/) for complete documentation of all supported formats.
 
 ## Quick Start
 

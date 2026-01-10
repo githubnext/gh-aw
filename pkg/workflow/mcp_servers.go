@@ -51,7 +51,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 }
 
 // collectMCPEnvironmentVariables collects all MCP-related environment variables
-// from the workflow configuration to be passed to both Setup MCPs and MCP Gateway steps
+// from the workflow configuration to be passed to both Start MCP gateway and MCP Gateway steps
 func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, workflowData *WorkflowData, hasAgenticWorkflows bool) map[string]string {
 	envVars := make(map[string]string)
 
@@ -394,6 +394,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
 		yaml.WriteString("          PORT=3000\n")
 		yaml.WriteString("          \n")
+		yaml.WriteString("          # Register API key as secret to mask it from logs\n")
+		yaml.WriteString("          echo \"::add-mask::${API_KEY}\"\n")
+		yaml.WriteString("          \n")
 		yaml.WriteString("          # Set outputs for next steps\n")
 		yaml.WriteString("          {\n")
 		yaml.WriteString("            echo \"safe_inputs_api_key=${API_KEY}\"\n")
@@ -440,7 +443,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	// Use the engine's RenderMCPConfig method
-	yaml.WriteString("      - name: Setup MCPs\n")
+	yaml.WriteString("      - name: Start MCP gateway\n")
+	yaml.WriteString("        id: start-mcp-gateway\n")
 
 	// Collect all MCP-related environment variables using centralized helper
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
@@ -497,6 +501,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Register API key as secret to mask it from logs\n")
+	yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
 
 	// Export engine type
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
@@ -524,7 +531,35 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	containerCmd := "docker run -i --rm --network host"
+	containerCmd += " -v /var/run/docker.sock:/var/run/docker.sock" // Enable docker-in-docker for MCP gateway
+	// Pass required gateway environment variables
+	containerCmd += " -e MCP_GATEWAY_PORT"
+	containerCmd += " -e MCP_GATEWAY_DOMAIN"
+	containerCmd += " -e MCP_GATEWAY_API_KEY"
 	containerCmd += " -e DEBUG=\"*\""
+	// Pass environment variables that MCP servers reference in their config
+	// These are needed because awmg v0.0.12+ validates and resolves ${VAR} patterns at config load time
+	// Environment variables used by safeoutputs MCP server
+	containerCmd += " -e GH_AW_MCP_LOG_DIR"
+	containerCmd += " -e GH_AW_SAFE_OUTPUTS"
+	containerCmd += " -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH"
+	containerCmd += " -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH"
+	containerCmd += " -e GH_AW_ASSETS_BRANCH"
+	containerCmd += " -e GH_AW_ASSETS_MAX_SIZE_KB"
+	containerCmd += " -e GH_AW_ASSETS_ALLOWED_EXTS"
+	containerCmd += " -e DEFAULT_BRANCH"
+	// Environment variables used by GitHub MCP server
+	containerCmd += " -e GITHUB_MCP_SERVER_TOKEN"
+	containerCmd += " -e GITHUB_MCP_LOCKDOWN"
+	// Standard GitHub Actions environment variables
+	containerCmd += " -e GITHUB_REPOSITORY"
+	containerCmd += " -e GITHUB_SERVER_URL"
+	containerCmd += " -e GITHUB_SHA"
+	containerCmd += " -e GITHUB_WORKSPACE"
+	containerCmd += " -e GITHUB_TOKEN"
+	// Environment variables used by safeinputs MCP server
+	containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
+	containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := make([]string, 0, len(gatewayConfig.Env))
 		for envVarName := range gatewayConfig.Env {
@@ -533,6 +568,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		sort.Strings(envVarNames)
 		for _, envVarName := range envVarNames {
 			containerCmd += " -e " + envVarName
+		}
+	}
+
+	// Add volume mounts
+	if len(gatewayConfig.Mounts) > 0 {
+		for _, mount := range gatewayConfig.Mounts {
+			containerCmd += " -v " + mount
 		}
 	}
 
@@ -550,7 +592,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
-	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + shellQuote(containerCmd) + "\n")
+	// Build the export command with proper quoting that allows variable expansion
+	// We need to break out of quotes for ${GITHUB_WORKSPACE} variables
+	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
+	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")
 
 	// Render MCP config - this will pipe directly to the gateway script
@@ -582,11 +627,22 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 		if workflowData.SandboxConfig.MCP.Container == "" {
 			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
 		}
-		if workflowData.SandboxConfig.MCP.Version == "" {
+		// Replace empty or "latest" with the pinned default version
+		if workflowData.SandboxConfig.MCP.Version == "" || workflowData.SandboxConfig.MCP.Version == "latest" {
 			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
 		}
 		if workflowData.SandboxConfig.MCP.Port == 0 {
 			workflowData.SandboxConfig.MCP.Port = int(DefaultMCPGatewayPort)
+		}
+	}
+
+	// Ensure default mounts are set if not provided
+	if len(workflowData.SandboxConfig.MCP.Mounts) == 0 {
+		mcpServersLog.Print("Setting default gateway mounts")
+		workflowData.SandboxConfig.MCP.Mounts = []string{
+			"/opt:/opt:ro",
+			"/tmp:/tmp:rw",
+			"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
 		}
 	}
 }
@@ -599,6 +655,35 @@ func shellQuote(s string) string {
 		return "'" + s + "'"
 	}
 	return s
+}
+
+// buildDockerCommandWithExpandableVars builds a properly quoted docker command
+// that allows ${GITHUB_WORKSPACE} and $GITHUB_WORKSPACE to be expanded at runtime
+func buildDockerCommandWithExpandableVars(cmd string) string {
+	// Replace ${GITHUB_WORKSPACE} with a placeholder that we'll handle specially
+	// We want: 'docker run ... -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ...'
+	// This closes the single quote, adds the variable in double quotes, then reopens single quote
+
+	// Split on ${GITHUB_WORKSPACE} to handle it specially
+	if strings.Contains(cmd, "${GITHUB_WORKSPACE}") {
+		parts := strings.Split(cmd, "${GITHUB_WORKSPACE}")
+		var result strings.Builder
+		result.WriteString("'")
+		for i, part := range parts {
+			if i > 0 {
+				// Add the variable expansion outside of single quotes
+				result.WriteString("'\"${GITHUB_WORKSPACE}\"'")
+			}
+			// Escape single quotes in the part
+			escapedPart := strings.ReplaceAll(part, "'", "'\\''")
+			result.WriteString(escapedPart)
+		}
+		result.WriteString("'")
+		return result.String()
+	}
+
+	// No GITHUB_WORKSPACE variable, use normal quoting
+	return shellQuote(cmd)
 }
 
 // buildMCPGatewayConfig builds the gateway configuration for inclusion in MCP config files

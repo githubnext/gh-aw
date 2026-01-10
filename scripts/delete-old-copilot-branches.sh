@@ -71,7 +71,9 @@ current_time=$(date +%s)
 seven_days_ago=$((current_time - 604800))
 
 # Get max branches limit from environment variable (default: unlimited)
-max_branches=${MAX_BRANCHES:-0}
+# Convert to integer to handle float values from GitHub Actions
+max_branches_raw=${MAX_BRANCHES:-0}
+max_branches=${max_branches_raw%.*}
 
 # Track branches to delete
 branches_to_delete=()

@@ -67,13 +67,9 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		yaml.WriteString(indent + "    \"-i\",\n")
 		yaml.WriteString(indent + "    \"--rm\",\n")
 		yaml.WriteString(indent + "    \"mcp/fetch\"\n")
-		yaml.WriteString(indent + "  ]")
-		if includeTools {
-			yaml.WriteString(",\n")
-			yaml.WriteString(indent + "  \"tools\": [\"*\"]\n")
-		} else {
-			yaml.WriteString("\n")
-		}
+		yaml.WriteString(indent + "  ]\n")
+		// Note: tools field is NOT included here - the converter script adds it back
+		// for Copilot. This keeps the gateway config compatible with the schema.
 		if isLast {
 			yaml.WriteString(indent + "}\n")
 		} else {

@@ -102,14 +102,14 @@ Enable repo-memory for campaigns using this layout: `memory/campaigns/<campaign-
 
 ## Automated campaign creation
 
-For a more streamlined experience, you can use the automated campaign creation flow. Create an issue with the title prefix `[New Agentic Campaign]` followed by your campaign name.
+For a more streamlined experience, you can use the automated campaign creation flow. Create an issue and apply the `create-agentic-campaign` label to trigger the campaign generator.
 
 ### How it works (Two-Phase Flow)
 
 The campaign creation process uses an optimized two-phase architecture:
 
 **Phase 1 - Campaign Generator Workflow** (~30 seconds):
-1. Automatically triggered when you create an issue with `[New Agentic Campaign]` prefix
+1. Automatically triggered when you apply the `create-agentic-campaign` label to an issue
 2. Creates a GitHub Project board for your campaign
 3. Discovers relevant workflows from the local repository and the [agentics collection](https://github.com/githubnext/agentics)
 4. Generates the complete campaign specification (`.github/workflows/<id>.campaign.md`)
@@ -130,26 +130,38 @@ The campaign creation process uses an optimized two-phase architecture:
 
 **Option 1: Simple issue creation**
 1. Go to Issues → New Issue
-2. Set title to: `[New Agentic Campaign] Your Campaign Name`
-3. In the issue body, describe your campaign goal (e.g., "Upgrade all services to Node.js 20" or "Improve test coverage across repositories")
-4. Submit the issue
+2. Set a descriptive title for your campaign (e.g., "Upgrade all services to Node.js 20")
+3. In the issue body, describe your campaign goal, scope, and requirements
+4. Apply the `create-agentic-campaign` label to the issue
+5. The campaign generator will automatically trigger
 
 **Option 2: Using issue forms (if configured)**
 1. Go to Issues → New Issue → Select "🚀 Start an Agentic Campaign" template
 2. Fill in the form fields
-3. Submit the issue
+3. The issue form will automatically apply the `create-agentic-campaign` label
+4. Submit the issue
 
 ### Workflow Discovery
 
-The campaign generator automatically discovers and suggests workflows from:
+The campaign generator automatically discovers and suggests workflows by dynamically scanning the repository:
 
-- **Local workflows**: Existing workflows in your `.github/workflows/` directory
+- **Agentic workflows**: AI-powered workflows (`.md` files) discovered by scanning `.github/workflows/*.md` and parsing frontmatter to extract descriptions, triggers, and safe-outputs
+- **Regular GitHub Actions workflows**: Standard automation workflows (`.yml` files, excluding `.lock.yml`) discovered by scanning `.github/workflows/*.yml` - assessed for AI enhancement potential
 - **Agentics collection**: 17 reusable workflows from [githubnext/agentics](https://github.com/githubnext/agentics):
   - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
   - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
   - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
 
-The generator uses a workflow catalog (`.github/workflow-catalog.yml`) for deterministic discovery in <1 second vs 2-3 minutes of filesystem scanning.
+The generator uses fully dynamic discovery:
+1. **Agentic workflows**: Scans `.github/workflows/*.md` files and parses frontmatter to understand each workflow's purpose
+2. **Regular workflows**: Scans `.github/workflows/*.yml` (excluding `.lock.yml` compiled files) to assess AI enhancement opportunities
+3. **External collections**: References known collections like agentics for additional workflow suggestions
+
+This dynamic approach ensures:
+- **Always up-to-date**: All workflows discovered automatically without manual catalog maintenance
+- **Comprehensive**: Finds all workflow files in the repository
+- **Flexible**: New workflows are discovered immediately without configuration changes
+- **Accurate**: Reads actual workflow definitions rather than relying on static metadata
 
 ### What you get
 

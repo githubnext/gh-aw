@@ -240,6 +240,73 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		return fmt.Sprintf("%d %d * * *", minute, hour), nil
 	}
 
+	// For FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M * * *, scatter within the time range
+	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY_BETWEEN:") {
+		// Extract the start and end times from FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy daily between pattern: %s", fuzzyCron)
+		}
+
+		// Parse the times from FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M
+		timePart := strings.TrimPrefix(parts[0], "FUZZY:DAILY_BETWEEN:")
+		timeParts := strings.Split(timePart, ":")
+		if len(timeParts) != 4 {
+			return "", fmt.Errorf("invalid time format in fuzzy daily between pattern: %s", fuzzyCron)
+		}
+
+		startHour, err := strconv.Atoi(timeParts[0])
+		if err != nil || startHour < 0 || startHour > 23 {
+			return "", fmt.Errorf("invalid start hour in fuzzy daily between pattern: %s", fuzzyCron)
+		}
+
+		startMinute, err := strconv.Atoi(timeParts[1])
+		if err != nil || startMinute < 0 || startMinute > 59 {
+			return "", fmt.Errorf("invalid start minute in fuzzy daily between pattern: %s", fuzzyCron)
+		}
+
+		endHour, err := strconv.Atoi(timeParts[2])
+		if err != nil || endHour < 0 || endHour > 23 {
+			return "", fmt.Errorf("invalid end hour in fuzzy daily between pattern: %s", fuzzyCron)
+		}
+
+		endMinute, err := strconv.Atoi(timeParts[3])
+		if err != nil || endMinute < 0 || endMinute > 59 {
+			return "", fmt.Errorf("invalid end minute in fuzzy daily between pattern: %s", fuzzyCron)
+		}
+
+		// Calculate start and end times in minutes since midnight
+		startMinutes := startHour*60 + startMinute
+		endMinutes := endHour*60 + endMinute
+
+		// Calculate the range size, handling ranges that cross midnight
+		var rangeSize int
+		if endMinutes > startMinutes {
+			// Normal case: range within a single day (e.g., 9:00 to 17:00)
+			rangeSize = endMinutes - startMinutes
+		} else {
+			// Range crosses midnight (e.g., 22:00 to 02:00)
+			rangeSize = (24*60 - startMinutes) + endMinutes
+		}
+
+		// Use a stable hash to get a deterministic offset within the range
+		hash := stableHash(workflowIdentifier, rangeSize)
+
+		// Calculate the scattered time by adding hash offset to start time
+		scatteredMinutes := startMinutes + hash
+
+		// Handle wrap-around for ranges that cross midnight
+		if scatteredMinutes >= 24*60 {
+			scatteredMinutes -= 24 * 60
+		}
+
+		hour := scatteredMinutes / 60
+		minute := scatteredMinutes % 60
+
+		// Return scattered daily cron: minute hour * * *
+		return fmt.Sprintf("%d %d * * *", minute, hour), nil
+	}
+
 	// For FUZZY:DAILY * * *, we scatter across 24 hours
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY") {
 		// Use a stable hash of the workflow identifier to get a deterministic time
@@ -595,11 +662,59 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		// daily -> FUZZY:DAILY (fuzzy schedule, time will be scattered)
 		// daily at HH:MM -> MM HH * * *
 		// daily around HH:MM -> FUZZY:DAILY_AROUND:HH:MM (fuzzy schedule with target time)
+		// daily between HH:MM and HH:MM -> FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M (fuzzy schedule within time range)
 		if len(p.tokens) == 1 {
 			// Just "daily" with no time - this is a fuzzy schedule
 			return "FUZZY:DAILY * * *", nil
 		}
 		if len(p.tokens) > 1 {
+			// Check if "between" keyword is used
+			if p.tokens[1] == "between" {
+				// Parse: "daily between START and END"
+				// We need at least: daily between TIME and TIME (5 tokens minimum)
+				if len(p.tokens) < 5 {
+					return "", fmt.Errorf("invalid 'between' format, expected 'daily between START and END'")
+				}
+
+				// Find the "and" keyword to split start and end times
+				andIndex := -1
+				for i := 2; i < len(p.tokens); i++ {
+					if p.tokens[i] == "and" {
+						andIndex = i
+						break
+					}
+				}
+				if andIndex == -1 {
+					return "", fmt.Errorf("missing 'and' keyword in 'between' clause")
+				}
+
+				// Extract start time (tokens between "between" and "and")
+				startTimeStr, err := p.extractTimeBetween(2, andIndex)
+				if err != nil {
+					return "", fmt.Errorf("invalid start time in 'between' clause: %w", err)
+				}
+				startMinute, startHour := parseTime(startTimeStr)
+
+				// Extract end time (tokens after "and")
+				endTimeStr, err := p.extractTimeAfter(andIndex + 1)
+				if err != nil {
+					return "", fmt.Errorf("invalid end time in 'between' clause: %w", err)
+				}
+				endMinute, endHour := parseTime(endTimeStr)
+
+				// Validate that start is before end (in minutes since midnight)
+				startMinutes := parseTimeToMinutes(startHour, startMinute)
+				endMinutes := parseTimeToMinutes(endHour, endMinute)
+
+				// Allow ranges that cross midnight (e.g., 22:00 to 02:00)
+				// We'll handle this in the scattering logic
+				if startMinutes == endMinutes {
+					return "", fmt.Errorf("start and end times cannot be the same in 'between' clause")
+				}
+
+				// Return fuzzy between format: FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M
+				return fmt.Sprintf("FUZZY:DAILY_BETWEEN:%s:%s:%s:%s * * *", startHour, startMinute, endHour, endMinute), nil
+			}
 			// Check if "around" keyword is used
 			if p.tokens[1] == "around" {
 				// Extract time after "around"
@@ -728,6 +843,61 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 	}
 
 	return timeStr, nil
+}
+
+// extractTimeBetween extracts a time specification from tokens between startPos and endPos (exclusive)
+// Used for parsing the start time in "between START and END" clauses
+func (p *ScheduleParser) extractTimeBetween(startPos, endPos int) (string, error) {
+	if startPos >= len(p.tokens) || startPos >= endPos {
+		return "", fmt.Errorf("expected time specification")
+	}
+
+	// The time is in the tokens between startPos and endPos
+	// It might be a single token (e.g., "9am") or multiple tokens (e.g., "14:00 utc+9")
+	timeTokens := []string{}
+	for i := startPos; i < endPos && i < len(p.tokens); i++ {
+		timeTokens = append(timeTokens, p.tokens[i])
+	}
+
+	if len(timeTokens) == 0 {
+		return "", fmt.Errorf("expected time specification")
+	}
+
+	// Check if there's a UTC offset
+	if len(timeTokens) >= 2 && strings.HasPrefix(strings.ToLower(timeTokens[1]), "utc") {
+		return timeTokens[0] + " " + timeTokens[1], nil
+	}
+
+	return timeTokens[0], nil
+}
+
+// extractTimeAfter extracts a time specification from tokens starting at startPos until the end
+// Used for parsing the end time in "between START and END" clauses
+func (p *ScheduleParser) extractTimeAfter(startPos int) (string, error) {
+	if startPos >= len(p.tokens) {
+		return "", fmt.Errorf("expected time specification")
+	}
+
+	// Collect remaining tokens (time and optional UTC offset)
+	timeStr := p.tokens[startPos]
+
+	// Check if there's a UTC offset in the next token
+	if startPos+1 < len(p.tokens) {
+		nextToken := strings.ToLower(p.tokens[startPos+1])
+		if strings.HasPrefix(nextToken, "utc") {
+			// Combine time and UTC offset
+			timeStr = timeStr + " " + p.tokens[startPos+1]
+		}
+	}
+
+	return timeStr, nil
+}
+
+// parseTimeToMinutes converts hour and minute strings to total minutes since midnight
+func parseTimeToMinutes(hourStr, minuteStr string) int {
+	hour, _ := strconv.Atoi(hourStr)
+	minute, _ := strconv.Atoi(minuteStr)
+	return hour*60 + minute
 }
 
 // parseTime converts a time string to minute and hour, with optional UTC offset

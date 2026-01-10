@@ -6,6 +6,167 @@ import (
 	"testing"
 )
 
+// TestScheduleWorkflowDispatchAutomatic verifies that workflow_dispatch is automatically
+// added to workflows with schedule triggers in object format
+func TestScheduleWorkflowDispatchAutomatic(t *testing.T) {
+	tests := []struct {
+		name                   string
+		frontmatter            map[string]any
+		expectedCron           string
+		expectWorkflowDispatch bool
+	}{
+		{
+			name: "schedule array format - should add workflow_dispatch",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily at 02:00",
+						},
+					},
+				},
+			},
+			expectedCron:           "0 2 * * *",
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "schedule string format - should add workflow_dispatch",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "daily at 02:00",
+				},
+			},
+			expectedCron:           "0 2 * * *",
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "schedule with existing workflow_dispatch - should keep it",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily at 02:00",
+						},
+					},
+					"workflow_dispatch": map[string]any{
+						"inputs": map[string]any{
+							"test": map[string]any{
+								"description": "test input",
+							},
+						},
+					},
+				},
+			},
+			expectedCron:           "0 2 * * *",
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "multiple schedules - should add workflow_dispatch",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily at 02:00",
+						},
+						map[string]any{
+							"cron": "weekly on friday",
+						},
+					},
+				},
+			},
+			expectedCron:           "0 2 * * *",
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "schedule with other triggers - should add workflow_dispatch",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []any{"main"},
+					},
+					"schedule": []any{
+						map[string]any{
+							"cron": "0 9 * * 1",
+						},
+					},
+				},
+			},
+			expectedCron:           "0 9 * * 1",
+			expectWorkflowDispatch: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			// Set workflow identifier for fuzzy schedule scattering
+			compiler.SetWorkflowIdentifier("test-workflow.md")
+
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Check that "on" was converted to a map
+			onValue, exists := tt.frontmatter["on"]
+			if !exists {
+				t.Error("expected 'on' field to exist")
+				return
+			}
+
+			onMap, ok := onValue.(map[string]any)
+			if !ok {
+				t.Errorf("expected 'on' to be a map, got %T", onValue)
+				return
+			}
+
+			// Check schedule field exists
+			scheduleValue, hasSchedule := onMap["schedule"]
+			if !hasSchedule {
+				t.Error("expected 'schedule' field in 'on' map")
+				return
+			}
+
+			// Check the cron expression
+			scheduleArray, ok := scheduleValue.([]any)
+			if !ok {
+				t.Errorf("expected schedule to be array, got %T", scheduleValue)
+				return
+			}
+
+			if len(scheduleArray) == 0 {
+				t.Error("expected at least one schedule item")
+				return
+			}
+
+			firstSchedule, ok := scheduleArray[0].(map[string]any)
+			if !ok {
+				t.Errorf("expected first schedule to be map, got %T", scheduleArray[0])
+				return
+			}
+
+			actualCron, ok := firstSchedule["cron"].(string)
+			if !ok {
+				t.Errorf("expected cron to be string, got %T", firstSchedule["cron"])
+				return
+			}
+
+			if tt.expectedCron != "" && actualCron != tt.expectedCron {
+				t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, actualCron)
+			}
+
+			// Check workflow_dispatch field
+			if tt.expectWorkflowDispatch {
+				if _, hasWorkflowDispatch := onMap["workflow_dispatch"]; !hasWorkflowDispatch {
+					t.Error("expected 'workflow_dispatch' field in 'on' map but it was not added")
+					return
+				}
+			}
+		})
+	}
+}
+
 func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 	tests := []struct {
 		name                   string

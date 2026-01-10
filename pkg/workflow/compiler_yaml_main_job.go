@@ -208,6 +208,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Stop MCP gateway after agent execution and before secret redaction
+	// This ensures the gateway process is properly cleaned up
+	c.generateStopMCPGateway(yaml)
+
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
 	c.generateSecretRedactionStep(yaml, yaml.String(), data)
@@ -241,6 +245,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if IsSafeInputsEnabled(data.SafeInputs, data) {
 		c.generateSafeInputsLogParsing(yaml)
 	}
+
+	// parse MCP gateway logs for GITHUB_STEP_SUMMARY
+	c.generateMCPGatewayLogParsing(yaml)
 
 	// Add firewall log parsing steps (but not upload - collected for unified upload)
 	// For Copilot, Codex, and Claude engines

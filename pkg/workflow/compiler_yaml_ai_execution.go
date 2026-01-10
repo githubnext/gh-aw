@@ -72,6 +72,35 @@ func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("            await main();\n")
 }
 
+// generateMCPGatewayLogParsing generates a step that parses MCP gateway logs and adds them to the step summary
+func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating MCP gateway log parsing step")
+
+	yaml.WriteString("      - name: Parse MCP gateway logs for step summary\n")
+	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	// Load MCP gateway log parser script from external file using require()
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');\n")
+	yaml.WriteString("            await main();\n")
+}
+
+// generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output
+func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating MCP gateway stop step")
+
+	yaml.WriteString("      - name: Stop MCP gateway\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          bash /opt/gh-aw/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}\n")
+}
+
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
 // This removes Go's (?i) inline case-insensitive flag since JavaScript doesn't support it
 func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {

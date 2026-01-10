@@ -706,12 +706,22 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "/opt/gh-aw/safeoutputs/config.json"
 		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "/opt/gh-aw/safeoutputs/tools.json"
 
-		// Add asset-related environment variables if upload-assets is configured
+		// Add asset-related environment variables
+		// These must always be set (even to empty) because awmg v0.0.12+ validates ${VAR} references
 		if data.SafeOutputs.UploadAssets != nil {
 			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
 			env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
 			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
+		} else {
+			// Set empty defaults when upload-assets is not configured
+			env["GH_AW_ASSETS_BRANCH"] = `""`
+			env["GH_AW_ASSETS_MAX_SIZE_KB"] = "0"
+			env["GH_AW_ASSETS_ALLOWED_EXTS"] = `""`
 		}
+
+		// DEFAULT_BRANCH is used by safeoutputs MCP server
+		// Use repository default branch from GitHub context
+		env["DEFAULT_BRANCH"] = "${{ github.event.repository.default_branch }}"
 	}
 
 	// Generate agent concurrency configuration

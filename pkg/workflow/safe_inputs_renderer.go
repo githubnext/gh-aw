@@ -77,15 +77,10 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 		host = "localhost"
 	}
 
-	// HTTP URL using environment variable
+	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation
 	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
-	if includeCopilotFields {
-		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                \"url\": \"http://" + host + ":\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
-	} else {
-		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\",\n")
-	}
+	// Note: awmg validates URL format before variable resolution, so we must expand the port variable
+	yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\",\n")
 
 	// Add Authorization header with API key
 	yaml.WriteString("                \"headers\": {\n")
@@ -96,38 +91,9 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 		// Claude/Custom format: direct shell variable reference
 		yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
 	}
-	yaml.WriteString("                },\n")
-
-	// Add tools field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
-
-	// Add env block for server configuration environment variables only
-	// Note: Tool-specific env vars (like GH_AW_GH_TOKEN) are already set in the step's env block
-	// and don't need to be passed through the MCP config since the server uses HTTP transport
-	yaml.WriteString("                \"env\": {\n")
-
-	// Only include server configuration variables
-	serverConfigVars := []string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}
-
-	// Write environment variables with appropriate escaping
-	for i, envVar := range serverConfigVars {
-		isLastEnvVar := i == len(serverConfigVars)-1
-		comma := ""
-		if !isLastEnvVar {
-			comma = ","
-		}
-
-		if includeCopilotFields {
-			// Copilot format: backslash-escaped shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
-		} else {
-			// Claude/Custom format: direct shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
-		}
-	}
-
+	// Close headers - no trailing comma since this is the last field
+	// Note: env block is NOT included for HTTP servers because the old MCP Gateway schema
+	// doesn't allow env in httpServerConfig. The variables are resolved via URL templates.
 	yaml.WriteString("                }\n")
 
 	if isLast {

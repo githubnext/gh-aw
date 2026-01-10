@@ -97,7 +97,7 @@ See the [compile command documentation](/gh-aw/setup/cli/#compile) for details.
 
 ## Alternative: Automated Campaign Creation
 
-For a streamlined, fully-automated method, create an issue with the title prefix `[New Agentic Campaign]` followed by your campaign name. This triggers an optimized two-phase campaign creation flow:
+For a streamlined, fully-automated method, create an issue and apply the `create-agentic-campaign` label. This triggers an optimized two-phase campaign creation flow:
 
 **Phase 1 - Campaign Generator** (~30 seconds): Automatically creates a GitHub Project board, discovers relevant workflows from the local repository and [agentics collection](https://github.com/githubnext/agentics), generates the complete campaign specification, and updates the issue with details.
 

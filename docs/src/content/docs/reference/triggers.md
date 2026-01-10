@@ -110,11 +110,33 @@ on:
   schedule: daily around 14:00  # Scatters within ±1 hour (13:00-15:00)
 ```
 
+For workflows that should only run during specific hours (like business hours), use the `between` constraint:
+
+```yaml wrap
+on:
+  schedule: daily between 9:00 and 17:00  # Scatters within 9am-5pm range
+```
+
+```yaml wrap
+on:
+  schedule: daily between 9am and 5pm utc-5  # Business hours in EST timezone
+```
+
 The compiler deterministically assigns each workflow a unique execution time based on the workflow file path. This ensures:
 - **Load distribution**: Workflows run at different times, reducing server load spikes
 - **Consistency**: The same workflow always gets the same execution time across recompiles
 - **Simplicity**: No need to manually coordinate schedules across multiple workflows
-- **Flexibility with constraints**: Use `around` to hint preferred times while still distributing load
+- **Flexibility with constraints**: Use `around` to hint preferred times or `between` to restrict to time ranges
+
+:::tip[Complete Schedule Syntax Reference]
+See the [Schedule Syntax reference](/gh-aw/reference/schedule-syntax/) for complete documentation of all supported schedule formats, including:
+- Fuzzy schedules (daily, hourly, weekly)
+- Time constraints (around, between)
+- Fixed schedules
+- Monthly and interval schedules
+- UTC offset support
+- Standard cron expressions
+:::
 
 **Human-Friendly Format:**
 
@@ -141,6 +163,8 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
 | **Hourly (Fuzzy)** | `hourly` | `58 */1 * * *` | Compiler assigns scattered minute |
 | **Daily (Fuzzy)** | `daily` | `43 5 * * *` | Compiler assigns scattered time |
 | | `daily around 14:00` | `20 14 * * *` | Scattered within ±1 hour (13:00-15:00) |
+| | `daily between 9:00 and 17:00` | `37 13 * * *` | Scattered within range (9:00-17:00) |
+| | `daily between 9am and 5pm utc-5` | `12 18 * * *` | With UTC offset (9am-5pm EST → 2pm-10pm UTC) |
 | | `daily around 3pm utc-5` | `33 19 * * *` | With UTC offset (3 PM EST → 8 PM UTC) |
 | **Daily (Fixed)** | `daily at 02:00` | `0 2 * * *` | ⚠️ Creates load spikes |
 | **Weekly (Fuzzy)** | `weekly` or `weekly on monday` | `43 5 * * 1` | Compiler assigns scattered time |
@@ -420,6 +444,7 @@ A pre-activation check runs the search query against the current repository. If 
 
 ## Related Documentation
 
+- [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [LabelOps Guide](/gh-aw/examples/issue-pr-events/labelops/) - Label-based automation workflows

@@ -30,7 +30,7 @@ jobs:
         # v4.2.2
         with:
           fetch-depth: 0  # Fetch all history for all branches
-          persist-credentials: false
+          persist-credentials: true  # Required for git push operations
 
       - name: Setup Scripts
         uses: ./actions/setup

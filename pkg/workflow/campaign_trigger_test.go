@@ -104,10 +104,9 @@ tools:
 }
 
 // TestCampaignGeneratorWorkflow specifically tests the campaign-generator workflow
-// to ensure it compiles correctly with only the opened event type.
-// The workflow uses only 'opened' to prevent double-triggering when issue templates
-// automatically apply labels. The title prefix check filters issues, so no need
-// for the 'labeled' event type.
+// to ensure it compiles correctly with the labeled event type.
+// The workflow uses 'labeled' event with the 'create-agentic-campaign' label filter
+// to trigger campaign creation.
 func TestCampaignGeneratorWorkflow(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
@@ -133,16 +132,18 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 	}
 	lockContent := string(lockBytes)
 
-	// Verify only the opened event type is present (labeled removed to prevent double-triggering)
-	if !strings.Contains(lockContent, "- opened") {
-		t.Error("Expected 'opened' event type in campaign-generator lock file")
-	}
-	if strings.Contains(lockContent, "- labeled") {
-		t.Error("Unexpected 'labeled' event type in campaign-generator lock file - this causes double-triggering when issue templates auto-apply labels")
+	// Verify the labeled event type is present
+	if !strings.Contains(lockContent, "- labeled") {
+		t.Error("Expected 'labeled' event type in campaign-generator lock file")
 	}
 
-	// Verify the title prefix condition is present (not label-based)
-	if !strings.Contains(lockContent, "startsWith(github.event.issue.title, '[New Agentic Campaign]')") {
-		t.Error("Expected title prefix condition '[New Agentic Campaign]' in campaign-generator lock file")
+	// Verify opened is not present (we switched from opened to labeled)
+	if strings.Contains(lockContent, "- opened") {
+		t.Error("Unexpected 'opened' event type in campaign-generator lock file - workflow should use 'labeled' event")
+	}
+
+	// Verify the label name filter is present
+	if !strings.Contains(lockContent, "create-agentic-campaign") {
+		t.Error("Expected 'create-agentic-campaign' label filter in campaign-generator lock file")
 	}
 }

@@ -1,0 +1,40 @@
+# Dockerfile for GitHub Agentic Workflows compiler
+# Provides a minimal container with gh-aw, gh CLI, git, and jq
+
+# Use Alpine for minimal size (official distribution)
+FROM alpine:3.21
+
+# Install required dependencies
+RUN apk add --no-cache \
+    git \
+    jq \
+    bash \
+    curl \
+    ca-certificates \
+    github-cli
+
+# Accept build argument for binary name (defaults to linux-amd64)
+ARG BINARY=gh-aw-linux-amd64
+
+# Create a directory for the binary
+WORKDIR /usr/local/bin
+
+# Copy the gh-aw binary from build context
+COPY ${BINARY} /usr/local/bin/gh-aw
+
+# Ensure the binary is executable
+RUN chmod +x /usr/local/bin/gh-aw
+
+# Set working directory for users
+WORKDIR /workspace
+
+# Set the entrypoint to gh-aw
+ENTRYPOINT ["gh-aw"]
+
+# Default command shows help
+CMD ["--help"]
+
+# Metadata labels
+LABEL org.opencontainers.image.source="https://github.com/githubnext/gh-aw"
+LABEL org.opencontainers.image.description="GitHub Agentic Workflows - Write agentic workflows in natural language markdown"
+LABEL org.opencontainers.image.licenses="MIT"

@@ -672,3 +672,139 @@ func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 		t.Errorf("Expected conflict error message, got '%s'", err.Error())
 	}
 }
+
+// TestSafeJobsInputTypes tests that safe-jobs inputs support all input types
+// and share the same InputDefinition type with workflow_dispatch inputs
+func TestSafeJobsInputTypes(t *testing.T) {
+	c := NewCompiler(false, "", "test")
+
+	frontmatter := map[string]any{
+		"safe-jobs": map[string]any{
+			"test-job": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"inputs": map[string]any{
+					"message": map[string]any{
+						"description": "String input",
+						"type":        "string",
+						"default":     "Hello World",
+						"required":    true,
+					},
+					"debug": map[string]any{
+						"description": "Boolean input",
+						"type":        "boolean",
+						"default":     false,
+						"required":    false,
+					},
+					"count": map[string]any{
+						"description": "Number input",
+						"type":        "number",
+						"default":     100,
+						"required":    true,
+					},
+					"environment": map[string]any{
+						"description": "Choice input",
+						"type":        "choice",
+						"default":     "staging",
+						"options":     []any{"dev", "staging", "prod"},
+					},
+					"deploy_env": map[string]any{
+						"description": "Environment input",
+						"type":        "environment",
+						"required":    false,
+					},
+				},
+				"steps": []any{
+					map[string]any{
+						"name": "Test step",
+						"run":  "echo 'Testing inputs'",
+					},
+				},
+			},
+		},
+	}
+
+	result := c.parseSafeJobsConfig(frontmatter)
+
+	if result == nil {
+		t.Fatal("Expected safe-jobs config to be parsed, got nil")
+	}
+
+	job, exists := result["test-job"]
+	if !exists {
+		t.Fatal("Expected 'test-job' to exist")
+	}
+
+	if len(job.Inputs) != 5 {
+		t.Fatalf("Expected 5 inputs, got %d", len(job.Inputs))
+	}
+
+	// Test string input
+	stringInput := job.Inputs["message"]
+	if stringInput == nil {
+		t.Fatal("Expected 'message' input to exist")
+	}
+	if stringInput.Type != "string" {
+		t.Errorf("Expected type 'string', got %s", stringInput.Type)
+	}
+	if stringInput.Default != "Hello World" {
+		t.Errorf("Expected default 'Hello World', got %v", stringInput.Default)
+	}
+
+	// Test boolean input
+	boolInput := job.Inputs["debug"]
+	if boolInput == nil {
+		t.Fatal("Expected 'debug' input to exist")
+	}
+	if boolInput.Type != "boolean" {
+		t.Errorf("Expected type 'boolean', got %s", boolInput.Type)
+	}
+	if boolInput.Default != false {
+		t.Errorf("Expected default false, got %v", boolInput.Default)
+	}
+
+	// Test number input
+	numberInput := job.Inputs["count"]
+	if numberInput == nil {
+		t.Fatal("Expected 'count' input to exist")
+	}
+	if numberInput.Type != "number" {
+		t.Errorf("Expected type 'number', got %s", numberInput.Type)
+	}
+	// Note: YAML/JSON may parse numbers as int or float64
+	switch v := numberInput.Default.(type) {
+	case int:
+		if v != 100 {
+			t.Errorf("Expected default 100, got %d", v)
+		}
+	case float64:
+		if v != 100.0 {
+			t.Errorf("Expected default 100, got %f", v)
+		}
+	default:
+		t.Errorf("Expected default to be numeric, got %T: %v", numberInput.Default, numberInput.Default)
+	}
+
+	// Test choice input
+	choiceInput := job.Inputs["environment"]
+	if choiceInput == nil {
+		t.Fatal("Expected 'environment' input to exist")
+	}
+	if choiceInput.Type != "choice" {
+		t.Errorf("Expected type 'choice', got %s", choiceInput.Type)
+	}
+	if len(choiceInput.Options) != 3 {
+		t.Errorf("Expected 3 options, got %d", len(choiceInput.Options))
+	}
+	if choiceInput.Default != "staging" {
+		t.Errorf("Expected default 'staging', got %v", choiceInput.Default)
+	}
+
+	// Test environment input
+	envInput := job.Inputs["deploy_env"]
+	if envInput == nil {
+		t.Fatal("Expected 'deploy_env' input to exist")
+	}
+	if envInput.Type != "environment" {
+		t.Errorf("Expected type 'environment', got %s", envInput.Type)
+	}
+}

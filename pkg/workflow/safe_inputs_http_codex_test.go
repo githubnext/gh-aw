@@ -54,7 +54,7 @@ Test safe-inputs HTTP transport for Codex
 	expectedSteps := []string{
 		"Generate Safe Inputs MCP Server Config",
 		"Start Safe Inputs MCP HTTP Server",
-		"Setup MCPs",
+		"Start MCP gateway",
 	}
 
 	for _, stepName := range expectedSteps {
@@ -166,13 +166,13 @@ Test safe-inputs with secrets
 		t.Error("HTTP MCP servers should not have env_vars in config (not supported for HTTP transport)")
 	}
 
-	// Verify env vars are set in Setup MCPs step (this is the correct location for HTTP transport)
+	// Verify env vars are set in Start MCP gateway step (this is the correct location for HTTP transport)
 	if !strings.Contains(yamlStr, "API_KEY: ${{ secrets.API_KEY }}") {
-		t.Error("Expected API_KEY secret in Setup MCPs env section")
+		t.Error("Expected API_KEY secret in Start MCP gateway env section")
 	}
 
 	if !strings.Contains(yamlStr, "GH_TOKEN: ${{ github.token }}") {
-		t.Error("Expected GH_TOKEN in Setup MCPs env section")
+		t.Error("Expected GH_TOKEN in Start MCP gateway env section")
 	}
 
 	t.Logf("✓ Codex engine correctly passes secrets through HTTP transport (via job env, not MCP config)")
