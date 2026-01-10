@@ -116,7 +116,7 @@
         },
         "headers": {
           "type": "object",
-          "description": "HTTP headers to include in requests to the server. Commonly used for authentication (e.g., Authorization: 'Bearer ${API_TOKEN}'). Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
+          "description": "HTTP headers to include in requests to the external HTTP MCP server. Commonly used for authentication to the external server (e.g., Authorization: 'Bearer ${API_TOKEN}' for servers that require Bearer tokens). Note: This is for authenticating to external HTTP servers, not for gateway client authentication. Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
           "additionalProperties": {
             "type": "string"
           },
@@ -162,7 +162,7 @@
         },
         "apiKey": {
           "type": "string",
-          "description": "API key for authentication. When configured, clients must include 'Authorization: {apiKey}' header in all RPC requests. Per MCP Gateway Specification section 7, API keys must not be logged in plaintext.",
+          "description": "API key for authentication. When configured, clients must include 'Authorization: <apiKey>' header in all RPC requests (the API key is used directly without Bearer or other scheme prefix). Per MCP Gateway Specification section 7.1, the authorization header format is 'Authorization: <apiKey>' where the API key is the complete header value. API keys must not be logged in plaintext per section 7.2.",
           "minLength": 1
         },
         "domain": {
