@@ -63,10 +63,7 @@ func ValidateSpec(spec *CampaignSpec) []string {
 	}
 
 	if len(spec.Workflows) == 0 {
-		// Allow empty workflows list if execution sequence is defined
-		if spec.Execution == nil || len(spec.Execution.Sequence) == 0 {
-			problems = append(problems, "workflows should list at least one workflow implementing this campaign, or specify execution.sequence")
-		}
+		problems = append(problems, "workflows should list at least one workflow implementing this campaign")
 	}
 
 	if strings.TrimSpace(spec.ProjectURL) == "" {

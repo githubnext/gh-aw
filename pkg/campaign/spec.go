@@ -96,11 +96,11 @@ type CampaignSpec struct {
 	// campaign (for example: number of approvals and required roles).
 	ApprovalPolicy *CampaignApprovalPolicy `yaml:"approval-policy,omitempty" json:"approval-policy,omitempty"`
 
-	// Execution defines how the campaign orchestrator should execute workflows
-	// to drive work forward. When specified, the orchestrator becomes an active
-	// executor that runs workflows, waits for completion, and uses outputs to
-	// make decisions.
-	Execution *CampaignExecution `yaml:"execution,omitempty" json:"execution,omitempty"`
+	// ExecuteWorkflows enables the campaign to actively run the workflows
+	// listed in the Workflows field. When true, the orchestrator will
+	// execute workflows sequentially and can create new workflows if needed.
+	// Default: false (passive discovery only).
+	ExecuteWorkflows bool `yaml:"execute-workflows,omitempty" json:"execute_workflows,omitempty"`
 
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
@@ -183,66 +183,6 @@ type CampaignApprovalPolicy struct {
 	RequiredApprovals int      `yaml:"required-approvals,omitempty" json:"required-approvals,omitempty"`
 	RequiredRoles     []string `yaml:"required-roles,omitempty" json:"required-roles,omitempty"`
 	ChangeControl     bool     `yaml:"change-control,omitempty" json:"change-control,omitempty"`
-}
-
-// CampaignExecution defines how a campaign orchestrator executes workflows.
-// This configuration transforms the orchestrator from a passive coordinator
-// into an active executor that runs workflows, waits for completion, and
-// makes decisions based on outputs.
-type CampaignExecution struct {
-	// Sequence defines the ordered list of workflow execution steps.
-	// The orchestrator executes these steps in order, using GitHub MCP tools
-	// to trigger workflows, poll for completion, and collect outputs.
-	Sequence []WorkflowExecutionStep `yaml:"sequence,omitempty" json:"sequence,omitempty"`
-
-	// MaxConcurrentWorkflows limits how many workflows can run simultaneously.
-	// Default: 1 (sequential execution). Max: 3.
-	MaxConcurrentWorkflows int `yaml:"max-concurrent-workflows,omitempty" json:"max_concurrent_workflows,omitempty"`
-
-	// TimeoutMinutes is the maximum time to wait for a single workflow to complete.
-	// Default: 60 minutes.
-	TimeoutMinutes int `yaml:"timeout-minutes,omitempty" json:"timeout_minutes,omitempty"`
-}
-
-// WorkflowExecutionStep defines a single workflow execution step in a campaign.
-type WorkflowExecutionStep struct {
-	// Workflow is the workflow ID (basename without .md extension) to execute.
-	Workflow string `yaml:"workflow" json:"workflow"`
-
-	// Inputs defines the input parameters to pass to the workflow.
-	// Values can be static strings or expressions like "${{ outputs.previous_result }}".
-	Inputs map[string]string `yaml:"inputs,omitempty" json:"inputs,omitempty"`
-
-	// Condition is an optional expression that determines if this step should run.
-	// Example: "outputs.services_count > 0"
-	Condition string `yaml:"condition,omitempty" json:"condition,omitempty"`
-
-	// Outputs defines what outputs to collect from the workflow run.
-	Outputs []WorkflowOutputConfig `yaml:"outputs,omitempty" json:"outputs,omitempty"`
-
-	// ContinueOnFailure determines if the campaign should continue executing
-	// subsequent workflows even if this one fails.
-	// Default: false (stop on failure).
-	ContinueOnFailure bool `yaml:"continue-on-failure,omitempty" json:"continue_on_failure,omitempty"`
-}
-
-// WorkflowOutputConfig defines how to collect an output from a workflow run.
-type WorkflowOutputConfig struct {
-	// Name is the variable name to store the output value.
-	// Can be referenced in subsequent steps as "${{ outputs.name }}".
-	Name string `yaml:"name" json:"name"`
-
-	// From specifies where to collect the output from.
-	// Formats:
-	//   - "artifact:filename.json" - Download and parse artifact
-	//   - "artifact:filename.json:$.path.to.field" - Extract specific field from JSON artifact
-	//   - "logs:pattern" - Extract from job logs using regex pattern
-	//   - "conclusion" - Get the workflow run conclusion (success, failure, cancelled, etc.)
-	From string `yaml:"from" json:"from"`
-
-	// Required indicates if this output must be present for the step to succeed.
-	// Default: false.
-	Required bool `yaml:"required,omitempty" json:"required,omitempty"`
 }
 
 // CampaignRuntimeStatus represents the live status of a campaign, including

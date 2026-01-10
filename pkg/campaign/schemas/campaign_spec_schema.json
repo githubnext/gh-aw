@@ -204,83 +204,10 @@
       },
       "additionalProperties": false
     },
-    "execution": {
-      "type": "object",
-      "description": "Configuration for active workflow execution. When specified, the orchestrator becomes an active executor that runs workflows, waits for completion, and uses outputs to make decisions.",
-      "properties": {
-        "sequence": {
-          "type": "array",
-          "description": "Ordered list of workflow execution steps",
-          "items": {
-            "type": "object",
-            "properties": {
-              "workflow": {
-                "type": "string",
-                "description": "Workflow ID (basename without .md extension) to execute",
-                "minLength": 1
-              },
-              "inputs": {
-                "type": "object",
-                "description": "Input parameters to pass to the workflow. Values can be static strings or expressions like '${{ outputs.previous_result }}'",
-                "additionalProperties": {
-                  "type": "string"
-                }
-              },
-              "condition": {
-                "type": "string",
-                "description": "Optional expression that determines if this step should run (e.g., 'outputs.services_count > 0')"
-              },
-              "outputs": {
-                "type": "array",
-                "description": "Outputs to collect from the workflow run",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "description": "Variable name to store the output value",
-                      "minLength": 1
-                    },
-                    "from": {
-                      "type": "string",
-                      "description": "Where to collect the output from (e.g., 'artifact:filename.json', 'logs:pattern', 'conclusion')",
-                      "minLength": 1
-                    },
-                    "required": {
-                      "type": "boolean",
-                      "description": "Whether this output must be present for the step to succeed",
-                      "default": false
-                    }
-                  },
-                  "required": ["name", "from"],
-                  "additionalProperties": false
-                }
-              },
-              "continue-on-failure": {
-                "type": "boolean",
-                "description": "Whether to continue executing subsequent workflows if this one fails",
-                "default": false
-              }
-            },
-            "required": ["workflow"],
-            "additionalProperties": false
-          }
-        },
-        "max-concurrent-workflows": {
-          "type": "integer",
-          "description": "Maximum number of workflows that can run simultaneously (default: 1, max: 3)",
-          "minimum": 1,
-          "maximum": 3,
-          "default": 1
-        },
-        "timeout-minutes": {
-          "type": "integer",
-          "description": "Maximum time to wait for a single workflow to complete in minutes (default: 60)",
-          "minimum": 1,
-          "default": 60
-        }
-      },
-      "additionalProperties": false
+    "execute-workflows": {
+      "type": "boolean",
+      "description": "Enable active workflow execution. When true, the orchestrator will run the workflows listed in the workflows field sequentially and can create new workflows if needed. Default: false (passive discovery only).",
+      "default": false
     },
     "governance": {
       "type": "object",
