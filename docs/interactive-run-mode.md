@@ -105,9 +105,11 @@ Only workflows with `workflow_dispatch` or `schedule` triggers are shown. This i
 ### Input Types
 Supports all workflow_dispatch input types:
 - `string` - Text input
-- `boolean` - Not yet implemented in UI (use CLI)
+- `boolean` - Use string type with values 'true'/'false' (GitHub Actions requirement)
 - `choice` - Not yet implemented in UI (use CLI)
 - `number` - Treated as string input
+
+**Note**: GitHub Actions workflow_dispatch inputs must use string defaults, even for boolean types. Use `type: string` with `default: 'false'` instead of `type: boolean` with `default: false`.
 
 ### TTY Detection
 Falls back to numbered text list in non-TTY environments (e.g., piped output).
