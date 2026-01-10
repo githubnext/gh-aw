@@ -31,22 +31,37 @@ Convert campaign names to kebab-case identifiers:
 When identifying workflows for a campaign, follow this systematic approach:
 
 1. **Check the workflow catalog** (`.github/workflow-catalog.yml`):
-   - Query local workflows organized by category
+   - Query **agentic workflows** (`.md` files) organized by category
+   - Check **regular GitHub Actions workflows** (`.yml` files) that could become agentic
    - Check external collections like the "agentics" collection
    - Use keywords to find matching workflows
 
 2. **List all local workflow files:**
    ```bash
-   ls .github/workflows/*.md
+   ls .github/workflows/*.md    # Agentic workflows
+   ls .github/workflows/*.yml   # Regular GitHub Actions workflows
    ```
 
 3. **Analyze each workflow** to determine fit:
-   - Read the workflow description (frontmatter `description` field)
+   - Read the workflow description (frontmatter `description` field for .md, `name:` for .yml)
    - Check the workflow name and purpose
-   - Look at safe-outputs to understand what the workflow does
+   - Look at safe-outputs to understand what the workflow does (agentic workflows)
    - Consider triggers (`on:` field) to understand when it runs
+   - For regular workflows, assess their **agentic_potential** from the catalog
 
-4. **Consider external workflow collections:**
+4. **Consider three types of workflows:**
+   
+   **A. Agentic Workflows** (`.md` files):
+   AI-powered workflows that can analyze, reason, and create GitHub content via safe-outputs.
+   
+   **B. Regular GitHub Actions Workflows** (`.yml` files):
+   Standard automation workflows that could be **enhanced** by converting to agentic workflows.
+   The catalog's `regular_workflows` section identifies candidates with:
+   - Current functionality and triggers
+   - Agentic potential (how AI could enhance them)
+   - Suggested enhancements (specific AI capabilities to add)
+   
+   **C. External Workflow Collections:**
    
    **Agentics Collection** (https://github.com/githubnext/agentics):
    A family of reusable GitHub Agentic Workflows that can be installed in any repository.
@@ -56,43 +71,55 @@ When identifying workflows for a campaign, follow this systematic approach:
    - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
    - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
    
-   When suggesting workflows, include both local workflows and workflows from the agentics collection.
+   When suggesting workflows, include agentic workflows, regular workflows to enhance, and workflows from the agentics collection.
 
 5. **Match workflows to campaign goals:**
 
    **For security campaigns**, look for:
-   - Workflows with "security", "vulnerability", "cve", "scan" in name/description
-   - Local examples: `security-scanner`, `security-fix-pr`, `daily-secrets-analysis`
-   - Agentics examples: `ci-doctor` (for CI security), `repo-ask` (for security questions)
+   - Agentic workflows: `daily-malicious-code-scan` (local)
+   - Regular workflows to enhance: `security-scan`, `codeql`, `license-check` (see catalog for AI enhancement ideas)
+   - Agentics collection: `ci-doctor` (for CI security), `repo-ask` (for security questions)
+   - **Enhancement opportunity**: Convert `security-scan.yml` to agentic workflow with AI-powered vulnerability prioritization and automated fix generation
    
    **For dependency/upgrade campaigns**, look for:
-   - Workflows with "dependency", "upgrade", "update", "version" in name/description
-   - Local examples: `dependabot-go-checker`, `daily-workflow-updater`
-   - Agentics examples: `daily-dependency-updater`, `pr-fix` (for failing dependencies)
+   - Agentic workflows: `cli-version-checker` (local)
+   - Regular workflows to enhance: Consider enhancing dependency-related workflows with AI analysis
+   - Agentics collection: `daily-dependency-updater`, `pr-fix` (for failing dependencies)
    
    **For documentation campaigns**, look for:
-   - Workflows with "doc", "documentation", "guide" in name/description
-   - Local examples: `technical-doc-writer`, `docs-quality-maintenance`
-   - Agentics examples: `update-docs`, `weekly-research` (for documentation research)
+   - Agentic workflows: `glossary-maintainer`, `blog-auditor` (local)
+   - Regular workflows to enhance: `docs`, `link-check` (see catalog for AI enhancement ideas)
+   - Agentics collection: `update-docs`, `weekly-research` (for documentation research)
+   - **Enhancement opportunity**: Convert `link-check.yml` to agentic workflow with automatic alternative link suggestions
    
    **For code quality campaigns**, look for:
-   - Workflows with "quality", "lint", "refactor", "clean" in name/description
-   - Local examples: `repository-quality-improver`, `duplicate-code-detector`
-   - Agentics examples: `daily-test-coverage-improver`, `daily-performance-improver`, `daily-adhoc-qa`
+   - Agentic workflows: `semantic-function-refactor`, `breaking-change-checker` (local)
+   - Regular workflows to enhance: `ci` (see catalog for AI-powered test analysis)
+   - Agentics collection: `daily-test-coverage-improver`, `daily-performance-improver`, `daily-adhoc-qa`
    
    **For CI/CD and workflow optimization campaigns**, look for:
-   - Agentics examples: `ci-doctor`, `q-workflow-optimizer`, `pr-fix`
+   - Agentic workflows: `ci-doctor`, `ci-coach`, `audit-workflows` (local)
+   - Regular workflows to enhance: `ci`, `integration-agentics` (see catalog for AI enhancement ideas)
+   - Agentics collection: `ci-doctor`, `q-workflow-optimizer`, `pr-fix`
+   - **Enhancement opportunity**: Enhance `ci.yml` with AI-powered failure analysis and flaky test detection
    
    **For team coordination campaigns**, look for:
-   - Agentics examples: `daily-team-status`, `daily-plan`, `plan-command`, `issue-triage`
+   - Agentic workflows: `campaign-generator` (local)
+   - Regular workflows to enhance: Consider workflow coordination patterns
+   - Agentics collection: `daily-team-status`, `daily-plan`, `plan-command`, `issue-triage`
 
 6. **Determine workflow strategy:**
-   - **Use existing local**: Workflows in `.github/workflows/` that already do what's needed
+   - **Use existing agentic**: Workflows in `.github/workflows/*.md` that already do what's needed
+   - **Enhance regular workflows**: Regular `.yml` workflows that would benefit from AI capabilities (reference catalog's `agentic_potential`)
    - **Use existing from agentics**: Workflows from the agentics collection that can be installed
-   - **Suggest new**: Workflows that need to be created
-   - **Combination**: Mix of local, agentics, and new workflows
+   - **Suggest new**: Workflows that need to be created from scratch
+   - **Combination**: Mix of agentic, regular (to enhance), agentics collection, and new workflows
 
-7. **Suggest 2-4 workflows total** (local + agentics + new)
+7. **Suggest 2-4 workflows total** (agentic + regular to enhance + agentics collection + new)
+   - Prioritize existing agentic workflows
+   - Identify 1-2 regular workflows that would benefit most from AI enhancement
+   - Include relevant workflows from agentics collection
+   - Suggest new workflows only if gaps remain
 
 ### Common Workflow Patterns
 
@@ -101,25 +128,35 @@ When identifying workflows for a campaign, follow this systematic approach:
 **Reporter workflows**: Generate summaries (e.g., "campaign-reporter", "progress-tracker", "daily-team-status")
 **Coordinator workflows**: Manage orchestration (auto-generated)
 **Triage workflows**: Organize and prioritize work (e.g., "issue-triage", "plan-command")
+**Enhancement candidates**: Regular workflows that could benefit from AI (see catalog's `regular_workflows` section)
 
 ### Examples
 
 **For "Migrate to Node 20" campaign:**
-- Local existing: `dependabot-go-checker.md` (can adapt for Node.js)
+- Local agentic: `cli-version-checker.md` (monitors versions)
 - Agentics: `daily-dependency-updater` (from agentics collection)
 - New: `node-version-scanner` - Finds repos still on Node 16
 - Agentics: `pr-fix` (from agentics collection - fixes failing PRs during migration)
 
 **For "Security Q1 2025" campaign:**
-- Local existing: `security-scanner.md`, `security-fix-pr.md`, `daily-secrets-analysis.md`
+- Local agentic: `daily-malicious-code-scan.md`
+- Regular to enhance: `security-scan.yml` → Convert to agentic with AI vulnerability prioritization
+- Regular to enhance: `codeql.yml` → Enhance with natural language explanations and automated fixes
 - Agentics: `ci-doctor` (from agentics collection - monitors CI for security issues)
 - New: `security-reporter` - Weekly security posture reports
 
 **For "Improve Code Quality" campaign:**
+- Local agentic: `semantic-function-refactor.md`, `breaking-change-checker.md`
+- Regular to enhance: `ci.yml` → Enhance with AI-powered test failure analysis and flaky test detection
 - Agentics: `daily-test-coverage-improver` (from agentics collection)
 - Agentics: `daily-performance-improver` (from agentics collection)
 - Agentics: `daily-adhoc-qa` (from agentics collection)
-- Local existing: `repository-quality-improver`
+
+**For "Documentation Excellence" campaign:**
+- Local agentic: `glossary-maintainer.md`, `blog-auditor.md`
+- Regular to enhance: `docs.yml` → Add AI quality analysis and gap identification
+- Regular to enhance: `link-check.yml` → Enhance with automatic alternative link suggestions and archive recommendations
+- Agentics: `update-docs` (from agentics collection)
 
 **For "Team Coordination" campaign:**
 - Agentics: `issue-triage` (from agentics collection)

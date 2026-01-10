@@ -143,15 +143,19 @@ The campaign creation process uses an optimized two-phase architecture:
 
 ### Workflow Discovery
 
-The campaign generator automatically discovers and suggests workflows from:
+The campaign generator automatically discovers and suggests workflows from three sources:
 
-- **Local workflows**: Existing workflows in your `.github/workflows/` directory
+- **Agentic workflows**: AI-powered workflows (`.md` files) in your `.github/workflows/` directory that can analyze, reason, and create GitHub content
+- **Regular GitHub Actions workflows**: Standard automation workflows (`.yml` files) that could be enhanced by converting to agentic workflows - the catalog identifies their AI enhancement potential
 - **Agentics collection**: 17 reusable workflows from [githubnext/agentics](https://github.com/githubnext/agentics):
   - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
   - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
   - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
 
-The generator uses a workflow catalog (`.github/workflow-catalog.yml`) for deterministic discovery in <1 second vs 2-3 minutes of filesystem scanning.
+The generator uses a workflow catalog (`.github/workflow-catalog.yml`) for deterministic discovery in <1 second vs 2-3 minutes of filesystem scanning. The catalog now includes:
+- **Agentic workflows** organized by category (security, documentation, quality, CI/CD, etc.)
+- **Regular workflows** with their agentic potential and suggested AI enhancements
+- **External collections** like the agentics family of reusable workflows
 
 ### What you get
 

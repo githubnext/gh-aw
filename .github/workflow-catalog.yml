@@ -14,7 +14,11 @@
 #   - Add new categories as workflow types evolve
 
 version: "1.0"
-last_updated: "2026-01-09"
+last_updated: "2026-01-10"
+
+# Agentic Workflows
+# These are workflows written as markdown (.md) files that use AI agents to perform tasks.
+# They can interact with GitHub via safe-outputs and use various AI engines.
 
 categories:
   security:
@@ -392,3 +396,234 @@ external_collections:
             name: "Daily Performance Improver"
             description: "Analyze and improve code performance through benchmarking and optimization"
             docs_url: https://github.com/githubnext/agentics/blob/main/docs/daily-perf-improver.md
+
+# Regular GitHub Actions Workflows
+# These are standard GitHub Actions workflows (.yml files) that could be enhanced
+# by converting them to agentic workflows. Campaign creators should consider
+# these as candidates for AI-powered automation and intelligent analysis.
+
+regular_workflows:
+  description: "Standard GitHub Actions workflows that could become agentic"
+  
+  categories:
+    security:
+      description: "Security scanning and compliance workflows"
+      keywords:
+        - security
+        - vulnerability
+        - scan
+        - compliance
+        - codeql
+        - license
+      workflows:
+        - id: security-scan
+          name: "Security Scan"
+          file: ".github/workflows/security-scan.yml"
+          description: "Daily security scanning with Gosec, govulncheck, and Trivy"
+          trigger: "schedule (daily)"
+          agentic_potential: "Could analyze security findings, prioritize vulnerabilities, create detailed issue reports with remediation suggestions, and even propose automated fixes"
+          suggested_enhancements:
+            - "AI-powered vulnerability prioritization based on impact and exploitability"
+            - "Automated creation of security issues with detailed context"
+            - "Intelligent remediation suggestions and PR creation"
+            - "Trend analysis and security posture reporting"
+        
+        - id: codeql
+          name: "CodeQL Security Analysis"
+          file: ".github/workflows/codeql.yml"
+          description: "CodeQL analysis for security vulnerabilities"
+          trigger: "schedule"
+          agentic_potential: "Could provide intelligent analysis of CodeQL findings, suggest code fixes, and track security debt over time"
+          suggested_enhancements:
+            - "Natural language explanations of vulnerabilities"
+            - "Automated fix generation for common patterns"
+            - "Security trend analysis and reporting"
+        
+        - id: license-check
+          name: "License Compliance Check"
+          file: ".github/workflows/license-check.yml"
+          description: "Checks dependency licenses for compliance"
+          trigger: "pull_request, push, schedule"
+          agentic_potential: "Could analyze license compatibility issues, suggest alternative dependencies, and track license changes over time"
+          suggested_enhancements:
+            - "Intelligent license compatibility analysis"
+            - "Alternative dependency suggestions"
+            - "License change tracking and reporting"
+            - "Policy violation explanations"
+    
+    ci-cd:
+      description: "CI/CD and testing workflows"
+      keywords:
+        - ci
+        - test
+        - build
+        - integration
+        - continuous
+      workflows:
+        - id: ci
+          name: "CI"
+          file: ".github/workflows/ci.yml"
+          description: "Continuous integration testing, linting, and building"
+          trigger: "push, pull_request"
+          agentic_potential: "Could analyze test failures, suggest fixes, identify flaky tests, and optimize CI performance"
+          suggested_enhancements:
+            - "Intelligent test failure analysis and debugging"
+            - "Flaky test detection and stabilization"
+            - "CI performance optimization suggestions"
+            - "Coverage improvement recommendations"
+        
+        - id: integration-agentics
+          name: "Integration Test Agentics"
+          file: ".github/workflows/integration-agentics.yml"
+          description: "Integration testing for agentic workflows"
+          trigger: "push, pull_request"
+          agentic_potential: "Could analyze integration test patterns, suggest additional test scenarios, and identify integration issues"
+          suggested_enhancements:
+            - "Test coverage gap analysis"
+            - "Integration pattern recommendations"
+            - "Failure root cause analysis"
+    
+    documentation:
+      description: "Documentation build and validation workflows"
+      keywords:
+        - docs
+        - documentation
+        - link
+        - markdown
+      workflows:
+        - id: docs
+          name: "Doc Build - Deploy"
+          file: ".github/workflows/docs.yml"
+          description: "Documentation site building and deployment"
+          trigger: "schedule, pull_request, push"
+          agentic_potential: "Could analyze documentation quality, identify gaps, suggest improvements, and verify documentation accuracy against code"
+          suggested_enhancements:
+            - "Documentation quality analysis"
+            - "Gap identification and content suggestions"
+            - "Code-documentation synchronization verification"
+            - "SEO and accessibility recommendations"
+        
+        - id: link-check
+          name: "Link Check"
+          file: ".github/workflows/link-check.yml"
+          description: "Checks markdown links for broken references"
+          trigger: "push, pull_request, schedule (weekly)"
+          agentic_potential: "Could find alternative URLs for broken links, suggest archive.org versions, and track link health over time"
+          suggested_enhancements:
+            - "Automatic alternative link suggestions"
+            - "Link health trend analysis"
+            - "Archive version recommendations for dead links"
+            - "Proactive link monitoring and alerting"
+    
+    maintenance:
+      description: "Repository maintenance and cleanup workflows"
+      keywords:
+        - maintenance
+        - cleanup
+        - automation
+        - housekeeping
+      workflows:
+        - id: copilot-maintenance
+          name: "Copilot Maintenance"
+          file: ".github/workflows/copilot-maintenance.yml"
+          description: "Cleanup and maintenance for Copilot branches"
+          trigger: "schedule"
+          agentic_potential: "Could intelligently decide which branches to keep based on PR status, recent activity, and branch health"
+          suggested_enhancements:
+            - "Intelligent branch retention policy"
+            - "PR status-based cleanup decisions"
+            - "Branch health scoring and recommendations"
+        
+        - id: auto-close-parent-issues
+          name: "Auto-Close Parent Issues"
+          file: ".github/workflows/auto-close-parent-issues.yml"
+          description: "Automatically closes parent issues when sub-issues are completed"
+          trigger: "issues"
+          agentic_potential: "Could analyze issue relationships, suggest when to close parents, and provide completion summaries"
+          suggested_enhancements:
+            - "Smart parent issue completion analysis"
+            - "Automated completion summaries"
+            - "Dependency chain visualization"
+        
+        - id: format-and-commit
+          name: "Format, Lint, Build and Commit"
+          file: ".github/workflows/format-and-commit.yml"
+          description: "Automated code formatting, linting, and committing"
+          trigger: "workflow_dispatch"
+          agentic_potential: "Could make intelligent formatting decisions, suggest code style improvements, and explain why changes are needed"
+          suggested_enhancements:
+            - "Style improvement recommendations"
+            - "Formatting rationale explanations"
+            - "Code smell detection and refactoring suggestions"
+    
+    testing:
+      description: "Testing and validation workflows"
+      keywords:
+        - test
+        - validation
+        - install
+        - setup
+      workflows:
+        - id: install
+          name: "Install Script Test"
+          file: ".github/workflows/install.yml"
+          description: "Tests installation scripts across platforms"
+          trigger: "schedule, pull_request"
+          agentic_potential: "Could analyze installation failures, suggest compatibility fixes, and test edge cases"
+          suggested_enhancements:
+            - "Installation failure root cause analysis"
+            - "Platform compatibility recommendations"
+            - "Edge case identification and testing"
+        
+        - id: test-copilot-github-integration
+          name: "Test Copilot GitHub Integration"
+          file: ".github/workflows/test-copilot-github-integration.yml"
+          description: "Tests GitHub integration features"
+          trigger: "workflow_dispatch"
+          agentic_potential: "Could analyze integration patterns, suggest additional test scenarios, and validate API usage"
+          suggested_enhancements:
+            - "API usage pattern analysis"
+            - "Integration test coverage gaps"
+            - "Mock data generation for edge cases"
+    
+    agentics-support:
+      description: "Workflows supporting agentic workflow infrastructure"
+      keywords:
+        - agentics
+        - copilot
+        - setup
+        - infrastructure
+      workflows:
+        - id: copilot-setup-steps
+          name: "Copilot Setup Steps"
+          file: ".github/workflows/copilot-setup-steps.yml"
+          description: "Reusable workflow for Copilot agent setup steps"
+          trigger: "pull_request, push"
+          agentic_potential: "Could analyze setup patterns, suggest optimization, and validate configuration"
+          suggested_enhancements:
+            - "Setup pattern optimization"
+            - "Configuration validation"
+            - "Best practice recommendations"
+        
+        - id: agentics-maintenance
+          name: "Agentics Maintenance"
+          file: ".github/workflows/agentics-maintenance.yml"
+          description: "Maintenance tasks for agentic workflows"
+          trigger: "schedule"
+          agentic_potential: "Could analyze workflow health, suggest improvements, and automate maintenance tasks"
+          suggested_enhancements:
+            - "Workflow health scoring"
+            - "Performance optimization suggestions"
+            - "Automated cleanup and updates"
+
+# Usage Notes for Regular Workflows:
+#
+# When creating campaigns, consider these regular workflows as candidates for:
+# 1. **Enhancement**: Converting to agentic workflows with AI-powered analysis
+# 2. **Integration**: Combining with existing agentic workflows in campaigns
+# 3. **Inspiration**: Using as templates for new agentic workflows
+#
+# Example campaign integration:
+# - Security campaign: Combine security-scan.yml (regular) with daily-malicious-code-scan.md (agentic)
+# - CI campaign: Enhance ci.yml (regular) with ci-doctor.md (agentic) for failure analysis
+# - Docs campaign: Pair docs.yml and link-check.yml (regular) with glossary-maintainer.md (agentic)
