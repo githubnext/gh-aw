@@ -128,7 +128,14 @@ echo ""
 # Note: Gateway may take 40-50 seconds when starting multiple MCP servers
 # (e.g., serena alone takes ~22 seconds to start)
 echo "Waiting for gateway to be ready..."
-echo "Health endpoint: http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health"
+# Use localhost for health check since:
+# 1. This script runs on the host (not in a container)
+# 2. The gateway uses --network host, so it's accessible on localhost
+# Note: MCP_GATEWAY_DOMAIN may be set to host.docker.internal for use by containers,
+# but the health check should always use localhost since we're running on the host.
+HEALTH_CHECK_HOST="localhost"
+echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
+echo "(Note: MCP_GATEWAY_DOMAIN is '${MCP_GATEWAY_DOMAIN}' for container access)"
 MAX_ATTEMPTS=60
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
@@ -144,8 +151,8 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     exit 1
   fi
   
-  # Check health endpoint
-  HEALTH_RESPONSE=$(curl -f -s "http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health" 2>&1) && {
+  # Check health endpoint using localhost (since we're running on the host)
+  HEALTH_RESPONSE=$(curl -f -s "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1) && {
     echo "Gateway is ready!"
     echo "Health response: $HEALTH_RESPONSE"
     break
@@ -271,7 +278,9 @@ case "$ENGINE_TYPE" in
 esac
 echo ""
 
-echo "MCP gateway is running on http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
+echo "MCP gateway is running:"
+echo "  - From host: http://localhost:${MCP_GATEWAY_PORT}"
+echo "  - From containers: http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 echo "Gateway PID: $GATEWAY_PID"
 
 # Store PID for cleanup
