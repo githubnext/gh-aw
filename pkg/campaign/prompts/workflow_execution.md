@@ -29,8 +29,14 @@ For each workflow:
      - Safe outputs for any GitHub operations (issues, PRs, comments)
      - Clear prompt describing what the workflow should do
    - Compile it with `gh aw compile <workflow-id>.md`
+   - **Test the newly created workflow** before using it:
+     - Trigger a test run: `mcp__github__run_workflow(workflow_id: "<workflow-id>", ref: "main")`
+     - Wait for completion and verify it succeeds
+     - Review outputs to ensure they match expectations
+     - If the test fails, revise the workflow and test again
+     - Only proceed with campaign execution after successful test
 
-3. **Execute the workflow** - Use GitHub MCP tools:
+3. **Execute the workflow** - Use GitHub MCP tools (skip if just tested):
    - Trigger: `mcp__github__run_workflow(workflow_id: "<workflow-id>", ref: "main")`
    - Wait for completion: Poll `mcp__github__get_workflow_run(run_id)` until status is "completed"
    - Collect outputs: Check `mcp__github__download_workflow_run_artifact()` for any artifacts
@@ -46,7 +52,9 @@ For each workflow:
 
 - Execute workflows **sequentially** (one at a time)
 - Wait for each workflow to complete before starting the next
-- If a workflow fails, note the failure and continue with campaign coordination
+- **Test newly created workflows** before using them in the campaign
+- If a workflow test fails, revise and retest before proceeding
+- If a workflow fails during campaign execution, note the failure and continue with campaign coordination
 - Keep workflow designs simple and focused on the campaign objective
 - Workflows you create should be reusable for future campaign runs
 

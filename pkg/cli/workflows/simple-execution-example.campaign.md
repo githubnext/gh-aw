@@ -48,7 +48,8 @@ When `execute-workflows: true` is set, the campaign orchestrator will:
    - Design an appropriate workflow based on the campaign objective
    - Create the workflow file with proper configuration
    - Compile it
-   - Execute it
+   - **Test it first** - Run the workflow once to verify it works correctly
+   - Only use it in the campaign after successful test
 
 3. **Use outputs to drive progress** - Collect information from workflow runs to inform:
    - Subsequent workflow executions
@@ -66,6 +67,10 @@ Check if framework-scanner exists
     ↓
 [If not exist] Create framework-scanner workflow
     ↓
+[If newly created] Test framework-scanner
+    ↓
+[If test fails] Revise and retest
+    ↓
 Execute framework-scanner
     ↓
 Wait for completion
@@ -75,6 +80,10 @@ Collect outputs/artifacts
 Check if framework-upgrader exists
     ↓
 [If not exist] Create framework-upgrader workflow
+    ↓
+[If newly created] Test framework-upgrader
+    ↓
+[If test fails] Revise and retest
     ↓
 Execute framework-upgrader (using scanner outputs)
     ↓
