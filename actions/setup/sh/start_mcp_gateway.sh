@@ -7,6 +7,7 @@
 # This script reads the MCP configuration from stdin and pipes it to the gateway container.
 
 set -e
+set -o pipefail
 
 # Required environment variables:
 # - MCP_GATEWAY_DOCKER_COMMAND: Container image to run (required)
