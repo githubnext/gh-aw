@@ -790,7 +790,6 @@ A conforming implementation MUST pass the following test categories:
 | Server isolation | T-ISO-* | 1 | Required |
 | Error handling | T-ERR-* | 1 | Required |
 | Gateway lifecycle | T-LIFE-* | 2 | Standard |
-| Error handling | T-ERR-* | 1 | Required |
 
 ### 10.3 Test Execution
 
