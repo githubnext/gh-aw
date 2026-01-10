@@ -153,7 +153,7 @@ The campaign generator automatically discovers and suggests workflows from three
   - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
 
 The generator uses a two-tier discovery approach:
-1. **Static catalog** (`.github/workflow-catalog.yml`): Agentic workflows and external collections organized by category for fast lookup
+1. **Static catalog** (`.github/workflow-catalog.yml`): Contains **only agentic workflows and external collections** organized by category for fast lookup. **Regular workflows are NOT in the catalog** - they are discovered dynamically.
 2. **Dynamic scanning**: Regular `.yml` workflows (excluding `.lock.yml` compiled files) scanned at runtime to assess AI enhancement opportunities
 
 This hybrid approach ensures:

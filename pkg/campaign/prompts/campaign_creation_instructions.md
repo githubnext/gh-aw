@@ -30,10 +30,11 @@ Convert campaign names to kebab-case identifiers:
 
 When identifying workflows for a campaign, follow this systematic approach:
 
-1. **Check the workflow catalog** (`.github/workflow-catalog.yml`):
-   - Query **agentic workflows** (`.md` files) organized by category
-   - Check external collections like the "agentics" collection
-   - Use keywords to find matching workflows
+1. **Read the static workflow catalog** (`.github/workflow-catalog.yml`):
+   - Contains **only agentic workflows** (`.md` files) organized by category
+   - Contains external collections like the "agentics" collection
+   - **Does NOT contain regular workflows** - those are discovered dynamically in step 2
+   - Use keywords to find matching agentic workflows
 
 2. **Dynamically discover all local workflow files:**
    ```bash

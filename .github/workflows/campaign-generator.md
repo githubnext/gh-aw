@@ -104,7 +104,9 @@ create_project({
 **Perform comprehensive workflow discovery in three steps:**
 
 1. **Read the workflow catalog** at `.github/workflow-catalog.yml`:
-   - Query agentic workflows (`.md` files) by matching campaign keywords to catalog categories
+   - **Contains only:** Agentic workflows (`.md` files) and external collections
+   - **Does NOT contain:** Regular workflows (those are discovered in step 2)
+   - Query agentic workflows by matching campaign keywords to catalog categories
    - Check external collections (agentics collection)
    - Identify relevant agentic workflows by category
 
