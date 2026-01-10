@@ -32,34 +32,55 @@ When identifying workflows for a campaign, follow this systematic approach:
 
 1. **Check the workflow catalog** (`.github/workflow-catalog.yml`):
    - Query **agentic workflows** (`.md` files) organized by category
-   - Check **regular GitHub Actions workflows** (`.yml` files) that could become agentic
    - Check external collections like the "agentics" collection
    - Use keywords to find matching workflows
 
-2. **List all local workflow files:**
+2. **Dynamically discover all local workflow files:**
    ```bash
    ls .github/workflows/*.md    # Agentic workflows
-   ls .github/workflows/*.yml   # Regular GitHub Actions workflows
+   ls .github/workflows/*.yml   # Regular GitHub Actions workflows (exclude *.lock.yml)
+   ```
+   
+   **Important**: Filter out `.lock.yml` files - these are compiled agentic workflows:
+   ```bash
+   ls .github/workflows/*.yml | grep -v ".lock.yml"
    ```
 
 3. **Analyze each workflow** to determine fit:
-   - Read the workflow description (frontmatter `description` field for .md, `name:` for .yml)
+   
+   **For agentic workflows (.md files):**
+   - Read the workflow description (frontmatter `description` field)
    - Check the workflow name and purpose
-   - Look at safe-outputs to understand what the workflow does (agentic workflows)
+   - Look at safe-outputs to understand what the workflow does
    - Consider triggers (`on:` field) to understand when it runs
-   - For regular workflows, assess their **agentic_potential** from the catalog
+   
+   **For regular workflows (.yml files, excluding .lock.yml):**
+   - Read the workflow name (YAML `name:` field)
+   - Identify the trigger events (`on:` field) - schedule, push, pull_request, etc.
+   - Scan the jobs to understand what the workflow does (testing, security, docs, etc.)
+   - **Assess AI enhancement potential** by considering:
+     * Could AI analyze the output/results intelligently?
+     * Could AI prioritize findings or create actionable reports?
+     * Could AI suggest fixes or improvements automatically?
+     * Would natural language explanations add value?
 
 4. **Consider three types of workflows:**
    
    **A. Agentic Workflows** (`.md` files):
    AI-powered workflows that can analyze, reason, and create GitHub content via safe-outputs.
    
-   **B. Regular GitHub Actions Workflows** (`.yml` files):
+   **B. Regular GitHub Actions Workflows** (`.yml` files, not `.lock.yml`):
    Standard automation workflows that could be **enhanced** by converting to agentic workflows.
-   The catalog's `regular_workflows` section identifies candidates with:
-   - Current functionality and triggers
-   - Agentic potential (how AI could enhance them)
-   - Suggested enhancements (specific AI capabilities to add)
+   
+   **Identifying enhancement candidates:**
+   - **Security workflows** (CodeQL, vulnerability scanning, license checks)
+     → AI could prioritize vulnerabilities, explain findings, suggest fixes
+   - **CI/CD workflows** (testing, building, deployment)
+     → AI could analyze failures, detect flaky tests, optimize performance
+   - **Documentation workflows** (builds, link checking, validation)
+     → AI could assess quality, identify gaps, suggest improvements
+   - **Maintenance workflows** (cleanup, automation, housekeeping)
+     → AI could make intelligent decisions about what to clean/keep
    
    **C. External Workflow Collections:**
    
@@ -75,42 +96,48 @@ When identifying workflows for a campaign, follow this systematic approach:
 
 5. **Match workflows to campaign goals:**
 
-   **For security campaigns**, look for:
-   - Agentic workflows: `daily-malicious-code-scan` (local)
-   - Regular workflows to enhance: `security-scan`, `codeql`, `license-check` (see catalog for AI enhancement ideas)
+   **For security campaigns**, dynamically discover:
+   - Agentic workflows: Search catalog for "security", "vulnerability", "scan" keywords
+   - Regular workflows: Look for workflows with names containing "security", "codeql", "license", "scan"
+     * Example candidates: `security-scan.yml`, `codeql.yml`, `license-check.yml`
+     * **AI enhancement**: Vulnerability prioritization, automated remediation PRs, natural language explanations
    - Agentics collection: `ci-doctor` (for CI security), `repo-ask` (for security questions)
-   - **Enhancement opportunity**: Convert `security-scan.yml` to agentic workflow with AI-powered vulnerability prioritization and automated fix generation
    
-   **For dependency/upgrade campaigns**, look for:
-   - Agentic workflows: `cli-version-checker` (local)
-   - Regular workflows to enhance: Consider enhancing dependency-related workflows with AI analysis
+   **For dependency/upgrade campaigns**, dynamically discover:
+   - Agentic workflows: Search catalog for "dependency", "upgrade", "update" keywords
+   - Regular workflows: Look for workflows related to dependency management
    - Agentics collection: `daily-dependency-updater`, `pr-fix` (for failing dependencies)
    
-   **For documentation campaigns**, look for:
-   - Agentic workflows: `glossary-maintainer`, `blog-auditor` (local)
-   - Regular workflows to enhance: `docs`, `link-check` (see catalog for AI enhancement ideas)
+   **For documentation campaigns**, dynamically discover:
+   - Agentic workflows: Search catalog for "doc", "documentation", "guide" keywords
+   - Regular workflows: Look for workflows with names containing "docs", "link-check", "documentation"
+     * Example candidates: `docs.yml`, `link-check.yml`
+     * **AI enhancement**: Quality analysis, gap identification, alternative link suggestions
    - Agentics collection: `update-docs`, `weekly-research` (for documentation research)
-   - **Enhancement opportunity**: Convert `link-check.yml` to agentic workflow with automatic alternative link suggestions
    
-   **For code quality campaigns**, look for:
-   - Agentic workflows: `semantic-function-refactor`, `breaking-change-checker` (local)
-   - Regular workflows to enhance: `ci` (see catalog for AI-powered test analysis)
+   **For code quality campaigns**, dynamically discover:
+   - Agentic workflows: Search catalog for "quality", "refactor", "test" keywords
+   - Regular workflows: Look for CI workflows with testing, linting
+     * Example candidates: `ci.yml`, `test-*.yml`
+     * **AI enhancement**: Test failure analysis, flaky test detection, coverage recommendations
    - Agentics collection: `daily-test-coverage-improver`, `daily-performance-improver`, `daily-adhoc-qa`
    
-   **For CI/CD and workflow optimization campaigns**, look for:
-   - Agentic workflows: `ci-doctor`, `ci-coach`, `audit-workflows` (local)
-   - Regular workflows to enhance: `ci`, `integration-agentics` (see catalog for AI enhancement ideas)
+   **For CI/CD optimization campaigns**, dynamically discover:
+   - Agentic workflows: Search catalog for "ci", "workflow", "build" keywords
+   - Regular workflows: Look for CI/CD workflows
+     * Example candidates: `ci.yml`, `build.yml`, `deploy.yml`
+     * **AI enhancement**: Performance optimization, failure analysis, build caching suggestions
    - Agentics collection: `ci-doctor`, `q-workflow-optimizer`, `pr-fix`
-   - **Enhancement opportunity**: Enhance `ci.yml` with AI-powered failure analysis and flaky test detection
    
-   **For team coordination campaigns**, look for:
-   - Agentic workflows: `campaign-generator` (local)
-   - Regular workflows to enhance: Consider workflow coordination patterns
-   - Agentics collection: `daily-team-status`, `daily-plan`, `plan-command`, `issue-triage`
+   **For maintenance campaigns**, dynamically discover:
+   - Agentic workflows: Search catalog for "maintenance", "cleanup", "automation" keywords
+   - Regular workflows: Look for maintenance and cleanup workflows
+     * Example candidates: `cleanup.yml`, `maintenance.yml`, `auto-close-*.yml`
+     * **AI enhancement**: Intelligent cleanup decisions, automated issue management
 
 6. **Determine workflow strategy:**
    - **Use existing agentic**: Workflows in `.github/workflows/*.md` that already do what's needed
-   - **Enhance regular workflows**: Regular `.yml` workflows that would benefit from AI capabilities (reference catalog's `agentic_potential`)
+   - **Enhance regular workflows**: Regular `.yml` workflows (excluding `.lock.yml`) that would benefit from AI capabilities
    - **Use existing from agentics**: Workflows from the agentics collection that can be installed
    - **Suggest new**: Workflows that need to be created from scratch
    - **Combination**: Mix of agentic, regular (to enhance), agentics collection, and new workflows
@@ -128,41 +155,51 @@ When identifying workflows for a campaign, follow this systematic approach:
 **Reporter workflows**: Generate summaries (e.g., "campaign-reporter", "progress-tracker", "daily-team-status")
 **Coordinator workflows**: Manage orchestration (auto-generated)
 **Triage workflows**: Organize and prioritize work (e.g., "issue-triage", "plan-command")
-**Enhancement candidates**: Regular workflows that could benefit from AI (see catalog's `regular_workflows` section)
+**Enhancement candidates**: Regular workflows discovered dynamically by scanning `.github/workflows/*.yml` (excluding `.lock.yml`)
 
-### Examples
+### Examples (Using Dynamic Discovery)
 
 **For "Migrate to Node 20" campaign:**
-- Local agentic: `cli-version-checker.md` (monitors versions)
-- Agentics: `daily-dependency-updater` (from agentics collection)
-- New: `node-version-scanner` - Finds repos still on Node 16
-- Agentics: `pr-fix` (from agentics collection - fixes failing PRs during migration)
+1. **Scan catalog** for agentic workflows with "dependency", "upgrade" keywords
+   - Found: `cli-version-checker.md` (monitors versions)
+2. **Scan `.github/workflows/*.yml`** for dependency-related workflows
+   - Look for workflows with "dependency", "update", "npm", "package" in name
+   - Assess if they could benefit from AI (e.g., intelligent upgrade planning)
+3. **Include from agentics collection**: `daily-dependency-updater`, `pr-fix`
+4. **Suggest new**: `node-version-scanner` - Finds repos still on Node 16
 
 **For "Security Q1 2025" campaign:**
-- Local agentic: `daily-malicious-code-scan.md`
-- Regular to enhance: `security-scan.yml` → Convert to agentic with AI vulnerability prioritization
-- Regular to enhance: `codeql.yml` → Enhance with natural language explanations and automated fixes
-- Agentics: `ci-doctor` (from agentics collection - monitors CI for security issues)
-- New: `security-reporter` - Weekly security posture reports
+1. **Scan catalog** for agentic workflows with "security", "vulnerability" keywords
+   - Found: `daily-malicious-code-scan.md`
+2. **Scan `.github/workflows/*.yml`** (excluding `.lock.yml`) for security workflows
+   - Found candidates: `security-scan.yml`, `codeql.yml`, `license-check.yml`
+   - Read each to understand what they do (Gosec/govulncheck/Trivy, CodeQL analysis, license compliance)
+   - Assess AI enhancement potential: vulnerability prioritization, natural language explanations, automated fixes
+3. **Include from agentics collection**: `ci-doctor` (monitors CI for security issues)
+4. **Suggest new**: `security-reporter` - Weekly security posture reports
+
+**Result**: Mix of 1 existing agentic + 2-3 enhanced regular + 1 external + 1 new = comprehensive security coverage
 
 **For "Improve Code Quality" campaign:**
-- Local agentic: `semantic-function-refactor.md`, `breaking-change-checker.md`
-- Regular to enhance: `ci.yml` → Enhance with AI-powered test failure analysis and flaky test detection
-- Agentics: `daily-test-coverage-improver` (from agentics collection)
-- Agentics: `daily-performance-improver` (from agentics collection)
-- Agentics: `daily-adhoc-qa` (from agentics collection)
+1. **Scan catalog** for agentic workflows with "quality", "refactor", "test" keywords
+   - Found: `semantic-function-refactor.md`, `breaking-change-checker.md`
+2. **Scan `.github/workflows/*.yml`** for CI/test workflows
+   - Found candidates: `ci.yml`, `test-*.yml`, `lint.yml`
+   - Assess AI enhancement: test failure analysis, flaky test detection, coverage recommendations
+3. **Include from agentics collection**: `daily-test-coverage-improver`, `daily-performance-improver`, `daily-adhoc-qa`
 
 **For "Documentation Excellence" campaign:**
-- Local agentic: `glossary-maintainer.md`, `blog-auditor.md`
-- Regular to enhance: `docs.yml` → Add AI quality analysis and gap identification
-- Regular to enhance: `link-check.yml` → Enhance with automatic alternative link suggestions and archive recommendations
-- Agentics: `update-docs` (from agentics collection)
+1. **Scan catalog** for agentic workflows with "doc", "documentation" keywords
+   - Found: `glossary-maintainer.md`, `blog-auditor.md`
+2. **Scan `.github/workflows/*.yml`** for documentation workflows
+   - Found candidates: `docs.yml`, `link-check.yml`
+   - Assess AI enhancement: quality analysis, gap identification, alternative link suggestions
+3. **Include from agentics collection**: `update-docs`
 
 **For "Team Coordination" campaign:**
-- Agentics: `issue-triage` (from agentics collection)
-- Agentics: `daily-team-status` (from agentics collection)
-- Agentics: `daily-plan` (from agentics collection)
-- Agentics: `plan-command` (from agentics collection)
+1. **Scan catalog** for agentic workflows with "team", "coordination", "planning" keywords
+2. **Scan `.github/workflows/*.yml`** for team coordination workflows (may find few)
+3. **Include from agentics collection**: `issue-triage`, `daily-team-status`, `daily-plan`, `plan-command`
 
 ---
 

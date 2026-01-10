@@ -99,34 +99,66 @@ create_project({
 
 **Save the project URL** from the response - you'll need it for Step 4.
 
-### Step 3: Discover Workflows Using Catalog
+### Step 3: Discover Workflows Dynamically
 
-**Read the workflow catalog** at `.github/workflow-catalog.yml` to perform deterministic workflow discovery:
+**Perform comprehensive workflow discovery in three steps:**
 
-1. **Identify campaign category** based on the goal:
-   - Security keywords → `security` category
-   - Dependency/upgrade keywords → `dependency` category
-   - Documentation keywords → `documentation` category
-   - Quality keywords → `quality` category
-   - CI/CD keywords → `ci-cd` category
+1. **Read the workflow catalog** at `.github/workflow-catalog.yml`:
+   - Query agentic workflows (`.md` files) by matching campaign keywords to catalog categories
+   - Check external collections (agentics collection)
+   - Identify relevant agentic workflows by category
 
-2. **Query matching workflows** from the catalog:
-   - Match keywords in campaign goal to workflow keywords
-   - Filter workflows by category
-   - Return 2-4 most relevant workflows
+2. **Dynamically scan for regular workflows**:
+   ```bash
+   ls .github/workflows/*.yml | grep -v ".lock.yml"
+   ```
+   
+   For each regular workflow file:
+   - Read the workflow name (`name:` field in YAML)
+   - Check the trigger configuration (`on:` field)
+   - Scan jobs to understand functionality (testing, security, docs, etc.)
+   - Match workflow name/purpose to campaign category
+   - Assess if it could benefit from AI enhancement
+   
+   **Examples of assessment:**
+   - `security-scan.yml` (runs Gosec, govulncheck, Trivy)
+     → Could add: AI vulnerability prioritization, automated remediation
+   - `ci.yml` (runs tests, builds)
+     → Could add: AI test failure analysis, flaky test detection
+   - `docs.yml` (builds documentation)
+     → Could add: AI quality analysis, gap identification
+   - `link-check.yml` (validates markdown links)
+     → Could add: Alternative link suggestions, archive.org fallbacks
 
-3. **Categorize workflows**:
-   - **Existing workflows**: IDs found in catalog
-   - **New workflows**: Suggested workflows not in catalog
+3. **Categorize discovered workflows**:
+   - **Existing agentic workflows**: Found in catalog (`.md` files)
+   - **Regular workflows to enhance**: Found by scanning (`.yml` files, excluding `.lock.yml`)
+   - **External workflows**: From agentics collection
+   - **New workflows**: Suggested workflows not found
 
 **Example workflow discovery:**
+
 For a "Security Q1 2025" campaign with goal "Automated security improvements":
-- Category: `security`
-- Keywords match: "security", "scan", "vulnerability"
-- Found workflows:
-  - `daily-malicious-code-scan` (existing)
-- Suggested new workflows:
-  - `security-reporter` (new - for progress reports)
+
+1. **From catalog**: 
+   - Category: `security`
+   - Found agentic workflows: `daily-malicious-code-scan` (existing .md)
+
+2. **From dynamic scan**:
+   - Scanned `.github/workflows/*.yml` (excluding `.lock.yml`)
+   - Found regular workflows: `security-scan.yml`, `codeql.yml`, `license-check.yml`
+   - Assessed each for AI enhancement potential:
+     * `security-scan.yml` → High potential (vulnerability prioritization, automated fixes)
+     * `codeql.yml` → High potential (natural language explanations, fix suggestions)
+     * `license-check.yml` → Medium potential (compatibility analysis, alternative dependencies)
+
+3. **From external collections**:
+   - `ci-doctor` (from agentics - monitors CI for security issues)
+
+4. **Suggested new**:
+   - `security-reporter` - Weekly security posture reports
+
+**Result**: 1 agentic + 2-3 regular to enhance + 1 external + 1 new = comprehensive coverage
 
 ### Step 4: Generate Campaign Specification File
 
