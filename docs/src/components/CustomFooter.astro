@@ -9,7 +9,13 @@ const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
 
 <div class="github-next-footer">
   <p>
-    Made with <span class="heart-icon" set:html={heartIcon} /> by <a href="https://githubnext.com/" target="_blank" rel="noopener noreferrer">GitHub Next</a> & <a href="https://www.microsoft.com/en-us/research/" target="_blank" rel="noopener noreferrer">Microsoft Research</a> • <a href="https://github.com/githubnext/githubnext/blob/main/TERMS_AND_CONDITIONS.md" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+    <span class="footer-main">
+      Made with <span class="heart-icon" set:html={heartIcon} /> by <a href="https://githubnext.com/" target="_blank" rel="noopener noreferrer">GitHub Next</a> & <a href="https://www.microsoft.com/en-us/research/" target="_blank" rel="noopener noreferrer">Microsoft Research</a>
+    </span>
+    <span class="footer-separator" aria-hidden="true">•</span>
+    <span class="footer-terms">
+      <a href="https://github.com/githubnext/githubnext/blob/main/TERMS_AND_CONDITIONS.md" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+    </span>
   </p>
 </div>
 
@@ -33,10 +39,45 @@ const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
     align-items: center;
     justify-content: center;
     gap: 0.25rem;
+    flex-wrap: wrap;
   }
 
   :global([data-theme='light']) .github-next-footer p {
     color: #656d76;
+  }
+
+  .footer-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .footer-separator {
+    margin: 0 0.25rem;
+  }
+
+  .footer-terms {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Mobile responsive: stack vertically */
+  @media (max-width: 768px) {
+    .github-next-footer p {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .footer-separator {
+      display: none;
+    }
+
+    .footer-main,
+    .footer-terms {
+      text-align: center;
+    }
   }
 
   .heart-icon {
