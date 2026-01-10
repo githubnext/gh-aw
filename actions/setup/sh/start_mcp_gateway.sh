@@ -10,6 +10,7 @@ set -e
 
 # Required environment variables:
 # - MCP_GATEWAY_DOCKER_COMMAND: Container image to run (required)
+# - MCP_GATEWAY_API_KEY: API key for gateway authentication (required for converter scripts)
 
 # Validate that container is specified (command execution is not supported per spec)
 if [ -z "$MCP_GATEWAY_DOCKER_COMMAND" ]; then
@@ -237,6 +238,13 @@ fi
 # Convert gateway output to agent-specific format
 echo "Converting gateway configuration to agent format..."
 export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json
+
+# Validate MCP_GATEWAY_API_KEY is set (required by converter scripts)
+if [ -z "$MCP_GATEWAY_API_KEY" ]; then
+  echo "ERROR: MCP_GATEWAY_API_KEY environment variable must be set for converter scripts"
+  echo "This variable should be set in the workflow before calling start_mcp_gateway.sh"
+  exit 1
+fi
 
 # Determine which agent-specific converter to use based on engine type
 # Check for engine-specific indicators and call appropriate converter
