@@ -394,6 +394,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
 		yaml.WriteString("          PORT=3000\n")
 		yaml.WriteString("          \n")
+		yaml.WriteString("          # Register API key as secret to mask it from logs\n")
+		yaml.WriteString("          echo \"::add-mask::${API_KEY}\"\n")
+		yaml.WriteString("          \n")
 		yaml.WriteString("          # Set outputs for next steps\n")
 		yaml.WriteString("          {\n")
 		yaml.WriteString("            echo \"safe_inputs_api_key=${API_KEY}\"\n")
@@ -497,6 +500,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Register API key as secret to mask it from logs\n")
+	yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
 
 	// Export engine type
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
