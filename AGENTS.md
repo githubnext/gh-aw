@@ -2,6 +2,14 @@
 
 GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic workflows in natural language using markdown files, running them as GitHub Actions.
 
+## Important Note: gh-aw vs GitHub Copilot CLI
+
+**gh-aw** is a GitHub CLI extension (`gh aw`) that compiles markdown workflows into GitHub Actions. It is **not** the GitHub Copilot CLI (`copilot` command). While workflows can use the Copilot CLI as an AI engine, gh-aw itself is a separate tool for workflow management and compilation.
+
+- Use `gh aw` commands (e.g., `gh aw compile`, `gh aw run`) to work with agentic workflows
+- Use `/agent` in GitHub Copilot Chat to invoke custom agents like `create-agentic-workflow`
+- The `copilot` CLI command is only used internally within workflows when specified as the engine
+
 ## Important: Using Skills
 
 **BE LAZY**: Skills in `skills/` provide detailed, specialized knowledge about specific topics. **Only reference skills when you actually need their specialized knowledge**. Do not load or reference skills preemptively.
