@@ -115,17 +115,19 @@ while IFS= read -r SERVER_NAME; do
   
   echo "Server URL: $SERVER_URL"
   
-  # Extract authentication headers if present in config, otherwise use gateway API key
+  # Extract authentication headers from gateway configuration
+  # Per MCP Gateway Specification v1.2.0 section 5.4:
+  # "The gateway is responsible for generating and including appropriate 
+  # authentication credentials - client-side configuration converters MUST NOT 
+  # modify or supplement the headers provided by the gateway."
   AUTH_HEADER=""
   if echo "$SERVER_CONFIG" | jq -e '.headers.Authorization' >/dev/null 2>&1; then
     AUTH_HEADER=$(echo "$SERVER_CONFIG" | jq -r '.headers.Authorization' 2>/dev/null)
-    echo "Authentication: From config (${AUTH_HEADER:0:20}...)"
-  elif [ -n "$GATEWAY_API_KEY" ]; then
-    # Use gateway API key for all gatewayed servers
-    AUTH_HEADER="$GATEWAY_API_KEY"
-    echo "Authentication: Using gateway API key (${AUTH_HEADER:0:8}...)"
+    echo "Authentication: From gateway config (${AUTH_HEADER:0:20}...)"
   else
-    echo "Authentication: None"
+    echo "WARNING: No Authorization header in gateway configuration for: $SERVER_NAME"
+    echo "The gateway should have included authentication headers in its output."
+    echo "Skipping authentication check..."
   fi
   echo ""
   
