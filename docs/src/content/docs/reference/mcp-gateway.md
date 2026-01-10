@@ -336,7 +336,7 @@ POST /close
 ```http
 POST /mcp/{server-name} HTTP/1.1
 Content-Type: application/json
-Authorization: {apiKey}
+Authorization: <apiKey>
 
 {
   "jsonrpc": "2.0",
@@ -345,6 +345,8 @@ Authorization: {apiKey}
   "id": "string|number"
 }
 ```
+
+**Note**: The `Authorization` header value is the API key directly, **not** using the Bearer authentication scheme. For example, if your API key is `my-secret-key`, the header should be `Authorization: my-secret-key`, not `Authorization: Bearer my-secret-key`.
 
 **Response Format**:
 
@@ -384,8 +386,10 @@ The gateway MUST provide a `/close` endpoint for graceful shutdown and resource 
 
 ```http
 POST /close HTTP/1.1
-Authorization: {apiKey}
+Authorization: <apiKey>
 ```
+
+**Note**: The `Authorization` header value is the API key directly. Do not use the Bearer authentication scheme.
 
 **Success Response**:
 
@@ -524,11 +528,14 @@ After successful initialization, the gateway MUST:
      }
    }
    ```
+   **Note**: The `Authorization` header value contains the API key directly, not using the Bearer authentication scheme.
 3. Write configuration as a single JSON document
 4. Flush stdout buffer
 5. Continue serving requests
 
 This allows clients to dynamically discover gateway endpoints.
+
+**Note**: The `Authorization` header in the output configuration contains the API key directly, not using the Bearer authentication scheme.
 
 ---
 
@@ -574,23 +581,52 @@ The gateway MUST NOT:
 
 ## 7. Authentication
 
-### 7.1 API Key Authentication
+### 7.1 Authorization Header Format
+
+The MCP Gateway uses a simple API key authentication scheme. When `gateway.apiKey` is configured:
+
+- The `Authorization` header MUST contain the API key value directly
+- The format is: `Authorization: <apiKey>`
+- **Do NOT use** the Bearer authentication scheme
+- **Do NOT prefix** the API key with "Bearer" or any other scheme identifier
+
+**Example**:
+
+```http
+Authorization: my-secret-api-key-12345
+```
+
+**Incorrect formats** (these will be rejected):
+
+```http
+Authorization: Bearer my-secret-api-key-12345
+Authorization: Token my-secret-api-key-12345
+```
+
+This simplified authentication scheme is chosen for:
+- **Simplicity**: No additional parsing of authentication schemes
+- **Clarity**: The API key is the complete authorization value
+- **Consistency**: Same format across all gateway endpoints
+
+### 7.2 API Key Authentication
 
 When `gateway.apiKey` is configured, the gateway MUST:
 
-1. Require `Authorization: {apiKey}` header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
+1. Require `Authorization` header with the API key value on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
+   - The header format is `Authorization: <apiKey>` where `<apiKey>` is the actual API key value
+   - **Do not use** the Bearer authentication scheme (i.e., not `Authorization: Bearer <apiKey>`)
 2. Reject requests with missing or invalid tokens (HTTP 401)
 3. Reject requests with malformed Authorization headers (HTTP 400)
 4. NOT log API keys in plaintext
 
-### 7.2 Optimal Temporary API Key
+### 7.3 Optimal Temporary API Key
 
 The gateway SHOULD support temporary API keys:
 
 1. Generate a random API key on startup if not provided
 2. Include key in stdout configuration output
 
-### 7.3 Authentication Exemptions
+### 7.4 Authentication Exemptions
 
 The following endpoints MUST NOT require authentication:
 
@@ -907,6 +943,8 @@ Host: localhost:8080
 Authorization: gateway-secret-token
 ```
 
+**Note**: The API key is used directly in the Authorization header, without the Bearer scheme.
+
 **Success Response**:
 
 ```http
@@ -940,6 +978,8 @@ POST /close HTTP/1.1
 Host: localhost:8080
 Authorization: gateway-secret-token
 ```
+
+**Note**: As with all authenticated requests, the API key is used directly without the Bearer prefix.
 
 ```http
 HTTP/1.1 410 Gone
