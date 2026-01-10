@@ -468,6 +468,13 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "              firewall_enabled: %t,\n", firewallEnabled)
 	fmt.Fprintf(yaml, "              awf_version: \"%s\",\n", firewallVersion)
 
+	// MCP Gateway version
+	mcpGatewayVersion := ""
+	if data.SandboxConfig != nil && data.SandboxConfig.MCP != nil && data.SandboxConfig.MCP.Version != "" {
+		mcpGatewayVersion = data.SandboxConfig.MCP.Version
+	}
+	fmt.Fprintf(yaml, "              awmg_version: \"%s\",\n", mcpGatewayVersion)
+
 	// Add steps object with firewall information
 	yaml.WriteString("              steps: {\n")
 
