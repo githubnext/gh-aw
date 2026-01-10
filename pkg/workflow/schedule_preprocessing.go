@@ -220,6 +220,12 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 			scheduleFriendlyFormats[friendlyFormatsKey] = friendlyFormats
 		}
 
+		// Add workflow_dispatch if not already present
+		if _, hasWorkflowDispatch := onMap["workflow_dispatch"]; !hasWorkflowDispatch {
+			schedulePreprocessingLog.Printf("Adding workflow_dispatch to scheduled workflow")
+			onMap["workflow_dispatch"] = nil
+		}
+
 		return nil
 	}
 
@@ -271,6 +277,12 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 	// Store the friendly formats if any were found
 	if len(friendlyFormats) > 0 {
 		scheduleFriendlyFormats[friendlyFormatsKey] = friendlyFormats
+	}
+
+	// Add workflow_dispatch if not already present
+	if _, hasWorkflowDispatch := onMap["workflow_dispatch"]; !hasWorkflowDispatch {
+		schedulePreprocessingLog.Printf("Adding workflow_dispatch to scheduled workflow")
+		onMap["workflow_dispatch"] = nil
 	}
 
 	return nil
