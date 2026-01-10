@@ -238,6 +238,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
 
+		// Enable host access when MCP gateway is running on the host
+		// This allows the agent inside the firewall container to access host.docker.internal
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			copilotExecLog.Print("Enabled host access for MCP gateway")
+		}
+
 		// Set container working directory to match GITHUB_WORKSPACE
 		// This ensures pwd inside the container matches what the prompt tells the AI
 		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")

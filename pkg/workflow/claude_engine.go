@@ -242,6 +242,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
 
+		// Enable host access when MCP gateway is running on the host
+		// This allows the agent inside the firewall container to access host.docker.internal
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			claudeLog.Print("Enabled host access for MCP gateway")
+		}
+
 		// TTY is required for Claude Code CLI
 		awfArgs = append(awfArgs, "--tty")
 

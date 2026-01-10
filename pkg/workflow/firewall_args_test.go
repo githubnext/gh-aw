@@ -219,4 +219,66 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Should use custom version, not default version")
 		}
 	})
+
+	t.Run("AWF includes --enable-host-access when MCP servers are configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// Configure GitHub MCP tool to enable MCP servers
+			Tools: map[string]any{
+				"github": true,
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is included when MCP servers are configured
+		if !strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected AWF command to contain '--enable-host-access' when MCP servers are configured")
+		}
+	})
+
+	t.Run("AWF does not include --enable-host-access when no MCP servers are configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// No tools configured - no MCP servers
+			Tools: map[string]any{},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is NOT included when no MCP servers are configured
+		if strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected AWF command to NOT contain '--enable-host-access' when no MCP servers are configured")
+		}
+	})
 }

@@ -160,6 +160,13 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
 
+		// Enable host access when MCP gateway is running on the host
+		// This allows the agent inside the firewall container to access host.docker.internal
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			codexEngineLog.Print("Enabled host access for MCP gateway")
+		}
+
 		// Set container working directory to match GITHUB_WORKSPACE
 		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
 		codexEngineLog.Print("Set container working directory to GITHUB_WORKSPACE")
