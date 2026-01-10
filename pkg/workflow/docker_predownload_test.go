@@ -231,7 +231,7 @@ Test workflow - safe outputs MCP server without GitHub tool.`,
 }
 
 func TestDockerImagePredownloadOrdering(t *testing.T) {
-	// Test that the "Downloading container images" step comes before "Setup MCPs"
+	// Test that the "Downloading container images" step comes before "Start MCP gateway"
 	frontmatter := `---
 on: issues
 engine: claude
@@ -267,18 +267,18 @@ Test workflow.`
 
 	// Find the positions of both steps
 	downloadPos := strings.Index(yamlStr, "Downloading container images")
-	setupPos := strings.Index(yamlStr, "Setup MCPs")
+	setupPos := strings.Index(yamlStr, "Start MCP gateway")
 
 	if downloadPos == -1 {
 		t.Fatal("Expected 'Downloading container images' step not found")
 	}
 
 	if setupPos == -1 {
-		t.Fatal("Expected 'Setup MCPs' step not found")
+		t.Fatal("Expected 'Start MCP gateway' step not found")
 	}
 
 	// Verify the download step comes before setup step
 	if downloadPos > setupPos {
-		t.Errorf("Expected 'Downloading container images' to come before 'Setup MCPs', but found it after")
+		t.Errorf("Expected 'Downloading container images' to come before 'Start MCP gateway', but found it after")
 	}
 }

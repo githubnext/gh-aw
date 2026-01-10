@@ -90,6 +90,17 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("            await main();\n")
 }
 
+// generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output
+func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating MCP gateway stop step")
+
+	yaml.WriteString("      - name: Stop MCP gateway\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          bash /opt/gh-aw/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}\n")
+}
+
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
 // This removes Go's (?i) inline case-insensitive flag since JavaScript doesn't support it
 func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {

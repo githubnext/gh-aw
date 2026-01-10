@@ -51,7 +51,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 }
 
 // collectMCPEnvironmentVariables collects all MCP-related environment variables
-// from the workflow configuration to be passed to both Setup MCPs and MCP Gateway steps
+// from the workflow configuration to be passed to both Start MCP gateway and MCP Gateway steps
 func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, workflowData *WorkflowData, hasAgenticWorkflows bool) map[string]string {
 	envVars := make(map[string]string)
 
@@ -443,7 +443,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	// Use the engine's RenderMCPConfig method
-	yaml.WriteString("      - name: Setup MCPs\n")
+	yaml.WriteString("      - name: Start MCP gateway\n")
+	yaml.WriteString("        id: start-mcp-gateway\n")
 
 	// Collect all MCP-related environment variables using centralized helper
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)

@@ -112,10 +112,10 @@ Test no secrets in allowed_domains.
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			// Check if environment variable with correct prefix exists in Setup MCPs step
+			// Check if environment variable with correct prefix exists in Start MCP gateway step
 			if tt.expectRedaction {
 				if !strings.Contains(yamlContent, tt.expectEnvVarPrefix) {
-					t.Errorf("Expected environment variable with prefix %s not found in Setup MCPs step", tt.expectEnvVarPrefix)
+					t.Errorf("Expected environment variable with prefix %s not found in Start MCP gateway step", tt.expectEnvVarPrefix)
 				}
 			} else {
 				if strings.Contains(yamlContent, tt.expectEnvVarPrefix) && tt.expectEnvVarPrefix != "" {
