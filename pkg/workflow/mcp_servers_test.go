@@ -1,10 +1,14 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -219,6 +223,194 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			// The setup output should contain the container image with the correct version
 			assert.Contains(t, setupOutput, expectedImage,
 				"MCP gateway setup should use correct container version (%s)", tt.description)
+		})
+	}
+}
+
+// TestMCPGatewayVersionParsedFromSource tests that sandbox.mcp.version is correctly parsed
+// from markdown frontmatter and used in the compiled workflow output
+func TestMCPGatewayVersionParsedFromSource(t *testing.T) {
+	tests := []struct {
+		name                  string
+		frontmatter           string
+		expectedVersion       string
+		shouldHaveGateway     bool
+		shouldContainInDocker bool
+		shouldContainInSetup  bool
+	}{
+		{
+			name: "custom version v0.0.5 specified in frontmatter",
+			frontmatter: `---
+on: issues
+engine: claude
+sandbox:
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: v0.0.5
+tools:
+  github:
+---
+
+# Test Workflow
+Test workflow with custom sandbox.mcp.version.`,
+			expectedVersion:       "v0.0.5",
+			shouldHaveGateway:     true,
+			shouldContainInDocker: true,
+			shouldContainInSetup:  true,
+		},
+		{
+			name: "no version specified - should use default v0.0.12",
+			frontmatter: `---
+on: issues
+engine: claude
+tools:
+  github:
+---
+
+# Test Workflow
+Test workflow without sandbox.mcp.version specified.`,
+			expectedVersion:       string(constants.DefaultMCPGatewayVersion),
+			shouldHaveGateway:     true,
+			shouldContainInDocker: true,
+			shouldContainInSetup:  true,
+		},
+		{
+			name: "version latest should be replaced with default",
+			frontmatter: `---
+on: issues
+engine: claude
+sandbox:
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: latest
+tools:
+  github:
+---
+
+# Test Workflow
+Test workflow with version: latest.`,
+			expectedVersion:       string(constants.DefaultMCPGatewayVersion),
+			shouldHaveGateway:     true,
+			shouldContainInDocker: true,
+			shouldContainInSetup:  true,
+		},
+		{
+			name: "custom version 1.2.3 specified in frontmatter",
+			frontmatter: `---
+on: issues
+engine: claude
+sandbox:
+  mcp:
+    container: ghcr.io/githubnext/gh-aw-mcpg
+    version: "1.2.3"
+tools:
+  github:
+---
+
+# Test Workflow
+Test workflow with version 1.2.3.`,
+			expectedVersion:       "1.2.3",
+			shouldHaveGateway:     true,
+			shouldContainInDocker: true,
+			shouldContainInSetup:  true,
+		},
+		{
+			name: "custom container and version specified",
+			frontmatter: `---
+on: issues
+engine: claude
+sandbox:
+  mcp:
+    container: ghcr.io/custom/gateway
+    version: v2.0.0
+tools:
+  github:
+---
+
+# Test Workflow
+Test workflow with custom container and version.`,
+			expectedVersion:       "v2.0.0",
+			shouldHaveGateway:     true,
+			shouldContainInDocker: true,
+			shouldContainInSetup:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for test files
+			tmpDir := testutil.TempDir(t, "mcp-version-test")
+
+			// Write test workflow file
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644)
+			require.NoError(t, err, "Failed to write test workflow file")
+
+			// Compile the workflow
+			compiler := NewCompiler(false, "", "test-version")
+			err = compiler.CompileWorkflow(testFile)
+			require.NoError(t, err, "Failed to compile workflow")
+
+			// Read generated lock file
+			lockFile := stringutil.MarkdownToLockFile(testFile)
+			yamlContent, err := os.ReadFile(lockFile)
+			require.NoError(t, err, "Failed to read lock file")
+
+			yamlStr := string(yamlContent)
+
+			// Test 1: Check if docker predownload step contains the correct version
+			if tt.shouldContainInDocker {
+				dockerStep := strings.Contains(yamlStr, "Downloading container images")
+				assert.True(t, dockerStep, "Should have docker predownload step")
+
+				// Extract container name (handle both default and custom)
+				var expectedContainer string
+				if strings.Contains(tt.frontmatter, "container: ghcr.io/custom/gateway") {
+					expectedContainer = "ghcr.io/custom/gateway"
+				} else {
+					expectedContainer = constants.DefaultMCPGatewayContainer
+				}
+
+				expectedImage := expectedContainer + ":" + tt.expectedVersion
+				assert.Contains(t, yamlStr, expectedImage,
+					"Docker predownload step should contain image with version %s", tt.expectedVersion)
+			}
+
+			// Test 2: Check if MCP gateway setup contains the correct version
+			if tt.shouldContainInSetup {
+				setupStep := strings.Contains(yamlStr, "Setup MCPs")
+				assert.True(t, setupStep, "Should have MCP setup step")
+
+				// The setup step should use the docker run command with the correct version
+				// Extract container name (handle both default and custom)
+				var expectedContainer string
+				if strings.Contains(tt.frontmatter, "container: ghcr.io/custom/gateway") {
+					expectedContainer = "ghcr.io/custom/gateway"
+				} else {
+					expectedContainer = constants.DefaultMCPGatewayContainer
+				}
+
+				expectedImage := expectedContainer + ":" + tt.expectedVersion
+				assert.Contains(t, yamlStr, expectedImage,
+					"MCP setup should use container image with version %s", tt.expectedVersion)
+			}
+
+			// Test 3: Verify version is NOT missing or using wrong default
+			if tt.shouldHaveGateway {
+				// Should not have untagged container references
+				var containerName string
+				if strings.Contains(tt.frontmatter, "container: ghcr.io/custom/gateway") {
+					containerName = "ghcr.io/custom/gateway"
+				} else {
+					containerName = constants.DefaultMCPGatewayContainer
+				}
+
+				// Check that we don't have the container without any tag
+				// (This would be a bug - every container reference should have a version)
+				untaggerdPattern := "docker run.*" + strings.ReplaceAll(containerName, "/", "\\/") + "\\s"
+				assert.NotRegexp(t, untaggerdPattern, yamlStr,
+					"Container should always have a version tag, never be used untagged")
+			}
 		})
 	}
 }
