@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -96,11 +97,12 @@ func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 				Container: constants.DefaultMCPGatewayContainer,
 				Version:   string(constants.DefaultMCPGatewayVersion),
 				Mounts:    tt.mounts,
+				Port:      int(DefaultMCPGatewayHostPort),
 			}
 
 			// Build the container command (similar to what's done in mcp_servers.go)
 			containerImage := gatewayConfig.Container + ":" + gatewayConfig.Version
-			containerCmd := "docker run -i --rm --network host"
+			containerCmd := fmt.Sprintf("docker run -i --rm -p %d:%d", gatewayConfig.Port, DefaultMCPGatewayContainerPort)
 
 			// Add volume mounts (not individually quoted since entire command will be quoted)
 			if len(gatewayConfig.Mounts) > 0 {

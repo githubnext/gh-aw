@@ -49,28 +49,28 @@ test_env_var_validation() {
   echo "Test 2: Required environment variables validation"
   
   # Test missing MCP_GATEWAY_PORT
-  if ! MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm --network host test-image" bash "$SCRIPT_PATH" 2>/dev/null; then
+  if ! MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm -p 80:8000 test-image" bash "$SCRIPT_PATH" 2>/dev/null; then
     print_result "Script rejects missing MCP_GATEWAY_PORT" "PASS"
   else
     print_result "Script should reject missing MCP_GATEWAY_PORT" "FAIL"
   fi
   
   # Test missing MCP_GATEWAY_DOMAIN
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm --network host test-image" bash "$SCRIPT_PATH" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm -p 80:8000 test-image" bash "$SCRIPT_PATH" 2>/dev/null; then
     print_result "Script rejects missing MCP_GATEWAY_DOMAIN" "PASS"
   else
     print_result "Script should reject missing MCP_GATEWAY_DOMAIN" "FAIL"
   fi
   
   # Test missing MCP_GATEWAY_API_KEY
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm --network host test-image" bash "$SCRIPT_PATH" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm -p 80:8000 test-image" bash "$SCRIPT_PATH" 2>/dev/null; then
     print_result "Script rejects missing MCP_GATEWAY_API_KEY" "PASS"
   else
     print_result "Script should reject missing MCP_GATEWAY_API_KEY" "FAIL"
   fi
   
   # Test missing MCP_GATEWAY_DOCKER_COMMAND
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" bash "$SCRIPT_PATH" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" bash "$SCRIPT_PATH" 2>/dev/null; then
     print_result "Script rejects missing MCP_GATEWAY_DOCKER_COMMAND" "PASS"
   else
     print_result "Script should reject missing MCP_GATEWAY_DOCKER_COMMAND" "FAIL"
@@ -91,7 +91,7 @@ test_config_not_found() {
   sed "s|/home/runner|$fake_home|g" "$SCRIPT_PATH" > "$test_script"
   
   # Test without config file
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm --network host test-image" bash "$test_script" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm -p 80:8000 test-image" bash "$test_script" 2>/dev/null; then
     print_result "Script rejects non-existent config file" "PASS"
   else
     print_result "Script should reject non-existent config file" "FAIL"
@@ -116,7 +116,7 @@ test_invalid_json_config() {
   local test_script="$tmpdir/test_script.sh"
   sed "s|/home/runner|$fake_home|g" "$SCRIPT_PATH" > "$test_script"
   
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm --network host test-image" bash "$test_script" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm -p 80:8000 test-image" bash "$test_script" 2>/dev/null; then
     print_result "Script rejects invalid JSON config" "PASS"
   else
     print_result "Script should reject invalid JSON config" "FAIL"
@@ -135,14 +135,14 @@ test_container_missing_docker_run() {
   mkdir -p "$fake_home/.copilot"
   
   # Create valid JSON config with required gateway section
-  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
+  echo '{"mcpServers":{},"gateway":{"port":80,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
   sed "s|/home/runner|$fake_home|g" "$SCRIPT_PATH" > "$test_script"
   
   # Test with container that doesn't start with "docker run"
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="test-image" bash "$test_script" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="test-image" bash "$test_script" 2>/dev/null; then
     print_result "Script rejects container without 'docker run'" "PASS"
   else
     print_result "Script should reject container without 'docker run'" "FAIL"
@@ -161,14 +161,14 @@ test_container_missing_i_flag() {
   mkdir -p "$fake_home/.copilot"
   
   # Create valid JSON config with required gateway section
-  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
+  echo '{"mcpServers":{},"gateway":{"port":80,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
   sed "s|/home/runner|$fake_home|g" "$SCRIPT_PATH" > "$test_script"
   
   # Test with container missing -i flag
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run --rm --network host test-image" bash "$test_script" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run --rm -p 80:8000 test-image" bash "$test_script" 2>/dev/null; then
     print_result "Script rejects container without -i flag" "PASS"
   else
     print_result "Script should reject container without -i flag" "FAIL"
@@ -187,14 +187,14 @@ test_container_missing_rm_flag() {
   mkdir -p "$fake_home/.copilot"
   
   # Create valid JSON config with required gateway section
-  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
+  echo '{"mcpServers":{},"gateway":{"port":80,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
   sed "s|/home/runner|$fake_home|g" "$SCRIPT_PATH" > "$test_script"
   
   # Test with container missing --rm flag
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --network host test-image" bash "$test_script" 2>/dev/null; then
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i -p 80:8000 test-image" bash "$test_script" 2>/dev/null; then
     print_result "Script rejects container without --rm flag" "PASS"
   else
     print_result "Script should reject container without --rm flag" "FAIL"
@@ -203,27 +203,27 @@ test_container_missing_rm_flag() {
   rm -rf "$tmpdir"
 }
 
-# Test 8: Container missing required --network host flag
-test_container_missing_network_flag() {
+# Test 8: Container missing required port mapping flag
+test_container_missing_port_mapping_flag() {
   echo ""
-  echo "Test 8: Container missing required --network host flag"
+  echo "Test 8: Container missing required -p HOST:CONTAINER port mapping flag"
   
   local tmpdir=$(mktemp -d)
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
   # Create valid JSON config with required gateway section
-  echo '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
+  echo '{"mcpServers":{},"gateway":{"port":80,"domain":"localhost","apiKey":"test-key"}}' > "$fake_home/.copilot/mcp-config.json"
   
   # Create a modified script that uses our fake home
   local test_script="$tmpdir/test_script.sh"
   sed "s|/home/runner|$fake_home|g" "$SCRIPT_PATH" > "$test_script"
   
-  # Test with container missing --network host flag
-  if ! MCP_GATEWAY_PORT="8080" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm test-image" bash "$test_script" 2>/dev/null; then
-    print_result "Script rejects container without --network host flag" "PASS"
+  # Test with container missing port mapping flag
+  if ! MCP_GATEWAY_PORT="80" MCP_GATEWAY_DOMAIN="localhost" MCP_GATEWAY_API_KEY="test-key" MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm test-image" bash "$test_script" 2>/dev/null; then
+    print_result "Script rejects container without -p port mapping flag" "PASS"
   else
-    print_result "Script should reject container without --network host flag" "FAIL"
+    print_result "Script should reject container without -p port mapping flag" "FAIL"
   fi
   
   rm -rf "$tmpdir"
@@ -269,11 +269,11 @@ test_validation_functions_exist() {
     print_result "--rm flag validation missing" "FAIL"
   fi
   
-  # Check for --network host validation
-  if grep -q "must include --network host flag" "$SCRIPT_PATH"; then
-    print_result "--network host flag validation exists" "PASS"
+  # Check for port mapping validation
+  if grep -q "must include -p HOST_PORT:CONTAINER_PORT flag" "$SCRIPT_PATH"; then
+    print_result "Port mapping (-p) flag validation exists" "PASS"
   else
-    print_result "--network host flag validation missing" "FAIL"
+    print_result "Port mapping (-p) flag validation missing" "FAIL"
   fi
 }
 
@@ -288,7 +288,7 @@ test_invalid_json_config
 test_container_missing_docker_run
 test_container_missing_i_flag
 test_container_missing_rm_flag
-test_container_missing_network_flag
+test_container_missing_port_mapping_flag
 test_validation_functions_exist
 
 # Print summary

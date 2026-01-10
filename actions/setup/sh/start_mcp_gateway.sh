@@ -42,8 +42,8 @@ if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--rm'; then
   exit 1
 fi
 
-if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network host'; then
-  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network host flag"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '-p [0-9]+:[0-9]+'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -p HOST_PORT:CONTAINER_PORT flag for port mapping"
   exit 1
 fi
 
@@ -131,7 +131,7 @@ echo ""
 echo "Waiting for gateway to be ready..."
 # Use localhost for health check since:
 # 1. This script runs on the host (not in a container)
-# 2. The gateway uses --network host, so it's accessible on localhost
+# 2. The gateway uses port mapping (-p HOST:CONTAINER), so it's accessible on localhost
 # Note: MCP_GATEWAY_DOMAIN may be set to host.docker.internal for use by containers,
 # but the health check should always use localhost since we're running on the host.
 HEALTH_CHECK_HOST="localhost"

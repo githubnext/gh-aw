@@ -530,7 +530,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 
-	containerCmd := "docker run -i --rm --network host"
+	containerCmd := fmt.Sprintf("docker run -i --rm -p %d:%d", port, DefaultMCPGatewayContainerPort)
 	containerCmd += " -v /var/run/docker.sock:/var/run/docker.sock" // Enable docker-in-docker for MCP gateway
 	// Pass required gateway environment variables
 	containerCmd += " -e MCP_GATEWAY_PORT"
