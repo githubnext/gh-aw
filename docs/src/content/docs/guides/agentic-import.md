@@ -20,29 +20,13 @@ Use AgenticImport for one-time migrations requiring adaptation:
 
 ## How It Works
 
-The `create-agentic-agent` analyzes source workflows, identifies repository-specific configuration, and adapts them for the target:
+The `create-agentic-agent` migrates workflows through these steps:
 
-```text
-┌─────────────────────┐
-│  Source Repository  │
-│  - release.md       │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  AI Agent Analysis  │
-│  - Read workflow    │
-│  - Understand logic │
-│  - Identify deps    │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Target Repository  │
-│  - release.md       │
-│  (adapted version)  │
-└─────────────────────┘
-```
+1. **Analyze source** - Read and understand the source workflow's purpose and logic
+2. **Identify dependencies** - Detect repository-specific configuration, secrets, tools, and permissions
+3. **Adapt configuration** - Modify frontmatter, imports, and instructions for target repository
+4. **Create workflow** - Generate or update the workflow file in the target repository
+5. **Validate** - Compile and suggest fixes for any issues
 
 ## Example Migration
 
