@@ -311,18 +311,18 @@ func TestParseSchedule(t *testing.T) {
 			errorSubstring: "invalid 'between' format",
 		},
 		{
-			name:           "daily between invalid start time",
-			input:          "daily between 25:00 and 17:00",
-			shouldError:    false, // parseTime returns 0:0 for invalid times
-			expectedCron:   "FUZZY:DAILY_BETWEEN:0:0:17:0 * * *",
-			expectedOrig:   "daily between 25:00 and 17:00",
+			name:         "daily between invalid start time",
+			input:        "daily between 25:00 and 17:00",
+			shouldError:  false, // parseTime returns 0:0 for invalid times
+			expectedCron: "FUZZY:DAILY_BETWEEN:0:0:17:0 * * *",
+			expectedOrig: "daily between 25:00 and 17:00",
 		},
 		{
-			name:           "daily between invalid end time",
-			input:          "daily between 9:00 and 25:00",
-			shouldError:    false, // parseTime returns 0:0 for invalid times
-			expectedCron:   "FUZZY:DAILY_BETWEEN:9:0:0:0 * * *",
-			expectedOrig:   "daily between 9:00 and 25:00",
+			name:         "daily between invalid end time",
+			input:        "daily between 9:00 and 25:00",
+			shouldError:  false, // parseTime returns 0:0 for invalid times
+			expectedCron: "FUZZY:DAILY_BETWEEN:9:0:0:0 * * *",
+			expectedOrig: "daily between 9:00 and 25:00",
 		},
 		{
 			name:           "daily between with only 'and'",
