@@ -367,16 +367,14 @@ func FuzzParseInputDefinitions(f *testing.F) {
 		}
 
 		// 2. Result should be non-nil for non-nil input (even empty)
-		if inputsMap != nil && len(inputsMap) > 0 && result == nil {
+		if len(inputsMap) > 0 && result == nil {
 			t.Errorf("ParseInputDefinitions returned nil for non-empty input")
 		}
 
 		// 3. Each result entry should be a valid InputDefinition
-		if result != nil {
-			for name, def := range result {
-				if def == nil {
-					t.Errorf("ParseInputDefinitions returned nil definition for input %q", name)
-				}
+		for name, def := range result {
+			if def == nil {
+				t.Errorf("ParseInputDefinitions returned nil definition for input %q", name)
 			}
 		}
 	})
