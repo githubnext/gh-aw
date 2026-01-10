@@ -208,6 +208,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Stop MCP gateway after agent execution and before secret redaction
+	// This ensures the gateway process is properly cleaned up
+	c.generateStopMCPGateway(yaml)
+
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
 	c.generateSecretRedactionStep(yaml, yaml.String(), data)
