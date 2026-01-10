@@ -28,8 +28,8 @@
 name: "Blog Auditor"
 "on":
   schedule:
-  - cron: "0 12 * * 3"
-    # Friendly format: weekly on wednesday at 12:00
+  - cron: "4 11 * * 3"
+    # Friendly format: weekly on wednesday around 12:00 (scattered)
   workflow_dispatch:
 
 permissions:

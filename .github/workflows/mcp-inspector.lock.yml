@@ -43,8 +43,8 @@
 name: "MCP Inspector Agent"
 "on":
   schedule:
-  - cron: "0 18 * * 1"
-    # Friendly format: weekly on monday at 18:00
+  - cron: "45 18 * * 1"
+    # Friendly format: weekly on monday around 18:00 (scattered)
   workflow_dispatch:
 
 permissions:
