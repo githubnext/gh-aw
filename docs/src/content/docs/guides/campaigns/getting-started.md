@@ -143,15 +143,25 @@ The campaign creation process uses an optimized two-phase architecture:
 
 ### Workflow Discovery
 
-The campaign generator automatically discovers and suggests workflows from:
+The campaign generator automatically discovers and suggests workflows by dynamically scanning the repository:
 
-- **Local workflows**: Existing workflows in your `.github/workflows/` directory
+- **Agentic workflows**: AI-powered workflows (`.md` files) discovered by scanning `.github/workflows/*.md` and parsing frontmatter to extract descriptions, triggers, and safe-outputs
+- **Regular GitHub Actions workflows**: Standard automation workflows (`.yml` files, excluding `.lock.yml`) discovered by scanning `.github/workflows/*.yml` - assessed for AI enhancement potential
 - **Agentics collection**: 17 reusable workflows from [githubnext/agentics](https://github.com/githubnext/agentics):
   - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
   - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
   - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
 
-The generator uses a workflow catalog (`.github/workflow-catalog.yml`) for deterministic discovery in <1 second vs 2-3 minutes of filesystem scanning.
+The generator uses fully dynamic discovery:
+1. **Agentic workflows**: Scans `.github/workflows/*.md` files and parses frontmatter to understand each workflow's purpose
+2. **Regular workflows**: Scans `.github/workflows/*.yml` (excluding `.lock.yml` compiled files) to assess AI enhancement opportunities
+3. **External collections**: References known collections like agentics for additional workflow suggestions
+
+This dynamic approach ensures:
+- **Always up-to-date**: All workflows discovered automatically without manual catalog maintenance
+- **Comprehensive**: Finds all workflow files in the repository
+- **Flexible**: New workflows are discovered immediately without configuration changes
+- **Accurate**: Reads actual workflow definitions rather than relying on static metadata
 
 ### What you get
 
