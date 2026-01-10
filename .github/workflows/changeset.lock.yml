@@ -553,6 +553,7 @@ jobs:
               allowed_domains: ["defaults","node"],
               firewall_enabled: true,
               awf_version: "v0.8.2",
+              awmg_version: "v0.0.14",
               steps: {
                 firewall: "squid"
               },
