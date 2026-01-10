@@ -257,15 +257,15 @@ echo "Detected engine type: $ENGINE_TYPE"
 case "$ENGINE_TYPE" in
   copilot)
     echo "Using Copilot converter..."
-    bash /tmp/gh-aw/actions/convert_gateway_config_copilot.sh
+    bash /opt/gh-aw/actions/convert_gateway_config_copilot.sh
     ;;
   codex)
     echo "Using Codex converter..."
-    bash /tmp/gh-aw/actions/convert_gateway_config_codex.sh
+    bash /opt/gh-aw/actions/convert_gateway_config_codex.sh
     ;;
   claude)
     echo "Using Claude converter..."
-    bash /tmp/gh-aw/actions/convert_gateway_config_claude.sh
+    bash /opt/gh-aw/actions/convert_gateway_config_claude.sh
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
