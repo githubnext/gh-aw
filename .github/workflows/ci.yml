@@ -1014,3 +1014,92 @@ jobs:
           echo "3. The compile tool correctly detects and reports validation errors" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Test completed successfully" >> $GITHUB_STEP_SUMMARY
+
+  cross-platform-build:
+    name: Build & Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    concurrency:
+      group: ci-${{ github.ref }}-cross-platform-${{ matrix.os }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        shell: bash
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Create test workflow
+        shell: bash
+        run: |
+          mkdir -p .github/workflows
+          cat > .github/workflows/test-cross-platform.md << 'EOF'
+          ---
+          on: push
+          engine: copilot
+          ---
+          # Test Workflow for Cross-Platform CI
+          
+          This is a simple test workflow to verify the compile command works correctly.
+          
+          ## Task
+          Echo hello world.
+          EOF
+
+      - name: Test compile command
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Testing compile command on ${{ matrix.os }}..."
+          
+          # Run compile command
+          ./gh-aw compile test-cross-platform --verbose
+          
+          # Check if lock file was generated
+          if [ -f ".github/workflows/test-cross-platform.lock.yml" ]; then
+            echo "✅ Compile succeeded - lock file generated"
+          else
+            echo "❌ Compile failed - no lock file generated"
+            exit 1
+          fi
+          
+          echo "## Cross-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Successfully compiled workflow on ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform:** ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Go version:** $(go version)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Clean up test files
+        if: always()
+        shell: bash
+        run: |
+          rm -f .github/workflows/test-cross-platform.md
+          rm -f .github/workflows/test-cross-platform.lock.yml
