@@ -40,7 +40,9 @@ Add a sample from the [agentics](https://github.com/githubnext/agentics) collect
 gh aw add githubnext/agentics/daily-team-status --create-pull-request
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) (translated from markdown to GitHub Actions YAML) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
+This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) (translated from markdown to GitHub Actions YAML) `.lock.yml` (the generated GitHub Actions workflow file). 
+   - Review and merge the PR into your repo.
+   - Pull the changes into your (local) repo.
 
 ### Step 3 — Add an AI secret
 
