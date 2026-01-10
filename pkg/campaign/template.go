@@ -14,6 +14,9 @@ var templateLog = logger.New("campaign:template")
 //go:embed prompts/orchestrator_instructions.md
 var orchestratorInstructionsTemplate string
 
+//go:embed prompts/workflow_execution_instructions.md
+var workflowExecutionInstructionsTemplate string
+
 //go:embed prompts/project_update_instructions.md
 var projectUpdateInstructionsTemplate string
 
@@ -57,6 +60,15 @@ type CampaignPromptData struct {
 
 	// Workflows is the list of worker workflow IDs associated with this campaign.
 	Workflows []string
+
+	// ExecutionSequence is the optional workflow execution configuration.
+	ExecutionSequence []WorkflowExecutionStep
+
+	// MaxConcurrentWorkflows limits parallel workflow execution.
+	MaxConcurrentWorkflows int
+
+	// TimeoutMinutes is the workflow execution timeout.
+	TimeoutMinutes int
 }
 
 // renderTemplate renders a template string with the given data.
@@ -65,6 +77,12 @@ func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 	funcMap := template.FuncMap{
 		"if": func(condition bool) bool {
 			return condition
+		},
+		"add1": func(i int) int {
+			return i + 1
+		},
+		"gt": func(a, b int) bool {
+			return a > b
 		},
 	}
 
@@ -85,6 +103,16 @@ func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// RenderWorkflowExecutionInstructions renders the workflow execution instructions with the given data.
+func RenderWorkflowExecutionInstructions(data CampaignPromptData) string {
+	result, err := renderTemplate(workflowExecutionInstructionsTemplate, data)
+	if err != nil {
+		templateLog.Printf("Failed to render workflow execution instructions: %v", err)
+		return ""
+	}
+	return strings.TrimSpace(result)
 }
 
 // RenderOrchestratorInstructions renders the orchestrator instructions with the given data.

@@ -309,6 +309,26 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		promptData.MaxProjectUpdatesPerRun = spec.Governance.MaxProjectUpdatesPerRun
 		promptData.MaxProjectCommentsPerRun = spec.Governance.MaxCommentsPerRun
 	}
+	// Add execution configuration if present
+	if spec.Execution != nil {
+		promptData.ExecutionSequence = spec.Execution.Sequence
+		promptData.MaxConcurrentWorkflows = spec.Execution.MaxConcurrentWorkflows
+		promptData.TimeoutMinutes = spec.Execution.TimeoutMinutes
+		// Set defaults if not specified
+		if promptData.MaxConcurrentWorkflows == 0 {
+			promptData.MaxConcurrentWorkflows = 1
+		}
+		if promptData.TimeoutMinutes == 0 {
+			promptData.TimeoutMinutes = 60
+		}
+	}
+
+	// Add workflow execution instructions if execution is configured
+	if spec.Execution != nil && len(spec.Execution.Sequence) > 0 {
+		workflowExecutionInstructions := RenderWorkflowExecutionInstructions(promptData)
+		appendPromptSection(markdownBuilder, "WORKFLOW EXECUTION INSTRUCTIONS (EXECUTE FIRST)", workflowExecutionInstructions)
+		orchestratorLog.Printf("Campaign orchestrator '%s' includes workflow execution configuration", spec.ID)
+	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
 	appendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
