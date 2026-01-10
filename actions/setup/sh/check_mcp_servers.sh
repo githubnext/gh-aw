@@ -2,6 +2,12 @@
 # Check MCP Server Functionality
 # This script performs basic functionality checks on MCP servers configured by the MCP gateway
 # It connects to each server, retrieves tools list, and displays available tools
+#
+# Resilience Features:
+# - Progressive timeout: 10s, 20s, 30s across retry attempts
+# - Progressive delay: 2s, 4s between retry attempts
+# - Up to 3 retry attempts per server request (initialize and tools/list)
+# - Accommodates slow-starting MCP servers (gateway may take 40-50 seconds to start)
 
 set -e
 
@@ -129,7 +135,7 @@ while IFS= read -r SERVER_NAME; do
   fi
   echo ""
   
-  # Step 1: Send MCP initialize request
+  # Step 1: Send MCP initialize request with retry logic
   echo "Step 1: Sending MCP initialize request..."
   INIT_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"gh-aw-check","version":"1.0.0"}}}'
   
@@ -137,40 +143,66 @@ while IFS= read -r SERVER_NAME; do
   echo "$INIT_PAYLOAD" | jq '.' 2>/dev/null || echo "$INIT_PAYLOAD"
   echo ""
   
-  # Make the request with proper headers (5 second timeout)
-  echo "Sending HTTP POST to: $SERVER_URL"
-  if [ -n "$AUTH_HEADER" ]; then
-    INIT_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 -X POST "$SERVER_URL" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: $AUTH_HEADER" \
-      -d "$INIT_PAYLOAD" 2>&1 || echo -e "\n000")
-  else
-    INIT_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 -X POST "$SERVER_URL" \
-      -H "Content-Type: application/json" \
-      -d "$INIT_PAYLOAD" 2>&1 || echo -e "\n000")
-  fi
+  # Retry logic for slow-starting servers
+  # Gateway may take 40-50 seconds to start all MCP servers (per start_mcp_gateway.sh)
+  MAX_RETRIES=3
+  RETRY_COUNT=0
+  INIT_SUCCESS=false
   
-  INIT_HTTP_CODE=$(echo "$INIT_RESPONSE" | tail -n 1)
-  INIT_BODY=$(echo "$INIT_RESPONSE" | head -n -1)
-  
-  echo "HTTP Status: $INIT_HTTP_CODE"
-  echo "Response:"
-  echo "$INIT_BODY" | jq '.' 2>/dev/null || echo "$INIT_BODY"
-  echo ""
-  
-  # Check if initialize succeeded
-  if [ "$INIT_HTTP_CODE" != "200" ]; then
-    echo "WARNING: Initialize request failed with HTTP $INIT_HTTP_CODE"
-    echo "Server may require different authentication or be unavailable"
-    SERVERS_FAILED=$((SERVERS_FAILED + 1))
+  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    # Calculate timeout based on retry attempt (10s, 20s, 30s)
+    TIMEOUT=$((10 + RETRY_COUNT * 10))
+    
+    if [ $RETRY_COUNT -gt 0 ]; then
+      echo "Retry attempt $RETRY_COUNT/$((MAX_RETRIES - 1)) with ${TIMEOUT}s timeout..."
+      # Progressive delay between retries (2s, 4s)
+      DELAY=$((2 * RETRY_COUNT))
+      echo "Waiting ${DELAY}s before retry..."
+      sleep $DELAY
+    fi
+    
+    # Make the request with proper headers and progressive timeout
+    echo "Sending HTTP POST to: $SERVER_URL (timeout: ${TIMEOUT}s)"
+    if [ -n "$AUTH_HEADER" ]; then
+      INIT_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: $AUTH_HEADER" \
+        -d "$INIT_PAYLOAD" 2>&1 || echo -e "\n000")
+    else
+      INIT_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
+        -H "Content-Type: application/json" \
+        -d "$INIT_PAYLOAD" 2>&1 || echo -e "\n000")
+    fi
+    
+    INIT_HTTP_CODE=$(echo "$INIT_RESPONSE" | tail -n 1)
+    INIT_BODY=$(echo "$INIT_RESPONSE" | head -n -1)
+    
+    echo "HTTP Status: $INIT_HTTP_CODE"
+    echo "Response:"
+    echo "$INIT_BODY" | jq '.' 2>/dev/null || echo "$INIT_BODY"
     echo ""
-    continue
-  fi
+    
+    # Check if initialize succeeded
+    if [ "$INIT_HTTP_CODE" = "200" ]; then
+      # Check for JSON-RPC error in response
+      if ! echo "$INIT_BODY" | jq -e '.error' >/dev/null 2>&1; then
+        INIT_SUCCESS=true
+        break
+      else
+        echo "WARNING: Initialize request returned JSON-RPC error:"
+        echo "$INIT_BODY" | jq '.error' 2>/dev/null
+      fi
+    else
+      echo "WARNING: Initialize request failed with HTTP $INIT_HTTP_CODE"
+      echo "Server may still be initializing or require different authentication"
+    fi
+    
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+  done
   
-  # Check for JSON-RPC error in response
-  if echo "$INIT_BODY" | jq -e '.error' >/dev/null 2>&1; then
-    echo "WARNING: Initialize request returned JSON-RPC error:"
-    echo "$INIT_BODY" | jq '.error' 2>/dev/null
+  if [ "$INIT_SUCCESS" = false ]; then
+    echo "WARNING: Initialize request failed after $MAX_RETRIES attempts"
+    echo "Server may require different authentication or be unavailable"
     SERVERS_FAILED=$((SERVERS_FAILED + 1))
     echo ""
     continue
@@ -179,7 +211,7 @@ while IFS= read -r SERVER_NAME; do
   echo "✓ Initialize request succeeded"
   echo ""
   
-  # Step 2: Send tools/list request
+  # Step 2: Send tools/list request with retry logic
   echo "Step 2: Sending tools/list request..."
   TOOLS_PAYLOAD='{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
   
@@ -187,38 +219,62 @@ while IFS= read -r SERVER_NAME; do
   echo "$TOOLS_PAYLOAD" | jq '.' 2>/dev/null || echo "$TOOLS_PAYLOAD"
   echo ""
   
-  echo "Sending HTTP POST to: $SERVER_URL"
-  if [ -n "$AUTH_HEADER" ]; then
-    TOOLS_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 -X POST "$SERVER_URL" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: $AUTH_HEADER" \
-      -d "$TOOLS_PAYLOAD" 2>&1 || echo -e "\n000")
-  else
-    TOOLS_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 -X POST "$SERVER_URL" \
-      -H "Content-Type: application/json" \
-      -d "$TOOLS_PAYLOAD" 2>&1 || echo -e "\n000")
-  fi
+  # Retry logic for slow-starting servers
+  MAX_RETRIES=3
+  RETRY_COUNT=0
+  TOOLS_SUCCESS=false
   
-  TOOLS_HTTP_CODE=$(echo "$TOOLS_RESPONSE" | tail -n 1)
-  TOOLS_BODY=$(echo "$TOOLS_RESPONSE" | head -n -1)
-  
-  echo "HTTP Status: $TOOLS_HTTP_CODE"
-  echo "Response:"
-  echo "$TOOLS_BODY" | jq '.' 2>/dev/null || echo "$TOOLS_BODY"
-  echo ""
-  
-  # Check if tools/list succeeded
-  if [ "$TOOLS_HTTP_CODE" != "200" ]; then
-    echo "WARNING: tools/list request failed with HTTP $TOOLS_HTTP_CODE"
-    SERVERS_FAILED=$((SERVERS_FAILED + 1))
+  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    # Calculate timeout based on retry attempt (10s, 20s, 30s)
+    TIMEOUT=$((10 + RETRY_COUNT * 10))
+    
+    if [ $RETRY_COUNT -gt 0 ]; then
+      echo "Retry attempt $RETRY_COUNT/$((MAX_RETRIES - 1)) with ${TIMEOUT}s timeout..."
+      # Progressive delay between retries (2s, 4s)
+      DELAY=$((2 * RETRY_COUNT))
+      echo "Waiting ${DELAY}s before retry..."
+      sleep $DELAY
+    fi
+    
+    echo "Sending HTTP POST to: $SERVER_URL (timeout: ${TIMEOUT}s)"
+    if [ -n "$AUTH_HEADER" ]; then
+      TOOLS_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: $AUTH_HEADER" \
+        -d "$TOOLS_PAYLOAD" 2>&1 || echo -e "\n000")
+    else
+      TOOLS_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
+        -H "Content-Type: application/json" \
+        -d "$TOOLS_PAYLOAD" 2>&1 || echo -e "\n000")
+    fi
+    
+    TOOLS_HTTP_CODE=$(echo "$TOOLS_RESPONSE" | tail -n 1)
+    TOOLS_BODY=$(echo "$TOOLS_RESPONSE" | head -n -1)
+    
+    echo "HTTP Status: $TOOLS_HTTP_CODE"
+    echo "Response:"
+    echo "$TOOLS_BODY" | jq '.' 2>/dev/null || echo "$TOOLS_BODY"
     echo ""
-    continue
-  fi
+    
+    # Check if tools/list succeeded
+    if [ "$TOOLS_HTTP_CODE" = "200" ]; then
+      # Check for JSON-RPC error in response
+      if ! echo "$TOOLS_BODY" | jq -e '.error' >/dev/null 2>&1; then
+        TOOLS_SUCCESS=true
+        break
+      else
+        echo "WARNING: tools/list request returned JSON-RPC error:"
+        echo "$TOOLS_BODY" | jq '.error' 2>/dev/null
+      fi
+    else
+      echo "WARNING: tools/list request failed with HTTP $TOOLS_HTTP_CODE"
+    fi
+    
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+  done
   
-  # Check for JSON-RPC error in response
-  if echo "$TOOLS_BODY" | jq -e '.error' >/dev/null 2>&1; then
-    echo "WARNING: tools/list request returned JSON-RPC error:"
-    echo "$TOOLS_BODY" | jq '.error' 2>/dev/null
+  if [ "$TOOLS_SUCCESS" = false ]; then
+    echo "WARNING: tools/list request failed after $MAX_RETRIES attempts"
     SERVERS_FAILED=$((SERVERS_FAILED + 1))
     echo ""
     continue
