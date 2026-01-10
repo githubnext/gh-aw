@@ -128,6 +128,16 @@ The compiler deterministically assigns each workflow a unique execution time bas
 - **Simplicity**: No need to manually coordinate schedules across multiple workflows
 - **Flexibility with constraints**: Use `around` to hint preferred times or `between` to restrict to time ranges
 
+:::tip[Complete Schedule Syntax Reference]
+See the [Schedule Syntax reference](/gh-aw/reference/schedule-syntax/) for complete documentation of all supported schedule formats, including:
+- Fuzzy schedules (daily, hourly, weekly)
+- Time constraints (around, between)
+- Fixed schedules
+- Monthly and interval schedules
+- UTC offset support
+- Standard cron expressions
+:::
+
 **Human-Friendly Format:**
 
 ```yaml wrap
@@ -434,6 +444,7 @@ A pre-activation check runs the search query against the current repository. If 
 
 ## Related Documentation
 
+- [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [LabelOps Guide](/gh-aw/examples/issue-pr-events/labelops/) - Label-based automation workflows
