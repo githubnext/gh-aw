@@ -684,13 +684,23 @@
                             "description": "Whether input is required"
                           },
                           "default": {
-                            "type": "string",
-                            "description": "Default value"
+                            "description": "Default value for the input. Type depends on the input type: string for string/choice/environment, boolean for boolean, number for number",
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
                           },
                           "type": {
                             "type": "string",
-                            "enum": ["string", "choice", "boolean"],
-                            "description": "Input type"
+                            "enum": ["string", "choice", "boolean", "number", "environment"],
+                            "description": "Input type. GitHub Actions supports: string (default), boolean, choice (string with predefined options), number, and environment (string referencing a GitHub environment)"
                           },
                           "options": {
                             "type": "array",
@@ -5216,13 +5226,23 @@
                           "default": false
                         },
                         "default": {
-                          "type": "string",
-                          "description": "Default value for the input"
+                          "description": "Default value for the input. Type depends on the input type: string for string/choice/environment, boolean for boolean, number for number",
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
                         },
                         "type": {
                           "type": "string",
-                          "enum": ["string", "boolean", "choice"],
-                          "description": "Input parameter type",
+                          "enum": ["string", "boolean", "choice", "number", "environment"],
+                          "description": "Input parameter type. Supports: string (default), boolean, choice (string with predefined options), number, and environment (string referencing a GitHub environment)",
                           "default": "string"
                         },
                         "options": {
