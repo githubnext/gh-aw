@@ -12,6 +12,13 @@ var copilotSRTLog = logger.New("workflow:copilot_srt")
 
 // GenerateCopilotInstallerSteps creates GitHub Actions steps to install the Copilot CLI using the official installer.
 func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep {
+	// If no version is specified, use the default version from constants
+	// This prevents the installer from defaulting to "latest"
+	if version == "" {
+		version = string(constants.DefaultCopilotVersion)
+		copilotSRTLog.Printf("No version specified, using default: %s", version)
+	}
+	
 	copilotSRTLog.Printf("Generating Copilot installer steps using official install.sh: version=%s", version)
 
 	// Use the official installer script from the Copilot CLI repository

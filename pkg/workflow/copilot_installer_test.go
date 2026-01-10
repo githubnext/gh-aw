@@ -61,6 +61,22 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 				"gh.io/copilot-install | sudo bash",
 			},
 		},
+		{
+			name:            "empty version uses default",
+			version:         "",
+			stepName:        "Install GitHub Copilot CLI",
+			expectedVersion: "0.0.376", // Should use DefaultCopilotVersion
+			shouldContain: []string{
+				"export VERSION=0.0.376",
+				"https://raw.githubusercontent.com/github/copilot-cli/main/install.sh",
+				"sudo bash /tmp/copilot-install.sh",
+				"copilot --version",
+			},
+			shouldNotContain: []string{
+				"export VERSION= &&", // Should not have empty version
+				"gh.io/copilot-install | sudo bash",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -127,8 +143,8 @@ func TestCopilotInstallerVersionPassthrough(t *testing.T) {
 	}
 
 	// Should contain the default version from constants
-	if !strings.Contains(installStep, "export VERSION=0.0.375") {
-		t.Errorf("Expected default version 0.0.375 in install step, got:\n%s", installStep)
+	if !strings.Contains(installStep, "export VERSION=0.0.376") {
+		t.Errorf("Expected default version 0.0.376 in install step, got:\n%s", installStep)
 	}
 
 	// Should use the official install.sh script
