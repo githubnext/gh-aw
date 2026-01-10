@@ -28,8 +28,8 @@
 name: "Weekly Workflow Analysis"
 "on":
   schedule:
-  - cron: "0 9 * * 1"
-    # Friendly format: weekly on monday at 09:00
+  - cron: "38 9 * * 1"
+    # Friendly format: weekly on monday around 09:00 (scattered)
   workflow_dispatch:
 
 permissions:
