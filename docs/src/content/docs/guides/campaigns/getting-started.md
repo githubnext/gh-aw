@@ -143,23 +143,25 @@ The campaign creation process uses an optimized two-phase architecture:
 
 ### Workflow Discovery
 
-The campaign generator automatically discovers and suggests workflows from three sources:
+The campaign generator automatically discovers and suggests workflows by dynamically scanning the repository:
 
-- **Agentic workflows**: AI-powered workflows (`.md` files) catalogued in `.github/workflow-catalog.yml` organized by category
-- **Regular GitHub Actions workflows**: Standard automation workflows (`.yml` files, excluding `.lock.yml`) discovered dynamically by scanning `.github/workflows/` - assessed for AI enhancement potential
+- **Agentic workflows**: AI-powered workflows (`.md` files) discovered by scanning `.github/workflows/*.md` and parsing frontmatter to extract descriptions, triggers, and safe-outputs
+- **Regular GitHub Actions workflows**: Standard automation workflows (`.yml` files, excluding `.lock.yml`) discovered by scanning `.github/workflows/*.yml` - assessed for AI enhancement potential
 - **Agentics collection**: 17 reusable workflows from [githubnext/agentics](https://github.com/githubnext/agentics):
   - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
   - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
   - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
 
-The generator uses a two-tier discovery approach:
-1. **Static catalog** (`.github/workflow-catalog.yml`): Contains **only agentic workflows and external collections** organized by category for fast lookup. **Regular workflows are NOT in the catalog** - they are discovered dynamically.
-2. **Dynamic scanning**: Regular `.yml` workflows (excluding `.lock.yml` compiled files) scanned at runtime to assess AI enhancement opportunities
+The generator uses fully dynamic discovery:
+1. **Agentic workflows**: Scans `.github/workflows/*.md` files and parses frontmatter to understand each workflow's purpose
+2. **Regular workflows**: Scans `.github/workflows/*.yml` (excluding `.lock.yml` compiled files) to assess AI enhancement opportunities
+3. **External collections**: References known collections like agentics for additional workflow suggestions
 
-This hybrid approach ensures:
-- **Fast**: Catalog lookup for agentic workflows (<1 second vs 2-3 minutes of scanning)
-- **Comprehensive**: Dynamic discovery includes all regular workflows without manual catalog maintenance
-- **Flexible**: New regular workflows are automatically discovered without updating the catalog
+This dynamic approach ensures:
+- **Always up-to-date**: All workflows discovered automatically without manual catalog maintenance
+- **Comprehensive**: Finds all workflow files in the repository
+- **Flexible**: New workflows are discovered immediately without configuration changes
+- **Accurate**: Reads actual workflow definitions rather than relying on static metadata
 
 ### What you get
 

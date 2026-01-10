@@ -101,14 +101,25 @@ create_project({
 
 ### Step 3: Discover Workflows Dynamically
 
-**Perform comprehensive workflow discovery in three steps:**
+**Perform comprehensive workflow discovery by scanning the filesystem:**
 
-1. **Read the workflow catalog** at `.github/workflow-catalog.yml`:
-   - **Contains only:** Agentic workflows (`.md` files) and external collections
-   - **Does NOT contain:** Regular workflows (those are discovered in step 2)
-   - Query agentic workflows by matching campaign keywords to catalog categories
-   - Check external collections (agentics collection)
-   - Identify relevant agentic workflows by category
+1. **Dynamically scan for agentic workflows**:
+   ```bash
+   ls .github/workflows/*.md
+   ```
+   
+   For each agentic workflow file (`.md`):
+   - Parse the YAML frontmatter to extract:
+     * `description` - What the workflow does
+     * `on` - Trigger configuration
+     * `safe-outputs` or `safe_outputs` - GitHub operations
+   - Match description to campaign keywords
+   - Categorize by purpose (security, quality, docs, CI/CD, etc.)
+   
+   **Example workflow analysis:**
+   - `daily-malicious-code-scan.md` → Security category (keywords: "malicious", "security", "scan")
+   - `glossary-maintainer.md` → Documentation category (keywords: "glossary", "documentation")
+   - `ci-doctor.md` → CI/CD category (keywords: "ci", "workflow", "investigate")
 
 2. **Dynamically scan for regular workflows**:
    ```bash
@@ -132,9 +143,17 @@ create_project({
    - `link-check.yml` (validates markdown links)
      → Could add: Alternative link suggestions, archive.org fallbacks
 
-3. **Categorize discovered workflows**:
-   - **Existing agentic workflows**: Found in catalog (`.md` files)
-   - **Regular workflows to enhance**: Found by scanning (`.yml` files, excluding `.lock.yml`)
+3. **Include external workflow collections**:
+   
+   **Agentics Collection** (https://github.com/githubnext/agentics):
+   Reference reusable workflows that can be installed:
+   - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
+   - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
+   - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
+
+4. **Categorize discovered workflows**:
+   - **Existing agentic workflows**: Found by scanning `.md` files and parsing frontmatter
+   - **Regular workflows to enhance**: Found by scanning `.yml` files (excluding `.lock.yml`)
    - **External workflows**: From agentics collection
    - **New workflows**: Suggested workflows not found
 
@@ -142,11 +161,12 @@ create_project({
 
 For a "Security Q1 2025" campaign with goal "Automated security improvements":
 
-1. **From catalog**: 
-   - Category: `security`
-   - Found agentic workflows: `daily-malicious-code-scan` (existing .md)
+1. **From agentic workflow scan**: 
+   - Scanned `.github/workflows/*.md`, parsed frontmatter
+   - Found workflows with "security" keywords in description:
+     * `daily-malicious-code-scan.md` (existing agentic)
 
-2. **From dynamic scan**:
+2. **From regular workflow scan**:
    - Scanned `.github/workflows/*.yml` (excluding `.lock.yml`)
    - Found regular workflows: `security-scan.yml`, `codeql.yml`, `license-check.yml`
    - Assessed each for AI enhancement potential:

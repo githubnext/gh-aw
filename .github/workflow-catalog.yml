@@ -1,20 +1,29 @@
 # GitHub Agentic Workflows Catalog
 #
-# This file provides a searchable catalog of available workflows organized by category.
-# It enables deterministic workflow discovery for campaign creation and optimization.
+# ⚠️ DEPRECATED: This static catalog is no longer used for workflow discovery.
 #
-# Usage:
-#   - Campaign generators query this catalog to find matching workflows
-#   - Categories help match workflows to campaign goals
-#   - Keywords enable fuzzy search across workflow purposes
+# As of 2026-01-10, the campaign generator now uses fully dynamic discovery:
+# - Agentic workflows: Scanned from .github/workflows/*.md with frontmatter parsing
+# - Regular workflows: Scanned from .github/workflows/*.yml (excluding .lock.yml)
+# - External collections: Referenced from known sources (e.g., agentics collection)
 #
-# Maintenance:
-#   - Update this file when adding new workflows
-#   - Keep descriptions synchronized with workflow frontmatter
-#   - Add new categories as workflow types evolve
+# This file is kept for historical reference and may be removed in a future version.
+# No maintenance required - workflow discovery is now automatic.
+#
+# Previous purpose:
+#   - Provided a searchable catalog of workflows organized by category
+#   - Enabled deterministic workflow discovery for campaign creation
+#
+# New approach benefits:
+#   - Always up-to-date without manual maintenance
+#   - Discovers all workflows automatically
+#   - Reads actual workflow definitions rather than static metadata
 
 version: "1.0"
 last_updated: "2026-01-09"
+deprecated: true
+deprecated_date: "2026-01-10"
+replacement: "Dynamic filesystem scanning with frontmatter parsing"
 
 categories:
   security:

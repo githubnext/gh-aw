@@ -30,13 +30,7 @@ Convert campaign names to kebab-case identifiers:
 
 When identifying workflows for a campaign, follow this systematic approach:
 
-1. **Read the static workflow catalog** (`.github/workflow-catalog.yml`):
-   - Contains **only agentic workflows** (`.md` files) organized by category
-   - Contains external collections like the "agentics" collection
-   - **Does NOT contain regular workflows** - those are discovered dynamically in step 2
-   - Use keywords to find matching agentic workflows
-
-2. **Dynamically discover all local workflow files:**
+1. **Dynamically discover all local workflow files:**
    ```bash
    ls .github/workflows/*.md    # Agentic workflows
    ls .github/workflows/*.yml   # Regular GitHub Actions workflows (exclude *.lock.yml)
@@ -47,13 +41,18 @@ When identifying workflows for a campaign, follow this systematic approach:
    ls .github/workflows/*.yml | grep -v ".lock.yml"
    ```
 
-3. **Analyze each workflow** to determine fit:
+2. **Analyze each workflow** to determine fit:
    
    **For agentic workflows (.md files):**
-   - Read the workflow description (frontmatter `description` field)
-   - Check the workflow name and purpose
-   - Look at safe-outputs to understand what the workflow does
-   - Consider triggers (`on:` field) to understand when it runs
+   - Read the YAML frontmatter to extract:
+     * `description` - What the workflow does
+     * `on` - Trigger configuration (when it runs)
+     * `safe-outputs` or `safe_outputs` - What GitHub operations it performs
+   - Match the description/name to campaign category keywords
+   - Assess relevance based on:
+     * Keywords in description (security, test, doc, quality, etc.)
+     * Safe outputs alignment with campaign needs
+     * Trigger frequency and type
    
    **For regular workflows (.yml files, excluding .lock.yml):**
    - Read the workflow name (YAML `name:` field)
@@ -65,10 +64,11 @@ When identifying workflows for a campaign, follow this systematic approach:
      * Could AI suggest fixes or improvements automatically?
      * Would natural language explanations add value?
 
-4. **Consider three types of workflows:**
+3. **Consider three types of workflows:**
    
    **A. Agentic Workflows** (`.md` files):
    AI-powered workflows that can analyze, reason, and create GitHub content via safe-outputs.
+   Discovered by scanning `.github/workflows/*.md` and parsing frontmatter.
    
    **B. Regular GitHub Actions Workflows** (`.yml` files, not `.lock.yml`):
    Standard automation workflows that could be **enhanced** by converting to agentic workflows.
@@ -93,50 +93,50 @@ When identifying workflows for a campaign, follow this systematic approach:
    - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
    - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
    
-   When suggesting workflows, include agentic workflows, regular workflows to enhance, and workflows from the agentics collection.
+   When suggesting workflows, include discovered agentic workflows, regular workflows to enhance, and workflows from the agentics collection.
 
-5. **Match workflows to campaign goals:**
+4. **Match workflows to campaign goals:**
 
    **For security campaigns**, dynamically discover:
-   - Agentic workflows: Search catalog for "security", "vulnerability", "scan" keywords
+   - Agentic workflows: Scan `.github/workflows/*.md` files, parse frontmatter, match descriptions containing "security", "vulnerability", "scan", "malicious" keywords
    - Regular workflows: Look for workflows with names containing "security", "codeql", "license", "scan"
      * Example candidates: `security-scan.yml`, `codeql.yml`, `license-check.yml`
      * **AI enhancement**: Vulnerability prioritization, automated remediation PRs, natural language explanations
    - Agentics collection: `ci-doctor` (for CI security), `repo-ask` (for security questions)
    
    **For dependency/upgrade campaigns**, dynamically discover:
-   - Agentic workflows: Search catalog for "dependency", "upgrade", "update" keywords
+   - Agentic workflows: Scan `.github/workflows/*.md`, match descriptions with "dependency", "upgrade", "update", "version" keywords
    - Regular workflows: Look for workflows related to dependency management
    - Agentics collection: `daily-dependency-updater`, `pr-fix` (for failing dependencies)
    
    **For documentation campaigns**, dynamically discover:
-   - Agentic workflows: Search catalog for "doc", "documentation", "guide" keywords
+   - Agentic workflows: Scan `.github/workflows/*.md`, match descriptions with "doc", "documentation", "guide", "glossary", "blog" keywords
    - Regular workflows: Look for workflows with names containing "docs", "link-check", "documentation"
      * Example candidates: `docs.yml`, `link-check.yml`
      * **AI enhancement**: Quality analysis, gap identification, alternative link suggestions
    - Agentics collection: `update-docs`, `weekly-research` (for documentation research)
    
    **For code quality campaigns**, dynamically discover:
-   - Agentic workflows: Search catalog for "quality", "refactor", "test" keywords
+   - Agentic workflows: Scan `.github/workflows/*.md`, match descriptions with "quality", "refactor", "test", "lint", "metrics" keywords
    - Regular workflows: Look for CI workflows with testing, linting
      * Example candidates: `ci.yml`, `test-*.yml`
      * **AI enhancement**: Test failure analysis, flaky test detection, coverage recommendations
    - Agentics collection: `daily-test-coverage-improver`, `daily-performance-improver`, `daily-adhoc-qa`
    
    **For CI/CD optimization campaigns**, dynamically discover:
-   - Agentic workflows: Search catalog for "ci", "workflow", "build" keywords
+   - Agentic workflows: Scan `.github/workflows/*.md`, match descriptions with "ci", "workflow", "build", "audit", "performance" keywords
    - Regular workflows: Look for CI/CD workflows
      * Example candidates: `ci.yml`, `build.yml`, `deploy.yml`
      * **AI enhancement**: Performance optimization, failure analysis, build caching suggestions
    - Agentics collection: `ci-doctor`, `q-workflow-optimizer`, `pr-fix`
    
    **For maintenance campaigns**, dynamically discover:
-   - Agentic workflows: Search catalog for "maintenance", "cleanup", "automation" keywords
+   - Agentic workflows: Scan `.github/workflows/*.md`, match descriptions with "maintenance", "cleanup", "automation", "housekeeping" keywords
    - Regular workflows: Look for maintenance and cleanup workflows
      * Example candidates: `cleanup.yml`, `maintenance.yml`, `auto-close-*.yml`
      * **AI enhancement**: Intelligent cleanup decisions, automated issue management
 
-6. **Determine workflow strategy:**
+5. **Determine workflow strategy:**
    - **Use existing agentic**: Workflows in `.github/workflows/*.md` that already do what's needed
    - **Enhance regular workflows**: Regular `.yml` workflows (excluding `.lock.yml`) that would benefit from AI capabilities
    - **Use existing from agentics**: Workflows from the agentics collection that can be installed
