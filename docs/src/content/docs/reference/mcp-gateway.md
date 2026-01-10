@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -326,6 +326,7 @@ The gateway MUST expose the following HTTP endpoints:
 ```
 POST /mcp/{server-name}
 GET  /health
+POST /close
 ```
 
 #### 5.1.2 RPC Endpoint Behavior
@@ -375,7 +376,71 @@ Content-Type: application/json
 }
 ```
 
-#### 5.1.3 Request Routing
+#### 5.1.3 Close Endpoint Behavior
+
+The gateway MUST provide a `/close` endpoint for graceful shutdown and resource cleanup.
+
+**Request Format**:
+
+```http
+POST /close HTTP/1.1
+Authorization: {apiKey}
+```
+
+**Success Response**:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "closed",
+  "message": "Gateway shutdown initiated",
+  "serversTerminated": 3
+}
+```
+
+**Already Closed Response**:
+
+```http
+HTTP/1.1 410 Gone
+Content-Type: application/json
+
+{
+  "error": "Gateway has already been closed"
+}
+```
+
+**Behavior Requirements**:
+
+The gateway MUST perform the following actions when the `/close` endpoint is called:
+
+1. **Stop Accepting New Requests**: Immediately reject any new RPC requests to `/mcp/{server-name}` endpoints with HTTP 503 Service Unavailable
+2. **Complete In-Flight Requests**: Allow currently processing requests to complete (with a reasonable timeout, e.g., 30 seconds)
+3. **Terminate All Containers**: Stop all running MCP server containers:
+   - Send SIGTERM to each container process
+   - Wait up to 10 seconds for graceful shutdown
+   - Send SIGKILL if container does not stop within timeout
+   - Log termination status for each server
+4. **Release Resources**:
+   - Close all file descriptors and network sockets
+   - Clean up temporary files and logs
+   - Release volume mounts
+   - Free allocated memory
+5. **Return Response**: Send success response before process exits
+6. **Exit Process**: Exit the gateway process with status code 0
+
+**Idempotency**:
+
+The `/close` endpoint MUST be idempotent:
+- First call: Initiates shutdown and returns HTTP 200
+- Subsequent calls: Returns HTTP 410 Gone indicating gateway is already closed
+
+**Authentication**:
+
+The `/close` endpoint MUST require authentication when `gateway.apiKey` is configured. Requests without valid authentication MUST be rejected with HTTP 401 Unauthorized.
+
+#### 5.1.4 Request Routing
 
 The gateway MUST:
 
@@ -476,7 +541,7 @@ For stdio servers, the gateway MUST:
 1. Launch each server in a separate container
 2. Maintain isolated stdin/stdout/stderr streams
 3. Prevent cross-container communication
-4. Terminate containers on gateway shutdown
+4. Terminate containers on gateway shutdown (via `/close` endpoint or process termination)
 
 All stdio-based MCP servers MUST be containerized to ensure:
 
@@ -513,7 +578,7 @@ The gateway MUST NOT:
 
 When `gateway.apiKey` is configured, the gateway MUST:
 
-1. Require `Authorization: {apiKey}` header on all RPC requests
+1. Require `Authorization: {apiKey}` header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
 2. Reject requests with missing or invalid tokens (HTTP 401)
 3. Reject requests with malformed Authorization headers (HTTP 400)
 4. NOT log API keys in plaintext
@@ -701,6 +766,16 @@ A conforming implementation MUST pass the following test categories:
 - **T-ERR-004**: Server crash recovery
 - **T-ERR-005**: Error message quality
 
+#### 10.1.8 Gateway Lifecycle Tests
+
+- **T-LIFE-001**: Close endpoint authentication
+- **T-LIFE-002**: Close endpoint success response
+- **T-LIFE-003**: Close endpoint idempotency (returns 410 on subsequent calls)
+- **T-LIFE-004**: Container termination on close
+- **T-LIFE-005**: Resource cleanup on close
+- **T-LIFE-006**: In-flight request handling during shutdown
+- **T-LIFE-007**: New requests rejected after close initiated
+
 ### 10.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
@@ -714,6 +789,7 @@ A conforming implementation MUST pass the following test categories:
 | Health monitoring | T-HLT-* | 2 | Standard |
 | Server isolation | T-ISO-* | 1 | Required |
 | Error handling | T-ERR-* | 1 | Required |
+| Gateway lifecycle | T-LIFE-* | 2 | Standard |
 
 ### 10.3 Test Execution
 
@@ -819,7 +895,62 @@ Implementations SHOULD provide:
 }
 ```
 
-### Appendix B: Error Code Reference
+### Appendix B: Gateway Lifecycle Examples
+
+#### B.1 Closing the Gateway
+
+**Request**:
+
+```http
+POST /close HTTP/1.1
+Host: localhost:8080
+Authorization: gateway-secret-token
+```
+
+**Success Response**:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "closed",
+  "message": "Gateway shutdown initiated",
+  "serversTerminated": 3
+}
+```
+
+**Example Shutdown Sequence**:
+
+1. Client calls `POST /close`
+2. Gateway stops accepting new RPC requests
+3. Gateway waits for in-flight requests to complete (max 30s)
+4. Gateway terminates containers:
+   - `github` container: SIGTERM sent, stopped after 2s
+   - `slack` container: SIGTERM sent, stopped after 1s
+   - `data-server` container: SIGTERM sent, SIGKILL after 10s timeout
+5. Gateway cleans up resources
+6. Gateway returns success response
+7. Gateway process exits with code 0
+
+**Idempotent Behavior**:
+
+```http
+POST /close HTTP/1.1
+Host: localhost:8080
+Authorization: gateway-secret-token
+```
+
+```http
+HTTP/1.1 410 Gone
+Content-Type: application/json
+
+{
+  "error": "Gateway has already been closed"
+}
+```
+
+### Appendix C: Error Code Reference
 
 | Code | Name | Description |
 |------|------|-------------|
@@ -833,22 +964,22 @@ Implementations SHOULD provide:
 | -32002 | Server timeout | Server response timeout |
 | -32003 | Authentication failed | Invalid or missing credentials |
 
-### Appendix C: Security Considerations
+### Appendix D: Security Considerations
 
-#### C.1 Credential Handling
+#### D.1 Credential Handling
 
 - API keys MUST NOT be logged
 - Environment variables MUST be isolated per server
 - Secrets SHOULD be cleared from memory after use
 
-#### C.2 Network Security
+#### D.2 Network Security
 
 - Gateway SHOULD support TLS/HTTPS
 - Server URLs SHOULD be validated
 - Cross-origin requests SHOULD be restricted
 - Rate limiting SHOULD be implemented
 
-#### C.3 Container Security
+#### D.3 Container Security
 
 - Server containers SHOULD run with minimal privileges
 - Resource limits SHOULD be enforced (CPU, memory, file descriptors)
@@ -856,6 +987,13 @@ Implementations SHOULD provide:
 - Container monitoring SHOULD detect anomalies
 - Container images SHOULD be signed and verified
 - Containers SHOULD use read-only root filesystems where possible
+
+#### D.4 Shutdown Security
+
+- The `/close` endpoint MUST require authentication to prevent unauthorized shutdown
+- Gateway SHOULD log all shutdown attempts (both successful and failed) for audit purposes
+- In-flight requests SHOULD have a reasonable timeout to prevent denial-of-service during shutdown
+- Container termination SHOULD use SIGTERM first to allow graceful cleanup before SIGKILL
 
 ---
 
@@ -875,6 +1013,14 @@ Implementations SHOULD provide:
 ---
 
 ## Change Log
+
+### Version 1.1.0 (Draft)
+
+- Added `/close` endpoint for graceful gateway shutdown
+- Added gateway lifecycle compliance tests (T-LIFE-*)
+- Added resource cleanup requirements
+- Added shutdown security considerations
+- Added gateway lifecycle examples in Appendix B
 
 ### Version 1.0.0 (Draft)
 
