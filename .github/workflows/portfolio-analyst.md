@@ -1,7 +1,7 @@
 ---
 description: Weekly portfolio analyst that identifies cost reduction opportunities (20%+) while improving workflow reliability
 on:
-  schedule: weekly on monday at 09:00
+  schedule: weekly on monday around 09:00
   workflow_dispatch:
 permissions:
   contents: read

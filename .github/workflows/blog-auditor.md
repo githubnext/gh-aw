@@ -2,7 +2,7 @@
 description: Verifies that the GitHub Next Agentic Workflows blog page is accessible and contains expected content
 on:
   workflow_dispatch:
-  schedule: weekly on wednesday at 12:00
+  schedule: weekly on wednesday around 12:00
 permissions:
   contents: read
   issues: read

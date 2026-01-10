@@ -142,18 +142,21 @@ See the [Schedule Syntax reference](/gh-aw/reference/schedule-syntax/) for compl
 
 ```yaml wrap
 on:
-  schedule: daily at 02:00  # Shorthand string format (not recommended - creates load spikes)
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 2 * * *"  # Cron syntax for fixed times
 ```
 
 ```yaml wrap
 on:
   schedule:
-    - cron: weekly on monday at 09:00
-    - cron: monthly on 15 at 12:00
+    - cron: "30 6 * * 1"  # Monday at 06:30 UTC
+    - cron: "0 9 15 * *"  # 15th of month at 09:00 UTC
 ```
 
-:::caution[Fixed Times Create Load Spikes]
-Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. Similarly, hourly intervals with fixed minute offsets like `0 */2 * * *` synchronize all workflows to run at the same minute of each hour, and weekly schedules with fixed times like `weekly on monday at 09:00` cause all workflows to run at the same time each week. The compiler will warn you about these patterns. Use fuzzy schedules (`hourly`, `daily`, `every Nh`, `weekly`, or `weekly on <day>`) instead.
+:::tip[Use Fuzzy Schedules]
+Use fuzzy schedules like `daily`, `weekly`, `hourly`, or `every Nh` to automatically distribute execution times and avoid load spikes.
 :::
 
 **Supported Formats:**
@@ -166,17 +169,14 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
 | | `daily between 9:00 and 17:00` | `37 13 * * *` | Scattered within range (9:00-17:00) |
 | | `daily between 9am and 5pm utc-5` | `12 18 * * *` | With UTC offset (9am-5pm EST → 2pm-10pm UTC) |
 | | `daily around 3pm utc-5` | `33 19 * * *` | With UTC offset (3 PM EST → 8 PM UTC) |
-| **Daily (Fixed)** | `daily at 02:00` | `0 2 * * *` | ⚠️ Creates load spikes |
 | **Weekly (Fuzzy)** | `weekly` or `weekly on monday` | `43 5 * * 1` | Compiler assigns scattered time |
 | | `weekly on friday around 5pm` | `18 16 * * 5` | Scattered within ±1 hour |
-| **Weekly (Fixed)** | `weekly on monday at 06:30` | `30 6 * * 1` | ⚠️ Creates load spikes |
-| **Monthly** | `monthly on 15 at 09:00` | `0 9 15 * *` | Fixed day and time |
 | **Intervals** | `every 10 minutes` | `*/10 * * * *` | Minimum 5 minutes |
 | | `every 2h` | `53 */2 * * *` | Fuzzy: scattered minute offset |
-| | `0 */2 * * *` | `0 */2 * * *` | ⚠️ Fixed: creates load spikes |
+| | `0 */2 * * *` | `0 */2 * * *` | Cron syntax for fixed times |
 
 **Time formats:** `HH:MM` (24-hour), `midnight`, `noon`, `1pm`-`12pm`, `1am`-`12am`
-**UTC offsets:** Add `utc+N` or `utc-N` to any time (e.g., `daily at 14:00 utc-5`)
+**UTC offsets:** Add `utc+N` or `utc-N` to any time (e.g., `daily around 14:00 utc-5`)
 
 The human-friendly format is automatically converted to standard cron expressions, with the original format preserved as a comment in the generated workflow file.
 
