@@ -20,7 +20,7 @@ type InputDefinition struct {
 	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
 	Required    bool     `yaml:"required,omitempty" json:"required,omitempty"`
 	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean
-	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number"
+	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number", "environment"
 	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
 }
 
