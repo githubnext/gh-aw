@@ -93,9 +93,11 @@ gh aw status
 **Expected output:**
 
 ```text
-Workflow                 Engine    State     Enabled  Schedule
-──────────────────────────────────────────────────────────────
-daily-team-status        copilot   ✓         Yes      0 9 * * 1-5
+┌─────────────────┬───────┬────────┬──────┬──────────────┬──────┬──────────┬──────────────┐
+│Workflow         │Engine │Compiled│Status│Time Remaining│Labels│Run Status│Run Conclusion│
+├─────────────────┼───────┼────────┼──────┼──────────────┼──────┼──────────┼──────────────┤
+│daily-team-status│copilot│No      │active│30d 22h       │-     │-         │-             │
+└─────────────────┴───────┴────────┴──────┴──────────────┴──────┴──────────┴──────────────┘
 ```
 
 This confirms the workflow is compiled, enabled, and scheduled correctly.
