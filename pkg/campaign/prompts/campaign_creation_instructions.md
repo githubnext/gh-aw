@@ -143,7 +143,7 @@ When identifying workflows for a campaign, follow this systematic approach:
    - **Suggest new**: Workflows that need to be created from scratch
    - **Combination**: Mix of agentic, regular (to enhance), agentics collection, and new workflows
 
-7. **Suggest 2-4 workflows total** (agentic + regular to enhance + agentics collection + new)
+6. **Suggest 2-4 workflows total** (agentic + regular to enhance + agentics collection + new)
    - Prioritize existing agentic workflows
    - Identify 1-2 regular workflows that would benefit most from AI enhancement
    - Include relevant workflows from agentics collection
