@@ -43,8 +43,8 @@
 name: "MCP Inspector Agent"
 "on":
   schedule:
-  - cron: "0 18 * * 1"
-    # Friendly format: weekly on monday at 18:00
+  - cron: "45 18 * * 1"
+    # Friendly format: weekly on monday around 18:00 (scattered)
   workflow_dispatch:
 
 permissions:
@@ -1274,6 +1274,9 @@ jobs:
       - name: Stop MCP gateway
         if: always()
         continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
         run: |
           bash /opt/gh-aw/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
       - name: Redact secrets in logs
