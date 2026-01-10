@@ -70,32 +70,18 @@ gh aw init
 
 ## AgenticImport vs Traditional Import
 
-```mermaid
-graph LR
-    A[Workflow Need] --> B{Shared Updates?}
-    B -->|Yes| C[gh aw add]
-    B -->|No| D{Complexity?}
-    D -->|Low| E[Manual Copy]
-    D -->|High| F[AgenticImport]
-    
-    C -->|Maintains Link<br/>Low Effort| G[Version Management<br/>Synchronized Updates]
-    F -->|No Link<br/>Medium Effort| H[Auto-Adaptation<br/>One-Time Migration]
-    E -->|No Link<br/>High Effort| I[Manual Adaptation]
-    
-    style C fill:#90EE90
-    style F fill:#87CEEB
-    style E fill:#FFB6C1
-```
-
-**Choose AgenticImport when you need:**
+**Use AgenticImport for:**
 - Complex adaptations (repository-specific config, tool changes)
 - One-time migration without ongoing synchronization
 - AI-assisted analysis and validation
 
-**Choose `gh aw add` when you need:**
+**Use `gh aw add` for:**
 - Synchronized updates across repositories
 - Version management with semantic tags
 - Minimal customization
+
+**Use manual copy for:**
+- Simple workflows without complex dependencies
 
 ## Advanced Patterns
 
