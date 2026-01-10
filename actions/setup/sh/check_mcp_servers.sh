@@ -85,6 +85,10 @@ SERVERS_SUCCEEDED=0
 SERVERS_FAILED=0
 SERVERS_SKIPPED=0
 
+# Retry configuration for slow-starting servers
+# Gateway may take 40-50 seconds to start all MCP servers (per start_mcp_gateway.sh)
+MAX_RETRIES=3
+
 # Iterate through each server
 while IFS= read -r SERVER_NAME; do
   echo "=========================================="
@@ -144,8 +148,6 @@ while IFS= read -r SERVER_NAME; do
   echo ""
   
   # Retry logic for slow-starting servers
-  # Gateway may take 40-50 seconds to start all MCP servers (per start_mcp_gateway.sh)
-  MAX_RETRIES=3
   RETRY_COUNT=0
   INIT_SUCCESS=false
   
@@ -154,7 +156,7 @@ while IFS= read -r SERVER_NAME; do
     TIMEOUT=$((10 + RETRY_COUNT * 10))
     
     if [ $RETRY_COUNT -gt 0 ]; then
-      echo "Retry attempt $RETRY_COUNT/$((MAX_RETRIES - 1)) with ${TIMEOUT}s timeout..."
+      echo "Retry attempt $RETRY_COUNT (of $((MAX_RETRIES - 1))) with ${TIMEOUT}s timeout..."
       # Progressive delay between retries (2s, 4s)
       DELAY=$((2 * RETRY_COUNT))
       echo "Waiting ${DELAY}s before retry..."
@@ -220,7 +222,6 @@ while IFS= read -r SERVER_NAME; do
   echo ""
   
   # Retry logic for slow-starting servers
-  MAX_RETRIES=3
   RETRY_COUNT=0
   TOOLS_SUCCESS=false
   
@@ -229,7 +230,7 @@ while IFS= read -r SERVER_NAME; do
     TIMEOUT=$((10 + RETRY_COUNT * 10))
     
     if [ $RETRY_COUNT -gt 0 ]; then
-      echo "Retry attempt $RETRY_COUNT/$((MAX_RETRIES - 1)) with ${TIMEOUT}s timeout..."
+      echo "Retry attempt $RETRY_COUNT (of $((MAX_RETRIES - 1))) with ${TIMEOUT}s timeout..."
       # Progressive delay between retries (2s, 4s)
       DELAY=$((2 * RETRY_COUNT))
       echo "Waiting ${DELAY}s before retry..."
