@@ -161,7 +161,7 @@ When identifying workflows for a campaign, follow this systematic approach:
 ### Examples (Using Dynamic Discovery)
 
 **For "Migrate to Node 20" campaign:**
-1. **Scan catalog** for agentic workflows with "dependency", "upgrade" keywords
+1. **Scan `.github/workflows/*.md`** for agentic workflows with "dependency", "upgrade" keywords
    - Found: `cli-version-checker.md` (monitors versions)
 2. **Scan `.github/workflows/*.yml`** for dependency-related workflows
    - Look for workflows with "dependency", "update", "npm", "package" in name
@@ -170,7 +170,7 @@ When identifying workflows for a campaign, follow this systematic approach:
 4. **Suggest new**: `node-version-scanner` - Finds repos still on Node 16
 
 **For "Security Q1 2025" campaign:**
-1. **Scan catalog** for agentic workflows with "security", "vulnerability" keywords
+1. **Scan `.github/workflows/*.md`** for agentic workflows with "security", "vulnerability" keywords
    - Found: `daily-malicious-code-scan.md`
 2. **Scan `.github/workflows/*.yml`** (excluding `.lock.yml`) for security workflows
    - Found candidates: `security-scan.yml`, `codeql.yml`, `license-check.yml`
@@ -182,7 +182,7 @@ When identifying workflows for a campaign, follow this systematic approach:
 **Result**: Mix of 1 existing agentic + 2-3 enhanced regular + 1 external + 1 new = comprehensive security coverage
 
 **For "Improve Code Quality" campaign:**
-1. **Scan catalog** for agentic workflows with "quality", "refactor", "test" keywords
+1. **Scan `.github/workflows/*.md`** for agentic workflows with "quality", "refactor", "test" keywords
    - Found: `semantic-function-refactor.md`, `breaking-change-checker.md`
 2. **Scan `.github/workflows/*.yml`** for CI/test workflows
    - Found candidates: `ci.yml`, `test-*.yml`, `lint.yml`
@@ -190,7 +190,7 @@ When identifying workflows for a campaign, follow this systematic approach:
 3. **Include from agentics collection**: `daily-test-coverage-improver`, `daily-performance-improver`, `daily-adhoc-qa`
 
 **For "Documentation Excellence" campaign:**
-1. **Scan catalog** for agentic workflows with "doc", "documentation" keywords
+1. **Scan `.github/workflows/*.md`** for agentic workflows with "doc", "documentation" keywords
    - Found: `glossary-maintainer.md`, `blog-auditor.md`
 2. **Scan `.github/workflows/*.yml`** for documentation workflows
    - Found candidates: `docs.yml`, `link-check.yml`
@@ -198,7 +198,7 @@ When identifying workflows for a campaign, follow this systematic approach:
 3. **Include from agentics collection**: `update-docs`
 
 **For "Team Coordination" campaign:**
-1. **Scan catalog** for agentic workflows with "team", "coordination", "planning" keywords
+1. **Scan `.github/workflows/*.md`** for agentic workflows with "team", "coordination", "planning" keywords
 2. **Scan `.github/workflows/*.yml`** for team coordination workflows (may find few)
 3. **Include from agentics collection**: `issue-triage`, `daily-team-status`, `daily-plan`, `plan-command`
 
