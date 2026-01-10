@@ -179,25 +179,25 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	// Update prompt and agent files (similar to init command)
 	// This ensures the latest templates are always used
 	fixLog.Print("Updating prompt and agent files")
-	
+
 	// Update copilot instructions
 	if err := ensureCopilotInstructions(verbose, false); err != nil {
 		fixLog.Printf("Failed to update copilot instructions: %v", err)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update copilot instructions: %v", err)))
 	}
-	
+
 	// Update agentic workflow agent
 	if err := ensureAgenticWorkflowAgent(verbose, false); err != nil {
 		fixLog.Printf("Failed to update agentic workflow agent: %v", err)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update workflow creation agent: %v", err)))
 	}
-	
+
 	// Update debug agentic workflow agent
 	if err := ensureDebugAgenticWorkflowAgent(verbose, false); err != nil {
 		fixLog.Printf("Failed to update debug agentic workflow agent: %v", err)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update debug workflow agent: %v", err)))
 	}
-	
+
 	// Update upgrade agentic workflow agent
 	if err := ensureUpgradeAgenticWorkflowAgent(verbose, false); err != nil {
 		fixLog.Printf("Failed to update upgrade agentic workflow agent: %v", err)
