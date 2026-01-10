@@ -136,7 +136,7 @@ echo "Waiting for gateway to be ready..."
 HEALTH_CHECK_HOST="localhost"
 echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
 echo "(Note: MCP_GATEWAY_DOMAIN is '${MCP_GATEWAY_DOMAIN}' for container access)"
-MAX_ATTEMPTS=60
+MAX_ATTEMPTS=30
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
   # First check if the gateway process is still running
