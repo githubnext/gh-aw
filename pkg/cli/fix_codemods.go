@@ -967,21 +967,19 @@ func getScheduleAtToAroundCodemod() Codemod {
 
 				// Extract leading whitespace to preserve indentation
 				leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-				
+
 				// Check if this is a list item (starts with - after whitespace)
 				restAfterSpace := strings.TrimLeft(line, " \t")
 				var listMarker string
 				if strings.HasPrefix(restAfterSpace, "-") {
 					// This is a list item, preserve the dash
 					listMarker = "- "
-					// Adjust to remove the dash from restAfterSpace for parsing
-					restAfterSpace = strings.TrimLeft(restAfterSpace[1:], " \t")
 				}
 
 				// Extract the schedule value (after "cron:" or "schedule:")
 				var scheduleValue string
 				var fieldName string
-				
+
 				if strings.Contains(trimmedLine, "cron:") {
 					parts := strings.SplitN(trimmedLine, "cron:", 2)
 					if len(parts) == 2 {
@@ -1027,7 +1025,7 @@ func getScheduleAtToAroundCodemod() Codemod {
 					// Extract day number
 					var day string
 					var cronExpr string
-					
+
 					monthlyParts := strings.Fields(scheduleValue)
 					for idx, part := range monthlyParts {
 						if part == "on" && idx+1 < len(monthlyParts) {
@@ -1035,7 +1033,7 @@ func getScheduleAtToAroundCodemod() Codemod {
 							break
 						}
 					}
-					
+
 					if day != "" {
 						// Check if there's a time specification
 						if strings.Contains(scheduleValue, " at ") {
@@ -1046,7 +1044,7 @@ func getScheduleAtToAroundCodemod() Codemod {
 							// No time - suggest midnight
 							cronExpr = fmt.Sprintf("0 0 %s * *", day)
 						}
-						
+
 						// Replace with cron and add explanatory comment
 						frontmatterLines[i] = fmt.Sprintf("%s%s%s: \"%s\"  # Converted from '%s' (adjust time as needed)", leadingSpace, listMarker, fieldName, cronExpr, scheduleValue)
 						modified = true
