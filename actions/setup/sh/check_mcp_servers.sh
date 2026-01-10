@@ -19,8 +19,8 @@ set -e
 #   GATEWAY_API_KEY     : API key for gateway authentication
 #
 # Exit codes:
-#   0 - All server checks completed (warnings logged for failures)
-#   1 - Invalid arguments or configuration file issues
+#   0 - All HTTP servers successfully checked (skipped servers logged as warnings)
+#   1 - Invalid arguments, configuration file issues, or server connection failures
 
 if [ "$#" -ne 3 ]; then
   echo "Usage: $0 GATEWAY_CONFIG_PATH GATEWAY_URL GATEWAY_API_KEY" >&2
