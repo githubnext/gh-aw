@@ -41,10 +41,11 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 #   }
 # }
 #
-# Claude format (JSON without Copilot-specific fields):
+# Claude format (JSON with HTTP type and headers):
 # {
 #   "mcpServers": {
 #     "server-name": {
+#       "type": "http",
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
 #         "Authorization": "apiKey"
@@ -53,14 +54,14 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 #   }
 # }
 #
-# Claude doesn't use "type" or "tools" fields like Copilot does.
-# The format is cleaner JSON with just url and headers.
+# Claude uses "type": "http" for HTTP-based MCP servers.
+# The "tools" field is removed as it's Copilot-specific.
 
 jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
   .mcpServers |= with_entries(
     .value |= (
-      # Remove type field if present (Claude doesn'\''t use it)
-      del(.type) |
+      # Ensure type is set to http for HTTP-based servers
+      .type = "http" |
       # Remove tools field if present (Claude doesn'\''t use it)
       del(.tools) |
       # Always ensure headers object exists with Authorization
