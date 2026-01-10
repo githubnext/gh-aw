@@ -109,8 +109,8 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewOption("Pull request opened or synchronized", "pull_request"),
 		huh.NewOption("Push to main branch", "push"),
 		huh.NewOption("Issue comment created", "issue_comment"),
-		huh.NewOption("Schedule (daily at 9 AM UTC)", "schedule_daily"),
-		huh.NewOption("Schedule (weekly on Monday at 9 AM UTC)", "schedule_weekly"),
+		huh.NewOption("Schedule (daily, scattered execution time)", "schedule_daily"),
+		huh.NewOption("Schedule (weekly on Monday, scattered execution time)", "schedule_weekly"),
 		huh.NewOption("Command trigger (/bot-name)", "command"),
 	}
 
@@ -372,9 +372,9 @@ func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
 	case "issue_comment":
 		return "on:\n  issue_comment:\n    types: [created]\n"
 	case "schedule_daily":
-		return "on:\n  schedule:\n    - cron: \"0 9 * * *\"  # Daily at 9 AM UTC\n"
+		return "on:\n  schedule: daily\n"
 	case "schedule_weekly":
-		return "on:\n  schedule:\n    - cron: \"0 9 * * 1\"  # Weekly on Monday at 9 AM UTC\n"
+		return "on:\n  schedule: weekly on monday\n"
 	case "command":
 		return "on:\n  command:\n    name: bot-name  # TODO: Replace with your bot name\n"
 	default:
@@ -459,9 +459,9 @@ func (b *InteractiveWorkflowBuilder) describeTrigger() string {
 	case "issue_comment":
 		return "Issue comment created"
 	case "schedule_daily":
-		return "Daily schedule (9 AM UTC)"
+		return "Daily schedule (fuzzy, scattered time)"
 	case "schedule_weekly":
-		return "Weekly schedule (Monday 9 AM UTC)"
+		return "Weekly schedule (Monday, fuzzy scattered time)"
 	case "command":
 		return "Command trigger (/bot-name)"
 	case "custom":

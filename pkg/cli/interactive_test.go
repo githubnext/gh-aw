@@ -308,6 +308,8 @@ func TestInteractiveWorkflowBuilder_generateTriggerConfig(t *testing.T) {
 		{"workflow_dispatch", "on:\n  workflow_dispatch:\n"},
 		{"issues", "on:\n  issues:\n    types: [opened, reopened]\n"},
 		{"pull_request", "on:\n  pull_request:\n    types: [opened, synchronize]\n"},
+		{"schedule_daily", "on:\n  schedule: daily\n"},
+		{"schedule_weekly", "on:\n  schedule: weekly on monday\n"},
 	}
 
 	for _, tt := range tests {
@@ -353,12 +355,12 @@ func TestInteractiveWorkflowBuilder_describeTrigger(t *testing.T) {
 		{
 			name:     "schedule_daily trigger",
 			trigger:  "schedule_daily",
-			expected: "Daily schedule (9 AM UTC)",
+			expected: "Daily schedule (fuzzy, scattered time)",
 		},
 		{
 			name:     "schedule_weekly trigger",
 			trigger:  "schedule_weekly",
-			expected: "Weekly schedule (Monday 9 AM UTC)",
+			expected: "Weekly schedule (Monday, fuzzy scattered time)",
 		},
 		{
 			name:     "command trigger",
