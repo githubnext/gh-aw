@@ -1,1 +1,1 @@
-Agent job failed: {run_url}
+Agent job [{run_id}]({run_url}) failed.

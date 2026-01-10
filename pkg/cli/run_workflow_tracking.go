@@ -60,11 +60,13 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 				fmt.Printf("Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
 			} else {
 				// Show spinner starting from second attempt to avoid flickering
-				if attempt == 1 {
+				if attempt == 1 && spinner != nil {
 					spinner.Start()
 				}
 				// Update spinner with progress information
-				spinner.UpdateMessage(fmt.Sprintf("Waiting for workflow run... (attempt %d/%d, %v elapsed)", attempt+1, maxRetries, elapsed))
+				if spinner != nil {
+					spinner.UpdateMessage(fmt.Sprintf("Waiting for workflow run... (attempt %d/%d, %v elapsed)", attempt+1, maxRetries, elapsed))
+				}
 			}
 			time.Sleep(delay)
 		}
