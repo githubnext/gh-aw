@@ -77,6 +77,7 @@ echo ""
 SERVERS_CHECKED=0
 SERVERS_SUCCEEDED=0
 SERVERS_FAILED=0
+SERVERS_SKIPPED=0
 
 # Iterate through each server
 while IFS= read -r SERVER_NAME; do
@@ -107,7 +108,7 @@ while IFS= read -r SERVER_NAME; do
   if [ -z "$SERVER_URL" ] || [ "$SERVER_URL" = "null" ]; then
     echo "WARNING: Server does not have HTTP URL (not gatewayed): $SERVER_NAME"
     echo "Skipping functionality check..."
-    SERVERS_FAILED=$((SERVERS_FAILED + 1))
+    SERVERS_SKIPPED=$((SERVERS_SKIPPED + 1))
     echo ""
     continue
   fi
@@ -271,14 +272,18 @@ echo "MCP Server Check Summary"
 echo "=========================================="
 echo "Servers checked: $SERVERS_CHECKED"
 echo "Servers succeeded: $SERVERS_SUCCEEDED"
-echo "Servers failed/skipped: $SERVERS_FAILED"
+echo "Servers failed: $SERVERS_FAILED"
+echo "Servers skipped: $SERVERS_SKIPPED"
 echo ""
 
-if [ $SERVERS_SUCCEEDED -gt 0 ]; then
-  echo "✓ At least one server check succeeded"
-  exit 0
-else
-  echo "ERROR: No servers were successfully checked"
-  echo "All MCP servers failed to respond or were skipped"
+if [ $SERVERS_FAILED -gt 0 ]; then
+  echo "ERROR: One or more MCP servers failed to respond"
+  echo "Failed servers: $SERVERS_FAILED"
   exit 1
+elif [ $SERVERS_SUCCEEDED -eq 0 ]; then
+  echo "ERROR: No HTTP servers were successfully checked"
+  exit 1
+else
+  echo "✓ All HTTP server checks succeeded ($SERVERS_SUCCEEDED succeeded, $SERVERS_SKIPPED skipped)"
+  exit 0
 fi
