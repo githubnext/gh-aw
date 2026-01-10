@@ -50,9 +50,15 @@ echo '=== Testing Gateway Health ==='
 max_retries=30
 retry_count=0
 gateway_ready=false
+health_response=""
 
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s -o /dev/null -w "%{http_code}" "${gateway_url}/health" | grep -q "200\|204"; then
+  # Capture both response body and HTTP code in a single curl call
+  response=$(curl -s -w "\n%{http_code}" "${gateway_url}/health")
+  http_code=$(echo "$response" | tail -n 1)
+  health_response=$(echo "$response" | head -n -1)
+  
+  if echo "$http_code" | grep -q "200\|204"; then
     echo "✓ MCP Gateway is ready!"
     gateway_ready=true
     break
@@ -68,6 +74,23 @@ if [ "$gateway_ready" = false ]; then
   echo '=== Gateway Logs (Full) ==='
   cat "${logs_folder}/gateway.log" || echo 'No gateway logs found'
   exit 1
+fi
+
+# Parse and display version information from health response
+if [ -n "$health_response" ]; then
+  echo "Health response: $health_response"
+  echo ''
+  
+  # Extract version information using jq if available
+  if command -v jq >/dev/null 2>&1; then
+    spec_version=$(echo "$health_response" | jq -r '.specVersion // "unknown"')
+    gateway_version=$(echo "$health_response" | jq -r '.gatewayVersion // "unknown"')
+    
+    echo "MCP Gateway Protocol Version: $spec_version"
+    echo "MCP Gateway Implementation Version: $gateway_version"
+  else
+    echo "Note: jq not available, cannot parse version information"
+  fi
 fi
 echo ''
 
