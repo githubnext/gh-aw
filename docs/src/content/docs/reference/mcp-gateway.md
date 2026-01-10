@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.1.0  
+**Version**: 1.3.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -514,7 +514,13 @@ The gateway SHOULD enforce `toolTimeout` for individual tool invocations:
 After successful initialization, the gateway MUST:
 
 1. Write a complete MCP server configuration to stdout
-2. Include gateway connection details:
+2. Include gateway connection details for each configured MCP server:
+   - `type`: MUST be set to "http"
+   - `url`: MUST be the gateway URL in format "http://{domain}:{port}/mcp/{server-name}"
+   - `headers`: MUST include authorization headers required to connect to the gateway
+     - `Authorization`: MUST contain the API key value directly (not using Bearer scheme)
+   
+   Example output configuration:
    ```json
    {
      "mcpServers": {
@@ -528,14 +534,14 @@ After successful initialization, the gateway MUST:
      }
    }
    ```
-   **Note**: The `Authorization` header value contains the API key directly, not using the Bearer authentication scheme.
+   
+   **REQUIRED**: The `headers` object MUST be present in each server configuration and MUST include the `Authorization` header with the API key value. The `Authorization` header value MUST contain the API key directly, NOT using the Bearer authentication scheme. The gateway is responsible for generating and including appropriate authentication credentials - client-side configuration converters MUST NOT modify or supplement the headers provided by the gateway.
+
 3. Write configuration as a single JSON document
 4. Flush stdout buffer
 5. Continue serving requests
 
-This allows clients to dynamically discover gateway endpoints.
-
-**Note**: The `Authorization` header in the output configuration contains the API key directly, not using the Bearer authentication scheme.
+This allows clients to dynamically discover gateway endpoints and authentication credentials.
 
 ---
 
@@ -644,11 +650,13 @@ The following endpoints MUST NOT require authentication:
 GET /health HTTP/1.1
 ```
 
-Response:
+**Response Format**:
 
 ```json
 {
   "status": "healthy" | "unhealthy",
+  "specVersion": "string",
+  "gatewayVersion": "string",
   "servers": {
     "server-name": {
       "status": "running" | "stopped" | "error",
@@ -657,6 +665,30 @@ Response:
   }
 }
 ```
+
+**Response Fields**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `status` | string | Yes | Overall gateway health status: "healthy" or "unhealthy" |
+| `specVersion` | string | Yes | MCP Gateway Specification version (e.g., "1.3.0") |
+| `gatewayVersion` | string | Yes | Gateway implementation version (e.g., "0.1.0") |
+| `servers` | object | Yes | Map of server names to their health status |
+| `servers[name].status` | string | Yes | Server status: "running", "stopped", or "error" |
+| `servers[name].uptime` | integer | No | Server uptime in seconds |
+
+**Requirements**:
+
+The gateway MUST include the following version information in the `/health` endpoint response:
+
+1. **`specVersion`**: The version of this MCP Gateway Specification that the implementation conforms to. This field MUST use semantic versioning (MAJOR.MINOR.PATCH format).
+2. **`gatewayVersion`**: The version of the gateway implementation itself. This field MUST use semantic versioning and represents the specific build or release version of the gateway software.
+
+These version fields enable clients to:
+- Verify specification compatibility
+- Detect implementation versions for debugging
+- Track deployment versions across environments
+- Ensure feature availability based on specification version
 
 ### 8.2 Health Check Behavior
 
@@ -793,8 +825,22 @@ A conforming implementation MUST pass the following test categories:
 - **T-HLT-003**: Readiness probe accuracy
 - **T-HLT-004**: Server status reporting
 - **T-HLT-005**: Automatic restart behavior
+- **T-HLT-006**: Health response includes specVersion field
+- **T-HLT-007**: Health response includes gatewayVersion field
+- **T-HLT-008**: specVersion uses semantic versioning format
+- **T-HLT-009**: gatewayVersion uses semantic versioning format
 
-#### 10.1.7 Error Handling Tests
+#### 10.1.7 Configuration Output Tests
+
+- **T-OUT-001**: Gateway outputs valid JSON configuration to stdout
+- **T-OUT-002**: Output configuration includes all configured servers
+- **T-OUT-003**: Each server configuration has "type": "http"
+- **T-OUT-004**: Each server configuration has correct "url" format
+- **T-OUT-005**: Each server configuration has "headers" object with "Authorization" header
+- **T-OUT-006**: Authorization header contains API key directly (not Bearer scheme)
+- **T-OUT-007**: Output configuration is complete before health endpoint becomes available
+
+#### 10.1.8 Error Handling Tests
 
 - **T-ERR-001**: Startup failure reporting
 - **T-ERR-002**: Runtime error handling
@@ -802,7 +848,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-ERR-004**: Server crash recovery
 - **T-ERR-005**: Error message quality
 
-#### 10.1.8 Gateway Lifecycle Tests
+#### 10.1.9 Gateway Lifecycle Tests
 
 - **T-LIFE-001**: Close endpoint authentication
 - **T-LIFE-002**: Close endpoint success response
@@ -824,6 +870,7 @@ A conforming implementation MUST pass the following test categories:
 | Timeout handling | T-TMO-* | 3 | Optional |
 | Health monitoring | T-HLT-* | 2 | Standard |
 | Server isolation | T-ISO-* | 1 | Required |
+| Configuration output | T-OUT-* | 1 | Required |
 | Error handling | T-ERR-* | 1 | Required |
 | Gateway lifecycle | T-LIFE-* | 2 | Standard |
 
@@ -1053,6 +1100,24 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.3.0 (Draft)
+
+- **Added**: Health endpoint version information requirements (Section 8.1.1)
+  - `/health` endpoint MUST include `specVersion` field with MCP Gateway Specification version
+  - `/health` endpoint MUST include `gatewayVersion` field with gateway implementation version
+  - Both version fields MUST use semantic versioning format (MAJOR.MINOR.PATCH)
+- **Added**: Health monitoring compliance tests for version fields (T-HLT-006 through T-HLT-009)
+- **Improved**: Health endpoint documentation with detailed field descriptions and requirements
+
+### Version 1.2.0 (Draft)
+
+- **BREAKING**: Clarified stdout configuration output requirements (Section 5.4)
+  - Gateway MUST include `headers` object in output configuration for each server
+  - `Authorization` header MUST be present with API key value
+  - Made explicit that authorization headers are required for client connectivity
+- Added configuration output compliance tests (T-OUT-001 through T-OUT-007)
+- Updated compliance checklist to include configuration output as Level 1 (Required)
 
 ### Version 1.1.0 (Draft)
 

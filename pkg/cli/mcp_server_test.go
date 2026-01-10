@@ -1490,3 +1490,83 @@ Second test workflow.
 
 	t.Logf("Compile tool correctly compiled specific workflow: %s", textContent.Text)
 }
+
+// TestMCPServer_CompileToolDescriptionMentionsRecompileRequirement tests that the compile tool
+// description clearly states that changes to .md files must be compiled
+func TestMCPServer_CompileToolDescriptionMentionsRecompileRequirement(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(binaryPath, "mcp-server")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// List tools
+	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("Failed to list tools: %v", err)
+	}
+
+	// Find the compile tool
+	var compileTool *mcp.Tool
+	for i := range result.Tools {
+		if result.Tools[i].Name == "compile" {
+			compileTool = result.Tools[i]
+			break
+		}
+	}
+
+	if compileTool == nil {
+		t.Fatal("Compile tool not found in MCP server tools")
+	}
+
+	// Verify the description exists and is not empty
+	if compileTool.Description == "" {
+		t.Fatal("Compile tool should have a description")
+	}
+
+	// Key requirements that must be in the description
+	requiredPhrases := []string{
+		".github/workflows/*.md",
+		"MUST be compiled",
+		".lock.yml",
+	}
+
+	// Verify each required phrase is present in the description
+	description := compileTool.Description
+	for _, phrase := range requiredPhrases {
+		if !strings.Contains(description, phrase) {
+			t.Errorf("Compile tool description should mention '%s' but it doesn't.\nDescription: %s", phrase, description)
+		}
+	}
+
+	// Verify description emphasizes the importance (should contain warning indicator)
+	if !strings.Contains(description, "⚠️") && !strings.Contains(description, "IMPORTANT") {
+		t.Error("Compile tool description should emphasize importance with warning or 'IMPORTANT' marker")
+	}
+
+	// Verify description explains why compilation is needed
+	if !strings.Contains(description, "GitHub Actions") {
+		t.Error("Compile tool description should explain that GitHub Actions executes the .lock.yml files")
+	}
+
+	t.Logf("Compile tool description successfully emphasizes recompilation requirement:\n%s", description)
+}

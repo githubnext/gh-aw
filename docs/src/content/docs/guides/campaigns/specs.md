@@ -60,7 +60,8 @@ owners:
 - `tracker-label` (optional): an ingestion hint label that helps discover issues and pull requests created by workers (commonly `campaign:<id>`). When provided, the orchestrator's discovery precomputation step can discover work across runs. The project board remains the canonical source of truth.
 - `objective`: a single sentence describing what “done” means.
 - `kpis`: the measures you use to report progress. Use `priority: primary` to mark exactly one KPI as the primary measure (not `primary: true`).
-- `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`), and they can be scheduled, event-driven, or long-running.
+- `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`).
+- `execute-workflows` (optional): Set to `true` to enable active workflow execution. When enabled, the orchestrator will run workflows directly, create missing workflows if needed, and use outputs to drive progress. Default: `false` (passive coordination mode).
 
 ## KPIs (recommended shape)
 

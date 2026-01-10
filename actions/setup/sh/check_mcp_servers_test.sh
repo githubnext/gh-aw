@@ -327,6 +327,13 @@ test_validation_functions_exist() {
   else
     print_result "Tool display logic missing" "FAIL"
   fi
+  
+  # Check for gateway config authentication logic
+  if grep -q "From gateway config" "$SCRIPT_PATH"; then
+    print_result "Gateway config authentication logic exists" "PASS"
+  else
+    print_result "Gateway config authentication logic missing" "FAIL"
+  fi
 }
 
 # Run all tests

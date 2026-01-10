@@ -22,13 +22,19 @@ import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
 ## What are agentic campaigns?
 
-Agentic campaigns coordinate AI agents across multiple workflow runs to achieve strategic goals. Think of them as project management for AI: clear objectives, measurable KPIs, and automated progress tracking through GitHub Projects.
+Agentic campaigns coordinate AI agents to achieve strategic goals. Define objectives with measurable KPIs and track progress automatically through GitHub Projects.
 
 **How it works:**
-1. **Define** - Write a `.campaign.md` spec with objectives and worker workflows
+1. **Define** - Write a `.campaign.md` spec with objectives and workflows
 2. **Compile** - Generate the orchestrator with `gh aw compile`
-3. **Execute** - Agents work autonomously toward your goals
+3. **Execute** - Orchestrator coordinates work (passive tracking or active execution)
 4. **Track** - GitHub Project board shows real-time progress
+
+### Campaign Modes
+
+**Passive coordination** (default): Discover and track work created by independent workflows.
+
+**Active execution** (`execute-workflows: true`): Run workflows directly, create missing workflows, and drive progress.
 
 ### Campaigns vs Workflows
 
@@ -36,8 +42,8 @@ Agentic campaigns coordinate AI agents across multiple workflow runs to achieve 
 |------------------|------------------|
 | Executes single task | Coordinates multiple tasks toward a goal |
 | Event-triggered or scheduled | Strategic initiative over time |
-| Standalone automation | Orchestrated with shared progress tracking |
-| Success/failure per run | Success measured by KPIs across runs |
+| Standalone automation | Orchestrated with progress tracking |
+| Success/failure per run | Success measured by KPIs |
 
 ## Why Use Campaigns?
 
@@ -58,7 +64,7 @@ Agentic campaigns coordinate AI agents across multiple workflow runs to achieve 
 
 ## Example Campaign
 
-A simple framework upgrade campaign:
+A simple framework upgrade campaign with active execution:
 
 ```yaml
 ---
@@ -75,9 +81,22 @@ kpis:
     target: 50
 
 workflows:
-  - framework-upgrade-worker
+  - framework-scanner
+  - framework-upgrader
+
+# Enable active workflow execution
+execute-workflows: true
 
 governance:
+  max-project-updates-per-run: 20
+---
+```
+
+With `execute-workflows: true`, the orchestrator will:
+- Run `framework-scanner` (create it if doesn't exist)
+- Test newly created workflows before use
+- Execute `framework-upgrader` using scanner outputs
+- Track all progress on the GitHub Project board
   max-new-items-per-run: 10
 ---
 

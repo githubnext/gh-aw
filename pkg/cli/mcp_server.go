@@ -233,6 +233,10 @@ Note: Output can be filtered using the jq parameter.`,
 		Name: "compile",
 		Description: `Compile Markdown workflows to GitHub Actions YAML with optional static analysis tools.
 
+⚠️  IMPORTANT: Any change to .github/workflows/*.md files MUST be compiled using this tool.
+This tool generates .lock.yml files from .md workflow files. The .lock.yml files are what GitHub Actions
+actually executes, so failing to compile after modifying a .md file means your changes won't take effect.
+
 Workflows use strict mode validation by default (unless frontmatter sets strict: false).
 Strict mode enforces: action pinning to SHAs, explicit network config, safe-outputs for write operations,
 and refuses write permissions and deprecated fields. Use the strict parameter to override frontmatter settings.
