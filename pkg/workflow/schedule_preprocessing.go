@@ -149,6 +149,12 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 		// Try to parse as a schedule expression (only if not already recognized as another trigger type)
 		parsedCron, original, err := c.normalizeScheduleString(onStr, -1)
 		if err != nil {
+			// Check if this is an explicit rejection of unsupported syntax
+			// vs. just not being a valid schedule at all
+			if strings.Contains(err.Error(), "syntax is not supported") {
+				// This is an explicit rejection - return the error
+				return err
+			}
 			// Not a schedule expression either - leave as simple string trigger
 			// (simple event names like "push", "fork", etc. are valid)
 			schedulePreprocessingLog.Printf("Not a recognized shorthand or schedule: %s - leaving as-is", onStr)

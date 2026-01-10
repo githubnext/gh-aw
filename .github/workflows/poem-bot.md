@@ -115,7 +115,7 @@ safe-outputs:
     max: 3
 
   # Create agent tasks for delegating poetry work
-  create-agent-task:
+  create-agent-session:
     base: main
 
   # Upload assets

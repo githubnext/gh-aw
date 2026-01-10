@@ -9,7 +9,7 @@ on:
         required: true
         type: string
         default: github
-  schedule: monthly on 1 at 02:03
+  schedule: "0 9 1 * *"  # Converted from 'monthly on 1 at 02:03' (adjust time as needed)
 
 permissions:
   contents: read

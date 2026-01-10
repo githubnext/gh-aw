@@ -228,25 +228,24 @@ on:
     types: []
       # Array of strings
 
-  # Scheduled trigger events using human-friendly format or standard cron
-  # expressions. Supports shorthand string notation (e.g., 'daily at 3pm') or array
-  # of schedule objects. Human-friendly formats are automatically converted to cron
-  # expressions with the original format preserved as comments in the generated
+  # Scheduled trigger events using human-friendly fuzzy format or standard cron
+  # expressions. Supports shorthand string notation (e.g., 'daily', 'daily around 2pm')
+  # or array of schedule objects. Human-friendly formats are automatically converted
+  # to cron expressions with the original format preserved as comments in the generated
   # workflow.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Shorthand schedule string using human-friendly format. Examples:
-  # 'daily at 02:00', 'daily at 3pm', 'daily at 6am', 'weekly on monday at 06:30',
-  # 'weekly on friday at 5pm', 'monthly on 15 at 09:00', 'monthly on 15 at 9am',
-  # 'every 10 minutes', 'every 2h', 'every 1d', 'daily at 02:00 utc+9', 'daily at
-  # 3pm utc+9'. Supports 12-hour format (1am-12am, 1pm-12pm), 24-hour format
-  # (HH:MM), midnight, noon. Minimum interval is 5 minutes. Converted to standard
-  # cron expression automatically.
+  # Option 1: Shorthand schedule string using fuzzy or cron format. Examples:
+  # 'daily', 'daily around 14:00', 'daily between 9:00 and 17:00', 'weekly',
+  # 'weekly on monday', 'weekly on friday around 5pm', 'hourly', 'every 2h',
+  # 'every 10 minutes', '0 9 * * 1'. Fuzzy schedules distribute execution times
+  # to prevent load spikes. For fixed times, use standard cron syntax.
+  # Minimum interval is 5 minutes.
   schedule: "example-value"
 
-  # Option 2: Array of schedule objects with cron expressions (standard or
-  # human-friendly format)
+  # Option 2: Array of schedule objects with cron expressions (standard cron
+  # or fuzzy format)
   schedule: []
     # Array items: object
 

@@ -727,12 +727,8 @@ func (p *ScheduleParser) parseBase() (string, error) {
 				// Return fuzzy around format: FUZZY:DAILY_AROUND:HH:MM
 				return fmt.Sprintf("FUZZY:DAILY_AROUND:%s:%s * * *", hour, minute), nil
 			}
-			// Otherwise, extract time normally for "at" or implicit "at"
-			timeStr, err := p.extractTime(1)
-			if err != nil {
-				return "", err
-			}
-			minute, hour = parseTime(timeStr)
+			// Reject "daily at TIME" pattern - use cron directly for fixed times
+			return "", fmt.Errorf("'daily at <time>' syntax is not supported. Use fuzzy schedules like 'daily' (scattered), 'daily around <time>', or 'daily between <start> and <end>' for load distribution. For fixed times, use standard cron syntax (e.g., '0 14 * * *')")
 		}
 
 	case "hourly":
@@ -776,20 +772,16 @@ func (p *ScheduleParser) parseBase() (string, error) {
 				// Return fuzzy around format: FUZZY:WEEKLY_AROUND:DOW:HH:MM
 				return fmt.Sprintf("FUZZY:WEEKLY_AROUND:%s:%s:%s * * *", weekday, hour, minute), nil
 			}
-			// Otherwise, extract time normally for "at" or implicit "at"
-			timeStr, err := p.extractTime(3)
-			if err != nil {
-				return "", err
-			}
-			minute, hour = parseTime(timeStr)
+			// Reject "weekly on <weekday> at TIME" pattern - use cron directly for fixed times
+			return "", fmt.Errorf("'weekly on <weekday> at <time>' syntax is not supported. Use fuzzy schedules like 'weekly on %s' (scattered), 'weekly on %s around <time>', or standard cron syntax (e.g., '30 6 * * %s')", weekdayStr, weekdayStr, weekday)
 		} else {
 			// weekly on <weekday> with no time - this is a fuzzy schedule
 			return fmt.Sprintf("FUZZY:WEEKLY:%s * * *", weekday), nil
 		}
 
 	case "monthly":
-		// monthly on <day> -> 0 0 <day> * *
-		// monthly on <day> at HH:MM -> MM HH <day> * *
+		// monthly on <day> -> rejected (use cron directly)
+		// monthly on <day> at HH:MM -> rejected (use cron directly)
 		if len(p.tokens) < 3 || p.tokens[1] != "on" {
 			return "", fmt.Errorf("monthly schedule requires 'on <day>'")
 		}
@@ -800,13 +792,13 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		}
 		day = p.tokens[2]
 
+		// Reject monthly schedules - they always generate fixed times
+		// monthly on 15 -> 0 0 15 * * (midnight on 15th)
+		// monthly on 15 at 09:00 -> 0 9 15 * * (9am on 15th)
 		if len(p.tokens) > 3 {
-			timeStr, err := p.extractTime(3)
-			if err != nil {
-				return "", err
-			}
-			minute, hour = parseTime(timeStr)
+			return "", fmt.Errorf("'monthly on <day> at <time>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 9 %s * *' for the %sth at 9am)", day, day)
 		}
+		return "", fmt.Errorf("'monthly on <day>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 0 %s * *' for the %sth at midnight)", day, day)
 
 	default:
 		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'weekly', or 'monthly'", baseType)

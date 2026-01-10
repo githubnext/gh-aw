@@ -21,7 +21,7 @@ func TestScheduleWorkflowDispatchAutomatic(t *testing.T) {
 				"on": map[string]any{
 					"schedule": []any{
 						map[string]any{
-							"cron": "daily at 02:00",
+							"cron": "0 2 * * *",
 						},
 					},
 				},
@@ -33,7 +33,7 @@ func TestScheduleWorkflowDispatchAutomatic(t *testing.T) {
 			name: "schedule string format - should add workflow_dispatch",
 			frontmatter: map[string]any{
 				"on": map[string]any{
-					"schedule": "daily at 02:00",
+					"schedule": "0 2 * * *",
 				},
 			},
 			expectedCron:           "0 2 * * *",
@@ -45,7 +45,7 @@ func TestScheduleWorkflowDispatchAutomatic(t *testing.T) {
 				"on": map[string]any{
 					"schedule": []any{
 						map[string]any{
-							"cron": "daily at 02:00",
+							"cron": "0 2 * * *",
 						},
 					},
 					"workflow_dispatch": map[string]any{
@@ -66,7 +66,7 @@ func TestScheduleWorkflowDispatchAutomatic(t *testing.T) {
 				"on": map[string]any{
 					"schedule": []any{
 						map[string]any{
-							"cron": "daily at 02:00",
+							"cron": "0 2 * * *",
 						},
 						map[string]any{
 							"cron": "weekly on friday",
@@ -198,8 +198,8 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "daily at 14:00",
 			},
-			expectedCron:           "0 14 * * *",
-			expectWorkflowDispatch: true,
+			expectedError:  true, // Now rejected
+			errorSubstring: "'daily at <time>' syntax is not supported",
 		},
 		{
 			name: "on: weekly on monday",
@@ -365,7 +365,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 				"on": map[string]any{
 					"schedule": []any{
 						map[string]any{
-							"cron": "daily at 02:00",
+							"cron": "0 2 * * *",
 						},
 					},
 				},
@@ -378,7 +378,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 				"on": map[string]any{
 					"schedule": []any{
 						map[string]any{
-							"cron": "weekly on monday at 06:30",
+							"cron": "30 6 * * 1",
 						},
 					},
 				},
@@ -417,10 +417,10 @@ func TestSchedulePreprocessing(t *testing.T) {
 				"on": map[string]any{
 					"schedule": []any{
 						map[string]any{
-							"cron": "daily at 02:00",
+							"cron": "0 2 * * *",
 						},
 						map[string]any{
-							"cron": "weekly on friday at 17:00",
+							"cron": "0 17 * * 5",
 						},
 					},
 				},
@@ -446,7 +446,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 			name: "shorthand string format - daily",
 			frontmatter: map[string]any{
 				"on": map[string]any{
-					"schedule": "daily at 02:00",
+					"schedule": "0 2 * * *",
 				},
 			},
 			expectedCron: "0 2 * * *",
@@ -455,7 +455,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 			name: "shorthand string format - weekly",
 			frontmatter: map[string]any{
 				"on": map[string]any{
-					"schedule": "weekly on monday at 06:30",
+					"schedule": "30 6 * * 1",
 				},
 			},
 			expectedCron: "30 6 * * 1",
@@ -525,18 +525,19 @@ func TestSchedulePreprocessing(t *testing.T) {
 }
 
 func TestScheduleFriendlyComments(t *testing.T) {
-	// Create a test frontmatter with a friendly schedule
+	// Create a test frontmatter with a fuzzy schedule that will have a friendly format
 	frontmatter := map[string]any{
 		"on": map[string]any{
 			"schedule": []any{
 				map[string]any{
-					"cron": "daily at 02:00",
+					"cron": "daily around 14:00",
 				},
 			},
 		},
 	}
 
 	compiler := NewCompiler(false, "", "test")
+	compiler.SetWorkflowIdentifier("test-workflow.md")
 
 	// Preprocess to convert and store friendly formats
 	err := compiler.preprocessScheduleFields(frontmatter, "", "")
@@ -547,19 +548,19 @@ func TestScheduleFriendlyComments(t *testing.T) {
 	// Create test YAML output
 	yamlStr := `"on":
   schedule:
-  - cron: "0 2 * * *"
+  - cron: "30 13 * * *"
   workflow_dispatch:`
 
 	// Add friendly comments
 	result := compiler.addFriendlyScheduleComments(yamlStr, frontmatter)
 
 	// Check that the comment was added
-	if !strings.Contains(result, "# Friendly format: daily at 02:00") {
+	if !strings.Contains(result, "# Friendly format: daily around 14:00") {
 		t.Errorf("expected friendly format comment to be added, got:\n%s", result)
 	}
 
 	// Check that the cron expression is still there
-	if !strings.Contains(result, `cron: "0 2 * * *"`) {
+	if !strings.Contains(result, `cron: "30 13 * * *"`) {
 		t.Errorf("expected cron expression to remain, got:\n%s", result)
 	}
 }
@@ -731,7 +732,8 @@ func TestSchedulePreprocessingWithFuzzyDaily(t *testing.T) {
 					"schedule": "daily at 14:30",
 				},
 			},
-			checkScatter: false, // This has a specific time, so not scattered
+			expectError:   true, // Now rejected
+			errorContains: "'daily at <time>' syntax is not supported",
 		},
 		{
 			name: "fuzzy daily around specific time",
