@@ -1684,6 +1684,11 @@ jobs:
           else
             echo "No session-state directory found at $SESSION_STATE_DIR"
           fi
+      - name: Stop MCP gateway
+        if: always()
+        continue-on-error: true
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0

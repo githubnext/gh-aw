@@ -1,23 +1,15 @@
 #!/usr/bin/env bash
 # Stop MCP Gateway
-# This script stops the MCP gateway process using the PID stored during startup
+# This script stops the MCP gateway process using the PID from the start step output
 
 set -e
 
-GATEWAY_PID_FILE="/tmp/gh-aw/mcp-logs/gateway/gateway.pid"
-
-# Check if PID file exists
-if [ ! -f "$GATEWAY_PID_FILE" ]; then
-  echo "Gateway PID file not found at: $GATEWAY_PID_FILE"
-  echo "Gateway may not have been started or already stopped"
-  exit 0
-fi
-
-# Read PID from file
-GATEWAY_PID=$(cat "$GATEWAY_PID_FILE")
+# Get PID from environment variable (passed from step output)
+GATEWAY_PID="$1"
 
 if [ -z "$GATEWAY_PID" ]; then
-  echo "Gateway PID file is empty"
+  echo "Gateway PID not provided"
+  echo "Gateway may not have been started or PID was not captured"
   exit 0
 fi
 

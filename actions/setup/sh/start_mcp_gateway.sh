@@ -283,5 +283,5 @@ echo "  - From host: http://localhost:${MCP_GATEWAY_PORT}"
 echo "  - From containers: http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 echo "Gateway PID: $GATEWAY_PID"
 
-# Store PID for cleanup
-echo $GATEWAY_PID > /tmp/gh-aw/mcp-logs/gateway/gateway.pid
+# Output PID as GitHub Actions step output for use in cleanup
+echo "gateway-pid=$GATEWAY_PID" >> $GITHUB_OUTPUT

@@ -378,7 +378,7 @@ Test workflow with custom container and version.`,
 
 			// Test 2: Check if MCP gateway setup contains the correct version
 			if tt.shouldContainInSetup {
-				setupStep := strings.Contains(yamlStr, "Setup MCPs")
+				setupStep := strings.Contains(yamlStr, "Start MCP gateway")
 				assert.True(t, setupStep, "Should have MCP setup step")
 
 				// The setup step should use the docker run command with the correct version
