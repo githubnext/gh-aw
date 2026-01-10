@@ -59,23 +59,11 @@ async function main() {
         } catch (error) {
           // Fallback for tests or if template file is missing
           core.warning(`Could not read comment template from ${commentTemplatePath}, using fallback: ${getErrorMessage(error)}`);
-          commentTemplate = `## Agent Job Failed ({timestamp})
-
-The agent job failed during [workflow run]({run_url}).
-
-### How to investigate
-
-Use the **debug-agentic-workflow** agent to investigate this failure.
-
-In GitHub Copilot Chat, type \`/agent\` and select **debug-agentic-workflow**.
-
-Provide the workflow run URL: {run_url}`;
+          commentTemplate = `Agent job failed: {run_url}`;
         }
 
         // Create template context
-        const timestamp = new Date().toISOString();
         const templateContext = {
-          timestamp,
           run_url: runUrl,
           workflow_name: workflowName,
           workflow_source: workflowSource,
