@@ -3,6 +3,10 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestSafeInputsStepCodeGenerationStability verifies that the MCP setup step code generation
@@ -98,5 +102,123 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 	if alphaPos >= betaPos || betaPos >= middlePos || middlePos >= zebraPos {
 		t.Errorf("Tools should be sorted alphabetically in step code: alpha(%d) < beta(%d) < middle(%d) < zebra(%d)",
 			alphaPos, betaPos, middlePos, zebraPos)
+	}
+}
+
+// TestMCPGatewayVersionFromFrontmatter tests that sandbox.mcp.version specified in frontmatter
+// is correctly used in both the docker predownload step and the MCP gateway setup command
+func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
+	tests := []struct {
+		name            string
+		sandboxConfig   *SandboxConfig
+		expectedVersion string
+		description     string
+	}{
+		{
+			name: "custom version specified in frontmatter",
+			sandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Container: constants.DefaultMCPGatewayContainer,
+					Version:   "v0.0.5",
+					Port:      8080,
+				},
+			},
+			expectedVersion: "v0.0.5",
+			description:     "should use custom version v0.0.5",
+		},
+		{
+			name: "no version specified - should use default",
+			sandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Container: constants.DefaultMCPGatewayContainer,
+					Port:      8080,
+				},
+			},
+			expectedVersion: string(constants.DefaultMCPGatewayVersion),
+			description:     "should use default version when not specified",
+		},
+		{
+			name: "empty version string - should use default",
+			sandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Container: constants.DefaultMCPGatewayContainer,
+					Version:   "",
+					Port:      8080,
+				},
+			},
+			expectedVersion: string(constants.DefaultMCPGatewayVersion),
+			description:     "should use default version when version is empty string",
+		},
+		{
+			name: "version 'latest' replaced with default",
+			sandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Container: constants.DefaultMCPGatewayContainer,
+					Version:   "latest",
+					Port:      8080,
+				},
+			},
+			expectedVersion: string(constants.DefaultMCPGatewayVersion),
+			description:     "should replace 'latest' with default version",
+		},
+		{
+			name: "custom version with different format",
+			sandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Container: constants.DefaultMCPGatewayContainer,
+					Version:   "1.2.3",
+					Port:      8080,
+				},
+			},
+			expectedVersion: "1.2.3",
+			description:     "should use custom version 1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				SandboxConfig: tt.sandboxConfig,
+				Tools:         map[string]any{"github": map[string]any{}},
+			}
+
+			// Ensure MCP gateway config is applied (includes normalization of "latest")
+			ensureDefaultMCPGatewayConfig(workflowData)
+
+			// After normalization, verify the version matches expected
+			require.NotNil(t, workflowData.SandboxConfig, "SandboxConfig should not be nil")
+			require.NotNil(t, workflowData.SandboxConfig.MCP, "MCP gateway config should not be nil")
+
+			actualVersion := workflowData.SandboxConfig.MCP.Version
+			assert.Equal(t, tt.expectedVersion, actualVersion,
+				"Version after normalization should be %s (%s)", tt.expectedVersion, tt.description)
+
+			// Test 1: Verify docker image collection uses the correct version
+			dockerImages := collectDockerImages(workflowData.Tools, workflowData)
+			expectedImage := constants.DefaultMCPGatewayContainer + ":" + tt.expectedVersion
+
+			found := false
+			for _, img := range dockerImages {
+				if strings.Contains(img, constants.DefaultMCPGatewayContainer) {
+					assert.Equal(t, expectedImage, img,
+						"Docker image should include correct version (%s)", tt.description)
+					found = true
+					break
+				}
+			}
+			assert.True(t, found, "MCP gateway container should be in docker images list")
+
+			// Test 2: Verify MCP gateway setup command uses the correct version
+			compiler := &Compiler{}
+			var yaml strings.Builder
+			mockEngine := &CustomEngine{}
+
+			compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
+			setupOutput := yaml.String()
+
+			// The setup output should contain the container image with the correct version
+			assert.Contains(t, setupOutput, expectedImage,
+				"MCP gateway setup should use correct container version (%s)", tt.description)
+		})
 	}
 }
