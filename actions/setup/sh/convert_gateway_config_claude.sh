@@ -60,14 +60,9 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
   .mcpServers |= with_entries(
     .value |= (
-      # Ensure type is set to http for HTTP-based servers
-      .type = "http" |
-      # Remove tools field if present (Claude doesn'\''t use it)
-      del(.tools) |
-      # Always ensure headers object exists with Authorization
-      .headers = {
-        "Authorization": $apiKey
-      }
+      (.type = "http") |
+      (del(.tools)) |
+      (if .headers then . else . + {"headers": {"Authorization": $apiKey}} end)
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /tmp/gh-aw/mcp-config/mcp-servers.json

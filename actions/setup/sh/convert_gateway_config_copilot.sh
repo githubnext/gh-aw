@@ -61,12 +61,8 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
   .mcpServers |= with_entries(
     .value |= (
-      # Add tools field if not present
-      if .tools then . else . + {"tools": ["*"]} end |
-      # Always ensure headers object exists with Authorization
-      .headers = {
-        "Authorization": $apiKey
-      }
+      (if .tools then . else . + {"tools": ["*"]} end) |
+      (if .headers then . else . + {"headers": {"Authorization": $apiKey}} end)
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json

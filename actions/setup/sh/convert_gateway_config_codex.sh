@@ -60,14 +60,17 @@ persistence = "none"
 
 TOML_EOF
 
-# Convert each server from JSON to TOML format
 jq -r --arg apiKey "$MCP_GATEWAY_API_KEY" '
   .mcpServers | to_entries[] | 
   "[mcp_servers.\(.key)]\n" +
   "url = \"\(.value.url)\"\n" +
   "\n" +
   "[mcp_servers.\(.key).headers]\n" +
-  "Authorization = \"\($apiKey)\"\n"
+  if .value.headers.Authorization then
+    "Authorization = \"\(.value.headers.Authorization)\"\n"
+  else
+    "Authorization = \"\($apiKey)\"\n"
+  end
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
