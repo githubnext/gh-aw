@@ -6,7 +6,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
- * Log file location: /tmp/gh-aw/mcp-logs/gateway/stderr.log
+ * Log file locations:
+ *  - /tmp/gh-aw/mcp-logs/gateway/gateway.log (main gateway log)
+ *  - /tmp/gh-aw/mcp-logs/gateway/stderr.log (stderr output)
  */
 
 /**
@@ -14,26 +16,36 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function main() {
   try {
-    // Get the MCP gateway log file path
-    const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway/stderr.log";
+    const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway/gateway.log";
+    const stderrLogPath = "/tmp/gh-aw/mcp-logs/gateway/stderr.log";
 
-    if (!fs.existsSync(gatewayLogPath)) {
-      core.info(`No MCP gateway log found at: ${gatewayLogPath}`);
+    let gatewayLogContent = "";
+    let stderrLogContent = "";
+
+    // Read gateway.log if it exists
+    if (fs.existsSync(gatewayLogPath)) {
+      gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
+      core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
+    } else {
+      core.info(`No gateway.log found at: ${gatewayLogPath}`);
+    }
+
+    // Read stderr.log if it exists
+    if (fs.existsSync(stderrLogPath)) {
+      stderrLogContent = fs.readFileSync(stderrLogPath, "utf8");
+      core.info(`Found stderr.log (${stderrLogContent.length} bytes)`);
+    } else {
+      core.info(`No stderr.log found at: ${stderrLogPath}`);
+    }
+
+    // If neither log file has content, nothing to do
+    if ((!gatewayLogContent || gatewayLogContent.trim().length === 0) && (!stderrLogContent || stderrLogContent.trim().length === 0)) {
+      core.info("MCP gateway log files are empty or missing");
       return;
     }
 
-    // Read the log file
-    const logContent = fs.readFileSync(gatewayLogPath, "utf8");
-
-    if (!logContent || logContent.trim().length === 0) {
-      core.info("MCP gateway log file is empty");
-      return;
-    }
-
-    core.info(`Found MCP gateway log (${logContent.length} bytes)`);
-
-    // Generate step summary
-    const summary = generateGatewayLogSummary(logContent);
+    // Generate step summary for both logs
+    const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
     core.summary.addRaw(summary).write();
 
     core.info("MCP gateway log summary added to step summary");
@@ -44,23 +56,32 @@ async function main() {
 
 /**
  * Generates a markdown summary of MCP gateway logs
- * @param {string} logContent - The raw log content
+ * @param {string} gatewayLogContent - The gateway.log content
+ * @param {string} stderrLogContent - The stderr.log content
  * @returns {string} Markdown summary
  */
-function generateGatewayLogSummary(logContent) {
+function generateGatewayLogSummary(gatewayLogContent, stderrLogContent) {
   const summary = [];
 
-  // Wrap entire section in a details tag
-  summary.push("<details>");
-  summary.push("<summary>MCP Gateway Log</summary>\n");
+  // Add gateway.log if it has content
+  if (gatewayLogContent && gatewayLogContent.trim().length > 0) {
+    summary.push("<details>");
+    summary.push("<summary>MCP Gateway Log (gateway.log)</summary>\n");
+    summary.push("```");
+    summary.push(gatewayLogContent.trim());
+    summary.push("```");
+    summary.push("\n</details>\n");
+  }
 
-  // Add the log content in a code fence
-  summary.push("```");
-  summary.push(logContent.trim());
-  summary.push("```");
-
-  // Close the details tag
-  summary.push("\n</details>");
+  // Add stderr.log if it has content
+  if (stderrLogContent && stderrLogContent.trim().length > 0) {
+    summary.push("<details>");
+    summary.push("<summary>MCP Gateway Log (stderr.log)</summary>\n");
+    summary.push("```");
+    summary.push(stderrLogContent.trim());
+    summary.push("```");
+    summary.push("\n</details>");
+  }
 
   return summary.join("\n");
 }
