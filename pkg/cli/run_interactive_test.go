@@ -243,7 +243,7 @@ func TestFindRunnableWorkflows_NoWorkflowsDir(t *testing.T) {
 
 	// Should handle missing directory gracefully
 	workflows, err := findRunnableWorkflows(false)
-	
+
 	// Should return error or empty list
 	if err != nil {
 		assert.Error(t, err)
