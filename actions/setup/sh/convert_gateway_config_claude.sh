@@ -63,12 +63,10 @@ jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
       del(.type) |
       # Remove tools field if present (Claude doesn'\''t use it)
       del(.tools) |
-      # Ensure headers Authorization uses actual API key
-      if .headers and .headers.Authorization then
-        .headers.Authorization = $apiKey
-      else
-        .
-      end
+      # Always ensure headers object exists with Authorization
+      .headers = {
+        "Authorization": $apiKey
+      }
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /tmp/gh-aw/mcp-config/mcp-servers.json
