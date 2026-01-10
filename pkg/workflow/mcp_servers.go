@@ -468,6 +468,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 
 	// Export gateway environment variables and build docker command BEFORE rendering MCP config
