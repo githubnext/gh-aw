@@ -25,15 +25,11 @@ Fuzzy schedules distribute workflow execution times deterministically across all
 | **Daily** | `daily` | Scattered time | Fuzzy |
 | | `daily around 14:00` | 13:00-15:00 window | Fuzzy |
 | | `daily between 9:00 and 17:00` | 9am-5pm window | Fuzzy |
-| | ~~`daily at 02:00`~~ | Not supported (use cron) | ❌ |
 | **Hourly** | `hourly` | Scattered minute | Fuzzy |
 | | `every 2h` | Every 2 hours | Fuzzy |
 | **Weekly** | `weekly` | Scattered day/time | Fuzzy |
 | | `weekly on monday` | Monday, scattered time | Fuzzy |
 | | `weekly on friday around 5pm` | Friday 4pm-6pm | Fuzzy |
-| | ~~`weekly on monday at 09:00`~~ | Not supported (use cron) | ❌ |
-| **Monthly** | ~~`monthly on 15`~~ | Not supported (use cron) | ❌ |
-| | ~~`monthly on 1 at 9am`~~ | Not supported (use cron) | ❌ |
 | **Intervals** | `every 10 minutes` | Every 10 minutes | Fixed |
 | | `every 2 days` | Every 2 days | Fixed |
 | **Cron** | `0 9 * * 1` | Standard cron | Fixed |
@@ -215,17 +211,17 @@ All time specifications support UTC offset notation to convert times to UTC:
 
 ```yaml
 on:
-  schedule: daily at 14:00 utc+9
+  schedule: daily around 14:00 utc+9
 ```
 
-Converts 2:00 PM JST to 5:00 AM UTC
+Converts 2:00 PM JST (±1 hour) to UTC
 
 ```yaml
 on:
-  schedule: daily at 9am utc-5
+  schedule: daily around 9am utc-5
 ```
 
-Converts 9:00 AM EST to 2:00 PM UTC
+Converts 9:00 AM EST (±1 hour) to UTC
 
 ```yaml
 on:
@@ -243,10 +239,10 @@ Business hours EST (9am-5pm EST → 2pm-10pm UTC)
 
 ```yaml
 on:
-  schedule: weekly on monday at 08:00 utc+05:30
+  schedule: weekly on monday around 08:00 utc+05:30
 ```
 
-8:00 AM IST to UTC
+Monday around 8:00 AM IST (±1 hour) to UTC
 
 **Common offsets**:
 - PST/PDT: `utc-8` / `utc-7`
@@ -255,10 +251,6 @@ on:
 - IST: `utc+05:30`
 
 ## Fixed Schedules
-
-:::caution[Not Supported]
-The human-friendly syntax for fixed schedules (`daily at TIME`, `weekly on DAY at TIME`, `monthly on N`) has been removed. Use standard cron expressions directly for fixed-time schedules.
-:::
 
 For fixed-time schedules, use standard cron syntax:
 
@@ -280,37 +272,9 @@ on:
     - cron: "0 9 15 * *"  # 15th of each month at 9:00 AM UTC
 ```
 
-**Why use fuzzy schedules instead?**
-
-Fixed schedules cause all workflows to run simultaneously, creating server load spikes. Fuzzy schedules automatically distribute execution times across workflows while maintaining deterministic, consistent scheduling for each workflow.
-
-**Recommended alternatives:**
-- Use `daily` instead of `daily at 02:00`
-- Use `daily around 14:00` for flexible time windows
-- Use `daily between 9:00 and 17:00` for business hours
-- Use `weekly on monday` instead of `weekly on monday at 09:00`
-
-## Monthly Schedules
-
-:::caution[Not Supported]
-The human-friendly syntax `monthly on N` has been removed. Use standard cron expressions for monthly schedules.
+:::tip[Use Fuzzy Schedules]
+Fixed schedules cause all workflows to run simultaneously, creating server load spikes. Use fuzzy schedules like `daily`, `daily around 14:00`, or `daily between 9:00 and 17:00` to automatically distribute execution times.
 :::
-
-For monthly schedules, use standard cron syntax:
-
-```yaml
-on:
-  schedule:
-    - cron: "0 0 15 * *"  # 15th at midnight UTC
-```
-
-```yaml
-on:
-  schedule:
-    - cron: "0 9 1 * *"  # 1st at 9:00 AM UTC
-```
-
-**Valid days**: 1-31 (note: day 31 only runs in months with 31 days)
 
 ## Interval Schedules
 
@@ -393,7 +357,7 @@ on:
   schedule: every 1d
 ```
 
-**Output**: `0 0 * * *` (same as daily at midnight)
+**Output**: `0 0 * * *` (midnight UTC daily)
 
 **Short format**: `every 1d`, `every 2d`, `every 3d`
 
@@ -500,7 +464,7 @@ on:
   schedule:
     - cron: daily
     - cron: weekly on monday
-    - cron: monthly on 15
+    - cron: "0 0 15 * *"  # Monthly on 15th
 ```
 
 or
@@ -556,13 +520,6 @@ on: daily between 9am utc-5 and 5pm utc-5
 
 ### Avoid
 
-❌ Fixed times using human-friendly syntax (no longer supported):
-```yaml
-on: daily at midnight       # Not supported - use cron
-on: weekly on monday at 9am # Not supported - use cron  
-on: monthly on 15           # Not supported - use cron
-```
-
 ❌ Fixed times using cron (creates load spikes):
 ```yaml
 on:
@@ -577,13 +534,6 @@ on: daily                    # Scattered time
 on: daily around midnight    # ±1 hour window
 on: weekly on monday         # Scattered time on Mondays
 on: every 2h                 # Scattered minute offset
-```
-
-Or use cron for fixed times when necessary:
-```yaml
-on:
-  schedule:
-    - cron: "0 0 * * *"      # Midnight UTC (creates load spike)
 ```
 
 ## How Scattering Works

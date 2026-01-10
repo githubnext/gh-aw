@@ -145,7 +145,7 @@ on:
 ```yaml wrap
 on:
   schedule:
-    - cron: "0 2 * * *"  # Cron syntax required for fixed times
+    - cron: "0 2 * * *"  # Cron syntax for fixed times
 ```
 
 ```yaml wrap
@@ -155,8 +155,8 @@ on:
     - cron: "0 9 15 * *"  # 15th of month at 09:00 UTC
 ```
 
-:::caution[Fixed Times No Longer Supported]
-The human-friendly syntax for fixed times (`daily at TIME`, `weekly on DAY at TIME`, `monthly on N`) has been removed. Use standard cron expressions for fixed times, or preferably use fuzzy schedules (`daily`, `weekly`, `hourly`, `every Nh`) to avoid load spikes.
+:::tip[Use Fuzzy Schedules]
+Use fuzzy schedules like `daily`, `weekly`, `hourly`, or `every Nh` to automatically distribute execution times and avoid load spikes.
 :::
 
 **Supported Formats:**
@@ -169,12 +169,8 @@ The human-friendly syntax for fixed times (`daily at TIME`, `weekly on DAY at TI
 | | `daily between 9:00 and 17:00` | `37 13 * * *` | Scattered within range (9:00-17:00) |
 | | `daily between 9am and 5pm utc-5` | `12 18 * * *` | With UTC offset (9am-5pm EST → 2pm-10pm UTC) |
 | | `daily around 3pm utc-5` | `33 19 * * *` | With UTC offset (3 PM EST → 8 PM UTC) |
-| | ~~`daily at 02:00`~~ | Not supported | Use cron: `0 2 * * *` |
 | **Weekly (Fuzzy)** | `weekly` or `weekly on monday` | `43 5 * * 1` | Compiler assigns scattered time |
 | | `weekly on friday around 5pm` | `18 16 * * 5` | Scattered within ±1 hour |
-| | ~~`weekly on monday at 06:30`~~ | Not supported | Use cron: `30 6 * * 1` |
-| **Monthly** | ~~`monthly on 15`~~ | Not supported | Use cron: `0 0 15 * *` |
-| | ~~`monthly on 15 at 09:00`~~ | Not supported | Use cron: `0 9 15 * *` |
 | **Intervals** | `every 10 minutes` | `*/10 * * * *` | Minimum 5 minutes |
 | | `every 2h` | `53 */2 * * *` | Fuzzy: scattered minute offset |
 | | `0 */2 * * *` | `0 */2 * * *` | Cron syntax for fixed times |
