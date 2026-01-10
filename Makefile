@@ -199,7 +199,6 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@# Remove main binary and platform-specific binaries
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-*
-	rm -f $(AWMG_BINARY_NAME) $(AWMG_BINARY_NAME)-*
 	@# Remove bundle-js binary
 	rm -f bundle-js
 	@# Remove coverage files
