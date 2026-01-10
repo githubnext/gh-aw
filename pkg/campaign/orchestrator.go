@@ -310,6 +310,13 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		promptData.MaxProjectCommentsPerRun = spec.Governance.MaxCommentsPerRun
 	}
 
+	// Add workflow execution instructions if enabled
+	if spec.ExecuteWorkflows && len(spec.Workflows) > 0 {
+		workflowExecution := RenderWorkflowExecution(promptData)
+		appendPromptSection(markdownBuilder, "WORKFLOW EXECUTION (PHASE 0)", workflowExecution)
+		orchestratorLog.Printf("Campaign '%s' orchestrator includes workflow execution", spec.ID)
+	}
+
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
 	appendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
 

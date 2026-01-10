@@ -2,6 +2,10 @@
 
 # Variables
 BINARY_NAME=gh-aw
+# Add .exe extension on Windows
+ifeq ($(OS),Windows_NT)
+	BINARY_NAME := gh-aw.exe
+endif
 VERSION ?= $(shell git describe --tags --always --dirty)
 DOCKER_IMAGE=ghcr.io/githubnext/gh-aw
 DOCKER_PLATFORMS=linux/amd64,linux/arm64
@@ -195,7 +199,6 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@# Remove main binary and platform-specific binaries
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-*
-	rm -f $(AWMG_BINARY_NAME) $(AWMG_BINARY_NAME)-*
 	@# Remove bundle-js binary
 	rm -f bundle-js
 	@# Remove coverage files

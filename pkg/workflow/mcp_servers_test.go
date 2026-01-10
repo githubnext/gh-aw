@@ -154,7 +154,7 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			description:     "should use default version when version is empty string",
 		},
 		{
-			name: "version 'latest' replaced with default",
+			name: "version 'latest' preserved",
 			sandboxConfig: &SandboxConfig{
 				MCP: &MCPGatewayRuntimeConfig{
 					Container: constants.DefaultMCPGatewayContainer,
@@ -162,8 +162,8 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 					Port:      8080,
 				},
 			},
-			expectedVersion: string(constants.DefaultMCPGatewayVersion),
-			description:     "should replace 'latest' with default version",
+			expectedVersion: "latest",
+			description:     "should preserve 'latest' version as specified by user",
 		},
 		{
 			name: "custom version with different format",
@@ -275,7 +275,7 @@ Test workflow without sandbox.mcp.version specified.`,
 			shouldContainInSetup:  true,
 		},
 		{
-			name: "version latest should be replaced with default",
+			name: "version latest should be preserved",
 			frontmatter: `---
 on: issues
 engine: claude
@@ -289,7 +289,7 @@ tools:
 
 # Test Workflow
 Test workflow with version: latest.`,
-			expectedVersion:       string(constants.DefaultMCPGatewayVersion),
+			expectedVersion:       "latest",
 			shouldHaveGateway:     true,
 			shouldContainInDocker: true,
 			shouldContainInSetup:  true,
