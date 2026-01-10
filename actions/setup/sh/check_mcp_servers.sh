@@ -115,11 +115,15 @@ while IFS= read -r SERVER_NAME; do
   
   echo "Server URL: $SERVER_URL"
   
-  # Extract authentication headers if present
+  # Extract authentication headers if present in config, otherwise use gateway API key
   AUTH_HEADER=""
   if echo "$SERVER_CONFIG" | jq -e '.headers.Authorization' >/dev/null 2>&1; then
     AUTH_HEADER=$(echo "$SERVER_CONFIG" | jq -r '.headers.Authorization' 2>/dev/null)
-    echo "Authentication: Configured (${AUTH_HEADER:0:20}...)"
+    echo "Authentication: From config (${AUTH_HEADER:0:20}...)"
+  elif [ -n "$GATEWAY_API_KEY" ]; then
+    # Use gateway API key for all gatewayed servers
+    AUTH_HEADER="$GATEWAY_API_KEY"
+    echo "Authentication: Using gateway API key (${AUTH_HEADER:0:8}...)"
   else
     echo "Authentication: None"
   fi
