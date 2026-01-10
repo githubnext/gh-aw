@@ -18,7 +18,7 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 		version = string(constants.DefaultCopilotVersion)
 		copilotSRTLog.Printf("No version specified, using default: %s", version)
 	}
-	
+
 	copilotSRTLog.Printf("Generating Copilot installer steps using official install.sh: version=%s", version)
 
 	// Use the official installer script from the Copilot CLI repository
