@@ -59,12 +59,20 @@ async function main() {
         } catch (error) {
           // Fallback for tests or if template file is missing
           core.warning(`Could not read comment template from ${commentTemplatePath}, using fallback: ${getErrorMessage(error)}`);
-          commentTemplate = `Agent job failed: {run_url}`;
+          commentTemplate = `Agent job [{run_id}]({run_url}) failed.`;
+        }
+
+        // Extract run ID from URL (e.g., https://github.com/owner/repo/actions/runs/123 -> "123")
+        let runId = "";
+        const runIdMatch = runUrl.match(/\/actions\/runs\/(\d+)/);
+        if (runIdMatch) {
+          runId = runIdMatch[1];
         }
 
         // Create template context
         const templateContext = {
           run_url: runUrl,
+          run_id: runId,
           workflow_name: workflowName,
           workflow_source: workflowSource,
           workflow_source_url: workflowSourceURL,
