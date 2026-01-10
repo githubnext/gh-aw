@@ -156,7 +156,7 @@ while IFS= read -r SERVER_NAME; do
     TIMEOUT=$((10 + RETRY_COUNT * 10))
     
     if [ $RETRY_COUNT -gt 0 ]; then
-      echo "Retry attempt $RETRY_COUNT (of $((MAX_RETRIES - 1))) with ${TIMEOUT}s timeout..."
+      echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES (with ${TIMEOUT}s timeout)..."
       # Progressive delay between retries (2s, 4s)
       DELAY=$((2 * RETRY_COUNT))
       echo "Waiting ${DELAY}s before retry..."
@@ -230,7 +230,7 @@ while IFS= read -r SERVER_NAME; do
     TIMEOUT=$((10 + RETRY_COUNT * 10))
     
     if [ $RETRY_COUNT -gt 0 ]; then
-      echo "Retry attempt $RETRY_COUNT (of $((MAX_RETRIES - 1))) with ${TIMEOUT}s timeout..."
+      echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES (with ${TIMEOUT}s timeout)..."
       # Progressive delay between retries (2s, 4s)
       DELAY=$((2 * RETRY_COUNT))
       echo "Waiting ${DELAY}s before retry..."
