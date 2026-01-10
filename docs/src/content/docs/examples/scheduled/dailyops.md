@@ -85,18 +85,6 @@ This repository implements several DailyOps workflows demonstrating different us
 
 All follow the phased approach with discussions for tracking and draft pull requests for review.
 
-:::tip[Simple vs. Advanced Status Reports]
-
-For a simpler getting-started workflow, try **daily-team-status** from the [agentics collection](https://github.com/githubnext/agentics):
-
-```bash
-gh aw add githubnext/agentics/daily-team-status
-```
-
-This creates basic daily status issues. For more advanced reporting with charts and trend analysis, use **daily-news.md** from this repository.
-
-:::
-
 ## Implementation Guide
 
 1. **Define Goal** - Identify ongoing goal (test coverage, performance, docs sync)
