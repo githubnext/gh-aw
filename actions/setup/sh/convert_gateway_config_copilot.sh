@@ -63,12 +63,10 @@ jq --arg apiKey "$MCP_GATEWAY_API_KEY" '
     .value |= (
       # Add tools field if not present
       if .tools then . else . + {"tools": ["*"]} end |
-      # Ensure headers Authorization uses actual API key
-      if .headers and .headers.Authorization then
-        .headers.Authorization = $apiKey
-      else
-        .
-      end
+      # Always ensure headers object exists with Authorization
+      .headers = {
+        "Authorization": $apiKey
+      }
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json
