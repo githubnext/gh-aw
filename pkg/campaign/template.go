@@ -14,6 +14,9 @@ var templateLog = logger.New("campaign:template")
 //go:embed prompts/orchestrator_instructions.md
 var orchestratorInstructionsTemplate string
 
+//go:embed prompts/workflow_execution.md
+var workflowExecutionTemplate string
+
 //go:embed prompts/project_update_instructions.md
 var projectUpdateInstructionsTemplate string
 
@@ -85,6 +88,16 @@ func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// RenderWorkflowExecution renders the workflow execution instructions with the given data.
+func RenderWorkflowExecution(data CampaignPromptData) string {
+	result, err := renderTemplate(workflowExecutionTemplate, data)
+	if err != nil {
+		templateLog.Printf("Failed to render workflow execution instructions: %v", err)
+		return ""
+	}
+	return strings.TrimSpace(result)
 }
 
 // RenderOrchestratorInstructions renders the orchestrator instructions with the given data.
