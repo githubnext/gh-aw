@@ -191,7 +191,7 @@ Fetch content from the web.
 		t.Errorf("Expected Copilot workflow NOT to contain web-fetch MCP server (since Copilot has native web-fetch support), but it did")
 	}
 
-	// Also check for JSON format MCP server config (though Copilot doesn't use JSON for MCP config)
+	// Also check for JSON format MCP server config
 	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"command": "docker"`) {
 		dockerIdx := strings.Index(lockContent, `"command": "docker"`)
 		webFetchIdx := strings.Index(lockContent, `"web-fetch": {`)

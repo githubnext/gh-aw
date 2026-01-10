@@ -229,13 +229,19 @@ Create an upbeat daily status report for the team as a GitHub discussion.
 
 ## Customize Your Workflow
 
-Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customization using GitHub Copilot CLI:
+Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customization, you can use GitHub Copilot Chat in VS Code or the interactive Copilot CLI session.
+
+To use the interactive Copilot CLI:
 
 ```bash wrap
 npm install -g @github/copilot-cli
 gh aw init
 copilot
-> /agent
+```
+
+Then in the interactive Copilot session, use the `/agent` command:
+```
+/agent
 > select create-agentic-workflow
 > edit @.github/workflows/daily-team-status.md
 ```

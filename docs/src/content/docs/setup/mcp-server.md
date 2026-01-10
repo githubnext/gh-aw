@@ -44,9 +44,9 @@ This creates `.github/workflows/copilot-setup-steps.yml` that sets up Go, GitHub
 
 ## Configuring with Copilot CLI
 
-Add the MCP server to GitHub Copilot CLI:
+To add the MCP server in the interactive Copilot CLI session, start `copilot` and run:
 
-```bash wrap
+```
 /mcp add github-agentic-workflows gh aw mcp-server
 ```
 
