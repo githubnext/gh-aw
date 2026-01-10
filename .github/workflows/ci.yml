@@ -1079,8 +1079,22 @@ jobs:
         run: |
           echo "Testing compile command on ${{ matrix.os }}..."
           
+          # Determine binary name based on OS
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            BINARY="./gh-aw.exe"
+          else
+            BINARY="./gh-aw"
+          fi
+          
+          # Verify binary exists
+          if [ ! -f "$BINARY" ]; then
+            echo "❌ Binary not found: $BINARY"
+            ls -la
+            exit 1
+          fi
+          
           # Run compile command
-          ./gh-aw compile test-cross-platform --verbose
+          "$BINARY" compile test-cross-platform --verbose
           
           # Check if lock file was generated
           if [ -f ".github/workflows/test-cross-platform.lock.yml" ]; then
@@ -1095,6 +1109,7 @@ jobs:
           echo "✅ Successfully compiled workflow on ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Platform:** ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Binary:** $BINARY" >> $GITHUB_STEP_SUMMARY
           echo "**Go version:** $(go version)" >> $GITHUB_STEP_SUMMARY
 
       - name: Clean up test files
