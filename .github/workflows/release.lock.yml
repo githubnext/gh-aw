@@ -73,6 +73,7 @@ jobs:
   agent:
     needs:
       - activation
+      - docker-image
       - generate-sbom
       - release
     runs-on: ubuntu-latest
@@ -1109,6 +1110,74 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  docker-image:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+      - name: Download release artifacts
+        run: |
+          echo "Downloading release binaries..."
+          mkdir -p dist
+          gh release download "$RELEASE_TAG" --pattern "linux-*" --dir dist
+          ls -lh dist/
+          echo "✓ Release binaries downloaded"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push Docker image (amd64)
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          build-args: |
+            BINARY=dist/linux-amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: .
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+      - name: Generate SBOM for Docker image
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
+        with:
+          artifact-name: docker-sbom.spdx.json
+          format: spdx-json
+          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
+          output-file: docker-sbom.spdx.json
+      - name: Attest Docker image
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          push-to-registry: true
+          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-name: ghcr.io/${{ github.repository }}
 
   generate-sbom:
     needs: release

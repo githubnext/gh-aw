@@ -3,6 +3,8 @@
 # Variables
 BINARY_NAME=gh-aw
 VERSION ?= $(shell git describe --tags --always --dirty)
+DOCKER_IMAGE=ghcr.io/githubnext/gh-aw
+DOCKER_PLATFORMS=linux/amd64,linux/arm64
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -217,6 +219,66 @@ clean:
 	@# Clean Go build cache, module cache, and test cache
 	go clean -cache -modcache -testcache
 	@echo "✓ Clean complete"
+
+# Docker targets
+.PHONY: docker-build
+docker-build: build-linux
+	@echo "Building Docker image..."
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "Error: Docker is not installed."; \
+		exit 1; \
+	fi
+	@# Build for linux/amd64 by default for local testing
+	docker build -t $(DOCKER_IMAGE):$(VERSION) \
+		--build-arg BINARY=$(BINARY_NAME)-linux-amd64 \
+		-f Dockerfile .
+	@docker tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE):latest
+	@echo "✓ Docker image built: $(DOCKER_IMAGE):$(VERSION)"
+	@echo "✓ Docker image tagged: $(DOCKER_IMAGE):latest"
+
+.PHONY: docker-build-multiarch
+docker-build-multiarch: build-linux
+	@echo "Building multi-architecture Docker image..."
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "Error: Docker is not installed."; \
+		exit 1; \
+	fi
+	@# Check if buildx is available
+	@if ! docker buildx version >/dev/null 2>&1; then \
+		echo "Error: Docker buildx is not available."; \
+		echo "Install with: docker buildx install"; \
+		exit 1; \
+	fi
+	@# Create buildx builder if it doesn't exist
+	@docker buildx create --use --name gh-aw-builder 2>/dev/null || docker buildx use gh-aw-builder
+	@# Build for multiple platforms
+	docker buildx build --platform $(DOCKER_PLATFORMS) \
+		-t $(DOCKER_IMAGE):$(VERSION) \
+		-t $(DOCKER_IMAGE):latest \
+		-f Dockerfile \
+		--push .
+	@echo "✓ Multi-architecture Docker image built and pushed"
+
+.PHONY: docker-test
+docker-test:
+	@echo "Testing Docker image..."
+	@docker run --rm $(DOCKER_IMAGE):$(VERSION) --version
+	@docker run --rm $(DOCKER_IMAGE):$(VERSION) --help
+	@echo "✓ Docker image test passed"
+
+.PHONY: docker-push
+docker-push:
+	@echo "Pushing Docker image to registry..."
+	@docker push $(DOCKER_IMAGE):$(VERSION)
+	@docker push $(DOCKER_IMAGE):latest
+	@echo "✓ Docker images pushed"
+
+.PHONY: docker-clean
+docker-clean:
+	@echo "Cleaning Docker images..."
+	@docker rmi $(DOCKER_IMAGE):$(VERSION) 2>/dev/null || true
+	@docker rmi $(DOCKER_IMAGE):latest 2>/dev/null || true
+	@echo "✓ Docker images cleaned"
 
 # Actions management targets
 .PHONY: actions-build
@@ -577,6 +639,11 @@ help:
 	@echo "  fuzz             - Run fuzz tests for 30 seconds"
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
+	@echo "  docker-build     - Build Docker image locally (linux/amd64)"
+	@echo "  docker-build-multiarch - Build multi-architecture Docker image (linux/amd64, linux/arm64)"
+	@echo "  docker-test      - Test Docker image functionality"
+	@echo "  docker-push      - Push Docker images to registry"
+	@echo "  docker-clean     - Remove local Docker images"
 	@echo "  actions-build    - Build all custom GitHub Actions from source"
 	@echo "  actions-validate - Validate action.yml files"
 	@echo "  actions-clean    - Clean action build artifacts"

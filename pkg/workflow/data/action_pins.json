@@ -5,6 +5,11 @@
       "version": "v2",
       "sha": "334892bb203895caaed82ec52d23c1ed9385151e"
     },
+    "actions/attest-build-provenance@v2": {
+      "repo": "actions/attest-build-provenance",
+      "version": "v2",
+      "sha": "96b4a1ef7235a096b17240c259729fdd70c83d45"
+    },
     "actions/cache/restore@v4.3.0": {
       "repo": "actions/cache/restore",
       "version": "v4.3.0",
@@ -114,6 +119,21 @@
       "repo": "denoland/setup-deno",
       "version": "v2.0.3",
       "sha": "e95548e56dfa95d4e1a28d6f422fafe75c4c26fb"
+    },
+    "docker/build-push-action@v6": {
+      "repo": "docker/build-push-action",
+      "version": "v6",
+      "sha": "263435318d21b8e681c14492fe198d362a7d2c83"
+    },
+    "docker/login-action@v3": {
+      "repo": "docker/login-action",
+      "version": "v3",
+      "sha": "5e57cd118135c172c3672efd75eb46360885c0ef"
+    },
+    "docker/setup-buildx-action@v3": {
+      "repo": "docker/setup-buildx-action",
+      "version": "v3",
+      "sha": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
     },
     "erlef/setup-beam@v1": {
       "repo": "erlef/setup-beam",
