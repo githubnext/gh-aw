@@ -32,7 +32,22 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 
 :::
 
-### Step 2 — Add a sample workflow
+### Step 2 — Initialize repository for agentic workflows
+
+First you have to initialize your repository for agentic workflows. From your repository root run:
+
+```bash wrap
+gh aw init
+```
+> [!WARNING]
+> Workaround: Currently there is a bug that the actions folder is initially missing. To workaround this
+>  - copy the files from https://github.com/githubnext/gh-aw/tree/main/actions
+>  - add them to your project under actions folder
+>  - commit and push your repository
+>  - now you can add the sample workflow
+>  - this bug shoudl be fixed soon.
+
+### Step 3 — Add a sample workflow
 
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
@@ -44,7 +59,7 @@ This creates a pull request that adds `.github/workflows/daily-team-status.md` a
    - Review and merge the PR into your repo.
    - Pull the changes into your (local) repo.
 
-### Step 3 — Add an AI secret
+### Step 4 — Add an AI secret
 
 [Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).
 
@@ -108,7 +123,7 @@ If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/
 
 :::
 
-### Step 4 — Trigger a workflow run
+### Step 5 — Trigger a workflow run
 
 Trigger the workflow immediately in GitHub Actions (this may fail in a codespace):
 
@@ -140,7 +155,7 @@ Before installing, ensure you have:
 - ✅ **GitHub account** with admin or write access to a repository
 - ✅ **[GitHub Actions](https://docs.github.com/en/actions)** (GitHub's automation platform) enabled in your repository
 - ✅ **Git** installed on your machine
-- ✅ **Operating System:** Linux, macOS, or Windows with WSL
+- ✅ **Operating System:** Linux, macOS, Windows, or Windows with WSL
 
 **Verify your setup:**
 
