@@ -286,6 +286,25 @@ case "$ENGINE_TYPE" in
 esac
 echo ""
 
+# Check MCP server functionality
+echo "Checking MCP server functionality..."
+if [ -f /opt/gh-aw/actions/check_mcp_servers.sh ]; then
+  echo "Running MCP server checks..."
+  if ! bash /opt/gh-aw/actions/check_mcp_servers.sh \
+    /tmp/gh-aw/mcp-config/gateway-output.json \
+    "http://localhost:${MCP_GATEWAY_PORT}" \
+    "${MCP_GATEWAY_API_KEY}"; then
+    echo "ERROR: MCP server checks failed - no servers could be connected"
+    echo "Gateway process will be terminated"
+    kill $GATEWAY_PID 2>/dev/null || true
+    exit 1
+  fi
+else
+  echo "WARNING: MCP server check script not found at /opt/gh-aw/actions/check_mcp_servers.sh"
+  echo "Skipping MCP server functionality checks"
+fi
+echo ""
+
 echo "MCP gateway is running:"
 echo "  - From host: http://localhost:${MCP_GATEWAY_PORT}"
 echo "  - From containers: http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
@@ -293,3 +312,6 @@ echo "Gateway PID: $GATEWAY_PID"
 
 # Output PID as GitHub Actions step output for use in cleanup
 echo "gateway-pid=$GATEWAY_PID" >> $GITHUB_OUTPUT
+# Output port and API key for use in stop script (per MCP Gateway Specification v1.1.0)
+echo "gateway-port=${MCP_GATEWAY_PORT}" >> $GITHUB_OUTPUT
+echo "gateway-api-key=${MCP_GATEWAY_API_KEY}" >> $GITHUB_OUTPUT

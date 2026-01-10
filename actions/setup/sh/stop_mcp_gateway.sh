@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Stop MCP Gateway
-# This script stops the MCP gateway process using the PID from the start step output
+# This script stops the MCP gateway process using the /close endpoint for graceful shutdown,
+# falling back to kill signals if the endpoint is unavailable or fails.
+# Per MCP Gateway Specification v1.1.0 section 5.1.3
 
 set -e
 
-# Get PID from environment variable (passed from step output)
+# Get PID from command line argument (passed from step output)
 GATEWAY_PID="$1"
 
 if [ -z "$GATEWAY_PID" ]; then
@@ -16,34 +18,76 @@ fi
 echo "Stopping MCP gateway (PID: $GATEWAY_PID)..."
 
 # Check if process is still running
-if ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
-  echo "Gateway process is running, sending termination signal..."
-  kill "$GATEWAY_PID" 2>/dev/null || true
-  
-  # Wait up to 5 seconds for graceful shutdown
-  for i in {1..5}; do
-    if ! ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
-      echo "Gateway stopped successfully"
-      exit 0
-    fi
-    sleep 1
-  done
-  
-  # Force kill if still running
-  if ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
-    echo "Gateway did not stop gracefully, forcing termination..."
-    kill -9 "$GATEWAY_PID" 2>/dev/null || true
-    sleep 1
-    
-    if ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
-      echo "Warning: Failed to stop gateway process"
-      exit 1
-    fi
-  fi
-  
-  echo "Gateway stopped successfully"
-else
+if ! ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
   echo "Gateway process (PID: $GATEWAY_PID) is not running"
+  exit 0
 fi
 
+# Try graceful shutdown via /close endpoint if gateway variables are available
+# Per MCP Gateway Specification v1.1.0, the /close endpoint:
+# - Requires authentication with API key
+# - Returns 200 OK on success
+# - Returns 410 Gone if already closed (idempotent)
+# - Gracefully terminates containers and cleans up resources
+if [ -n "$MCP_GATEWAY_PORT" ] && [ -n "$MCP_GATEWAY_API_KEY" ]; then
+  echo "Attempting graceful shutdown via /close endpoint..."
+  
+  # Use localhost for health check since:
+  # 1. This script runs on the host (not in a container)
+  # 2. The gateway uses --network host, so it's accessible on localhost
+  CLOSE_URL="http://localhost:${MCP_GATEWAY_PORT}/close"
+  
+  # Try to invoke the /close endpoint (with timeout)
+  # Per spec, the endpoint requires Authorization header with the API key
+  CLOSE_RESPONSE=$(curl -f -s -m 10 -X POST -H "Authorization: ${MCP_GATEWAY_API_KEY}" "$CLOSE_URL" 2>&1) && {
+    echo "Gateway accepted close request"
+    echo "Response: $CLOSE_RESPONSE"
+    
+    # Wait up to 10 seconds for the gateway process to exit after accepting close
+    for i in {1..10}; do
+      if ! ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
+        echo "Gateway stopped gracefully via /close endpoint"
+        exit 0
+      fi
+      sleep 1
+    done
+    
+    echo "Gateway accepted close request but process did not exit within 10 seconds"
+    echo "Falling back to kill signal..."
+  } || {
+    echo "Failed to invoke /close endpoint (curl exit: $?)"
+    echo "Response: $CLOSE_RESPONSE"
+    echo "Falling back to kill signal..."
+  }
+else
+  echo "Gateway environment variables not available (MCP_GATEWAY_PORT or MCP_GATEWAY_API_KEY missing)"
+  echo "Falling back to kill signal..."
+fi
+
+# Fallback: Use kill signal if /close endpoint was not successful
+echo "Gateway process is still running, sending termination signal..."
+kill "$GATEWAY_PID" 2>/dev/null || true
+
+# Wait up to 5 seconds for graceful shutdown via SIGTERM
+for i in {1..5}; do
+  if ! ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
+    echo "Gateway stopped successfully"
+    exit 0
+  fi
+  sleep 1
+done
+
+# Force kill if still running
+if ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
+  echo "Gateway did not stop gracefully, forcing termination..."
+  kill -9 "$GATEWAY_PID" 2>/dev/null || true
+  sleep 1
+  
+  if ps -p "$GATEWAY_PID" > /dev/null 2>&1; then
+    echo "Warning: Failed to stop gateway process"
+    exit 1
+  fi
+fi
+
+echo "Gateway stopped successfully"
 exit 0
