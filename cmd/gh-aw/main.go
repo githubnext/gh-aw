@@ -284,9 +284,15 @@ Examples:
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run <workflow>...",
+	Use:   "run [workflow]...",
 	Short: "Run one or more agentic workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
+
+When called without workflow arguments, enters interactive mode with:
+- List of workflows that support workflow_dispatch
+- Display of required and optional inputs
+- Input collection with validation
+- Command display for future reference
 
 This command accepts one or more workflow IDs.
 The workflows must have been added as actions and compiled.
@@ -299,6 +305,7 @@ By default, workflows are run on the current branch. Use --ref to specify a diff
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
+  gh aw run                          # Interactive mode
   gh aw run daily-perf-improver
   gh aw run daily-perf-improver.md   # Alternative format
   gh aw run daily-perf-improver --ref main  # Run on specific branch
@@ -307,7 +314,7 @@ Examples:
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution
   gh aw run daily-perf-improver -f name=value -f env=prod  # Pass workflow inputs
   gh aw run daily-perf-improver --push  # Commit and push workflow files before running`,
-	Args: cobra.MinimumNArgs(1),
+	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
 		enable, _ := cmd.Flags().GetBool("enable-if-needed")
@@ -321,6 +328,27 @@ Examples:
 
 		if err := validateEngine(engineOverride); err != nil {
 			return err
+		}
+
+		// If no arguments provided, enter interactive mode
+		if len(args) == 0 {
+			// Check if running in CI environment
+			if cli.IsRunningInCI() {
+				return fmt.Errorf("interactive mode cannot be used in CI environments. Please provide a workflow name")
+			}
+
+			// Interactive mode doesn't support repeat or enable flags
+			if repeatCount > 0 {
+				return fmt.Errorf("--repeat flag is not supported in interactive mode")
+			}
+			if enable {
+				return fmt.Errorf("--enable-if-needed flag is not supported in interactive mode")
+			}
+			if len(inputs) > 0 {
+				return fmt.Errorf("workflow inputs cannot be specified in interactive mode (they will be collected interactively)")
+			}
+
+			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, pushSecrets, push, engineOverride)
 		}
 
 		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, inputs, verboseFlag)

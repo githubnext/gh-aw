@@ -1,0 +1,302 @@
+package cli
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestFindRunnableWorkflows(t *testing.T) {
+	// Create a temporary directory for test workflows
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Create test workflow files
+	tests := []struct {
+		name       string
+		content    string
+		shouldFind bool
+	}{
+		{
+			name: "workflow-dispatch.md",
+			content: `---
+on:
+  workflow_dispatch:
+---
+# Test Workflow with workflow_dispatch
+`,
+			shouldFind: true,
+		},
+		{
+			name: "schedule.md",
+			content: `---
+on:
+  schedule:
+    - cron: "0 0 * * *"
+---
+# Test Workflow with schedule
+`,
+			shouldFind: true,
+		},
+		{
+			name: "push-only.md",
+			content: `---
+on:
+  push:
+    branches: [main]
+---
+# Test Workflow with push only
+`,
+			shouldFind: false,
+		},
+		{
+			name: "no-trigger.md",
+			content: `---
+engine: copilot
+---
+# Test Workflow with no trigger
+`,
+			shouldFind: true, // Defaults to runnable
+		},
+	}
+
+	for _, tt := range tests {
+		workflowPath := filepath.Join(workflowsDir, tt.name)
+		require.NoError(t, os.WriteFile(workflowPath, []byte(tt.content), 0600))
+	}
+
+	// Change to temp directory
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(oldWd) }()
+	require.NoError(t, os.Chdir(tempDir))
+
+	// Find runnable workflows
+	workflows, err := findRunnableWorkflows(false)
+	require.NoError(t, err)
+
+	// Verify expected workflows were found
+	expectedNames := []string{}
+	for _, tt := range tests {
+		if tt.shouldFind {
+			expectedNames = append(expectedNames, strings.TrimSuffix(tt.name, ".md"))
+		}
+	}
+
+	assert.Len(t, workflows, len(expectedNames), "Should find expected number of runnable workflows")
+
+	// Verify each expected workflow is in the results
+	foundNames := make(map[string]bool)
+	for _, wf := range workflows {
+		foundNames[wf.Name] = true
+	}
+
+	for _, expected := range expectedNames {
+		assert.True(t, foundNames[expected], "Should find workflow: %s", expected)
+	}
+}
+
+func TestBuildWorkflowDescription(t *testing.T) {
+	tests := []struct {
+		name     string
+		inputs   map[string]*workflow.InputDefinition
+		expected string
+	}{
+		{
+			name:     "no inputs",
+			inputs:   nil,
+			expected: "No inputs required",
+		},
+		{
+			name: "only required inputs",
+			inputs: map[string]*workflow.InputDefinition{
+				"input1": {Required: true},
+				"input2": {Required: true},
+			},
+			expected: "2 required input(s)",
+		},
+		{
+			name: "only optional inputs",
+			inputs: map[string]*workflow.InputDefinition{
+				"input1": {Required: false},
+				"input2": {Required: false},
+			},
+			expected: "2 optional input(s)",
+		},
+		{
+			name: "mixed inputs",
+			inputs: map[string]*workflow.InputDefinition{
+				"input1": {Required: true},
+				"input2": {Required: false},
+				"input3": {Required: true},
+			},
+			expected: "2 required input(s), 1 optional input(s)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildWorkflowDescription(tt.inputs)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestBuildCommandString(t *testing.T) {
+	tests := []struct {
+		name           string
+		workflowName   string
+		inputs         []string
+		repoOverride   string
+		refOverride    string
+		autoMergePRs   bool
+		pushSecrets    bool
+		push           bool
+		engineOverride string
+		expected       string
+	}{
+		{
+			name:         "basic command",
+			workflowName: "test-workflow",
+			inputs:       nil,
+			expected:     "gh aw run test-workflow",
+		},
+		{
+			name:         "with inputs",
+			workflowName: "test-workflow",
+			inputs:       []string{"name=value", "env=prod"},
+			expected:     "gh aw run test-workflow -F name=value -F env=prod",
+		},
+		{
+			name:         "with repo override",
+			workflowName: "test-workflow",
+			repoOverride: "owner/repo",
+			expected:     "gh aw run test-workflow --repo owner/repo",
+		},
+		{
+			name:         "with ref override",
+			workflowName: "test-workflow",
+			refOverride:  "main",
+			expected:     "gh aw run test-workflow --ref main",
+		},
+		{
+			name:         "with auto merge PRs",
+			workflowName: "test-workflow",
+			autoMergePRs: true,
+			expected:     "gh aw run test-workflow --auto-merge-prs",
+		},
+		{
+			name:         "with push secrets",
+			workflowName: "test-workflow",
+			pushSecrets:  true,
+			expected:     "gh aw run test-workflow --use-local-secrets",
+		},
+		{
+			name:         "with push",
+			workflowName: "test-workflow",
+			push:         true,
+			expected:     "gh aw run test-workflow --push",
+		},
+		{
+			name:           "with engine override",
+			workflowName:   "test-workflow",
+			engineOverride: "claude",
+			expected:       "gh aw run test-workflow --engine claude",
+		},
+		{
+			name:           "all flags",
+			workflowName:   "test-workflow",
+			inputs:         []string{"name=value"},
+			repoOverride:   "owner/repo",
+			refOverride:    "main",
+			autoMergePRs:   true,
+			pushSecrets:    true,
+			push:           true,
+			engineOverride: "copilot",
+			expected:       "gh aw run test-workflow -F name=value --repo owner/repo --ref main --auto-merge-prs --use-local-secrets --push --engine copilot",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildCommandString(tt.workflowName, tt.inputs, tt.repoOverride, tt.refOverride, tt.autoMergePRs, tt.pushSecrets, tt.push, tt.engineOverride)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestFindRunnableWorkflows_NoWorkflowsDir(t *testing.T) {
+	// Create a temporary directory without .github/workflows
+	tempDir := t.TempDir()
+
+	// Change to temp directory
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(oldWd) }()
+	require.NoError(t, os.Chdir(tempDir))
+
+	// Should handle missing directory gracefully
+	workflows, err := findRunnableWorkflows(false)
+
+	// Should return error or empty list
+	if err != nil {
+		assert.Error(t, err)
+	} else {
+		assert.Empty(t, workflows)
+	}
+}
+
+func TestFindRunnableWorkflows_WithInputs(t *testing.T) {
+	// Create a temporary directory for test workflows
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Create workflow with inputs
+	workflowContent := `---
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Name input'
+        required: true
+        type: string
+      optional:
+        description: 'Optional input'
+        required: false
+        type: string
+        default: 'default-value'
+---
+# Test Workflow with inputs
+`
+
+	workflowPath := filepath.Join(workflowsDir, "test-inputs.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0600))
+
+	// Change to temp directory
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(oldWd) }()
+	require.NoError(t, os.Chdir(tempDir))
+
+	// Find runnable workflows
+	workflows, err := findRunnableWorkflows(false)
+	require.NoError(t, err)
+	require.Len(t, workflows, 1)
+
+	// Verify inputs were detected
+	wf := workflows[0]
+	assert.Equal(t, "test-inputs", wf.Name)
+	assert.NotNil(t, wf.Inputs)
+	assert.Len(t, wf.Inputs, 2)
+
+	// Verify description includes input counts
+	assert.Contains(t, wf.Description, "1 required input(s)")
+	assert.Contains(t, wf.Description, "1 optional input(s)")
+}
