@@ -1,7 +1,7 @@
 ---
 description: Inspects MCP (Model Context Protocol) server configurations and validates their functionality
 on:
-  schedule: weekly on monday at 18:00
+  schedule: weekly on monday around 18:00
   workflow_dispatch:
 permissions:
   contents: read

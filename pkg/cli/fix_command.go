@@ -43,6 +43,7 @@ Available codemods:
   • network-firewall-migration: Removes deprecated 'network.firewall' field
   • sandbox-agent-false-removal: Removes 'sandbox.agent: false' (firewall now mandatory)
   • safe-inputs-mode-removal: Removes deprecated 'safe-inputs.mode' field
+  • schedule-at-to-around-migration: Converts 'daily at TIME' to 'daily around TIME'
 
 If no workflows are specified, all Markdown files in .github/workflows will be processed.
 
