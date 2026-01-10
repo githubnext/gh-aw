@@ -129,6 +129,7 @@ export default defineConfig({
 						{ label: 'MultiRepoOps', link: '/guides/multirepoops/' },
 						{ label: 'SideRepoOps', link: '/guides/siderepoops/' },
 						{ label: 'TrialOps', link: '/guides/trialops/' },
+						{ label: 'AgenticImport', link: '/guides/agentic-import/' },
 					],
 				},
 				{
