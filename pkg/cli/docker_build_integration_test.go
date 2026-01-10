@@ -1,4 +1,4 @@
-// go:build integration
+//go:build integration
 
 package cli
 
@@ -19,7 +19,7 @@ func TestDockerfile_Exists(t *testing.T) {
 	}
 
 	dockerfilePath := filepath.Join(repoRoot, "Dockerfile")
-	
+
 	// Check if Dockerfile exists
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 		t.Fatal("Dockerfile does not exist at repository root")
@@ -60,7 +60,7 @@ func TestMakefile_DockerTargets(t *testing.T) {
 	}
 
 	makefilePath := filepath.Join(repoRoot, "Makefile")
-	
+
 	// Read Makefile content
 	content, err := os.ReadFile(makefilePath)
 	if err != nil {
@@ -248,10 +248,10 @@ func TestDockerImage_HasRequiredTools(t *testing.T) {
 
 	// Test required tools
 	requiredTools := []string{"gh", "git", "jq", "bash"}
-	
+
 	for _, tool := range requiredTools {
 		t.Run(tool, func(t *testing.T) {
-			cmd := exec.Command("docker", "run", "--rm", "ghcr.io/githubnext/gh-aw:test", 
+			cmd := exec.Command("docker", "run", "--rm", "ghcr.io/githubnext/gh-aw:test",
 				"sh", "-c", "which "+tool)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
