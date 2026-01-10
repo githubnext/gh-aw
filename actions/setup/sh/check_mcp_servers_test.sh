@@ -195,11 +195,11 @@ test_valid_http_server() {
 }
 EOF
   
-  # Script should run without crashing (will fail to connect, but that's ok)
-  if bash "$SCRIPT_PATH" "$config_file" "http://localhost:8080" "test-key" >/dev/null 2>&1; then
-    print_result "Script processes valid HTTP server config" "PASS"
+  # Script should fail because no servers can be connected (no gateway running)
+  if ! bash "$SCRIPT_PATH" "$config_file" "http://localhost:8080" "test-key" >/dev/null 2>&1; then
+    print_result "Script fails when no servers can connect" "PASS"
   else
-    print_result "Script should process valid HTTP server config" "FAIL"
+    print_result "Script should fail when no servers can connect" "FAIL"
   fi
   
   rm -rf "$tmpdir"
@@ -231,11 +231,11 @@ test_server_without_url() {
 }
 EOF
   
-  # Should handle gracefully and skip the server
-  if bash "$SCRIPT_PATH" "$config_file" "http://localhost:8080" "test-key" >/dev/null 2>&1; then
-    print_result "Script skips servers without URL" "PASS"
+  # Should fail because only stdio servers (which are skipped)
+  if ! bash "$SCRIPT_PATH" "$config_file" "http://localhost:8080" "test-key" >/dev/null 2>&1; then
+    print_result "Script fails when only stdio servers (no HTTP servers)" "PASS"
   else
-    print_result "Script should skip servers without URL" "FAIL"
+    print_result "Script should fail when only stdio servers" "FAIL"
   fi
   
   rm -rf "$tmpdir"
@@ -278,11 +278,11 @@ test_mixed_servers() {
 }
 EOF
   
-  # Should process all servers
-  if bash "$SCRIPT_PATH" "$config_file" "http://localhost:8080" "test-key" >/dev/null 2>&1; then
-    print_result "Script processes multiple servers" "PASS"
+  # Should fail because HTTP servers cannot connect (no gateway running)
+  if ! bash "$SCRIPT_PATH" "$config_file" "http://localhost:8080" "test-key" >/dev/null 2>&1; then
+    print_result "Script fails when HTTP servers cannot connect" "PASS"
   else
-    print_result "Script should process multiple servers" "FAIL"
+    print_result "Script should fail when HTTP servers cannot connect" "FAIL"
   fi
   
   rm -rf "$tmpdir"

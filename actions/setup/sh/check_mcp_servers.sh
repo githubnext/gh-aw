@@ -276,9 +276,9 @@ echo ""
 
 if [ $SERVERS_SUCCEEDED -gt 0 ]; then
   echo "✓ At least one server check succeeded"
+  exit 0
 else
-  echo "⚠ No servers were successfully checked"
+  echo "ERROR: No servers were successfully checked"
+  echo "All MCP servers failed to respond or were skipped"
+  exit 1
 fi
-
-# Always exit 0 since failures are warnings
-exit 0
