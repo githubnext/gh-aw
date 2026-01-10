@@ -44,10 +44,8 @@ describe("parse_mcp_gateway_log", () => {
       const summary = generateGatewayLogSummary(logContent);
 
       const lines = summary.split("\n");
-      const codeBlockStart = lines.findIndex((line) => line === "```");
-      const codeBlockEnd = lines.findIndex(
-        (line, index) => index > codeBlockStart && line === "```",
-      );
+      const codeBlockStart = lines.findIndex(line => line === "```");
+      const codeBlockEnd = lines.findIndex((line, index) => index > codeBlockStart && line === "```");
 
       expect(codeBlockEnd - codeBlockStart).toBe(4); // Start + 3 lines + End
     });
