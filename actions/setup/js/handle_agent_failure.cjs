@@ -3,7 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
+const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 
 /**
  * Handle agent job failure by creating or updating a failure tracking issue
@@ -49,16 +49,14 @@ async function main() {
         const existingIssue = searchResult.data.items[0];
         core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
-        // Generate AI header for the comment
-        const footer = generateFooter(
+        // Generate footer for the comment using templated message
+        const ctx = {
           workflowName,
           runUrl,
           workflowSource,
-          workflowSourceURL,
-          undefined, // no triggering issue
-          undefined, // no triggering PR
-          undefined // no triggering discussion
-        );
+          workflowSourceUrl: workflowSourceURL,
+        };
+        const footer = getFooterAgentFailureCommentMessage(ctx);
 
         // Build sanitized comment body
         const timestamp = new Date().toISOString();
@@ -78,6 +76,7 @@ async function main() {
           `Or in GitHub Copilot Chat, type \`/agent\` and select **debug-agentic-workflow**.`,
           ``,
           `Provide the workflow run URL: ${runUrl}`,
+          ``,
           footer,
         ];
 
@@ -95,16 +94,14 @@ async function main() {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
 
-        // Generate AI header for the issue
-        const footer = generateFooter(
+        // Generate footer for the issue using templated message
+        const ctx = {
           workflowName,
           runUrl,
           workflowSource,
-          workflowSourceURL,
-          undefined, // no triggering issue
-          undefined, // no triggering PR
-          undefined // no triggering discussion
-        );
+          workflowSourceUrl: workflowSourceURL,
+        };
+        const footer = getFooterAgentFailureIssueMessage(ctx);
 
         // Build issue body
         const bodyLines = [
@@ -142,17 +139,19 @@ async function main() {
           `- Network or connectivity issues`,
           `- Permission problems`,
           `- Resource constraints`,
+          ``,
+          footer,
         ];
-
-        // Add footer (sanitize it separately)
-        const sanitizedFooter = sanitizeContent(footer, { maxLength: 5000 });
-        bodyLines.push(sanitizedFooter);
 
         // Add expiration marker (7 days from now) - after sanitization to preserve it
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
         bodyLines.push(``);
         bodyLines.push(`<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`);
+
+        // Add XML marker for traceability
+        bodyLines.push(``);
+        bodyLines.push(generateXMLMarker(workflowName, runUrl));
 
         const issueBody = bodyLines.join("\n");
 

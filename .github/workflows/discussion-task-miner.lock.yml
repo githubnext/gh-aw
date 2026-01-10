@@ -1300,6 +1300,7 @@ jobs:
           GH_AW_TRACKER_ID: "discussion-task-miner"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Task mining by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...\",\"runSuccess\":\"✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊\",\"runFailure\":\"⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
