@@ -101,28 +101,58 @@ echo ""
 
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
+echo "Full docker command: $MCP_GATEWAY_DOCKER_COMMAND"
+echo ""
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
 echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"
+echo "Verifying gateway process is running..."
+if ps -p $GATEWAY_PID > /dev/null 2>&1; then
+  echo "Gateway process confirmed running (PID: $GATEWAY_PID)"
+else
+  echo "ERROR: Gateway process exited immediately after start"
+  echo ""
+  echo "Gateway stdout output:"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  echo ""
+  echo "Gateway stderr logs:"
+  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log 2>/dev/null || echo "No stderr logs available"
+  exit 1
+fi
 echo ""
 
 # Wait for gateway to be ready using /health endpoint
 # Note: Gateway may take 40-50 seconds when starting multiple MCP servers
 # (e.g., serena alone takes ~22 seconds to start)
 echo "Waiting for gateway to be ready..."
+echo "Health endpoint: http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health"
 MAX_ATTEMPTS=60
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  if curl -f -s "http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health" > /dev/null 2>&1; then
-    echo "Gateway is ready!"
-    break
+  # First check if the gateway process is still running
+  if ! ps -p $GATEWAY_PID > /dev/null 2>&1; then
+    echo "ERROR: Gateway process (PID: $GATEWAY_PID) has exited unexpectedly!"
+    echo ""
+    echo "Gateway stdout output:"
+    cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+    echo ""
+    echo "Gateway stderr logs:"
+    cat /tmp/gh-aw/mcp-logs/gateway/stderr.log 2>/dev/null || echo "No stderr logs available"
+    exit 1
   fi
+  
+  # Check health endpoint
+  HEALTH_RESPONSE=$(curl -f -s "http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health" 2>&1) && {
+    echo "Gateway is ready!"
+    echo "Health response: $HEALTH_RESPONSE"
+    break
+  }
   ATTEMPT=$((ATTEMPT + 1))
   if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet, waiting 1 second..."
+    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet (curl response: $HEALTH_RESPONSE), waiting 1 second..."
     sleep 1
   fi
 done
@@ -130,11 +160,26 @@ done
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
   echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
   echo ""
+  echo "Checking if gateway process is still alive..."
+  if ps -p $GATEWAY_PID > /dev/null 2>&1; then
+    echo "Gateway process (PID: $GATEWAY_PID) is still running"
+  else
+    echo "Gateway process (PID: $GATEWAY_PID) has exited"
+    WAIT_STATUS=$(wait $GATEWAY_PID 2>/dev/null; echo $?)
+    echo "Gateway exit status: $WAIT_STATUS"
+  fi
+  echo ""
+  echo "Docker container status:"
+  docker ps -a 2>/dev/null | head -20 || echo "Could not list docker containers"
+  echo ""
   echo "Gateway stdout (errors are written here per MCP Gateway Specification):"
   cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
   echo ""
   echo "Gateway stderr logs (debug output):"
   cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  echo ""
+  echo "Checking network connectivity to gateway port..."
+  netstat -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || ss -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || echo "Port ${MCP_GATEWAY_PORT} does not appear to be listening"
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
