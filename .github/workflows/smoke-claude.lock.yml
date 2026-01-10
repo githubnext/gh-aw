@@ -719,7 +719,7 @@ jobs:
               allowed_domains: ["api.github.com","defaults","github","playwright"],
               firewall_enabled: true,
               awf_version: "v0.8.2",
-              awmg_version: "v0.0.14",
+              awmg_version: "latest",
               steps: {
                 firewall: "squid"
               },
