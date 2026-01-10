@@ -2,7 +2,7 @@
 description: Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
 on:
   workflow_dispatch:
-  schedule: weekly on sunday at 06:00
+  schedule: weekly on sunday around 06:00
 permissions:
   contents: read
   actions: read

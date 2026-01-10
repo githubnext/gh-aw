@@ -40,7 +40,9 @@ Add a sample from the [agentics](https://github.com/githubnext/agentics) collect
 gh aw add githubnext/agentics/daily-team-status --create-pull-request
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) (translated from markdown to GitHub Actions YAML) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
+This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) (translated from markdown to GitHub Actions YAML) `.lock.yml` (the generated GitHub Actions workflow file). 
+   - Review and merge the PR into your repo.
+   - Pull the changes into your (local) repo.
 
 ### Step 3 — Add an AI secret
 
@@ -91,9 +93,11 @@ gh aw status
 **Expected output:**
 
 ```text
-Workflow                 Engine    State     Enabled  Schedule
-──────────────────────────────────────────────────────────────
-daily-team-status        copilot   ✓         Yes      0 9 * * 1-5
+┌─────────────────┬───────┬────────┬──────┬──────────────┬──────┬──────────┬──────────────┐
+│Workflow         │Engine │Compiled│Status│Time Remaining│Labels│Run Status│Run Conclusion│
+├─────────────────┼───────┼────────┼──────┼──────────────┼──────┼──────────┼──────────────┤
+│daily-team-status│copilot│No      │active│30d 22h       │-     │-         │-             │
+└─────────────────┴───────┴────────┴──────┴──────────────┴──────┴──────────┴──────────────┘
 ```
 
 This confirms the workflow is compiled, enabled, and scheduled correctly.

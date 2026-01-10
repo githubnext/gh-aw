@@ -28,8 +28,8 @@
 name: "GitHub MCP Remote Server Tools Report Generator"
 "on":
   schedule:
-  - cron: "0 12 * * 0"
-    # Friendly format: weekly on sunday at 12:00
+  - cron: "50 12 * * 0"
+    # Friendly format: weekly on sunday around 12:00 (scattered)
   workflow_dispatch:
 
 permissions:
@@ -1283,6 +1283,9 @@ jobs:
       - name: Stop MCP gateway
         if: always()
         continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
         run: |
           bash /opt/gh-aw/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
       - name: Redact secrets in logs
