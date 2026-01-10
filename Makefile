@@ -2,6 +2,10 @@
 
 # Variables
 BINARY_NAME=gh-aw
+# Add .exe extension on Windows
+ifeq ($(OS),Windows_NT)
+	BINARY_NAME := gh-aw.exe
+endif
 VERSION ?= $(shell git describe --tags --always --dirty)
 DOCKER_IMAGE=ghcr.io/githubnext/gh-aw
 DOCKER_PLATFORMS=linux/amd64,linux/arm64
