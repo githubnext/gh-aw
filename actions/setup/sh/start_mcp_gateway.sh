@@ -112,11 +112,13 @@ echo ""
 # Wait for gateway to be ready using /health endpoint
 # Note: Gateway may take 40-50 seconds when starting multiple MCP servers
 # (e.g., serena alone takes ~22 seconds to start)
+# Use localhost for health checks since this script runs on the host, not inside a container.
+# MCP_GATEWAY_DOMAIN (e.g., host.docker.internal) is for container-to-host communication.
 echo "Waiting for gateway to be ready..."
 MAX_ATTEMPTS=60
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  if curl -f -s "http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}/health" > /dev/null 2>&1; then
+  if curl -f -s "http://localhost:${MCP_GATEWAY_PORT}/health" > /dev/null 2>&1; then
     echo "Gateway is ready!"
     break
   fi
