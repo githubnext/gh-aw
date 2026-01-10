@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -609,5 +610,85 @@ This is a test workflow with safe-inputs mode field.
 
 	if !strings.Contains(updatedStr, "description: Test tool") {
 		t.Error("Expected test-tool description to be preserved")
+	}
+}
+
+func TestFixCommand_UpdatesPromptAndAgentFiles(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	// Save and restore original directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo (required for ensure functions)
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Create a simple workflow file (no fixes needed)
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Run fix command (which should update prompt and agent files)
+	config := FixConfig{
+		WorkflowIDs: []string{"test-workflow"},
+		Write:       false,
+		Verbose:     false,
+		WorkflowDir: tmpDir,
+	}
+
+	err = RunFix(config)
+	if err != nil {
+		t.Fatalf("RunFix failed: %v", err)
+	}
+
+	// Verify that prompt and agent files were created/updated
+	copilotInstructionsPath := filepath.Join(".github", "aw", "github-agentic-workflows.md")
+	if _, err := os.Stat(copilotInstructionsPath); os.IsNotExist(err) {
+		t.Error("Expected copilot instructions file to be created/updated")
+	}
+
+	agenticWorkflowAgentPath := filepath.Join(".github", "agents", "create-agentic-workflow.agent.md")
+	if _, err := os.Stat(agenticWorkflowAgentPath); os.IsNotExist(err) {
+		t.Error("Expected agentic workflow agent file to be created/updated")
+	}
+
+	debugAgenticWorkflowAgentPath := filepath.Join(".github", "agents", "debug-agentic-workflow.agent.md")
+	if _, err := os.Stat(debugAgenticWorkflowAgentPath); os.IsNotExist(err) {
+		t.Error("Expected debug agentic workflow agent file to be created/updated")
+	}
+
+	upgradeAgenticWorkflowAgentPath := filepath.Join(".github", "agents", "upgrade-agentic-workflows.md")
+	if _, err := os.Stat(upgradeAgenticWorkflowAgentPath); os.IsNotExist(err) {
+		t.Error("Expected upgrade agentic workflow agent file to be created/updated")
 	}
 }
