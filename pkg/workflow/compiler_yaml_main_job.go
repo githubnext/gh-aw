@@ -242,6 +242,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateSafeInputsLogParsing(yaml)
 	}
 
+	// parse MCP gateway logs for GITHUB_STEP_SUMMARY
+	c.generateMCPGatewayLogParsing(yaml)
+
 	// Add firewall log parsing steps (but not upload - collected for unified upload)
 	// For Copilot, Codex, and Claude engines
 	if _, ok := engine.(*CopilotEngine); ok {
