@@ -327,6 +327,13 @@ test_validation_functions_exist() {
   else
     print_result "Tool display logic missing" "FAIL"
   fi
+  
+  # Check for gateway API key fallback logic
+  if grep -q "Using gateway API key" "$SCRIPT_PATH"; then
+    print_result "Gateway API key fallback logic exists" "PASS"
+  else
+    print_result "Gateway API key fallback logic missing" "FAIL"
+  fi
 }
 
 # Run all tests
