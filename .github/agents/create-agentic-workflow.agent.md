@@ -195,11 +195,9 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
    - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
 
-   **General tools (fetching, searching, Playwright)**:
+   **General tools (Playwright)**:
    ```yaml
    tools:
-     web-fetch:   # Web content fetching
-     web-search:  # Web search
      playwright:  # Browser automation
    ```
    
