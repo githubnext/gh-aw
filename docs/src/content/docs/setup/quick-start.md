@@ -40,15 +40,11 @@ First you have to initialize your repository for agentic workflows. From your re
 gh aw init
 ```
 > [!WARNING]
-> Workaround: Currently there is a bug that the actions folder is initially missing. To workaround this
->  - copy the files from https://github.com/githubnext/gh-aw/tree/main/actions
->  - add them to your project under actions folder
->  - commit and push your repository
->  - now you can add the sample workflow
->  - this bug should be fixed soon.
+> You do **not** need to copy an `actions/` folder into your repository. GitHub Agentic Workflows resolves its internal actions automatically at runtime.
+> If you see errors mentioning missing actions after running `gh aw init`, first ensure you're on the latest version of the extension and re-run the command from the repository root.
+> If problems persist, please open an issue at https://github.com/githubnext/gh-aw with the exact error message instead of copying internal framework files into your repo.
 
 ### Step 3 — Add a sample workflow
-
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
 ```bash wrap
