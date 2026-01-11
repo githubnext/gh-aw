@@ -45,7 +45,7 @@ gh aw init
 >  - add them to your project under actions folder
 >  - commit and push your repository
 >  - now you can add the sample workflow
->  - this bug shoudl be fixed soon.
+>  - this bug should be fixed soon.
 
 ### Step 3 — Add a sample workflow
 
