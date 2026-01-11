@@ -258,6 +258,19 @@ async function processMessages(messageHandlers, messages) {
       // Call the message handler with the individual message and resolved temp IDs
       const result = await messageHandler(message, resolvedTemporaryIds);
 
+      // Check if the handler explicitly returned a failure
+      if (result && result.success === false && !result.deferred) {
+        const errorMsg = result.error || "Handler returned success: false";
+        core.error(`✗ Message ${i + 1} (${messageType}) failed: ${errorMsg}`);
+        results.push({
+          type: messageType,
+          messageIndex: i,
+          success: false,
+          error: errorMsg,
+        });
+        continue;
+      }
+
       // Check if the operation was deferred due to unresolved temporary IDs
       if (result && result.deferred === true) {
         core.info(`⏸ Message ${i + 1} (${messageType}) deferred - will retry after first pass`);
@@ -366,6 +379,19 @@ async function processMessages(messageHandlers, messages) {
 
         // Call the handler again with updated temp ID map
         const result = await deferred.handler(deferred.message, resolvedTemporaryIds);
+
+        // Check if the handler explicitly returned a failure
+        if (result && result.success === false && !result.deferred) {
+          const errorMsg = result.error || "Handler returned success: false";
+          core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${errorMsg}`);
+          // Update the result to error
+          const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
+          if (resultIndex >= 0) {
+            results[resultIndex].success = false;
+            results[resultIndex].error = errorMsg;
+          }
+          continue;
+        }
 
         // Check if still deferred
         if (result && result.deferred === true) {
