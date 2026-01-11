@@ -266,7 +266,7 @@ jobs:
               "name": "push_to_pull_request_branch"
             },
             {
-              "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+              "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -275,16 +275,15 @@ jobs:
                     "type": "string"
                   },
                   "reason": {
-                    "description": "Explanation of why this tool is needed to complete the task (max 256 characters).",
+                    "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
                     "type": "string"
                   },
                   "tool": {
-                    "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
+                    "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
                     "type": "string"
                   }
                 },
                 "required": [
-                  "tool",
                   "reason"
                 ],
                 "type": "object"
