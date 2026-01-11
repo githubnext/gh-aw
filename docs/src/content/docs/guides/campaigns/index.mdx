@@ -6,9 +6,9 @@ description: Coordinate AI agents across multiple workflow runs with structured,
 import FeatureCard from '../../../../components/FeatureCard.astro';
 import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
-## What are agentic campaigns?
+## What are GitHub Agentic Campaigns?
 
-Agentic campaigns coordinate multiple AI agents to achieve a strategic goal. They extend agentic workflows by tracking progress across many tasks using GitHub Projects and measurable KPIs.
+GitHub agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction/overview/) toward a single goal.
 
 **How it works:**
 1. **Define** - Write a `.campaign.md` spec with objectives and workflows
@@ -35,7 +35,8 @@ Agentic campaigns coordinate multiple AI agents to achieve a strategic goal. The
 
 ## Example Campaign
 
-A simple framework upgrade campaign with active execution:
+A campaign is defined by a **Campaign Spec** `.campaign.md`.
+Here is an example of such a file for a simple framework upgrade campaign:
 
 ```yaml
 ---
@@ -62,7 +63,6 @@ governance:
   max-project-updates-per-run: 20
 ---
 ```
-
 With `execute-workflows: true`, the orchestrator will:
 - Run `framework-scanner` (create it if doesn't exist)
 - Test newly created workflows before use
@@ -71,11 +71,16 @@ With `execute-workflows: true`, the orchestrator will:
 
 When compiled, this generates an orchestrator that discovers work, tracks progress on the GitHub Project board, and coordinates worker workflows to execute upgrades.
 
-## Campaign Modes
-
+Note that there are two orchestration modes:
 **Passive coordination** (default): Discover and track work created by independent workflows.
-
 **Active execution** (`execute-workflows: true`): Run workflows directly, create missing workflows, and drive progress.
+
+Apart from this spec file, a campaign is composed of:
+**Orchestrator** (`.campaign.lock.yml`) - Auto-generated coordinator workflow
+**Workers** - Your existing agentic workflows (no changes needed)
+
+The orchestrator discovers work, updates your project board, and delegates to workers. Workers stay focused on their specific tasks while the orchestrator handles coordination.
+
 
 ## Common Use Cases
 
@@ -110,13 +115,3 @@ When compiled, this generates an orchestrator that discovers work, tracks progre
     Reference for campaign compilation and management
   </FeatureCard>
 </FeatureGrid>
-
-## How It Works
-
-Campaigns have three components:
-
-1. **Campaign Spec** (`.campaign.md`) - Define objectives, KPIs, and governance rules
-2. **Orchestrator** (`.campaign.lock.yml`) - Auto-generated coordinator workflow
-3. **Workers** - Your existing agentic workflows (no changes needed)
-
-The orchestrator discovers work, updates your project board, and delegates to workers. Workers stay focused on their specific tasks while the orchestrator handles coordination.
