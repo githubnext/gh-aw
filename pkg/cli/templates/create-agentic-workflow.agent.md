@@ -195,18 +195,22 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
    - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
 
-   **General tools (editing, fetching, searching, bash patterns, Playwright)**:
+   **General tools (fetching, searching, bash patterns, Playwright)**:
    ```yaml
    tools:
-     edit:        # File editing
      web-fetch:   # Web content fetching
      web-search:  # Web search
-     bash:        # Shell commands (allowlist patterns)
+     bash:        # Shell commands (specific patterns ONLY if needed beyond defaults)
        - "gh label list:*"
        - "gh label view:*"
-       - "git status"
      playwright:  # Browser automation
    ```
+   
+   ⚠️ **IMPORTANT - Default Tools**: 
+   - **`edit` is enabled by default** when sandboxing is active (no need to add explicitly)
+   - **`bash` defaults to `*` (all commands)** when sandboxing is active
+   - Only specify `bash:` with specific patterns if you need to restrict commands beyond the secure defaults
+   - Sandboxing is active when `sandbox.agent` is configured or network restrictions are present
 
    **MCP servers (top-level block)**:
    ```yaml
