@@ -40,18 +40,7 @@ Initialize your repository to configure custom agents and MCP server:
 gh aw init
 ```
 
-This command sets up your repository by:
-- Creating GitHub Copilot custom instructions for better workflow authoring
-- Installing custom agents (like `create-agentic-workflow`) for interactive workflow creation in VS Code
-- Configuring the [MCP server](/gh-aw/reference/glossary/#mcp-server) (Model Context Protocol) for enhanced AI capabilities
-- Setting up YAML schema validation in VS Code for workflow files
-- Configuring `.gitattributes` to mark `.lock.yml` files as generated
-
-:::tip[What is MCP?]
-
-The Model Context Protocol (MCP) provides AI agents with standardized access to tools and data sources. By default, `gh aw init` configures MCP integration.
-
-:::
+This command installs agents and tools for GitHub Copilot.
 
 ### Step 3 — Add a sample workflow
 
