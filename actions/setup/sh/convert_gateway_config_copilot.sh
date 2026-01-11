@@ -50,7 +50,7 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 # }
 #
 # The main difference is that Copilot requires the "tools" field.
-# We also need to ensure headers use the actual API key value, not a placeholder.
+# All other fields (including headers) are preserved exactly as provided by the gateway.
 
 jq '
   .mcpServers |= with_entries(
