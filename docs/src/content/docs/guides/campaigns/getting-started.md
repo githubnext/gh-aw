@@ -10,6 +10,17 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 > Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
+## Campaign Best Practices
+
+Before creating your first campaign, keep these core principles in mind:
+
+- **Start small**: One clear goal per campaign (e.g., "Upgrade Node.js to v20")
+- **Start passive**: Use passive mode first to observe behavior and build trust
+- **Reuse workflows**: Search existing workflows before creating new ones
+- **Minimal permissions**: Grant only necessary permissions (issues/draft PRs, not merges)
+- **Standardized outputs**: Use consistent patterns for issues, PRs, and comments
+- **Escalate when uncertain**: Create issues requesting human review for risky decisions
+
 ## Quick start (5 steps)
 
 1. Create a GitHub Project board (manual, one-time) and copy its URL.

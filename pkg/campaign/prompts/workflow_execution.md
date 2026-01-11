@@ -158,6 +158,14 @@ For each workflow:
 - Avoid campaign-specific logic in workflows (keep them generic)
 - **Why generic?** - Enables reuse across different campaigns
 
+**Permissions and safety:**
+- Keep workflow permissions minimal (only what's needed)
+- **Why minimal?** - Reduces risk and follows principle of least privilege
+- Prefer draft PRs over direct merges for code changes
+- **Why drafts?** - Requires human review before merging changes
+- Escalate to humans when uncertain about decisions
+- **Why escalate?** - Human oversight prevents risky autonomous actions
+
 ---
 
 ## After Workflow Execution

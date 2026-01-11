@@ -630,6 +630,42 @@ When making decisions in campaigns, always explain WHY:
 
 ## Best Practices
 
+### Core Campaign Principles
+
+Follow these fundamental principles when creating campaigns:
+
+1. **Start with one small, clear goal per campaign**
+   - Focus on a single, well-defined objective
+   - Avoid scope creep - multiple goals should be separate campaigns
+   - Example: "Upgrade Node.js to v20" not "Upgrade Node.js and refactor auth"
+
+2. **Use passive mode first to observe and build trust**
+   - Always start with passive mode (`execute-workflows: false` or omitted)
+   - Monitor 1-2 weeks to understand orchestration behavior
+   - Build confidence before enabling active execution
+
+3. **Reuse existing workflows before creating new ones**
+   - Thoroughly search `.github/workflows/*.md` for existing solutions
+   - Check the [agentics collection](https://github.com/githubnext/agentics) for reusable workflows
+   - Only create new workflows when existing ones don't meet requirements
+
+4. **Keep permissions minimal (issues / draft PRs, no merges)**
+   - Grant only the permissions needed for the campaign's scope
+   - Prefer read permissions over write when possible
+   - Use draft PRs instead of direct merges for code changes
+   - Example: `issues: read, pull-requests: write` for issue tracking with PR creation
+
+5. **Make outputs standardized and predictable**
+   - Use consistent safe-output configurations across workflows
+   - Document expected outputs in workflow descriptions
+   - Follow established patterns for issue/PR formatting
+
+6. **Escalate to humans when unsure**
+   - Don't make risky decisions autonomously
+   - Create issues or comments requesting human review
+   - Include context and reasoning in escalation messages
+   - Example: "This change affects authentication - requesting human review"
+
 ### DO:
 - ✅ Generate unique campaign IDs in kebab-case
 - ✅ Scan existing workflows before suggesting new ones
