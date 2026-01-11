@@ -372,6 +372,15 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// This runs before the agent to precompute campaign discovery
 	discoverySteps := buildDiscoverySteps(spec)
 
+	// Determine engine to use (default to copilot if not specified)
+	engineID := "copilot"
+	if spec.Engine != "" {
+		engineID = spec.Engine
+		orchestratorLog.Printf("Campaign orchestrator '%s' using specified engine: %s", spec.ID, engineID)
+	} else {
+		orchestratorLog.Printf("Campaign orchestrator '%s' using default engine: %s", spec.ID, engineID)
+	}
+
 	data := &workflow.WorkflowData{
 		Name:            name,
 		Description:     description,
@@ -384,6 +393,10 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		// Default roles match the workflow compiler's defaults so that
 		// membership checks have a non-empty GH_AW_REQUIRED_ROLES value.
 		Roles: []string{"admin", "maintainer", "write"},
+		// Set the engine configuration from campaign spec
+		EngineConfig: &workflow.EngineConfig{
+			ID: engineID,
+		},
 		Tools: map[string]any{
 			"github": map[string]any{
 				"toolsets": []any{"default", "actions", "code_security"},
