@@ -49,7 +49,7 @@ This command sets up your repository by:
 
 :::tip[What is MCP?]
 
-The Model Context Protocol (MCP) provides AI agents with standardized access to tools and data sources. By default, `gh aw init` configures MCP integration. Use `gh aw init --no-mcp` to skip MCP configuration if you don't need it.
+The Model Context Protocol (MCP) provides AI agents with standardized access to tools and data sources. By default, `gh aw init` configures MCP integration.
 
 :::
 
