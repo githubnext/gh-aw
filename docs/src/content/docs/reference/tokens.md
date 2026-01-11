@@ -146,9 +146,8 @@ gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_PAT"
 
 The compiler automatically sets `GITHUB_MCP_SERVER_TOKEN` and passes it as `GITHUB_PERSONAL_ACCESS_TOKEN` (local/Docker) or `Authorization: Bearer` header (remote).
 
-:::note
-In most cases, you don't need to set this token separately. Use `GH_AW_GITHUB_TOKEN` instead, which works for both general operations and GitHub MCP server.
-:::
+> [!NOTE]
+> In most cases, you don't need to set this token separately. Use `GH_AW_GITHUB_TOKEN` instead, which works for both general operations and GitHub MCP server.
 
 ## `GH_AW_PROJECT_GITHUB_TOKEN` (GitHub Projects v2)
 
@@ -228,28 +227,28 @@ safe-outputs:
 
 **For organization-owned projects**, the complete configuration should include both the GitHub tools and safe outputs using the same token with appropriate permissions.
 
-:::note[Default behavior]
-By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
+> [!NOTE]
+> Default behavior
+> By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
+>
+> **Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. 
+>
+> **GitHub Projects v2 PAT Requirements**:
+> - **User-owned Projects**: Require a **classic PAT** with the `project` scope (plus `repo` if accessing private repos). Fine-grained PATs do **not** work with user-owned Projects.
+> - **Organization-owned Projects**: Can use either a classic PAT with `project` + `read:org` scopes, **or** a fine-grained PAT with:
+>   - Repository access to specific repositories
+>   - Repository permissions: Contents: Read, Issues: Read, Pull requests: Read (as needed)
+>   - Organization permissions: Projects: Read & Write
+>   - Explicit organization access granted during token creation
+> - **GitHub App**: Works for both user and org Projects with Projects: Read+Write permission.
+>
+> To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
 
-**Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. 
-
-**GitHub Projects v2 PAT Requirements**:
-- **User-owned Projects**: Require a **classic PAT** with the `project` scope (plus `repo` if accessing private repos). Fine-grained PATs do **not** work with user-owned Projects.
-- **Organization-owned Projects**: Can use either a classic PAT with `project` + `read:org` scopes, **or** a fine-grained PAT with:
-  - Repository access to specific repositories
-  - Repository permissions: Contents: Read, Issues: Read, Pull requests: Read (as needed)
-  - Organization permissions: Projects: Read & Write
-  - Explicit organization access granted during token creation
-- **GitHub App**: Works for both user and org Projects with Projects: Read+Write permission.
-
-To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
-:::
-
-:::tip[When to use vs GH_AW_GITHUB_TOKEN]
-- Use `GH_AW_PROJECT_GITHUB_TOKEN` when you need **Projects-specific permissions** separate from other operations
-- Use `GH_AW_GITHUB_TOKEN` as the top-level token if it already has Projects permissions and you don't need isolation
-- The precedence chain allows the top-level token to be used if `GH_AW_PROJECT_GITHUB_TOKEN` isn't set
-:::
+> [!TIP]
+> When to use vs GH_AW_GITHUB_TOKEN
+> - Use `GH_AW_PROJECT_GITHUB_TOKEN` when you need **Projects-specific permissions** separate from other operations
+> - Use `GH_AW_GITHUB_TOKEN` as the top-level token if it already has Projects permissions and you don't need isolation
+> - The precedence chain allows the top-level token to be used if `GH_AW_PROJECT_GITHUB_TOKEN` isn't set
 
 ## `COPILOT_GITHUB_TOKEN` (Copilot Authentication)
 
@@ -279,9 +278,8 @@ gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
 
 **Token precedence**: per-output → global safe-outputs → workflow-level → `COPILOT_GITHUB_TOKEN` → `GH_AW_GITHUB_TOKEN` (legacy, deprecated)
 
-:::caution
-`GITHUB_TOKEN` is **not** included in the fallback chain (lacks "Copilot Requests" permission). `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` are **no longer supported** as of v0.26+.
-:::
+> [!CAUTION]
+> `GITHUB_TOKEN` is **not** included in the fallback chain (lacks "Copilot Requests" permission). `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` are **no longer supported** as of v0.26+.
 
 ## `GH_AW_AGENT_TOKEN` (Agent Assignment)
 

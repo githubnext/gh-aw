@@ -83,9 +83,8 @@ network:
 - `*.example.com` matches `sub.example.com`, `deep.nested.example.com`, and `example.com`
 - Only single wildcards at the start are supported (e.g., `*.*.example.com` is invalid)
 
-:::tip
-Both `example.com` and `*.example.com` match subdomains. Use wildcards when you want to explicitly document that subdomain access is expected.
-:::
+> [!TIP]
+> Both `example.com` and `*.example.com` match subdomains. Use wildcards when you want to explicitly document that subdomain access is expected.
 
 
 ## Protocol-Specific Filtering

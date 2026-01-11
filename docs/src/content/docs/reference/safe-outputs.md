@@ -21,9 +21,8 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ## Available Safe Output Types
 
-:::note
-Most safe output types support cross-repository operations. Exceptions are noted below.
-:::
+> [!NOTE]
+> Most safe output types support cross-repository operations. Exceptions are noted below.
 
 ### Issues & Discussions
 
@@ -72,9 +71,8 @@ Most safe output types support cross-repository operations. Exceptions are noted
 - [**Missing Tool**](#missing-tool-reporting-missing-tool) (`missing-tool`) — Report missing tools (max: unlimited, same-repo only)
 - [**Missing Data**](#missing-data-reporting-missing-data) (`missing-data`) — Report missing data required to achieve goals (max: unlimited, same-repo only)
 
-:::tip
-Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/). See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation and AI reasoning.
-:::
+> [!TIP]
+> Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/). See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation and AI reasoning.
 
 ### Custom Safe Output Jobs (`jobs:`)
 
@@ -286,9 +284,8 @@ fields:
   priority: "High"               # SINGLE_SELECT field
 ```
 
-:::note
-Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
-:::
+> [!NOTE]
+> Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
 
 
 
@@ -328,9 +325,8 @@ copy_project({
 
 Optionally include `includeDraftIssues: true` to copy draft issues (default: false). Exposes outputs: `project-id`, `project-title`, `project-url`.
 
-:::note
-Custom fields, views, and workflows are copied. Draft issues are excluded by default but can be included by setting `includeDraftIssues: true`.
-:::
+> [!NOTE]
+> Custom fields, views, and workflows are copied. Draft issues are excluded by default but can be included by setting `includeDraftIssues: true`.
 
 
 ### Project Status Updates (`create-project-status-update:`)
@@ -419,9 +415,8 @@ safe-outputs:
     target-repo: "owner/repo"     # cross-repository
 ```
 
-:::note
-PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. Fallback creates issue with branch link.
-:::
+> [!NOTE]
+> PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. Fallback creates issue with branch link.
 
 ### Close Pull Request (`close-pull-request:`)
 

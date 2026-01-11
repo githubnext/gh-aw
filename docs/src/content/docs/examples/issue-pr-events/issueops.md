@@ -94,9 +94,9 @@ Create a parent tracking issue, then sub-issues linked via parent field:
 {"type": "create_issue", "parent": "aw_abc123def456", "title": "Task 1", "body": "First task"}
 ```
 
-:::tip[Hide sub-issues]
-Filter sub-issues from `/issues` with `no:parent-issue`: `/issues?q=no:parent-issue`
-:::
+> [!TIP]
+> Hide sub-issues
+> Filter sub-issues from `/issues` with `no:parent-issue`: `/issues?q=no:parent-issue`
 
 Assign sub-issues to Copilot with `assignees: copilot` for parallel execution.
 

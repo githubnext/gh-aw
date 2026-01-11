@@ -90,9 +90,8 @@ mcp-servers:
     allowed: ["search_pages", "get_page"]
 ```
 
-:::caution
-For GitHub tools, always use `toolsets:` instead of `allowed:`. The `allowed:` pattern for GitHub tools is deprecated because tool names may change between versions.
-:::
+> [!CAUTION]
+> For GitHub tools, always use `toolsets:` instead of `allowed:`. The `allowed:` pattern for GitHub tools is deprecated because tool names may change between versions.
 
 ## GitHub MCP Server
 

@@ -11,9 +11,9 @@ This reference documents common error messages encountered when working with Git
 
 Schema validation errors occur when the workflow frontmatter does not conform to the expected JSON schema. These errors are detected during the compilation process.
 
-:::tip[Typo Detection]
-When you make a typo in frontmatter field names, the compiler automatically suggests correct field names using fuzzy matching. Look for "Did you mean" suggestions in error messages to quickly identify and fix common typos like `permisions` → `permissions` or `engnie` → `engine`.
-:::
+> [!TIP]
+> Typo Detection
+> When you make a typo in frontmatter field names, the compiler automatically suggests correct field names using fuzzy matching. Look for "Did you mean" suggestions in error messages to quickly identify and fix common typos like `permisions` → `permissions` or `engnie` → `engine`.
 
 ### Frontmatter Not Properly Closed
 

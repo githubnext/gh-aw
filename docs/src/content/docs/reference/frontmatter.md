@@ -90,9 +90,9 @@ Configures the default GitHub token for engine authentication, checkout steps, a
 github-token: ${{ secrets.CUSTOM_PAT }}
 ```
 
-:::caution[Secret Expression Required]
-Must use GitHub Actions secret expressions (e.g., `${{ secrets.CUSTOM_PAT }}`). Plaintext tokens are rejected. Valid: `${{ secrets.GITHUB_TOKEN }}`, `${{ secrets.CUSTOM_PAT }}`. Invalid: plaintext tokens, environment variables.
-:::
+> [!CAUTION]
+> Secret Expression Required
+> Must use GitHub Actions secret expressions (e.g., `${{ secrets.CUSTOM_PAT }}`). Plaintext tokens are rejected. Valid: `${{ secrets.GITHUB_TOKEN }}`, `${{ secrets.CUSTOM_PAT }}`. Invalid: plaintext tokens, environment variables.
 
 **Token precedence** (highest to lowest):
 1. Individual safe-output `github-token` (e.g., `create-issue.github-token`)
@@ -174,9 +174,9 @@ features:
   my-experimental-feature: true
 ```
 
-:::note[Firewall Configuration]
-The `features.firewall` field has been removed. The agent sandbox is now mandatory and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
-:::
+> [!NOTE]
+> Firewall Configuration
+> The `features.firewall` field has been removed. The agent sandbox is now mandatory and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 
 ### AI Engine (`engine:`)
 
