@@ -260,6 +260,32 @@ describe("repo_helpers", () => {
       expect(result.success).toBe(true);
       expect(result.repo).toBe("org/trimmed-repo");
     });
+
+    it("should qualify bare repo name and return qualified version", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "gh-aw" };
+      const defaultRepo = "githubnext/other-repo";
+      const allowedRepos = new Set(["githubnext/gh-aw"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("githubnext/gh-aw");
+      expect(result.repoParts).toEqual({ owner: "githubnext", repo: "gh-aw" });
+    });
+
+    it("should qualify bare repo name matching default repo", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "gh-aw" };
+      const defaultRepo = "githubnext/gh-aw";
+      const allowedRepos = new Set();
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("githubnext/gh-aw");
+      expect(result.repoParts).toEqual({ owner: "githubnext", repo: "gh-aw" });
+    });
   });
 
   describe("resolveTargetRepoConfig", () => {
