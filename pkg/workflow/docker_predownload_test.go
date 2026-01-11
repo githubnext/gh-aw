@@ -30,7 +30,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/github/github-mcp-server:v0.33.0",
 			},
 			expectStep: true,
 		},
@@ -63,7 +63,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/github/github-mcp-server:v0.33.0",
 			},
 			expectStep: true,
 		},
@@ -99,7 +99,7 @@ mcp-servers:
 # Test
 Test workflow with custom MCP container.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/github/github-mcp-server:v0.33.0",
 				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.20",
 				"myorg/custom-mcp:v1.0.0",
 			},
@@ -117,7 +117,7 @@ tools:
 # Test
 Test workflow - sandbox.mcp gateway should be predownloaded.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/github/github-mcp-server:v0.33.0",
 				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.20",
 			},
 			expectStep: true,
@@ -138,7 +138,7 @@ tools:
 # Test
 Test workflow with custom sandbox.mcp version.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/github/github-mcp-server:v0.33.0",
 				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.5",
 			},
 			expectStep: true,
@@ -157,7 +157,7 @@ safe-outputs:
 # Test
 Test workflow - safe outputs MCP server should use node:lts-alpine.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.27.0",
+				"ghcr.io/github/github-mcp-server:v0.33.0",
 				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.20",
 				"node:lts-alpine",
 			},
