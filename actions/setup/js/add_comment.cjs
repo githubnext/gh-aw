@@ -339,43 +339,59 @@ async function main(config = {}) {
     let itemNumber;
     let isDiscussion = false;
 
-    // Check if this is a discussion context
-    const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-
-    if (isDiscussionContext) {
-      // For discussions, always use the discussion context
-      isDiscussion = true;
-      itemNumber = context.payload?.discussion?.number;
-
-      if (!itemNumber) {
-        core.warning("Discussion context detected but no discussion number found");
+    // Check if item_number was explicitly provided in the message
+    if (item.item_number !== undefined && item.item_number !== null) {
+      // Use the explicitly provided item_number
+      itemNumber = typeof item.item_number === "number" ? item.item_number : parseInt(String(item.item_number), 10);
+      
+      if (isNaN(itemNumber) || itemNumber <= 0) {
+        core.warning(`Invalid item_number specified: ${item.item_number}`);
         return {
           success: false,
-          error: "No discussion number available",
+          error: `Invalid item_number specified: ${item.item_number}`,
         };
       }
-
-      core.info(`Using discussion context: #${itemNumber}`);
+      
+      core.info(`Using explicitly provided item_number: #${itemNumber}`);
     } else {
-      // For issues/PRs, use the resolveTarget helper which respects target configuration
-      const targetResult = resolveTarget({
-        targetConfig: commentTarget,
-        item: item,
-        context: context,
-        itemType: "add_comment",
-        supportsPR: true, // add_comment supports both issues and PRs
-      });
+      // Check if this is a discussion context
+      const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
 
-      if (!targetResult.success) {
-        core.warning(targetResult.error);
-        return {
-          success: false,
-          error: targetResult.error,
-        };
+      if (isDiscussionContext) {
+        // For discussions, always use the discussion context
+        isDiscussion = true;
+        itemNumber = context.payload?.discussion?.number;
+
+        if (!itemNumber) {
+          core.warning("Discussion context detected but no discussion number found");
+          return {
+            success: false,
+            error: "No discussion number available",
+          };
+        }
+
+        core.info(`Using discussion context: #${itemNumber}`);
+      } else {
+        // For issues/PRs, use the resolveTarget helper which respects target configuration
+        const targetResult = resolveTarget({
+          targetConfig: commentTarget,
+          item: item,
+          context: context,
+          itemType: "add_comment",
+          supportsPR: true, // add_comment supports both issues and PRs
+        });
+
+        if (!targetResult.success) {
+          core.warning(targetResult.error);
+          return {
+            success: false,
+            error: targetResult.error,
+          };
+        }
+
+        itemNumber = targetResult.number;
+        core.info(`Resolved target ${targetResult.contextType} #${itemNumber} (target config: ${commentTarget})`);
       }
-
-      itemNumber = targetResult.number;
-      core.info(`Resolved target ${targetResult.contextType} #${itemNumber} (target config: ${commentTarget})`);
     }
 
     // Replace temporary ID references in body
