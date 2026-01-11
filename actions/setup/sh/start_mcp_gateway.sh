@@ -158,6 +158,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
   
   # Check health endpoint using localhost (since we're running on the host)
   # Per MCP Gateway Specification v1.3.0, /health must return HTTP 200 with JSON body containing specVersion and gatewayVersion
+  echo "Calling health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
   RESPONSE=$(curl -s -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
   HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
   HEALTH_RESPONSE=$(echo "$RESPONSE" | head -n -1)
