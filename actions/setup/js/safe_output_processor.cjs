@@ -177,6 +177,7 @@ async function processSafeOutput(config, stagedPreviewOptions, handlerConfig = n
     // supportsPR in resolveTarget: true=both issue and PR contexts, false=PR-only
     // If supportsIssue is true, we pass supportsPR=true to enable both contexts
     supportsPR: supportsPR || supportsIssue,
+    supportsIssue: false,
   });
 
   if (!targetResult.success) {
