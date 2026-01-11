@@ -54,8 +54,9 @@ health_response=""
 
 while [ $retry_count -lt $max_retries ]; do
   # Capture both response body and HTTP code in a single curl call
+  # Use curl retry options: retry 3 times with 1 second delay between retries
   echo "Calling health endpoint: ${gateway_url}/health"
-  response=$(curl -s -w "\n%{http_code}" "${gateway_url}/health")
+  response=$(curl -s --retry 3 --retry-delay 1 --retry-connrefused -w "\n%{http_code}" "${gateway_url}/health")
   http_code=$(echo "$response" | tail -n 1)
   health_response=$(echo "$response" | head -n -1)
   
