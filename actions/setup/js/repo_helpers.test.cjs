@@ -131,6 +131,37 @@ describe("repo_helpers", () => {
       expect(result.error).toContain("org/repo-a");
       expect(result.error).toContain("org/repo-b");
     });
+
+    it("should qualify bare repo name with default repo's org", async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["githubnext/gh-aw"]);
+      const result = validateRepo("gh-aw", "githubnext/other-repo", allowedRepos);
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+    });
+
+    it("should allow bare repo name matching default repo", async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const result = validateRepo("gh-aw", "githubnext/gh-aw", new Set());
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+    });
+
+    it("should reject bare repo name not in allowed list", async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["githubnext/other-repo"]);
+      const result = validateRepo("gh-aw", "githubnext/default-repo", allowedRepos);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+
+    it("should not qualify repo name that already has org", async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["githubnext/gh-aw"]);
+      const result = validateRepo("other-org/gh-aw", "githubnext/default-repo", allowedRepos);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
   });
 
   describe("parseRepoSlug", () => {
@@ -206,9 +237,10 @@ describe("repo_helpers", () => {
 
     it("should fail with invalid repo format", async () => {
       const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
-      const item = { repo: "invalid-format" };
+      // Use a repo with slash but invalid format (empty parts)
+      const item = { repo: "owner/" };
       const defaultRepo = "default/repo";
-      const allowedRepos = new Set(["invalid-format"]);
+      const allowedRepos = new Set(["owner/"]);
 
       const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
 
@@ -227,6 +259,32 @@ describe("repo_helpers", () => {
 
       expect(result.success).toBe(true);
       expect(result.repo).toBe("org/trimmed-repo");
+    });
+
+    it("should qualify bare repo name and return qualified version", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "gh-aw" };
+      const defaultRepo = "githubnext/other-repo";
+      const allowedRepos = new Set(["githubnext/gh-aw"]);
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("githubnext/gh-aw");
+      expect(result.repoParts).toEqual({ owner: "githubnext", repo: "gh-aw" });
+    });
+
+    it("should qualify bare repo name matching default repo", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "gh-aw" };
+      const defaultRepo = "githubnext/gh-aw";
+      const allowedRepos = new Set();
+
+      const result = resolveAndValidateRepo(item, defaultRepo, allowedRepos, "test");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("githubnext/gh-aw");
+      expect(result.repoParts).toEqual({ owner: "githubnext", repo: "gh-aw" });
     });
   });
 

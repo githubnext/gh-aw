@@ -319,7 +319,7 @@ jobs:
               "name": "create_project_status_update"
             },
             {
-              "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+              "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -328,16 +328,15 @@ jobs:
                     "type": "string"
                   },
                   "reason": {
-                    "description": "Explanation of why this tool is needed to complete the task (max 256 characters).",
+                    "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
                     "type": "string"
                   },
                   "tool": {
-                    "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
+                    "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
                     "type": "string"
                   }
                 },
                 "required": [
-                  "tool",
                   "reason"
                 ],
                 "type": "object"
@@ -826,6 +825,16 @@ jobs:
           8. Only predefined project fields may be updated.
           9. **Project Update Instructions take precedence for all project writes.**
           
+          ### Why These Principles Matter
+          
+          **Workers are immutable** - Allows reuse across campaigns without coupling. You coordinate existing workflows, don't modify them.
+          
+          **Reads and writes are separate** - Prevents race conditions and inconsistent state. Always read all data first, then make all writes.
+          
+          **Idempotent operation** - Campaign can be re-run safely if interrupted. The orchestrator picks up where it left off using the cursor.
+          
+          **Only predefined fields** - Prevents accidental project board corruption. The orchestrator only updates fields it's configured to manage.
+          
           ---
           
           ## Required Phases (Execute In Order)
@@ -920,18 +929,26 @@ jobs:
           - Closed (issue/discussion) → `Done`
           - Merged (PR) → `Done`
           
+          **Why use explicit GitHub state?** - GitHub is the source of truth for work status. Inferring status from other signals (labels, comments) would be unreliable and could cause incorrect tracking.
+          
           6) Calculate required date fields for each item (per Project Update Instructions):
           - `start_date`: format `created_at` as `YYYY-MM-DD`
           - `end_date`:
             - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
             - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
           
+          **Why use today for open items?** - GitHub Projects requires end_date for roadmap views. Using today's date shows the item is actively tracked and updates automatically each run until completion.
+          
           7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+          
+          **Why no comparison for idempotency?** - The safe-output system handles deduplication. Comparing would add complexity and potential race conditions. Trust the infrastructure.
           
           8) Apply write budget:
           - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
             (e.g., oldest `updated_at` first; tie-break by ID/number).
           - Defer remaining items to next run via cursor.
+          
+          **Why use deterministic order?** - Ensures predictable behavior and prevents starvation. Oldest items are processed first, ensuring fair treatment of all work items. The cursor saves progress for next run.
           
           ### Phase 3 — Write State (Execution) [WRITES ONLY]
           
@@ -1119,6 +1136,12 @@ jobs:
           
           ### Adding New Issues
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           When first adding an item to the project, you MUST write ALL required fields.
           
           ```yaml
@@ -1158,12 +1181,6 @@ jobs:
             campaign_id: "file-size-reduction-project71"
             content_type: "issue"              # or "pull_request"
             content_number: 123
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
             fields:
               status: "Done"
           ```
@@ -1423,7 +1440,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}

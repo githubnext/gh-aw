@@ -18,83 +18,15 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 }
 
 // GenerateSerenaLanguageServiceSteps creates installation steps for Serena language services
-// This is called after runtime detection to install the language servers needed by Serena
+// NOTE: This function is now obsolete since Serena runs in a Docker container.
+// Language services are provided inside the container and do not require host installation.
+// This function is kept for backward compatibility but returns an empty slice.
 func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
-	runtimeSetupLog.Print("Generating Serena language service installation steps")
-	var steps []GitHubActionStep
-
-	// Check if Serena is configured
-	if tools == nil || tools.Serena == nil {
-		return steps
-	}
-
-	serenaConfig := tools.Serena
-
-	// Collect all languages from the configuration
-	var languages []string
-
-	// Handle short syntax: ["go", "typescript"]
-	if len(serenaConfig.ShortSyntax) > 0 {
-		languages = serenaConfig.ShortSyntax
-	} else if serenaConfig.Languages != nil {
-		// Handle object syntax with languages field
-		for langName := range serenaConfig.Languages {
-			languages = append(languages, langName)
-		}
-	}
-
-	// Sort languages alphabetically to ensure deterministic order
-	sort.Strings(languages)
-
-	runtimeSetupLog.Printf("Found %d Serena languages to install: %v", len(languages), languages)
-
-	// Generate installation steps for each language service
-	for _, lang := range languages {
-		switch lang {
-		case "go":
-			// Install gopls for Go language service
-			// Check if there's a custom gopls version specified
-			goplsVersion := "latest"
-			if serenaConfig.Languages != nil {
-				if goConfig := serenaConfig.Languages["go"]; goConfig != nil && goConfig.GoplsVersion != "" {
-					goplsVersion = goConfig.GoplsVersion
-				}
-			}
-			steps = append(steps, GitHubActionStep{
-				"      - name: Install Go language service (gopls)",
-				fmt.Sprintf("        run: go install golang.org/x/tools/gopls@%s", goplsVersion),
-			})
-		case "typescript":
-			// Install TypeScript language server
-			steps = append(steps, GitHubActionStep{
-				"      - name: Install TypeScript language service",
-				"        run: npm install -g --silent typescript-language-server typescript",
-			})
-		case "python":
-			// Install Python language server
-			steps = append(steps, GitHubActionStep{
-				"      - name: Install Python language service",
-				"        run: pip install --quiet python-lsp-server",
-			})
-		case "java":
-			// Java language service typically comes with the JDK setup
-			// No additional installation needed
-			runtimeSetupLog.Print("Java language service (jdtls) typically bundled with JDK, skipping explicit install")
-		case "rust":
-			// Install rust-analyzer for Rust language service
-			steps = append(steps, GitHubActionStep{
-				"      - name: Install Rust language service (rust-analyzer)",
-				"        run: rustup component add rust-analyzer",
-			})
-		case "csharp":
-			// C# language service typically comes with .NET SDK
-			// No additional installation needed
-			runtimeSetupLog.Print("C# language service (OmniSharp) typically bundled with .NET SDK, skipping explicit install")
-		}
-	}
-
-	runtimeSetupLog.Printf("Generated %d Serena language service installation steps", len(steps))
-	return steps
+	runtimeSetupLog.Print("Serena language services are now provided inside the container - no installation steps needed")
+	
+	// Return empty slice - no steps needed since Serena runs in a container
+	// with all language services pre-installed
+	return []GitHubActionStep{}
 }
 
 // generateSetupStep creates a setup step for a given runtime requirement

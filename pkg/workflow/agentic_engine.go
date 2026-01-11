@@ -74,6 +74,11 @@ type CodingAgentEngine interface {
 	// GetDefaultDetectionModel returns the default model to use for threat detection
 	// If empty, no default model is applied and the engine uses its standard default
 	GetDefaultDetectionModel() string
+
+	// GetRequiredSecretNames returns the list of secret names that this engine needs for execution
+	// This includes engine-specific auth tokens and the MCP gateway API key when MCP servers are present
+	// Returns: slice of secret names (e.g., ["COPILOT_GITHUB_TOKEN", "MCP_GATEWAY_API_KEY"])
+	GetRequiredSecretNames(workflowData *WorkflowData) []string
 }
 
 // BaseEngine provides common functionality for agentic engines
@@ -146,6 +151,12 @@ func (e *BaseEngine) GetDefaultDetectionModel() string {
 func (e *BaseEngine) GetLogFileForParsing() string {
 	// Default to agent-stdio.log which contains stdout/stderr
 	return "/tmp/gh-aw/agent-stdio.log"
+}
+
+// GetRequiredSecretNames returns an empty list by default
+// Engines must override this to specify their required secrets
+func (e *BaseEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	return []string{}
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
