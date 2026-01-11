@@ -57,22 +57,45 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          
-      - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@v2
+      
+      # For workflow_dispatch with draft=true, we handle building and release creation separately
+      - name: Set up Go for manual build
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.draft == true }}
+        uses: actions/setup-go@v6
         with:
-          go_version_file: go.mod
-          build_script_override: scripts/build-release.sh
-
-      - name: Convert to draft release if requested
+          go-version-file: go.mod
+      
+      - name: Build binaries for draft release
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.draft == true }}
+        run: |
+          RELEASE_TAG="${{ inputs.tag }}"
+          echo "Building binaries for draft release $RELEASE_TAG..."
+          bash scripts/build-release.sh "$RELEASE_TAG"
+          echo "✓ Binaries built"
+      
+      - name: Create draft release with binaries
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.draft == true }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RELEASE_TAG="${{ inputs.tag }}"
-          echo "Converting release $RELEASE_TAG to draft..."
-          gh release edit "$RELEASE_TAG" --draft
-          echo "✓ Release converted to draft"
+          echo "Creating draft release $RELEASE_TAG..."
+          
+          # Create draft release with built binaries
+          gh release create "$RELEASE_TAG" \
+            --draft \
+            --title "Release $RELEASE_TAG" \
+            --notes "Draft release - notes will be added by the agent" \
+            dist/*
+          
+          echo "✓ Draft release created with binaries"
+          
+      - name: Release with gh-extension-precompile
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.draft != true }}
+        uses: cli/gh-extension-precompile@v2
+        with:
+          go_version_file: go.mod
+          build_script_override: scripts/build-release.sh
 
       - name: Upload checksums file
         env:
