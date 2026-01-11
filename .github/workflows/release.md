@@ -5,6 +5,17 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.2.3)'
+        required: true
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
   pull-requests: read
@@ -53,11 +64,25 @@ jobs:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
 
+      - name: Convert to draft release if requested
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.draft == true }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${{ inputs.tag }}"
+          echo "Converting release $RELEASE_TAG to draft..."
+          gh release edit "$RELEASE_TAG" --draft
+          echo "✓ Release converted to draft"
+
       - name: Upload checksums file
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RELEASE_TAG="${{ inputs.tag }}"
+          else
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          fi
           if [ -f "dist/checksums.txt" ]; then
             echo "Uploading checksums file to release: $RELEASE_TAG"
             gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
@@ -71,7 +96,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RELEASE_TAG="${{ inputs.tag }}"
+          else
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          fi
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
@@ -221,12 +250,17 @@ steps:
       # Use the release ID from the release job
       echo "Release ID from release job: $RELEASE_ID"
       
-      # Get the release tag from the push event
-      if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
-        echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
-        exit 1
+      # Get the release tag from the event
+      if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+        RELEASE_TAG="${{ inputs.tag }}"
+      else
+        # Get the release tag from the push event
+        if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
+          echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
+          exit 1
+        fi
+        RELEASE_TAG="${GITHUB_REF#refs/tags/}"
       fi
-      RELEASE_TAG="${GITHUB_REF#refs/tags/}"
       echo "Processing release: $RELEASE_TAG"
       
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"

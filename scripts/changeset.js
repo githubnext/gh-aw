@@ -530,8 +530,9 @@ function runVersion() {
  * Run the release command
  * @param {string} releaseType - Optional release type (patch, minor, major)
  * @param {boolean} skipConfirmation - If true, skip confirmation prompt
+ * @param {boolean} draft - If true, create as draft release
  */
-async function runRelease(releaseType, skipConfirmation = false) {
+async function runRelease(releaseType, skipConfirmation = false, draft = false) {
   // Check git prerequisites (clean tree, main branch)
   checkGitPrerequisites();
 
@@ -566,7 +567,7 @@ async function runRelease(releaseType, skipConfirmation = false) {
   console.log(formatInfoMessage(`Current version: ${formatVersion(currentVersion)}`));
   console.log(formatInfoMessage(`Bump type: ${bumpType}`));
   console.log(formatInfoMessage(`Next version: ${versionString}`));
-  console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
+  console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}${draft ? " (DRAFT)" : ""}`));
 
   // Show what will be included in the release
   if (changesets.length > 0) {
@@ -647,6 +648,35 @@ async function runRelease(releaseType, skipConfirmation = false) {
     console.log("");
     console.log(formatSuccessMessage(`Successfully released ${versionString}`));
     console.log(formatSuccessMessage("Commit and tag pushed to remote"));
+
+    // If draft flag is set, create a draft release using gh CLI
+    if (draft) {
+      console.log("");
+      console.log(formatInfoMessage("Creating draft release..."));
+      try {
+        const changelogEntry = updateChangelog(versionString, changesets, true);
+        const notesFile = `.changeset/notes-${versionString}.md`;
+        fs.writeFileSync(notesFile, changelogEntry, "utf8");
+
+        execSync(`gh release create ${versionString} --draft --title "Release ${versionString}" --notes-file ${notesFile}`, {
+          encoding: "utf8",
+          stdio: "inherit",
+        });
+
+        fs.unlinkSync(notesFile);
+        console.log("");
+        console.log(formatSuccessMessage(`Draft release created: ${versionString}`));
+        console.log(formatInfoMessage("You can edit and publish the release via GitHub UI"));
+      } catch (error) {
+        console.log("");
+        console.error(formatErrorMessage("Failed to create draft release: " + error.message));
+        console.log(formatInfoMessage("You can create the release manually with:"));
+        console.log(`  gh release create ${versionString} --draft --title "Release ${versionString}" --notes "..."`);
+      }
+    } else {
+      console.log("");
+      console.log(formatInfoMessage("GitHub Actions will create the release automatically"));
+    }
   } catch (error) {
     console.log("");
     console.error(formatErrorMessage("Git operation failed: " + error.message));
@@ -673,12 +703,13 @@ function showHelp() {
   console.log("");
   console.log("Usage:");
   console.log("  node scripts/changeset.js version      - Preview next version from changesets");
-  console.log("  node scripts/changeset.js release [type] [--yes] - Create release and update CHANGELOG");
+  console.log("  node scripts/changeset.js release [type] [flags] - Create release and update CHANGELOG");
   console.log("");
   console.log("Release types: patch, minor, major");
   console.log("");
   console.log("Flags:");
-  console.log("  --yes, -y    Skip confirmation prompt and proceed automatically");
+  console.log("  --yes, -y     Skip confirmation prompt and proceed automatically");
+  console.log("  --draft, -d   Create as draft release (default: false)");
   console.log("");
   console.log("Examples:");
   console.log("  node scripts/changeset.js version");
@@ -688,6 +719,8 @@ function showHelp() {
   console.log("  node scripts/changeset.js release major");
   console.log("  node scripts/changeset.js release --yes");
   console.log("  node scripts/changeset.js release patch --yes");
+  console.log("  node scripts/changeset.js release --draft");
+  console.log("  node scripts/changeset.js release minor --draft --yes");
 }
 
 // Main entry point
@@ -710,17 +743,20 @@ async function main() {
         // Parse release type and flags
         let releaseType = null;
         let skipConfirmation = false;
+        let draft = false;
 
         for (let i = 1; i < args.length; i++) {
           const arg = args[i];
           if (arg === "--yes" || arg === "-y") {
             skipConfirmation = true;
+          } else if (arg === "--draft" || arg === "-d") {
+            draft = true;
           } else if (!releaseType && ["patch", "minor", "major"].includes(arg)) {
             releaseType = arg;
           }
         }
 
-        await runRelease(releaseType, skipConfirmation);
+        await runRelease(releaseType, skipConfirmation, draft);
         break;
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));

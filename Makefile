@@ -602,6 +602,10 @@ pull-main:
 release: pull-main build
 	@node scripts/changeset.js release
 
+.PHONY: release-draft
+release-draft: pull-main build
+	@node scripts/changeset.js release --draft
+
 # Generate Software Bill of Materials (SBOM)
 .PHONY: sbom
 sbom:
@@ -691,5 +695,6 @@ help:
 	@echo "  agent-finish     - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
 	@echo "  release   - Create release using changesets (depends on test)"
+	@echo "  release-draft - Create draft release using changesets (depends on test)"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"
