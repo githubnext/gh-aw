@@ -45,6 +45,7 @@ Available codemods:
   • safe-inputs-mode-removal: Removes deprecated 'safe-inputs.mode' field
   • schedule-at-to-around-migration: Converts 'daily at TIME' to 'daily around TIME'
   • delete-schema-file: Deletes deprecated .github/aw/schemas/agentic-workflow.json
+  • delete-old-agents: Deletes old .agent.md files moved to .github/aw/
 
 If no workflows are specified, all Markdown files in .github/workflows will be processed.
 
@@ -55,6 +56,7 @@ The command will:
   4. Write updated files back to disk (with --write flag)
   5. Update prompt and agent files to latest templates (similar to 'init' command)
   6. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists
+  7. Delete old .agent.md files that have been moved to .github/aw/ (with --write flag)
 
 ` + WorkflowIDExplanation + `
 
@@ -189,22 +191,43 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update copilot instructions: %v", err)))
 	}
 
-	// Update agentic workflow agent
-	if err := ensureAgenticWorkflowAgent(verbose, false); err != nil {
-		fixLog.Printf("Failed to update agentic workflow agent: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update workflow creation agent: %v", err)))
+	// Update dispatcher agent
+	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
+		fixLog.Printf("Failed to update dispatcher agent: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update dispatcher agent: %v", err)))
 	}
 
-	// Update debug agentic workflow agent
-	if err := ensureDebugAgenticWorkflowAgent(verbose, false); err != nil {
-		fixLog.Printf("Failed to update debug agentic workflow agent: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update debug workflow agent: %v", err)))
+	// Update create agentic workflow prompt
+	if err := ensureCreateAgenticWorkflowPrompt(verbose, false); err != nil {
+		fixLog.Printf("Failed to update create workflow prompt: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update workflow creation prompt: %v", err)))
 	}
 
-	// Update upgrade agentic workflow agent
-	if err := ensureUpgradeAgenticWorkflowAgent(verbose, false); err != nil {
-		fixLog.Printf("Failed to update upgrade agentic workflow agent: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update upgrade workflow agent: %v", err)))
+	// Update create shared agentic workflow prompt
+	if err := ensureCreateSharedAgenticWorkflowPrompt(verbose, false); err != nil {
+		fixLog.Printf("Failed to update create shared workflow prompt: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update shared workflow creation prompt: %v", err)))
+	}
+
+	// Update debug agentic workflow prompt
+	if err := ensureDebugAgenticWorkflowPrompt(verbose, false); err != nil {
+		fixLog.Printf("Failed to update debug workflow prompt: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update debug workflow prompt: %v", err)))
+	}
+
+	// Update upgrade agentic workflows prompt
+	if err := ensureUpgradeAgenticWorkflowsPrompt(verbose, false); err != nil {
+		fixLog.Printf("Failed to update upgrade workflows prompt: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update upgrade workflow prompt: %v", err)))
+	}
+
+	// Delete old agent files if write flag is set
+	if write {
+		fixLog.Print("Deleting old agent files")
+		if err := deleteOldAgentFiles(verbose); err != nil {
+			fixLog.Printf("Failed to delete old agent files: %v", err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete old agent files: %v", err)))
+		}
 	}
 
 	// Delete deprecated schema file if it exists

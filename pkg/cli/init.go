@@ -52,14 +52,34 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created GitHub Copilot instructions"))
 	}
 
-	// Write agentic workflow agent
-	initLog.Print("Writing agentic workflow agent")
-	if err := ensureAgenticWorkflowAgent(verbose, false); err != nil {
-		initLog.Printf("Failed to write agentic workflow agent: %v", err)
-		return fmt.Errorf("failed to write agentic workflow agent: %w", err)
+	// Write dispatcher agent
+	initLog.Print("Writing agentic workflows dispatcher agent")
+	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
+		initLog.Printf("Failed to write dispatcher agent: %v", err)
+		return fmt.Errorf("failed to write dispatcher agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agent for workflow creation"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent"))
+	}
+
+	// Write create agentic workflow prompt
+	initLog.Print("Writing create agentic workflow prompt")
+	if err := ensureCreateAgenticWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write create workflow prompt: %v", err)
+		return fmt.Errorf("failed to write create workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created workflow creation prompt"))
+	}
+
+	// Write create shared agentic workflow prompt
+	initLog.Print("Writing create shared agentic workflow prompt")
+	if err := ensureCreateSharedAgenticWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write create shared workflow prompt: %v", err)
+		return fmt.Errorf("failed to write create shared workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created shared workflow creation prompt"))
 	}
 
 	// Delete existing setup agentic workflows agent if it exists
@@ -69,24 +89,24 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		return fmt.Errorf("failed to delete setup agentic workflows agent: %w", err)
 	}
 
-	// Write debug agentic workflow agent
-	initLog.Print("Writing debug agentic workflow agent")
-	if err := ensureDebugAgenticWorkflowAgent(verbose, false); err != nil {
-		initLog.Printf("Failed to write debug agentic workflow agent: %v", err)
-		return fmt.Errorf("failed to write debug agentic workflow agent: %w", err)
+	// Write debug agentic workflow prompt
+	initLog.Print("Writing debug agentic workflow prompt")
+	if err := ensureDebugAgenticWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write debug workflow prompt: %v", err)
+		return fmt.Errorf("failed to write debug workflow prompt: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug agentic workflow agent"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug workflow prompt"))
 	}
 
-	// Write upgrade agentic workflow agent
-	initLog.Print("Writing upgrade agentic workflow agent")
-	if err := ensureUpgradeAgenticWorkflowAgent(verbose, false); err != nil {
-		initLog.Printf("Failed to write upgrade agentic workflow agent: %v", err)
-		return fmt.Errorf("failed to write upgrade agentic workflow agent: %w", err)
+	// Write upgrade agentic workflows prompt
+	initLog.Print("Writing upgrade agentic workflows prompt")
+	if err := ensureUpgradeAgenticWorkflowsPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write upgrade workflows prompt: %v", err)
+		return fmt.Errorf("failed to write upgrade workflows prompt: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created upgrade agentic workflow agent"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created upgrade workflows prompt"))
 	}
 
 	// Configure MCP if requested

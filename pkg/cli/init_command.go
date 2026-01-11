@@ -21,9 +21,11 @@ This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates .github/aw/logs/.gitignore to ignore downloaded workflow logs
 - Creates GitHub Copilot custom instructions at .github/aw/github-agentic-workflows.md
-- Creates the agent for workflow creation at .github/agents/create-agentic-workflow.agent.md
-- Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.agent.md
-- Creates the upgrade agentic workflow agent at .github/agents/upgrade-agentic-workflows.md
+- Creates the dispatcher agent at .github/agents/agentic-workflows.agent.md
+- Creates workflow creation prompt at .github/aw/create-agentic-workflow.md
+- Creates shared workflow creation prompt at .github/aw/create-shared-agentic-workflow.md
+- Creates debug workflow prompt at .github/aw/debug-agentic-workflow.md
+- Creates upgrade workflow prompt at .github/aw/upgrade-agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
 
@@ -55,9 +57,8 @@ With --completions flag:
 - Provides instructions for enabling completions in your shell
 
 After running this command, you can:
-- Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
-- Use GitHub Copilot Chat: type /agent and select debug-agentic-workflow to debug existing workflows
-- Use GitHub Copilot Chat: type /agent and select upgrade-agentic-workflows to upgrade workflows to the latest gh-aw version
+- Use GitHub Copilot Chat: type /agent and select agentic-workflows to get started with workflow tasks
+- The dispatcher will route your request to the appropriate specialized prompt
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
 
