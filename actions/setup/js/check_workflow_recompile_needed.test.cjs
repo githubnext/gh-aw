@@ -248,7 +248,7 @@ The following workflow lock files have changes:
     expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
-      title: "[aw] agentic workflows out of sync",
+      title: "[agentics] agentic workflows out of sync",
       body: expect.stringContaining("Using gh aw CLI"),
       labels: ["maintenance", "workflows"],
     });

@@ -111,7 +111,7 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify parent issue was searched for
       expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
-        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[aw] Agentic Workflow Issues"'),
+        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[agentics] Agentic Workflow Issues"'),
         per_page: 1,
       });
 
@@ -119,7 +119,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Agentic Workflow Issues",
+        title: "[agentics] Agentic Workflow Issues",
         body: expect.stringContaining("This issue tracks all failures from agentic workflows"),
         labels: ["agentic-workflows"],
       });
@@ -137,7 +137,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
         labels: ["agentic-workflows"],
       });
@@ -201,7 +201,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.any(String),
         labels: ["agentic-workflows"],
       });
@@ -268,7 +268,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.any(String),
         labels: ["agentic-workflows"],
       });
@@ -304,7 +304,7 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify search was called
       expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
-        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[aw] Test Workflow failed"'),
+        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[agentics] Test Workflow failed"'),
         per_page: 1,
       });
 
@@ -312,7 +312,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
         labels: ["agentic-workflows"],
       });
@@ -465,7 +465,7 @@ describe("handle_agent_failure.cjs", () => {
       // Should still attempt to create issue with defaults
       expect(mockGithub.rest.issues.create).toHaveBeenCalled();
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
-      expect(failureIssueCreateCall.title).toContain("[aw] unknown failed");
+      expect(failureIssueCreateCall.title).toContain("[agentics] unknown failed");
     });
 
     it("should truncate very long workflow names in title", async () => {
@@ -493,10 +493,10 @@ describe("handle_agent_failure.cjs", () => {
 
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
       // Title should be truncated via sanitization
-      // Title includes "[aw] " prefix (5 chars) + workflow name (up to 100 chars) + " failed" (8 chars)
+      // Title includes "[agentics] " prefix (5 chars) + workflow name (up to 100 chars) + " failed" (8 chars)
       // So max should be around 113 chars, but sanitize may add ... so let's be lenient
       expect(failureIssueCreateCall.title.length).toBeLessThan(200); // More lenient - actual is 146
-      expect(failureIssueCreateCall.title).toContain("[aw]");
+      expect(failureIssueCreateCall.title).toContain("[agentics]");
       expect(failureIssueCreateCall.title).toContain("failed");
       // Verify it was truncated (not 200 As)
       expect(failureIssueCreateCall.title.length).toBeLessThan(220);
