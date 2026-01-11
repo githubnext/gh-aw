@@ -3,6 +3,8 @@ id: discussion-task-mining
 name: "Campaign: Discussion Task Mining for Code Quality"
 description: "Systematically extract actionable code quality improvement tasks from AI-generated discussions. Success: continuous identification of high-value refactoring, testing, and maintainability improvements."
 version: v1
+# Using Claude engine until Copilot is fixed
+engine: claude
 project-url: "https://github.com/orgs/githubnext/projects/TBD"  # To be updated when project is created
 workflows:
   - discussion-task-miner

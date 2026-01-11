@@ -102,6 +102,11 @@ type CampaignSpec struct {
 	// Default: false (passive discovery only).
 	ExecuteWorkflows bool `yaml:"execute-workflows,omitempty" json:"execute_workflows,omitempty"`
 
+	// Engine specifies the AI engine to use for the campaign orchestrator.
+	// Valid values: copilot, claude, codex, custom.
+	// Default: copilot (when not specified).
+	Engine string `yaml:"engine,omitempty" json:"engine,omitempty" console:"header:Engine,omitempty"`
+
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
 	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path,maxlen:60"`
