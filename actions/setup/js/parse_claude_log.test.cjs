@@ -319,6 +319,49 @@ describe("parse_claude_log.cjs", () => {
       expect(result.markdown).toContain("**Turns:** 10");
       expect(result.maxTurnsHit).toBe(false);
     });
+
+    it("should render error messages from errors array", () => {
+      const logWithErrors = JSON.stringify([
+        { type: "system", subtype: "init", session_id: "test-errors", tools: ["Bash"], model: "claude-sonnet-4-20250514" },
+        {
+          type: "result",
+          subtype: "error_during_execution",
+          duration_ms: 0,
+          duration_api_ms: 0,
+          is_error: true,
+          num_turns: 0,
+          session_id: "9536d10a-effb-4160-8584-ff2407ffdaa9",
+          total_cost_usd: 0,
+          usage: { input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 },
+          errors: ["only prompt commands are supported in streaming mode"],
+        },
+      ]);
+      const result = parseClaudeLog(logWithErrors);
+
+      expect(result.markdown).toContain("**Errors:**");
+      expect(result.markdown).toContain("- only prompt commands are supported in streaming mode");
+    });
+
+    it("should render multiple error messages", () => {
+      const logWithMultipleErrors = JSON.stringify([
+        { type: "system", subtype: "init", session_id: "test-multi-errors", tools: ["Bash"], model: "claude-sonnet-4-20250514" },
+        {
+          type: "result",
+          subtype: "error_during_execution",
+          is_error: true,
+          num_turns: 0,
+          total_cost_usd: 0,
+          usage: { input_tokens: 0, output_tokens: 0 },
+          errors: ["Error 1: Connection failed", "Error 2: Timeout occurred", "Error 3: Invalid response"],
+        },
+      ]);
+      const result = parseClaudeLog(logWithMultipleErrors);
+
+      expect(result.markdown).toContain("**Errors:**");
+      expect(result.markdown).toContain("- Error 1: Connection failed");
+      expect(result.markdown).toContain("- Error 2: Timeout occurred");
+      expect(result.markdown).toContain("- Error 3: Invalid response");
+    });
   });
 
   describe("main function integration", () => {
