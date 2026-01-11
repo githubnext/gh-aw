@@ -442,6 +442,7 @@ fmt-go:
 .PHONY: fmt-cjs
 fmt-cjs:
 	cd actions/setup/js && npm run format:cjs
+	npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore
 
 # Format JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-json
@@ -467,6 +468,7 @@ fmt-check:
 .PHONY: fmt-check-cjs
 fmt-check-cjs:
 	cd actions/setup/js && npm run lint:cjs
+	npx prettier --check 'scripts/**/*.js' --ignore-path .prettierignore
 
 # Check JSON file formatting in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-check-json

@@ -181,15 +181,13 @@ function generateMarkdown(workflows) {
   for (const workflow of workflows) {
     const agent = workflow.engine || "copilot";
     const statusBadge = `[![${workflow.name}](${workflow.badgeUrl})](${workflow.workflowUrl})`;
-    
+
     // Consolidate name and source link
-    const workflowNameWithLink = workflow.mdFilename
-      ? `[${workflow.name}](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/workflows/${workflow.mdFilename})`
-      : workflow.name;
-    
+    const workflowNameWithLink = workflow.mdFilename ? `[${workflow.name}](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/workflows/${workflow.mdFilename})` : workflow.name;
+
     // Format schedule - show cron or "-"
     const schedule = workflow.schedule ? `\`${workflow.schedule}\`` : "-";
-    
+
     // Format command - show /command or "-"
     const command = workflow.command ? `\`/${workflow.command}\`` : "-";
 
