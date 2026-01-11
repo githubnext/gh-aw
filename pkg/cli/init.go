@@ -129,15 +129,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	// Configure VSCode settings
 	initLog.Print("Configuring VSCode settings")
 
-	// Write workflow schema to .github/aw/
-	if err := ensureWorkflowSchema(verbose); err != nil {
-		initLog.Printf("Failed to write workflow schema: %v", err)
-		return fmt.Errorf("failed to write workflow schema: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/aw/schemas/agentic-workflow.json"))
-	}
-
 	// Update .vscode/settings.json
 	if err := ensureVSCodeSettings(verbose); err != nil {
 		initLog.Printf("Failed to update VSCode settings: %v", err)
