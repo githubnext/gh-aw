@@ -22,6 +22,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 - [Contributing](#contributing)
 - [Share Feedback](#share-feedback)
 - [Labs](#labs)
+- [Related Projects](#related-projects)
 
 ## Quick Start
 
@@ -81,3 +82,10 @@ and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Disc
 ## Labs
 
 See the [Labs](https://githubnext.github.io/gh-aw/labs/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
+
+## Related Projects
+
+GitHub Agentic Workflows is supported by companion projects that provide additional security and integration capabilities:
+
+- **[Agent Workflow Firewall (AWF)](https://github.com/githubnext/gh-aw-firewall)** - Network egress control for AI agents, providing domain-based access controls and activity logging for secure workflow execution
+- **[MCP Gateway](https://github.com/githubnext/gh-aw-mcpg)** - Routes Model Context Protocol (MCP) server calls through a unified HTTP gateway for centralized access management
