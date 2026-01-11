@@ -65,9 +65,9 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			name:            "empty version uses default",
 			version:         "",
 			stepName:        "Install GitHub Copilot CLI",
-			expectedVersion: "0.0.376", // Should use DefaultCopilotVersion
+			expectedVersion: "0.0.377", // Should use DefaultCopilotVersion
 			shouldContain: []string{
-				"export VERSION=0.0.376",
+				"export VERSION=0.0.377",
 				"https://raw.githubusercontent.com/github/copilot-cli/main/install.sh",
 				"sudo bash /tmp/copilot-install.sh",
 				"copilot --version",
