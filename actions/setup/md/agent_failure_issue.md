@@ -7,7 +7,7 @@ The agentic workflow **{workflow_name}** has failed. This typically indicates a 
 - **Workflow:** [{workflow_name}]({workflow_source_url})
 - **Failed Run:** {run_url}
 - **Source:** {workflow_source}
-
+{github_context_section}
 ## How to investigate
 
 Use the **debug-agentic-workflow** agent to investigate this failure.

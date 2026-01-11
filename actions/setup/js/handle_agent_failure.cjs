@@ -223,7 +223,8 @@ async function main() {
         } catch (error) {
           // Fallback for tests or if template file is missing
           core.warning(`Could not read comment template from ${commentTemplatePath}, using fallback: ${getErrorMessage(error)}`);
-          commentTemplate = `Agent job [{run_id}]({run_url}) failed.`;
+          commentTemplate = `Agent job [{run_id}]({run_url}) failed.
+{github_context_section}`;
         }
 
         // Extract run ID from URL (e.g., https://github.com/owner/repo/actions/runs/123 -> "123")
@@ -233,6 +234,23 @@ async function main() {
           runId = runIdMatch[1];
         }
 
+        // Extract GitHub context information
+        const commitSha = process.env.GITHUB_SHA || context.sha || "";
+        const issueNumber = context.payload?.issue?.number || "";
+        const pullRequestNumber = context.payload?.pull_request?.number || "";
+
+        // Build GitHub context section conditionally
+        let githubContextSection = "";
+        if (commitSha) {
+          githubContextSection = "\n\n**Context:**\n- Commit: `" + commitSha + "`";
+          if (issueNumber) {
+            githubContextSection += "\n- Issue: #" + issueNumber;
+          }
+          if (pullRequestNumber) {
+            githubContextSection += "\n- Pull Request: #" + pullRequestNumber;
+          }
+        }
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -240,6 +258,7 @@ async function main() {
           workflow_name: workflowName,
           workflow_source: workflowSource,
           workflow_source_url: workflowSourceURL,
+          github_context_section: githubContextSection,
         };
 
         // Render the comment template
@@ -286,7 +305,7 @@ The agentic workflow **{workflow_name}** has failed. This typically indicates a 
 - **Workflow:** [{workflow_name}]({workflow_source_url})
 - **Failed Run:** {run_url}
 - **Source:** {workflow_source}
-
+{github_context_section}
 ## How to investigate
 
 Use the **debug-agentic-workflow** agent to investigate this failure.
@@ -301,12 +320,30 @@ The debug agent will help you:
 - Suggest fixes for configuration or runtime errors`;
         }
 
+        // Extract GitHub context information
+        const commitSha = process.env.GITHUB_SHA || context.sha || "";
+        const issueNumber = context.payload?.issue?.number || "";
+        const pullRequestNumber = context.payload?.pull_request?.number || "";
+
+        // Build GitHub context section conditionally
+        let githubContextSection = "";
+        if (commitSha) {
+          githubContextSection = "\n\n## GitHub Context\n\n- **Commit SHA:** `" + commitSha + "`";
+          if (issueNumber) {
+            githubContextSection += "\n- **Issue:** #" + issueNumber;
+          }
+          if (pullRequestNumber) {
+            githubContextSection += "\n- **Pull Request:** #" + pullRequestNumber;
+          }
+        }
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
           run_url: runUrl,
           workflow_source: sanitizeContent(workflowSource, { maxLength: 500 }),
           workflow_source_url: workflowSourceURL || "#",
+          github_context_section: githubContextSection,
         };
 
         // Render the issue template

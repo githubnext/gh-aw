@@ -326,7 +326,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(failureIssueCreateCall.body).not.toContain("## Common Causes");
       expect(failureIssueCreateCall.body).not.toContain("```bash");
-      expect(failureIssueCreateCall.body).toContain("Generated from Test Workflow");
+      expect(failureIssueCreateCall.body).toContain("Generated from [Test Workflow](https://github.com/test-owner/test-repo/actions/runs/123)");
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created new issue #42"));
     });
@@ -362,7 +362,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(commentCall.body).toContain("Agent job [123]");
       expect(commentCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
       expect(commentCall.body).not.toContain("```bash");
-      expect(commentCall.body).toContain("Generated from Test Workflow");
+      expect(commentCall.body).toContain("Generated from [Test Workflow](https://github.com/test-owner/test-repo/actions/runs/123)");
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Added comment to existing issue #10"));
     });
@@ -395,6 +395,77 @@ describe("handle_agent_failure.cjs", () => {
       expect(failureIssueCreateCall.title).not.toContain("<script>");
       // Verify mentions are escaped
       expect(failureIssueCreateCall.body).toContain("`@user`");
+    });
+
+    it("should include GitHub context when available (commit SHA, issue number)", async () => {
+      // Set up GitHub context with commit SHA and issue number
+      process.env.GITHUB_SHA = "abc123def456";
+      mockContext.payload = {
+        issue: {
+          number: 42,
+        },
+      };
+
+      // Mock searches
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        });
+
+      // Mock issue creation
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
+        })
+        .mockResolvedValueOnce({
+          data: { number: 100, html_url: "https://example.com/100", node_id: "I_100" },
+        });
+
+      mockGithub.graphql = vi.fn().mockResolvedValue({});
+
+      await main();
+
+      // Verify issue contains GitHub context
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      expect(failureIssueCreateCall.body).toContain("## GitHub Context");
+      expect(failureIssueCreateCall.body).toContain("**Commit SHA:** `abc123def456`");
+      expect(failureIssueCreateCall.body).toContain("**Issue:** #42");
+    });
+
+    it("should include GitHub context in comments when available", async () => {
+      // Set up GitHub context with commit SHA and PR number
+      process.env.GITHUB_SHA = "def789abc012";
+      mockContext.payload = {
+        pull_request: {
+          number: 99,
+        },
+      };
+
+      // Mock existing issue
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 10,
+              html_url: "https://github.com/test-owner/test-repo/issues/10",
+            },
+          ],
+        },
+      });
+
+      mockGithub.rest.issues.createComment.mockResolvedValue({});
+
+      await main();
+
+      // Verify comment contains GitHub context
+      const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+      expect(commentCall.body).toContain("**Context:**");
+      expect(commentCall.body).toContain("Commit: `def789abc012`");
+      expect(commentCall.body).toContain("Pull Request: #99");
     });
 
     it("should handle API errors gracefully", async () => {
