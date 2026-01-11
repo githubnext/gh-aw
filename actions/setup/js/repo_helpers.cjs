@@ -49,18 +49,30 @@ function getDefaultTargetRepo(config) {
 
 /**
  * Validate that a repo is allowed for operations
- * @param {string} repo - Repository slug to validate
+ * If repo is a bare name (no slash), it is automatically qualified with the
+ * default repo's organization (e.g., "gh-aw" becomes "githubnext/gh-aw" if
+ * the default repo is "githubnext/something").
+ * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
  * @param {string} defaultRepo - Default target repository
  * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
  * @returns {{valid: boolean, error: string|null}}
  */
 function validateRepo(repo, defaultRepo, allowedRepos) {
+  // If repo is a bare name (no slash), qualify it with the default repo's org
+  let qualifiedRepo = repo;
+  if (!repo.includes("/")) {
+    const defaultRepoParts = parseRepoSlug(defaultRepo);
+    if (defaultRepoParts) {
+      qualifiedRepo = `${defaultRepoParts.owner}/${repo}`;
+    }
+  }
+
   // Default repo is always allowed
-  if (repo === defaultRepo) {
+  if (qualifiedRepo === defaultRepo) {
     return { valid: true, error: null };
   }
   // Check if it's in the allowed repos list
-  if (allowedRepos.has(repo)) {
+  if (allowedRepos.has(qualifiedRepo)) {
     return { valid: true, error: null };
   }
   return {
