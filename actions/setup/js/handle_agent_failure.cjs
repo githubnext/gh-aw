@@ -5,7 +5,44 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
+const { getCurrentBranch } = require("./get_current_branch.cjs");
 const fs = require("fs");
+
+/**
+ * Attempt to find a pull request for the current branch
+ * @returns {Promise<{number: number, html_url: string} | null>} PR info or null if not found
+ */
+async function findPullRequestForCurrentBranch() {
+  try {
+    const { owner, repo } = context.repo;
+    const currentBranch = getCurrentBranch();
+
+    core.info(`Searching for pull request from branch: ${currentBranch}`);
+
+    // Search for open PRs with the current branch as head
+    const searchQuery = `repo:${owner}/${repo} is:pr is:open head:${currentBranch}`;
+
+    const searchResult = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 1,
+    });
+
+    if (searchResult.data.total_count > 0) {
+      const pr = searchResult.data.items[0];
+      core.info(`Found pull request #${pr.number}: ${pr.html_url}`);
+      return {
+        number: pr.number,
+        html_url: pr.html_url,
+      };
+    }
+
+    core.info(`No pull request found for branch: ${currentBranch}`);
+    return null;
+  } catch (error) {
+    core.warning(`Failed to find pull request for current branch: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
 
 /**
  * Search for or create the parent issue for all agentic workflow failures
@@ -13,7 +50,7 @@ const fs = require("fs");
  */
 async function ensureParentIssue() {
   const { owner, repo } = context.repo;
-  const parentTitle = "[aw] Agentic Workflow Issues";
+  const parentTitle = "[agentics] Agentic Workflow Issues";
   const parentLabel = "agentic-workflows";
 
   core.info(`Searching for parent issue: "${parentTitle}"`);
@@ -186,6 +223,9 @@ async function main() {
 
     const { owner, repo } = context.repo;
 
+    // Try to find a pull request for the current branch
+    const pullRequest = await findPullRequestForCurrentBranch();
+
     // Ensure parent issue exists first
     let parentIssue;
     try {
@@ -197,7 +237,7 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
+    const issueTitle = `[agentics] ${sanitizedWorkflowName} failed`;
 
     core.info(`Checking for existing issue with title: "${issueTitle}"`);
 
@@ -284,8 +324,7 @@ The agentic workflow **{workflow_name}** has failed. This typically indicates a 
 ## Failed Run
 
 - **Workflow:** [{workflow_name}]({workflow_source_url})
-- **Failed Run:** {run_url}
-- **Source:** {workflow_source}
+- **Failed Run:** {run_url}{pull_request_info}
 
 ## How to investigate
 
@@ -305,8 +344,8 @@ The debug agent will help you:
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
           run_url: runUrl,
-          workflow_source: sanitizeContent(workflowSource, { maxLength: 500 }),
           workflow_source_url: workflowSourceURL || "#",
+          pull_request_info: pullRequest ? `\n- **Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
         };
 
         // Render the issue template

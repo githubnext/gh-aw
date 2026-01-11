@@ -141,36 +141,30 @@ echo "Waiting for gateway to be ready..."
 HEALTH_CHECK_HOST="localhost"
 echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
 echo "(Note: MCP_GATEWAY_DOMAIN is '${MCP_GATEWAY_DOMAIN}' for container access)"
-MAX_ATTEMPTS=30
-ATTEMPT=0
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  # First check if the gateway process is still running
-  if ! ps -p $GATEWAY_PID > /dev/null 2>&1; then
-    echo "ERROR: Gateway process (PID: $GATEWAY_PID) has exited unexpectedly!"
-    echo ""
-    echo "Gateway stdout output:"
-    cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
-    echo ""
-    echo "Gateway stderr logs:"
-    cat /tmp/gh-aw/mcp-logs/stderr.log 2>/dev/null || echo "No stderr logs available"
-    exit 1
-  fi
-  
-  # Check health endpoint using localhost (since we're running on the host)
-  HEALTH_RESPONSE=$(curl -f -s "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1) && {
-    echo "Gateway is ready!"
-    echo "Health response: $HEALTH_RESPONSE"
-    break
-  }
-  ATTEMPT=$((ATTEMPT + 1))
-  if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet (curl response: $HEALTH_RESPONSE), waiting 1 second..."
-    sleep 1
-  fi
-done
+echo "Retrying up to 120 times with 1s delay (120s total timeout)"
 
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-  echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
+# Check health endpoint using localhost (since we're running on the host)
+# Per MCP Gateway Specification v1.3.0, /health must return HTTP 200 with JSON body containing specVersion and gatewayVersion
+# Use curl retry: 120 attempts with 1 second delay = 120s total
+RESPONSE=$(curl -s --retry 120 --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
+HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+HEALTH_RESPONSE=$(echo "$RESPONSE" | head -n -1)
+
+# Always log the health response for debugging
+echo "Health endpoint HTTP code: $HTTP_CODE"
+if [ -n "$HEALTH_RESPONSE" ]; then
+  echo "Health response body: $HEALTH_RESPONSE"
+else
+  echo "Health response body: (empty)"
+fi
+
+if [ "$HTTP_CODE" = "200" ] && [ -n "$HEALTH_RESPONSE" ]; then
+  echo "Gateway is ready!"
+else
+  echo ""
+  echo "ERROR: Gateway failed to become ready"
+  echo "Last HTTP code: $HTTP_CODE"
+  echo "Last health response: ${HEALTH_RESPONSE:-(empty)}"
   echo ""
   echo "Checking if gateway process is still alive..."
   if ps -p $GATEWAY_PID > /dev/null 2>&1; then
