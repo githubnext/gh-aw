@@ -289,7 +289,7 @@ describe("parse_copilot_log.cjs", () => {
 2026-01-11T07:21:35.100Z [DEBUG] }`;
 
       const result = parseCopilotLog(logWithMcpFailure);
-      
+
       expect(result.mcpFailures).toBeDefined();
       expect(result.mcpFailures).toHaveLength(1);
       expect(result.mcpFailures[0]).toBe("github");
@@ -305,7 +305,7 @@ describe("parse_copilot_log.cjs", () => {
 2026-01-11T07:21:35.150Z [DEBUG] }`;
 
       const result = parseCopilotLog(logWithMultipleMcpFailures);
-      
+
       expect(result.mcpFailures).toBeDefined();
       expect(result.mcpFailures).toHaveLength(2);
       expect(result.mcpFailures).toContain("github");
@@ -321,18 +321,18 @@ describe("parse_copilot_log.cjs", () => {
 2026-01-11T07:21:35.100Z [DEBUG] }`;
 
       const result = parseCopilotLog(successfulLog);
-      
+
       expect(result.mcpFailures).toBeUndefined();
     });
 
     it("should handle JSON format without MCP failures", () => {
       const jsonLog = JSON.stringify([
         { type: "system", subtype: "init", session_id: "test", tools: ["Bash"], model: "gpt-4" },
-        { type: "result", num_turns: 1, usage: { input_tokens: 100, output_tokens: 50 } }
+        { type: "result", num_turns: 1, usage: { input_tokens: 100, output_tokens: 50 } },
       ]);
 
       const result = parseCopilotLog(jsonLog);
-      
+
       expect(result.mcpFailures).toBeUndefined();
     });
 
@@ -346,7 +346,7 @@ describe("parse_copilot_log.cjs", () => {
 2026-01-11T07:21:35.150Z [DEBUG] }`;
 
       const result = parseCopilotLog(logWithDuplicateErrors);
-      
+
       expect(result.mcpFailures).toBeDefined();
       expect(result.mcpFailures).toHaveLength(1);
       expect(result.mcpFailures[0]).toBe("github");
