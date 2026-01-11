@@ -100,16 +100,16 @@ fi
 echo "Configuration validated successfully"
 echo ""
 
-# Set MCP_GATEWAY_LOGS_DIR environment variable for use by the gateway
-export MCP_GATEWAY_LOGS_DIR="/tmp/gh-aw/mcp-logs/"
+# Set MCP_GATEWAY_LOG_DIR environment variable for use by the gateway
+export MCP_GATEWAY_LOG_DIR="/tmp/gh-aw/mcp-logs/"
 
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 echo "Full docker command: $MCP_GATEWAY_DOCKER_COMMAND"
 echo ""
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
-# Pass MCP_GATEWAY_LOGS_DIR to the container via -e flag
-echo "$MCP_CONFIG" | MCP_GATEWAY_LOGS_DIR="$MCP_GATEWAY_LOGS_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
+# Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
+echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
   > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/stderr.log &
 
 GATEWAY_PID=$!
