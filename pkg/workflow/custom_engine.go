@@ -31,6 +31,21 @@ func NewCustomEngine() *CustomEngine {
 	}
 }
 
+// GetRequiredSecretNames returns empty for custom engine as secrets depend on user-defined steps
+// Custom engine steps should explicitly reference the secrets they need
+func (e *CustomEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	// Custom engine doesn't have predefined secrets
+	// User-defined steps should explicitly reference secrets they need
+	// MCP gateway API key is added if MCP servers are present
+	var secrets []string
+
+	if HasMCPServers(workflowData) {
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	return secrets
+}
+
 // GetInstallationSteps returns empty installation steps since custom engine doesn't need installation
 func (e *CustomEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	return []GitHubActionStep{}

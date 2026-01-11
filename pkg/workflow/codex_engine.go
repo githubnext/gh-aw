@@ -45,6 +45,27 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
+// GetRequiredSecretNames returns the list of secrets required by the Codex engine
+// This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY
+func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	secrets := []string{"CODEX_API_KEY", "OPENAI_API_KEY"}
+
+	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
+	if HasMCPServers(workflowData) {
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	// Add safe-inputs secret names
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName := range safeInputsSecrets {
+			secrets = append(secrets, varName)
+		}
+	}
+
+	return secrets
+}
+
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
@@ -351,8 +372,13 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 
-	// Format step with command and environment variables using shared helper
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
+	// Filter environment variables to only include allowed secrets
+	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
+	allowedSecrets := e.GetRequiredSecretNames(workflowData)
+	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
+
+	// Format step with command and filtered environment variables using shared helper
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 

@@ -466,8 +466,13 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
 	}
 
-	// Format step with command and environment variables using shared helper
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
+	// Filter environment variables to only include allowed secrets
+	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
+	allowedSecrets := e.GetRequiredSecretNames(workflowData)
+	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
+
+	// Format step with command and filtered environment variables using shared helper
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
