@@ -19,11 +19,121 @@ tools:
   github:
     toolsets:
       - issues
+  bash:
+    - "gh issue view *"
+    - "gh api *"
+    - "jq *"
+    - "cat *"
 safe-outputs:
   update-issue:
     target: input
     max: 1
 timeout-minutes: 20
+
+steps:
+  - name: Fetch parent issue and sub-issues data
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ISSUE_URL: ${{ inputs.issue_url }}
+    run: |
+      # Create output directory
+      mkdir -p /tmp/gh-aw/agent
+      
+      # Parse issue URL to extract owner, repo, and issue number
+      # Format: https://github.com/{owner}/{repo}/issues/{number}
+      if [[ "$ISSUE_URL" =~ https://github.com/([^/]+)/([^/]+)/issues/([0-9]+) ]]; then
+        OWNER="${BASH_REMATCH[1]}"
+        REPO="${BASH_REMATCH[2]}"
+        ISSUE_NUMBER="${BASH_REMATCH[3]}"
+        REPO_FULL="${OWNER}/${REPO}"
+        
+        echo "📋 Fetching data for issue #${ISSUE_NUMBER} from ${REPO_FULL}..."
+      else
+        echo "❌ Error: Invalid issue URL format. Expected: https://github.com/owner/repo/issues/NUMBER"
+        exit 1
+      fi
+      
+      # Fetch parent issue details
+      echo "⬇ Fetching parent issue #${ISSUE_NUMBER}..."
+      gh issue view "${ISSUE_NUMBER}" --repo "${REPO_FULL}" \
+        --json number,title,body,state,labels,assignees,milestone,createdAt,updatedAt,closedAt,author,url,comments \
+        > /tmp/gh-aw/agent/parent-issue.json
+      
+      echo "✓ Parent issue data saved to /tmp/gh-aw/agent/parent-issue.json"
+      
+      # Extract sub-issues from parent issue using GitHub API
+      # Sub-issues are tracked issues linked to this parent
+      echo "⬇ Fetching sub-issues for parent issue #${ISSUE_NUMBER}..."
+      
+      # Get tracked-by issues (sub-issues) using GraphQL
+      PARENT_NODE_ID=$(jq -r '.id' /tmp/gh-aw/agent/parent-issue.json)
+      
+      gh api graphql -f query='
+        query($nodeId: ID!) {
+          node(id: $nodeId) {
+            ... on Issue {
+              trackedIssues(first: 100) {
+                nodes {
+                  number
+                  title
+                  body
+                  state
+                  url
+                  createdAt
+                  updatedAt
+                  closedAt
+                  author {
+                    login
+                  }
+                  labels(first: 20) {
+                    nodes {
+                      name
+                      color
+                    }
+                  }
+                  assignees(first: 10) {
+                    nodes {
+                      login
+                      name
+                    }
+                  }
+                  comments(first: 100) {
+                    nodes {
+                      body
+                      createdAt
+                      author {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ' -f nodeId="${PARENT_NODE_ID}" > /tmp/gh-aw/agent/subissues-raw.json 2>/dev/null || echo '{"data":{"node":{"trackedIssues":{"nodes":[]}}}}' > /tmp/gh-aw/agent/subissues-raw.json
+      
+      # Extract the sub-issues array
+      jq '.data.node.trackedIssues.nodes' /tmp/gh-aw/agent/subissues-raw.json > /tmp/gh-aw/agent/sub-issues.json
+      
+      SUB_ISSUE_COUNT=$(jq 'length' /tmp/gh-aw/agent/sub-issues.json)
+      echo "✓ Found ${SUB_ISSUE_COUNT} sub-issue(s)"
+      echo "✓ Sub-issues data saved to /tmp/gh-aw/agent/sub-issues.json"
+      
+      # Create a summary file
+      cat > /tmp/gh-aw/agent/summary.txt << EOF
+      Parent Issue: #${ISSUE_NUMBER}
+      Repository: ${REPO_FULL}
+      Sub-Issues Count: ${SUB_ISSUE_COUNT}
+      Data Files:
+        - /tmp/gh-aw/agent/parent-issue.json
+        - /tmp/gh-aw/agent/sub-issues.json
+      EOF
+      
+      echo ""
+      echo "📊 Data Summary:"
+      cat /tmp/gh-aw/agent/summary.txt
 ---
 
 # Subissue Summary Reporter 📊
@@ -39,43 +149,43 @@ Generate a comprehensive summary report for the parent issue provided by the use
 4. **New features delivered** - Capabilities, improvements, and deliverables completed
 5. **Overall status** - Current state and next steps
 
-## Input
+## Pre-Downloaded Data
 
-You will receive:
-- **issue_url**: `${{ inputs.issue_url }}` - The URL of the parent issue (format: `https://github.com/owner/repo/issues/NUMBER`)
+The issue data has been pre-downloaded and is available at:
+- **Parent issue data**: `/tmp/gh-aw/agent/parent-issue.json` - Contains complete parent issue details with all comments
+- **Sub-issues data**: `/tmp/gh-aw/agent/sub-issues.json` - Array of all sub-issues with their details and comments
+- **Summary**: `/tmp/gh-aw/agent/summary.txt` - Quick overview of what was fetched
+
+Use `cat` and `jq` commands to read and analyze this pre-downloaded data.
 
 ## Process
 
-### Step 1: Parse Issue URL and Extract Details
+### Step 1: Load Pre-Downloaded Data
 
-From the issue URL `${{ inputs.issue_url }}`:
-1. Extract the repository owner, name, and issue number
-2. Parse the URL format: `https://github.com/{owner}/{repo}/issues/{number}`
-3. Validate that the URL is properly formatted
+Read the pre-downloaded issue data:
 
-### Step 2: Fetch Parent Issue
+```bash
+# Load parent issue
+cat /tmp/gh-aw/agent/parent-issue.json | jq .
 
-Use the GitHub MCP server to fetch the parent issue:
-1. Use `issue_read` with method `get` to fetch issue details
-2. Extract:
-   - Issue title and description
-   - Current state (open/closed)
-   - Labels, assignees, milestone
-   - Created/updated dates
-   - Original description and context
+# Load sub-issues
+cat /tmp/gh-aw/agent/sub-issues.json | jq .
 
-### Step 3: Fetch All Sub-Issues
+# Check summary
+cat /tmp/gh-aw/agent/summary.txt
+```
 
-Use the GitHub MCP server to get all sub-issues of the parent:
-1. Use `issue_read` with method `get_sub_issues` to fetch the list of sub-issues
-2. For each sub-issue, fetch:
-   - Issue number, title, and body
-   - Current state (open/closed)
-   - Labels and assignees
-   - Created/closed dates
-   - All comments using `issue_read` with method `get_comments`
+The parent issue JSON contains:
+- `number`, `title`, `body` - Basic issue information
+- `state` - Current state (OPEN/CLOSED)
+- `labels`, `assignees`, `milestone` - Metadata
+- `createdAt`, `updatedAt`, `closedAt` - Timestamps
+- `author` - Issue creator
+- `comments` - Array of all comments with body, createdAt, and author
 
-### Step 4: Analyze Content
+Each sub-issue in the array contains the same structure.
+
+### Step 2: Analyze Content
 
 For each sub-issue, analyze:
 
@@ -108,7 +218,7 @@ For each sub-issue, analyze:
 - Who resolved issues
 - Who made key decisions
 
-### Step 5: Generate Summary Report
+### Step 3: Generate Summary Report
 
 Create a comprehensive markdown report with the following structure:
 
@@ -210,19 +320,24 @@ Create a comprehensive markdown report with the following structure:
   - ...
 ```
 
-### Step 6: Update Parent Issue Body
+### Step 4: Update Parent Issue Body
 
 Use the `update_issue` safe output to update the parent issue body with your report:
 
 ```json
 {
   "type": "update_issue",
-  "issue_number": [parent_issue_number],
+  "issue_number": [parent_issue_number from parent-issue.json],
   "body": "[Your complete markdown report]"
 }
 ```
 
 **Important**: The report should completely replace the parent issue body. The summary report becomes the new body of the parent issue, making it easy to track progress directly in the issue itself.
+
+Extract the parent issue number from the pre-downloaded data:
+```bash
+PARENT_NUMBER=$(cat /tmp/gh-aw/agent/parent-issue.json | jq -r '.number')
+```
 
 ## Guidelines
 
