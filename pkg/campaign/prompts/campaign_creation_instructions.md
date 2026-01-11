@@ -460,7 +460,211 @@ When creating a PR for the new campaign:
 
 ---
 
+## Workflow Creation Guardrails
+
+### When to Create New Workflows
+
+**ONLY create new workflows when:**
+1. No existing workflow does the required task
+2. The campaign objective clearly requires a specific capability that's missing
+3. Workflows from the agentics collection don't fit the need
+4. You can articulate a clear, focused purpose for the new workflow
+
+**AVOID creating workflows when:**
+- An existing workflow can be used (even if not perfect)
+- The task can be handled by manual processes initially
+- You're unsure about the exact requirements
+- The workflow would duplicate functionality
+
+### Workflow Creation Safety Checklist
+
+Before suggesting a new workflow, verify:
+
+- [ ] **Clear purpose**: Can you describe in one sentence what the workflow does?
+- [ ] **Defined trigger**: Is it clear when/how the workflow should run?
+- [ ] **Bounded scope**: Does it have clear input/output boundaries?
+- [ ] **Testable**: Can the workflow be tested independently?
+- [ ] **Reusable**: Could other campaigns use this workflow?
+
+### Workflow Naming Guidelines
+
+**Good names** (specific, action-oriented):
+- `security-vulnerability-scanner` - Scans for vulnerabilities
+- `node-version-checker` - Checks Node.js versions
+- `dependency-update-pr-creator` - Creates dependency update PRs
+
+**Poor names** (vague, too broad):
+- `security-workflow` - What does it do?
+- `checker` - Check what?
+- `helper` - Help with what?
+
+---
+
+## Passive vs Active Campaigns
+
+### Start Passive (Default)
+
+**Passive campaigns** (recommended for beginners):
+- Discover and track existing work
+- Lower risk and complexity
+- No workflow creation or execution
+- Good for learning campaign patterns
+
+```yaml
+# Passive campaign (default)
+workflows:
+  - existing-workflow-1
+  - existing-workflow-2
+# execute-workflows: false  # Default, can omit
+```
+
+### Progress to Active (Advanced)
+
+**Active campaigns** (for experienced users):
+- Execute workflows directly
+- Can create missing workflows
+- Higher complexity and risk
+- Requires careful testing
+
+**Prerequisites before enabling `execute-workflows: true`:**
+1. You've successfully run at least one passive campaign
+2. You understand how the orchestrator coordinates work
+3. You have clear success criteria and governance rules
+4. You're prepared to monitor and adjust during execution
+
+```yaml
+# Active campaign (advanced)
+workflows:
+  - framework-scanner
+  - framework-upgrader
+execute-workflows: true  # Explicitly enable
+
+governance:
+  max-project-updates-per-run: 10  # Start conservative
+  max-comments-per-run: 5
+```
+
+**Migration path**: Start passive → Monitor for 1-2 weeks → Add governance rules → Enable active execution
+
+---
+
+## Decision Rationale Guidelines
+
+When making decisions in campaigns, always explain WHY:
+
+### Example: Workflow Selection
+
+**Poor**: "Use `security-scanner` workflow"
+
+**Good**: "Use `security-scanner` workflow because:
+- It scans all Go files for vulnerabilities (matches campaign scope)
+- It creates issues for findings (supports our reporting needs)
+- It's already tested and stable (reduces risk)"
+
+### Example: Governance Settings
+
+**Poor**: "Set max-project-updates-per-run to 10"
+
+**Good**: "Set max-project-updates-per-run to 10 because:
+- We have ~50 services to track (conservative pacing)
+- First campaign - want to monitor impact closely
+- Can increase after observing initial runs"
+
+### Example: KPI Selection
+
+**Poor**: "Track services upgraded"
+
+**Good**: "Track 'Services upgraded' as primary KPI because:
+- Directly measures campaign objective
+- Easily quantifiable (count of completed upgrades)
+- Updated automatically from project board status"
+
+---
+
+## Failure Handling and Recovery
+
+### Default Failure Behaviors
+
+**Compilation failures** - Campaign generator should:
+1. Report the error clearly with context
+2. Suggest specific fixes for common issues
+3. Provide a link to documentation
+4. **NOT** delete partially created files (for debugging)
+
+**Runtime failures** - Orchestrator should:
+1. Continue with other work items (don't stop entire campaign)
+2. Report failures in status update with context
+3. Suggest recovery actions when possible
+4. Maintain cursor/state for next run
+
+### First-Time User Support
+
+**For users creating their first campaign**:
+
+1. **Validate requirements upfront**:
+   - GitHub Project board exists and is accessible
+   - At least one workflow exists or will be created
+   - Governance settings are appropriate for first campaign
+
+2. **Provide conservative defaults**:
+   ```yaml
+   governance:
+     max-new-items-per-run: 5        # Start small
+     max-project-updates-per-run: 5  # Monitor impact
+     max-comments-per-run: 3         # Avoid noise
+   ```
+
+3. **Include onboarding guidance in campaign body**:
+   ```markdown
+   ## First Campaign? Read This!
+   
+   This is your first campaign - here's what to expect:
+   
+   1. **First run** - The orchestrator will initialize the project board and add the Epic issue
+   2. **Monitor** - Check the project board after the first run to verify items appear correctly
+   3. **Adjust** - Based on first run, you may want to adjust governance settings
+   4. **Learn** - Each run provides status updates explaining what happened and why
+   ```
+
+---
+
 ## Best Practices
+
+### Core Campaign Principles
+
+Follow these fundamental principles when creating campaigns:
+
+1. **Start with one small, clear goal per campaign**
+   - Focus on a single, well-defined objective
+   - Avoid scope creep - multiple goals should be separate campaigns
+   - Example: "Upgrade Node.js to v20" not "Upgrade Node.js and refactor auth"
+
+2. **Use passive mode first to observe and build trust**
+   - Always start with passive mode (`execute-workflows: false` or omitted)
+   - Monitor 1-2 weeks to understand orchestration behavior
+   - Build confidence before enabling active execution
+
+3. **Reuse existing workflows before creating new ones**
+   - Thoroughly search `.github/workflows/*.md` for existing solutions
+   - Check the [agentics collection](https://github.com/githubnext/agentics) for reusable workflows
+   - Only create new workflows when existing ones don't meet requirements
+
+4. **Keep permissions minimal (issues / draft PRs, no merges)**
+   - Grant only the permissions needed for the campaign's scope
+   - Prefer read permissions over write when possible
+   - Use draft PRs instead of direct merges for code changes
+   - Example: `issues: read, pull-requests: write` for issue tracking with PR creation
+
+5. **Make outputs standardized and predictable**
+   - Use consistent safe-output configurations across workflows
+   - Document expected outputs in workflow descriptions
+   - Follow established patterns for issue/PR formatting
+
+6. **Escalate to humans when unsure**
+   - Don't make risky decisions autonomously
+   - Create issues or comments requesting human review
+   - Include context and reasoning in escalation messages
+   - Example: "This change affects authentication - requesting human review"
 
 ### DO:
 - ✅ Generate unique campaign IDs in kebab-case
@@ -470,6 +674,10 @@ When creating a PR for the new campaign:
 - ✅ Include clear ownership and governance
 - ✅ Check for file conflicts before creating
 - ✅ Compile and validate before creating PR
+- ✅ Start with passive mode for first campaign
+- ✅ Provide clear rationale for all decisions
+- ✅ Use conservative defaults for beginners
+- ✅ Test new workflows before campaign use
 
 ### DON'T:
 - ❌ Create campaigns with duplicate IDs
@@ -478,6 +686,10 @@ When creating a PR for the new campaign:
 - ❌ Skip risk assessment and governance
 - ❌ Create campaigns without project board URL (when required)
 - ❌ Skip compilation validation
+- ❌ Enable execute-workflows for first campaign
+- ❌ Create workflows without clear purpose
+- ❌ Use high governance limits for beginners
+- ❌ Make decisions without explaining rationale
 
 ---
 

@@ -228,9 +228,9 @@ interface PushToPrBranchItem extends BaseSafeOutputItem {
  */
 interface MissingToolItem extends BaseSafeOutputItem {
   type: "missing_tool";
-  /** Name of the missing tool */
-  tool: string;
-  /** Reason why the tool is needed */
+  /** Optional: Name of the missing tool */
+  tool?: string;
+  /** Reason why the tool is needed or information about the limitation */
   reason: string;
   /** Optional alternatives or workarounds */
   alternatives?: string;

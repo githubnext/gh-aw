@@ -3,7 +3,9 @@ title: "Agentic campaigns"
 description: "Run structured, goal-driven initiatives with GitHub Agentic Workflows and GitHub Projects."
 ---
 
-Agentic campaigns are goal-driven initiatives that coordinate AI agents to achieve specific objectives. They provide a simple layer for managing work: define objectives with measurable KPIs, track progress on GitHub Projects, and optionally execute workflows to drive work forward.
+Agentic campaigns are goal-driven initiatives that coordinate AI agents to achieve specific objectives.
+
+They provide a simple layer for managing work: define objectives with measurable KPIs, track progress on GitHub Projects, and optionally execute workflows to drive work forward.
 
 ## Campaign modes
 

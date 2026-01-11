@@ -49,23 +49,36 @@ function getDefaultTargetRepo(config) {
 
 /**
  * Validate that a repo is allowed for operations
- * @param {string} repo - Repository slug to validate
+ * If repo is a bare name (no slash), it is automatically qualified with the
+ * default repo's organization (e.g., "gh-aw" becomes "githubnext/gh-aw" if
+ * the default repo is "githubnext/something").
+ * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
  * @param {string} defaultRepo - Default target repository
  * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
- * @returns {{valid: boolean, error: string|null}}
+ * @returns {{valid: boolean, error: string|null, qualifiedRepo: string}}
  */
 function validateRepo(repo, defaultRepo, allowedRepos) {
+  // If repo is a bare name (no slash), qualify it with the default repo's org
+  let qualifiedRepo = repo;
+  if (!repo.includes("/")) {
+    const defaultRepoParts = parseRepoSlug(defaultRepo);
+    if (defaultRepoParts) {
+      qualifiedRepo = `${defaultRepoParts.owner}/${repo}`;
+    }
+  }
+
   // Default repo is always allowed
-  if (repo === defaultRepo) {
-    return { valid: true, error: null };
+  if (qualifiedRepo === defaultRepo) {
+    return { valid: true, error: null, qualifiedRepo };
   }
   // Check if it's in the allowed repos list
-  if (allowedRepos.has(repo)) {
-    return { valid: true, error: null };
+  if (allowedRepos.has(qualifiedRepo)) {
+    return { valid: true, error: null, qualifiedRepo };
   }
   return {
     valid: false,
     error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+    qualifiedRepo,
   };
 }
 
@@ -124,8 +137,11 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
     };
   }
 
+  // Use the qualified repo from validation (handles bare names)
+  const qualifiedItemRepo = repoValidation.qualifiedRepo;
+
   // Parse the repository slug
-  const repoParts = parseRepoSlug(itemRepo);
+  const repoParts = parseRepoSlug(qualifiedItemRepo);
   if (!repoParts) {
     return {
       success: false,
@@ -135,7 +151,7 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
 
   return {
     success: true,
-    repo: itemRepo,
+    repo: qualifiedItemRepo,
     repoParts: repoParts,
   };
 }

@@ -265,3 +265,118 @@ func TestBothVersionsInAwInfo(t *testing.T) {
 		t.Errorf("Expected output to contain awf_version '%s', got:\n%s", expectedAwfLine, output)
 	}
 }
+
+func TestAwmgVersionInAwInfo(t *testing.T) {
+	tests := []struct {
+		name                string
+		mcpGatewayVersion   string
+		expectedAwmgVersion string
+		description         string
+	}{
+		{
+			name:                "MCP Gateway with explicit version",
+			mcpGatewayVersion:   "v0.0.10",
+			expectedAwmgVersion: "v0.0.10",
+			description:         "Should use explicit MCP gateway version",
+		},
+		{
+			name:                "MCP Gateway with default version",
+			mcpGatewayVersion:   string(constants.DefaultMCPGatewayVersion),
+			expectedAwmgVersion: string(constants.DefaultMCPGatewayVersion),
+			description:         "Should use default MCP gateway version",
+		},
+		{
+			name:                "No MCP Gateway configured",
+			mcpGatewayVersion:   "",
+			expectedAwmgVersion: "",
+			description:         "Should have empty awmg_version when MCP gateway is not configured",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "1.0.0")
+			registry := GetGlobalEngineRegistry()
+			engine, err := registry.GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get copilot engine: %v", err)
+			}
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+			}
+
+			if tt.mcpGatewayVersion != "" {
+				workflowData.SandboxConfig = &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Version: tt.mcpGatewayVersion,
+					},
+				}
+			}
+
+			var yaml strings.Builder
+			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
+			output := yaml.String()
+
+			expectedLine := `awmg_version: "` + tt.expectedAwmgVersion + `"`
+			if !strings.Contains(output, expectedLine) {
+				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
+					tt.description, expectedLine, output)
+			}
+		})
+	}
+}
+
+func TestAllVersionsInAwInfo(t *testing.T) {
+	// Save and restore original state
+	originalIsRelease := isReleaseBuild
+	defer func() { isReleaseBuild = originalIsRelease }()
+
+	// Set as release build to include CLI version
+	SetIsRelease(true)
+
+	// Test that CLI version, AWF version, and AWMG version are present simultaneously
+	compiler := NewCompiler(false, "", "2.0.0-beta.5")
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get copilot engine: %v", err)
+	}
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+				Version: "v0.5.0",
+			},
+		},
+		SandboxConfig: &SandboxConfig{
+			MCP: &MCPGatewayRuntimeConfig{
+				Version: "v0.0.12",
+			},
+		},
+	}
+
+	var yaml strings.Builder
+	compiler.generateCreateAwInfo(&yaml, workflowData, engine)
+	output := yaml.String()
+
+	// Check for cli_version
+	expectedCLILine := `cli_version: "2.0.0-beta.5"`
+	if !strings.Contains(output, expectedCLILine) {
+		t.Errorf("Expected output to contain cli_version '%s', got:\n%s", expectedCLILine, output)
+	}
+
+	// Check for awf_version
+	expectedAwfLine := `awf_version: "v0.5.0"`
+	if !strings.Contains(output, expectedAwfLine) {
+		t.Errorf("Expected output to contain awf_version '%s', got:\n%s", expectedAwfLine, output)
+	}
+
+	// Check for awmg_version
+	expectedAwmgLine := `awmg_version: "v0.0.12"`
+	if !strings.Contains(output, expectedAwmgLine) {
+		t.Errorf("Expected output to contain awmg_version '%s', got:\n%s", expectedAwmgLine, output)
+	}
+}

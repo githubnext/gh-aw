@@ -448,12 +448,12 @@
         },
         "tool": {
           "type": "string",
-          "description": "Name of the missing tool",
+          "description": "Optional: Name of the missing tool",
           "minLength": 1
         },
         "reason": {
           "type": "string",
-          "description": "Reason why the tool is needed",
+          "description": "Reason why the tool is needed or information about the limitation",
           "minLength": 1
         },
         "alternatives": {
@@ -461,7 +461,7 @@
           "description": "Optional alternative suggestions"
         }
       },
-      "required": ["type", "tool", "reason"],
+      "required": ["type", "reason"],
       "additionalProperties": false
     },
     "CreateCodeScanningAlertOutput": {
