@@ -1,9 +1,6 @@
 {
   "page": 1,
   "label": "campaign:docs-quality-maintenance-project73",
-  "last_processed_updated_at": "2026-01-05T08:23:28Z",
-  "last_processed_number": 6974,
-  "items_processed_total": 15,
-  "items_remaining": 1,
-  "last_run_date": "2026-01-11"
+  "last_processed_date": "2026-01-11T21:11:11.451Z",
+  "all_items_processed": true
 }

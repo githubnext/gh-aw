@@ -5,40 +5,19 @@
   "tasks_completed": 15,
   "tasks_in_progress": 1,
   "tasks_blocked": 0,
-  "velocity_per_day": 15,
-  "completion_percentage": 93.75,
-  "run_details": {
-    "discovered_items": 16,
-    "processed_this_run": 15,
-    "epic_added": 1,
-    "status_updates": 14,
-    "deferred_to_next_run": 1,
-    "failures": 0
+  "velocity_per_day": 0.68,
+  "items_by_worker": {
+    "daily-doc-updater": 7,
+    "daily-multi-device-docs-tester": 4,
+    "unknown": 4,
+    "epic": 1
   },
-  "kpi_progress": {
-    "documentation_coverage": {
-      "baseline": 85,
-      "current": 88,
-      "target": 95,
-      "unit": "percent",
-      "direction": "increase",
-      "status": "on_track"
-    },
-    "accessibility_score": {
-      "baseline": 90,
-      "current": 91,
-      "target": 98,
-      "unit": "percent",
-      "direction": "increase",
-      "status": "at_risk"
-    },
-    "user_reported_issues": {
-      "baseline": 15,
-      "current": 12,
-      "target": 5,
-      "unit": "count",
-      "direction": "decrease",
-      "status": "on_track"
-    }
+  "items_processed_this_run": 16,
+  "items_added_this_run": 16,
+  "items_updated_this_run": 0,
+  "discovery_stats": {
+    "total_items": 16,
+    "items_scanned": 20,
+    "pages_scanned": 7
   }
 }
