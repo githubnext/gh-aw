@@ -540,6 +540,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	containerCmd += " -e DEBUG=\"*\""
 	// Pass environment variables that MCP servers reference in their config
 	// These are needed because awmg v0.0.12+ validates and resolves ${VAR} patterns at config load time
+	// Environment variables used by MCP gateway
+	containerCmd += " -e MCP_GATEWAY_LOGS_DIR"
 	// Environment variables used by safeoutputs MCP server
 	containerCmd += " -e GH_AW_MCP_LOG_DIR"
 	containerCmd += " -e GH_AW_SAFE_OUTPUTS"

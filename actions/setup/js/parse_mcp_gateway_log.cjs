@@ -7,8 +7,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Parses MCP gateway logs and creates a step summary
  * Log file locations:
- *  - /tmp/gh-aw/mcp-logs/gateway/gateway.log (main gateway log)
- *  - /tmp/gh-aw/mcp-logs/gateway/stderr.log (stderr output)
+ *  - /tmp/gh-aw/mcp-logs/gateway.log (main gateway log)
+ *  - /tmp/gh-aw/mcp-logs/stderr.log (stderr output)
  */
 
 /**
@@ -16,8 +16,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function main() {
   try {
-    const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway/gateway.log";
-    const stderrLogPath = "/tmp/gh-aw/mcp-logs/gateway/stderr.log";
+    const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
+    const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
     let gatewayLogContent = "";
     let stderrLogContent = "";
