@@ -13,7 +13,7 @@ const fs = require("fs");
  */
 async function ensureParentIssue() {
   const { owner, repo } = context.repo;
-  const parentTitle = "[aw] Agentic Workflow Issues";
+  const parentTitle = "[agentics] Agentic Workflow Issues";
   const parentLabel = "agentic-workflows";
 
   core.info(`Searching for parent issue: "${parentTitle}"`);
@@ -197,7 +197,7 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
+    const issueTitle = `[agentics] ${sanitizedWorkflowName} failed`;
 
     core.info(`Checking for existing issue with title: "${issueTitle}"`);
 
