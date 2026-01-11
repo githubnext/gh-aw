@@ -5,8 +5,7 @@ The agentic workflow **{workflow_name}** has failed. This typically indicates a 
 ## Failed Run
 
 - **Workflow:** [{workflow_name}]({workflow_source_url})
-- **Failed Run:** {run_url}
-- **Source:** {workflow_source}
+- **Failed Run:** {run_url}{pull_request_info}
 
 ## How to investigate
 
