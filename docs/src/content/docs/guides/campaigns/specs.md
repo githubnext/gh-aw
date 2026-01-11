@@ -1,6 +1,6 @@
 ---
-title: "Campaign Specs"
-description: "Define and configure agentic campaigns with spec files, tracker labels, and recommended wiring"
+title: Campaign specs
+description: Define and configure agentic campaigns with spec files, tracker labels, and recommended wiring
 ---
 
 Campaigns are defined as Markdown files under `.github/workflows/` with a `.campaign.md` suffix. The YAML frontmatter is the campaign “contract”; the body can contain optional narrative context.
