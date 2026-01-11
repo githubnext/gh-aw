@@ -95,7 +95,7 @@ When reviewing documentation for the specified topic in the **docs/** folder, ap
    - Structure and organization
    - Developer experience considerations
    - Any missing prerequisites or setup steps
-   - Appropriate use of admonitions
+   - Appropriate use of GitHub alerts
    - Link quality and accessibility
    - Build output quality and completeness
 5. **Create a pull request with improvements** if you identify any changes needed:
