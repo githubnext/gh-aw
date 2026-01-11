@@ -73,6 +73,16 @@ and synchronizing campaign state into a GitHub Project board.
 8. Only predefined project fields may be updated.
 9. **Project Update Instructions take precedence for all project writes.**
 
+### Why These Principles Matter
+
+**Workers are immutable** - Allows reuse across campaigns without coupling. You coordinate existing workflows, don't modify them.
+
+**Reads and writes are separate** - Prevents race conditions and inconsistent state. Always read all data first, then make all writes.
+
+**Idempotent operation** - Campaign can be re-run safely if interrupted. The orchestrator picks up where it left off using the cursor.
+
+**Only predefined fields** - Prevents accidental project board corruption. The orchestrator only updates fields it's configured to manage.
+
 ---
 
 ## Required Phases (Execute In Order)
@@ -167,18 +177,26 @@ and synchronizing campaign state into a GitHub Project board.
 - Closed (issue/discussion) → `Done`
 - Merged (PR) → `Done`
 
+**Why use explicit GitHub state?** - GitHub is the source of truth for work status. Inferring status from other signals (labels, comments) would be unreliable and could cause incorrect tracking.
+
 6) Calculate required date fields for each item (per Project Update Instructions):
 - `start_date`: format `created_at` as `YYYY-MM-DD`
 - `end_date`:
   - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
   - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
 
+**Why use today for open items?** - GitHub Projects requires end_date for roadmap views. Using today's date shows the item is actively tracked and updates automatically each run until completion.
+
 7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+
+**Why no comparison for idempotency?** - The safe-output system handles deduplication. Comparing would add complexity and potential race conditions. Trust the infrastructure.
 
 8) Apply write budget:
 - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
   (e.g., oldest `updated_at` first; tie-break by ID/number).
 - Defer remaining items to next run via cursor.
+
+**Why use deterministic order?** - Ensures predictable behavior and prevents starvation. Oldest items are processed first, ensuring fair treatment of all work items. The cursor saves progress for next run.
 
 ### Phase 3 — Write State (Execution) [WRITES ONLY]
 
