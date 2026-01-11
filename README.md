@@ -38,16 +38,22 @@ GitHub Agentic Workflows transforms natural language markdown files into GitHub 
 
 ```markdown
 ---
-on: daily
-permissions: read
+on:
+  schedule: daily
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 safe-outputs:
-  create-discussion:
+  create-issue:
+    title-prefix: "[team-status] "
+    labels: [report, daily-status]
+    close-older-issues: true
 ---
 
 ## Daily Issues Report
 
-Analyze repository issues and create a daily discussion 
-with metrics, trends, and key insights.
+Create an upbeat daily status report for the team as a GitHub issue.
 ```
 
 The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment on a schedule or manually.
