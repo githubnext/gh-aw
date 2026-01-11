@@ -39,10 +39,6 @@ First you have to initialize your repository for agentic workflows. From your re
 ```bash wrap
 gh aw init
 ```
-> [!WARNING]
-> You do **not** need to copy an `actions/` folder into your repository. GitHub Agentic Workflows resolves its internal actions automatically at runtime.
-> If you see errors mentioning missing actions after running `gh aw init`, first ensure you're on the latest version of the extension and re-run the command from the repository root.
-> If problems persist, please open an issue at https://github.com/githubnext/gh-aw with the exact error message instead of copying internal framework files into your repo.
 
 ### Step 3 — Add a sample workflow
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
@@ -214,9 +210,8 @@ Before installing anything, it helps to understand the workflow lifecycle:
 
 Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
 
-:::caution[Important]
-**Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
-:::
+>[!caution]
+>**Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
 
 ## Understanding Your First Workflow
 
