@@ -26,9 +26,13 @@ async function main() {
       const gatewayMdContent = fs.readFileSync(gatewayMdPath, "utf8");
       if (gatewayMdContent && gatewayMdContent.trim().length > 0) {
         core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
+
+        // Generate plain text summary for core.info
+        const plainTextSummary = generatePlainTextGatewaySummary(gatewayMdContent);
+        core.info(plainTextSummary);
+
         // Write the markdown directly to the step summary
         core.summary.addRaw(gatewayMdContent).write();
-        core.info("MCP gateway markdown summary added to step summary");
         return;
       }
     } else {
@@ -61,14 +65,86 @@ async function main() {
       return;
     }
 
+    // Generate plain text summary for core.info
+    const plainTextSummary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
+    core.info(plainTextSummary);
+
     // Generate step summary for both logs
     const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
     core.summary.addRaw(summary).write();
-
-    core.info("MCP gateway log summary added to step summary");
   } catch (error) {
     core.setFailed(getErrorMessage(error));
   }
+}
+
+/**
+ * Generates a plain text summary from gateway.md content for console output
+ * @param {string} gatewayMdContent - The gateway.md markdown content
+ * @returns {string} Plain text summary for console output
+ */
+function generatePlainTextGatewaySummary(gatewayMdContent) {
+  const lines = [];
+
+  // Header
+  lines.push("=== MCP Gateway Logs ===");
+  lines.push("");
+
+  // Strip markdown formatting for plain text display
+  const plainText = gatewayMdContent
+    .replace(/<details>/g, "")
+    .replace(/<\/details>/g, "")
+    .replace(/<summary>(.*?)<\/summary>/g, "$1")
+    .replace(/```[\s\S]*?```/g, match => {
+      // Extract content from code blocks
+      return match.replace(/```[a-z]*\n?/g, "").replace(/```$/g, "");
+    })
+    .replace(/\*\*(.*?)\*\*/g, "$1") // Remove bold
+    .replace(/\*(.*?)\*/g, "$1") // Remove italic
+    .replace(/`(.*?)`/g, "$1") // Remove inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Remove links, keep text
+    .replace(/^#+\s+/gm, "") // Remove heading markers
+    .replace(/^\|-+.*-+\|$/gm, "") // Remove table separator lines
+    .replace(/^\|/gm, "") // Remove leading pipe from table rows
+    .replace(/\|$/gm, "") // Remove trailing pipe from table rows
+    .replace(/\s*\|\s*/g, " ") // Replace remaining pipes with spaces
+    .trim();
+
+  lines.push(plainText);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+/**
+ * Generates a plain text summary from legacy log files for console output
+ * @param {string} gatewayLogContent - The gateway.log content
+ * @param {string} stderrLogContent - The stderr.log content
+ * @returns {string} Plain text summary for console output
+ */
+function generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent) {
+  const lines = [];
+
+  // Header
+  lines.push("=== MCP Gateway Logs ===");
+  lines.push("");
+
+  // Add gateway.log if it has content
+  if (gatewayLogContent && gatewayLogContent.trim().length > 0) {
+    lines.push("Gateway Log (gateway.log):");
+    lines.push("");
+    lines.push(gatewayLogContent.trim());
+    lines.push("");
+  }
+
+  // Add stderr.log if it has content
+  if (stderrLogContent && stderrLogContent.trim().length > 0) {
+    lines.push("Gateway Log (stderr.log):");
+    lines.push("");
+    lines.push(stderrLogContent.trim());
+    lines.push("");
+  }
+
+  return lines.join("\n");
 }
 
 /**
@@ -108,6 +184,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     main,
     generateGatewayLogSummary,
+    generatePlainTextGatewaySummary,
+    generatePlainTextLegacySummary,
   };
 }
 

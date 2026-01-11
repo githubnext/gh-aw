@@ -1,12 +1,153 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { generateGatewayLogSummary } = require("./parse_mcp_gateway_log.cjs");
+const { generateGatewayLogSummary, generatePlainTextGatewaySummary, generatePlainTextLegacySummary } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
   // Note: The main() function now checks for gateway.md first before falling back to log files.
   // If gateway.md exists, its content is written directly to the step summary.
   // These tests focus on the fallback generateGatewayLogSummary function used when gateway.md is not present.
+
+  describe("generatePlainTextGatewaySummary", () => {
+    test("generates plain text summary from markdown content", () => {
+      const gatewayMdContent = `<details>
+<summary>MCP Gateway Summary</summary>
+
+**Statistics**
+
+| Metric | Count |
+|--------|-------|
+| Requests | 42 |
+
+**Details**
+
+Some *italic* and **bold** text with \`code\`.
+
+[Link text](http://example.com)
+
+\`\`\`json
+{"key": "value"}
+\`\`\`
+
+</details>`;
+
+      const summary = generatePlainTextGatewaySummary(gatewayMdContent);
+
+      expect(summary).toContain("=== MCP Gateway Logs ===");
+      expect(summary).toContain("MCP Gateway Summary");
+      expect(summary).toContain("Statistics");
+      expect(summary).toContain("Requests");
+      expect(summary).toContain("42");
+      expect(summary).toContain("Details");
+      expect(summary).toContain("Some italic and bold text with code");
+      expect(summary).toContain("Link text");
+      expect(summary).toContain('{"key": "value"}');
+
+      // Should not contain markdown syntax
+      expect(summary).not.toContain("<details>");
+      expect(summary).not.toContain("**bold**");
+      expect(summary).not.toContain("*italic*");
+      expect(summary).not.toContain("`code`");
+      expect(summary).not.toContain("[Link");
+    });
+
+    test("handles empty markdown content", () => {
+      const summary = generatePlainTextGatewaySummary("");
+
+      expect(summary).toContain("=== MCP Gateway Logs ===");
+    });
+
+    test("handles markdown with code blocks", () => {
+      const gatewayMdContent = `\`\`\`bash
+echo "Hello World"
+\`\`\``;
+
+      const summary = generatePlainTextGatewaySummary(gatewayMdContent);
+
+      expect(summary).toContain('echo "Hello World"');
+      expect(summary).not.toContain("```");
+    });
+
+    test("handles markdown with multiple sections", () => {
+      const gatewayMdContent = `# Heading 1
+
+## Heading 2
+
+### Heading 3
+
+Some content here.`;
+
+      const summary = generatePlainTextGatewaySummary(gatewayMdContent);
+
+      expect(summary).toContain("Heading 1");
+      expect(summary).toContain("Heading 2");
+      expect(summary).toContain("Heading 3");
+      expect(summary).toContain("Some content here.");
+      expect(summary).not.toContain("#");
+    });
+  });
+
+  describe("generatePlainTextLegacySummary", () => {
+    test("generates summary with both gateway.log and stderr.log", () => {
+      const gatewayLogContent = "Gateway started\nServer listening on port 8080";
+      const stderrLogContent = "Debug: connection accepted\nDebug: request processed";
+
+      const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
+
+      expect(summary).toContain("=== MCP Gateway Logs ===");
+      expect(summary).toContain("Gateway Log (gateway.log):");
+      expect(summary).toContain("Gateway started");
+      expect(summary).toContain("Server listening on port 8080");
+      expect(summary).toContain("Gateway Log (stderr.log):");
+      expect(summary).toContain("Debug: connection accepted");
+      expect(summary).toContain("Debug: request processed");
+    });
+
+    test("generates summary with only gateway.log content", () => {
+      const gatewayLogContent = "Gateway started\nServer ready";
+      const stderrLogContent = "";
+
+      const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
+
+      expect(summary).toContain("=== MCP Gateway Logs ===");
+      expect(summary).toContain("Gateway Log (gateway.log):");
+      expect(summary).toContain("Gateway started");
+      expect(summary).not.toContain("Gateway Log (stderr.log):");
+    });
+
+    test("generates summary with only stderr.log content", () => {
+      const gatewayLogContent = "";
+      const stderrLogContent = "Error: connection failed\nRetrying...";
+
+      const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
+
+      expect(summary).toContain("=== MCP Gateway Logs ===");
+      expect(summary).not.toContain("Gateway Log (gateway.log):");
+      expect(summary).toContain("Gateway Log (stderr.log):");
+      expect(summary).toContain("Error: connection failed");
+    });
+
+    test("handles empty log content for both files", () => {
+      const gatewayLogContent = "";
+      const stderrLogContent = "";
+
+      const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
+
+      expect(summary).toContain("=== MCP Gateway Logs ===");
+    });
+
+    test("trims whitespace from log content", () => {
+      const gatewayLogContent = "\n\n  Gateway log with whitespace  \n\n";
+      const stderrLogContent = "\n\n  Stderr log with whitespace  \n\n";
+
+      const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
+
+      expect(summary).toContain("Gateway log with whitespace");
+      expect(summary).toContain("Stderr log with whitespace");
+      expect(summary).not.toContain("\n\n  Gateway log");
+      expect(summary).not.toContain("\n\n  Stderr log");
+    });
+  });
 
   describe("generateGatewayLogSummary", () => {
     test("generates summary with both gateway.log and stderr.log", () => {

@@ -69,7 +69,7 @@ async function main() {
   }
 
   // Search for existing open issue about workflow recompilation
-  const issueTitle = "[aw] agentic workflows out of sync";
+  const issueTitle = "[agentics] agentic workflows out of sync";
   const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${issueTitle}"`;
 
   core.info(`Searching for existing issue with title: "${issueTitle}"`);
