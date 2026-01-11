@@ -85,15 +85,6 @@ async function listAccessibleProjectsV2(projectInfo) {
       closed
       url
     }
-    edges {
-      node {
-        id
-        number
-        title
-        closed
-        url
-      }
-    }
   }`;
 
   const query =
@@ -113,25 +104,16 @@ async function listAccessibleProjectsV2(projectInfo) {
   const conn = projectInfo.scope === "orgs" ? result?.organization?.projectsV2 : result?.user?.projectsV2;
 
   const rawNodes = Array.isArray(conn?.nodes) ? conn.nodes : [];
-  const rawEdges = Array.isArray(conn?.edges) ? conn.edges : [];
-  const nodeNodes = rawNodes.filter(Boolean);
-  const edgeNodes = rawEdges.map(e => e?.node).filter(Boolean);
-
-  const unique = new Map();
-  for (const n of [...nodeNodes, ...edgeNodes]) {
-    if (n && typeof n.id === "string") {
-      unique.set(n.id, n);
-    }
-  }
+  const nodes = rawNodes.filter(Boolean);
 
   return {
-    nodes: Array.from(unique.values()),
+    nodes: nodes,
     totalCount: conn?.totalCount,
     diagnostics: {
       rawNodesCount: rawNodes.length,
-      nullNodesCount: rawNodes.length - nodeNodes.length,
-      rawEdgesCount: rawEdges.length,
-      nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length,
+      nullNodesCount: rawNodes.length - nodes.length,
+      rawEdgesCount: 0,
+      nullEdgeNodesCount: 0,
     },
   };
 }

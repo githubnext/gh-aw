@@ -201,6 +201,25 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results[0].error).toBe("Handler failed");
     });
 
+    it("should treat handler returning success: false as a failure", async () => {
+      const messages = [{ type: "create_project_status_update", project: "https://github.com/orgs/test/projects/1", body: "Test" }];
+
+      const failureHandler = vi.fn().mockResolvedValue({
+        success: false,
+        error: "GraphQL query failed",
+      });
+
+      const handlers = new Map([["create_project_status_update", failureHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].success).toBe(false);
+      expect(result.results[0].error).toBe("GraphQL query failed");
+      expect(core.error).toHaveBeenCalledWith(expect.stringContaining("failed: GraphQL query failed"));
+    });
+
     it("should track outputs with unresolved temporary IDs", async () => {
       const messages = [
         {
