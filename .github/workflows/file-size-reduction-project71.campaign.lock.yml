@@ -25,7 +25,6 @@ name: "Campaign: File Size Reduction (Project 71)"
 "on":
   schedule:
   - cron: "0 18 * * *"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions:
