@@ -903,7 +903,7 @@ jobs:
           [mcp_servers.safeinputs]
           type = "http"
           url = "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT"
-          headers = { Authorization = "Bearer $GH_AW_SAFE_INPUTS_API_KEY" }
+          headers = { Authorization = "$GH_AW_SAFE_INPUTS_API_KEY" }
           
           [mcp_servers.safeoutputs]
           container = "node:lts-alpine"
@@ -930,7 +930,7 @@ jobs:
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
                 "headers": {
-                  "Authorization": "Bearer $GH_AW_SAFE_INPUTS_API_KEY"
+                  "Authorization": "$GH_AW_SAFE_INPUTS_API_KEY"
                 }
               },
               "safeoutputs": {

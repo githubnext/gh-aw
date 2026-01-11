@@ -278,7 +278,7 @@ func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, s
 	}
 
 	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\"\n")
-	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
+	yaml.WriteString("          headers = { Authorization = \"$GH_AW_SAFE_INPUTS_API_KEY\" }\n")
 	// Note: env_vars is not supported for HTTP transport in MCP configuration
 	// Environment variables are passed via the workflow job's env: section instead
 }
