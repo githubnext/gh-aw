@@ -72,7 +72,12 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 	}
 
 	// Make the orchestrator runnable by default.
-	b.WriteString("engine: copilot\n")
+	// Use engine from EngineConfig if available, otherwise default to copilot
+	engineID := "copilot"
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	}
+	fmt.Fprintf(b, "engine: %s\n", engineID)
 
 	// Render safe-outputs if configured by the campaign orchestrator generator.
 	// This enables campaign orchestrators to update their Projects dashboard and
