@@ -35,7 +35,7 @@ tools:
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"
-    version: latest
+    version: v0.0.26
 safe-outputs:
     add-comment:
       hide-older-comments: true
