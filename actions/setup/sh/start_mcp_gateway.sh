@@ -162,20 +162,30 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
   HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
   HEALTH_RESPONSE=$(echo "$RESPONSE" | head -n -1)
   
+  # Always log the health response for debugging
+  echo "Health endpoint HTTP code: $HTTP_CODE"
+  if [ -n "$HEALTH_RESPONSE" ]; then
+    echo "Health response body: $HEALTH_RESPONSE"
+  else
+    echo "Health response body: (empty)"
+  fi
+  
   if [ "$HTTP_CODE" = "200" ] && [ -n "$HEALTH_RESPONSE" ]; then
     echo "Gateway is ready!"
-    echo "Health response: $HEALTH_RESPONSE"
     break
   fi
   ATTEMPT=$((ATTEMPT + 1))
   if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet (curl response: $HEALTH_RESPONSE), waiting 1 second..."
+    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet, waiting 1 second..."
     sleep 1
   fi
 done
 
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+  echo ""
   echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
+  echo "Last HTTP code: $HTTP_CODE"
+  echo "Last health response: ${HEALTH_RESPONSE:-(empty)}"
   echo ""
   echo "Checking if gateway process is still alive..."
   if ps -p $GATEWAY_PID > /dev/null 2>&1; then
