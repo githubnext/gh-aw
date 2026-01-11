@@ -7,8 +7,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Parses MCP gateway logs and creates a step summary
  * Log file locations:
- *  - /tmp/gh-aw/mcp-logs/gateway.log (main gateway log)
- *  - /tmp/gh-aw/mcp-logs/stderr.log (stderr output)
+ *  - /tmp/gh-aw/mcp-logs/gateway.md (markdown summary from gateway, preferred)
+ *  - /tmp/gh-aw/mcp-logs/gateway.log (main gateway log, fallback)
+ *  - /tmp/gh-aw/mcp-logs/stderr.log (stderr output, fallback)
  */
 
 /**
@@ -16,9 +17,25 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function main() {
   try {
+    const gatewayMdPath = "/tmp/gh-aw/mcp-logs/gateway.md";
     const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
     const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
+    // First, try to read gateway.md if it exists
+    if (fs.existsSync(gatewayMdPath)) {
+      const gatewayMdContent = fs.readFileSync(gatewayMdPath, "utf8");
+      if (gatewayMdContent && gatewayMdContent.trim().length > 0) {
+        core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
+        // Write the markdown directly to the step summary
+        core.summary.addRaw(gatewayMdContent).write();
+        core.info("MCP gateway markdown summary added to step summary");
+        return;
+      }
+    } else {
+      core.info(`No gateway.md found at: ${gatewayMdPath}, falling back to log files`);
+    }
+
+    // Fallback to legacy log files
     let gatewayLogContent = "";
     let stderrLogContent = "";
 

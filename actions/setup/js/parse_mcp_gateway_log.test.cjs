@@ -4,6 +4,10 @@
 const { generateGatewayLogSummary } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
+  // Note: The main() function now checks for gateway.md first before falling back to log files.
+  // If gateway.md exists, its content is written directly to the step summary.
+  // These tests focus on the fallback generateGatewayLogSummary function used when gateway.md is not present.
+
   describe("generateGatewayLogSummary", () => {
     test("generates summary with both gateway.log and stderr.log", () => {
       const gatewayLogContent = "Gateway started\nServer listening on port 8080";
