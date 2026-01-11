@@ -6,7 +6,6 @@ sidebar:
 ---
 
 > [!TIP]
-> Recommended for Beginners
 > **SideRepoOps is the easiest way to get started with reporting agents.** It requires minimal setup, keeps your main repository clean, and lets you experiment safely without affecting production code. Perfect for trying out agentic workflows before integrating them directly into your main repository.
 
 SideRepoOps is a development pattern where you run agentic workflows from a separate "side" repository that targets your main codebase. This keeps AI-generated issues, comments, and workflow runs isolated from your main repository, providing cleaner separation between automation infrastructure and your production code.
@@ -49,7 +48,6 @@ While [MultiRepoOps](/gh-aw/guides/multirepoops/) runs workflows **from** your m
 In SideRepoOps, workflows run in GitHub Actions **on the side repository** but perform operations (create issues, PRs, comments) **on the main repository** using cross-repository authentication.
 
 > [!TIP]
-> Testing with TrialOps
 > Before deploying SideRepoOps workflows to production, use [TrialOps](/gh-aw/guides/trialops/) to test them in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues in your repositories.
 
 ## Setup Requirements
@@ -75,7 +73,6 @@ gh aw secrets set MAIN_REPO_PAT --value "YOUR_PAT_HERE"
 ```
 
 > [!TIP]
-> Security Best Practice
 > Use fine-grained PATs scoped to specific repositories. Set expiration dates and rotate tokens regularly.
 
 ### 3. Enable GitHub Actions

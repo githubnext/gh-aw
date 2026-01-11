@@ -8,7 +8,6 @@ sidebar:
 This glossary provides definitions for key technical terms and concepts used in GitHub Agentic Workflows.
 
 > [!TIP]
-> New to GitHub Agentic Workflows?
 > Technical terms throughout the documentation link to their definitions here. Click any glossary link to understand unfamiliar concepts. Bookmark this page for quick reference!
 
 ## Core Concepts

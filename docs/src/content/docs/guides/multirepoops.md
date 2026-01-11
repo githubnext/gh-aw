@@ -71,7 +71,6 @@ The PAT needs permissions **only on target repositories** where you want to crea
 - `contents: write`, `issues: write`, `pull-requests: write` (depending on operations)
 
 > [!TIP]
-> Security Best Practice
 > If you only need to read from one repo and write to another, scope your PAT to have read access on the source and write access only on target repositories.
 
 ### GitHub App Installation Token

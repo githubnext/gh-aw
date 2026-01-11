@@ -129,14 +129,7 @@ The compiler deterministically assigns each workflow a unique execution time bas
 - **Flexibility with constraints**: Use `around` to hint preferred times or `between` to restrict to time ranges
 
 > [!TIP]
-> Complete Schedule Syntax Reference
-> See the [Schedule Syntax reference](/gh-aw/reference/schedule-syntax/) for complete documentation of all supported schedule formats, including:
-> - Fuzzy schedules (daily, hourly, weekly)
-> - Time constraints (around, between)
-> - Fixed schedules
-> - Monthly and interval schedules
-> - UTC offset support
-> - Standard cron expressions
+> See the [Schedule Syntax reference](/gh-aw/reference/schedule-syntax/) for complete documentation of all supported schedule formats, including fuzzy schedules (daily, hourly, weekly), time constraints (around, between), fixed schedules, monthly and interval schedules, UTC offset support, and standard cron expressions.
 
 **Human-Friendly Format:**
 
@@ -156,7 +149,6 @@ on:
 ```
 
 > [!TIP]
-> Use Fuzzy Schedules
 > Use fuzzy schedules like `daily`, `weekly`, `hourly`, or `every Nh` to automatically distribute execution times and avoid load spikes.
 
 **Supported Formats:**
@@ -331,7 +323,6 @@ lines of code where improvements can be made.
 The command must appear as the **first word** in the comment or body text. Command workflows automatically add the "eyes" (👀) reaction and edit comments with workflow run links.
 
 > [!NOTE]
-> Deprecated Syntax
 > The `command:` trigger field is deprecated. Use `slash_command:` instead.
 
 ### Label Filtering (`names:`)

@@ -12,8 +12,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 95% of users only need these 5 commands:
 
 > [!TIP]
-> New to gh-aw?
-> Start here! These commands cover the essential workflow lifecycle from setup to monitoring.
+> These commands cover the essential workflow lifecycle from setup to monitoring.
 
 | Command | When to Use | Details |
 |---------|-------------|---------|
@@ -256,7 +255,6 @@ The `--push` flag automatically handles workflow updates before execution:
 When `--push` is not used, warnings are displayed for missing or outdated lock files.
 
 > [!NOTE]
-> Codespaces Permissions
 > Requires `workflows:write` permission. In Codespaces, either configure custom permissions in `devcontainer.json` ([docs](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces)) or authenticate manually: `unset GH_TOKEN && gh auth login`
 
 ### Monitoring

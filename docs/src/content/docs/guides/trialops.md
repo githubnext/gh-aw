@@ -6,7 +6,6 @@ sidebar:
 ---
 
 > [!NOTE]
-> Part of SideRepoOps
 > TrialOps is a specialized testing pattern that extends [SideRepoOps](/gh-aw/guides/siderepoops/). While SideRepoOps runs workflows from a separate repository against your main codebase, TrialOps uses temporary trial repositories to safely validate and test workflows before production deployment.
 
 TrialOps runs agentic workflows in isolated trial repositories to safely validate behavior, compare approaches, and iterate on prompts without affecting production. The `trial` command creates temporary private repositories where workflows execute and capture safe outputs (issues, PRs, comments) without modifying your actual codebase.
@@ -44,7 +43,6 @@ gh aw trial githubnext/agentics/my-workflow --repo myorg/test-repo
 ```
 
 > [!CAUTION]
-> Production Risk
 > Creates real issues and PRs in the target repository. Only use with test repositories.
 
 ### Logical Repository Mode (`--logical-repo`)

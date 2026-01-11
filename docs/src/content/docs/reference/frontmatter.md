@@ -91,7 +91,6 @@ github-token: ${{ secrets.CUSTOM_PAT }}
 ```
 
 > [!CAUTION]
-> Secret Expression Required
 > Must use GitHub Actions secret expressions (e.g., `${{ secrets.CUSTOM_PAT }}`). Plaintext tokens are rejected. Valid: `${{ secrets.GITHUB_TOKEN }}`, `${{ secrets.CUSTOM_PAT }}`. Invalid: plaintext tokens, environment variables.
 
 **Token precedence** (highest to lowest):
@@ -175,7 +174,6 @@ features:
 ```
 
 > [!NOTE]
-> Firewall Configuration
 > The `features.firewall` field has been removed. The agent sandbox is now mandatory and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 
 ### AI Engine (`engine:`)

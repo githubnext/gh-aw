@@ -29,7 +29,6 @@ sandbox:
 ```
 
 > [!NOTE]
-> Default Behavior
 > If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: awf`. The agent sandbox is now mandatory for all workflows.
 
 ### MCP Gateway (Experimental)
@@ -181,7 +180,6 @@ network:
 | `enableWeakerNestedSandbox` | `boolean` | Enable weaker nested sandbox mode (recommended for Docker access) |
 
 > [!NOTE]
-> Network Configuration
 > Network configuration for SRT is controlled by the top-level `network` field, not the sandbox config. This ensures consistent network policy across all sandbox types.
 
 #### Custom SRT Configuration
@@ -227,13 +225,7 @@ The MCP Gateway routes all MCP server calls through a unified HTTP gateway, enab
 | `env` | `object` | No | Environment variables for the gateway |
 
 > [!NOTE]
-> Execution Modes
-> The MCP gateway supports two execution modes:
-> 1. **Custom command** - Use `command` field to specify a custom binary or script
-> 2. **Container** - Use `container` field for Docker-based execution
->
-> The `command` and `container` fields are mutually exclusive - only one can be specified.
-> You must specify either `command` or `container` to use the MCP gateway feature.
+> The MCP gateway supports two execution modes: **Custom command** (use `command` field to specify a custom binary or script) and **Container** (use `container` field for Docker-based execution). The `command` and `container` fields are mutually exclusive - only one can be specified. You must specify either `command` or `container` to use the MCP gateway feature.
 
 ### How It Works
 

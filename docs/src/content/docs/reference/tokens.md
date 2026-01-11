@@ -228,7 +228,6 @@ safe-outputs:
 **For organization-owned projects**, the complete configuration should include both the GitHub tools and safe outputs using the same token with appropriate permissions.
 
 > [!NOTE]
-> Default behavior
 > By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
 >
 > **Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. 
@@ -245,10 +244,7 @@ safe-outputs:
 > To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
 
 > [!TIP]
-> When to use vs GH_AW_GITHUB_TOKEN
-> - Use `GH_AW_PROJECT_GITHUB_TOKEN` when you need **Projects-specific permissions** separate from other operations
-> - Use `GH_AW_GITHUB_TOKEN` as the top-level token if it already has Projects permissions and you don't need isolation
-> - The precedence chain allows the top-level token to be used if `GH_AW_PROJECT_GITHUB_TOKEN` isn't set
+> Use `GH_AW_PROJECT_GITHUB_TOKEN` when you need **Projects-specific permissions** separate from other operations. Use `GH_AW_GITHUB_TOKEN` as the top-level token if it already has Projects permissions and you don't need isolation. The precedence chain allows the top-level token to be used if `GH_AW_PROJECT_GITHUB_TOKEN` isn't set.
 
 ## `COPILOT_GITHUB_TOKEN` (Copilot Authentication)
 

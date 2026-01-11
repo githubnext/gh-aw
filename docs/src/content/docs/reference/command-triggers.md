@@ -55,15 +55,11 @@ Now analyzing the content...
 This feature enables command aliases and grouped command handlers without workflow duplication.
 
 > [!NOTE]
-> **Deprecated Syntax**
-> 
 > The `command:` trigger field is deprecated. Use `slash_command:` instead. The old syntax still works but will show a deprecation warning.
 
 This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
 
 > [!CAUTION]
-> **Command Position Requirement**
-> 
 > The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
 
 You can combine `slash_command:` with other events like `workflow_dispatch` or `schedule`:

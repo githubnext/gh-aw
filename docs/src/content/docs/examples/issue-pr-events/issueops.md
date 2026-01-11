@@ -95,7 +95,6 @@ Create a parent tracking issue, then sub-issues linked via parent field:
 ```
 
 > [!TIP]
-> Hide sub-issues
 > Filter sub-issues from `/issues` with `no:parent-issue`: `/issues?q=no:parent-issue`
 
 Assign sub-issues to Copilot with `assignees: copilot` for parallel execution.

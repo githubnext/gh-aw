@@ -12,7 +12,6 @@ Control network access for AI engines using the top-level `network` field to spe
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
 > [!TIP]
-> New to Network Configuration?
 > See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for practical examples, common patterns, and troubleshooting tips for package registries and CDNs.
 
 ## Configuration
@@ -106,11 +105,7 @@ network:
 ```
 
 > [!TIP]
-> When to Use Blocked Domains
-> - **Privacy**: Block tracking and analytics domains while allowing legitimate services
-> - **Security**: Block known malicious or compromised domains
-> - **Compliance**: Enforce organizational network policies
-> - **Fine-grained control**: Allow broad ecosystem access but block specific problematic domains
+> Use blocked domains to block tracking and analytics domains while allowing legitimate services, block known malicious or compromised domains, enforce organizational network policies, or achieve fine-grained control by allowing broad ecosystem access but blocking specific problematic domains.
 
 **Key behaviors**:
 - Blocked domains are subtracted from the allowed list
@@ -135,8 +130,7 @@ For fine-grained security control, you can restrict domains to specific protocol
 - Ensuring secure connections by restricting to HTTPS-only
 - Migrating from HTTP to HTTPS gradually
 
-> [!TIP]
-> Copilot Engine Support
+> [!NOTE]
 > Protocol-specific filtering is currently supported by the Copilot engine with AWF firewall enabled. Domains without protocol prefixes allow both HTTP and HTTPS traffic (backward compatible).
 
 ### Usage Examples
@@ -163,7 +157,6 @@ network:
 - No prefix - Both HTTP and HTTPS (backward compatible)
 
 > [!CAUTION]
-> Protocol Validation
 > Invalid protocols (e.g., `ftp://`, `ws://`) are rejected at compile time with a clear error message:
 > ```
 > error: network.allowed[0]: domain pattern 'ftp://invalid.example.com' 
@@ -202,13 +195,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `playwright` | Playwright testing framework domains |
 
 > [!TIP]
-> Common Use Cases
-> - **Python projects**: Add `python` for PyPI, pip, and files.pythonhosted.org
-> - **Node.js projects**: Add `node` for registry.npmjs.org, yarn, and pnpm
-> - **Container builds**: Add `containers` for Docker Hub and other registries
-> - **Go projects**: Add `go` for proxy.golang.org and sum.golang.org
->
-> See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete examples and domain lists.
+> For Python projects, add `python` for PyPI, pip, and files.pythonhosted.org. For Node.js projects, add `node` for registry.npmjs.org, yarn, and pnpm. For container builds, add `containers` for Docker Hub and other registries. For Go projects, add `go` for proxy.golang.org and sum.golang.org. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete examples and domain lists.
 
 
 ## Implementation
@@ -319,10 +306,7 @@ network:
 - The wildcard must be followed by a dot and domain (e.g., `*` alone is not allowed in strict mode)
 
 > [!TIP]
-> When to Use Wildcards vs Base Domains
-> Both approaches work for subdomain matching:
-> - **Base domain** (`example.com`): Simpler syntax, automatically matches all subdomains
-> - **Wildcard pattern** (`*.example.com`): Explicit about subdomain matching intent, useful when you want to clearly document that subdomains are expected
+> Both base domains and wildcard patterns work for subdomain matching. **Base domain** (`example.com`) uses simpler syntax and automatically matches all subdomains. **Wildcard pattern** (`*.example.com`) is explicit about subdomain matching intent and is useful when you want to clearly document that subdomains are expected.
 
 ## Best Practices
 

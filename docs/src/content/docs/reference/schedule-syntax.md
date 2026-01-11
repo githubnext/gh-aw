@@ -15,7 +15,6 @@ GitHub Agentic Workflows supports human-friendly schedule expressions that are a
 - **Fixed schedules** - Run at specific times, but create server load when many workflows use the same time
 
 > [!TIP]
-> Use Fuzzy Schedules
 > Fuzzy schedules distribute workflow execution times deterministically across all workflows in your repository. Each workflow gets a unique, consistent execution time that never changes across recompiles, preventing server load spikes.
 
 ## Quick Reference
@@ -273,7 +272,6 @@ on:
 ```
 
 > [!TIP]
-> Use Fuzzy Schedules
 > Fixed schedules cause all workflows to run simultaneously, creating server load spikes. Use fuzzy schedules like `daily`, `daily around 14:00`, or `daily between 9:00 and 17:00` to automatically distribute execution times.
 
 ## Interval Schedules
@@ -308,7 +306,6 @@ on:
 **Valid intervals**: `5m`, `10m`, `15m`, `20m`, `30m` (minimum 5 minutes)
 
 > [!NOTE]
-> Minimum Interval
 > GitHub Actions enforces a minimum schedule interval of 5 minutes.
 
 ### Hour Intervals

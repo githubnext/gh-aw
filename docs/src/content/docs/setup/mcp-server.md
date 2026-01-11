@@ -110,6 +110,5 @@ Check workflow status, download logs, and audit failures.
 ```
 
 > [!CAUTION]
-> Required Permission
 > The `agentic-workflows` tool requires `actions: read` permission to access GitHub Actions workflow logs and run data.
 

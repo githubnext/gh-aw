@@ -125,9 +125,7 @@ gh aw fix workflow.md --write
 This automatically converts all write permissions to read permissions.
 
 > [!TIP]
-> Use Safe Outputs Instead
 > For workflows that need to make changes to your repository, use [safe outputs](/gh-aw/reference/safe-outputs/) instead of write permissions. Safe outputs provide a secure way to create issues, pull requests, and comments without granting direct write access to the AI agent.
-   :::
 
 #### Scope
 

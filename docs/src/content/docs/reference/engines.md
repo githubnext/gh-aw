@@ -8,7 +8,6 @@ sidebar:
 GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (which AI model/provider to use) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 > [!NOTE]
-> Experimental Engines
 > Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
 
 ### GitHub Copilot CLI
@@ -44,7 +43,6 @@ gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
 ```
 
 > [!CAUTION]
-> Legacy Tokens Removed
 > The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer supported** as of v0.26+. If you're using these tokens, please migrate to `COPILOT_GITHUB_TOKEN`.
 >
 > The legacy secret name `GH_AW_GITHUB_TOKEN` is still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name for Copilot operations.
@@ -79,7 +77,6 @@ Advanced configuration: set `firewall.version` (defaults to latest), `log-level`
 ### Agent Sandbox
 
 > [!NOTE]
-> Mandatory Sandbox
 > The agent sandbox is now mandatory for all workflows and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 
 The sandbox configuration is controlled via the `sandbox.agent` field:
