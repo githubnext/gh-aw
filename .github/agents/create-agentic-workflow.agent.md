@@ -195,10 +195,10 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
    - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
 
-   **General tools (Playwright)**:
+   **General tools (Serena language server)**:
    ```yaml
    tools:
-     playwright:  # Browser automation
+     serena: ["go"]  # Language server for Go code analysis
    ```
    
    ⚠️ **IMPORTANT - Default Tools**: 
