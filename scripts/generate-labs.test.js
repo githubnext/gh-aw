@@ -70,11 +70,7 @@ let allPassed = true;
 console.log("\nRunning tests...\n");
 
 // Test 1: Table format with new columns
-allPassed &= assertContains(
-  output, 
-  "| Workflow | Agent | Status | Schedule | Command |", 
-  "Table header is present with correct columns"
-);
+allPassed &= assertContains(output, "| Workflow | Agent | Status | Schedule | Command |", "Table header is present with correct columns");
 
 allPassed &= assertContains(output, "|:---------|:-----:|:------:|:--------:|:-------:|", "Table separator is present with center alignment");
 
@@ -103,11 +99,7 @@ allPassed &= assertNotContains(output, "| unknown |", "No workflows with unknown
 // Test 8: Frontmatter is correct
 allPassed &= assertContains(output, "title: Labs", "Frontmatter title is present");
 
-allPassed &= assertContains(
-  output,
-  "description: Experimental agentic workflows used by the team to learn and build.",
-  "Frontmatter description is present"
-);
+allPassed &= assertContains(output, "description: Experimental agentic workflows used by the team to learn and build.", "Frontmatter description is present");
 
 // Test 9: Introduction text is present (streamlined)
 allPassed &= assertContains(
@@ -159,15 +151,10 @@ allPassed &= assertNotContains(output, "<CardGrid>", "No CardGrid component (sho
 allPassed &= assertNotContains(output, "<Card>", "No Card component (should be table now)");
 
 // Test 20: Verify source link is present (moved to intro text, streamlined)
-allPassed &= assertContains(
-  output,
-  "[Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)",
-  "Source files link is present (streamlined)"
-);
+allPassed &= assertContains(output, "[Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)", "Source files link is present (streamlined)");
 
 // Test 21: Verify no separate "Workflow Link" column
 allPassed &= assertNotContains(output, "| Workflow Link |", "No separate 'Workflow Link' column (consolidated into first column)");
-
 
 // Summary
 console.log("\n" + "=".repeat(50));

@@ -10,18 +10,18 @@
  * - Excludes codemod sections from changelog entries
  */
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { execSync } = require('child_process');
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+const { execSync } = require("child_process");
 
 // Create temporary directory for test changesets
-const TEST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'changeset-test-'));
-const CHANGESET_DIR = path.join(TEST_DIR, '.changeset');
+const TEST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "changeset-test-"));
+const CHANGESET_DIR = path.join(TEST_DIR, ".changeset");
 fs.mkdirSync(CHANGESET_DIR);
 
 // Path to changeset script
-const CHANGESET_SCRIPT = path.join(__dirname, 'changeset.js');
+const CHANGESET_SCRIPT = path.join(__dirname, "changeset.js");
 
 /**
  * Test helper to check if content contains expected string
@@ -64,7 +64,7 @@ ${description}`;
     content += `\n\n## Codemod\n\n${codemod}`;
   }
 
-  fs.writeFileSync(path.join(CHANGESET_DIR, filename), content, 'utf8');
+  fs.writeFileSync(path.join(CHANGESET_DIR, filename), content, "utf8");
 }
 
 /**
@@ -73,16 +73,16 @@ ${description}`;
 function runChangesetVersion() {
   try {
     // Set up git for testing
-    execSync('git init', { cwd: TEST_DIR, stdio: 'ignore' });
-    execSync('git config user.email "test@example.com"', { cwd: TEST_DIR, stdio: 'ignore' });
-    execSync('git config user.name "Test User"', { cwd: TEST_DIR, stdio: 'ignore' });
-    
+    execSync("git init", { cwd: TEST_DIR, stdio: "ignore" });
+    execSync('git config user.email "test@example.com"', { cwd: TEST_DIR, stdio: "ignore" });
+    execSync('git config user.name "Test User"', { cwd: TEST_DIR, stdio: "ignore" });
+
     // Run version command by requiring and calling main
     // Need to set up process.argv properly: [node, scriptname, command, ...]
     const output = execSync(`node -e "process.argv.splice(1, 0, 'changeset.js', 'version'); const {main} = require('${CHANGESET_SCRIPT}'); main().catch(console.error);"`, {
       cwd: TEST_DIR,
-      encoding: 'utf8',
-      env: { ...process.env, GH_AW_CURRENT_VERSION: 'v0.1.0' }
+      encoding: "utf8",
+      env: { ...process.env, GH_AW_CURRENT_VERSION: "v0.1.0" },
     });
     return output;
   } catch (error) {
@@ -97,7 +97,7 @@ function cleanup() {
   try {
     fs.rmSync(TEST_DIR, { recursive: true, force: true });
   } catch (error) {
-    console.error('Cleanup failed:', error.message);
+    console.error("Cleanup failed:", error.message);
   }
 }
 
@@ -107,105 +107,95 @@ function runTests() {
 
   try {
     // Test 1: Changeset without codemod
-    console.log('\n=== Test 1: Changeset without codemod ===');
-    createChangeset('patch-fix.md', 'patch', 'Fixed a bug in the rendering logic');
+    console.log("\n=== Test 1: Changeset without codemod ===");
+    createChangeset("patch-fix.md", "patch", "Fixed a bug in the rendering logic");
     let output = runChangesetVersion();
-    
-    allPassed &= assertContains(output, 'Fixed a bug in the rendering logic', 'Should include description in changes list');
-    allPassed &= assertContains(output, 'Would add to CHANGELOG.md', 'Should show changelog preview');
-    allPassed &= assertNotContains(output, 'Consolidated Codemod Instructions', 'Should not show codemod section when none exist');
+
+    allPassed &= assertContains(output, "Fixed a bug in the rendering logic", "Should include description in changes list");
+    allPassed &= assertContains(output, "Would add to CHANGELOG.md", "Should show changelog preview");
+    allPassed &= assertNotContains(output, "Consolidated Codemod Instructions", "Should not show codemod section when none exist");
 
     // Clean up for next test
-    fs.unlinkSync(path.join(CHANGESET_DIR, 'patch-fix.md'));
+    fs.unlinkSync(path.join(CHANGESET_DIR, "patch-fix.md"));
 
     // Test 2: Single changeset with codemod
-    console.log('\n=== Test 2: Single changeset with codemod ===');
+    console.log("\n=== Test 2: Single changeset with codemod ===");
     createChangeset(
-      'minor-breaking.md',
-      'minor',
-      'Changed the workflow frontmatter field `engine` to require an object instead of a string.',
-      'If you have workflows using `engine: copilot`, update to:\n\n```yaml\nengine:\n  id: copilot\n```'
+      "minor-breaking.md",
+      "minor",
+      "Changed the workflow frontmatter field `engine` to require an object instead of a string.",
+      "If you have workflows using `engine: copilot`, update to:\n\n```yaml\nengine:\n  id: copilot\n```"
     );
     output = runChangesetVersion();
-    
-    allPassed &= assertContains(output, 'Consolidated Codemod Instructions', 'Should show codemod section');
-    allPassed &= assertContains(output, 'The following breaking changes require code updates', 'Should include codemod header');
-    allPassed &= assertContains(output, 'engine:\n  id: copilot', 'Should include codemod content');
-    allPassed &= assertContains(output, '### Changed the workflow frontmatter field', 'Should include description as heading in codemod');
-    
+
+    allPassed &= assertContains(output, "Consolidated Codemod Instructions", "Should show codemod section");
+    allPassed &= assertContains(output, "The following breaking changes require code updates", "Should include codemod header");
+    allPassed &= assertContains(output, "engine:\n  id: copilot", "Should include codemod content");
+    allPassed &= assertContains(output, "### Changed the workflow frontmatter field", "Should include description as heading in codemod");
+
     // Verify codemod is NOT in raw form in the changelog section, but IS in the Migration Guide
-    const changelogSection = output.substring(output.indexOf('Would add to CHANGELOG.md'), output.indexOf('Consolidated Codemod'));
-    allPassed &= assertNotContains(changelogSection, '## Codemod', 'Changelog should not contain "## Codemod" heading');
-    allPassed &= assertContains(changelogSection, '### Migration Guide', 'Changelog should contain Migration Guide section');
-    allPassed &= assertContains(changelogSection, '`````markdown', 'Changelog should contain markdown code block with 5 backticks for codemods');
+    const changelogSection = output.substring(output.indexOf("Would add to CHANGELOG.md"), output.indexOf("Consolidated Codemod"));
+    allPassed &= assertNotContains(changelogSection, "## Codemod", 'Changelog should not contain "## Codemod" heading');
+    allPassed &= assertContains(changelogSection, "### Migration Guide", "Changelog should contain Migration Guide section");
+    allPassed &= assertContains(changelogSection, "`````markdown", "Changelog should contain markdown code block with 5 backticks for codemods");
 
     // Clean up for next test
-    fs.unlinkSync(path.join(CHANGESET_DIR, 'minor-breaking.md'));
+    fs.unlinkSync(path.join(CHANGESET_DIR, "minor-breaking.md"));
 
     // Test 3: Multiple changesets with codemods
-    console.log('\n=== Test 3: Multiple changesets with codemods ===');
-    createChangeset(
-      'minor-engine.md',
-      'minor',
-      'Changed engine configuration format',
-      'Update `engine: copilot` to `engine: { id: copilot }`'
-    );
-    createChangeset(
-      'minor-tools.md',
-      'minor',
-      'Changed tools configuration format',
-      'Update `tools: github` to `tools: [github]`'
-    );
+    console.log("\n=== Test 3: Multiple changesets with codemods ===");
+    createChangeset("minor-engine.md", "minor", "Changed engine configuration format", "Update `engine: copilot` to `engine: { id: copilot }`");
+    createChangeset("minor-tools.md", "minor", "Changed tools configuration format", "Update `tools: github` to `tools: [github]`");
     output = runChangesetVersion();
-    
-    allPassed &= assertContains(output, 'Consolidated Codemod Instructions', 'Should show consolidated codemod section');
-    allPassed &= assertContains(output, 'Changed engine configuration format', 'Should include first codemod');
-    allPassed &= assertContains(output, 'Changed tools configuration format', 'Should include second codemod');
-    allPassed &= assertContains(output, 'Update `engine: copilot`', 'Should include first codemod content');
-    allPassed &= assertContains(output, 'Update `tools: github`', 'Should include second codemod content');
+
+    allPassed &= assertContains(output, "Consolidated Codemod Instructions", "Should show consolidated codemod section");
+    allPassed &= assertContains(output, "Changed engine configuration format", "Should include first codemod");
+    allPassed &= assertContains(output, "Changed tools configuration format", "Should include second codemod");
+    allPassed &= assertContains(output, "Update `engine: copilot`", "Should include first codemod content");
+    allPassed &= assertContains(output, "Update `tools: github`", "Should include second codemod content");
 
     // Clean up for next test
-    fs.unlinkSync(path.join(CHANGESET_DIR, 'minor-engine.md'));
-    fs.unlinkSync(path.join(CHANGESET_DIR, 'minor-tools.md'));
+    fs.unlinkSync(path.join(CHANGESET_DIR, "minor-engine.md"));
+    fs.unlinkSync(path.join(CHANGESET_DIR, "minor-tools.md"));
 
     // Test 4: Mixed changesets (with and without codemods)
-    console.log('\n=== Test 4: Mixed changesets with and without codemods ===');
-    createChangeset('patch-fix.md', 'patch', 'Fixed a bug');
-    createChangeset('minor-breaking.md', 'minor', 'Breaking change', 'Update your code like this');
+    console.log("\n=== Test 4: Mixed changesets with and without codemods ===");
+    createChangeset("patch-fix.md", "patch", "Fixed a bug");
+    createChangeset("minor-breaking.md", "minor", "Breaking change", "Update your code like this");
     output = runChangesetVersion();
-    
-    allPassed &= assertContains(output, 'Fixed a bug', 'Should include non-codemod change');
-    allPassed &= assertContains(output, 'Breaking change', 'Should include codemod change');
-    allPassed &= assertContains(output, 'Consolidated Codemod Instructions', 'Should show codemod section');
-    allPassed &= assertContains(output, 'Update your code like this', 'Should include codemod content');
+
+    allPassed &= assertContains(output, "Fixed a bug", "Should include non-codemod change");
+    allPassed &= assertContains(output, "Breaking change", "Should include codemod change");
+    allPassed &= assertContains(output, "Consolidated Codemod Instructions", "Should show codemod section");
+    allPassed &= assertContains(output, "Update your code like this", "Should include codemod content");
 
     // Clean up for next test
-    fs.unlinkSync(path.join(CHANGESET_DIR, 'patch-fix.md'));
-    fs.unlinkSync(path.join(CHANGESET_DIR, 'minor-breaking.md'));
+    fs.unlinkSync(path.join(CHANGESET_DIR, "patch-fix.md"));
+    fs.unlinkSync(path.join(CHANGESET_DIR, "minor-breaking.md"));
 
     // Test 5: No changesets with version command
-    console.log('\n=== Test 5: No changesets with version command ===');
+    console.log("\n=== Test 5: No changesets with version command ===");
     output = runChangesetVersion();
-    
-    allPassed &= assertContains(output, 'No changesets found', 'Should show message when no changesets exist');
+
+    allPassed &= assertContains(output, "No changesets found", "Should show message when no changesets exist");
 
     // Test 6: No changesets with explicit release type (simulate updateChangelog)
-    console.log('\n=== Test 6: CHANGELOG entry for release without changesets ===');
+    console.log("\n=== Test 6: CHANGELOG entry for release without changesets ===");
     // We'll test the updateChangelog function directly by requiring the module
     const changesetModule = require(CHANGESET_SCRIPT);
     // Since we can't easily access internal functions, we'll just verify the version command works
     // The actual changelog update behavior will be tested manually
-    
-    console.log('\n=== Test Results ===');
+
+    console.log("\n=== Test Results ===");
     if (allPassed) {
-      console.log('✓ All tests passed!');
+      console.log("✓ All tests passed!");
       return 0;
     } else {
-      console.log('❌ Some tests failed');
+      console.log("❌ Some tests failed");
       return 1;
     }
   } catch (error) {
-    console.error('Test execution failed:', error.message);
+    console.error("Test execution failed:", error.message);
     return 1;
   } finally {
     cleanup();
