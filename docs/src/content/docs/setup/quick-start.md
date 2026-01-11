@@ -185,7 +185,7 @@ Before installing, ensure you have:
 - ✅ **GitHub account** with admin or write access to a repository
 - ✅ **[GitHub Actions](https://docs.github.com/en/actions)** (GitHub's automation platform) enabled in your repository
 - ✅ **Git** installed on your machine
-- ✅ **Operating System:** Linux, macOS, Windows, or Windows with WSL
+- ✅ **Operating System:** Linux, macOS, or Windows (WSL recommended)
 
 **Verify your setup:**
 
