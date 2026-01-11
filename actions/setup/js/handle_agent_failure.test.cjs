@@ -130,6 +130,8 @@ describe("handle_agent_failure.cjs", () => {
       expect(parentCreateCall.body).toContain("gh aw logs");
       expect(parentCreateCall.body).toContain("gh aw audit");
       expect(parentCreateCall.body).toContain("no:parent-issue");
+      expect(parentCreateCall.body).toContain("<!-- gh-aw-expires:");
+      expect(parentCreateCall.body).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
 
       // Verify failure issue was created
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({

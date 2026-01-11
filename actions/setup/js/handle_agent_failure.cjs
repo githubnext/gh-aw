@@ -42,7 +42,7 @@ async function ensureParentIssue() {
   // Create parent issue if it doesn't exist
   core.info("No parent issue found, creating one");
 
-  const parentBody = `# Agentic Workflow Failures
+  const parentBodyContent = `# Agentic Workflow Failures
 
 This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.
 
@@ -94,6 +94,11 @@ gh aw audit <run-id>
 ---
 
 > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.`;
+
+  // Add expiration marker (1 day from now)
+  const expirationDate = new Date();
+  expirationDate.setDate(expirationDate.getDate() + 1);
+  const parentBody = `${parentBodyContent}\n\n<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`;
 
   try {
     const newIssue = await github.rest.issues.create({
