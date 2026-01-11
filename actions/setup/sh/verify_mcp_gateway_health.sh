@@ -47,29 +47,30 @@ echo ''
 
 # Wait for gateway to be ready FIRST before checking config
 echo '=== Testing Gateway Health ==='
-max_retries=30
-retry_count=0
-gateway_ready=false
-health_response=""
 
-while [ $retry_count -lt $max_retries ]; do
-  # Capture both response body and HTTP code in a single curl call
-  response=$(curl -s -w "\n%{http_code}" "${gateway_url}/health")
-  http_code=$(echo "$response" | tail -n 1)
-  health_response=$(echo "$response" | head -n -1)
-  
-  if echo "$http_code" | grep -q "200\|204"; then
-    echo "✓ MCP Gateway is ready!"
-    gateway_ready=true
-    break
-  fi
-  retry_count=$((retry_count + 1))
-  echo "Waiting for gateway... (attempt $retry_count/$max_retries)"
-  sleep 1
-done
+# Capture both response body and HTTP code in a single curl call
+# Use curl retry: 120 attempts with 1 second delay = 120s total
+echo "Calling health endpoint: ${gateway_url}/health"
+echo "Retrying up to 120 times with 1s delay (120s total timeout)"
+response=$(curl -s --retry 120 --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "${gateway_url}/health")
+http_code=$(echo "$response" | tail -n 1)
+health_response=$(echo "$response" | head -n -1)
 
-if [ "$gateway_ready" = false ]; then
-  echo "✗ Error: MCP Gateway failed to start after $max_retries attempts"
+# Always log the health response for debugging
+echo "Health endpoint HTTP code: $http_code"
+if [ -n "$health_response" ]; then
+  echo "Health response body: $health_response"
+else
+  echo "Health response body: (empty)"
+fi
+
+if [ "$http_code" = "200" ]; then
+  echo "✓ MCP Gateway is ready!"
+else
+  echo ''
+  echo "✗ Error: MCP Gateway failed to start"
+  echo "Last HTTP code: $http_code"
+  echo "Last health response: ${health_response:-(empty)}"
   echo ''
   echo '=== Gateway Logs (Full) ==='
   cat "${logs_folder}/gateway.log" || echo 'No gateway logs found'
@@ -77,10 +78,8 @@ if [ "$gateway_ready" = false ]; then
 fi
 
 # Parse and display version information from health response
+echo ''
 if [ -n "$health_response" ]; then
-  echo "Health response: $health_response"
-  echo ''
-  
   # Extract version information using jq if available
   if command -v jq >/dev/null 2>&1; then
     spec_version=$(echo "$health_response" | jq -r '.specVersion // "unknown"')
