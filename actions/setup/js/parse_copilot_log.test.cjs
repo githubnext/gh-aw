@@ -278,4 +278,78 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("safe_outputs::create_issue");
     });
   });
+
+  describe("MCP server failure detection", () => {
+    it("should detect MCP server connection failures from debug logs", () => {
+      const logWithMcpFailure = `2026-01-11T07:21:35.050Z [DEBUG] Starting Copilot CLI
+2026-01-11T07:21:35.050Z [ERROR] Failed to start MCP client for remote server github: TypeError: fetch failed
+2026-01-11T07:21:35.100Z [DEBUG] data:
+2026-01-11T07:21:35.100Z [DEBUG] {
+2026-01-11T07:21:35.100Z [DEBUG]   "choices": [{"message": {"content": "test"}}]
+2026-01-11T07:21:35.100Z [DEBUG] }`;
+
+      const result = parseCopilotLog(logWithMcpFailure);
+      
+      expect(result.mcpFailures).toBeDefined();
+      expect(result.mcpFailures).toHaveLength(1);
+      expect(result.mcpFailures[0]).toBe("github");
+    });
+
+    it("should detect multiple MCP server failures", () => {
+      const logWithMultipleMcpFailures = `2026-01-11T07:21:35.050Z [DEBUG] Starting Copilot CLI
+2026-01-11T07:21:35.050Z [ERROR] Failed to start MCP client for remote server github: TypeError: fetch failed
+2026-01-11T07:21:35.100Z [ERROR] Failed to start MCP client for remote server playwright: TypeError: fetch failed
+2026-01-11T07:21:35.150Z [DEBUG] data:
+2026-01-11T07:21:35.150Z [DEBUG] {
+2026-01-11T07:21:35.150Z [DEBUG]   "choices": [{"message": {"content": "test"}}]
+2026-01-11T07:21:35.150Z [DEBUG] }`;
+
+      const result = parseCopilotLog(logWithMultipleMcpFailures);
+      
+      expect(result.mcpFailures).toBeDefined();
+      expect(result.mcpFailures).toHaveLength(2);
+      expect(result.mcpFailures).toContain("github");
+      expect(result.mcpFailures).toContain("playwright");
+    });
+
+    it("should not report MCP failures for successful logs", () => {
+      const successfulLog = `2026-01-11T07:21:35.050Z [DEBUG] Starting Copilot CLI
+2026-01-11T07:21:35.050Z [DEBUG] Connected to MCP server github
+2026-01-11T07:21:35.100Z [DEBUG] data:
+2026-01-11T07:21:35.100Z [DEBUG] {
+2026-01-11T07:21:35.100Z [DEBUG]   "choices": [{"message": {"content": "test"}}]
+2026-01-11T07:21:35.100Z [DEBUG] }`;
+
+      const result = parseCopilotLog(successfulLog);
+      
+      expect(result.mcpFailures).toBeUndefined();
+    });
+
+    it("should handle JSON format without MCP failures", () => {
+      const jsonLog = JSON.stringify([
+        { type: "system", subtype: "init", session_id: "test", tools: ["Bash"], model: "gpt-4" },
+        { type: "result", num_turns: 1, usage: { input_tokens: 100, output_tokens: 50 } }
+      ]);
+
+      const result = parseCopilotLog(jsonLog);
+      
+      expect(result.mcpFailures).toBeUndefined();
+    });
+
+    it("should avoid duplicate MCP server names in failures list", () => {
+      const logWithDuplicateErrors = `2026-01-11T07:21:35.050Z [DEBUG] Starting Copilot CLI
+2026-01-11T07:21:35.050Z [ERROR] Failed to start MCP client for remote server github: TypeError: fetch failed
+2026-01-11T07:21:35.100Z [ERROR] Failed to start MCP client for remote server github: TypeError: fetch failed
+2026-01-11T07:21:35.150Z [DEBUG] data:
+2026-01-11T07:21:35.150Z [DEBUG] {
+2026-01-11T07:21:35.150Z [DEBUG]   "choices": [{"message": {"content": "test"}}]
+2026-01-11T07:21:35.150Z [DEBUG] }`;
+
+      const result = parseCopilotLog(logWithDuplicateErrors);
+      
+      expect(result.mcpFailures).toBeDefined();
+      expect(result.mcpFailures).toHaveLength(1);
+      expect(result.mcpFailures[0]).toBe("github");
+    });
+  });
 });

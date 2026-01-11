@@ -40,6 +40,7 @@ function extractPremiumRequestCount(logContent) {
  */
 function parseCopilotLog(logContent) {
   let logEntries;
+  let mcpFailures = [];
 
   // First, try to parse as JSON array (structured format)
   try {
@@ -49,9 +50,10 @@ function parseCopilotLog(logContent) {
     }
   } catch (jsonArrayError) {
     // If that fails, try to parse as debug logs format
-    const debugLogEntries = parseDebugLogFormat(logContent);
-    if (debugLogEntries && debugLogEntries.length > 0) {
-      logEntries = debugLogEntries;
+    const debugLogResult = parseDebugLogFormat(logContent);
+    if (debugLogResult && debugLogResult.entries && debugLogResult.entries.length > 0) {
+      logEntries = debugLogResult.entries;
+      mcpFailures = debugLogResult.mcpFailures || [];
     } else {
       // Try JSONL format using shared function
       logEntries = parseLogEntries(logContent);
@@ -126,7 +128,12 @@ function parseCopilotLog(logContent) {
     },
   });
 
-  return { markdown, logEntries };
+  // Return result with mcpFailures if any were detected
+  const result = { markdown, logEntries };
+  if (mcpFailures.length > 0) {
+    result.mcpFailures = mcpFailures;
+  }
+  return result;
 }
 
 /**
@@ -208,14 +215,27 @@ function scanForToolErrors(logContent) {
 /**
  * Parses Copilot CLI debug log format and reconstructs the conversation flow
  * @param {string} logContent - Raw debug log content
- * @returns {Array} Array of log entries in structured format
+ * @returns {{entries: Array, mcpFailures: string[]}} Object with array of log entries and array of failed MCP server names
  */
 function parseDebugLogFormat(logContent) {
   const entries = [];
   const lines = logContent.split("\n");
+  const mcpFailures = [];
 
   // First pass: scan for tool errors
   const toolErrors = scanForToolErrors(logContent);
+
+  // Scan for MCP server connection failures
+  // Pattern: [ERROR] Failed to start MCP client for remote server <server-name>: TypeError: fetch failed
+  for (const line of lines) {
+    const mcpFailureMatch = line.match(/\[ERROR\]\s+Failed to start MCP client for remote server\s+([^:]+):\s+TypeError:\s+fetch failed/i);
+    if (mcpFailureMatch) {
+      const serverName = mcpFailureMatch[1].trim();
+      if (serverName && !mcpFailures.includes(serverName)) {
+        mcpFailures.push(serverName);
+      }
+    }
+  }
 
   // Extract model information from the start
   let model = "unknown";
@@ -683,7 +703,7 @@ function parseDebugLogFormat(logContent) {
     }
   }
 
-  return entries;
+  return { entries, mcpFailures };
 }
 
 // Export for testing
