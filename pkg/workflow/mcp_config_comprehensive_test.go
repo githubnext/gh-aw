@@ -574,16 +574,10 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"command": "uvx"`,
-				`"args": [`,
-				`"--from"`,
-				`"git+https://github.com/oraios/serena"`,
-				`"serena"`,
+				`"container": "ghcr.io/oraios/serena:latest"`,
+				`"entrypoint": "serena"`,
+				`"entrypointArgs"`,
 				`"start-mcp-server"`,
-				`"--context"`,
-				`"codex"`,
-				`"--project"`,
-				`"${{ github.workspace }}"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
@@ -599,7 +593,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"command": "uvx"`,
+				`"container": "ghcr.io/oraios/serena:latest"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
@@ -616,9 +610,8 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"type": "local"`,
-				`"command": "uvx"`,
-				`"tools": ["*"]`,
+				`"type": "stdio"`,
+				`"container": "ghcr.io/oraios/serena:latest"`,
 			},
 			unexpectedContent: []string{},
 		},
@@ -630,10 +623,9 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           true,
 			expectedContent: []string{
 				`"serena": {`,
-				`"type": "local"`,
-				`"command": "uvx"`,
-				`"args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"]`,
-				`"tools": ["*"]`,
+				`"type": "stdio"`,
+				`"container": "ghcr.io/oraios/serena:latest"`,
+				`"entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"]`,
 			},
 			unexpectedContent: []string{},
 		},
@@ -647,7 +639,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"command": "uvx"`,
+				`"container": "ghcr.io/oraios/serena:latest"`,
 				`"--verbose"`,
 				`"--debug"`,
 			},

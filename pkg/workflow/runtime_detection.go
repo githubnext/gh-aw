@@ -129,14 +129,19 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 	allTools := tools.ToMap()
 	log.Printf("Scanning %d MCP configurations for runtime commands", len(allTools))
 
-	// Special handling for Serena tool - detect language services
-	if tools.Serena != nil {
-		detectSerenaLanguages(tools.Serena, requirements)
-	}
+	// Note: Serena and other built-in MCP servers now run in containers and do not
+	// require runtime detection. Language services are provided inside the containers.
 
 	// Scan custom MCP tools for runtime commands
+	// Skip containerized MCP servers as they don't need host runtime setup
 	for _, tool := range tools.Custom {
-		// MCPServerConfig has a Command field directly
+		// Skip if the MCP server is containerized (has Container field set or Type is "docker")
+		if tool.Container != "" || tool.Type == "docker" {
+			runtimeSetupLog.Printf("Skipping runtime detection for containerized MCP server (container=%s, type=%s)", tool.Container, tool.Type)
+			continue
+		}
+
+		// For non-containerized custom MCP servers, check the Command field
 		if tool.Command != "" {
 			if runtime, found := commandToRuntime[tool.Command]; found {
 				updateRequiredRuntime(runtime, "", requirements)
@@ -146,90 +151,18 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 }
 
 // detectSerenaLanguages detects runtime requirements from Serena language configuration
+// NOTE: This function is now obsolete since Serena runs in a Docker container.
+// Language services are provided inside the container and do not require host runtime setup.
+// This function is kept for backward compatibility but returns immediately without action.
 func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[string]*RuntimeRequirement) {
 	if serenaConfig == nil {
 		return
 	}
 
-	runtimeSetupLog.Print("Detecting Serena language requirements")
-
-	// First, ensure UV is detected (Serena requires uvx)
-	uvRuntime := findRuntimeByID("uv")
-	if uvRuntime != nil {
-		updateRequiredRuntime(uvRuntime, "", requirements)
-	}
-
-	// Collect all languages from the configuration
-	var languages []string
-
-	// Handle short syntax: ["go", "typescript"]
-	if len(serenaConfig.ShortSyntax) > 0 {
-		languages = serenaConfig.ShortSyntax
-	} else if serenaConfig.Languages != nil {
-		// Handle object syntax with languages field
-		for langName := range serenaConfig.Languages {
-			languages = append(languages, langName)
-		}
-	}
-
-	runtimeSetupLog.Printf("Detected %d Serena languages: %v", len(languages), languages)
-
-	// Map languages to runtime requirements
-	for _, lang := range languages {
-		switch lang {
-		case "go":
-			// Go language service requires Go runtime
-			goRuntime := findRuntimeByID("go")
-			if goRuntime != nil {
-				// Check if there's a version or go-mod-file specified in language config
-				version := ""
-				goModFile := ""
-
-				// Access structured config directly - no type assertions needed!
-				if serenaConfig.Languages != nil {
-					if goConfig := serenaConfig.Languages["go"]; goConfig != nil {
-						version = goConfig.Version
-						goModFile = goConfig.GoModFile
-					}
-				}
-
-				// Create requirement with go-mod-file if specified
-				req := &RuntimeRequirement{
-					Runtime:   goRuntime,
-					Version:   version,
-					GoModFile: goModFile,
-				}
-				requirements[goRuntime.ID] = req
-			}
-		case "typescript":
-			// TypeScript language service requires Node.js runtime
-			nodeRuntime := findRuntimeByID("node")
-			if nodeRuntime != nil {
-				updateRequiredRuntime(nodeRuntime, "", requirements)
-			}
-		case "python":
-			// Python language service requires Python runtime
-			pythonRuntime := findRuntimeByID("python")
-			if pythonRuntime != nil {
-				updateRequiredRuntime(pythonRuntime, "", requirements)
-			}
-		case "java":
-			// Java language service requires Java runtime
-			javaRuntime := findRuntimeByID("java")
-			if javaRuntime != nil {
-				updateRequiredRuntime(javaRuntime, "", requirements)
-			}
-		case "rust":
-			// Rust language service - no runtime setup needed (uses rustup from Ubuntu)
-			// The language service (rust-analyzer) is typically installed separately
-		case "csharp":
-			// C# language service requires .NET runtime
-			dotnetRuntime := findRuntimeByID("dotnet")
-			if dotnetRuntime != nil {
-				updateRequiredRuntime(dotnetRuntime, "", requirements)
-			}
-		}
-	}
+	runtimeSetupLog.Print("Serena now runs in a container - skipping language service runtime detection")
+	// All Serena language services (Go, TypeScript, Python, Java, Rust, C#) are now
+	// provided inside the ghcr.io/oraios/serena:latest Docker container.
+	// No host runtime setup is needed.
 }
 
 // detectFromEngineSteps scans engine steps for runtime commands
