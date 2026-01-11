@@ -611,55 +611,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
-        # --allow-tool shell(cat .github/instructions/developer.instructions.md)
-        # --allow-tool shell(cat AGENTS.md)
-        # --allow-tool shell(cat CLAUDE.md)
-        # --allow-tool shell(cat DEVGUIDE.md)
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date +%Y-%m-%d)
-        # --allow-tool shell(date -d '1 day ago' '+%Y-%m-%d')
-        # --allow-tool shell(date -v-1d '+%Y-%m-%d')
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(find . -name '*.go' -o -name '*.js' -o -name '*.ts' -o -name '*.tsx' -o -name '*.cjs' -o -name '*.py')
-        # --allow-tool shell(flake8 .)
-        # --allow-tool shell(git add:*)
-        # --allow-tool shell(git branch:*)
-        # --allow-tool shell(git checkout:*)
-        # --allow-tool shell(git commit:*)
-        # --allow-tool shell(git log --since='24 hours ago' --pretty=format:'%H %s' --no-merges)
-        # --allow-tool shell(git merge:*)
-        # --allow-tool shell(git rm:*)
-        # --allow-tool shell(git show *)
-        # --allow-tool shell(git status)
-        # --allow-tool shell(git switch:*)
-        # --allow-tool shell(grep -r '*' .)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(make build)
-        # --allow-tool shell(make lint)
-        # --allow-tool shell(make test-unit)
-        # --allow-tool shell(npm run build)
-        # --allow-tool shell(npm run lint)
-        # --allow-tool shell(npm test)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(pylint .)
-        # --allow-tool shell(pytest)
-        # --allow-tool shell(python -m py_compile *.py)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool write
         timeout-minutes: 30
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat .github/instructions/developer.instructions.md)' --allow-tool 'shell(cat AGENTS.md)' --allow-tool 'shell(cat CLAUDE.md)' --allow-tool 'shell(cat DEVGUIDE.md)' --allow-tool 'shell(cat)' --allow-tool 'shell(date +%Y-%m-%d)' --allow-tool 'shell(date -d '\''1 day ago'\'' '\''+%Y-%m-%d'\'')' --allow-tool 'shell(date -v-1d '\''+%Y-%m-%d'\'')' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find . -name '\''*.go'\'' -o -name '\''*.js'\'' -o -name '\''*.ts'\'' -o -name '\''*.tsx'\'' -o -name '\''*.cjs'\'' -o -name '\''*.py'\'')' --allow-tool 'shell(flake8 .)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git log --since='\''24 hours ago'\'' --pretty=format:'\''%H %s'\'' --no-merges)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git show *)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep -r '\''*'\'' .)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(make build)' --allow-tool 'shell(make lint)' --allow-tool 'shell(make test-unit)' --allow-tool 'shell(npm run build)' --allow-tool 'shell(npm run lint)' --allow-tool 'shell(npm test)' --allow-tool 'shell(pwd)' --allow-tool 'shell(pylint .)' --allow-tool 'shell(pytest)' --allow-tool 'shell(python -m py_compile *.py)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

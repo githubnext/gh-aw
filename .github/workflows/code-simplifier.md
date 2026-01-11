@@ -24,29 +24,6 @@ safe-outputs:
 tools:
   github:
     toolsets: [default]
-  edit:
-  bash:
-    - "git log --since='24 hours ago' --pretty=format:'%H %s' --no-merges"
-    - "git show *"
-    - "date -d '1 day ago' '+%Y-%m-%d'"
-    - "date -v-1d '+%Y-%m-%d'"
-    - "date +%Y-%m-%d"
-    - "make test-unit"
-    - "make lint"
-    - "make build"
-    - "npm test"
-    - "npm run lint"
-    - "npm run build"
-    - "pytest"
-    - "flake8 ."
-    - "pylint ."
-    - "python -m py_compile *.py"
-    - "cat AGENTS.md"
-    - "cat DEVGUIDE.md"
-    - "cat CLAUDE.md"
-    - "cat .github/instructions/developer.instructions.md"
-    - "find . -name '*.go' -o -name '*.js' -o -name '*.ts' -o -name '*.tsx' -o -name '*.cjs' -o -name '*.py'"
-    - "grep -r '*' ."
 
 timeout-minutes: 30
 strict: true
