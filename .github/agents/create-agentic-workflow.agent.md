@@ -99,6 +99,7 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      - Browser automation → `playwright`
      - Media manipulation → `ffmpeg` (installed via `steps:`)
      - Code parsing/analysis → `ast-grep`, `codeql` (installed via `steps:`)
+     - **Language server for code analysis** → `serena: ["<language>"]` - Detect the repository's primary programming language (check file extensions, go.mod, package.json, requirements.txt, etc.) and specify it in the array. Supported languages: `go`, `typescript`, `python`, `ruby`, `rust`, `java`, `cpp`, `csharp`, and many more (see `.serena/project.yml` for full list).
    - ⚠️ For GitHub write operations (creating issues, adding comments, etc.), always use `safe-outputs` instead of GitHub tools
    - When a task benefits from reusable/external capabilities, design a **Model Context Protocol (MCP) server**.
    - For each tool / MCP server:
@@ -198,7 +199,7 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    **General tools (Serena language server)**:
    ```yaml
    tools:
-     serena: ["go"]  # Language server for Go code analysis
+     serena: ["go"]  # Update with your programming language (detect from repo)
    ```
    
    ⚠️ **IMPORTANT - Default Tools**: 
