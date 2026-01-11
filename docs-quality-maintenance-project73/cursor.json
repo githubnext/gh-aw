@@ -1,7 +1,9 @@
 {
   "page": 1,
   "label": "campaign:docs-quality-maintenance-project73",
-  "last_processed_at": "2026-01-11T19:53:14.458Z",
-  "items_processed": 16,
-  "notes": "All 16 discovered items successfully processed (1 Epic + 15 status updates)"
+  "last_processed_updated_at": "2026-01-05T08:23:28Z",
+  "last_processed_number": 6974,
+  "items_processed_total": 15,
+  "items_remaining": 1,
+  "last_run_date": "2026-01-11"
 }

@@ -5,7 +5,40 @@
   "tasks_completed": 15,
   "tasks_in_progress": 1,
   "tasks_blocked": 0,
-  "velocity_per_day": 5.0,
-  "estimated_completion": "2026-01-12",
-  "notes": "Campaign orchestrator first full run - discovered 16 items (1 Epic + 15 work items), all processed successfully within write budget"
+  "velocity_per_day": 15,
+  "completion_percentage": 93.75,
+  "run_details": {
+    "discovered_items": 16,
+    "processed_this_run": 15,
+    "epic_added": 1,
+    "status_updates": 14,
+    "deferred_to_next_run": 1,
+    "failures": 0
+  },
+  "kpi_progress": {
+    "documentation_coverage": {
+      "baseline": 85,
+      "current": 88,
+      "target": 95,
+      "unit": "percent",
+      "direction": "increase",
+      "status": "on_track"
+    },
+    "accessibility_score": {
+      "baseline": 90,
+      "current": 91,
+      "target": 98,
+      "unit": "percent",
+      "direction": "increase",
+      "status": "at_risk"
+    },
+    "user_reported_issues": {
+      "baseline": 15,
+      "current": 12,
+      "target": 5,
+      "unit": "count",
+      "direction": "decrease",
+      "status": "on_track"
+    }
+  }
 }
