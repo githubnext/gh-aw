@@ -250,7 +250,17 @@ describe("create_project_status_update", () => {
   });
 
   it("should handle GraphQL errors gracefully", async () => {
-    mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: Insufficient permissions"));
+    const graphQLError = new Error("GraphQL error: Insufficient permissions");
+    graphQLError.errors = [
+      {
+        type: "INSUFFICIENT_SCOPES",
+        message: "Insufficient permissions",
+      },
+    ];
+
+    mockGithub.graphql
+      .mockRejectedValueOnce(graphQLError) // First call: direct query fails
+      .mockRejectedValueOnce(graphQLError); // Second call: list query also fails
 
     const handler = await main({ max: 10 });
 
@@ -305,5 +315,168 @@ describe("create_project_status_update", () => {
 
     expect(result.success).toBe(true);
     expect(result.status_update_id).toBe("PVTSU_user123");
+  });
+
+  it("should fall back to list-based search when direct projectV2 query returns null", async () => {
+    // Mock GraphQL responses
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        // First call: direct query returns null (project not found)
+        organization: {
+          projectV2: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        // Second call: list-based search finds the project
+        organization: {
+          projectsV2: {
+            totalCount: 2,
+            nodes: [
+              {
+                id: "PVT_test123",
+                number: 42,
+                title: "Test Project",
+                url: "https://github.com/orgs/test-org/projects/42",
+              },
+              {
+                id: "PVT_test456",
+                number: 43,
+                title: "Another Project",
+                url: "https://github.com/orgs/test-org/projects/43",
+              },
+            ],
+            edges: [
+              {
+                node: {
+                  id: "PVT_test123",
+                  number: 42,
+                  title: "Test Project",
+                  url: "https://github.com/orgs/test-org/projects/42",
+                },
+              },
+              {
+                node: {
+                  id: "PVT_test456",
+                  number: 43,
+                  title: "Another Project",
+                  url: "https://github.com/orgs/test-org/projects/43",
+                },
+              },
+            ],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        // Third call: create status update
+        createProjectV2StatusUpdate: {
+          statusUpdate: {
+            id: "PVTSU_test123",
+            body: "Test status update",
+            bodyHTML: "<p>Test status update</p>",
+            startDate: "2025-01-01",
+            targetDate: "2025-12-31",
+            status: "ON_TRACK",
+            createdAt: "2025-01-06T12:00:00Z",
+          },
+        },
+      });
+
+    const handler = await main({ max: 10 });
+
+    const result = await handler(
+      {
+        project: "https://github.com/orgs/test-org/projects/42",
+        body: "Test status update",
+        status: "ON_TRACK",
+        start_date: "2025-01-01",
+        target_date: "2025-12-31",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.status_update_id).toBe("PVTSU_test123");
+    expect(result.project_id).toBe("PVT_test123");
+    expect(result.status).toBe("ON_TRACK");
+
+    // Should have called graphql 3 times (direct query, list query, create mutation)
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("returned null"));
+  });
+
+  it("should fall back to list-based search when direct projectV2 query throws NOT_FOUND error", async () => {
+    // Mock GraphQL responses
+    const notFoundError = new Error("Could not resolve to a ProjectV2 with the number 42.");
+    notFoundError.errors = [
+      {
+        type: "NOT_FOUND",
+        message: "Could not resolve to a ProjectV2 with the number 42.",
+        path: ["organization", "projectV2"],
+      },
+    ];
+
+    mockGithub.graphql
+      .mockRejectedValueOnce(notFoundError) // First call: direct query throws NOT_FOUND
+      .mockResolvedValueOnce({
+        // Second call: list-based search finds the project
+        organization: {
+          projectsV2: {
+            totalCount: 1,
+            nodes: [
+              {
+                id: "PVT_test123",
+                number: 42,
+                title: "Test Project",
+                url: "https://github.com/orgs/test-org/projects/42",
+              },
+            ],
+            edges: [
+              {
+                node: {
+                  id: "PVT_test123",
+                  number: 42,
+                  title: "Test Project",
+                  url: "https://github.com/orgs/test-org/projects/42",
+                },
+              },
+            ],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        // Third call: create status update
+        createProjectV2StatusUpdate: {
+          statusUpdate: {
+            id: "PVTSU_test123",
+            body: "Test status update",
+            bodyHTML: "<p>Test status update</p>",
+            startDate: "2025-01-01",
+            targetDate: "2025-12-31",
+            status: "ON_TRACK",
+            createdAt: "2025-01-06T12:00:00Z",
+          },
+        },
+      });
+
+    const handler = await main({ max: 10 });
+
+    const result = await handler(
+      {
+        project: "https://github.com/orgs/test-org/projects/42",
+        body: "Test status update",
+        status: "ON_TRACK",
+        start_date: "2025-01-01",
+        target_date: "2025-12-31",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.status_update_id).toBe("PVTSU_test123");
+    expect(result.project_id).toBe("PVT_test123");
+
+    // Should have called graphql 3 times (direct query, list query, create mutation)
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to projectsV2 list search"));
   });
 });
