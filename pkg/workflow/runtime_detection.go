@@ -150,21 +150,6 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 	}
 }
 
-// detectSerenaLanguages detects runtime requirements from Serena language configuration
-// NOTE: This function is now obsolete since Serena runs in a Docker container.
-// Language services are provided inside the container and do not require host runtime setup.
-// This function is kept for backward compatibility but returns immediately without action.
-func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[string]*RuntimeRequirement) {
-	if serenaConfig == nil {
-		return
-	}
-
-	runtimeSetupLog.Print("Serena now runs in a container - skipping language service runtime detection")
-	// All Serena language services (Go, TypeScript, Python, Java, Rust, C#) are now
-	// provided inside the ghcr.io/oraios/serena:latest Docker container.
-	// No host runtime setup is needed.
-}
-
 // detectFromEngineSteps scans engine steps for runtime commands
 func detectFromEngineSteps(steps []map[string]any, requirements map[string]*RuntimeRequirement) {
 	for _, step := range steps {

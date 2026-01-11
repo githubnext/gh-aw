@@ -343,7 +343,7 @@ async function main(config = {}) {
     if (item.item_number !== undefined && item.item_number !== null) {
       // Use the explicitly provided item_number
       itemNumber = typeof item.item_number === "number" ? item.item_number : parseInt(String(item.item_number), 10);
-      
+
       if (isNaN(itemNumber) || itemNumber <= 0) {
         core.warning(`Invalid item_number specified: ${item.item_number}`);
         return {
@@ -351,7 +351,7 @@ async function main(config = {}) {
           error: `Invalid item_number specified: ${item.item_number}`,
         };
       }
-      
+
       core.info(`Using explicitly provided item_number: #${itemNumber}`);
     } else {
       // Check if this is a discussion context

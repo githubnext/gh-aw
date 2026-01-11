@@ -61,8 +61,8 @@ func TestFilterEnvForSecrets(t *testing.T) {
 			wantRemoved:    1,
 		},
 		{
-			name: "empty env returns empty",
-			env:  map[string]string{},
+			name:           "empty env returns empty",
+			env:            map[string]string{},
 			allowedSecrets: []string{"COPILOT_GITHUB_TOKEN"},
 			wantKeys:       []string{},
 			wantRemoved:    0,
@@ -85,7 +85,7 @@ func TestFilterEnvForSecrets(t *testing.T) {
 			result := FilterEnvForSecrets(tt.env, tt.allowedSecrets)
 
 			// Check that the expected keys are present
-			assert.Equal(t, len(tt.wantKeys), len(result), "Expected %d keys, got %d", len(tt.wantKeys), len(result))
+			assert.Len(t, result, len(tt.wantKeys), "Expected %d keys, got %d", len(tt.wantKeys), len(result))
 
 			for _, key := range tt.wantKeys {
 				_, exists := result[key]
@@ -302,7 +302,7 @@ func TestGetRequiredSecretNames_Custom(t *testing.T) {
 		secrets := engine.GetRequiredSecretNames(workflowData)
 
 		// Custom engine has no predefined secrets
-		require.Len(t, secrets, 0)
+		require.Empty(t, secrets)
 	})
 
 	t.Run("includes MCP gateway API key when MCP servers present", func(t *testing.T) {

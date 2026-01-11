@@ -284,13 +284,12 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion).",
                     "type": "number"
                   }
                 },
                 "required": [
-                  "body",
-                  "item_number"
+                  "body"
                 ],
                 "type": "object"
               },

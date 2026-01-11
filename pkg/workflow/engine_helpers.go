@@ -290,16 +290,16 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 //   - map[string]string: Filtered environment variables with only allowed secrets
 func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[string]string {
 	engineHelpersLog.Printf("Filtering environment variables: total=%d, allowed_secrets=%d", len(env), len(allowedSecrets))
-	
+
 	// Create a set of allowed secret names for fast lookup
 	allowedSet := make(map[string]bool)
 	for _, secret := range allowedSecrets {
 		allowedSet[secret] = true
 	}
-	
+
 	filtered := make(map[string]string)
 	secretsRemoved := 0
-	
+
 	for key, value := range env {
 		// Check if this env var is a secret reference (starts with "${{ secrets.")
 		if strings.Contains(value, "${{ secrets.") {
@@ -314,7 +314,7 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 		}
 		filtered[key] = value
 	}
-	
+
 	engineHelpersLog.Printf("Filtered environment variables: kept=%d, removed=%d", len(filtered), secretsRemoved)
 	return filtered
 }
@@ -331,10 +331,10 @@ func extractSecretName(expr string) string {
 	if idx == -1 {
 		return ""
 	}
-	
+
 	// Extract everything after "${{ secrets."
 	rest := expr[idx+len(prefix):]
-	
+
 	// Find the end of the secret name (space, }, or ||)
 	endIdx := len(rest)
 	for i, ch := range rest {
@@ -343,6 +343,6 @@ func extractSecretName(expr string) string {
 			break
 		}
 	}
-	
+
 	return rest[:endIdx]
 }
