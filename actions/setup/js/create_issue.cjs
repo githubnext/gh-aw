@@ -111,8 +111,11 @@ async function main(config = {}) {
       };
     }
 
+    // Use the qualified repo from validation (handles bare names like "gh-aw" -> "githubnext/gh-aw")
+    const qualifiedItemRepo = repoValidation.qualifiedRepo;
+
     // Parse the repository slug
-    const repoParts = parseRepoSlug(itemRepo);
+    const repoParts = parseRepoSlug(qualifiedItemRepo);
     if (!repoParts) {
       const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
       core.warning(`Skipping issue: ${error}`);
@@ -124,11 +127,11 @@ async function main(config = {}) {
 
     // Get or generate the temporary ID for this issue
     const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-    core.info(`Processing create_issue: title=${createIssueItem.title}, bodyLength=${createIssueItem.body?.length || 0}, temporaryId=${temporaryId}, repo=${itemRepo}`);
+    core.info(`Processing create_issue: title=${createIssueItem.title}, bodyLength=${createIssueItem.body?.length || 0}, temporaryId=${temporaryId}, repo=${qualifiedItemRepo}`);
 
     // Resolve parent: check if it's a temporary ID reference
     let effectiveParentIssueNumber;
-    let effectiveParentRepo = itemRepo; // Default to same repo
+    let effectiveParentRepo = qualifiedItemRepo; // Default to same repo
     if (createIssueItem.parent !== undefined) {
       // Strip # prefix if present to allow flexible temporary ID format
       const parentStr = String(createIssueItem.parent).trim();
@@ -162,7 +165,7 @@ async function main(config = {}) {
     } else {
       // Only use context parent if we're in the same repo as context
       const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
-      if (itemRepo === contextRepo) {
+      if (qualifiedItemRepo === contextRepo) {
         effectiveParentIssueNumber = parentIssueNumber;
       }
     }
@@ -195,7 +198,7 @@ async function main(config = {}) {
     let title = createIssueItem.title ? createIssueItem.title.trim() : "";
 
     // Replace temporary ID references in the body using already-created issues
-    let processedBody = replaceTemporaryIdReferences(createIssueItem.body || "", temporaryIdMap, itemRepo);
+    let processedBody = replaceTemporaryIdReferences(createIssueItem.body || "", temporaryIdMap, qualifiedItemRepo);
 
     // Remove duplicate title from description if it starts with a header matching the title
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
@@ -215,7 +218,7 @@ async function main(config = {}) {
     if (effectiveParentIssueNumber) {
       core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
       // Use full repo reference if cross-repo, short reference if same repo
-      if (effectiveParentRepo === itemRepo) {
+      if (effectiveParentRepo === qualifiedItemRepo) {
         bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
       } else {
         bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
@@ -247,7 +250,7 @@ async function main(config = {}) {
     bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
     const body = bodyLines.join("\n").trim();
 
-    core.info(`Creating issue in ${itemRepo} with title: ${title}`);
+    core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
     core.info(`Labels: ${labels.join(", ")}`);
     if (assignees.length > 0) {
       core.info(`Assignees: ${assignees.join(", ")}`);
@@ -264,15 +267,15 @@ async function main(config = {}) {
         assignees: assignees,
       });
 
-      core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
-      createdIssues.push({ ...issue, _repo: itemRepo });
+      core.info(`Created issue ${qualifiedItemRepo}#${issue.number}: ${issue.html_url}`);
+      createdIssues.push({ ...issue, _repo: qualifiedItemRepo });
 
       // Store the mapping of temporary_id -> {repo, number}
-      temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
-      core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
+      temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: qualifiedItemRepo, number: issue.number });
+      core.info(`Stored temporary ID mapping: ${temporaryId} -> ${qualifiedItemRepo}#${issue.number}`);
 
       // Sub-issue linking only works within the same repository
-      if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
+      if (effectiveParentIssueNumber && effectiveParentRepo === qualifiedItemRepo) {
         core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
         try {
           // First, get the node IDs for both parent and child issues
@@ -345,30 +348,30 @@ async function main(config = {}) {
             core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
           }
         }
-      } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
+      } else if (effectiveParentIssueNumber && effectiveParentRepo !== qualifiedItemRepo) {
         core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
       }
 
       // Return result with temporary ID mapping info
       return {
         success: true,
-        repo: itemRepo,
+        repo: qualifiedItemRepo,
         number: issue.number,
         url: issue.html_url,
         temporaryId: temporaryId,
-        _repo: itemRepo, // For tracking in the closure
+        _repo: qualifiedItemRepo, // For tracking in the closure
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       if (errorMessage.includes("Issues has been disabled in this repository")) {
-        core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
+        core.info(`⚠ Cannot create issue "${title}" in ${qualifiedItemRepo}: Issues are disabled for this repository`);
         core.info("Consider enabling issues in repository settings if you want to create issues automatically");
         return {
           success: false,
           error: "Issues disabled for repository",
         };
       }
-      core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
+      core.error(`✗ Failed to create issue "${title}" in ${qualifiedItemRepo}: ${errorMessage}`);
       return {
         success: false,
         error: errorMessage,
