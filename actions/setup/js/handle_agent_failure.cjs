@@ -95,9 +95,9 @@ gh aw audit <run-id>
 
 > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.`;
 
-  // Add expiration marker (1 day from now)
+  // Add expiration marker (7 days from now)
   const expirationDate = new Date();
-  expirationDate.setDate(expirationDate.getDate() + 1);
+  expirationDate.setDate(expirationDate.getDate() + 7);
   const parentBody = `${parentBodyContent}\n\n<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`;
 
   try {
