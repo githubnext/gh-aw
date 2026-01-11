@@ -23,7 +23,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 // This function is kept for backward compatibility but returns an empty slice.
 func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 	runtimeSetupLog.Print("Serena language services are now provided inside the container - no installation steps needed")
-	
+
 	// Return empty slice - no steps needed since Serena runs in a container
 	// with all language services pre-installed
 	return []GitHubActionStep{}
