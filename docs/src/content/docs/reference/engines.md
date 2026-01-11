@@ -7,9 +7,9 @@ sidebar:
 
 GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (which AI model/provider to use) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
-:::note[Experimental Engines]
-Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
-:::
+> [!NOTE]
+> Experimental Engines
+> Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
 
 ### GitHub Copilot CLI
 
@@ -43,11 +43,11 @@ Create a fine-grained PAT at <https://github.com/settings/personal-access-tokens
 gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
 ```
 
-:::caution[Legacy Tokens Removed]
-The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer supported** as of v0.26+. If you're using these tokens, please migrate to `COPILOT_GITHUB_TOKEN`.
-
-The legacy secret name `GH_AW_GITHUB_TOKEN` is still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name for Copilot operations.
-:::
+> [!CAUTION]
+> Legacy Tokens Removed
+> The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer supported** as of v0.26+. If you're using these tokens, please migrate to `COPILOT_GITHUB_TOKEN`.
+>
+> The legacy secret name `GH_AW_GITHUB_TOKEN` is still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name for Copilot operations.
 
 For GitHub Tools Remote Mode, also configure:
 
@@ -57,9 +57,8 @@ gh aw secrets set GH_AW_GITHUB_TOKEN --value "<your-github-pat>"
 
 For more information about GitHub Copilot CLI authentication, see the [official documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 
-:::note
-The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Using Web Search](/gh-aw/guides/web-search/) for available options and setup instructions.
-:::
+> [!NOTE]
+> The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Using Web Search](/gh-aw/guides/web-search/) for available options and setup instructions.
 
 #### Network Permissions
 
@@ -79,9 +78,9 @@ Advanced configuration: set `firewall.version` (defaults to latest), `log-level`
 
 ### Agent Sandbox
 
-:::note[Mandatory Sandbox]
-The agent sandbox is now mandatory for all workflows and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
-:::
+> [!NOTE]
+> Mandatory Sandbox
+> The agent sandbox is now mandatory for all workflows and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 
 The sandbox configuration is controlled via the `sandbox.agent` field:
 - **AWF (default)**: Network egress control through domain-based access controls

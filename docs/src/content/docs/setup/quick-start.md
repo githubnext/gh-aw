@@ -22,15 +22,15 @@ Install the [GitHub CLI](https://cli.github.com/), then install the GitHub Agent
 gh extension install githubnext/gh-aw
 ```
 
-:::caution[Working in GitHub Codespaces?]
-
-If you're working in a GitHub Codespace, the extension installation *may* fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
-
-```bash wrap
-curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
-```
-
-:::
+> [!CAUTION]
+> Working in GitHub Codespaces?
+>
+> If you're working in a GitHub Codespace, the extension installation *may* fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
+>
+> ```bash wrap
+> curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+> ```
+>
 
 ### Step 2 — Initialize your repository
 
@@ -75,11 +75,11 @@ Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-toke
    - Set to **"Access: Read"**
 4. Click **"Generate token"** and copy it immediately (you won't see it again)
 
-:::tip[Can't find Copilot Requests permission?]
-
-Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
-
-:::
+> [!TIP]
+> Can't find Copilot Requests permission?
+>
+> Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
+>
 
 #### Add the token to your repository
 
@@ -112,11 +112,11 @@ gh aw status
 
 This confirms the workflow is compiled, enabled, and scheduled correctly.
 
-:::tip[Troubleshooting]
-
-If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
-
-:::
+> [!TIP]
+> Troubleshooting
+>
+> If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
+>
 
 ### Step 5 — Trigger a workflow run
 
@@ -171,9 +171,9 @@ Before installing anything, it helps to understand the workflow lifecycle:
 
 Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
 
-:::caution[Important]
-**Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
-:::
+> [!CAUTION]
+> Important
+> **Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
 
 ## Understanding Your First Workflow
 

@@ -74,9 +74,9 @@ tools:
     toolsets: [repos, issues]  # Recommended: use toolsets
 ```
 
-:::tip[Migrate to Toolsets]
-If you're using the `allowed:` pattern with GitHub tools, consider migrating to `toolsets:` for better maintainability. Tool names may change between Model Context Protocol (MCP) server versions, but toolsets provide a stable API. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets).
-:::
+> [!TIP]
+> Migrate to Toolsets
+> If you're using the `allowed:` pattern with GitHub tools, consider migrating to `toolsets:` for better maintainability. Tool names may change between Model Context Protocol (MCP) server versions, but toolsets provide a stable API. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets).
 
 ### Toolset Missing Expected Tools
 

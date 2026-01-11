@@ -51,9 +51,8 @@ safe-outputs:
 - **`read-all`**: Read access to all scopes (useful for inspection workflows)
 - **`{}`**: No permissions (for computation-only workflows)
 
-:::caution
-Avoid using `write-all` or direct write permissions in agentic workflows. Use [safe outputs](/gh-aw/reference/safe-outputs/) instead for secure write operations.
-:::
+> [!CAUTION]
+> Avoid using `write-all` or direct write permissions in agentic workflows. Use [safe outputs](/gh-aw/reference/safe-outputs/) instead for secure write operations.
 
 ## Common Patterns
 
@@ -125,9 +124,9 @@ gh aw fix workflow.md --write
 
 This automatically converts all write permissions to read permissions.
 
-:::tip[Use Safe Outputs Instead]
-For workflows that need to make changes to your repository, use [safe outputs](/gh-aw/reference/safe-outputs/) instead of write permissions. Safe outputs provide a secure way to create issues, pull requests, and comments without granting direct write access to the AI agent.
-:::
+> [!TIP]
+> Use Safe Outputs Instead
+> For workflows that need to make changes to your repository, use [safe outputs](/gh-aw/reference/safe-outputs/) instead of write permissions. Safe outputs provide a secure way to create issues, pull requests, and comments without granting direct write access to the AI agent.
    :::
 
 #### Scope

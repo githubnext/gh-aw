@@ -5,9 +5,9 @@ sidebar:
   badge: { text: 'Recommended', variant: 'success' }
 ---
 
-:::tip[Recommended for Beginners]
-**SideRepoOps is the easiest way to get started with reporting agents.** It requires minimal setup, keeps your main repository clean, and lets you experiment safely without affecting production code. Perfect for trying out agentic workflows before integrating them directly into your main repository.
-:::
+> [!TIP]
+> Recommended for Beginners
+> **SideRepoOps is the easiest way to get started with reporting agents.** It requires minimal setup, keeps your main repository clean, and lets you experiment safely without affecting production code. Perfect for trying out agentic workflows before integrating them directly into your main repository.
 
 SideRepoOps is a development pattern where you run agentic workflows from a separate "side" repository that targets your main codebase. This keeps AI-generated issues, comments, and workflow runs isolated from your main repository, providing cleaner separation between automation infrastructure and your production code.
 
@@ -48,9 +48,9 @@ While [MultiRepoOps](/gh-aw/guides/multirepoops/) runs workflows **from** your m
 
 In SideRepoOps, workflows run in GitHub Actions **on the side repository** but perform operations (create issues, PRs, comments) **on the main repository** using cross-repository authentication.
 
-:::tip[Testing with TrialOps]
-Before deploying SideRepoOps workflows to production, use [TrialOps](/gh-aw/guides/trialops/) to test them in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues in your repositories.
-:::
+> [!TIP]
+> Testing with TrialOps
+> Before deploying SideRepoOps workflows to production, use [TrialOps](/gh-aw/guides/trialops/) to test them in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues in your repositories.
 
 ## Setup Requirements
 
@@ -74,9 +74,9 @@ For classic PATs, use the `repo` scope. Store the token as a secret:
 gh aw secrets set MAIN_REPO_PAT --value "YOUR_PAT_HERE"
 ```
 
-:::tip[Security Best Practice]
-Use fine-grained PATs scoped to specific repositories. Set expiration dates and rotate tokens regularly.
-:::
+> [!TIP]
+> Security Best Practice
+> Use fine-grained PATs scoped to specific repositories. Set expiration dates and rotate tokens regularly.
 
 ### 3. Enable GitHub Actions
 
@@ -187,9 +187,8 @@ tools:
 
 Available toolsets: **repos** (files, code, commits, releases), **issues** (list/search/read), **pull_requests** (list/search/read), **actions** (workflow runs/artifacts), and **context** (repository metadata).
 
-:::caution
-GitHub tools with `mode: local` (Docker-based) can only access the repository where the workflow is running. Always use `mode: remote` for SideRepoOps.
-:::
+> [!CAUTION]
+> GitHub tools with `mode: local` (Docker-based) can only access the repository where the workflow is running. Always use `mode: remote` for SideRepoOps.
 
 ## Private Repository Access
 
@@ -208,9 +207,8 @@ tools:
     toolsets: [repos, issues, pull_requests]
 ```
 
-:::warning
-The default `GITHUB_TOKEN` provided by GitHub Actions cannot access other repositories. You **must** use a PAT with appropriate permissions for SideRepoOps.
-:::
+> [!WARNING]
+> The default `GITHUB_TOKEN` provided by GitHub Actions cannot access other repositories. You **must** use a PAT with appropriate permissions for SideRepoOps.
 
 ## Managing Generated Issues
 
