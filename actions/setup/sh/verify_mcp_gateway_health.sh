@@ -47,73 +47,28 @@ echo ''
 
 # Wait for gateway to be ready FIRST before checking config
 echo '=== Testing Gateway Health ==='
-max_wait_time=120  # Total maximum wait time in seconds
-retry_count=0
-gateway_ready=false
-health_response=""
-start_time=$(date +%s)
-backoff_delay=1  # Initial backoff delay in seconds
 
-while true; do
-  # Check if we've exceeded the maximum wait time
-  current_time=$(date +%s)
-  elapsed_time=$((current_time - start_time))
-  if [ $elapsed_time -ge $max_wait_time ]; then
-    echo "Maximum wait time of ${max_wait_time}s exceeded"
-    break
-  fi
-  
-  # Capture both response body and HTTP code in a single curl call
-  # Use curl retry options with max time limit and exponential backoff
-  echo "Calling health endpoint: ${gateway_url}/health (attempt $((retry_count + 1)), elapsed: ${elapsed_time}s)"
-  response=$(curl -s --retry 3 --retry-delay 1 --retry-connrefused --retry-max-time $((max_wait_time - elapsed_time)) -w "\n%{http_code}" "${gateway_url}/health")
-  http_code=$(echo "$response" | tail -n 1)
-  health_response=$(echo "$response" | head -n -1)
-  
-  # Always log the health response for debugging
-  echo "Health endpoint HTTP code: $http_code"
-  if [ -n "$health_response" ]; then
-    echo "Health response body: $health_response"
-  else
-    echo "Health response body: (empty)"
-  fi
-  
-  if [ "$http_code" = "200" ]; then
-    echo "✓ MCP Gateway is ready!"
-    gateway_ready=true
-    break
-  fi
-  
-  retry_count=$((retry_count + 1))
-  
-  # Calculate remaining time
-  current_time=$(date +%s)
-  elapsed_time=$((current_time - start_time))
-  remaining_time=$((max_wait_time - elapsed_time))
-  
-  if [ $remaining_time -le 0 ]; then
-    echo "No time remaining for retry"
-    break
-  fi
-  
-  # Use exponential backoff, but cap at remaining time
-  if [ $backoff_delay -gt $remaining_time ]; then
-    backoff_delay=$remaining_time
-  fi
-  
-  echo "Waiting ${backoff_delay}s before retry (exponential backoff)..."
-  sleep $backoff_delay
-  
-  # Double the backoff delay for next iteration (exponential backoff), cap at 32s
-  backoff_delay=$((backoff_delay * 2))
-  if [ $backoff_delay -gt 32 ]; then
-    backoff_delay=32
-  fi
-done
+# Capture both response body and HTTP code in a single curl call
+# Use curl retry: 120 attempts with 1 second delay = 120s total
+echo "Calling health endpoint: ${gateway_url}/health"
+echo "Retrying up to 120 times with 1s delay (120s total timeout)"
+response=$(curl -s --retry 120 --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "${gateway_url}/health")
+http_code=$(echo "$response" | tail -n 1)
+health_response=$(echo "$response" | head -n -1)
 
-if [ "$gateway_ready" = false ]; then
+# Always log the health response for debugging
+echo "Health endpoint HTTP code: $http_code"
+if [ -n "$health_response" ]; then
+  echo "Health response body: $health_response"
+else
+  echo "Health response body: (empty)"
+fi
+
+if [ "$http_code" = "200" ]; then
+  echo "✓ MCP Gateway is ready!"
+else
   echo ''
-  echo "✗ Error: MCP Gateway failed to start after ${max_wait_time}s"
+  echo "✗ Error: MCP Gateway failed to start"
   echo "Last HTTP code: $http_code"
   echo "Last health response: ${health_response:-(empty)}"
   echo ''
