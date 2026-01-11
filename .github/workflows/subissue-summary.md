@@ -11,7 +11,6 @@ on:
 permissions:
   contents: read
   issues: read
-  discussions: read
 strict: true
 network:
   allowed:
@@ -20,10 +19,9 @@ tools:
   github:
     toolsets:
       - issues
-      - discussions
 safe-outputs:
-  create-discussion:
-    category: "reports"
+  update-issue:
+    target: input
     max: 1
 timeout-minutes: 20
 ---
@@ -212,18 +210,19 @@ Create a comprehensive markdown report with the following structure:
   - ...
 ```
 
-### Step 6: Create Discussion Report
+### Step 6: Update Parent Issue Body
 
-Use the `create_discussion` safe output to publish your report:
+Use the `update_issue` safe output to update the parent issue body with your report:
 
 ```json
 {
-  "type": "create_discussion",
-  "title": "Summary Report: [Parent Issue Title] - [Current Date]",
-  "body": "[Your complete markdown report]",
-  "category": "reports"
+  "type": "update_issue",
+  "issue_number": [parent_issue_number],
+  "body": "[Your complete markdown report]"
 }
 ```
+
+**Important**: The report should completely replace the parent issue body. The summary report becomes the new body of the parent issue, making it easy to track progress directly in the issue itself.
 
 ## Guidelines
 
