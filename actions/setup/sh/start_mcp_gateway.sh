@@ -157,11 +157,16 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
   fi
   
   # Check health endpoint using localhost (since we're running on the host)
-  HEALTH_RESPONSE=$(curl -f -s "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1) && {
+  # Per MCP Gateway Specification v1.3.0, /health must return HTTP 200 with JSON body containing specVersion and gatewayVersion
+  RESPONSE=$(curl -s -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+  HEALTH_RESPONSE=$(echo "$RESPONSE" | head -n -1)
+  
+  if [ "$HTTP_CODE" = "200" ] && [ -n "$HEALTH_RESPONSE" ]; then
     echo "Gateway is ready!"
     echo "Health response: $HEALTH_RESPONSE"
     break
-  }
+  fi
   ATTEMPT=$((ATTEMPT + 1))
   if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
     echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet (curl response: $HEALTH_RESPONSE), waiting 1 second..."

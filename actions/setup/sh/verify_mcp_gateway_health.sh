@@ -58,7 +58,7 @@ while [ $retry_count -lt $max_retries ]; do
   http_code=$(echo "$response" | tail -n 1)
   health_response=$(echo "$response" | head -n -1)
   
-  if echo "$http_code" | grep -q "200\|204"; then
+  if [ "$http_code" = "200" ]; then
     echo "✓ MCP Gateway is ready!"
     gateway_ready=true
     break
