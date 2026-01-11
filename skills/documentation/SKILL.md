@@ -5,7 +5,7 @@ description: Documentation Brief description for SEO and navigation
 
 ### Documentation
 
-The documentation for this project is available in the `docs/` directory. It uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
+The documentation for this project is available in the `docs/` directory. It uses GitHub-flavored markdown with Astro Starlight for rendering and follows the Diátaxis framework for systematic documentation.
 
 ## Diátaxis Framework
 
@@ -77,9 +77,9 @@ on: push
 # Your workflow steps here
 ```
 
-## Astro Starlight Syntax
+## GitHub-Flavored Markdown Syntax
 
-Documentation files use Astro Starlight with MDX support. Key syntax elements:
+Documentation files use GitHub-flavored markdown with Astro Starlight for rendering. Key syntax elements:
 
 ### Frontmatter
 Every documentation page must have frontmatter:
@@ -88,24 +88,23 @@ title: Page Title
 description: Brief description for SEO and navigation
 ```
 
-### Callouts and Asides
-Use Starlight's aside component for notes, tips, warnings, and cautions:
+### GitHub Alerts
+Use GitHub's alert syntax for notes, tips, warnings, and cautions:
 ```markdown
-:::note
-Important information the reader should notice.
-:::
+> [!NOTE]
+> Important information the reader should notice.
 
-:::tip
-Helpful advice for the reader.
-:::
+> [!TIP]
+> Helpful advice for the reader.
 
-:::caution
-Warning about potential issues or pitfalls.
-:::
+> [!WARNING]
+> Warning about potential issues or pitfalls.
 
-:::danger
-Critical warning about dangerous operations.
-:::
+> [!CAUTION]
+> Critical warning about dangerous operations.
+
+> [!IMPORTANT]
+> Key information users need to know.
 ```
 
 ### Code Blocks

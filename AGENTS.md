@@ -704,7 +704,7 @@ When modifying JSON schemas in `pkg/parser/schemas/`:
 ### Documentation
 
 The documentation for this project is available in the `docs/` directory. It includes information on how to use the CLI, API references, and examples.
-It uses the Astro Starlight system and Diátaxis framework.
+It uses the Diátaxis framework and GitHub-flavored markdown with Astro Starlight for rendering.
 
 See [documentation skill](skills/documentation/SKILL.md) for details.
 
@@ -804,7 +804,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 - **[http-mcp-headers](skills/http-mcp-headers/SKILL.md)** - HTTP MCP header secret support implementation
 
 ### Documentation & Communication
-- **[documentation](skills/documentation/SKILL.md)** - Documentation guidelines using Astro Starlight and Diátaxis framework
+- **[documentation](skills/documentation/SKILL.md)** - Documentation guidelines using Diátaxis framework and GitHub-flavored markdown
 - **[reporting](skills/reporting/SKILL.md)** - Report format guidelines using HTML details/summary tags
 - **[dictation](skills/dictation/SKILL.md)** - Fixing text-to-speech errors in dictated text
 - **[agentic-chat](skills/agentic-chat/SKILL.md)** - AI assistant for creating task descriptions
