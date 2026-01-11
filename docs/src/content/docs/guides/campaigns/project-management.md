@@ -1,11 +1,11 @@
 ---
-title: "Project Management"
-description: "Use GitHub Projects with roadmap views and custom date fields for campaign tracking"
+title: Project management
+description: Use GitHub Projects with roadmap views and custom date fields for campaign tracking
 ---
 
 GitHub Projects offers powerful visualization and tracking capabilities for agentic campaigns. This guide covers view configurations, custom fields, and filtering strategies to maximize campaign visibility and control.
 
-## Recommended Custom Fields for Campaigns
+## Recommended custom fields for campaigns
 
 Before configuring views, set up custom fields in the GitHub Projects UI for filtering and grouping:
 
@@ -20,7 +20,7 @@ Before configuring views, set up custom fields in the GitHub Projects UI for fil
 | **Team** (optional) | Single select | Frontend, Backend, DevOps, Documentation | Team ownership |
 | **Repo** (optional) | Single select | Repository names | Cross-repo campaign tracking (Note: Do not use "Repository" - it conflicts with GitHub's built-in REPOSITORY type) |
 
-### Cross-Repository and Cross-Organization Campaigns
+### Cross-repository and cross-organization campaigns
 
 For campaigns spanning multiple repositories:
 
@@ -41,15 +41,15 @@ update-project:
     priority: "High"
 ```
 
-### Setting Up Custom Fields
+### Setting up custom fields
 
 To add custom fields: Open your project board, click the **+** button, select the field type, name it (use Title Case), add option values for single-select fields, and save. Orchestrator workflows can then populate these fields using the `fields:` parameter in `update-project` safe outputs.
 
-## Using Project Roadmap Views with Custom Date Fields
+## Using project roadmap views with custom date fields
 
 GitHub Projects [Roadmap view](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/customizing-the-roadmap-layout) visualizes work items along a timeline. Create `Start Date` and `End Date` fields (type: Date), then create a Roadmap view and configure it to use these fields. Orchestrator workflows can automatically populate them.
 
-### Automatic Timestamp Population
+### Automatic timestamp population
 
 `update-project` automatically populates `Start Date` from issue `createdAt` and `End Date` from `closedAt` (ISO format: YYYY-MM-DD). Override by explicitly setting date values in the `fields:` parameter. Orchestrators can calculate end dates based on issue size and priority (e.g., small: 3 days, medium: 1 week, large: 2 weeks).
 
@@ -66,7 +66,7 @@ update-project:
 
 **Limitations**: Custom fields must be created manually in the GitHub UI before workflows can update them. Field names are case-sensitive. Date fields don't auto-update; orchestrators must explicitly update them.
 
-## Roadmap View Swimlanes for Workers
+## Roadmap view swimlanes for workers
 
 Roadmap views support grouping by custom fields to create "swimlanes." Grouping by **Worker/Workflow** shows dedicated swimlanes for each agentic workflow, revealing workload distribution and bottlenecks.
 
@@ -100,7 +100,7 @@ update-project:
 
 Worker workflows remain campaign-agnostic; orchestrators handle all campaign coordination. Roadmap views can also group by Priority, Team, Status, Effort, or Repository.
 
-## Task View with "Slice by" Filtering
+## Task view with "Slice by" filtering
 
 GitHub Projects Table views support "Slice by" filtering, which shows all unique values for a field and lets you click to instantly filter items. Supports multiple fields simultaneously and updates dynamically.
 
@@ -134,7 +134,7 @@ update-project:
     effort: "Medium"
 ```
 
-## Labeling Strategies for Campaign Organization
+## Labeling strategies for campaign organization
 
 Labels remain valuable for cross-project queries and GitHub-wide searches.
 
@@ -159,7 +159,7 @@ safe-outputs:
       - "type:refactor"
 ```
 
-## View Configuration Examples
+## View configuration examples
 
 **Multi-Workflow Campaign**: Use Roadmap grouped by Worker/Workflow for timeline distribution, Table sliced by Priority+Status for urgent items, Board grouped by Status for progress tracking.
 
@@ -172,11 +172,11 @@ safe-outputs:
 * **CRITICAL: When a custom agent is done working, terminate immediately. NEVER review its work, validate its changes, or make additional modifications. ALWAYS accept the custom agent's work as final.**
 </custom_agents>
 
-## Project Status Updates
+## Project status updates
 
 Campaign orchestrators automatically create project status updates with every run, providing stakeholders with real-time campaign progress summaries. Status updates appear in the project's Updates tab and provide a historical record of campaign execution.
 
-### Automatic Status Update Creation
+### Automatic status update creation
 
 The orchestrator creates one status update per run containing:
 
@@ -186,7 +186,7 @@ The orchestrator creates one status update per run containing:
 - **Next Steps**: Remaining work and action items
 - **Status Indicator**: Current campaign health (ON_TRACK, AT_RISK, OFF_TRACK, COMPLETE)
 
-### Status Update Fields
+### Status update fields
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -196,7 +196,7 @@ The orchestrator creates one status update per run containing:
 | **start_date** | Date | Run start date (YYYY-MM-DD format) |
 | **target_date** | Date | Projected completion or next milestone date |
 
-### Example Status Update
+### Example status update
 
 ```yaml
 create-project-status-update:
@@ -227,7 +227,7 @@ create-project-status-update:
     - Target 95% documentation coverage by end of month
 ```
 
-### Status Indicators
+### Status indicators
 
 Choose appropriate status based on campaign progress:
 
@@ -236,7 +236,7 @@ Choose appropriate status based on campaign progress:
 - **OFF_TRACK**: Campaign behind schedule, requires intervention or re-planning
 - **COMPLETE**: All campaign objectives met, no further work needed
 
-### Viewing Status Updates
+### Viewing status updates
 
 Status updates appear in:
 1. **Project Updates Tab**: Click the "Updates" tab in your project to see all status updates
