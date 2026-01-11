@@ -141,13 +141,10 @@ describe("handle_agent_failure.cjs", () => {
       });
 
       // Verify sub-issue was linked
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("addSubIssue"),
-        {
-          parentId: "I_parent_1",
-          subIssueId: "I_sub_42",
-        }
-      );
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), {
+        parentId: "I_parent_1",
+        subIssueId: "I_sub_42",
+      });
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created parent issue #1"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created new issue #42"));
@@ -256,11 +253,9 @@ describe("handle_agent_failure.cjs", () => {
         });
 
       // Mock parent issue creation failure, but failure issue creation succeeds
-      mockGithub.rest.issues.create
-        .mockRejectedValueOnce(new Error("API Error creating parent"))
-        .mockResolvedValueOnce({
-          data: { number: 42, html_url: "https://example.com/42", node_id: "I_42" },
-        });
+      mockGithub.rest.issues.create.mockRejectedValueOnce(new Error("API Error creating parent")).mockResolvedValueOnce({
+        data: { number: 42, html_url: "https://example.com/42", node_id: "I_42" },
+      });
 
       await main();
 
