@@ -40,15 +40,7 @@ async function main(config = {}) {
       };
     }
 
-    // Validate required fields
-    if (!message.tool) {
-      core.warning(`missing_tool message missing 'tool' field: ${JSON.stringify(message)}`);
-      return {
-        success: false,
-        error: "Missing required field: tool",
-      };
-    }
-
+    // Validate required fields (only reason is required now)
     if (!message.reason) {
       core.warning(`missing_tool message missing 'reason' field: ${JSON.stringify(message)}`);
       return {
@@ -60,14 +52,19 @@ async function main(config = {}) {
     processedCount++;
 
     const missingTool = {
-      tool: message.tool,
+      tool: message.tool || null,
       reason: message.reason,
       alternatives: message.alternatives || null,
       timestamp: new Date().toISOString(),
     };
 
-    core.info(`✓ Recorded missing tool: ${missingTool.tool}`);
-    core.info(`   Reason: ${missingTool.reason}`);
+    if (missingTool.tool) {
+      core.info(`✓ Recorded missing tool: ${missingTool.tool}`);
+      core.info(`   Reason: ${missingTool.reason}`);
+    } else {
+      core.info(`✓ Recorded missing functionality/limitation`);
+      core.info(`   Reason: ${missingTool.reason}`);
+    }
     if (missingTool.alternatives) {
       core.info(`   Alternatives: ${missingTool.alternatives}`);
     }

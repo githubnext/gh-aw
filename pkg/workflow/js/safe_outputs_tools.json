@@ -689,21 +689,20 @@
   },
   {
     "name": "missing_tool",
-    "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
     "inputSchema": {
       "type": "object",
       "required": [
-        "tool",
         "reason"
       ],
       "properties": {
         "tool": {
           "type": "string",
-          "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed."
+          "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed."
         },
         "reason": {
           "type": "string",
-          "description": "Explanation of why this tool is needed to complete the task (max 256 characters)."
+          "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters)."
         },
         "alternatives": {
           "type": "string",
