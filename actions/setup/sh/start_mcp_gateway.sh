@@ -19,7 +19,7 @@ if [ -z "$MCP_GATEWAY_DOCKER_COMMAND" ]; then
 fi
 
 # Create logs directory for gateway
-mkdir -p /tmp/gh-aw/mcp-logs/gateway
+mkdir -p /tmp/gh-aw/mcp-logs
 mkdir -p /tmp/gh-aw/mcp-config
 
 # Validate container syntax first (before accessing files)
@@ -100,13 +100,17 @@ fi
 echo "Configuration validated successfully"
 echo ""
 
+# Set MCP_GATEWAY_LOG_DIR environment variable for use by the gateway
+export MCP_GATEWAY_LOG_DIR="/tmp/gh-aw/mcp-logs/"
+
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 echo "Full docker command: $MCP_GATEWAY_DOCKER_COMMAND"
 echo ""
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
-echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND \
-  > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
+# Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
+echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
+  > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/stderr.log &
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"
@@ -120,7 +124,7 @@ else
   cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
   echo ""
   echo "Gateway stderr logs:"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log 2>/dev/null || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log 2>/dev/null || echo "No stderr logs available"
   exit 1
 fi
 echo ""
@@ -148,7 +152,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
     echo ""
     echo "Gateway stderr logs:"
-    cat /tmp/gh-aw/mcp-logs/gateway/stderr.log 2>/dev/null || echo "No stderr logs available"
+    cat /tmp/gh-aw/mcp-logs/stderr.log 2>/dev/null || echo "No stderr logs available"
     exit 1
   fi
   
@@ -184,7 +188,7 @@ if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
   cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
   echo ""
   echo "Gateway stderr logs (debug output):"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
   echo ""
   echo "Checking network connectivity to gateway port..."
   netstat -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || ss -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || echo "Port ${MCP_GATEWAY_PORT} does not appear to be listening"
@@ -216,7 +220,7 @@ if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
   echo ""
   echo "Gateway stderr logs:"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
@@ -230,7 +234,7 @@ if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; the
   cat /tmp/gh-aw/mcp-config/gateway-output.json
   echo ""
   echo "Gateway stderr logs:"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
