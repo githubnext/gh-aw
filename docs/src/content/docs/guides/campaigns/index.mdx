@@ -10,12 +10,6 @@ import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
 GitHub agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction/overview/) toward a single goal.
 
-**How it works:**
-1. **Define** - Write a `.campaign.md` spec with objectives and workflows
-2. **Compile** - Generate the orchestrator with `gh aw compile`
-3. **Execute** - Orchestrator coordinates work (passive tracking or active execution)
-4. **Track** - GitHub Project board shows real-time progress
-
 ## Why Use Campaigns?
 
 <FeatureGrid columns={2}>
@@ -65,9 +59,16 @@ governance:
 ```
 With `execute-workflows: true`, the orchestrator will:
 - Run `framework-scanner` (create it if doesn't exist)
-- Test newly created workflows before use
+- Test newly created agetnic workflows before use
 - Execute `framework-upgrader` using scanner outputs
 - Track all progress on the GitHub Project board
+
+## How it works
+
+1. **Define** - Write a `.campaign.md` spec with objectives and workflows
+2. **Compile** - Generate the orchestrator with `gh aw compile`
+3. **Execute** - Orchestrator coordinates work (passive tracking or active execution)
+4. **Track** - GitHub Project board shows real-time progress
 
 When compiled, this generates an orchestrator that discovers work, tracks progress on the GitHub Project board, and coordinates worker workflows to execute upgrades.
 
