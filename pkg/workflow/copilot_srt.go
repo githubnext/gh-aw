@@ -247,7 +247,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        continue-on-error: true",
 		"        env:",
 		fmt.Sprintf("          AWF_LOGS_DIR: %s", firewallLogsDir),
-		"        run: awf logs summary >> $GITHUB_STEP_SUMMARY",
+		"        run: awf logs summary >> \"$GITHUB_STEP_SUMMARY\"",
 	}
 
 	return GitHubActionStep(stepLines)

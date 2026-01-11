@@ -1196,7 +1196,7 @@ jobs:
         continue-on-error: true
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
-        run: awf logs summary >> $GITHUB_STEP_SUMMARY
+        run: awf logs summary >> "$GITHUB_STEP_SUMMARY"
       # Upload repo memory as artifacts for push job
       - name: Upload repo-memory artifact (default)
         if: always()
