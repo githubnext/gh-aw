@@ -379,7 +379,7 @@ describe("safe_output_helpers", () => {
         });
         expect(result.success).toBe(false);
         expect(result.error).toContain('Target is "triggering"');
-        expect(result.error).toContain('not running in issue context');
+        expect(result.error).toContain("not running in issue context");
         expect(result.shouldFail).toBe(false); // Should skip, not fail
       });
 
@@ -423,8 +423,8 @@ describe("safe_output_helpers", () => {
         });
         expect(result.success).toBe(false);
         expect(result.error).toContain('Target is "*"');
-        expect(result.error).toContain('item_number/issue_number');
-        expect(result.error).not.toContain('pull_request_number');
+        expect(result.error).toContain("item_number/issue_number");
+        expect(result.error).not.toContain("pull_request_number");
         expect(result.shouldFail).toBe(true);
       });
 
@@ -436,7 +436,7 @@ describe("safe_output_helpers", () => {
         });
         expect(result.success).toBe(false);
         expect(result.error).toContain('Target is "*"');
-        expect(result.error).toContain('no item_number/issue_number specified');
+        expect(result.error).toContain("no item_number/issue_number specified");
       });
     });
   });

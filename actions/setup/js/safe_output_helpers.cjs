@@ -46,13 +46,22 @@ function parseMaxCount(envValue, defaultValue = 3) {
 
 /**
  * Resolve the target number (issue/PR) based on configuration and context
+ *
+ * This function determines which issue or pull request to target based on:
+ * - The handler's support for issues vs PRs (supportsPR, supportsIssue)
+ * - The target configuration ("triggering", "*", or explicit number)
+ * - The workflow context (issue event, PR event, etc.)
+ * - Fields in the safe output item (issue_number, pull_request_number, item_number)
+ *
  * @param {Object} params - Resolution parameters
  * @param {string} params.targetConfig - Target configuration ("triggering", "*", or explicit number)
- * @param {any} params.item - Safe output item with optional item_number or pull_request_number
+ * @param {any} params.item - Safe output item with optional item_number, issue_number, or pull_request_number
  * @param {any} params.context - GitHub Actions context
  * @param {string} params.itemType - Type of item being processed (for error messages)
- * @param {boolean} params.supportsPR - Whether this safe output supports PR context
- * @param {boolean} params.supportsIssue - Whether this safe output supports issue context only (mutually exclusive with supportsPR being false)
+ * @param {boolean} params.supportsPR - When true, handler supports BOTH issues and PRs (e.g., add_labels)
+ *                                       When false, handler supports PRs ONLY (e.g., add_reviewers)
+ * @param {boolean} params.supportsIssue - When true, handler supports issues ONLY (e.g., update_issue)
+ *                                          Mutually exclusive with supportsPR=false
  * @returns {{success: true, number: number, contextType: string} | {success: false, error: string, shouldFail: boolean}} Resolution result
  */
 function resolveTarget(params) {
@@ -118,11 +127,7 @@ function resolveTarget(params) {
     if (numberField) {
       itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
       if (isNaN(itemNumber) || itemNumber <= 0) {
-        const fieldNames = supportsPR 
-          ? "item_number/issue_number/pull_request_number" 
-          : supportsIssue 
-            ? "item_number/issue_number" 
-            : "pull_request_number";
+        const fieldNames = supportsPR ? "item_number/issue_number/pull_request_number" : supportsIssue ? "item_number/issue_number" : "pull_request_number";
         return {
           success: false,
           error: `Invalid ${fieldNames} specified: ${numberField}`,
@@ -130,16 +135,12 @@ function resolveTarget(params) {
         };
       }
       if (supportsPR || supportsIssue) {
-        contextType = (item.item_number || item.issue_number) ? "issue" : "pull request";
+        contextType = item.item_number || item.issue_number ? "issue" : "pull request";
       } else {
         contextType = "pull request";
       }
     } else {
-      const fieldNames = supportsPR 
-        ? "item_number/issue_number" 
-        : supportsIssue 
-          ? "item_number/issue_number" 
-          : "pull_request_number";
+      const fieldNames = supportsPR ? "item_number/issue_number" : supportsIssue ? "item_number/issue_number" : "pull_request_number";
       return {
         success: false,
         error: `Target is "*" but no ${fieldNames} specified in ${itemType} item`,
