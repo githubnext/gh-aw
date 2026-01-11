@@ -194,9 +194,9 @@ Permission checks occur at runtime. Failed checks auto-cancel with warnings. Use
 
 Token precedence (highest to lowest): individual safe-output `github-token` → safe-outputs global → top-level → default (`${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`).
 
-:::tip[Automatic Secret Validation]
-`github-token` fields require GitHub Actions secret expressions. Plaintext tokens or environment variables cause compilation failure.
-:::
+> [!TIP]
+> Automatic Secret Validation
+> `github-token` fields require GitHub Actions secret expressions. Plaintext tokens or environment variables cause compilation failure.
 
 ```yaml wrap
 github-token: ${{ secrets.CUSTOM_PAT }}
@@ -284,9 +284,9 @@ tools:
     lockdown: false  # Explicitly disable (use with caution in public repos)
 ```
 
-:::caution[Disabling Lockdown in Public Repositories]
-Explicitly setting `lockdown: false` in a public repository disables this security protection. Only do this if you fully understand the implications and have other controls in place to prevent data leakage.
-:::
+> [!CAUTION]
+> Disabling Lockdown in Public Repositories
+> Explicitly setting `lockdown: false` in a public repository disables this security protection. Only do this if you fully understand the implications and have other controls in place to prevent data leakage.
 
 **Security Benefits:**
 

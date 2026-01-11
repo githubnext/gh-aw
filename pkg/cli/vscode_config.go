@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var vscodeConfigLog = logger.New("cli:vscode_config")
@@ -62,35 +61,6 @@ func (s VSCodeSettings) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(result)
-}
-
-// ensureWorkflowSchema writes the main workflow schema to .github/aw/schemas/agentic-workflow.json
-func ensureWorkflowSchema(verbose bool) error {
-	vscodeConfigLog.Print("Writing main workflow schema to .github/aw/schemas/")
-
-	// Create .github/aw/schemas directory if it doesn't exist
-	schemasDir := filepath.Join(".github", "aw", "schemas")
-	if err := os.MkdirAll(schemasDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/aw/schemas directory: %w", err)
-	}
-	vscodeConfigLog.Printf("Ensured directory exists: %s", schemasDir)
-
-	schemaPath := filepath.Join(schemasDir, "agentic-workflow.json")
-
-	// Get the embedded schema from parser package
-	schemaContent := parser.GetMainWorkflowSchema()
-
-	// Write schema file
-	if err := os.WriteFile(schemaPath, []byte(schemaContent), 0644); err != nil {
-		return fmt.Errorf("failed to write workflow schema: %w", err)
-	}
-	vscodeConfigLog.Printf("Wrote schema to: %s", schemaPath)
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Created workflow schema at %s\n", schemaPath)
-	}
-
-	return nil
 }
 
 // ensureVSCodeSettings creates or updates .vscode/settings.json

@@ -4301,7 +4301,8 @@
                 },
                 "draft": {
                   "type": "boolean",
-                  "description": "Whether to create pull request as draft (defaults to true)"
+                  "description": "Whether to create pull request as draft (defaults to true)",
+                  "default": true
                 },
                 "if-no-changes": {
                   "type": "string",

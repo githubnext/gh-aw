@@ -28,9 +28,9 @@ sandbox:
 # Or omit sandbox entirely to use the default (awf)
 ```
 
-:::note[Default Behavior]
-If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: awf`. The agent sandbox is now mandatory for all workflows.
-:::
+> [!NOTE]
+> Default Behavior
+> If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: awf`. The agent sandbox is now mandatory for all workflows.
 
 ### MCP Gateway (Experimental)
 
@@ -145,9 +145,9 @@ When `command` is specified, the standard AWF installation is skipped and your c
 
 ### Sandbox Runtime (SRT)
 
-:::caution[Experimental]
-Sandbox Runtime is experimental and requires the `sandbox-runtime` feature flag.
-:::
+> [!CAUTION]
+> Experimental
+> Sandbox Runtime is experimental and requires the `sandbox-runtime` feature flag.
 
 Sandbox Runtime provides enhanced isolation using Anthropic's sandbox technology. It supports custom filesystem configuration while network permissions are controlled by the top-level `network` field.
 
@@ -180,9 +180,9 @@ network:
 | `ignoreViolations` | `object` | Map of command patterns to paths that should ignore violations |
 | `enableWeakerNestedSandbox` | `boolean` | Enable weaker nested sandbox mode (recommended for Docker access) |
 
-:::note[Network Configuration]
-Network configuration for SRT is controlled by the top-level `network` field, not the sandbox config. This ensures consistent network policy across all sandbox types.
-:::
+> [!NOTE]
+> Network Configuration
+> Network configuration for SRT is controlled by the top-level `network` field, not the sandbox config. This ensures consistent network policy across all sandbox types.
 
 #### Custom SRT Configuration
 
@@ -226,14 +226,14 @@ The MCP Gateway routes all MCP server calls through a unified HTTP gateway, enab
 | `entrypointArgs` | `string[]` | No | Container entrypoint arguments (only valid with `container`) |
 | `env` | `object` | No | Environment variables for the gateway |
 
-:::note[Execution Modes]
-The MCP gateway supports two execution modes:
-1. **Custom command** - Use `command` field to specify a custom binary or script
-2. **Container** - Use `container` field for Docker-based execution
-
-The `command` and `container` fields are mutually exclusive - only one can be specified.
-You must specify either `command` or `container` to use the MCP gateway feature.
-:::
+> [!NOTE]
+> Execution Modes
+> The MCP gateway supports two execution modes:
+> 1. **Custom command** - Use `command` field to specify a custom binary or script
+> 2. **Container** - Use `container` field for Docker-based execution
+>
+> The `command` and `container` fields are mutually exclusive - only one can be specified.
+> You must specify either `command` or `container` to use the MCP gateway feature.
 
 ### How It Works
 

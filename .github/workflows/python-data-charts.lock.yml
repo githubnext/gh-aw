@@ -440,7 +440,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.20'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.20'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -557,15 +557,16 @@ jobs:
           
           This shared workflow provides everything you need to create compelling trend visualizations with persistent data storage.
           
-          :::tip[Quick Start Alternative]
-          Looking for a simpler setup? Use `shared/trending-charts-simple.md` for:
-          - No nested imports (standalone configuration)
-          - No network restrictions (strict mode compatible)
-          - Quick start examples for common trending patterns
-          - Minimal configuration overhead
-          
-          The simplified version is perfect for basic trending needs while this comprehensive version offers advanced patterns and best practices.
-          :::
+          > [!TIP]
+          > **Quick Start Alternative**
+          >
+          > Looking for a simpler setup? Use `shared/trending-charts-simple.md` for:
+          > - No nested imports (standalone configuration)
+          > - No network restrictions (strict mode compatible)
+          > - Quick start examples for common trending patterns
+          > - Minimal configuration overhead
+          >
+          > The simplified version is perfect for basic trending needs while this comprehensive version offers advanced patterns and best practices.
           
           ## Cache-Memory for Trending Data
           
@@ -1109,7 +1110,6 @@ jobs:
           
           # Create chart
           fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          summary.plot(kind='bar', ax=ax)
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1136,6 +1136,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          summary.plot(kind='bar', ax=ax)
           
           # Customize
           ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
@@ -1835,7 +1836,7 @@ jobs:
         continue-on-error: true
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
-        run: awf logs summary >> $GITHUB_STEP_SUMMARY
+        run: awf logs summary >> "$GITHUB_STEP_SUMMARY"
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()

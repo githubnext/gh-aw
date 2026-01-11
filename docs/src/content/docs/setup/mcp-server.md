@@ -18,9 +18,8 @@ command: gh
 args: [aw, mcp-server]
 ```
 
-:::tip
-Use in agentic workflows by adding `agentic-workflows:` to your workflow's `tools:` section. See [Using as Agentic Workflows Tool](#using-as-agentic-workflows-tool).
-:::
+> [!TIP]
+> Use in agentic workflows by adding `agentic-workflows:` to your workflow's `tools:` section. See [Using as Agentic Workflows Tool](#using-as-agentic-workflows-tool).
 
 ## Configuration Options
 
@@ -110,7 +109,7 @@ tools:
 Check workflow status, download logs, and audit failures.
 ```
 
-:::caution[Required Permission]
-The `agentic-workflows` tool requires `actions: read` permission to access GitHub Actions workflow logs and run data.
-:::
+> [!CAUTION]
+> Required Permission
+> The `agentic-workflows` tool requires `actions: read` permission to access GitHub Actions workflow logs and run data.
 
