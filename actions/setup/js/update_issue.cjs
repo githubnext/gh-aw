@@ -10,6 +10,7 @@ const HANDLER_TYPE = "update_issue";
 
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
+const { updateBody } = require("./update_pr_description_helpers.cjs");
 
 /**
  * Execute the issue update API call
@@ -20,8 +21,42 @@ const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
  * @returns {Promise<any>} Updated issue
  */
 async function executeIssueUpdate(github, context, issueNumber, updateData) {
-  // Remove internal fields used for operation handling
+  // Handle body operation (append/prepend/replace/replace-island)
+  const operation = updateData._operation || "replace";
+  const rawBody = updateData._rawBody;
+
+  // Remove internal fields
   const { _operation, _rawBody, ...apiData } = updateData;
+
+  // If we have a body with operation, handle it
+  if (rawBody !== undefined && operation !== "replace") {
+    // Fetch current issue body for operations that need it
+    const { data: currentIssue } = await github.rest.issues.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+    });
+    const currentBody = currentIssue.body || "";
+
+    // Get workflow run URL for AI attribution
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
+    const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+    // Use helper to update body
+    apiData.body = updateBody({
+      currentBody,
+      newContent: rawBody,
+      operation,
+      workflowName,
+      runUrl,
+      runId: context.runId,
+    });
+
+    core.info(`Will update body (length: ${apiData.body.length})`);
+  } else if (rawBody !== undefined) {
+    // Replace: just use the new content as-is (already in apiData.body)
+    core.info("Operation: replace (full body replacement)");
+  }
 
   const { data: issue } = await github.rest.issues.update({
     owner: context.repo.owner,
@@ -70,6 +105,11 @@ function buildIssueUpdateData(item, config) {
     updateData.title = item.title;
   }
   if (item.body !== undefined) {
+    // Store operation information
+    if (item.operation !== undefined) {
+      updateData._operation = item.operation;
+      updateData._rawBody = item.body;
+    }
     updateData.body = item.body;
   }
   if (item.state !== undefined) {
