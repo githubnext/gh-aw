@@ -349,5 +349,95 @@ describe("safe_output_helpers", () => {
         expect(result.number).toBe(456);
       });
     });
+
+    describe("with supportsIssue=true (for issues-only)", () => {
+      const baseParams = {
+        targetConfig: "triggering",
+        item: {},
+        context: {
+          eventName: "issues",
+          payload: { issue: { number: 123 } },
+        },
+        itemType: "update_issue",
+        supportsIssue: true,
+      };
+
+      it("should resolve triggering issue context", () => {
+        const result = helpers.resolveTarget(baseParams);
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(123);
+        expect(result.contextType).toBe("issue");
+      });
+
+      it("should fail when triggering and not in issue context", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          context: {
+            eventName: "pull_request",
+            payload: { pull_request: { number: 456 } },
+          },
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Target is "triggering"');
+        expect(result.error).toContain('not running in issue context');
+        expect(result.shouldFail).toBe(false); // Should skip, not fail
+      });
+
+      it("should resolve explicit issue number", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "789",
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(789);
+        expect(result.contextType).toBe("issue");
+      });
+
+      it("should resolve wildcard with issue_number", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "*",
+          item: { issue_number: 555 },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(555);
+        expect(result.contextType).toBe("issue");
+      });
+
+      it("should resolve wildcard with item_number", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "*",
+          item: { item_number: 666 },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(666);
+        expect(result.contextType).toBe("issue");
+      });
+
+      it("should fail wildcard without issue_number or item_number", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "*",
+          item: {},
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Target is "*"');
+        expect(result.error).toContain('item_number/issue_number');
+        expect(result.error).not.toContain('pull_request_number');
+        expect(result.shouldFail).toBe(true);
+      });
+
+      it("should ignore pull_request_number for issues-only handlers", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "*",
+          item: { pull_request_number: 999 },
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Target is "*"');
+        expect(result.error).toContain('no item_number/issue_number specified');
+      });
+    });
   });
 });

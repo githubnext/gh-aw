@@ -46,7 +46,8 @@ function resolveIssueNumber(item, updateTarget, context) {
     item: { ...item, item_number: item.issue_number },
     context: context,
     itemType: "update_issue",
-    supportsPR: false, // update_issue only supports issues, not PRs
+    supportsPR: false, // Not used when supportsIssue is true
+    supportsIssue: true, // update_issue only supports issues, not PRs
   });
 
   if (!targetResult.success) {
@@ -110,7 +111,7 @@ function formatIssueSuccessResult(issueNumber, updatedIssue) {
 const main = createUpdateHandlerFactory({
   itemType: "update_issue",
   itemTypeName: "issue",
-  supportsPR: false,
+  supportsPR: false, // Not used by factory, but kept for documentation
   resolveItemNumber: resolveIssueNumber,
   buildUpdateData: buildIssueUpdateData,
   executeUpdate: executeIssueUpdate,
