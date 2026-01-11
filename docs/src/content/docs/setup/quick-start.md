@@ -163,7 +163,6 @@ Before installing anything, it helps to understand the workflow lifecycle:
 Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
 
 > [!CAUTION]
-> Important
 > **Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
 
 ## Understanding Your First Workflow
