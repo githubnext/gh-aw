@@ -557,15 +557,16 @@ jobs:
           
           This shared workflow provides everything you need to create compelling trend visualizations with persistent data storage.
           
-          :::tip[Quick Start Alternative]
-          Looking for a simpler setup? Use `shared/trending-charts-simple.md` for:
-          - No nested imports (standalone configuration)
-          - No network restrictions (strict mode compatible)
-          - Quick start examples for common trending patterns
-          - Minimal configuration overhead
-          
-          The simplified version is perfect for basic trending needs while this comprehensive version offers advanced patterns and best practices.
-          :::
+          > [!TIP]
+          > **Quick Start Alternative**
+          >
+          > Looking for a simpler setup? Use `shared/trending-charts-simple.md` for:
+          > - No nested imports (standalone configuration)
+          > - No network restrictions (strict mode compatible)
+          > - Quick start examples for common trending patterns
+          > - Minimal configuration overhead
+          >
+          > The simplified version is perfect for basic trending needs while this comprehensive version offers advanced patterns and best practices.
           
           ## Cache-Memory for Trending Data
           
@@ -1109,7 +1110,6 @@ jobs:
           
           # Create chart
           fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          summary.plot(kind='bar', ax=ax)
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1136,6 +1136,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          summary.plot(kind='bar', ax=ax)
           
           # Customize
           ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
