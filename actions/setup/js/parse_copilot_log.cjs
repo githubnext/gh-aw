@@ -237,6 +237,12 @@ function parseDebugLogFormat(logContent) {
     }
   }
 
+  // Fail the step immediately if MCP server failures are detected
+  if (mcpFailures.length > 0) {
+    const failedServers = mcpFailures.join(", ");
+    core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+  }
+
   // Extract model information from the start
   let model = "unknown";
   let sessionId = null;

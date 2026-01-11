@@ -293,6 +293,7 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.mcpFailures).toBeDefined();
       expect(result.mcpFailures).toHaveLength(1);
       expect(result.mcpFailures[0]).toBe("github");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("MCP server(s) failed to launch: github");
     });
 
     it("should detect multiple MCP server failures", () => {
@@ -310,6 +311,7 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.mcpFailures).toHaveLength(2);
       expect(result.mcpFailures).toContain("github");
       expect(result.mcpFailures).toContain("playwright");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("MCP server(s) failed to launch: github, playwright");
     });
 
     it("should not report MCP failures for successful logs", () => {
@@ -323,6 +325,7 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(successfulLog);
 
       expect(result.mcpFailures).toBeUndefined();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should handle JSON format without MCP failures", () => {
@@ -334,6 +337,7 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(jsonLog);
 
       expect(result.mcpFailures).toBeUndefined();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should avoid duplicate MCP server names in failures list", () => {
@@ -350,6 +354,7 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.mcpFailures).toBeDefined();
       expect(result.mcpFailures).toHaveLength(1);
       expect(result.mcpFailures[0]).toBe("github");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("MCP server(s) failed to launch: github");
     });
   });
 });
