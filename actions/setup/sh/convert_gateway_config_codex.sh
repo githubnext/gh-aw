@@ -20,6 +20,31 @@ fi
 
 echo "Converting gateway configuration to Codex TOML format..."
 echo "Input: $MCP_GATEWAY_OUTPUT"
+echo ""
+
+# Validate gateway output structure
+echo "Validating gateway output structure..."
+if ! jq -e '.mcpServers' "$MCP_GATEWAY_OUTPUT" >/dev/null 2>&1; then
+  echo "ERROR: Gateway output missing 'mcpServers' field"
+  echo "Gateway output content:"
+  cat "$MCP_GATEWAY_OUTPUT"
+  exit 1
+fi
+
+# Check if any servers are configured
+SERVER_COUNT=$(jq '.mcpServers | length' "$MCP_GATEWAY_OUTPUT")
+echo "Found $SERVER_COUNT MCP server(s) in gateway output"
+
+if [ "$SERVER_COUNT" -eq 0 ]; then
+  echo "WARNING: No MCP servers found in gateway output"
+fi
+
+# List servers being converted
+echo "Servers to convert:"
+jq -r '.mcpServers | keys[]' "$MCP_GATEWAY_OUTPUT" | while read -r server; do
+  echo "  - $server"
+done
+echo ""
 
 # Convert gateway JSON output to Codex TOML format
 # Gateway format (JSON):
@@ -54,15 +79,48 @@ persistence = "none"
 
 TOML_EOF
 
-jq -r '
-  .mcpServers | to_entries[] | 
-  "[mcp_servers.\(.key)]\n" +
-  "url = \"\(.value.url)\"\n" +
-  "\n" +
-  "[mcp_servers.\(.key).headers]\n" +
-  "Authorization = \"\(.value.headers.Authorization)\"\n"
-' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
+# Convert each server with validation
+jq -r '.mcpServers | to_entries[] | .key' "$MCP_GATEWAY_OUTPUT" | while read -r SERVER_NAME; do
+  echo "Converting server: $SERVER_NAME"
+  
+  # Extract server configuration
+  SERVER_URL=$(jq -r ".mcpServers[\"$SERVER_NAME\"].url // empty" "$MCP_GATEWAY_OUTPUT")
+  SERVER_AUTH=$(jq -r ".mcpServers[\"$SERVER_NAME\"].headers.Authorization // empty" "$MCP_GATEWAY_OUTPUT")
+  
+  # Validate required fields
+  if [ -z "$SERVER_URL" ]; then
+    echo "  ERROR: Missing 'url' field for server '$SERVER_NAME'"
+    exit 1
+  fi
+  
+  if [ -z "$SERVER_AUTH" ]; then
+    echo "  WARNING: Missing 'headers.Authorization' field for server '$SERVER_NAME'"
+    # Don't fail - some servers may not require authentication
+  fi
+  
+  echo "  URL: $SERVER_URL"
+  if [ -n "$SERVER_AUTH" ]; then
+    echo "  Auth: <present>"
+  fi
+  
+  # Write server configuration to TOML
+  {
+    echo ""
+    echo "[mcp_servers.$SERVER_NAME]"
+    echo "url = \"$SERVER_URL\""
+    
+    # Only add headers section if Authorization is present
+    if [ -n "$SERVER_AUTH" ]; then
+      echo ""
+      echo "[mcp_servers.$SERVER_NAME.headers]"
+      echo "Authorization = \"$SERVER_AUTH\""
+    fi
+  } >> /tmp/gh-aw/mcp-config/config.toml
+  
+  echo "  ✓ Converted"
+done
 
+echo ""
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
 echo ""
 echo "Converted configuration:"

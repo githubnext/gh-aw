@@ -498,6 +498,10 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 			envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = true
 			envVars["GITHUB_REPOSITORY"] = true
 			envVars["GITHUB_SERVER_URL"] = true
+		case "safe-inputs":
+			// Safe inputs MCP server needs port and API key for HTTP transport
+			envVars["GH_AW_SAFE_INPUTS_PORT"] = true
+			envVars["GH_AW_SAFE_INPUTS_API_KEY"] = true
 		default:
 			// For custom MCP tools, check if they have env configuration
 			if toolValue, ok := tools[toolName]; ok {
