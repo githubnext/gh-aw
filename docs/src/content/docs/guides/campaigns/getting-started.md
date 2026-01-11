@@ -1,6 +1,6 @@
 ---
-title: "Getting Started"
-description: "Quick start guide for creating and launching agentic campaigns"
+title: Getting started
+description: Quick start guide for creating and launching agentic campaigns
 ---
 
 This guide is the shortest path from “we want a campaign” to a working dashboard.
@@ -10,7 +10,7 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 > Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
-## Campaign Best Practices
+## Best practices
 
 Before creating your first campaign, keep these core principles in mind:
 
@@ -33,7 +33,7 @@ Before creating your first campaign, keep these core principles in mind:
 
 In GitHub: your org → **Projects** → **New project**. Start with a **Table** view, add a **Board** view grouped by `Status`, and optionally a **Roadmap** view for timelines.
 
-Recommended custom fields (see [Project Management](/gh-aw/guides/campaigns/project-management/)):
+Recommended custom fields (see [Project management](/gh-aw/guides/campaigns/project-management/)):
 
 - **Status** (Single select): Todo, In Progress, Blocked, Done
 - **Worker/Workflow** (Single select): Names of your worker workflows
@@ -155,7 +155,7 @@ Items with campaign labels (`campaign:*`) are automatically protected from other
 
 This ensures your campaign items remain under the control of the campaign orchestrator and aren't interfered with by other workflows.
 
-## Migrating from Passive to Active Mode
+## Migrating from passive to active mode
 
 Once you've successfully run a passive campaign for 1-2 weeks and understand how it works, you can enable active execution:
 

@@ -82,6 +82,7 @@ function resolvePRNumber(item, updateTarget, context) {
     context: context,
     itemType: "update_pull_request",
     supportsPR: false, // update_pull_request only supports PRs, not issues
+    supportsIssue: false,
   });
 
   if (!targetResult.success) {

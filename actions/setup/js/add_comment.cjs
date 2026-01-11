@@ -379,6 +379,7 @@ async function main(config = {}) {
           context: context,
           itemType: "add_comment",
           supportsPR: true, // add_comment supports both issues and PRs
+          supportsIssue: false,
         });
 
         if (!targetResult.success) {

@@ -3,6 +3,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestGenerateCopilotInstallerSteps(t *testing.T) {
@@ -65,9 +67,9 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			name:            "empty version uses default",
 			version:         "",
 			stepName:        "Install GitHub Copilot CLI",
-			expectedVersion: "0.0.376", // Should use DefaultCopilotVersion
+			expectedVersion: string(constants.DefaultCopilotVersion), // Should use DefaultCopilotVersion
 			shouldContain: []string{
-				"export VERSION=0.0.376",
+				"export VERSION=" + string(constants.DefaultCopilotVersion),
 				"https://raw.githubusercontent.com/github/copilot-cli/main/install.sh",
 				"sudo bash /tmp/copilot-install.sh",
 				"copilot --version",
@@ -143,8 +145,9 @@ func TestCopilotInstallerVersionPassthrough(t *testing.T) {
 	}
 
 	// Should contain the default version from constants
-	if !strings.Contains(installStep, "export VERSION=0.0.376") {
-		t.Errorf("Expected default version 0.0.376 in install step, got:\n%s", installStep)
+	expectedVersionLine := "export VERSION=" + string(constants.DefaultCopilotVersion)
+	if !strings.Contains(installStep, expectedVersionLine) {
+		t.Errorf("Expected default version %s in install step, got:\n%s", string(constants.DefaultCopilotVersion), installStep)
 	}
 
 	// Should use the official install.sh script

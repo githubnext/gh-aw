@@ -1,16 +1,16 @@
 ---
-title: Agentic Campaigns
+title: Agentic campaigns
 description: Coordinate AI agents across multiple workflow runs with structured, goal-driven initiatives tracked in GitHub Projects.
 ---
 
 import FeatureCard from '../../../../components/FeatureCard.astro';
 import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
-## What are GitHub Agentic Campaigns?
+## Overview
 
-GitHub agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction/overview/) toward a single goal.
+Agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction/overview/) toward a single goal.
 
-## Why Use Campaigns?
+## Why use campaigns?
 
 <FeatureGrid columns={2}>
   <FeatureCard icon="goal" title="Strategic Goals" href="/gh-aw/guides/campaigns/specs/#core-fields-what-they-do">
@@ -27,7 +27,7 @@ GitHub agentic campaigns coordinate one or more [agentic workflows](/gh-aw/intro
   </FeatureCard>
 </FeatureGrid>
 
-## How it works
+## Workflow
 
 1. **Define** - Write a `.campaign.md` spec with objectives and workflows
 2. **Compile** - Generate the orchestrator with `gh aw compile`
@@ -46,7 +46,7 @@ Apart from this spec file, a campaign is composed of:
 
 The orchestrator discovers work, updates your project board, and delegates to workers. Workers stay focused on their specific tasks while the orchestrator handles coordination.
 
-## Example Campaign
+## Example campaign
 
 A campaign is defined by a **Campaign Spec** `.campaign.md`.
 Here is an example of such a file for a simple framework upgrade campaign:
@@ -82,7 +82,7 @@ With `execute-workflows: true`, the orchestrator will:
 - Execute `framework-upgrader` using scanner outputs
 - Track all progress on the GitHub Project board
 
-## Common Use Cases
+## Common use cases
 
 <FeatureGrid columns={2}>
   <FeatureCard icon="package" title="Migration Projects" badge="systematic">
@@ -99,9 +99,9 @@ With `execute-workflows: true`, the orchestrator will:
   </FeatureCard>
 </FeatureGrid>
 
-## Getting Started
+## Next steps
 
-- **[Quick Start](/gh-aw/guides/campaigns/getting-started/)** - Create your first campaign in 5 steps
-- **[Campaign Specs](/gh-aw/guides/campaigns/specs/)** - Learn the specification format and configuration options
-- **[Project Management](/gh-aw/guides/campaigns/project-management/)** - Set up GitHub Project boards for campaign dashboards
-- **[CLI Commands](/gh-aw/guides/campaigns/cli-commands/)** - Reference for campaign compilation and management
+- **[Quick start](/gh-aw/guides/campaigns/getting-started/)** - Create your first campaign in 5 steps
+- **[Campaign specs](/gh-aw/guides/campaigns/specs/)** - Learn the specification format and configuration options
+- **[Project management](/gh-aw/guides/campaigns/project-management/)** - Set up GitHub Project boards for campaign dashboards
+- **[CLI commands](/gh-aw/guides/campaigns/cli-commands/)** - Reference for campaign compilation and management

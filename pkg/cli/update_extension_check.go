@@ -31,10 +31,10 @@ func checkExtensionUpdate(verbose bool) error {
 	}
 
 	// Parse the output to see if an update is available
-	// Expected format: "[aw]: would have upgraded from v0.14.0 to v0.18.1"
+	// Expected format: "[agentics]: would have upgraded from v0.14.0 to v0.18.1"
 	lines := strings.Split(outputStr, "\n")
 	for _, line := range lines {
-		if strings.Contains(line, "[aw]: would have upgraded from") {
+		if strings.Contains(line, "[agentics]: would have upgraded from") {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(line))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run 'gh extension upgrade githubnext/gh-aw' to update"))
 			return nil

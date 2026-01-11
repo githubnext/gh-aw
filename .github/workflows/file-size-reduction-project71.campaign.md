@@ -3,6 +3,8 @@ id: file-size-reduction-project71
 name: "Campaign: File Size Reduction (Project 71)"
 description: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
 version: v1
+# Using Claude engine until Copilot is fixed
+engine: claude
 project-url: "https://github.com/orgs/githubnext/projects/71"
 project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 workflows:

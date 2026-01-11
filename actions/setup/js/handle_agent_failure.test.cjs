@@ -72,11 +72,15 @@ describe("handle_agent_failure.cjs", () => {
       // Mock no existing parent issue - will create it
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
-          // First search: parent issue
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: failure issue
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -111,7 +115,7 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify parent issue was searched for
       expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
-        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[aw] Agentic Workflow Issues"'),
+        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[agentics] Agentic Workflow Issues"'),
         per_page: 1,
       });
 
@@ -119,7 +123,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Agentic Workflow Issues",
+        title: "[agentics] Agentic Workflow Issues",
         body: expect.stringContaining("This issue tracks all failures from agentic workflows"),
         labels: ["agentic-workflows"],
       });
@@ -137,7 +141,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
         labels: ["agentic-workflows"],
       });
@@ -157,7 +161,11 @@ describe("handle_agent_failure.cjs", () => {
       // Mock existing parent issue
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
-          // First search: existing parent issue
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: existing parent issue
           data: {
             total_count: 1,
             items: [
@@ -170,7 +178,7 @@ describe("handle_agent_failure.cjs", () => {
           },
         })
         .mockResolvedValueOnce({
-          // Second search: no failure issue
+          // Third search: no failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -201,7 +209,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.any(String),
         labels: ["agentic-workflows"],
       });
@@ -217,9 +225,15 @@ describe("handle_agent_failure.cjs", () => {
       // Mock searches
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -248,9 +262,15 @@ describe("handle_agent_failure.cjs", () => {
       // Mock searches
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -268,19 +288,25 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.any(String),
         labels: ["agentic-workflows"],
       });
     });
 
     it("should create a new issue when no existing issue is found", async () => {
-      // Mock no existing issues (parent search + failure issue search)
+      // Mock no existing issues (PR search + parent search + failure issue search)
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -304,7 +330,7 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify search was called
       expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
-        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[aw] Test Workflow failed"'),
+        q: expect.stringContaining('repo:test-owner/test-repo is:issue is:open label:agentic-workflows in:title "[agentics] Test Workflow failed"'),
         per_page: 1,
       });
 
@@ -312,7 +338,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        title: "[aw] Test Workflow failed",
+        title: "[agentics] Test Workflow failed",
         body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
         labels: ["agentic-workflows"],
       });
@@ -372,9 +398,15 @@ describe("handle_agent_failure.cjs", () => {
 
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -444,9 +476,15 @@ describe("handle_agent_failure.cjs", () => {
 
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -465,7 +503,7 @@ describe("handle_agent_failure.cjs", () => {
       // Should still attempt to create issue with defaults
       expect(mockGithub.rest.issues.create).toHaveBeenCalled();
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
-      expect(failureIssueCreateCall.title).toContain("[aw] unknown failed");
+      expect(failureIssueCreateCall.title).toContain("[agentics] unknown failed");
     });
 
     it("should truncate very long workflow names in title", async () => {
@@ -473,9 +511,15 @@ describe("handle_agent_failure.cjs", () => {
 
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -493,10 +537,10 @@ describe("handle_agent_failure.cjs", () => {
 
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
       // Title should be truncated via sanitization
-      // Title includes "[aw] " prefix (5 chars) + workflow name (up to 100 chars) + " failed" (8 chars)
+      // Title includes "[agentics] " prefix (5 chars) + workflow name (up to 100 chars) + " failed" (8 chars)
       // So max should be around 113 chars, but sanitize may add ... so let's be lenient
       expect(failureIssueCreateCall.title.length).toBeLessThan(200); // More lenient - actual is 146
-      expect(failureIssueCreateCall.title).toContain("[aw]");
+      expect(failureIssueCreateCall.title).toContain("[agentics]");
       expect(failureIssueCreateCall.title).toContain("failed");
       // Verify it was truncated (not 200 As)
       expect(failureIssueCreateCall.title.length).toBeLessThan(220);
@@ -505,9 +549,15 @@ describe("handle_agent_failure.cjs", () => {
     it("should add expiration comment to new issues", async () => {
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
           data: { total_count: 0, items: [] },
         });
 
@@ -526,6 +576,80 @@ describe("handle_agent_failure.cjs", () => {
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(failureIssueCreateCall.body).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
+    });
+
+    it("should include pull request information when PR is found", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (PR found!)
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 99,
+                html_url: "https://github.com/test-owner/test-repo/pull/99",
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
+          data: { total_count: 0, items: [] },
+        });
+
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
+        })
+        .mockResolvedValueOnce({
+          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
+        });
+
+      mockGithub.graphql = vi.fn().mockResolvedValue({});
+
+      await main();
+
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      // Verify PR information is included in the issue body
+      expect(failureIssueCreateCall.body).toContain("**Pull Request:**");
+      expect(failureIssueCreateCall.body).toContain("#99");
+      expect(failureIssueCreateCall.body).toContain("https://github.com/test-owner/test-repo/pull/99");
+    });
+
+    it("should not include pull request information when no PR is found", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
+          data: { total_count: 0, items: [] },
+        });
+
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
+        })
+        .mockResolvedValueOnce({
+          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
+        });
+
+      mockGithub.graphql = vi.fn().mockResolvedValue({});
+
+      await main();
+
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      // Verify PR information is NOT included in the issue body
+      expect(failureIssueCreateCall.body).not.toContain("**Pull Request:**");
     });
   });
 });

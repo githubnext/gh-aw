@@ -213,6 +213,10 @@ safe-outputs:
     target-repo: "owner/repo" # cross-repository
 ```
 
+**Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
+
+When using `target: "*"`, the agent must provide `issue_number` or `item_number` in the output to identify which issue to update.
+
 ### Pull Request Updates (`update-pull-request:`)
 
 Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `append` (default), `prepend`, or `replace`.
@@ -226,6 +230,10 @@ safe-outputs:
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
 ```
+
+**Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
+
+When using `target: "*"`, the agent must provide `pull_request_number` in the output to identify which pull request to update.
 
 **Operation Types**:
 - `append` (default): Adds content to the end with separator and attribution
@@ -625,6 +633,8 @@ safe-outputs:
 **Field Enablement**: Include `title:`, `body:`, or `labels:` keys to enable updates for those fields. Without these keys, the field cannot be updated. Setting `allowed-labels` implicitly enables label updates.
 
 **Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
+
+When using `target: "*"`, the agent must provide `discussion_number` in the output to identify which discussion to update.
 
 ### Agent Session Creation (`create-agent-session:`)
 
