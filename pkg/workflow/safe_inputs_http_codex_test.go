@@ -79,7 +79,7 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Expected HTTP URL config with host.docker.internal not found in TOML format")
 	}
 
-	if !strings.Contains(yamlStr, `headers = { Authorization = "Bearer $GH_AW_SAFE_INPUTS_API_KEY" }`) {
+	if !strings.Contains(yamlStr, `headers = { Authorization = "$GH_AW_SAFE_INPUTS_API_KEY" }`) {
 		t.Error("Expected HTTP headers config not found in TOML format")
 	}
 

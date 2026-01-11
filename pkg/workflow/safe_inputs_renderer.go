@@ -86,10 +86,10 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	yaml.WriteString("                \"headers\": {\n")
 	if includeCopilotFields {
 		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                  \"Authorization\": \"Bearer \\${GH_AW_SAFE_INPUTS_API_KEY}\"\n")
+		yaml.WriteString("                  \"Authorization\": \"\\${GH_AW_SAFE_INPUTS_API_KEY}\"\n")
 	} else {
 		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
+		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SAFE_INPUTS_API_KEY\"\n")
 	}
 	// Close headers - no trailing comma since this is the last field
 	// Note: env block is NOT included for HTTP servers because the old MCP Gateway schema
