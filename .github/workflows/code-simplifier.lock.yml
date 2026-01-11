@@ -19,20 +19,21 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Runs Markdown quality checks using Super Linter and creates issues for violations
+# Analyzes recently modified code and creates pull requests with simplifications that improve clarity, consistency, and maintainability while preserving functionality
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
 
-name: "Super Linter Report"
+name: "Code Simplifier"
 "on":
   schedule:
-  - cron: "0 14 * * 1-5"
+  - cron: "9 14 * * *"
+    # Friendly format: daily (scattered)
+  # skip-if-match: is:pr is:open in:title "[code-simplifier]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
   issues: read
   pull-requests: read
@@ -40,10 +41,12 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Super Linter Report"
+run-name: "Code Simplifier"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -64,7 +67,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "super-linter.lock.yml"
+          GH_AW_WORKFLOW_FILE: "code-simplifier.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -73,12 +76,9 @@ jobs:
             await main();
 
   agent:
-    needs:
-      - activation
-      - super_linter
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
       issues: read
       pull-requests: read
@@ -115,23 +115,6 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Download super-linter log
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: super-linter-log
-          path: /tmp/gh-aw/
-
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -190,46 +173,39 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.24 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.27.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.20 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_pull_request":{},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[linter] \". Labels [automation code-quality] will be automatically added.",
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[code-simplifier] \". Labels [refactoring code-quality automation] will be automatically added. Reviewers [copilot] will be assigned.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
+                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
+                    "type": "string"
+                  },
+                  "branch": {
+                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
                     "type": "string"
                   },
                   "labels": {
-                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
+                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
                     "items": {
                       "type": "string"
                     },
                     "type": "array"
                   },
-                  "parent": {
-                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "temporary_id": {
-                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
-                    "type": "string"
-                  },
                   "title": {
-                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
+                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
                     "type": "string"
                   }
                 },
@@ -239,7 +215,7 @@ jobs:
                 ],
                 "type": "object"
               },
-              "name": "create_issue"
+              "name": "create_pull_request"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -317,7 +293,7 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_issue": {
+            "create_pull_request": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -326,21 +302,17 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
+                "branch": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
                 "labels": {
                   "type": "array",
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
-                },
-                "parent": {
-                  "issueOrPRNumber": true
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "temporary_id": {
-                  "type": "string"
                 },
                 "title": {
                   "required": true,
@@ -403,7 +375,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.24'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.20'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -461,7 +433,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.376",
-              workflow_name: "Super Linter Report",
+              workflow_name: "Code Simplifier",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -478,7 +450,7 @@ jobs:
               allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.8.2",
-              awmg_version: "v0.0.24",
+              awmg_version: "v0.0.20",
               steps: {
                 firewall: "squid"
               },
@@ -503,10 +475,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -521,145 +489,10 @@ jobs:
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
           
-          # Super Linter Analysis Report
           
-          You are an expert code quality analyst for a Go-based GitHub CLI extension project. Your task is to analyze the super-linter output and create a comprehensive issue report.
-          
-          ## Context
-          
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Project Type**: Go CLI tool (GitHub Agentic Workflows extension)
-          - **Triggered by**: @__GH_AW_GITHUB_ACTOR__
-          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
-          
-          ## Your Task
-          
-          1. **Read the linter output** from `/tmp/gh-aw/super-linter.log` using the bash tool
-          2. **Analyze the findings**:
-             - Categorize errors by severity (critical, high, medium, low)
-             - Identify patterns in the errors
-             - Determine which errors are most important to fix first
-             - Note: This workflow only validates Markdown files. Other linters (Go, JavaScript, YAML, Shell, etc.) are handled by separate CI jobs
-          3. **Create a detailed issue** with the following structure:
-          
-          ### Issue Title
-          Use format: "Code Quality Report - [Date] - [X] issues found"
-          
-          ### Issue Body Structure
-          
-          ```markdown
-          ## 🔍 Super Linter Analysis Summary
-          
-          **Date**: [Current date]
-          **Total Issues Found**: [Number]
-          **Run ID**: __GH_AW_GITHUB_RUN_ID__
-          
-          ## 📊 Breakdown by Severity
-          
-          - **Critical**: [Count and brief description]
-          - **High**: [Count and brief description]  
-          - **Medium**: [Count and brief description]
-          - **Low**: [Count and brief description]
-          
-          ## 📁 Issues by Category
-          
-          ### [Category/Linter Name]
-          - **File**: `path/to/file`
-            - Line [X]: [Error description]
-            - Impact: [Why this matters]
-            - Suggested fix: [How to resolve]
-          
-          [Repeat for other categories]
-          
-          ## 🎯 Priority Recommendations
-          
-          1. [Most critical issue to address first]
-          2. [Second priority]
-          3. [Third priority]
-          
-          ## 📋 Full Linter Output
-          
-          <details>
-          <summary>Click to expand complete linter log</summary>
-          
-          ```
-          [Include the full linter output here]
-          ```
-          
-          </details>
-          
-          ## 🔗 References
-          
-          - [Link to workflow run](__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/actions/runs/__GH_AW_GITHUB_RUN_ID__)
-          - [Super Linter Documentation](https://github.com/super-linter/super-linter)
-          - [Project CI Configuration](__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/blob/main/.github/workflows/ci.yml)
-          ```
-          
-          ## Important Guidelines
-          
-          - **Be concise but thorough**: Focus on actionable insights
-          - **Prioritize issues**: Not all linting errors are equal
-          - **Provide context**: Explain why each type of error matters for a CLI tool project
-          - **Suggest fixes**: Give practical recommendations
-          - **Use proper formatting**: Make the issue easy to read and navigate
-          - **If no errors found**: Create a positive report celebrating clean code
-          - **Remember**: This workflow only validates Markdown files. Other file types (Go, JavaScript, YAML, Shell, GitHub Actions) are handled by separate CI workflows
-          
-          ## Validating Fixes with Super Linter
-          
-          When suggesting fixes for linting errors, you can provide instructions for running super-linter locally to validate the fixes before committing. Include this section in your issue report when relevant:
-          
-          ### Running Super Linter Locally
-          
-          To validate your fixes locally before committing, run super-linter using Docker:
-          
-          ```bash
-          # Run super-linter with the same configuration as the workflow
-          docker run --rm \
-            -e DEFAULT_BRANCH=main \
-            -e RUN_LOCAL=true \
-            -e VALIDATE_MARKDOWN=true \
-            -v $(pwd):/tmp/lint \
-            ghcr.io/super-linter/super-linter:slim-v8
-          
-          # Run super-linter on specific file types only
-          # For example, to validate only Markdown files:
-          docker run --rm \
-            -e RUN_LOCAL=true \
-            -e VALIDATE_MARKDOWN=true \
-            -v $(pwd):/tmp/lint \
-            ghcr.io/super-linter/super-linter:slim-v8
-          ```
-          
-          **Note**: The Docker command uses the same super-linter configuration as this workflow. Files are mounted from your current directory to `/tmp/lint` in the container.
-          
-          ## Security Note
-          
-          Treat linter output as potentially sensitive. Do not expose credentials, API keys, or other secrets that might appear in file paths or error messages.
+          @./agentics/code-simplifier.md
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
-                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
-              }
-            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -670,31 +503,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -708,7 +516,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_issue, missing_tool, noop
+          **Available tools**: create_pull_request, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -790,10 +598,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -807,11 +611,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -927,12 +731,6 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: awf logs summary >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -945,6 +743,7 @@ jobs:
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
   conclusion:
@@ -953,7 +752,6 @@ jobs:
       - agent
       - detection
       - safe_outputs
-      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1004,7 +802,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Super Linter Report"
+          GH_AW_WORKFLOW_NAME: "Code Simplifier"
+          GH_AW_TRACKER_ID: "code-simplifier"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1017,7 +816,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Super Linter Report"
+          GH_AW_WORKFLOW_NAME: "Code Simplifier"
+          GH_AW_TRACKER_ID: "code-simplifier"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1030,7 +830,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Super Linter Report"
+          GH_AW_WORKFLOW_NAME: "Code Simplifier"
+          GH_AW_TRACKER_ID: "code-simplifier"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
@@ -1048,7 +849,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Super Linter Report"
+          GH_AW_WORKFLOW_NAME: "Code Simplifier"
+          GH_AW_TRACKER_ID: "code-simplifier"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1100,8 +902,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Super Linter Report"
-          WORKFLOW_DESCRIPTION: "Runs Markdown quality checks using Super Linter and creates issues for violations"
+          WORKFLOW_NAME: "Code Simplifier"
+          WORKFLOW_DESCRIPTION: "Analyzes recently modified code and creates pull requests with simplifications that improve clarity, consistency, and maintainability while preserving functionality"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1218,20 +1020,66 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+      - name: Check skip-if-match query
+        id: check_skip_if_match
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_SKIP_QUERY: "is:pr is:open in:title \"[code-simplifier]\""
+          GH_AW_WORKFLOW_NAME: "Code Simplifier"
+          GH_AW_SKIP_MAX_MATCHES: "1"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_skip_if_match.cjs');
+            await main();
+
   safe_outputs:
     needs:
+      - activation
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
+      contents: write
       issues: write
+      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "super-linter"
-      GH_AW_WORKFLOW_NAME: "Super Linter Report"
+      GH_AW_TRACKER_ID: "code-simplifier"
+      GH_AW_WORKFLOW_ID: "code-simplifier"
+      GH_AW_WORKFLOW_NAME: "Code Simplifier"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1257,12 +1105,37 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: agent-artifacts
+          path: /tmp/gh-aw/
+      - name: Checkout repository
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          token: ${{ github.token }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Configure Git credentials
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"automation\",\"code-quality\"],\"max\":1,\"title_prefix\":\"[linter] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"expires\":168,\"labels\":[\"refactoring\",\"code-quality\",\"automation\"],\"max\":1,\"max_patch_size\":1024,\"title_prefix\":\"[code-simplifier] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1270,81 +1143,4 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-
-  super_linter:
-    needs: activation
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
-      statuses: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Super-linter
-        id: super-linter
-        uses: super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2 # v8.2.1
-        env:
-          CREATE_LOG_FILE: "true"
-          DEFAULT_BRANCH: main
-          ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LOG_FILE: super-linter.log
-          VALIDATE_ALL_CODEBASE: "false"
-          VALIDATE_MARKDOWN: "true"
-      - name: Check for linting issues
-        id: check-results
-        run: |
-          if [ -f "super-linter.log" ] && [ -s "super-linter.log" ]; then
-            # Check if there are actual errors (not just the header)
-            if grep -qE "ERROR|WARN|FAIL" super-linter.log; then
-              echo "needs-linting=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "needs-linting=false" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            echo "needs-linting=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Upload super-linter log
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: super-linter-log
-          path: super-linter.log
-          retention-days: 7
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
 

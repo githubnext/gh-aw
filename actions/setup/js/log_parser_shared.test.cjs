@@ -431,6 +431,45 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("**Permission Denials:** 3");
     });
 
+    it("should handle errors array", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const lastEntry = {
+        errors: ["only prompt commands are supported in streaming mode", "another error message"],
+      };
+
+      const result = generateInformationSection(lastEntry);
+
+      expect(result).toContain("**Errors:**");
+      expect(result).toContain("- only prompt commands are supported in streaming mode");
+      expect(result).toContain("- another error message");
+    });
+
+    it("should handle single error in errors array", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const lastEntry = {
+        errors: ["Connection timeout"],
+      };
+
+      const result = generateInformationSection(lastEntry);
+
+      expect(result).toContain("**Errors:**");
+      expect(result).toContain("- Connection timeout");
+    });
+
+    it("should ignore empty errors array", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const lastEntry = {
+        errors: [],
+      };
+
+      const result = generateInformationSection(lastEntry);
+
+      expect(result).not.toContain("**Errors:**");
+    });
+
     it("should handle empty lastEntry", async () => {
       const { generateInformationSection } = await import("./log_parser_shared.cjs");
 

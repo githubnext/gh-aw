@@ -455,6 +455,14 @@ function generateInformationSection(lastEntry, options = {}) {
     }
   }
 
+  if (lastEntry.errors && Array.isArray(lastEntry.errors) && lastEntry.errors.length > 0) {
+    markdown += `**Errors:**\n`;
+    for (const error of lastEntry.errors) {
+      markdown += `- ${error}\n`;
+    }
+    markdown += "\n";
+  }
+
   if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
   }
