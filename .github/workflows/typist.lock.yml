@@ -57,6 +57,7 @@ jobs:
           sparse-checkout: |
             actions
           path: /tmp/gh-aw/actions-source
+          depth: 1
           persist-credentials: false
       - name: Setup Scripts
         run: |
@@ -105,6 +106,7 @@ jobs:
           sparse-checkout: |
             actions
           path: /tmp/gh-aw/actions-source
+          depth: 1
           persist-credentials: false
       - name: Setup Scripts
         run: |
@@ -1318,6 +1320,7 @@ jobs:
           sparse-checkout: |
             actions
           path: /tmp/gh-aw/actions-source
+          depth: 1
           persist-credentials: false
       - name: Setup Scripts
         run: |
@@ -1425,6 +1428,7 @@ jobs:
           sparse-checkout: |
             actions
           path: /tmp/gh-aw/actions-source
+          depth: 1
           persist-credentials: false
       - name: Setup Scripts
         run: |
@@ -1598,6 +1602,7 @@ jobs:
           sparse-checkout: |
             actions
           path: /tmp/gh-aw/actions-source
+          depth: 1
           persist-credentials: false
       - name: Setup Scripts
         run: |
