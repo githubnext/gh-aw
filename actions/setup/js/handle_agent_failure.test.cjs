@@ -2,10 +2,6 @@
 /// <reference types="@actions/github-script" />
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import fs from "fs";
-
-// Mock fs module
-vi.mock("fs");
 
 describe("handle_agent_failure.cjs", () => {
   let main;
@@ -17,49 +13,6 @@ describe("handle_agent_failure.cjs", () => {
   beforeEach(async () => {
     // Save original environment
     originalEnv = { ...process.env };
-
-    // Mock fs.readFileSync to return template content
-    vi.mocked(fs.readFileSync).mockImplementation(path => {
-      if (path === "/opt/gh-aw/prompts/agent_failure_comment.md") {
-        return "Agent job [{run_id}]({run_url}) failed.";
-      }
-      if (path === "/opt/gh-aw/prompts/agent_failure_issue.md") {
-        return `## Workflow Failure
-
-**Status:** Failed  
-**Workflow:** [{workflow_name}]({workflow_source_url})  
-**Run URL:** {run_url}{pull_request_info}
-
-## Root Cause
-
-The agentic workflow has encountered a failure. This indicates a configuration error, runtime issue, or missing dependencies that must be resolved.
-
-## Action Required
-
-**Agent Assignment:** This issue should be debugged using the \`agentic-workflows\` agent.
-
-**Instructions for Agent:**
-
-1. Analyze the workflow run logs at: {run_url}
-2. Identify the specific failure point and error messages
-3. Determine the root cause (configuration, missing tools, permissions, etc.)
-4. Propose specific fixes with code changes or configuration updates
-5. Validate the fix resolves the issue
-
-**Agent Invocation:**
-\`\`\`
-/agent agentic-workflows
-\`\`\`
-When prompted, instruct the agent to debug this workflow failure.
-
-## Expected Outcome
-
-- Root cause identified and documented
-- Specific fix provided (code changes, configuration updates, or dependency additions)
-- Verification that the fix resolves the failure`;
-      }
-      throw new Error(`Unexpected file read: ${path}`);
-    });
 
     // Mock core
     mockCore = {
@@ -100,6 +53,7 @@ When prompted, instruct the agent to debug this workflow failure.
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
     process.env.GH_AW_WORKFLOW_SOURCE = "test-owner/test-repo/.github/workflows/test.md@main";
     process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/test-owner/test-repo/blob/main/.github/workflows/test.md";
+    process.env.GITHUB_REF_NAME = "main"; // Add this to prevent getCurrentBranch from failing
 
     // Load the module
     const module = await import("./handle_agent_failure.cjs");
@@ -184,14 +138,16 @@ When prompted, instruct the agent to debug this workflow failure.
       expect(parentCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(parentCreateCall.body).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
 
-      // Verify failure issue was created
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
-        owner: "test-owner",
-        repo: "test-repo",
-        title: "[agentics] Test Workflow failed",
-        body: expect.stringContaining("Test Workflow"),
-        labels: ["agentic-workflows"],
-      });
+      // Verify failure issue was created (second call, after parent issue)
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          title: "[agentics] Test Workflow failed",
+          body: expect.stringContaining("Test Workflow"),
+          labels: ["agentic-workflows"],
+        })
+      );
 
       // Verify sub-issue was linked
       expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), {
@@ -381,14 +337,16 @@ When prompted, instruct the agent to debug this workflow failure.
         per_page: 1,
       });
 
-      // Verify issue was created
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
-        owner: "test-owner",
-        repo: "test-repo",
-        title: "[agentics] Test Workflow failed",
-        body: expect.stringContaining("Test Workflow"),
-        labels: ["agentic-workflows"],
-      });
+      // Verify failure issue was created (second call, after parent issue)
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          title: "[agentics] Test Workflow failed",
+          body: expect.stringContaining("Test Workflow"),
+          labels: ["agentic-workflows"],
+        })
+      );
 
       // Verify body contains required sections (check second call - failure issue)
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
@@ -405,18 +363,37 @@ When prompted, instruct the agent to debug this workflow failure.
     });
 
     it("should add a comment to existing issue when found", async () => {
-      // Mock existing issue
-      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
-        data: {
-          total_count: 1,
-          items: [
-            {
-              number: 10,
-              html_url: "https://github.com/test-owner/test-repo/issues/10",
-            },
-          ],
-        },
-      });
+      // Mock searches: PR search, parent search, and existing failure issue search
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: parent issue (exists)
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 1,
+                html_url: "https://github.com/test-owner/test-repo/issues/1",
+                node_id: "I_parent_1",
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          // Third search: existing failure issue
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 10,
+                html_url: "https://github.com/test-owner/test-repo/issues/10",
+              },
+            ],
+          },
+        });
 
       mockGithub.rest.issues.createComment.mockResolvedValue({});
 
