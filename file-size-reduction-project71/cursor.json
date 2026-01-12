@@ -1,4 +1,19 @@
 {
   "page": 1,
-  "label": "campaign:file-size-reduction-project71"
+  "label": "campaign:file-size-reduction-project71",
+  "last_processed_index": 9,
+  "processed_items": [
+    8901,
+    5536,
+    6132,
+    5853,
+    5610,
+    6265,
+    6532,
+    6803,
+    6820,
+    6962
+  ],
+  "remaining_count": 11,
+  "last_run_date": "2026-01-12"
 }
