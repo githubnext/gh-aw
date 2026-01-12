@@ -219,4 +219,193 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Should use custom version, not default version")
 		}
 	})
+
+	t.Run("AWF command includes --enable-host-access when MCP servers are enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// Add GitHub tool to enable MCP servers
+			Tools: map[string]any{
+				"github": true,
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is included when MCP servers are enabled
+		if !strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected AWF command to contain '--enable-host-access' when MCP servers are enabled")
+		}
+	})
+
+	t.Run("AWF command does not include --enable-host-access when no MCP servers", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// No tools configured, so no MCP servers
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is NOT included when no MCP servers
+		if strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected AWF command to NOT contain '--enable-host-access' when no MCP servers are configured")
+		}
+	})
+}
+
+// TestClaudeEngineEnableHostAccessWithMCPServers tests that Claude engine includes --enable-host-access when MCP servers are configured
+func TestClaudeEngineEnableHostAccessWithMCPServers(t *testing.T) {
+	t.Run("AWF command includes --enable-host-access when MCP servers are enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// Add GitHub tool to enable MCP servers
+			Tools: map[string]any{
+				"github": true,
+			},
+		}
+
+		engine := NewClaudeEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is included when MCP servers are enabled
+		if !strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected Claude AWF command to contain '--enable-host-access' when MCP servers are enabled")
+		}
+	})
+
+	t.Run("AWF command does not include --enable-host-access when no MCP servers", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// No tools configured, so no MCP servers
+		}
+
+		engine := NewClaudeEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is NOT included when no MCP servers
+		if strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected Claude AWF command to NOT contain '--enable-host-access' when no MCP servers are configured")
+		}
+	})
+}
+
+// TestCodexEngineEnableHostAccessWithMCPServers tests that Codex engine includes --enable-host-access when MCP servers are configured
+func TestCodexEngineEnableHostAccessWithMCPServers(t *testing.T) {
+	t.Run("AWF command includes --enable-host-access when MCP servers are enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// Add GitHub tool to enable MCP servers
+			Tools: map[string]any{
+				"github": true,
+			},
+		}
+
+		engine := NewCodexEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is included when MCP servers are enabled
+		if !strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected Codex AWF command to contain '--enable-host-access' when MCP servers are enabled")
+		}
+	})
+
+	t.Run("AWF command does not include --enable-host-access when no MCP servers", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			// No tools configured, so no MCP servers
+		}
+
+		engine := NewCodexEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --enable-host-access is NOT included when no MCP servers
+		if strings.Contains(stepContent, "--enable-host-access") {
+			t.Error("Expected Codex AWF command to NOT contain '--enable-host-access' when no MCP servers are configured")
+		}
+	})
 }

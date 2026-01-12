@@ -317,6 +317,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		claudeLog.Printf("Pinned AWF image tag to %s", awfImageTag)
 
+		// Enable host access when MCP servers are configured
+		// This allows the AWF container to access services running on the host (e.g., MCP gateway)
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			claudeLog.Print("Enabled host access for MCP server communication")
+		}
+
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
 			awfArgs = append(awfArgs, firewallConfig.Args...)
