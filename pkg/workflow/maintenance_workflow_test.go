@@ -3,7 +3,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -71,16 +70,15 @@ func TestGenerateMaintenanceCron(t *testing.T) {
 	}
 }
 
-func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
+func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 	tests := []struct {
-		name                      string
-		workflowDataList          []*WorkflowData
-		expectWorkflowGenerated   bool
-		expectError               bool
-		expectedWarningSubstrings []string
+		name                    string
+		workflowDataList        []*WorkflowData
+		expectWorkflowGenerated bool
+		expectError             bool
 	}{
 		{
-			name: "maintenance: true (default) with expires - should generate workflow",
+			name: "with expires in discussions - should generate workflow",
 			workflowDataList: []*WorkflowData{
 				{
 					Name: "test-workflow",
@@ -95,24 +93,7 @@ func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
 			expectError:             false,
 		},
 		{
-			name: "maintenance: false with expires - should NOT generate workflow and show warning",
-			workflowDataList: []*WorkflowData{
-				{
-					Name: "test-workflow",
-					SafeOutputs: &SafeOutputsConfig{
-						CreateDiscussions: &CreateDiscussionsConfig{
-							Expires: 168, // 7 days
-						},
-						Maintenance: boolPtr(false),
-					},
-				},
-			},
-			expectWorkflowGenerated:   false,
-			expectError:               false,
-			expectedWarningSubstrings: []string{"test-workflow", "expires", "maintenance: false"},
-		},
-		{
-			name: "maintenance: false with expires in issues - should show warning",
+			name: "with expires in issues - should generate workflow",
 			workflowDataList: []*WorkflowData{
 				{
 					Name: "test-workflow-issues",
@@ -120,30 +101,14 @@ func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
 						CreateIssues: &CreateIssuesConfig{
 							Expires: 48, // 2 days
 						},
-						Maintenance: boolPtr(false),
 					},
 				},
 			},
-			expectWorkflowGenerated:   false,
-			expectError:               false,
-			expectedWarningSubstrings: []string{"test-workflow-issues", "expires", "maintenance: false"},
-		},
-		{
-			name: "maintenance: false WITHOUT expires - should NOT generate and NO warning",
-			workflowDataList: []*WorkflowData{
-				{
-					Name: "test-workflow",
-					SafeOutputs: &SafeOutputsConfig{
-						CreateDiscussions: &CreateDiscussionsConfig{},
-						Maintenance:       boolPtr(false),
-					},
-				},
-			},
-			expectWorkflowGenerated: false,
+			expectWorkflowGenerated: true,
 			expectError:             false,
 		},
 		{
-			name: "no expires field - should NOT generate workflow",
+			name: "without expires field - should NOT generate workflow",
 			workflowDataList: []*WorkflowData{
 				{
 					Name: "test-workflow",
@@ -156,30 +121,7 @@ func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
 			expectError:             false,
 		},
 		{
-			name: "multiple workflows - one with maintenance:false, one with expires - should show warning for one",
-			workflowDataList: []*WorkflowData{
-				{
-					Name: "workflow-with-expires-disabled",
-					SafeOutputs: &SafeOutputsConfig{
-						CreateDiscussions: &CreateDiscussionsConfig{
-							Expires: 168,
-						},
-						Maintenance: boolPtr(false),
-					},
-				},
-				{
-					Name: "workflow-without-expires",
-					SafeOutputs: &SafeOutputsConfig{
-						CreateIssues: &CreateIssuesConfig{},
-					},
-				},
-			},
-			expectWorkflowGenerated:   false,
-			expectError:               false,
-			expectedWarningSubstrings: []string{"workflow-with-expires-disabled"},
-		},
-		{
-			name: "maintenance: false with both discussions and issues expires - should show warning once per workflow",
+			name: "with both discussions and issues expires - should generate workflow",
 			workflowDataList: []*WorkflowData{
 				{
 					Name: "multi-expires-workflow",
@@ -190,13 +132,11 @@ func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
 						CreateIssues: &CreateIssuesConfig{
 							Expires: 48,
 						},
-						Maintenance: boolPtr(false),
 					},
 				},
 			},
-			expectWorkflowGenerated:   false,
-			expectError:               false,
-			expectedWarningSubstrings: []string{"multi-expires-workflow", "expires", "maintenance: false"},
+			expectWorkflowGenerated: true,
+			expectError:             false,
 		},
 	}
 
@@ -205,20 +145,8 @@ func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
 			// Create a temporary directory for the workflow
 			tmpDir := t.TempDir()
 
-			// Capture stderr to check for warnings
-			oldStderr := os.Stderr
-			r, w, _ := os.Pipe()
-			os.Stderr = w
-
 			// Call GenerateMaintenanceWorkflow
 			err := GenerateMaintenanceWorkflow(tt.workflowDataList, tmpDir, "v1.0.0", ActionModeDev, false)
-
-			// Restore stderr and read captured output
-			w.Close()
-			os.Stderr = oldStderr
-			var buf [4096]byte
-			n, _ := r.Read(buf[:])
-			stderrOutput := string(buf[:n])
 
 			// Check error expectation
 			if tt.expectError && err == nil {
@@ -239,13 +167,6 @@ func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
 			if !tt.expectWorkflowGenerated && workflowExists {
 				t.Errorf("Expected maintenance workflow NOT to be generated but it was")
 			}
-
-			// Check for expected warning substrings
-			for _, expectedSubstr := range tt.expectedWarningSubstrings {
-				if !strings.Contains(stderrOutput, expectedSubstr) {
-					t.Errorf("Expected warning to contain %q but got: %s", expectedSubstr, stderrOutput)
-				}
-			}
 		})
 	}
 }
@@ -257,22 +178,6 @@ func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
 		createFileBefore bool
 		expectFileExists bool
 	}{
-		{
-			name: "maintenance: false with expires - should delete existing file",
-			workflowDataList: []*WorkflowData{
-				{
-					Name: "test-workflow",
-					SafeOutputs: &SafeOutputsConfig{
-						CreateDiscussions: &CreateDiscussionsConfig{
-							Expires: 168,
-						},
-						Maintenance: boolPtr(false),
-					},
-				},
-			},
-			createFileBefore: true,
-			expectFileExists: false,
-		},
 		{
 			name: "no expires field - should delete existing file",
 			workflowDataList: []*WorkflowData{
@@ -287,7 +192,7 @@ func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
 			expectFileExists: false,
 		},
 		{
-			name: "maintenance: true (default) with expires - should create file",
+			name: "with expires - should create file",
 			workflowDataList: []*WorkflowData{
 				{
 					Name: "test-workflow",
@@ -302,15 +207,12 @@ func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
 			expectFileExists: true,
 		},
 		{
-			name: "maintenance: false without existing file - should not error",
+			name: "no expires without existing file - should not error",
 			workflowDataList: []*WorkflowData{
 				{
 					Name: "test-workflow",
 					SafeOutputs: &SafeOutputsConfig{
-						CreateDiscussions: &CreateDiscussionsConfig{
-							Expires: 168,
-						},
-						Maintenance: boolPtr(false),
+						CreateDiscussions: &CreateDiscussionsConfig{},
 					},
 				},
 			},
