@@ -156,7 +156,8 @@
       "description": "Tools configuration for the included file",
       "properties": {
         "bash": {
-          "description": "Bash shell command execution tool for running command-line programs and scripts",
+          "description": "DEPRECATED: Bash shell command execution tool. All commands are now allowed by default since agents run in containerized environments. This configuration is ignored and will be removed in a future version.",
+          "deprecated": true,
           "oneOf": [
             {
               "type": "null",
@@ -662,7 +663,8 @@
           "examples": [true, null]
         },
         "edit": {
-          "description": "File editing tool for reading, creating, and modifying files in the repository",
+          "description": "DEPRECATED: File editing tool for reading, creating, and modifying files in the repository. All file operations are now allowed by default since agents run in containerized environments. This configuration is ignored and will be removed in a future version.",
+          "deprecated": true,
           "oneOf": [
             {
               "type": "null",

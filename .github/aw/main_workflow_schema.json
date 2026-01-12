@@ -2294,7 +2294,8 @@
           ]
         },
         "bash": {
-          "description": "Bash shell command execution tool. Supports wildcards: '*' (all commands), 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
+          "description": "DEPRECATED: Bash shell command execution tool. All commands are now allowed by default since agents run in containerized environments. This configuration is ignored and will be removed in a future version.",
+          "deprecated": true,
           "oneOf": [
             {
               "type": "null",
@@ -2350,7 +2351,8 @@
           ]
         },
         "edit": {
-          "description": "File editing tool for reading, creating, and modifying files in the repository",
+          "description": "DEPRECATED: File editing tool for reading, creating, and modifying files in the repository. All file operations are now allowed by default since agents run in containerized environments. This configuration is ignored and will be removed in a future version.",
+          "deprecated": true,
           "oneOf": [
             {
               "type": "null",

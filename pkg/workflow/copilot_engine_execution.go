@@ -99,11 +99,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 	}
 
-	// Add --allow-all-paths when edit tool is enabled to allow write on all paths
-	// See: https://github.com/github/copilot-cli/issues/67#issuecomment-3411256174
-	if workflowData.ParsedTools != nil && workflowData.ParsedTools.Edit != nil {
-		copilotArgs = append(copilotArgs, "--allow-all-paths")
-	}
+	// YOLO MODE: Always add --allow-all-paths to allow write on all paths
+	// since agents run in containerized environments. This replaces the old
+	// conditional logic based on edit tool presence.
+	// Edit tool configuration is deprecated and ignored.
+	copilotArgs = append(copilotArgs, "--allow-all-paths")
+	copilotExecLog.Print("Enabled yolo mode: --allow-all-paths added for unrestricted file access")
 
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
