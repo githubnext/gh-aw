@@ -22,7 +22,7 @@ const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
  */
 async function executePRUpdate(github, context, prNumber, updateData) {
   // Handle body operation (append/prepend/replace/replace-island)
-  const operation = updateData._operation || "replace";
+  const operation = updateData._operation || "append";
   const rawBody = updateData._rawBody;
 
   // Remove internal fields

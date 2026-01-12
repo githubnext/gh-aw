@@ -424,7 +424,7 @@
         "operation": {
           "type": "string",
           "enum": ["replace", "append", "prepend"],
-          "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced."
+          "description": "How to update the PR body: 'append' (default - add to end with separator), 'prepend' (add to start with separator), or 'replace' (completely overwrite). Title is always replaced."
         },
         "pull_request_number": {
           "type": ["number", "string"],

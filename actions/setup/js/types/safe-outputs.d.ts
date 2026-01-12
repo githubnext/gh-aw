@@ -206,7 +206,7 @@ interface UpdatePullRequestItem extends BaseSafeOutputItem {
   title?: string;
   /** Optional new pull request body (behavior depends on operation) */
   body?: string;
-  /** Update operation for body: 'replace' (default), 'append', or 'prepend' */
+  /** Update operation for body: 'append' (default), 'prepend', or 'replace' */
   operation?: "replace" | "append" | "prepend";
   /** Optional pull request number for target "*" */
   pull_request_number?: number | string;
