@@ -10,13 +10,13 @@ import (
 func TestGetWorkflowInputs(t *testing.T) {
 	tests := []struct {
 		name          string
-		content       string
+		lockContent   string
 		expectedCount int
 		expectedReq   map[string]bool // map of input name to required status
 	}{
 		{
 			name: "workflow with required and optional inputs",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
     inputs:
@@ -28,9 +28,12 @@ on:
         description: 'Enable debug mode'
         required: false
         type: boolean
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expectedCount: 2,
 			expectedReq: map[string]bool{
 				"issue_url":  true,
@@ -39,34 +42,48 @@ on:
 		},
 		{
 			name: "workflow with no inputs",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expectedCount: 0,
 		},
 		{
 			name: "workflow without workflow_dispatch",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   issues:
     types: [opened]
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expectedCount: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a temporary file
+			// Create a temporary directory
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test-workflow.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
+			lockFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
+
+			// Create markdown file (content doesn't matter)
+			if err := os.WriteFile(tmpFile, []byte("# Test"), 0644); err != nil {
 				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Create lock file with the actual workflow content
+			if err := os.WriteFile(lockFile, []byte(tt.lockContent), 0644); err != nil {
+				t.Fatalf("Failed to write lock file: %v", err)
 			}
 
 			// Extract inputs
@@ -98,14 +115,14 @@ on:
 func TestValidateWorkflowInputs(t *testing.T) {
 	tests := []struct {
 		name           string
-		content        string
+		lockContent    string
 		providedInputs []string
 		expectError    bool
 		errorContains  []string // strings that should be in the error message
 	}{
 		{
 			name: "all required inputs provided",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
     inputs:
@@ -113,15 +130,18 @@ on:
         description: 'Issue URL'
         required: true
         type: string
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			providedInputs: []string{"issue_url=https://github.com/owner/repo/issues/123"},
 			expectError:    false,
 		},
 		{
 			name: "missing required input",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
     inputs:
@@ -129,16 +149,19 @@ on:
         description: 'Issue URL'
         required: true
         type: string
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			providedInputs: []string{},
 			expectError:    true,
 			errorContains:  []string{"Missing required input(s)", "issue_url"},
 		},
 		{
 			name: "typo in input name",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
     inputs:
@@ -146,16 +169,19 @@ on:
         description: 'Issue URL'
         required: true
         type: string
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			providedInputs: []string{"issue_ur=https://github.com/owner/repo/issues/123"},
 			expectError:    true,
 			errorContains:  []string{"Invalid input name", "issue_ur", "issue_url"},
 		},
 		{
 			name: "multiple errors: missing required and typo",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
     inputs:
@@ -167,27 +193,33 @@ on:
         description: 'Debug mode'
         required: true
         type: boolean
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			providedInputs: []string{"debugmode=true"},
 			expectError:    true,
 			errorContains:  []string{"Missing required input(s)", "issue_url", "Invalid input name", "debugmode"},
 		},
 		{
 			name: "no inputs defined",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			providedInputs: []string{"any_input=value"},
 			expectError:    false, // No inputs defined, so no validation
 		},
 		{
 			name: "optional input not provided - should not error",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
     inputs:
@@ -195,15 +227,18 @@ on:
         description: 'Issue URL'
         required: false
         type: string
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			providedInputs: []string{},
 			expectError:    false,
 		},
 		{
 			name: "unknown input with no close matches",
-			content: `---
+			lockContent: `name: "Test Workflow"
 on:
   workflow_dispatch:
     inputs:
@@ -211,9 +246,12 @@ on:
         description: 'Config file path'
         required: false
         type: string
----
-
-# Test Workflow`,
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			providedInputs: []string{"xyz=value"},
 			expectError:    true,
 			errorContains:  []string{"Invalid input name", "xyz", "not a valid input name"},
@@ -222,11 +260,19 @@ on:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a temporary file
+			// Create a temporary directory
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test-workflow.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
+			lockFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
+
+			// Create markdown file (content doesn't matter)
+			if err := os.WriteFile(tmpFile, []byte("# Test"), 0644); err != nil {
 				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Create lock file with the actual workflow content
+			if err := os.WriteFile(lockFile, []byte(tt.lockContent), 0644); err != nil {
+				t.Fatalf("Failed to write lock file: %v", err)
 			}
 
 			// Validate inputs

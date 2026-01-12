@@ -14,68 +14,109 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 )
 
 var validationLog = logger.New("cli:run_workflow_validation")
 
-// IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)
-func IsRunnable(markdownPath string) (bool, error) {
-	// Sanitize the path to prevent path traversal attacks
-	cleanPath := filepath.Clean(markdownPath)
-
-	// Read the file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
-	// The markdownPath parameter comes from trusted sources (CLI arguments, validated workflow paths).
-	contentBytes, err := os.ReadFile(cleanPath) // #nosec G304
-	if err != nil {
-		return false, fmt.Errorf("failed to read file: %w", err)
+// getLockFilePath converts a markdown workflow path to its compiled lock file path
+// Example: "/path/to/workflow.md" -> "/path/to/workflow.lock.yml"
+func getLockFilePath(markdownPath string) string {
+	// Handle campaign orchestrator files
+	if strings.HasSuffix(markdownPath, ".campaign.g.md") {
+		return strings.TrimSuffix(markdownPath, ".campaign.g.md") + ".campaign.lock.yml"
 	}
-	content := string(contentBytes)
-
-	// Extract frontmatter
-	result, err := parser.ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return false, fmt.Errorf("failed to extract frontmatter: %w", err)
+	// Handle regular campaign files
+	if strings.HasSuffix(markdownPath, ".campaign.md") {
+		return strings.TrimSuffix(markdownPath, ".campaign.md") + ".campaign.lock.yml"
 	}
-
-	// Check if 'on' section is present
-	onSection, exists := result.Frontmatter["on"]
-	if !exists {
-		// If no 'on' section, it defaults to runnable triggers (schedule, workflow_dispatch)
-		return true, nil
-	}
-
-	// Convert to string to analyze
-	onStr := fmt.Sprintf("%v", onSection)
-	onStrLower := strings.ToLower(onStr)
-
-	// Check for schedule or workflow_dispatch triggers
-	hasSchedule := strings.Contains(onStrLower, "schedule") || strings.Contains(onStrLower, "cron")
-	hasWorkflowDispatch := strings.Contains(onStrLower, "workflow_dispatch")
-
-	return hasSchedule || hasWorkflowDispatch, nil
+	// Handle regular workflow files
+	return strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 }
 
-// getWorkflowInputs extracts workflow_dispatch inputs from the workflow markdown file
-func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinition, error) {
-	// Sanitize the path to prevent path traversal attacks
-	cleanPath := filepath.Clean(markdownPath)
+// IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)
+// This function checks the compiled .lock.yml file because that's what GitHub Actions uses.
+func IsRunnable(markdownPath string) (bool, error) {
+	// Convert markdown path to lock file path
+	lockPath := getLockFilePath(markdownPath)
+	cleanLockPath := filepath.Clean(lockPath)
 
-	// Read the file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
-	// The markdownPath parameter comes from trusted sources (CLI arguments, validated workflow paths).
-	contentBytes, err := os.ReadFile(cleanPath) // #nosec G304
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+	validationLog.Printf("Checking if workflow is runnable: markdown=%s, lock=%s", markdownPath, lockPath)
+
+	// Check if the lock file exists
+	if _, err := os.Stat(cleanLockPath); os.IsNotExist(err) {
+		validationLog.Printf("Lock file does not exist: %s", cleanLockPath)
+		return false, fmt.Errorf("workflow has not been compiled yet - run 'gh aw compile' first")
 	}
-	content := string(contentBytes)
 
-	// Extract frontmatter
-	result, err := parser.ExtractFrontmatterFromContent(content)
+	// Read the lock file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
+	// The lockPath is derived from markdownPath which comes from trusted sources (CLI arguments, validated workflow paths).
+	contentBytes, err := os.ReadFile(cleanLockPath) // #nosec G304
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract frontmatter: %w", err)
+		return false, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	// Parse the YAML content
+	var workflowYAML map[string]any
+	if err := yaml.Unmarshal(contentBytes, &workflowYAML); err != nil {
+		return false, fmt.Errorf("failed to parse lock file YAML: %w", err)
 	}
 
 	// Check if 'on' section is present
-	onSection, exists := result.Frontmatter["on"]
+	onSection, exists := workflowYAML["on"]
+	if !exists {
+		validationLog.Printf("No 'on' section found in lock file")
+		// If no 'on' section, it's not runnable
+		return false, nil
+	}
+
+	// Convert to map if possible
+	onMap, ok := onSection.(map[string]any)
+	if !ok {
+		// If 'on' is not a map, check if it's a string/list that might indicate workflow_dispatch
+		onStr := fmt.Sprintf("%v", onSection)
+		onStrLower := strings.ToLower(onStr)
+		hasWorkflowDispatch := strings.Contains(onStrLower, "workflow_dispatch")
+		validationLog.Printf("On section is not a map, checking string: hasWorkflowDispatch=%v", hasWorkflowDispatch)
+		return hasWorkflowDispatch, nil
+	}
+
+	// Check if workflow_dispatch trigger exists
+	_, hasWorkflowDispatch := onMap["workflow_dispatch"]
+	validationLog.Printf("Workflow runnable check: hasWorkflowDispatch=%v", hasWorkflowDispatch)
+	return hasWorkflowDispatch, nil
+}
+
+// getWorkflowInputs extracts workflow_dispatch inputs from the compiled lock file
+// This function checks the .lock.yml file because that's what GitHub Actions uses.
+func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinition, error) {
+	// Convert markdown path to lock file path
+	lockPath := getLockFilePath(markdownPath)
+	cleanLockPath := filepath.Clean(lockPath)
+
+	validationLog.Printf("Extracting workflow inputs from lock file: %s", lockPath)
+
+	// Check if the lock file exists
+	if _, err := os.Stat(cleanLockPath); os.IsNotExist(err) {
+		validationLog.Printf("Lock file does not exist: %s", cleanLockPath)
+		return nil, fmt.Errorf("workflow has not been compiled yet - run 'gh aw compile' first")
+	}
+
+	// Read the lock file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
+	// The lockPath is derived from markdownPath which comes from trusted sources (CLI arguments, validated workflow paths).
+	contentBytes, err := os.ReadFile(cleanLockPath) // #nosec G304
+	if err != nil {
+		return nil, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	// Parse the YAML content
+	var workflowYAML map[string]any
+	if err := yaml.Unmarshal(contentBytes, &workflowYAML); err != nil {
+		return nil, fmt.Errorf("failed to parse lock file YAML: %w", err)
+	}
+
+	// Check if 'on' section is present
+	onSection, exists := workflowYAML["on"]
 	if !exists {
 		return nil, nil
 	}
