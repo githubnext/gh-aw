@@ -22,7 +22,7 @@ echo "Converting gateway configuration to Copilot format..."
 echo "Input: $MCP_GATEWAY_OUTPUT"
 
 # Convert gateway output to Copilot format
-# Gateway format:
+# Gateway format (per MCP Gateway Specification v1.3.0):
 # {
 #   "mcpServers": {
 #     "server-name": {
@@ -35,27 +35,42 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 #   }
 # }
 #
-# Copilot format:
+# Copilot format (required by GitHub Copilot CLI):
 # {
 #   "mcpServers": {
 #     "server-name": {
 #       "type": "http",
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
-#         "Authorization": "apiKey"
+#         "Authorization": "Bearer apiKey"
 #       },
 #       "tools": ["*"]
 #     }
 #   }
 # }
 #
-# The main difference is that Copilot requires the "tools" field.
-# We also need to ensure headers use the actual API key value, not a placeholder.
+# Key differences:
+# 1. Copilot requires the "tools" field
+# 2. Copilot expects "Bearer " prefix in Authorization header (standard HTTP authentication scheme)
+#
+# Note: The MCP Gateway Specification v1.3.0 Section 7.1 states that the gateway outputs
+# Authorization headers without the "Bearer" prefix. However, GitHub Copilot CLI follows
+# standard HTTP authentication schemes and requires the "Bearer" prefix for token-based
+# authentication. This converter adds the prefix to ensure compatibility with Copilot CLI.
 
 jq '
   .mcpServers |= with_entries(
     .value |= (
-      if .tools then . else . + {"tools": ["*"]} end
+      # Add tools field if not present
+      (if .tools then . else . + {"tools": ["*"]} end) |
+      # Add "Bearer " prefix to Authorization header if headers exist and not already prefixed
+      (if .headers and .headers.Authorization then
+        if (.headers.Authorization | startswith("Bearer ")) then
+          .
+        else
+          .headers.Authorization = "Bearer " + .headers.Authorization
+        end
+      else . end)
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json
