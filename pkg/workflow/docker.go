@@ -50,21 +50,29 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []str
 	}
 
 	// Collect sandbox.mcp container (MCP gateway)
-	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.MCP != nil {
-		mcpGateway := workflowData.SandboxConfig.MCP
-		if mcpGateway.Container != "" {
-			image := mcpGateway.Container
-			if mcpGateway.Version != "" {
-				image += ":" + mcpGateway.Version
-			} else {
-				// Use default version if not specified (consistent with mcp_servers.go)
-				image += ":" + string(constants.DefaultMCPGatewayVersion)
+	// Skip if sandbox is disabled (sandbox: false)
+	if workflowData != nil && workflowData.SandboxConfig != nil {
+		// Check if sandbox is disabled
+		sandboxDisabled := workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled
+		
+		if !sandboxDisabled && workflowData.SandboxConfig.MCP != nil {
+			mcpGateway := workflowData.SandboxConfig.MCP
+			if mcpGateway.Container != "" {
+				image := mcpGateway.Container
+				if mcpGateway.Version != "" {
+					image += ":" + mcpGateway.Version
+				} else {
+					// Use default version if not specified (consistent with mcp_servers.go)
+					image += ":" + string(constants.DefaultMCPGatewayVersion)
+				}
+				if !imageSet[image] {
+					images = append(images, image)
+					imageSet[image] = true
+					dockerLog.Printf("Added sandbox.mcp container: %s", image)
+				}
 			}
-			if !imageSet[image] {
-				images = append(images, image)
-				imageSet[image] = true
-				dockerLog.Printf("Added sandbox.mcp container: %s", image)
-			}
+		} else if sandboxDisabled {
+			dockerLog.Print("Sandbox disabled, skipping MCP gateway container image")
 		}
 	}
 
