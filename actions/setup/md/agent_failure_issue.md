@@ -9,13 +9,13 @@ The agentic workflow **{workflow_name}** has failed. This typically indicates a 
 
 ## How to investigate
 
-Use the **debug-agentic-workflow** agent to investigate this failure.
+Use the **agentic-workflows** custom agent to investigate this failure.
 
-In GitHub Copilot Chat, type `/agent` and select **debug-agentic-workflow**.
+In GitHub Copilot Chat, type `/agent` and select **agentic-workflows**.
 
-When prompted, provide the workflow run URL: {run_url}
+When prompted, tell it to **debug** the problem and provide the workflow run URL: {run_url}
 
-The debug agent will help you:
+The agent will help you:
 - Analyze the failure logs
 - Identify the root cause
 - Suggest fixes for configuration or runtime errors

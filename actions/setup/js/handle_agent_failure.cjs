@@ -96,12 +96,12 @@ All individual workflow failure issues are linked as sub-issues below. Click on 
 
 ## Troubleshooting Failed Workflows
 
-### Using debug-agentic-workflow Agent (Recommended)
+### Using agentic-workflows Agent (Recommended)
 
-The fastest way to investigate a failure is with the **debug-agentic-workflow** custom agent:
+The fastest way to investigate a failure is with the **agentic-workflows** custom agent:
 
-1. In GitHub Copilot Chat, type \`/agent\` and select **debug-agentic-workflow**
-2. When prompted, provide the workflow run URL
+1. In GitHub Copilot Chat, type \`/agent\` and select **agentic-workflows**
+2. When prompted, tell it to **debug** the problem and provide the workflow run URL
 3. The agent will help you analyze logs, identify root causes, and suggest fixes
 
 ### Using gh-aw CLI
@@ -328,13 +328,13 @@ The agentic workflow **{workflow_name}** has failed. This typically indicates a 
 
 ## How to investigate
 
-Use the **debug-agentic-workflow** agent to investigate this failure.
+Use the **agentic-workflows** custom agent to investigate this failure.
 
-In GitHub Copilot Chat, type \`/agent\` and select **debug-agentic-workflow**.
+In GitHub Copilot Chat, type \`/agent\` and select **agentic-workflows**.
 
-When prompted, provide the workflow run URL: {run_url}
+When prompted, tell it to **debug** the problem and provide the workflow run URL: {run_url}
 
-The debug agent will help you:
+The agent will help you:
 - Analyze the failure logs
 - Identify the root cause
 - Suggest fixes for configuration or runtime errors`;

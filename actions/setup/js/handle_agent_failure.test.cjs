@@ -130,7 +130,7 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify parent body contains troubleshooting info
       const parentCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
-      expect(parentCreateCall.body).toContain("debug-agentic-workflow");
+      expect(parentCreateCall.body).toContain("agentic-workflows");
       expect(parentCreateCall.body).toContain("gh aw logs");
       expect(parentCreateCall.body).toContain("gh aw audit");
       expect(parentCreateCall.body).toContain("no:parent-issue");
@@ -347,7 +347,7 @@ describe("handle_agent_failure.cjs", () => {
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
       expect(failureIssueCreateCall.body).toContain("## Problem");
       expect(failureIssueCreateCall.body).toContain("## How to investigate");
-      expect(failureIssueCreateCall.body).toContain("debug-agentic-workflow");
+      expect(failureIssueCreateCall.body).toContain("agentic-workflows");
       expect(failureIssueCreateCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(failureIssueCreateCall.body).not.toContain("## Common Causes");

@@ -148,9 +148,9 @@ async function main(config = {}) {
         bodyLines.push(``);
         bodyLines.push(`## Debugging`);
         bodyLines.push(``);
-        bodyLines.push(`To debug this issue and provide the missing data, use the **debug-agentic-workflow** agent in GitHub Copilot Chat:`);
+        bodyLines.push(`To debug this issue and provide the missing data, use the **agentic-workflows** agent in GitHub Copilot Chat:`);
         bodyLines.push(``);
-        bodyLines.push(`Type \`/agent\` and select **debug-agentic-workflow**.`);
+        bodyLines.push(`Type \`/agent\` and select **agentic-workflows**, then tell it to **debug** the problem.`);
         bodyLines.push(``);
         bodyLines.push(`## References`);
         bodyLines.push(``);
