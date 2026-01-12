@@ -442,30 +442,33 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Use the engine's RenderMCPConfig method
-	yaml.WriteString("      - name: Start MCP gateway\n")
-	yaml.WriteString("        id: start-mcp-gateway\n")
+	// Skip gateway setup if sandbox is disabled
+	// When sandbox: false, MCP servers are configured without the gateway
+	if !isSandboxDisabled(workflowData) {
+		// Use the engine's RenderMCPConfig method
+		yaml.WriteString("      - name: Start MCP gateway\n")
+		yaml.WriteString("        id: start-mcp-gateway\n")
 
-	// Collect all MCP-related environment variables using centralized helper
-	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
+		// Collect all MCP-related environment variables using centralized helper
+		mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
 
-	// Add env block if any environment variables are needed
-	if len(mcpEnvVars) > 0 {
-		yaml.WriteString("        env:\n")
+		// Add env block if any environment variables are needed
+		if len(mcpEnvVars) > 0 {
+			yaml.WriteString("        env:\n")
 
-		// Sort environment variable names for consistent output
-		envVarNames := make([]string, 0, len(mcpEnvVars))
-		for envVarName := range mcpEnvVars {
-			envVarNames = append(envVarNames, envVarName)
+			// Sort environment variable names for consistent output
+			envVarNames := make([]string, 0, len(mcpEnvVars))
+			for envVarName := range mcpEnvVars {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			// Write environment variables in sorted order
+			for _, envVarName := range envVarNames {
+				envVarValue := mcpEnvVars[envVarName]
+				fmt.Fprintf(yaml, "          %s: %s\n", envVarName, envVarValue)
+			}
 		}
-		sort.Strings(envVarNames)
-
-		// Write environment variables in sorted order
-		for _, envVarName := range envVarNames {
-			envVarValue := mcpEnvVars[envVarName]
-			fmt.Fprintf(yaml, "          %s: %s\n", envVarName, envVarValue)
-		}
-	}
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
@@ -603,6 +606,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Render MCP config - this will pipe directly to the gateway script
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	}
+	// Note: When sandbox is disabled, gateway config will be nil and MCP config will be generated
+	// without the gateway section. The engine's RenderMCPConfig handles both cases.
 }
 
 // ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
