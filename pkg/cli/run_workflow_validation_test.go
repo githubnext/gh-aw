@@ -280,7 +280,7 @@ jobs:
 				require.NoError(t, err)
 
 				// Check count
-				assert.Equal(t, tt.expectedCount, len(inputs))
+				assert.Len(t, inputs, tt.expectedCount)
 
 				// Check required status
 				for name, expectedReq := range tt.expectedReq {
