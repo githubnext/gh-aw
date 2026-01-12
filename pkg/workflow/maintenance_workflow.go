@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -42,10 +43,24 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 
 	// Check if any workflow uses expires field for discussions or issues
 	// and track the minimum expires value to determine schedule frequency
+	// Also check if maintenance is explicitly disabled
 	hasExpires := false
 	minExpires := 0 // Track minimum expires value in hours
+	maintenanceDisabled := false
+	var workflowsWithExpiresAndDisabledMaintenance []string
+
 	for _, workflowData := range workflowDataList {
 		if workflowData.SafeOutputs != nil {
+			// Check if maintenance is explicitly disabled for this workflow
+			if workflowData.SafeOutputs.Maintenance != nil && !*workflowData.SafeOutputs.Maintenance {
+				maintenanceDisabled = true
+				maintenanceLog.Printf("Workflow %s has maintenance explicitly disabled", workflowData.Name)
+			} else if workflowData.SafeOutputs.Maintenance == nil {
+				maintenanceLog.Printf("Workflow %s has maintenance field as nil (using default true)", workflowData.Name)
+			} else {
+				maintenanceLog.Printf("Workflow %s has maintenance set to true", workflowData.Name)
+			}
+
 			// Check for expired discussions
 			if workflowData.SafeOutputs.CreateDiscussions != nil {
 				if workflowData.SafeOutputs.CreateDiscussions.Expires > 0 {
@@ -54,6 +69,11 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 					maintenanceLog.Printf("Workflow %s has expires field set to %d hours for discussions", workflowData.Name, expires)
 					if minExpires == 0 || expires < minExpires {
 						minExpires = expires
+					}
+
+					// Track workflows with expires but maintenance disabled
+					if workflowData.SafeOutputs.Maintenance != nil && !*workflowData.SafeOutputs.Maintenance {
+						workflowsWithExpiresAndDisabledMaintenance = append(workflowsWithExpiresAndDisabledMaintenance, workflowData.Name)
 					}
 				}
 			}
@@ -66,13 +86,62 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 					if minExpires == 0 || expires < minExpires {
 						minExpires = expires
 					}
+
+					// Track workflows with expires but maintenance disabled
+					if workflowData.SafeOutputs.Maintenance != nil && !*workflowData.SafeOutputs.Maintenance {
+						// Only add if not already in the list
+						alreadyAdded := false
+						for _, name := range workflowsWithExpiresAndDisabledMaintenance {
+							if name == workflowData.Name {
+								alreadyAdded = true
+								break
+							}
+						}
+						if !alreadyAdded {
+							workflowsWithExpiresAndDisabledMaintenance = append(workflowsWithExpiresAndDisabledMaintenance, workflowData.Name)
+						}
+					}
 				}
 			}
 		}
 	}
 
+	// If maintenance is disabled for any workflow, skip generation, show warnings, and delete existing file
+	if maintenanceDisabled && hasExpires {
+		if len(workflowsWithExpiresAndDisabledMaintenance) > 0 {
+			for _, workflowName := range workflowsWithExpiresAndDisabledMaintenance {
+				fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
+					fmt.Sprintf("Workflow '%s' uses 'expires' field but has 'maintenance: false'. Expired items will not be automatically closed.", workflowName)))
+			}
+		}
+		maintenanceLog.Print("Maintenance workflow generation disabled by configuration")
+
+		// Delete existing maintenance workflow file if it exists
+		maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
+		if _, err := os.Stat(maintenanceFile); err == nil {
+			maintenanceLog.Printf("Deleting existing maintenance workflow: %s", maintenanceFile)
+			if err := os.Remove(maintenanceFile); err != nil {
+				return fmt.Errorf("failed to delete maintenance workflow: %w", err)
+			}
+			maintenanceLog.Print("Maintenance workflow deleted successfully")
+		}
+
+		return nil
+	}
+
 	if !hasExpires {
 		maintenanceLog.Print("No workflows use expires field, skipping maintenance workflow generation")
+
+		// Delete existing maintenance workflow file if it exists (no expires means no need for maintenance)
+		maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
+		if _, err := os.Stat(maintenanceFile); err == nil {
+			maintenanceLog.Printf("Deleting existing maintenance workflow: %s", maintenanceFile)
+			if err := os.Remove(maintenanceFile); err != nil {
+				return fmt.Errorf("failed to delete maintenance workflow: %w", err)
+			}
+			maintenanceLog.Print("Maintenance workflow deleted successfully")
+		}
+
 		return nil
 	}
 
