@@ -121,7 +121,7 @@ func TestInitRepository(t *testing.T) {
 			}
 
 			// Verify debug workflow prompt was created
-			debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug-agentic-workflow.md")
+			debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug.md")
 			if _, err := os.Stat(debugPromptPath); os.IsNotExist(err) {
 				t.Errorf("Expected debug workflow prompt file to exist")
 			}
@@ -198,9 +198,9 @@ func TestInitRepository_Idempotent(t *testing.T) {
 		t.Errorf("Expected update workflow prompt file to exist after second call")
 	}
 
-	debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug-agentic-workflow.md")
+	debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug.md")
 	if _, err := os.Stat(debugPromptPath); os.IsNotExist(err) {
-		t.Errorf("Expected debug agentic workflow agent file to exist after second call")
+		t.Errorf("Expected debug workflow prompt file to exist after second call")
 	}
 
 	// Verify logs .gitignore still exists after second call

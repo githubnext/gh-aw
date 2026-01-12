@@ -215,8 +215,8 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update shared workflow creation prompt: %v", err)))
 	}
 
-	// Update debug agentic workflow prompt
-	if err := ensureDebugAgenticWorkflowPrompt(verbose, false); err != nil {
+	// Update debug workflow prompt
+	if err := ensureDebugWorkflowPrompt(verbose, false); err != nil {
 		fixLog.Printf("Failed to update debug workflow prompt: %v", err)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update debug workflow prompt: %v", err)))
 	}

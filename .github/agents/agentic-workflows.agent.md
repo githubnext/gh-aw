@@ -13,7 +13,7 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 
 - **Creating new workflows**: Routes to `create` prompt
 - **Updating existing workflows**: Routes to `update` prompt
-- **Debugging workflows**: Routes to `debug-agentic-workflow` prompt  
+- **Debugging workflows**: Routes to `debug` prompt  
 - **Upgrading workflows**: Routes to `upgrade-agentic-workflows` prompt
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
 
@@ -61,10 +61,10 @@ When you interact with this agent, it will:
 - "Update the PR reviewer to use discussions instead of issues"
 - "Improve the prompt for the weekly-research workflow"
 
-### Debug Agentic Workflow  
+### Debug Workflow  
 **Load when**: User needs to troubleshoot a workflow, analyze logs, or fix errors
 
-**Prompt file**: `.github/aw/debug-agentic-workflow.md`
+**Prompt file**: `.github/aw/debug.md`
 
 **Use cases**:
 - "Why is this workflow failing?"

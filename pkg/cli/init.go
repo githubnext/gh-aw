@@ -106,9 +106,9 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		return fmt.Errorf("failed to cleanup legacy create-agentic-workflow.md: %w", err)
 	}
 
-	// Write debug agentic workflow prompt
-	initLog.Print("Writing debug agentic workflow prompt")
-	if err := ensureDebugAgenticWorkflowPrompt(verbose, false); err != nil {
+	// Write debug workflow prompt
+	initLog.Print("Writing debug workflow prompt")
+	if err := ensureDebugWorkflowPrompt(verbose, false); err != nil {
 		initLog.Printf("Failed to write debug workflow prompt: %v", err)
 		return fmt.Errorf("failed to write debug workflow prompt: %w", err)
 	}

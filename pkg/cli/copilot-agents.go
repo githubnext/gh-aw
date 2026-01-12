@@ -209,12 +209,12 @@ func ensureCreateSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool
 	)
 }
 
-// ensureDebugAgenticWorkflowPrompt ensures that .github/aw/debug-agentic-workflow.md contains the debug workflow prompt
-func ensureDebugAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
+// ensureDebugWorkflowPrompt ensures that .github/aw/debug.md contains the debug workflow prompt
+func ensureDebugWorkflowPrompt(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"debug-agentic-workflow.md",
-		debugAgenticWorkflowPromptTemplate,
+		"debug.md",
+		debugWorkflowPromptTemplate,
 		"debug workflow prompt",
 		verbose,
 		skipInstructions,

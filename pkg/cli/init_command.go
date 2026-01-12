@@ -25,7 +25,7 @@ This command:
 - Creates workflow creation prompt at .github/aw/create.md (for new workflows)
 - Creates workflow update prompt at .github/aw/update.md (for updating existing workflows)
 - Creates shared workflow creation prompt at .github/aw/create-shared-agentic-workflow.md
-- Creates debug workflow prompt at .github/aw/debug-agentic-workflow.md
+- Creates debug workflow prompt at .github/aw/debug.md
 - Creates upgrade workflow prompt at .github/aw/upgrade-agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
