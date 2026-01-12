@@ -806,7 +806,8 @@ jobs:
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
+        # Copilot CLI tool arguments:
+        # --allow-all-tools (yolo mode: all tools enabled)
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -1174,14 +1175,8 @@ jobs:
           copilot --version
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
+        # Copilot CLI tool arguments:
+        # --allow-all-tools (yolo mode: all tools enabled)
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -1190,7 +1185,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

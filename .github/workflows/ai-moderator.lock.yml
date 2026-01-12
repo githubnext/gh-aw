@@ -776,7 +776,8 @@ jobs:
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
+        # Copilot CLI tool arguments:
+        # --allow-all-tools (yolo mode: all tools enabled)
         timeout-minutes: 5
         run: |
           set -o pipefail
