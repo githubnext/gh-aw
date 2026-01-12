@@ -73,9 +73,10 @@ function parseProjectUrl(projectUrl) {
 /**
  * List accessible Projects v2 for org or user
  * @param {{ scope: string, ownerLogin: string, projectNumber: string }} projectInfo - Project info
+ * @param {number} [retries=2] - Number of retries for transient errors
  * @returns {Promise<{ nodes: Array<{ id: string, number: number, title: string, closed?: boolean, url: string }>, totalCount?: number, diagnostics: { rawNodesCount: number, nullNodesCount: number, rawEdgesCount: number, nullEdgeNodesCount: number } }>} List result
  */
-async function listAccessibleProjectsV2(projectInfo) {
+async function listAccessibleProjectsV2(projectInfo, retries = 2) {
   const baseQuery = `projectsV2(first: 100) {
     totalCount
     nodes {
@@ -100,22 +101,48 @@ async function listAccessibleProjectsV2(projectInfo) {
       }
     }`;
 
-  const result = await github.graphql(query, { login: projectInfo.ownerLogin });
-  const conn = projectInfo.scope === "orgs" ? result?.organization?.projectsV2 : result?.user?.projectsV2;
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      if (attempt > 0) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        core.info(`Retrying projectsV2 list query (attempt ${attempt + 1}/${retries + 1}) after ${delay}ms delay...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
 
-  const rawNodes = Array.isArray(conn?.nodes) ? conn.nodes : [];
-  const nodes = rawNodes.filter(Boolean);
+      const result = await github.graphql(query, { login: projectInfo.ownerLogin });
+      const conn = projectInfo.scope === "orgs" ? result?.organization?.projectsV2 : result?.user?.projectsV2;
 
-  return {
-    nodes: nodes,
-    totalCount: conn?.totalCount,
-    diagnostics: {
-      rawNodesCount: rawNodes.length,
-      nullNodesCount: rawNodes.length - nodes.length,
-      rawEdgesCount: 0,
-      nullEdgeNodesCount: 0,
-    },
-  };
+      const rawNodes = Array.isArray(conn?.nodes) ? conn.nodes : [];
+      const nodes = rawNodes.filter(Boolean);
+
+      return {
+        nodes: nodes,
+        totalCount: conn?.totalCount,
+        diagnostics: {
+          rawNodesCount: rawNodes.length,
+          nullNodesCount: rawNodes.length - nodes.length,
+          rawEdgesCount: 0,
+          nullEdgeNodesCount: 0,
+        },
+      };
+    } catch (error) {
+      lastError = error;
+      const errorMsg = getErrorMessage(error);
+
+      // Check if this is a transient error (internal server error, timeout, etc.)
+      const isTransient = errorMsg.includes("Something went wrong") || errorMsg.includes("internal error") || errorMsg.includes("timeout") || errorMsg.includes("temporarily unavailable");
+
+      if (!isTransient || attempt === retries) {
+        // Not transient or out of retries
+        throw error;
+      }
+
+      core.warning(`Transient error listing projects (attempt ${attempt + 1}/${retries + 1}): ${errorMsg}`);
+    }
+  }
+
+  throw lastError;
 }
 
 /**
@@ -200,7 +227,27 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
     core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${getErrorMessage(error)}`);
   }
 
-  const list = await listAccessibleProjectsV2(projectInfo);
+  let list;
+  try {
+    list = await listAccessibleProjectsV2(projectInfo);
+  } catch (listError) {
+    const listErrorMsg = getErrorMessage(listError);
+    const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
+
+    // Provide helpful error message based on the failure
+    if (listErrorMsg.includes("Something went wrong") || listErrorMsg.includes("internal error")) {
+      throw new Error(
+        `Project #${projectNumberInt} could not be resolved for ${who}. ` +
+          `The direct query failed, and the fallback list query encountered a GitHub API internal error. ` +
+          `This may be a transient issue. Please verify: (1) the project number is correct, ` +
+          `(2) the project exists and is a Projects v2 (not classic), and ` +
+          `(3) the token has proper permissions (requires 'project' scope and org access). ` +
+          `Original error: ${listErrorMsg}`
+      );
+    }
+    throw listError;
+  }
+
   const nodes = Array.isArray(list.nodes) ? list.nodes : [];
   const found = nodes.find(p => p && typeof p.number === "number" && p.number === projectNumberInt);
 
