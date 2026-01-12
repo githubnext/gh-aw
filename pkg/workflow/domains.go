@@ -229,7 +229,7 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	}
 
 	domains := []string{}
-	
+
 	// Iterate through tools to find HTTP MCP servers
 	for toolName, toolConfig := range tools {
 		configMap, ok := toolConfig.(map[string]any)
@@ -240,10 +240,10 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 		// Check if this is an HTTP MCP server
 		mcpType, hasType := configMap["type"].(string)
 		url, hasURL := configMap["url"].(string)
-		
+
 		// HTTP MCP servers have either type: http or just a url field
 		isHTTPMCP := (hasType && mcpType == "http") || (!hasType && hasURL)
-		
+
 		if isHTTPMCP && hasURL {
 			// Extract domain from URL (e.g., "https://mcp.tavily.com/mcp/" -> "mcp.tavily.com")
 			domain := extractDomainFromURL(url)
@@ -266,7 +266,7 @@ func extractDomainFromURL(urlStr string) string {
 	// Remove protocol if present
 	urlStr = strings.TrimPrefix(urlStr, "https://")
 	urlStr = strings.TrimPrefix(urlStr, "http://")
-	
+
 	// Remove port and path
 	if idx := strings.Index(urlStr, ":"); idx != -1 {
 		urlStr = urlStr[:idx]
@@ -274,7 +274,7 @@ func extractDomainFromURL(urlStr string) string {
 	if idx := strings.Index(urlStr, "/"); idx != -1 {
 		urlStr = urlStr[:idx]
 	}
-	
+
 	return strings.TrimSpace(urlStr)
 }
 
