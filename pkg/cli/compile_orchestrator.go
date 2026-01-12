@@ -288,7 +288,8 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 			// Resolve the workflow file to get the full path
 			resolvedFile, err := resolveWorkflowFile(config.MarkdownFiles[0], config.Verbose)
 			if err != nil {
-				return nil, fmt.Errorf("failed to resolve workflow '%s': %w", config.MarkdownFiles[0], err)
+				// Return error directly without wrapping - it already contains formatted message with suggestions
+				return nil, err
 			}
 			markdownFile = resolvedFile
 		}

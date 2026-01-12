@@ -69,7 +69,8 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		// For local workflows, use existing local validation
 		workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to resolve workflow: %w", err)
+			// Return error directly without wrapping - it already contains formatted message with suggestions
+			return err
 		}
 
 		// Check if the workflow is runnable (has workflow_dispatch trigger)
@@ -549,7 +550,8 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 			// For local workflows, use existing local validation
 			workflowFile, err := resolveWorkflowFile(workflowName, verbose)
 			if err != nil {
-				return fmt.Errorf("failed to resolve workflow '%s': %w", workflowName, err)
+				// Return error directly without wrapping - it already contains formatted message with suggestions
+				return err
 			}
 
 			runnable, err := IsRunnable(workflowFile)
