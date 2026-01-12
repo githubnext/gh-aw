@@ -69,7 +69,7 @@ Test safe-inputs stdio transport for Codex
 
 	// Should use stdio transport (container + entrypoint + entrypointArgs)
 	codexConfigSection := extractCodexConfigSection(yamlStr)
-	
+
 	// Check for containerized stdio transport pattern (like safeoutputs)
 	if !strings.Contains(codexConfigSection, `container = "node:lts-alpine"`) {
 		t.Error("Expected container field for stdio transport not found in TOML format")

@@ -67,15 +67,15 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	// Collect environment variables needed by safe-inputs tools
 	envVars := getSafeInputsEnvVars(safeInputs)
-	
+
 	// Add standard environment variables for safe-inputs
 	standardEnvVars := []string{
 		"GH_AW_MCP_LOG_DIR",
 	}
-	
+
 	// Combine and deduplicate env vars
 	allEnvVars := append(standardEnvVars, envVars...)
-	
+
 	// Use MCP Gateway spec format with container, entrypoint, entrypointArgs, and mounts
 	// This will be transformed to Docker command by getMCPConfig transformation logic
 	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")

@@ -372,18 +372,17 @@ jobs:
           EOF_TOOLS_JSON
           cat > /opt/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
             const path = require("path");
-            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+            const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
             const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
-            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
-            startHttpServer(configPath, {
-              port: port,
-              stateless: false,
-              logDir: "/opt/gh-aw/safe-inputs/logs"
-            }).catch(error => {
-              console.error("Failed to start safe-inputs HTTP server:", error);
+            try {
+              startSafeInputsServer(configPath, {
+                logDir: "/opt/gh-aw/safe-inputs/logs",
+                skipCleanup: false
+              });
+            } catch (error) {
+              console.error("Failed to start safe-inputs stdio server:", error.message || error);
               process.exit(1);
-            });
+            }
           EOFSI
           chmod +x /opt/gh-aw/safe-inputs/mcp-server.cjs
           
@@ -462,10 +461,15 @@ jobs:
           {
             "mcpServers": {
               "safeinputs": {
-                "type": "http",
-                "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
-                "headers": {
-                  "Authorization": "\${GH_AW_SAFE_INPUTS_API_KEY}"
+                "type": "stdio",
+                "container": "node:lts-alpine",
+                "entrypoint": "node",
+                "entrypointArgs": ["/opt/gh-aw/safe-inputs/mcp-server.cjs"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
+                "env": {
+                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
+                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
+                  "GH_DEBUG": "\${GH_DEBUG}"
                 }
               },
               "safeoutputs": {

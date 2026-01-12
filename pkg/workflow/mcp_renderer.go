@@ -270,12 +270,12 @@ func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, s
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safe-inputs/mcp-server.cjs\"]\n")
 	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"]\n")
-	
+
 	// Build environment variables list
 	envVars := getSafeInputsEnvVars(safeInputs)
 	standardEnvVars := []string{"GH_AW_MCP_LOG_DIR"}
 	allEnvVars := append(standardEnvVars, envVars...)
-	
+
 	// Render env_vars array
 	yaml.WriteString("          env_vars = [")
 	for i, envVar := range allEnvVars {
