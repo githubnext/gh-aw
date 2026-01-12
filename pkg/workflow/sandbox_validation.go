@@ -67,9 +67,13 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 
 	sandboxConfig := workflowData.SandboxConfig
 
-	// Check if sandbox.agent: false was specified (now unsupported)
+	// Check if sandbox: false or sandbox.agent: false was specified
+	// In non-strict mode, this is allowed (with a warning shown at compile time)
+	// The strict mode check happens in validateStrictFirewall()
 	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
-		return fmt.Errorf("'sandbox.agent: false' is no longer supported. The agent sandbox is now mandatory and defaults to 'awf'. To migrate this workflow, remove the 'sandbox.agent: false' line. Use 'gh aw fix' to automatically update workflows")
+		// sandbox: false is allowed in non-strict mode, so we don't error here
+		// The warning is emitted in compiler.go
+		sandboxValidationLog.Print("sandbox: false detected, will be validated by strict mode check")
 	}
 
 	// Validate mounts syntax if specified in agent config

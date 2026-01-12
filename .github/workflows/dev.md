@@ -9,12 +9,17 @@ on:
 name: Dev
 description: Read an issue and post a poem about it
 timeout-minutes: 5
-strict: true
+strict: false
+sandbox: false
 engine: copilot
 
 permissions:
   contents: read
   issues: read
+
+network:
+  allowed:
+    - "*"
 
 tools:
   github:
