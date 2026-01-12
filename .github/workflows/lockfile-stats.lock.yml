@@ -51,16 +51,19 @@ jobs:
       comment_id: ""
       comment_repo: ""
     steps:
-      - name: Checkout actions folder
+      - name: Checkout actions source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          repository: githubnext/gh-aw
           sparse-checkout: |
             actions
+          path: /tmp/gh-aw/actions-source
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: /opt/gh-aw/actions
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
@@ -96,16 +99,19 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
-      - name: Checkout actions folder
+      - name: Checkout actions source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          repository: githubnext/gh-aw
           sparse-checkout: |
             actions
+          path: /tmp/gh-aw/actions-source
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: /opt/gh-aw/actions
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -1194,16 +1200,19 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
-      - name: Checkout actions folder
+      - name: Checkout actions source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          repository: githubnext/gh-aw
           sparse-checkout: |
             actions
+          path: /tmp/gh-aw/actions-source
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: /opt/gh-aw/actions
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -1298,16 +1307,19 @@ jobs:
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
-      - name: Checkout actions folder
+      - name: Checkout actions source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          repository: githubnext/gh-aw
           sparse-checkout: |
             actions
+          path: /tmp/gh-aw/actions-source
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: /opt/gh-aw/actions
       - name: Download agent artifacts
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -1468,16 +1480,19 @@ jobs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
-      - name: Checkout actions folder
+      - name: Checkout actions source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          repository: githubnext/gh-aw
           sparse-checkout: |
             actions
+          path: /tmp/gh-aw/actions-source
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: /opt/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -1512,16 +1527,19 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout actions folder
+      - name: Checkout actions source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          repository: githubnext/gh-aw
           sparse-checkout: |
             actions
+          path: /tmp/gh-aw/actions-source
           persist-credentials: false
       - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
+        run: |
+          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: /opt/gh-aw/actions
       - name: Download cache-memory artifact (default)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         continue-on-error: true

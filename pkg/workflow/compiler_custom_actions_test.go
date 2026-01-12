@@ -393,17 +393,22 @@ Test workflow with script mode.
 		t.Error("Expected 'path: /tmp/gh-aw/actions-source' in checkout step for script mode")
 	}
 
-	// 3. Setup step should run bash script instead of using "uses:"
+	// 3. Checkout should use shallow clone (depth: 1)
+	if !strings.Contains(lockStr, "depth: 1") {
+		t.Error("Expected 'depth: 1' in checkout step for script mode (shallow checkout)")
+	}
+
+	// 4. Setup step should run bash script instead of using "uses:"
 	if !strings.Contains(lockStr, "bash /tmp/gh-aw/actions-source/actions/setup/setup.sh") {
 		t.Error("Expected setup script to run bash directly in script mode")
 	}
 
-	// 4. Setup step should have INPUT_DESTINATION environment variable
+	// 5. Setup step should have INPUT_DESTINATION environment variable
 	if !strings.Contains(lockStr, "INPUT_DESTINATION: /opt/gh-aw/actions") {
 		t.Error("Expected INPUT_DESTINATION environment variable in setup step for script mode")
 	}
 
-	// 5. Should not use "uses:" for setup action in script mode
+	// 6. Should not use "uses:" for setup action in script mode
 	setupActionPattern := "uses: ./actions/setup"
 	if strings.Contains(lockStr, setupActionPattern) {
 		t.Error("Expected script mode to NOT use 'uses: ./actions/setup' but instead run bash script directly")
