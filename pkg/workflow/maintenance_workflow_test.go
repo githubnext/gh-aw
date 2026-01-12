@@ -249,3 +249,105 @@ func TestGenerateMaintenanceWorkflow_MaintenanceFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
+	tests := []struct {
+		name             string
+		workflowDataList []*WorkflowData
+		createFileBefore bool
+		expectFileExists bool
+	}{
+		{
+			name: "maintenance: false with expires - should delete existing file",
+			workflowDataList: []*WorkflowData{
+				{
+					Name: "test-workflow",
+					SafeOutputs: &SafeOutputsConfig{
+						CreateDiscussions: &CreateDiscussionsConfig{
+							Expires: 168,
+						},
+						Maintenance: boolPtr(false),
+					},
+				},
+			},
+			createFileBefore: true,
+			expectFileExists: false,
+		},
+		{
+			name: "no expires field - should delete existing file",
+			workflowDataList: []*WorkflowData{
+				{
+					Name: "test-workflow",
+					SafeOutputs: &SafeOutputsConfig{
+						CreateDiscussions: &CreateDiscussionsConfig{},
+					},
+				},
+			},
+			createFileBefore: true,
+			expectFileExists: false,
+		},
+		{
+			name: "maintenance: true (default) with expires - should create file",
+			workflowDataList: []*WorkflowData{
+				{
+					Name: "test-workflow",
+					SafeOutputs: &SafeOutputsConfig{
+						CreateDiscussions: &CreateDiscussionsConfig{
+							Expires: 168,
+						},
+					},
+				},
+			},
+			createFileBefore: false,
+			expectFileExists: true,
+		},
+		{
+			name: "maintenance: false without existing file - should not error",
+			workflowDataList: []*WorkflowData{
+				{
+					Name: "test-workflow",
+					SafeOutputs: &SafeOutputsConfig{
+						CreateDiscussions: &CreateDiscussionsConfig{
+							Expires: 168,
+						},
+						Maintenance: boolPtr(false),
+					},
+				},
+			},
+			createFileBefore: false,
+			expectFileExists: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			maintenanceFile := filepath.Join(tmpDir, "agentics-maintenance.yml")
+
+			// Create the maintenance file if requested
+			if tt.createFileBefore {
+				err := os.WriteFile(maintenanceFile, []byte("# Existing maintenance workflow\n"), 0644)
+				if err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+			}
+
+			// Call GenerateMaintenanceWorkflow
+			err := GenerateMaintenanceWorkflow(tt.workflowDataList, tmpDir, "v1.0.0", ActionModeDev, false)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Check if file exists
+			_, statErr := os.Stat(maintenanceFile)
+			fileExists := statErr == nil
+
+			if tt.expectFileExists && !fileExists {
+				t.Errorf("Expected maintenance workflow file to exist but it does not")
+			}
+			if !tt.expectFileExists && fileExists {
+				t.Errorf("Expected maintenance workflow file NOT to exist but it does")
+			}
+		})
+	}
+}
