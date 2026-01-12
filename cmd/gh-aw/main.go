@@ -626,7 +626,14 @@ func main() {
 	workflow.SetIsRelease(isRelease == "true")
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+		errMsg := err.Error()
+		// Check if error is already formatted (contains suggestions or starts with ✗)
+		// to avoid double formatting with FormatErrorMessage
+		if strings.Contains(errMsg, "Suggestions:") || strings.HasPrefix(errMsg, "✗") {
+			fmt.Fprintln(os.Stderr, errMsg)
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		}
 		os.Exit(1)
 	}
 }
