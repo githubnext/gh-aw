@@ -165,3 +165,5 @@ test-inline-*.lock.yml
 conclusion/
 detection/
 
+test-script-mode.md
+test-script-mode.lock.yml
