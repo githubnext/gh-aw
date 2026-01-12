@@ -174,8 +174,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Get allowed domains (Codex defaults + network permissions)
-		allowedDomains := GetCodexAllowedDomains(workflowData.NetworkPermissions)
+		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs)
+		allowedDomains := GetCodexAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string

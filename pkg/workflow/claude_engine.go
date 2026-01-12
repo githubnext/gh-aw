@@ -253,11 +253,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Check if safe-inputs is enabled to include host.docker.internal in allowed domains
-		hasSafeInputs := IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
-
-		// Get allowed domains (Claude defaults + network permissions + host.docker.internal if safe-inputs enabled)
-		allowedDomains := GetClaudeAllowedDomainsWithSafeInputs(workflowData.NetworkPermissions, hasSafeInputs)
+		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs)
+		allowedDomains := GetClaudeAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
