@@ -11,7 +11,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: copilot
+engine: claude
 tools:
   github:
     toolsets: [default]
