@@ -821,15 +821,14 @@ Related to #123
 **Purpose**: Updates existing GitHub issues (title, body, or status).
 
 **Message Patterns Used**:
-- AI Attribution Footer (for body updates with append/prepend/replace-island modes)
+- AI Attribution Footer (for all body update operations)
 - Staged Mode Preview
 - Success Summary
 
 **Key Features**:
 - Selective field updates (status, title, body)
 - Permission-based restrictions
-- AI footer added by default for body updates (append mode)
-- Footer can be omitted using replace operation
+- AI footer added for all body operations (append, prepend, replace, replace-island)
 
 ## Design Patterns
 

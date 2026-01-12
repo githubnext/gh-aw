@@ -78,9 +78,9 @@ function updateBody(params) {
   const aiFooter = buildAIFooter(workflowName, runUrl);
 
   if (operation === "replace") {
-    // Replace: just use the new content as-is
-    core.info("Operation: replace (full body replacement)");
-    return newContent;
+    // Replace: use new content with AI footer
+    core.info("Operation: replace (full body replacement with footer)");
+    return newContent + aiFooter;
   }
 
   if (operation === "replace-island") {

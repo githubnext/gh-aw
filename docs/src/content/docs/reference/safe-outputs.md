@@ -220,7 +220,7 @@ When using `target: "*"`, the agent must provide `issue_number` or `item_number`
 **Operation Types** (for body updates):
 - `append` (default): Adds content to the end with separator and attribution
 - `prepend`: Adds content to the start with separator and attribution
-- `replace`: Completely replaces existing body without attribution
+- `replace`: Completely replaces existing body with new content and attribution
 - `replace-island`: Updates a specific section marked with HTML comments
 
 Agent output format: `{"type": "update_issue", "issue_number": 123, "operation": "append", "body": "..."}`. The `operation` field is optional (defaults to `append`).
@@ -246,7 +246,7 @@ When using `target: "*"`, the agent must provide `pull_request_number` in the ou
 **Operation Types**:
 - `append` (default): Adds content to the end with separator and attribution
 - `prepend`: Adds content to the start with separator and attribution
-- `replace`: Completely replaces existing body
+- `replace`: Completely replaces existing body with new content and attribution
 
 Title updates always replace the existing title. Disable fields by setting to `false`.
 
