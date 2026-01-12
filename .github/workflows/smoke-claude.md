@@ -28,7 +28,7 @@ network:
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"
-    version: v0.0.26
+    version: v0.0.33
 tools:
   cache-memory: true
   github:
