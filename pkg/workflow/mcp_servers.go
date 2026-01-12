@@ -691,8 +691,14 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 
 // buildMCPGatewayConfig builds the gateway configuration for inclusion in MCP config files
 // Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required with port and domain
+// Returns nil if sandbox is disabled (sandbox: false) to skip gateway completely
 func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
 	if workflowData == nil {
+		return nil
+	}
+
+	// If sandbox is disabled, skip gateway configuration entirely
+	if isSandboxDisabled(workflowData) {
 		return nil
 	}
 
@@ -798,6 +804,15 @@ func hasGitHubLockdownExplicitlySet(githubTool any) bool {
 		return exists
 	}
 	return false
+}
+
+// isSandboxDisabled checks if sandbox features are completely disabled (sandbox: false)
+func isSandboxDisabled(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.SandboxConfig == nil {
+		return false
+	}
+	// Check if sandbox was explicitly disabled via sandbox: false
+	return workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled
 }
 
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
