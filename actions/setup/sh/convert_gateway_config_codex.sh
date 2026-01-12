@@ -41,11 +41,10 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 #
 # [mcp_servers.server-name]
 # url = "http://domain:port/mcp/server-name"
-#
-# [mcp_servers.server-name.headers]
-# Authorization = "apiKey"
+# http_headers = { Authorization = "apiKey" }
 #
 # Note: Codex doesn't use "type" or "tools" fields
+# Note: Codex uses http_headers as an inline table, not a separate section
 
 # Create the TOML configuration
 cat > /tmp/gh-aw/mcp-config/config.toml << 'TOML_EOF'
@@ -58,9 +57,7 @@ jq -r '
   .mcpServers | to_entries[] | 
   "[mcp_servers.\(.key)]\n" +
   "url = \"\(.value.url)\"\n" +
-  "\n" +
-  "[mcp_servers.\(.key).headers]\n" +
-  "Authorization = \"\(.value.headers.Authorization)\"\n"
+  "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
