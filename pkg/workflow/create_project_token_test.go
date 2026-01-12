@@ -28,15 +28,15 @@ func TestCreateProjectGitHubTokenEnvVar(t *testing.T) {
 			expectedTokenValue:  "github-token: ${{ secrets.PROJECTS_PAT }}",
 		},
 		{
-			name: "create-project without custom github-token (uses default fallback)",
+			name: "create-project without custom github-token (uses GH_AW_PROJECT_GITHUB_TOKEN)",
 			frontmatter: map[string]any{
 				"name": "Test Workflow",
 				"safe-outputs": map[string]any{
 					"create-project": nil,
 				},
 			},
-			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
-			expectedTokenValue:  "github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			expectedTokenValue:  "github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		},
 		{
 			name: "create-project with top-level github-token",
