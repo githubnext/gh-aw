@@ -241,8 +241,14 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 
 // applySandboxDefaults applies default values to sandbox configuration
 // If no sandbox config exists, creates one with awf as default agent
-// If sandbox config exists but has no agent, sets agent to awf (unless using legacy Type field)
+// If sandbox config exists but has no agent, sets agent to awf (unless using legacy Type field or sandbox: false)
 func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConfig) *SandboxConfig {
+	// If sandbox is explicitly disabled (sandbox: false), preserve that setting
+	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		sandboxLog.Print("Sandbox explicitly disabled with sandbox: false, preserving disabled state")
+		return sandboxConfig
+	}
+
 	// If no sandbox config exists, create one with awf as default
 	if sandboxConfig == nil {
 		sandboxLog.Print("No sandbox config found, creating default with agent: awf")

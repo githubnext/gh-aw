@@ -2110,6 +2110,10 @@
       "description": "Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox Runtime) and MCP gateway.",
       "oneOf": [
         {
+          "type": "boolean",
+          "description": "Set to false to completely disable sandbox features (firewall and gateway). Warning: This removes important security protections and should only be used in controlled environments. Not allowed in strict mode."
+        },
+        {
           "type": "string",
           "enum": ["default", "sandbox-runtime", "awf", "srt"],
           "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent Workflow Firewall"
