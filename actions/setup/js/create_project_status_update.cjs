@@ -11,30 +11,6 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_project_status_update";
 
-// Retry configuration constants
-const INITIAL_RETRY_DELAY_MS = 1000;
-const BACKOFF_MULTIPLIER = 2;
-const MAX_RETRY_DELAY_MS = 5000;
-
-/**
- * Check if an error message indicates a transient issue that should be retried
- * @param {string} errorMsg - Error message to check
- * @returns {boolean} True if the error appears transient
- */
-function isTransientError(errorMsg) {
-  const lowerMsg = errorMsg.toLowerCase();
-  return (
-    lowerMsg.includes("something went wrong") ||
-    lowerMsg.includes("internal error") ||
-    lowerMsg.includes("internal server error") ||
-    lowerMsg.includes("timeout") ||
-    lowerMsg.includes("temporarily unavailable") ||
-    lowerMsg.includes("service unavailable") ||
-    lowerMsg.includes("gateway timeout") ||
-    /\b5\d{2}\b/.test(lowerMsg) // 5xx HTTP status codes (word boundaries to avoid false positives)
-  );
-}
-
 /**
  * Log detailed GraphQL error information
  * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} error - GraphQL error
@@ -97,10 +73,9 @@ function parseProjectUrl(projectUrl) {
 /**
  * List accessible Projects v2 for org or user
  * @param {{ scope: string, ownerLogin: string, projectNumber: string }} projectInfo - Project info
- * @param {number} [retries=2] - Number of retries for transient errors
  * @returns {Promise<{ nodes: Array<{ id: string, number: number, title: string, closed?: boolean, url: string }>, totalCount?: number, diagnostics: { rawNodesCount: number, nullNodesCount: number, rawEdgesCount: number, nullEdgeNodesCount: number } }>} List result
  */
-async function listAccessibleProjectsV2(projectInfo, retries = 2) {
+async function listAccessibleProjectsV2(projectInfo) {
   const baseQuery = `projectsV2(first: 100) {
     totalCount
     nodes {
@@ -125,46 +100,22 @@ async function listAccessibleProjectsV2(projectInfo, retries = 2) {
       }
     }`;
 
-  let lastError;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      if (attempt > 0) {
-        const delay = Math.min(INITIAL_RETRY_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt - 1), MAX_RETRY_DELAY_MS);
-        core.info(`Retrying projectsV2 list query (attempt ${attempt + 1}/${retries + 1}) after ${delay}ms delay...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+  const result = await github.graphql(query, { login: projectInfo.ownerLogin });
+  const conn = projectInfo.scope === "orgs" ? result?.organization?.projectsV2 : result?.user?.projectsV2;
 
-      const result = await github.graphql(query, { login: projectInfo.ownerLogin });
-      const conn = projectInfo.scope === "orgs" ? result?.organization?.projectsV2 : result?.user?.projectsV2;
+  const rawNodes = Array.isArray(conn?.nodes) ? conn.nodes : [];
+  const nodes = rawNodes.filter(Boolean);
 
-      const rawNodes = Array.isArray(conn?.nodes) ? conn.nodes : [];
-      const nodes = rawNodes.filter(Boolean);
-
-      return {
-        nodes: nodes,
-        totalCount: conn?.totalCount,
-        diagnostics: {
-          rawNodesCount: rawNodes.length,
-          nullNodesCount: rawNodes.length - nodes.length,
-          rawEdgesCount: 0,
-          nullEdgeNodesCount: 0,
-        },
-      };
-    } catch (error) {
-      lastError = error;
-      const errorMsg = getErrorMessage(error);
-
-      // Check if this is a transient error (internal server error, timeout, etc.)
-      if (!isTransientError(errorMsg) || attempt === retries) {
-        // Not transient or out of retries
-        throw error;
-      }
-
-      core.warning(`Transient error listing projects (attempt ${attempt + 1}/${retries + 1}): ${errorMsg}`);
-    }
-  }
-
-  throw lastError;
+  return {
+    nodes: nodes,
+    totalCount: conn?.totalCount,
+    diagnostics: {
+      rawNodesCount: rawNodes.length,
+      nullNodesCount: rawNodes.length - nodes.length,
+      rawEdgesCount: 0,
+      nullEdgeNodesCount: 0,
+    },
+  };
 }
 
 /**
@@ -249,27 +200,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
     core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${getErrorMessage(error)}`);
   }
 
-  let list;
-  try {
-    list = await listAccessibleProjectsV2(projectInfo);
-  } catch (listError) {
-    const listErrorMsg = getErrorMessage(listError);
-    const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
-
-    // Provide helpful error message based on the failure
-    if (isTransientError(listErrorMsg)) {
-      throw new Error(
-        `Project #${projectNumberInt} could not be resolved for ${who}. ` +
-          `The direct query failed, and the fallback list query encountered a GitHub API internal error. ` +
-          `This may be a transient issue. Please verify: (1) the project number is correct, ` +
-          `(2) the project exists and is a Projects v2 (not classic), and ` +
-          `(3) the token has proper permissions (requires 'project' scope and org access). ` +
-          `Original error: ${listErrorMsg}`
-      );
-    }
-    throw listError;
-  }
-
+  const list = await listAccessibleProjectsV2(projectInfo);
   const nodes = Array.isArray(list.nodes) ? list.nodes : [];
   const found = nodes.find(p => p && typeof p.number === "number" && p.number === projectNumberInt);
 
