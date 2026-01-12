@@ -117,7 +117,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	// Script mode: checkout .github folder from githubnext/gh-aw to /tmp/gh-aw/actions-source/
 	if c.actionMode.IsScript() {
 		return []string{
-			"      - name: Checkout actions source\n",
+			"      - name: Checkout actions folder\n",
 			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
 			"        with:\n",
 			"          repository: githubnext/gh-aw\n",
