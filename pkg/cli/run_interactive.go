@@ -222,8 +222,6 @@ func showWorkflowInfo(wf *WorkflowOption) {
 			}
 			fmt.Fprintf(os.Stderr, "  • %s%s%s%s\n", name, required, desc, defaultVal)
 		}
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  No inputs required"))
 	}
 	fmt.Fprintln(os.Stderr, "")
 }
