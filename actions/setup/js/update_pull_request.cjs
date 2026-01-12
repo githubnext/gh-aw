@@ -112,10 +112,10 @@ function buildPRUpdateData(item, config) {
 
   if (canUpdateBody && item.body !== undefined) {
     // Store operation information
-    if (item.operation !== undefined) {
-      updateData._operation = item.operation;
-      updateData._rawBody = item.body;
-    }
+    // Use operation from item, or fall back to config default, or use "replace" as final default
+    const operation = item.operation || config.default_operation || "replace";
+    updateData._operation = operation;
+    updateData._rawBody = item.body;
     updateData.body = item.body;
     hasUpdates = true;
   }
