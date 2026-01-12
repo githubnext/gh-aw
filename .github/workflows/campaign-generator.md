@@ -269,7 +269,7 @@ Agents in this campaign should:
 
 **Create the file** in the repository at the specified path.
 
-### Step 5: Update Issue with Campaign Details
+### Step 5: Update Issue with Campaign Details and Instructions
 
 Use the `update-issue` safe output to update issue #${{ github.event.issue.number }}:
 
@@ -278,7 +278,7 @@ Use the `update-issue` safe output to update issue #${{ github.event.issue.numbe
 <campaign-name>
 ```
 
-**Update the body** with formatted campaign information:
+**Update the body** with formatted campaign information AND compilation instructions for the Copilot Coding Agent:
 ```markdown
 > **Original Request**
 >
@@ -324,15 +324,11 @@ Use the `update-issue` safe output to update issue #${{ github.event.issue.numbe
 
 ---
 
-## 🚀 Next Steps
+## 🤖 Instructions for Copilot Coding Agent
 
-1. ✅ Project board created
-2. 🔄 Campaign specification generated
-3. ⏳ Awaiting compilation and PR creation
-4. 👀 Review and approve PR
-5. 🎉 Merge to activate campaign
+The campaign specification file has been created at `.github/workflows/<campaign-id>.campaign.md`.
 
-**Status:** Campaign specification created. Copilot agent will compile and create PR shortly.
+**Your task:** Run `gh aw compile <campaign-id>` to compile the campaign
 ```
 
 ### Step 6: Post Progress Comment
@@ -342,16 +338,16 @@ Use `add-comment` to inform the user:
 ```markdown
 ✅ **Campaign Specification Created!**
 
-I've generated the campaign specification and am now compiling it.
+I've generated the campaign specification and assigned the Copilot Coding Agent to compile it.
 
 📁 **File Created:**
 - `.github/workflows/<campaign-id>.campaign.md`
 
 🔄 **Next Steps:**
-1. Compiling campaign using `gh aw compile`
-2. Creating pull request with all files
+1. Copilot Coding Agent will compile the campaign using `gh aw compile`
+2. The agent will create a pull request with compiled files
 
-**Estimated time:** Copilot Coding Agent will compile in 1-2 minutes
+**Estimated time:** 1-2 minutes
 ```
 
 ### Step 7: Assign to Copilot Coding Agent for Compilation
@@ -364,30 +360,12 @@ Use the `assign-to-agent` safe output to assign a Copilot Coding Agent session t
 - GitHub Actions runners (where this workflow runs) don't have gh-aw CLI
 - This two-phase pattern is an architectural necessity
 
-**Agent task:**
-The Copilot Coding Agent will:
-1. Compile campaign using `gh aw compile <campaign-id>`
-2. Commit all files (spec + generated `.g.md` and `.lock.yml`)
-3. Create PR with campaign files
+**The agent will:**
+1. Read the instructions in the issue body
+2. Compile the campaign using `gh aw compile <campaign-id>`
+3. Create a PR with the compiled files
 
-**Context to pass:**
-- Campaign ID: `<campaign-id>`
-- Campaign file path: `.github/workflows/<campaign-id>.campaign.md`
-- Project URL: `<project-url>`
-- Issue number: `${{ github.event.issue.number }}`
-
-**Files created:**
-- `.github/workflows/<campaign-id>.campaign.md`
-- `.github/workflows/<campaign-id>.campaign.g.md`
-- `.github/workflows/<campaign-id>.campaign.lock.yml`
-
-**Next steps:**
-1. Review the PR
-2. Approve and merge to activate your campaign
-3. Create the worker workflows listed in the campaign spec
-
-**Total time:** ~2-3 minutes (60% faster than old flow!)
-```
+**Total time:** ~1-2 minutes for Phase 2
 
 ## Important Notes
 
