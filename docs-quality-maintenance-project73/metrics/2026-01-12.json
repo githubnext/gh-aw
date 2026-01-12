@@ -1,14 +1,46 @@
 {
   "campaign_id": "docs-quality-maintenance-project73",
   "date": "2026-01-12",
-  "tasks_total": 16,
+  "tasks_total": 17,
   "tasks_completed": 15,
   "tasks_in_progress": 1,
-  "tasks_blocked": 0,
-  "velocity_per_day": 1.0,
-  "items_discovered_this_run": 16,
-  "items_processed_this_run": 16,
-  "items_added": 1,
-  "items_updated": 15,
-  "items_failed": 0
+  "tasks_todo": 1,
+  "velocity_per_day": 1.5,
+  "completion_percentage": 88.2,
+  "kpis": {
+    "documentation_coverage": {
+      "baseline": 85,
+      "current": 89,
+      "target": 95,
+      "unit": "percent",
+      "direction": "increase",
+      "velocity_per_week": 1.3,
+      "status": "on_track"
+    },
+    "accessibility_score": {
+      "baseline": 90,
+      "current": 92,
+      "target": 98,
+      "unit": "percent",
+      "direction": "increase",
+      "velocity_per_month": 1.0,
+      "status": "at_risk"
+    },
+    "user_reported_issues": {
+      "baseline": 15,
+      "current": 11,
+      "target": 5,
+      "unit": "count",
+      "direction": "decrease",
+      "velocity_per_month": -1.3,
+      "status": "on_track"
+    }
+  },
+  "worker_activity": {
+    "daily-doc-updater": 8,
+    "daily-multi-device-docs-tester": 5,
+    "technical-doc-writer": 2,
+    "unbloat-docs": 1,
+    "developer-docs-consolidator": 1
+  }
 }
