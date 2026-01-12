@@ -10,26 +10,26 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
-func TestEnsureUpgradeAgenticWorkflowAgent(t *testing.T) {
+func TestEnsureUpgradeAgenticWorkflowsPrompt(t *testing.T) {
 	tests := []struct {
 		name            string
 		existingContent string
 		expectedContent string
 	}{
 		{
-			name:            "creates new upgrade agentic workflow agent file",
+			name:            "creates new upgrade workflows prompt file",
 			existingContent: "",
-			expectedContent: strings.TrimSpace(upgradeAgenticWorkflowAgentTemplate),
+			expectedContent: strings.TrimSpace(upgradeAgenticWorkflowsPromptTemplate),
 		},
 		{
 			name:            "does not modify existing correct file",
-			existingContent: upgradeAgenticWorkflowAgentTemplate,
-			expectedContent: strings.TrimSpace(upgradeAgenticWorkflowAgentTemplate),
+			existingContent: upgradeAgenticWorkflowsPromptTemplate,
+			expectedContent: strings.TrimSpace(upgradeAgenticWorkflowsPromptTemplate),
 		},
 		{
 			name:            "updates modified file",
-			existingContent: "# Modified Upgrade Agentic Workflow Agent\n\nThis is a modified version.",
-			expectedContent: strings.TrimSpace(upgradeAgenticWorkflowAgentTemplate),
+			existingContent: "# Modified Upgrade Prompt\n\nThis is a modified version.",
+			expectedContent: strings.TrimSpace(upgradeAgenticWorkflowsPromptTemplate),
 		},
 	}
 
@@ -53,34 +53,34 @@ func TestEnsureUpgradeAgenticWorkflowAgent(t *testing.T) {
 				t.Fatalf("Failed to init git repo: %v", err)
 			}
 
-			agentsDir := filepath.Join(tempDir, ".github", "agents")
-			upgradeAgenticWorkflowAgentPath := filepath.Join(agentsDir, "upgrade-agentic-workflows.md")
+			awDir := filepath.Join(tempDir, ".github", "aw")
+			promptPath := filepath.Join(awDir, "upgrade-agentic-workflows.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
-				if err := os.MkdirAll(agentsDir, 0755); err != nil {
-					t.Fatalf("Failed to create agents directory: %v", err)
+				if err := os.MkdirAll(awDir, 0755); err != nil {
+					t.Fatalf("Failed to create aw directory: %v", err)
 				}
-				if err := os.WriteFile(upgradeAgenticWorkflowAgentPath, []byte(tt.existingContent), 0644); err != nil {
-					t.Fatalf("Failed to create initial upgrade agentic workflow agent: %v", err)
+				if err := os.WriteFile(promptPath, []byte(tt.existingContent), 0644); err != nil {
+					t.Fatalf("Failed to create initial prompt: %v", err)
 				}
 			}
 
 			// Call the function with skipInstructions=false to test the functionality
-			err = ensureUpgradeAgenticWorkflowAgent(false, false)
+			err = ensureUpgradeAgenticWorkflowsPrompt(false, false)
 			if err != nil {
-				t.Fatalf("ensureUpgradeAgenticWorkflowAgent() returned error: %v", err)
+				t.Fatalf("ensureUpgradeAgenticWorkflowsPrompt() returned error: %v", err)
 			}
 
 			// Check that file exists
-			if _, err := os.Stat(upgradeAgenticWorkflowAgentPath); os.IsNotExist(err) {
-				t.Fatalf("Expected upgrade agentic workflow agent file to exist")
+			if _, err := os.Stat(promptPath); os.IsNotExist(err) {
+				t.Fatalf("Expected prompt file to exist")
 			}
 
 			// Check content
-			content, err := os.ReadFile(upgradeAgenticWorkflowAgentPath)
+			content, err := os.ReadFile(promptPath)
 			if err != nil {
-				t.Fatalf("Failed to read upgrade agentic workflow agent: %v", err)
+				t.Fatalf("Failed to read prompt: %v", err)
 			}
 
 			contentStr := strings.TrimSpace(string(content))
@@ -115,15 +115,15 @@ func TestEnsureUpgradeAgenticWorkflowAgent_WithSkipInstructionsTrue(t *testing.T
 	}
 
 	// Call the function with skipInstructions=true
-	err = ensureUpgradeAgenticWorkflowAgent(false, true)
+	err = ensureUpgradeAgenticWorkflowsPrompt(false, true)
 	if err != nil {
-		t.Fatalf("ensureUpgradeAgenticWorkflowAgent() returned error: %v", err)
+		t.Fatalf("ensureUpgradeAgenticWorkflowsPrompt() returned error: %v", err)
 	}
 
 	// Check that file was NOT created
-	agentsDir := filepath.Join(tempDir, ".github", "agents")
-	upgradeAgenticWorkflowAgentPath := filepath.Join(agentsDir, "upgrade-agentic-workflows.md")
-	if _, err := os.Stat(upgradeAgenticWorkflowAgentPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected upgrade agentic workflow agent file to NOT exist when skipInstructions=true")
+	awDir := filepath.Join(tempDir, ".github", "aw")
+	upgradePromptPath := filepath.Join(awDir, "upgrade-agentic-workflows.md")
+	if _, err := os.Stat(upgradePromptPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected upgrade prompt file to NOT exist when skipInstructions=true")
 	}
 }

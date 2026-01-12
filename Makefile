@@ -533,9 +533,20 @@ sync-templates:
 	@echo "Syncing templates from .github to pkg/cli/templates..."
 	@mkdir -p pkg/cli/templates
 	@cp .github/aw/github-agentic-workflows.md pkg/cli/templates/
-	@cp .github/agents/create-agentic-workflow.agent.md pkg/cli/templates/
-	@cp .github/agents/create-shared-agentic-workflow.agent.md pkg/cli/templates/
-	@cp .github/agents/debug-agentic-workflow.agent.md pkg/cli/templates/
+	@cp .github/aw/create-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/create-shared-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/debug-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/
+	@cp .github/agents/agentic-workflows.agent.md pkg/cli/templates/
+	@cp .github/agents/agentic-campaigns.agent.md pkg/cli/templates/
+	@echo "Syncing campaign prompts from .github/aw to pkg/campaign/prompts..."
+	@mkdir -p pkg/campaign/prompts
+	@cp .github/aw/campaign-creation-instructions.md pkg/campaign/prompts/campaign_creation_instructions.md
+	@cp .github/aw/campaign-orchestrator-instructions.md pkg/campaign/prompts/orchestrator_instructions.md
+	@cp .github/aw/campaign-project-update-instructions.md pkg/campaign/prompts/project_update_instructions.md
+	@cp .github/aw/campaign-workflow-execution.md pkg/campaign/prompts/workflow_execution.md
+	@cp .github/aw/campaign-closing-instructions.md pkg/campaign/prompts/closing_instructions.md
+	@cp .github/aw/campaign-project-update-contract-checklist.md pkg/campaign/prompts/project_update_contract_checklist.md
 	@echo "✓ Templates synced successfully"
 
 
