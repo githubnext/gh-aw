@@ -91,9 +91,10 @@ Your task is to:
 
 6. **Append Changeset to PR Description**:
    - After pushing the changeset file, append a summary to the pull request description
-   - Use the `update_pull_request` tool (append is the default operation):
+   - Use the `update_pull_request` tool with append mode:
      ```javascript
      update_pull_request({
+       operation: "append",
        body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>"
      })
      ```
