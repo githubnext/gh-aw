@@ -89,7 +89,7 @@ func (m listModel) View() string {
 type itemDelegate struct{}
 
 // Height returns the height of a list item
-func (d itemDelegate) Height() int { return 2 }
+func (d itemDelegate) Height() int { return 1 }
 
 // Spacing returns the spacing between items
 func (d itemDelegate) Spacing() int { return 0 }
