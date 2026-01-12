@@ -682,12 +682,17 @@ This is a test workflow.
 		t.Error("Expected dispatcher agent file to be created/updated")
 	}
 
-	createPromptPath := filepath.Join(".github", "aw", "create-agentic-workflow.md")
+	createPromptPath := filepath.Join(".github", "aw", "create.md")
 	if _, err := os.Stat(createPromptPath); os.IsNotExist(err) {
 		t.Error("Expected create workflow prompt file to be created/updated")
 	}
 
-	debugPromptPath := filepath.Join(".github", "aw", "debug-agentic-workflow.md")
+	updatePromptPath := filepath.Join(".github", "aw", "update.md")
+	if _, err := os.Stat(updatePromptPath); os.IsNotExist(err) {
+		t.Error("Expected update workflow prompt file to be created/updated")
+	}
+
+	debugPromptPath := filepath.Join(".github", "aw", "debug.md")
 	if _, err := os.Stat(debugPromptPath); os.IsNotExist(err) {
 		t.Error("Expected debug workflow prompt file to be created/updated")
 	}

@@ -197,10 +197,16 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update dispatcher agent: %v", err)))
 	}
 
-	// Update create agentic workflow prompt
-	if err := ensureCreateAgenticWorkflowPrompt(verbose, false); err != nil {
+	// Update create workflow prompt
+	if err := ensureCreateWorkflowPrompt(verbose, false); err != nil {
 		fixLog.Printf("Failed to update create workflow prompt: %v", err)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update workflow creation prompt: %v", err)))
+	}
+
+	// Update update workflow prompt
+	if err := ensureUpdateWorkflowPrompt(verbose, false); err != nil {
+		fixLog.Printf("Failed to update update workflow prompt: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update workflow update prompt: %v", err)))
 	}
 
 	// Update create shared agentic workflow prompt
@@ -209,8 +215,8 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update shared workflow creation prompt: %v", err)))
 	}
 
-	// Update debug agentic workflow prompt
-	if err := ensureDebugAgenticWorkflowPrompt(verbose, false); err != nil {
+	// Update debug workflow prompt
+	if err := ensureDebugWorkflowPrompt(verbose, false); err != nil {
 		fixLog.Printf("Failed to update debug workflow prompt: %v", err)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update debug workflow prompt: %v", err)))
 	}

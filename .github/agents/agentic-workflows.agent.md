@@ -11,8 +11,9 @@ This agent helps you work with **GitHub Agentic Workflows (gh-aw)**, a CLI exten
 
 This is a **dispatcher agent** that routes your request to the appropriate specialized prompt based on your task:
 
-- **Creating workflows**: Routes to `create-agentic-workflow` prompt
-- **Debugging workflows**: Routes to `debug-agentic-workflow` prompt  
+- **Creating new workflows**: Routes to `create` prompt
+- **Updating existing workflows**: Routes to `update` prompt
+- **Debugging workflows**: Routes to `debug` prompt  
 - **Upgrading workflows**: Routes to `upgrade-agentic-workflows` prompt
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
 
@@ -40,20 +41,30 @@ When you interact with this agent, it will:
 
 ## Available Prompts
 
-### Create Agentic Workflow
-**Load when**: User wants to create a new workflow, add automation, or design a workflow from scratch
+### Create New Workflow
+**Load when**: User wants to create a new workflow from scratch, add automation, or design a workflow that doesn't exist yet
 
-**Prompt file**: `.github/aw/create-agentic-workflow.md`
+**Prompt file**: `.github/aw/create.md`
 
 **Use cases**:
 - "Create a workflow that triages issues"
 - "I need a workflow to label pull requests"
 - "Design a weekly research automation"
 
-### Debug Agentic Workflow  
+### Update Existing Workflow  
+**Load when**: User wants to modify, improve, or refactor an existing workflow
+
+**Prompt file**: `.github/aw/update.md`
+
+**Use cases**:
+- "Add web-fetch tool to the issue-classifier workflow"
+- "Update the PR reviewer to use discussions instead of issues"
+- "Improve the prompt for the weekly-research workflow"
+
+### Debug Workflow  
 **Load when**: User needs to troubleshoot a workflow, analyze logs, or fix errors
 
-**Prompt file**: `.github/aw/debug-agentic-workflow.md`
+**Prompt file**: `.github/aw/debug.md`
 
 **Use cases**:
 - "Why is this workflow failing?"

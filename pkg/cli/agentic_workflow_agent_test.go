@@ -10,7 +10,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
-func TestEnsureCreateAgenticWorkflowPrompt(t *testing.T) {
+func TestEnsureCreateWorkflowPrompt(t *testing.T) {
 	tests := []struct {
 		name            string
 		existingContent string
@@ -19,17 +19,17 @@ func TestEnsureCreateAgenticWorkflowPrompt(t *testing.T) {
 		{
 			name:            "creates new workflow creation prompt file",
 			existingContent: "",
-			expectedContent: strings.TrimSpace(createAgenticWorkflowPromptTemplate),
+			expectedContent: strings.TrimSpace(createWorkflowPromptTemplate),
 		},
 		{
 			name:            "does not modify existing correct file",
-			existingContent: createAgenticWorkflowPromptTemplate,
-			expectedContent: strings.TrimSpace(createAgenticWorkflowPromptTemplate),
+			existingContent: createWorkflowPromptTemplate,
+			expectedContent: strings.TrimSpace(createWorkflowPromptTemplate),
 		},
 		{
 			name:            "updates modified file",
 			existingContent: "# Modified Workflow Creation Prompt\n\nThis is a modified version.",
-			expectedContent: strings.TrimSpace(createAgenticWorkflowPromptTemplate),
+			expectedContent: strings.TrimSpace(createWorkflowPromptTemplate),
 		},
 	}
 
@@ -54,7 +54,7 @@ func TestEnsureCreateAgenticWorkflowPrompt(t *testing.T) {
 			}
 
 			awDir := filepath.Join(tempDir, ".github", "aw")
-			promptPath := filepath.Join(awDir, "create-agentic-workflow.md")
+			promptPath := filepath.Join(awDir, "create.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
@@ -67,9 +67,9 @@ func TestEnsureCreateAgenticWorkflowPrompt(t *testing.T) {
 			}
 
 			// Call the function with skipInstructions=false to test the functionality
-			err = ensureCreateAgenticWorkflowPrompt(false, false)
+			err = ensureCreateWorkflowPrompt(false, false)
 			if err != nil {
-				t.Fatalf("ensureCreateAgenticWorkflowPrompt() returned error: %v", err)
+				t.Fatalf("ensureCreateWorkflowPrompt() returned error: %v", err)
 			}
 
 			// Check that file exists
@@ -95,7 +95,7 @@ func TestEnsureCreateAgenticWorkflowPrompt(t *testing.T) {
 	}
 }
 
-func TestEnsureCreateAgenticWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T) {
+func TestEnsureCreateWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -115,20 +115,20 @@ func TestEnsureCreateAgenticWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T
 	}
 
 	// Call the function with skipInstructions=true
-	err = ensureCreateAgenticWorkflowPrompt(false, true)
+	err = ensureCreateWorkflowPrompt(false, true)
 	if err != nil {
-		t.Fatalf("ensureCreateAgenticWorkflowPrompt() returned error: %v", err)
+		t.Fatalf("ensureCreateWorkflowPrompt() returned error: %v", err)
 	}
 
 	// Check that file was NOT created
 	awDir := filepath.Join(tempDir, ".github", "aw")
-	promptPath := filepath.Join(awDir, "create-agentic-workflow.md")
+	promptPath := filepath.Join(awDir, "create.md")
 	if _, err := os.Stat(promptPath); !os.IsNotExist(err) {
 		t.Fatalf("Expected prompt file to NOT exist when skipInstructions=true")
 	}
 }
 
-func TestEnsureCreateAgenticWorkflowPrompt_CreatesNewFile(t *testing.T) {
+func TestEnsureCreateWorkflowPrompt_CreatesNewFile(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -148,14 +148,14 @@ func TestEnsureCreateAgenticWorkflowPrompt_CreatesNewFile(t *testing.T) {
 	}
 
 	// Call the function to create prompt
-	err = ensureCreateAgenticWorkflowPrompt(false, false)
+	err = ensureCreateWorkflowPrompt(false, false)
 	if err != nil {
-		t.Fatalf("ensureCreateAgenticWorkflowPrompt() returned error: %v", err)
+		t.Fatalf("ensureCreateWorkflowPrompt() returned error: %v", err)
 	}
 
 	// Check that new prompt file was created in .github/aw/
 	awDir := filepath.Join(tempDir, ".github", "aw")
-	newPromptPath := filepath.Join(awDir, "create-agentic-workflow.md")
+	newPromptPath := filepath.Join(awDir, "create.md")
 	if _, err := os.Stat(newPromptPath); os.IsNotExist(err) {
 		t.Fatalf("Expected new prompt file to be created in .github/aw/")
 	}

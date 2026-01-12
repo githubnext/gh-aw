@@ -62,14 +62,24 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent"))
 	}
 
-	// Write create agentic workflow prompt
-	initLog.Print("Writing create agentic workflow prompt")
-	if err := ensureCreateAgenticWorkflowPrompt(verbose, false); err != nil {
+	// Write create workflow prompt
+	initLog.Print("Writing create workflow prompt")
+	if err := ensureCreateWorkflowPrompt(verbose, false); err != nil {
 		initLog.Printf("Failed to write create workflow prompt: %v", err)
 		return fmt.Errorf("failed to write create workflow prompt: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created workflow creation prompt"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created create workflow prompt"))
+	}
+
+	// Write update workflow prompt (new)
+	initLog.Print("Writing update workflow prompt")
+	if err := ensureUpdateWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write update workflow prompt: %v", err)
+		return fmt.Errorf("failed to write update workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created update workflow prompt"))
 	}
 
 	// Write create shared agentic workflow prompt
@@ -89,9 +99,16 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		return fmt.Errorf("failed to delete setup agentic workflows agent: %w", err)
 	}
 
-	// Write debug agentic workflow prompt
-	initLog.Print("Writing debug agentic workflow prompt")
-	if err := ensureDebugAgenticWorkflowPrompt(verbose, false); err != nil {
+	// Clean up legacy create-agentic-workflow.md file if it exists
+	initLog.Print("Cleaning up legacy create-agentic-workflow.md")
+	if err := cleanupLegacyCreateAgenticWorkflowPrompt(verbose); err != nil {
+		initLog.Printf("Failed to cleanup legacy create-agentic-workflow.md: %v", err)
+		return fmt.Errorf("failed to cleanup legacy create-agentic-workflow.md: %w", err)
+	}
+
+	// Write debug workflow prompt
+	initLog.Print("Writing debug workflow prompt")
+	if err := ensureDebugWorkflowPrompt(verbose, false); err != nil {
 		initLog.Printf("Failed to write debug workflow prompt: %v", err)
 		return fmt.Errorf("failed to write debug workflow prompt: %w", err)
 	}
@@ -216,7 +233,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, "")
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then type /agent and select create-agentic-workflow"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then type /agent and select agentic-workflows"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+string(constants.CLIExtensionPrefix)+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
