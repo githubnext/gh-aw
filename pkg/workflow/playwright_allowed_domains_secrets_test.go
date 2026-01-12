@@ -132,11 +132,13 @@ Test no secrets in allowed_domains.
 				// Ensure the secret expression itself is NOT in the MCP config JSON
 				// (it should only be in env vars and redaction step)
 				mcpConfigStart := strings.Index(yamlContent, "cat > /home/runner/.copilot/mcp-config.json << EOF")
-				mcpConfigEnd := strings.Index(yamlContent[mcpConfigStart:], "EOF\n")
-				if mcpConfigStart != -1 && mcpConfigEnd != -1 {
-					mcpConfig := yamlContent[mcpConfigStart : mcpConfigStart+mcpConfigEnd]
-					if strings.Contains(mcpConfig, "${{ secrets.") {
-						t.Errorf("MCP config should not contain secret expressions, found secret in config")
+				if mcpConfigStart != -1 {
+					mcpConfigEnd := strings.Index(yamlContent[mcpConfigStart:], "EOF\n")
+					if mcpConfigEnd != -1 {
+						mcpConfig := yamlContent[mcpConfigStart : mcpConfigStart+mcpConfigEnd]
+						if strings.Contains(mcpConfig, "${{ secrets.") {
+							t.Errorf("MCP config should not contain secret expressions, found secret in config")
+						}
 					}
 				}
 			}
