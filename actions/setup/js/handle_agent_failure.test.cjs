@@ -2,6 +2,10 @@
 /// <reference types="@actions/github-script" />
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
+
+// Mock fs module
+vi.mock("fs");
 
 describe("handle_agent_failure.cjs", () => {
   let main;
@@ -13,6 +17,49 @@ describe("handle_agent_failure.cjs", () => {
   beforeEach(async () => {
     // Save original environment
     originalEnv = { ...process.env };
+
+    // Mock fs.readFileSync to return template content
+    vi.mocked(fs.readFileSync).mockImplementation(path => {
+      if (path === "/opt/gh-aw/prompts/agent_failure_comment.md") {
+        return "Agent job [{run_id}]({run_url}) failed.";
+      }
+      if (path === "/opt/gh-aw/prompts/agent_failure_issue.md") {
+        return `## Workflow Failure
+
+**Status:** Failed  
+**Workflow:** [{workflow_name}]({workflow_source_url})  
+**Run URL:** {run_url}{pull_request_info}
+
+## Root Cause
+
+The agentic workflow has encountered a failure. This indicates a configuration error, runtime issue, or missing dependencies that must be resolved.
+
+## Action Required
+
+**Agent Assignment:** This issue should be debugged using the \`agentic-workflows\` agent.
+
+**Instructions for Agent:**
+
+1. Analyze the workflow run logs at: {run_url}
+2. Identify the specific failure point and error messages
+3. Determine the root cause (configuration, missing tools, permissions, etc.)
+4. Propose specific fixes with code changes or configuration updates
+5. Validate the fix resolves the issue
+
+**Agent Invocation:**
+\`\`\`
+/agent agentic-workflows
+\`\`\`
+When prompted, instruct the agent to debug this workflow failure.
+
+## Expected Outcome
+
+- Root cause identified and documented
+- Specific fix provided (code changes, configuration updates, or dependency additions)
+- Verification that the fix resolves the failure`;
+      }
+      throw new Error(`Unexpected file read: ${path}`);
+    });
 
     // Mock core
     mockCore = {
