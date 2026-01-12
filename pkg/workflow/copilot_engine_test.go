@@ -225,63 +225,63 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 		expected    []string
 	}{
 		{
-			name:     "empty tools",
+			name:     "empty tools - yolo mode enabled",
 			tools:    map[string]any{},
-			expected: []string{},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "bash with specific commands",
+			name: "bash with specific commands - deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"bash": []any{"echo", "ls"},
 			},
-			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "bash with wildcard",
+			name: "bash with wildcard - yolo mode enabled",
 			tools: map[string]any{
 				"bash": []any{":*"},
 			},
 			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "bash with nil (all commands allowed)",
+			name: "bash with nil - deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"bash": nil,
 			},
-			expected: []string{"--allow-tool", "shell"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "edit tool",
+			name: "edit tool - deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"edit": nil,
 			},
-			expected: []string{"--allow-tool", "write"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name:  "safe outputs without write (uses MCP)",
+			name:  "safe outputs - yolo mode enabled",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "mixed tools",
+			name: "mixed tools - deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"bash": []any{"git status", "npm test"},
 				"edit": nil,
 			},
-			expected: []string{"--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "bash with star wildcard",
+			name: "bash with star wildcard - yolo mode enabled",
 			tools: map[string]any{
 				"bash": []any{"*"},
 			},
 			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "comprehensive with multiple tools",
+			name: "comprehensive with multiple tools - all deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"bash": []any{"git status", "npm test"},
 				"edit": nil,
@@ -289,28 +289,28 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name:  "safe outputs with safe_outputs config",
+			name:  "safe outputs with safe_outputs config - yolo mode enabled",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name:  "safe outputs with safe jobs",
+			name:  "safe outputs with safe jobs - yolo mode enabled",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				Jobs: map[string]*SafeJobConfig{
 					"my-job": {Name: "test job"},
 				},
 			},
-			expected: []string{"--allow-tool", "safeoutputs"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name:  "safe outputs with both safe_outputs and safe jobs",
+			name:  "safe outputs with both safe_outputs and safe jobs - yolo mode enabled",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
@@ -318,78 +318,78 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"my-job": {Name: "test job"},
 				},
 			},
-			expected: []string{"--allow-tool", "safeoutputs"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool with allowed tools",
+			name: "github tool with allowed tools - yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"get_repository", "list_commits"},
 				},
 			},
-			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool with single allowed tool",
+			name: "github tool with single allowed tool - yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"add_issue_comment"},
 				},
 			},
-			expected: []string{"--allow-tool", "github(add_issue_comment)"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool with wildcard",
+			name: "github tool with wildcard - yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"*"},
 				},
 			},
-			expected: []string{"--allow-tool", "github"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool with wildcard and specific tools",
+			name: "github tool with wildcard and specific tools - yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"*", "get_repository", "list_commits"},
 				},
 			},
-			expected: []string{"--allow-tool", "github", "--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool with empty allowed array",
+			name: "github tool with empty allowed array - yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{},
 				},
 			},
-			expected: []string{},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool without allowed field",
+			name: "github tool without allowed field - yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{},
 			},
-			expected: []string{"--allow-tool", "github"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool as nil (no config)",
+			name: "github tool as nil - yolo mode enabled",
 			tools: map[string]any{
 				"github": nil,
 			},
-			expected: []string{"--allow-tool", "github"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool with multiple allowed tools sorted",
+			name: "github tool with multiple allowed tools - yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"update_issue", "add_issue_comment", "create_issue"},
 				},
 			},
-			expected: []string{"--allow-tool", "github(add_issue_comment)", "--allow-tool", "github(create_issue)", "--allow-tool", "github(update_issue)"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "github tool with bash and edit tools",
+			name: "github tool with bash and edit tools - all deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"get_repository", "list_commits"},
@@ -397,7 +397,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"bash": []any{"echo", "ls"},
 				"edit": nil,
 			},
-			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
+			expected: []string{"--allow-all-tools"},
 		},
 	}
 
@@ -430,26 +430,26 @@ func TestCopilotEngineGenerateToolArgumentsComment(t *testing.T) {
 		expected    string
 	}{
 		{
-			name:     "empty tools",
+			name:     "empty tools - yolo mode enabled",
 			tools:    map[string]any{},
 			indent:   "  ",
-			expected: "",
+			expected: "  # Copilot CLI tool arguments:\n  # --allow-all-tools (yolo mode: all tools enabled)\n",
 		},
 		{
-			name: "bash with commands",
+			name: "bash with commands - deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"bash": []any{"echo", "ls"},
 			},
 			indent:   "        ",
-			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool shell(echo)\n        # --allow-tool shell(ls)\n",
+			expected: "        # Copilot CLI tool arguments:\n        # --allow-all-tools (yolo mode: all tools enabled)\n",
 		},
 		{
-			name: "edit tool",
+			name: "edit tool - deprecated, yolo mode enabled",
 			tools: map[string]any{
 				"edit": nil,
 			},
 			indent:   "        ",
-			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool write\n",
+			expected: "        # Copilot CLI tool arguments:\n        # --allow-all-tools (yolo mode: all tools enabled)\n",
 		},
 	}
 
@@ -487,35 +487,23 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	// Check the execution step contains tool arguments
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Should contain the tool arguments in the command line
-	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
-		t.Errorf("Expected step to contain '--allow-tool shell(echo)' in command:\n%s", stepContent)
+	// Should contain --allow-all-tools (yolo mode)
+	if !strings.Contains(stepContent, "--allow-all-tools") {
+		t.Errorf("Expected step to contain '--allow-all-tools' (yolo mode):\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "--allow-tool shell(git status)") {
-		t.Errorf("Expected step to contain '--allow-tool shell(git status)' in command:\n%s", stepContent)
-	}
-
-	if !strings.Contains(stepContent, "--allow-tool write") {
-		t.Errorf("Expected step to contain '--allow-tool write' in command:\n%s", stepContent)
-	}
-
-	// Should contain the comment showing the tool arguments
-	if !strings.Contains(stepContent, "# Copilot CLI tool arguments (sorted):") {
+	// Should contain the comment showing yolo mode
+	if !strings.Contains(stepContent, "# Copilot CLI tool arguments:") {
 		t.Errorf("Expected step to contain tool arguments comment:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "# --allow-tool shell(echo)") {
-		t.Errorf("Expected step to contain comment for shell(echo):\n%s", stepContent)
+	if !strings.Contains(stepContent, "# --allow-all-tools (yolo mode: all tools enabled)") {
+		t.Errorf("Expected step to contain yolo mode comment:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "# --allow-tool write") {
-		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
-	}
-
-	// Should contain --allow-all-paths for edit tool
+	// Should always contain --allow-all-paths (yolo mode)
 	if !strings.Contains(stepContent, "--allow-all-paths") {
-		t.Errorf("Expected step to contain '--allow-all-paths' for edit tool:\n%s", stepContent)
+		t.Errorf("Expected step to contain '--allow-all-paths' (yolo mode):\n%s", stepContent)
 	}
 }
 
@@ -528,14 +516,14 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 		shouldHave bool
 	}{
 		{
-			name: "edit tool present",
+			name: "edit tool present - yolo mode always enabled",
 			tools: map[string]any{
 				"edit": nil,
 			},
 			shouldHave: true,
 		},
 		{
-			name: "edit tool with other tools",
+			name: "edit tool with other tools - yolo mode always enabled",
 			tools: map[string]any{
 				"edit": nil,
 				"bash": []any{"echo"},
@@ -543,16 +531,16 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 			shouldHave: true,
 		},
 		{
-			name: "no edit tool",
+			name: "no edit tool - yolo mode still enabled",
 			tools: map[string]any{
 				"bash": []any{"echo"},
 			},
-			shouldHave: false,
+			shouldHave: true,
 		},
 		{
-			name:       "empty tools",
+			name:       "empty tools - yolo mode still enabled",
 			tools:      map[string]any{},
-			shouldHave: false,
+			shouldHave: true,
 		},
 	}
 
@@ -572,18 +560,14 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 
 			stepContent := strings.Join([]string(steps[0]), "\n")
 
-			// Check for --allow-all-paths flag
+			// Check for --allow-all-paths flag (should always be present in yolo mode)
 			hasAllowAllPaths := strings.Contains(stepContent, "--allow-all-paths")
 
 			if tt.shouldHave && !hasAllowAllPaths {
-				t.Errorf("Expected step to contain '--allow-all-paths' when edit tool is present, but it was missing:\n%s", stepContent)
+				t.Errorf("Expected step to contain '--allow-all-paths' (yolo mode always enabled), but it was missing:\n%s", stepContent)
 			}
 
-			if !tt.shouldHave && hasAllowAllPaths {
-				t.Errorf("Expected step to NOT contain '--allow-all-paths' when edit tool is absent, but it was present:\n%s", stepContent)
-			}
-
-			// When edit tool is present, verify it's in the command line
+			// Verify it's in the command line
 			if tt.shouldHave {
 				lines := strings.Split(stepContent, "\n")
 				foundInCommand := false
@@ -620,32 +604,16 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	// Get the full command from the execution step
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Find the line that contains the copilot command
-	// When firewall is disabled, it uses 'copilot' instead of 'npx'
-	lines := strings.Split(stepContent, "\n")
-	var copilotCommand string
-	for _, line := range lines {
-		if strings.Contains(line, "copilot") && strings.Contains(line, "--allow-tool") {
-			copilotCommand = strings.TrimSpace(line)
-			break
-		}
+	// In yolo mode, we should have --allow-all-tools instead of individual tool permissions
+	// This test now verifies that yolo mode is enabled correctly
+	if !strings.Contains(stepContent, "--allow-all-tools") {
+		t.Errorf("Expected '--allow-all-tools' (yolo mode) in step content:\n%s", stepContent)
 	}
 
-	if copilotCommand == "" {
-		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
-	}
-
-	// Verify that arguments with special characters are properly quoted
-	// This test should fail initially, showing the need for escaping
-	t.Logf("Generated command: %s", copilotCommand)
-
-	// The command should contain properly escaped arguments with single quotes
-	if !strings.Contains(copilotCommand, "'shell(git add:*)'") {
-		t.Errorf("Expected 'shell(git add:*)' to be single-quoted in command: %s", copilotCommand)
-	}
-
-	if !strings.Contains(copilotCommand, "'shell(git commit:*)'") {
-		t.Errorf("Expected 'shell(git commit:*)' to be single-quoted in command: %s", copilotCommand)
+	// The bash tools should be deprecated and ignored
+	// Verify individual tool permissions are NOT present
+	if strings.Contains(stepContent, "shell(git add:*)") {
+		t.Errorf("Expected no individual tool permissions (yolo mode enabled), but found 'shell(git add:*)' in: %s", stepContent)
 	}
 }
 
