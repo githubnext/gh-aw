@@ -325,6 +325,7 @@ async function main() {
         } catch (error) {
           // Fallback for tests or if template file is missing
           core.warning(`Could not read issue template from ${issueTemplatePath}, using fallback: ${getErrorMessage(error)}`);
+          // Fallback template matches actions/setup/md/agent_failure_issue.md
           issueTemplate = `## Workflow Failure
 
 **Status:** Failed  
