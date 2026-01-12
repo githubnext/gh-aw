@@ -98,11 +98,19 @@ All individual workflow failure issues are linked as sub-issues below. Click on 
 
 ### Using agentic-workflows Agent (Recommended)
 
-The fastest way to investigate a failure is with the **agentic-workflows** custom agent:
+**Agent:** \`agentic-workflows\`  
+**Purpose:** Debug and fix workflow failures
 
-1. In GitHub Copilot Chat, type \`/agent\` and select **agentic-workflows**
-2. When prompted, tell it to **debug** the problem and provide the workflow run URL
-3. The agent will help you analyze logs, identify root causes, and suggest fixes
+**Instructions:**
+
+1. Invoke the agent: Type \`/agent\` in GitHub Copilot Chat and select **agentic-workflows**
+2. Provide context: Tell the agent to **debug** the workflow failure
+3. Supply the workflow run URL for analysis
+4. The agent will:
+   - Analyze failure logs
+   - Identify root causes
+   - Propose specific fixes
+   - Validate solutions
 
 ### Using gh-aw CLI
 
@@ -317,27 +325,39 @@ async function main() {
         } catch (error) {
           // Fallback for tests or if template file is missing
           core.warning(`Could not read issue template from ${issueTemplatePath}, using fallback: ${getErrorMessage(error)}`);
-          issueTemplate = `## Problem
+          issueTemplate = `## Workflow Failure
 
-The agentic workflow **{workflow_name}** has failed. This typically indicates a configuration or runtime error that requires user intervention.
+**Status:** Failed  
+**Workflow:** [{workflow_name}]({workflow_source_url})  
+**Run URL:** {run_url}{pull_request_info}
 
-## Failed Run
+## Root Cause
 
-- **Workflow:** [{workflow_name}]({workflow_source_url})
-- **Failed Run:** {run_url}{pull_request_info}
+The agentic workflow has encountered a failure. This indicates a configuration error, runtime issue, or missing dependencies that must be resolved.
 
-## How to investigate
+## Action Required
 
-Use the **agentic-workflows** custom agent to investigate this failure.
+**Agent Assignment:** This issue should be debugged using the \`agentic-workflows\` agent.
 
-In GitHub Copilot Chat, type \`/agent\` and select **agentic-workflows**.
+**Instructions for Agent:**
 
-When prompted, tell it to **debug** the problem and provide the workflow run URL: {run_url}
+1. Analyze the workflow run logs at: {run_url}
+2. Identify the specific failure point and error messages
+3. Determine the root cause (configuration, missing tools, permissions, etc.)
+4. Propose specific fixes with code changes or configuration updates
+5. Validate the fix resolves the issue
 
-The agent will help you:
-- Analyze the failure logs
-- Identify the root cause
-- Suggest fixes for configuration or runtime errors`;
+**Agent Invocation:**
+\`\`\`
+/agent agentic-workflows
+\`\`\`
+When prompted, instruct the agent to debug this workflow failure.
+
+## Expected Outcome
+
+- Root cause identified and documented
+- Specific fix provided (code changes, configuration updates, or dependency additions)
+- Verification that the fix resolves the failure`;
         }
 
         // Create template context with sanitized workflow name

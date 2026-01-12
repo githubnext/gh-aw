@@ -142,7 +142,7 @@ describe("handle_agent_failure.cjs", () => {
         owner: "test-owner",
         repo: "test-repo",
         title: "[agentics] Test Workflow failed",
-        body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
+        body: expect.stringContaining("Test Workflow"),
         labels: ["agentic-workflows"],
       });
 
@@ -339,14 +339,14 @@ describe("handle_agent_failure.cjs", () => {
         owner: "test-owner",
         repo: "test-repo",
         title: "[agentics] Test Workflow failed",
-        body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
+        body: expect.stringContaining("Test Workflow"),
         labels: ["agentic-workflows"],
       });
 
       // Verify body contains required sections (check second call - failure issue)
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
-      expect(failureIssueCreateCall.body).toContain("## Problem");
-      expect(failureIssueCreateCall.body).toContain("## How to investigate");
+      expect(failureIssueCreateCall.body).toContain("## Workflow Failure");
+      expect(failureIssueCreateCall.body).toContain("## Action Required");
       expect(failureIssueCreateCall.body).toContain("agentic-workflows");
       expect(failureIssueCreateCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
