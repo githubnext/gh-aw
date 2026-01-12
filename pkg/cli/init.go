@@ -126,6 +126,16 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created upgrade workflows prompt"))
 	}
 
+	// Write patterns guide
+	initLog.Print("Writing patterns guide")
+	if err := ensurePatternsPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write patterns guide: %v", err)
+		return fmt.Errorf("failed to write patterns guide: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created patterns guide"))
+	}
+
 	// Write campaign dispatcher agent if requested
 	if campaign {
 		initLog.Print("Writing campaign dispatcher agent")

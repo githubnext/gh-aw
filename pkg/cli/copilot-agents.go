@@ -233,6 +233,18 @@ func ensureUpgradeAgenticWorkflowsPrompt(verbose bool, skipInstructions bool) er
 	)
 }
 
+// ensurePatternsPrompt ensures that .github/aw/patterns.md contains the patterns guide
+func ensurePatternsPrompt(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"patterns.md",
+		patternsPromptTemplate,
+		"patterns guide",
+		verbose,
+		skipInstructions,
+	)
+}
+
 // ensureAgenticCampaignsDispatcher ensures that .github/agents/agentic-campaigns.agent.md contains the campaigns dispatcher agent
 func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error {
 	return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
