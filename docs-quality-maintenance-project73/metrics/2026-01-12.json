@@ -1,0 +1,14 @@
+{
+  "campaign_id": "docs-quality-maintenance-project73",
+  "date": "2026-01-12",
+  "tasks_total": 16,
+  "tasks_completed": 15,
+  "tasks_in_progress": 1,
+  "tasks_blocked": 0,
+  "velocity_per_day": 1.0,
+  "items_discovered_this_run": 16,
+  "items_processed_this_run": 16,
+  "items_added": 1,
+  "items_updated": 15,
+  "items_failed": 0
+}
