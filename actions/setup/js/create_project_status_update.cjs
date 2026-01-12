@@ -11,6 +11,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_project_status_update";
 
+// Retry configuration constants
+const INITIAL_RETRY_DELAY_MS = 1000;
+const BACKOFF_MULTIPLIER = 2;
+const MAX_RETRY_DELAY_MS = 5000;
+
 /**
  * Check if an error message indicates a transient issue that should be retried
  * @param {string} errorMsg - Error message to check
@@ -26,7 +31,7 @@ function isTransientError(errorMsg) {
     lowerMsg.includes("temporarily unavailable") ||
     lowerMsg.includes("service unavailable") ||
     lowerMsg.includes("gateway timeout") ||
-    /5\d{2}/.test(lowerMsg) // 5xx status codes
+    /\b5\d{2}\b/.test(lowerMsg) // 5xx HTTP status codes (word boundaries to avoid false positives)
   );
 }
 
@@ -124,7 +129,7 @@ async function listAccessibleProjectsV2(projectInfo, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       if (attempt > 0) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        const delay = Math.min(INITIAL_RETRY_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt - 1), MAX_RETRY_DELAY_MS);
         core.info(`Retrying projectsV2 list query (attempt ${attempt + 1}/${retries + 1}) after ${delay}ms delay...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
