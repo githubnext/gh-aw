@@ -242,12 +242,12 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs"
 
 	stepLines := []string{
-		"      - name: Firewall summary",
+		"      - name: Print firewall logs",
 		"        if: always()",
 		"        continue-on-error: true",
 		"        env:",
 		fmt.Sprintf("          AWF_LOGS_DIR: %s", firewallLogsDir),
-		"        run: awf logs summary >> \"$GITHUB_STEP_SUMMARY\"",
+		"        run: awf logs summary | tee -a \"$GITHUB_STEP_SUMMARY\"",
 	}
 
 	return GitHubActionStep(stepLines)

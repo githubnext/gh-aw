@@ -767,12 +767,12 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
             await main();
-      - name: Firewall summary
+      - name: Print firewall logs
         if: always()
         continue-on-error: true
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
-        run: awf logs summary >> "$GITHUB_STEP_SUMMARY"
+        run: awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
       # Upload repo memory as artifacts for push job
       - name: Upload repo-memory artifact (default)
         if: always()
