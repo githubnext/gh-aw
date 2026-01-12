@@ -112,6 +112,15 @@ func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
 	}
 
+	// Get the effective token using the Projects-specific precedence chain
+	// This includes fallback to GH_AW_PROJECT_GITHUB_TOKEN if no custom token is configured
+	// Note: Projects v2 requires a PAT or GitHub App - the default GITHUB_TOKEN cannot work
+	effectiveToken := getEffectiveProjectGitHubToken(cfg.GitHubToken, data.GitHubToken)
+
+	// Always expose the effective token as GH_AW_PROJECT_GITHUB_TOKEN environment variable
+	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", effectiveToken))
+
 	condition := BuildSafeOutputType("create_project")
 
 	return SafeOutputStepConfig{
@@ -121,6 +130,6 @@ func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName 
 		Script:        getCreateProjectScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
-		Token:         cfg.GitHubToken,
+		Token:         effectiveToken,
 	}
 }
