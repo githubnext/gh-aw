@@ -108,7 +108,7 @@ jobs:
 		// Write markdown file
 		mdPath := filepath.Join(workflowsDir, tt.name)
 		require.NoError(t, os.WriteFile(mdPath, []byte(tt.mdContent), 0600))
-		
+
 		// Write lock file
 		lockName := strings.TrimSuffix(tt.name, ".md") + ".lock.yml"
 		lockPath := filepath.Join(workflowsDir, lockName)
@@ -322,7 +322,7 @@ on:
 
 	workflowPath := filepath.Join(workflowsDir, "test-inputs.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0600))
-	
+
 	// Create corresponding lock file
 	lockContent := `name: "Test Workflow"
 on:
@@ -364,5 +364,5 @@ jobs:
 	assert.Len(t, wf.Inputs, 2)
 
 	// Verify description is empty (input counts no longer shown)
-	assert.Equal(t, "", wf.Description)
+	assert.Empty(t, wf.Description)
 }

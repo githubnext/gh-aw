@@ -312,6 +312,21 @@ interface HideCommentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for creating a GitHub Project V2
+ */
+interface CreateProjectItem extends BaseSafeOutputItem {
+  type: "create_project";
+  /** Project title */
+  title?: string;
+  /** Owner login (organization or user) for the project */
+  owner?: string;
+  /** Owner type: 'org' or 'user' (default: 'org') */
+  owner_type?: "org" | "user";
+  /** Optional item URL to add to the project (e.g., issue URL) */
+  item_url?: string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -338,7 +353,8 @@ type SafeOutputItem =
   | UpdateReleaseItem
   | NoOpItem
   | LinkSubIssueItem
-  | HideCommentItem;
+  | HideCommentItem
+  | CreateProjectItem;
 
 /**
  * Sanitized safe output items

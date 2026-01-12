@@ -872,7 +872,7 @@ on:
   schedule
 ---
 # Malformed YAML`,
-			lockContent: `invalid yaml`,
+			lockContent:  `invalid yaml`,
 			expected:     false,
 			expectError:  true,
 			errorMessage: "failed to parse lock file YAML",
