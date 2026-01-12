@@ -115,7 +115,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 			}
 		}
 		maintenanceLog.Print("Maintenance workflow generation disabled by configuration")
-		
+
 		// Delete existing maintenance workflow file if it exists
 		maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
 		if _, err := os.Stat(maintenanceFile); err == nil {
@@ -125,13 +125,13 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 			}
 			maintenanceLog.Print("Maintenance workflow deleted successfully")
 		}
-		
+
 		return nil
 	}
 
 	if !hasExpires {
 		maintenanceLog.Print("No workflows use expires field, skipping maintenance workflow generation")
-		
+
 		// Delete existing maintenance workflow file if it exists (no expires means no need for maintenance)
 		maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
 		if _, err := os.Stat(maintenanceFile); err == nil {
@@ -141,7 +141,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 			}
 			maintenanceLog.Print("Maintenance workflow deleted successfully")
 		}
-		
+
 		return nil
 	}
 
