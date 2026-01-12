@@ -4737,6 +4737,11 @@
                   "type": "boolean",
                   "description": "Allow updating pull request body - defaults to true, set to false to disable"
                 },
+                "operation": {
+                  "type": "string",
+                  "description": "Default operation for body updates: 'append' (add to end), 'prepend' (add to start), or 'replace' (overwrite completely). Defaults to 'replace' if not specified.",
+                  "enum": ["append", "prepend", "replace"]
+                },
                 "max": {
                   "type": "integer",
                   "description": "Maximum number of pull requests to update (default: 1)",
