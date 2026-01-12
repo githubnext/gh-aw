@@ -33,8 +33,8 @@ echo ""
 echo -e "${YELLOW}Test 2: Multiple images concurrent download${NC}"
 if bash "$DOWNLOAD_SCRIPT" alpine:3.18 alpine:3.17 > /tmp/test2.log 2>&1; then
     echo -e "${GREEN}✓ PASS${NC}: Multiple images download succeeded"
-    # Verify concurrent behavior by checking log contains "Starting concurrent download"
-    if grep -q "Starting concurrent download of 2 image(s)" /tmp/test2.log; then
+    # Verify concurrent behavior by checking log contains download message
+    if grep -q "Starting download of 2 image(s) with max 4 concurrent downloads" /tmp/test2.log; then
         echo -e "${GREEN}✓ PASS${NC}: Concurrent download mode confirmed"
     else
         echo -e "${RED}✗ FAIL${NC}: Expected concurrent download message not found"

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Download Docker images with retry logic and concurrent downloads
+# Download Docker images with retry logic and controlled parallelism
 # Usage: download_docker_images.sh IMAGE1 [IMAGE2 ...]
 #
-# This script downloads multiple Docker images in parallel to improve performance.
-# Docker daemon supports concurrent pulls from multiple clients, which can provide
-# significant speedup when downloading multiple images (e.g., 4x faster for 3 images).
+# This script downloads multiple Docker images in parallel with controlled
+# parallelism (max 4 concurrent downloads) to improve performance without
+# overwhelming the system. Docker daemon supports concurrent pulls, which can
+# provide significant speedup when downloading multiple images.
 #
-# Each image is pulled in a background process with retry logic (3 attempts with
-# exponential backoff). The script waits for all downloads to complete and fails
-# if any image fails to download after all retry attempts.
+# Each image is pulled with retry logic (3 attempts with exponential backoff).
+# The script fails if any image fails to download after all retry attempts.
 
-set -e
+set -euo pipefail
 
 # Helper function to pull Docker images with retry logic
 docker_pull_with_retry() {
@@ -38,33 +38,11 @@ docker_pull_with_retry() {
   done
 }
 
-# Track background processes and their associated images
-declare -a pids=()
-declare -a images_list=()
+# Export function so xargs can use it
+export -f docker_pull_with_retry
 
-# Start all downloads in parallel
-echo "Starting concurrent download of ${#@} image(s)..."
-for image in "$@"; do
-  docker_pull_with_retry "$image" &
-  pids+=($!)
-  images_list+=("$image")
-done
-
-# Wait for all downloads and track failures
-failed=0
-for i in "${!pids[@]}"; do
-  pid="${pids[$i]}"
-  image="${images_list[$i]}"
-  if ! wait "$pid"; then
-    echo "ERROR: Failed to download $image"
-    failed=1
-  fi
-done
-
-# Exit with error if any download failed
-if [ $failed -eq 1 ]; then
-  echo "One or more images failed to download"
-  exit 1
-fi
+# Pull images with controlled parallelism using xargs
+echo "Starting download of ${#@} image(s) with max 4 concurrent downloads..."
+printf '%s\n' "$@" | xargs -P 4 -I {} bash -c 'docker_pull_with_retry "$@"' _ {}
 
 echo "All images downloaded successfully"
