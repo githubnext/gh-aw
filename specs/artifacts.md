@@ -2012,7 +2012,6 @@ This section provides an overview of artifacts organized by job name, with dupli
     - `/tmp/gh-aw/aw-prompts/prompt.txt`
     - `/tmp/gh-aw/aw_info.json`
     - `/tmp/gh-aw/mcp-logs/`
-    - `/tmp/gh-aw/sandbox/firewall/logs/`
     - `/tmp/gh-aw/agent-stdio.log`
 
 #### Job: `conclusion`
