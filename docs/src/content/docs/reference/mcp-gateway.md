@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.3.0  
+**Version**: 1.4.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -346,7 +346,7 @@ Authorization: <apiKey>
 }
 ```
 
-**Note**: The `Authorization` header value is the API key directly, **not** using the Bearer authentication scheme. For example, if your API key is `my-secret-key`, the header should be `Authorization: my-secret-key`, not `Authorization: Bearer my-secret-key`.
+**Note**: The format of the `Authorization` header is implementation-dependent. Consult your gateway implementation's documentation for the expected format.
 
 **Response Format**:
 
@@ -389,7 +389,7 @@ POST /close HTTP/1.1
 Authorization: <apiKey>
 ```
 
-**Note**: The `Authorization` header value is the API key directly. Do not use the Bearer authentication scheme.
+**Note**: The format of the `Authorization` header is implementation-dependent. Consult your gateway implementation's documentation for the expected format.
 
 **Success Response**:
 
@@ -478,6 +478,15 @@ For HTTP-based servers, the gateway MUST:
 3. Return the server's response to the client
 4. Handle HTTP-level errors appropriately
 
+**Connection Failure Handling**:
+
+When a connection to an HTTP-based MCP server fails, the gateway MUST either:
+
+1. **Pass through the error**: Return an appropriate error response to the client indicating the server is unavailable (e.g., HTTP 503 Service Unavailable or JSON-RPC error -32001 "Server unavailable")
+2. **Handle with fallback**: Implement a fallback mechanism (e.g., retry logic, alternative server, cached response) and return a result to the client
+
+The gateway MUST NOT silently ignore connection failures. All connection failures MUST result in either an error response to the client or successful fallback handling.
+
 #### 5.2.3 Tool Signature Preservation
 
 The gateway SHOULD NOT modify:
@@ -517,8 +526,8 @@ After successful initialization, the gateway MUST:
 2. Include gateway connection details for each configured MCP server:
    - `type`: MUST be set to "http"
    - `url`: MUST be the gateway URL in format "http://{domain}:{port}/mcp/{server-name}"
-   - `headers`: MUST include authorization headers required to connect to the gateway
-     - `Authorization`: MUST contain the API key value directly (not using Bearer scheme)
+   - `headers`: SHOULD include authorization headers required to connect to the gateway
+     - `Authorization`: Contains the authentication credentials in an implementation-dependent format
    
    Example output configuration:
    ```json
@@ -535,7 +544,7 @@ After successful initialization, the gateway MUST:
    }
    ```
    
-   **REQUIRED**: The `headers` object MUST be present in each server configuration and MUST include the `Authorization` header with the API key value. The `Authorization` header value MUST contain the API key directly, NOT using the Bearer authentication scheme. The gateway is responsible for generating and including appropriate authentication credentials - client-side configuration converters MUST NOT modify or supplement the headers provided by the gateway.
+   The `headers` object SHOULD be present in each server configuration when authentication is required. The gateway is responsible for generating and including appropriate authentication credentials. The specific format of authentication headers is implementation-dependent.
 
 3. Write configuration as a single JSON document
 4. Flush stdout buffer
@@ -591,36 +600,31 @@ The gateway MUST NOT:
 
 The MCP Gateway uses a simple API key authentication scheme. When `gateway.apiKey` is configured:
 
-- The `Authorization` header MUST contain the API key value directly
-- The format is: `Authorization: <apiKey>`
-- **Do NOT use** the Bearer authentication scheme
-- **Do NOT prefix** the API key with "Bearer" or any other scheme identifier
+- The `Authorization` header contains the API key value
+- Implementations MAY use different formats (e.g., direct value or Bearer scheme)
+- The specific format is implementation-dependent
 
-**Example**:
+**Example formats**:
 
 ```http
 Authorization: my-secret-api-key-12345
 ```
 
-**Incorrect formats** (these will be rejected):
+or
 
 ```http
 Authorization: Bearer my-secret-api-key-12345
-Authorization: Token my-secret-api-key-12345
 ```
 
-This simplified authentication scheme is chosen for:
-- **Simplicity**: No additional parsing of authentication schemes
-- **Clarity**: The API key is the complete authorization value
-- **Consistency**: Same format across all gateway endpoints
+This authentication scheme provides flexibility for different implementation requirements.
 
 ### 7.2 API Key Authentication
 
 When `gateway.apiKey` is configured, the gateway MUST:
 
-1. Require `Authorization` header with the API key value on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
-   - The header format is `Authorization: <apiKey>` where `<apiKey>` is the actual API key value
-   - **Do not use** the Bearer authentication scheme (i.e., not `Authorization: Bearer <apiKey>`)
+1. Require `Authorization` header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
+   - The specific format of the Authorization header is implementation-dependent
+   - Implementations SHOULD document their expected format
 2. Reject requests with missing or invalid tokens (HTTP 401)
 3. Reject requests with malformed Authorization headers (HTTP 400)
 4. NOT log API keys in plaintext
@@ -793,6 +797,8 @@ A conforming implementation MUST pass the following test categories:
 - **T-PTL-004**: Concurrent request handling
 - **T-PTL-005**: Large payload handling
 - **T-PTL-006**: Partial response buffering
+- **T-PTL-007**: HTTP connection failure error response
+- **T-PTL-008**: HTTP connection failure is not silently ignored
 
 #### 10.1.3 Isolation Tests
 
@@ -836,8 +842,8 @@ A conforming implementation MUST pass the following test categories:
 - **T-OUT-002**: Output configuration includes all configured servers
 - **T-OUT-003**: Each server configuration has "type": "http"
 - **T-OUT-004**: Each server configuration has correct "url" format
-- **T-OUT-005**: Each server configuration has "headers" object with "Authorization" header
-- **T-OUT-006**: Authorization header contains API key directly (not Bearer scheme)
+- **T-OUT-005**: Each server configuration includes "headers" object when authentication is required
+- **T-OUT-006**: Authorization header is present when authentication is configured
 - **T-OUT-007**: Output configuration is complete before health endpoint becomes available
 
 #### 10.1.8 Error Handling Tests
@@ -990,7 +996,7 @@ Host: localhost:8080
 Authorization: gateway-secret-token
 ```
 
-**Note**: The API key is used directly in the Authorization header, without the Bearer scheme.
+**Note**: Consult your gateway implementation's documentation for the expected authorization header format.
 
 **Success Response**:
 
@@ -1026,7 +1032,7 @@ Host: localhost:8080
 Authorization: gateway-secret-token
 ```
 
-**Note**: As with all authenticated requests, the API key is used directly without the Bearer prefix.
+**Note**: Consult your gateway implementation's documentation for the expected authorization header format.
 
 ```http
 HTTP/1.1 410 Gone
@@ -1100,6 +1106,21 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.4.0 (Draft)
+
+- **Changed**: Relaxed authorization header format requirements (Section 7.1, 7.2, 5.4)
+  - Authorization header format is now implementation-dependent rather than strictly prescribed
+  - Removed requirement to NOT use Bearer authentication scheme
+  - Updated examples to show multiple possible formats
+  - Modified stdout configuration output requirements from MUST to SHOULD for headers object
+- **Added**: Connection failure handling requirements (Section 5.2.2)
+  - Gateway MUST NOT silently ignore connection failures to HTTP-based MCP servers
+  - Gateway MUST either pass through errors or handle with fallback mechanisms
+  - Added protocol translation compliance tests (T-PTL-007, T-PTL-008)
+- **Updated**: Configuration output compliance tests (Section 10.1.7)
+  - Modified T-OUT-005 and T-OUT-006 to reflect relaxed authentication requirements
+  - Tests now verify presence of authentication headers when configured, not specific format
 
 ### Version 1.3.0 (Draft)
 
