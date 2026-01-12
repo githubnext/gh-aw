@@ -41,14 +41,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Add setup action to copy JavaScript files
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" {
+	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
-		steps = append(steps, "      - name: Setup Scripts\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 	}
 
 	// Add artifact download steps after setup

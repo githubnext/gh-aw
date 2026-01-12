@@ -14,9 +14,9 @@ func TestActionModeValidation(t *testing.T) {
 		mode  ActionMode
 		valid bool
 	}{
-		// Removed ActionModeInline as it no longer exists
 		{ActionModeDev, true},
 		{ActionModeRelease, true},
+		{ActionModeScript, true},
 		{ActionMode("invalid"), false},
 		{ActionMode(""), false},
 	}
@@ -36,9 +36,9 @@ func TestActionModeString(t *testing.T) {
 		mode ActionMode
 		want string
 	}{
-		// Removed ActionModeInline as it no longer exists
 		{ActionModeDev, "dev"},
 		{ActionModeRelease, "release"},
+		{ActionModeScript, "script"},
 	}
 
 	for _, tt := range tests {
@@ -70,6 +70,31 @@ func TestCompilerSetActionMode(t *testing.T) {
 	compiler.SetActionMode(ActionModeDev)
 	if compiler.GetActionMode() != ActionModeDev {
 		t.Errorf("Expected action mode dev, got %s", compiler.GetActionMode())
+	}
+
+	compiler.SetActionMode(ActionModeScript)
+	if compiler.GetActionMode() != ActionModeScript {
+		t.Errorf("Expected action mode script, got %s", compiler.GetActionMode())
+	}
+}
+
+// TestActionModeIsScript tests the IsScript() method
+func TestActionModeIsScript(t *testing.T) {
+	tests := []struct {
+		mode     ActionMode
+		isScript bool
+	}{
+		{ActionModeDev, false},
+		{ActionModeRelease, false},
+		{ActionModeScript, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.mode), func(t *testing.T) {
+			if got := tt.mode.IsScript(); got != tt.isScript {
+				t.Errorf("ActionMode(%q).IsScript() = %v, want %v", tt.mode, got, tt.isScript)
+			}
+		})
 	}
 }
 

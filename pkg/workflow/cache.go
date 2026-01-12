@@ -632,14 +632,11 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	// Add setup step to copy scripts at the beginning
 	var setupSteps []string
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" {
+	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev mode (local action path), checkout the actions folder first
 		setupSteps = append(setupSteps, c.generateCheckoutActionsFolder(data)...)
 
-		setupSteps = append(setupSteps, "      - name: Setup Scripts\n")
-		setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-		setupSteps = append(setupSteps, "        with:\n")
-		setupSteps = append(setupSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+		setupSteps = append(setupSteps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 	}
 
 	// Prepend setup steps to all cache steps

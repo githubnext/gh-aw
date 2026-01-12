@@ -18,6 +18,9 @@ const (
 
 	// ActionModeRelease references custom actions using SHA-pinned remote paths (release mode)
 	ActionModeRelease ActionMode = "release"
+
+	// ActionModeScript runs setup.sh script from checked-out .github folder instead of using action steps
+	ActionModeScript ActionMode = "script"
 )
 
 // String returns the string representation of the action mode
@@ -27,7 +30,7 @@ func (m ActionMode) String() string {
 
 // IsValid checks if the action mode is valid
 func (m ActionMode) IsValid() bool {
-	return m == ActionModeDev || m == ActionModeRelease
+	return m == ActionModeDev || m == ActionModeRelease || m == ActionModeScript
 }
 
 // IsDev returns true if the action mode is development mode
@@ -38,6 +41,11 @@ func (m ActionMode) IsDev() bool {
 // IsRelease returns true if the action mode is release mode
 func (m ActionMode) IsRelease() bool {
 	return m == ActionModeRelease
+}
+
+// IsScript returns true if the action mode is script mode
+func (m ActionMode) IsScript() bool {
+	return m == ActionModeScript
 }
 
 // UsesExternalActions returns true (always true since inline mode was removed)
