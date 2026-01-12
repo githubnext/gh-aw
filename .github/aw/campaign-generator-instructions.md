@@ -62,7 +62,7 @@ This optimized two-phase flow reduces execution time by 60% (5-10 min → 2-3 mi
 
 ### Step 1: Parse Campaign Requirements
 
-Extract requirements from the issue body #${{ github.event.issue.number }}:
+Extract requirements from the issue body (issue number from context):
 - Campaign goal/description
 - Timeline and scope
 - Suggested workflows (if any)
@@ -93,8 +93,8 @@ Extract requirements from the issue body #${{ github.event.issue.number }}:
 
 You must immediately call the create_project MCP tool with these parameters:
 - title: "Campaign: <campaign-name>" (derived from issue)
-- owner: "${{ github.owner }}"
-- item_url: "${{ github.server_url }}/${{ github.repository }}/issues/${{ github.event.issue.number }}"
+- owner: <github-owner> (from context)
+- item_url: <github-server-url>/<github-repository>/issues/<issue-number> (from context)
 
 **DO THIS NOW - Not later, not as an example, but right now as you read this step.**
 
@@ -276,10 +276,10 @@ Agents in this campaign should:
 
 **ACTION REQUIRED: Invoke the update_issue MCP tool NOW**
 
-You must immediately call the update_issue MCP tool to update issue #${{ github.event.issue.number }} with:
+You must immediately call the update_issue MCP tool to update the current issue with:
 
 **Required Parameters:**
-- issue_number: ${{ github.event.issue.number }}
+- issue_number: <issue-number> (from context)
 - title: <campaign-name> (if different from current title)
 - body: The formatted campaign information below
 
@@ -347,7 +347,7 @@ The campaign specification file has been created at `.github/workflows/<campaign
 You must immediately call the add_comment MCP tool with:
 
 **Required Parameters:**
-- issue_number: ${{ github.event.issue.number }}
+- issue_number: <issue-number> (from context)
 - body: The comment text below
 
 **Comment Content:**
@@ -378,7 +378,7 @@ I've generated the campaign specification and assigned the Copilot Coding Agent 
 This is the FINAL and MOST CRITICAL step. You must immediately call the assign_to_agent MCP tool to trigger Phase 2.
 
 **Required Parameters:**
-- issue_number: ${{ github.event.issue.number }}
+- issue_number: <issue-number> (from context)
 - instructions: "Read the instructions in the issue body. Compile the campaign using `gh aw compile <campaign-id>`. Create a PR with the compiled files."
 
 **DO THIS NOW** - Call the assign_to_agent MCP tool with the above parameters.
