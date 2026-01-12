@@ -330,6 +330,10 @@ jobs:
           fi
       - name: Install npm dependencies
         run: cd actions/setup/js && npm ci
+      - name: Setup prompt templates for tests
+        run: |
+          mkdir -p /opt/gh-aw/prompts
+          cp actions/setup/md/*.md /opt/gh-aw/prompts/
       - name: Run tests
         run: cd actions/setup/js && npm test
   bench:
