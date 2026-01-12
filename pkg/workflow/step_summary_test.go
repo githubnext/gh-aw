@@ -27,8 +27,6 @@ engine: claude
 features:
   dangerous-permissions-write: true
 strict: false
-features:
-  dangerous-permissions-write: true
 safe-outputs:
   create-issue:
 ---
