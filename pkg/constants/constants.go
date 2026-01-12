@@ -199,7 +199,7 @@ const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.4"
+const DefaultClaudeCodeVersion Version = "2.1.5"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -235,7 +235,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.27.0"
 const DefaultFirewallVersion Version = "v0.8.2"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.26"
+const DefaultMCPGatewayVersion Version = "v0.0.39"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
