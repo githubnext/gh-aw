@@ -229,13 +229,13 @@ const (
 const DefaultCodexVersion Version = "0.80.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.27.0"
+const DefaultGitHubMCPServerVersion Version = "v0.28.1"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.8.2"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.39"
+const DefaultMCPGatewayVersion Version = "v0.0.47"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
