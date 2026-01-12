@@ -199,34 +199,9 @@ func ensureUpgradeAgenticWorkflowsPrompt(verbose bool, skipInstructions bool) er
 	)
 }
 
-// ensureAgenticWorkflowAgent ensures that .github/agents/create-agentic-workflow.agent.md contains the workflow creation agent
-// DEPRECATED: This function is kept for backward compatibility and will be removed in a future version
-func ensureAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
-	// First, clean up the old prompt file if it exists
-	if err := cleanupOldPromptFile("create-agentic-workflow.prompt.md", verbose); err != nil {
-		return err
-	}
-
-	// Now ensure the new prompt file exists in .github/aw/
-	return ensureCreateAgenticWorkflowPrompt(verbose, skipInstructions)
-}
-
-// ensureDebugAgenticWorkflowAgent ensures that .github/agents/debug-agentic-workflow.agent.md contains the debug workflow agent
-// DEPRECATED: This function is kept for backward compatibility and will be removed in a future version
-func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
-	// First, clean up the old prompt file if it exists
-	if err := cleanupOldPromptFile("debug-agentic-workflow.prompt.md", verbose); err != nil {
-		return err
-	}
-
-	// Now ensure the new prompt file exists in .github/aw/
-	return ensureDebugAgenticWorkflowPrompt(verbose, skipInstructions)
-}
-
-// ensureUpgradeAgenticWorkflowAgent ensures that .github/agents/upgrade-agentic-workflows.md contains the upgrade workflow agent
-// DEPRECATED: This function is kept for backward compatibility and will be removed in a future version
-func ensureUpgradeAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
-	return ensureUpgradeAgenticWorkflowsPrompt(verbose, skipInstructions)
+// ensureAgenticCampaignsDispatcher ensures that .github/agents/agentic-campaigns.agent.md contains the campaigns dispatcher agent
+func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error {
+	return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
 }
 
 // deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists
@@ -280,9 +255,4 @@ func deleteOldAgentFiles(verbose bool) error {
 	}
 
 	return nil
-}
-
-// ensureAgenticCampaignsDispatcher ensures that .github/agents/agentic-campaigns.agent.md contains the campaigns dispatcher agent
-func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error {
-return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
 }

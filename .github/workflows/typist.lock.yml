@@ -29,7 +29,6 @@ name: "Typist - Go Type Analysis"
 "on":
   schedule:
   - cron: "0 11 * * 1-5"
-    # Friendly format: weekly on monday around 15:00 (scattered)
   workflow_dispatch:
 
 permissions:

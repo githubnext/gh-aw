@@ -115,15 +115,15 @@ func TestEnsureUpgradeAgenticWorkflowAgent_WithSkipInstructionsTrue(t *testing.T
 	}
 
 	// Call the function with skipInstructions=true
-	err = ensureUpgradeAgenticWorkflowAgent(false, true)
+	err = ensureUpgradeAgenticWorkflowsPrompt(false, true)
 	if err != nil {
-		t.Fatalf("ensureUpgradeAgenticWorkflowAgent() returned error: %v", err)
+		t.Fatalf("ensureUpgradeAgenticWorkflowsPrompt() returned error: %v", err)
 	}
 
 	// Check that file was NOT created
-	agentsDir := filepath.Join(tempDir, ".github", "agents")
-	upgradeAgenticWorkflowAgentPath := filepath.Join(agentsDir, "upgrade-agentic-workflows.md")
-	if _, err := os.Stat(upgradeAgenticWorkflowAgentPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected upgrade agentic workflow agent file to NOT exist when skipInstructions=true")
+	awDir := filepath.Join(tempDir, ".github", "aw")
+	upgradePromptPath := filepath.Join(awDir, "upgrade-agentic-workflows.md")
+	if _, err := os.Stat(upgradePromptPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected upgrade prompt file to NOT exist when skipInstructions=true")
 	}
 }

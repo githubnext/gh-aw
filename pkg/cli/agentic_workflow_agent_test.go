@@ -128,7 +128,7 @@ func TestEnsureCreateAgenticWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T
 	}
 }
 
-func TestEnsureAgenticWorkflowAgent_RemovesLegacyPromptFile(t *testing.T) {
+func TestEnsureCreateAgenticWorkflowPrompt_CreatesNewFile(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -147,31 +147,10 @@ func TestEnsureAgenticWorkflowAgent_RemovesLegacyPromptFile(t *testing.T) {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
 
-	// Create the old prompt file (legacy format that should be cleaned up)
-	promptsDir := filepath.Join(tempDir, ".github", "prompts")
-	oldPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		t.Fatalf("Failed to create prompts directory: %v", err)
-	}
-	if err := os.WriteFile(oldPromptPath, []byte("old content"), 0644); err != nil {
-		t.Fatalf("Failed to create old prompt file: %v", err)
-	}
-
-	// Verify old file exists
-	if _, err := os.Stat(oldPromptPath); os.IsNotExist(err) {
-		t.Fatalf("Old prompt file should exist before test")
-	}
-
-	// Call the function to create prompt (which should also remove old prompt)
-	err = ensureAgenticWorkflowAgent(false, false)
+	// Call the function to create prompt
+	err = ensureCreateAgenticWorkflowPrompt(false, false)
 	if err != nil {
-		t.Fatalf("ensureAgenticWorkflowAgent() returned error: %v", err)
-	}
-
-	// Check that old file was removed
-	if _, err := os.Stat(oldPromptPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected old prompt file to be removed")
+		t.Fatalf("ensureCreateAgenticWorkflowPrompt() returned error: %v", err)
 	}
 
 	// Check that new prompt file was created in .github/aw/
