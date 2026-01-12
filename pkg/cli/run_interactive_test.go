@@ -297,5 +297,5 @@ on:
 	assert.Len(t, wf.Inputs, 2)
 
 	// Verify description is empty (input counts no longer shown)
-	assert.Equal(t, "", wf.Description)
+	assert.Empty(t, wf.Description)
 }
