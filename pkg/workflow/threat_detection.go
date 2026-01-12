@@ -114,16 +114,19 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	// Generate agent concurrency configuration (same as main agent job)
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
-	// Build conditional: detection should always run when safe-outputs are configured
-	// This ensures detection runs even when agent produces no outputs, which is important
-	// for campaigns and workflows that may not always produce safe outputs but still need
-	// threat detection and safe output processing (e.g., for workflow messages)
-	// Run unless the workflow was cancelled
-	condition := BuildComparison(
-		BuildPropertyAccess("needs.agent.result"),
+	// Build conditional: detection should run when there are safe outputs OR when there's a patch
+	// output_types != '' OR has_patch == 'true'
+	hasOutputTypes := BuildComparison(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", mainJobName)),
 		"!=",
-		BuildStringLiteral("cancelled"),
+		BuildStringLiteral(""),
 	)
+	hasPatch := BuildComparison(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.has_patch", mainJobName)),
+		"==",
+		BuildStringLiteral("true"),
+	)
+	condition := BuildDisjunction(false, hasOutputTypes, hasPatch)
 
 	job := &Job{
 		Name:           string(constants.DetectionJobName),
