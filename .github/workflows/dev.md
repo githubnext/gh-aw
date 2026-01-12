@@ -16,6 +16,9 @@ permissions:
   contents: read
   issues: read
 
+features:
+  action-mode: "script"
+
 tools:
   github:
     toolsets: [issues]
