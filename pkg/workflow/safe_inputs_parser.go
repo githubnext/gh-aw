@@ -47,8 +47,9 @@ type SafeInputParam struct {
 }
 
 // SafeInputsMode constants define the available transport modes
+// Note: Only stdio mode is currently supported (HTTP mode has been removed)
 const (
-	SafeInputsModeHTTP = "http"
+	SafeInputsModeStdio = "stdio"
 )
 
 // SafeInputsDirectory is the directory where safe-inputs files are generated
@@ -59,9 +60,9 @@ func HasSafeInputs(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil && len(safeInputs.Tools) > 0
 }
 
-// IsSafeInputsHTTPMode checks if safe-inputs is configured to use HTTP mode
-// Note: All safe-inputs configurations now use HTTP mode exclusively
-func IsSafeInputsHTTPMode(safeInputs *SafeInputsConfig) bool {
+// IsSafeInputsStdioMode checks if safe-inputs is configured to use stdio mode
+// Note: All safe-inputs configurations now use stdio mode exclusively
+func IsSafeInputsStdioMode(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil
 }
 
@@ -77,12 +78,12 @@ func IsSafeInputsEnabled(safeInputs *SafeInputsConfig, workflowData *WorkflowDat
 // Returns the config and a boolean indicating whether any tools were found.
 func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) {
 	config := &SafeInputsConfig{
-		Mode:  "http", // Only HTTP mode is supported
+		Mode:  "stdio", // Only stdio mode is supported
 		Tools: make(map[string]*SafeInputToolConfig),
 	}
 
-	// Mode field is ignored - only HTTP mode is supported
-	// All safe-inputs configurations use HTTP transport
+	// Mode field is ignored - only stdio mode is supported
+	// All safe-inputs configurations use stdio transport
 
 	for toolName, toolValue := range safeInputsMap {
 		// Skip the "mode" field as it's not a tool definition

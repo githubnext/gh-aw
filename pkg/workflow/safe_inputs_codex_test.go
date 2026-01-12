@@ -9,9 +9,9 @@ import (
 	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
-// TestCodexSafeInputsHTTPTransport verifies that Codex engine uses HTTP transport for safe-inputs
-// (not stdio transport) to be consistent with Copilot and Claude engines
-func TestCodexSafeInputsHTTPTransport(t *testing.T) {
+// TestCodexSafeInputsStdioTransport verifies that Codex engine uses stdio transport for safe-inputs
+// (following the same pattern as safeoutputs) for consistency
+func TestCodexSafeInputsStdioTransport(t *testing.T) {
 	// Create a temporary workflow file
 	tempDir := t.TempDir()
 	workflowPath := filepath.Join(tempDir, "test-workflow.md")
@@ -26,7 +26,7 @@ safe-inputs:
       return { result: "test" };
 ---
 
-Test safe-inputs HTTP transport for Codex
+Test safe-inputs stdio transport for Codex
 `
 
 	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
@@ -50,10 +50,9 @@ Test safe-inputs HTTP transport for Codex
 
 	yamlStr := string(lockContent)
 
-	// Verify that the HTTP server configuration steps are generated
+	// Verify that the safe-inputs configuration steps are generated
 	expectedSteps := []string{
 		"Generate Safe Inputs MCP Server Config",
-		"Start Safe Inputs MCP HTTP Server",
 		"Start MCP gateway",
 	}
 
@@ -63,42 +62,50 @@ Test safe-inputs HTTP transport for Codex
 		}
 	}
 
-	// Verify HTTP transport in TOML config (not stdio)
+	// Verify stdio transport in TOML config (not HTTP)
 	if !strings.Contains(yamlStr, "[mcp_servers.safeinputs]") {
 		t.Error("Safe-inputs MCP server config section not found")
 	}
 
-	// Should have explicit type field
+	// Should use stdio transport (container + entrypoint + entrypointArgs)
 	codexConfigSection := extractCodexConfigSection(yamlStr)
-	if !strings.Contains(codexConfigSection, `type = "http"`) {
-		t.Error("Expected type field set to 'http' in TOML format")
+	
+	// Check for containerized stdio transport pattern (like safeoutputs)
+	if !strings.Contains(codexConfigSection, `container = "node:lts-alpine"`) {
+		t.Error("Expected container field for stdio transport not found in TOML format")
 	}
 
-	// Should use HTTP transport (url + headers) with host.docker.internal
-	if !strings.Contains(yamlStr, `url = "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT"`) {
-		t.Error("Expected HTTP URL config with host.docker.internal not found in TOML format")
+	if !strings.Contains(codexConfigSection, `entrypoint = "node"`) {
+		t.Error("Expected entrypoint field for stdio transport not found in TOML format")
 	}
 
-	if !strings.Contains(yamlStr, `headers = { Authorization = "$GH_AW_SAFE_INPUTS_API_KEY" }`) {
-		t.Error("Expected HTTP headers config not found in TOML format")
+	if !strings.Contains(codexConfigSection, `entrypointArgs = ["/opt/gh-aw/safe-inputs/mcp-server.cjs"]`) {
+		t.Error("Expected entrypointArgs field for stdio transport not found in TOML format")
 	}
 
-	// Should NOT use stdio transport (command + args to node)
-	if strings.Contains(codexConfigSection, `command = "node"`) {
-		t.Error("Codex config should not use stdio transport (command = 'node'), should use HTTP")
+	if !strings.Contains(codexConfigSection, `mounts = ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"]`) {
+		t.Error("Expected mounts field for stdio transport not found in TOML format")
 	}
 
-	if strings.Contains(codexConfigSection, `args = [`) && strings.Contains(codexConfigSection, `/opt/gh-aw/safe-inputs/mcp-server.cjs`) {
-		t.Error("Codex config should not use stdio transport with mcp-server.cjs args, should use HTTP")
+	// Should NOT use HTTP transport (url + headers)
+	if strings.Contains(codexConfigSection, `type = "http"`) {
+		t.Error("Codex config should not use HTTP transport, should use stdio")
 	}
 
-	// Verify environment variables are NOT in the MCP config (env_vars not supported for HTTP transport)
-	// They should be in the job's env section instead
-	if strings.Contains(codexConfigSection, "env_vars") {
-		t.Error("HTTP MCP servers should not have env_vars in config (not supported for HTTP transport)")
+	if strings.Contains(codexConfigSection, `url = "http://`) {
+		t.Error("Codex config should not use HTTP transport with url field, should use stdio")
 	}
 
-	t.Logf("✓ Codex engine correctly uses HTTP transport for safe-inputs")
+	if strings.Contains(codexConfigSection, `headers = {`) {
+		t.Error("Codex config should not use HTTP transport with headers field, should use stdio")
+	}
+
+	// Verify environment variables ARE in the MCP config (env_vars supported for stdio transport)
+	if !strings.Contains(codexConfigSection, "env_vars") {
+		t.Error("stdio MCP servers should have env_vars in config")
+	}
+
+	t.Logf("✓ Codex engine correctly uses stdio transport for safe-inputs")
 }
 
 // extractCodexConfigSection extracts the Codex MCP config section from the workflow YAML
@@ -118,9 +125,9 @@ func extractCodexConfigSection(yamlContent string) string {
 	return yamlContent[start : start+end]
 }
 
-// TestCodexSafeInputsWithSecretsHTTPTransport verifies that environment variables
-// from safe-inputs tools are properly passed through with HTTP transport
-func TestCodexSafeInputsWithSecretsHTTPTransport(t *testing.T) {
+// TestCodexSafeInputsWithSecretsStdioTransport verifies that environment variables
+// from safe-inputs tools are properly passed through with stdio transport
+func TestCodexSafeInputsWithSecretsStdioTransport(t *testing.T) {
 	tempDir := t.TempDir()
 	workflowPath := filepath.Join(tempDir, "test-workflow.md")
 
@@ -160,13 +167,21 @@ Test safe-inputs with secrets
 	yamlStr := string(lockContent)
 	codexConfigSection := extractCodexConfigSection(yamlStr)
 
-	// Verify tool-specific env vars are NOT in the MCP config (env_vars not supported for HTTP)
-	// They should be passed via the job's env section instead
-	if strings.Contains(codexConfigSection, "env_vars") {
-		t.Error("HTTP MCP servers should not have env_vars in config (not supported for HTTP transport)")
+	// Verify tool-specific env vars ARE in the MCP config (env_vars supported for stdio)
+	if !strings.Contains(codexConfigSection, "env_vars") {
+		t.Error("stdio MCP servers should have env_vars in config")
 	}
 
-	// Verify env vars are set in Start MCP gateway step (this is the correct location for HTTP transport)
+	// Verify the specific env vars are included
+	if !strings.Contains(codexConfigSection, "API_KEY") {
+		t.Error("Expected API_KEY in env_vars list")
+	}
+
+	if !strings.Contains(codexConfigSection, "GH_TOKEN") {
+		t.Error("Expected GH_TOKEN in env_vars list")
+	}
+
+	// Verify env vars are also set in Start MCP gateway step
 	if !strings.Contains(yamlStr, "API_KEY: ${{ secrets.API_KEY }}") {
 		t.Error("Expected API_KEY secret in Start MCP gateway env section")
 	}
@@ -175,5 +190,5 @@ Test safe-inputs with secrets
 		t.Error("Expected GH_TOKEN in Start MCP gateway env section")
 	}
 
-	t.Logf("✓ Codex engine correctly passes secrets through HTTP transport (via job env, not MCP config)")
+	t.Logf("✓ Codex engine correctly passes secrets through stdio transport (via env_vars and job env)")
 }

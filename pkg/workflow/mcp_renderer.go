@@ -261,26 +261,30 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 }
 
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
-// Uses HTTP transport exclusively
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
-	yaml.WriteString("          type = \"http\"\n")
-
-	// Determine host based on whether agent is disabled
-	host := "host.docker.internal"
-	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
-		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
-		host = "localhost"
-		mcpRendererLog.Print("Using localhost for safe-inputs (agent disabled)")
-	} else {
-		mcpRendererLog.Print("Using host.docker.internal for safe-inputs (agent enabled)")
+	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
+	yaml.WriteString("          entrypoint = \"node\"\n")
+	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safe-inputs/mcp-server.cjs\"]\n")
+	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"]\n")
+	
+	// Build environment variables list
+	envVars := getSafeInputsEnvVars(safeInputs)
+	standardEnvVars := []string{"GH_AW_MCP_LOG_DIR"}
+	allEnvVars := append(standardEnvVars, envVars...)
+	
+	// Render env_vars array
+	yaml.WriteString("          env_vars = [")
+	for i, envVar := range allEnvVars {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + envVar + "\"")
 	}
-
-	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\"\n")
-	yaml.WriteString("          headers = { Authorization = \"$GH_AW_SAFE_INPUTS_API_KEY\" }\n")
-	// Note: env_vars is not supported for HTTP transport in MCP configuration
-	// Environment variables are passed via the workflow job's env: section instead
+	yaml.WriteString("]\n")
 }
 
 // RenderAgenticWorkflowsMCP generates the Agentic Workflows MCP server configuration

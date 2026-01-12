@@ -62,13 +62,13 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	// Test the entry point script
 	script := generateSafeInputsMCPServerScript(config)
 
-	// Check for HTTP server entry point structure
-	if !strings.Contains(script, "safe_inputs_mcp_server_http.cjs") {
-		t.Error("Script should reference the HTTP MCP server module")
+	// Check for stdio server entry point structure
+	if !strings.Contains(script, "safe_inputs_mcp_server.cjs") {
+		t.Error("Script should reference the stdio MCP server module")
 	}
 
-	if !strings.Contains(script, "startHttpServer") {
-		t.Error("Script should use startHttpServer function")
+	if !strings.Contains(script, "startSafeInputsServer") {
+		t.Error("Script should use startSafeInputsServer function")
 	}
 
 	if !strings.Contains(script, "tools.json") {
@@ -79,12 +79,13 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 		t.Error("Script should specify log directory")
 	}
 
-	if !strings.Contains(script, "GH_AW_SAFE_INPUTS_PORT") {
-		t.Error("Script should reference GH_AW_SAFE_INPUTS_PORT environment variable")
+	// stdio mode should NOT reference HTTP-specific environment variables
+	if strings.Contains(script, "GH_AW_SAFE_INPUTS_PORT") {
+		t.Error("Script should NOT reference GH_AW_SAFE_INPUTS_PORT (stdio mode)")
 	}
 
-	if !strings.Contains(script, "GH_AW_SAFE_INPUTS_API_KEY") {
-		t.Error("Script should reference GH_AW_SAFE_INPUTS_API_KEY environment variable")
+	if strings.Contains(script, "GH_AW_SAFE_INPUTS_API_KEY") {
+		t.Error("Script should NOT reference GH_AW_SAFE_INPUTS_API_KEY (stdio mode)")
 	}
 
 	// Test the tools configuration JSON

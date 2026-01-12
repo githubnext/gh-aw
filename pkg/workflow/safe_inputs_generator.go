@@ -137,35 +137,32 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 }
 
 // generateSafeInputsMCPServerScript generates the entry point script for the safe-inputs MCP server
-// This script uses HTTP transport exclusively
+// This script uses stdio transport (following the safeoutputs pattern)
 func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
-	safeInputsLog.Print("Generating safe-inputs MCP server entry point script")
+	safeInputsLog.Print("Generating safe-inputs MCP server entry point script (stdio transport)")
 	var sb strings.Builder
 
-	// HTTP transport - server started in separate step
+	// stdio transport - reuses safe_inputs_mcp_server.cjs module
 	sb.WriteString(`// @ts-check
-// Auto-generated safe-inputs MCP server entry point (HTTP transport)
-// This script uses the reusable safe_inputs_mcp_server_http module
+// Auto-generated safe-inputs MCP server entry point (stdio transport)
+// This script uses the reusable safe_inputs_mcp_server module
 
 const path = require("path");
-const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
 
 // Configuration file path (generated alongside this script)
 const configPath = path.join(__dirname, "tools.json");
 
-// Get port and API key from environment variables
-const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
-const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
-
-// Start the HTTP server
-startHttpServer(configPath, {
-  port: port,
-  stateless: false,
-  logDir: "/opt/gh-aw/safe-inputs/logs"
-}).catch(error => {
-  console.error("Failed to start safe-inputs HTTP server:", error);
+// Start the stdio server
+try {
+  startSafeInputsServer(configPath, {
+    logDir: "/opt/gh-aw/safe-inputs/logs",
+    skipCleanup: false
+  });
+} catch (error) {
+  console.error("Failed to start safe-inputs stdio server:", error.message || error);
   process.exit(1);
-});
+}
 `)
 
 	return sb.String()
