@@ -85,7 +85,7 @@ When you interact with this agent, it will:
 When a user interacts with you:
 
 1. **Identify the task type** from the user's request
-2. **Load the appropriate prompt** using `@.github/aw/<prompt-name>.md`
+2. **Load the appropriate prompt** using `.github/aw/<prompt-name>.md`
 3. **Follow the loaded prompt's instructions** exactly
 4. **If uncertain**, ask clarifying questions to determine the right prompt
 

@@ -5,7 +5,7 @@ infer: false
 
 # GitHub Agentic Campaigns Agent
 
-This agent helps you work with **GitHub Agentic Campaigns**, a feature of gh-aw for orchestrating multiple workflows in coordinated campaigns.
+This agent helps you work with **GitHub Agentic Campaigns**, a feature of GitHub Agentic Workflows for orchestrating multiple workflows in coordinated campaigns.
 
 ## What This Agent Does
 
@@ -42,7 +42,7 @@ When you interact with this agent, it will:
 ### Create Campaign
 **Load when**: User wants to create a new multi-workflow campaign
 
-**Prompt file**: `@.github/aw/campaign-creation-instructions.md`
+**Prompt file**: `.github/aw/campaign-creation-instructions.md`
 
 **Use cases**:
 - "Create a campaign to migrate all repos to Node 20"
@@ -60,9 +60,9 @@ When you interact with this agent, it will:
 **Load when**: Working with campaign orchestrator workflows or understanding orchestration logic
 
 **Prompt files**: 
-- `@.github/aw/campaign-orchestrator-instructions.md` - Main orchestrator logic and phases
-- `@.github/aw/campaign-workflow-execution.md` - Worker workflow execution patterns
-- `@.github/aw/campaign-closing-instructions.md` - Campaign completion and reporting
+- `.github/aw/campaign-orchestrator-instructions.md` - Main orchestrator logic and phases
+- `.github/aw/campaign-workflow-execution.md` - Worker workflow execution patterns
+- `.github/aw/campaign-closing-instructions.md` - Campaign completion and reporting
 
 **Use cases**:
 - "How does the campaign orchestrator work?"
@@ -81,8 +81,8 @@ When you interact with this agent, it will:
 **Load when**: Working with GitHub Projects tracking for campaigns
 
 **Prompt files**:
-- `@.github/aw/campaign-project-update-instructions.md` - Project update logic and API usage
-- `@.github/aw/campaign-project-update-contract-checklist.md` - Validation checklist
+- `.github/aw/campaign-project-update-instructions.md` - Project update logic and API usage
+- `.github/aw/campaign-project-update-contract-checklist.md` - Validation checklist
 
 **Use cases**:
 - "How do campaigns update GitHub Projects?"
@@ -101,7 +101,7 @@ When you interact with this agent, it will:
 When a user interacts with you about campaigns:
 
 1. **Identify the campaign task type** from the user's request
-2. **Load the appropriate prompt** using `@.github/aw/campaign-*.md`
+2. **Load the appropriate prompt** using `.github/aw/campaign-*.md`
 3. **Follow the loaded prompt's instructions** exactly
 4. **If uncertain**, ask clarifying questions:
    - Are they creating a new campaign or working with an existing one?
