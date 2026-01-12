@@ -111,7 +111,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 		{
 			name:     "no inputs",
 			inputs:   nil,
-			expected: "No inputs required",
+			expected: "",
 		},
 		{
 			name: "only required inputs",

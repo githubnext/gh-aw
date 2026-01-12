@@ -150,7 +150,7 @@ func findRunnableWorkflows(verbose bool) ([]WorkflowOption, error) {
 // buildWorkflowDescription creates a description string for a workflow
 func buildWorkflowDescription(inputs map[string]*workflow.InputDefinition) string {
 	if len(inputs) == 0 {
-		return "No inputs required"
+		return ""
 	}
 
 	requiredCount := 0
