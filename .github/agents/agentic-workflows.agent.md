@@ -62,7 +62,7 @@ When you interact with this agent, it will:
 - "Improve the prompt for the weekly-research workflow"
 
 ### Debug Workflow  
-**Load when**: User needs to troubleshoot a workflow, analyze logs, or fix errors
+**Load when**: User needs to investigate, audit, debug, or understand a workflow, troubleshoot issues, analyze logs, or fix errors
 
 **Prompt file**: `.github/aw/debug.md`
 
