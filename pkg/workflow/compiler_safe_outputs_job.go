@@ -130,6 +130,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.HideComment != nil ||
 		data.SafeOutputs.DispatchWorkflow != nil ||
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
+		data.SafeOutputs.CreateProjectStatusUpdates != nil ||
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil
 
@@ -211,6 +212,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// The permissions are configured in the handler manager section above
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		permissions.Merge(NewPermissionsContentsReadSecurityEventsWrite())
+	}
+
+	// Note: Create Project Status Update is now handled by the handler manager
+	// The permissions are configured in the handler manager section above
+	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 	}
 
 	// Note: Add Reviewer is now handled by the handler manager
