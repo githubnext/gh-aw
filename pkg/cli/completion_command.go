@@ -92,7 +92,33 @@ Examples:
 		},
 	}
 
+	// Add uninstall subcommand
+	uninstallCmd := &cobra.Command{
+		Use:   "uninstall",
+		Short: "Uninstall shell completion for the detected shell",
+		Long: `Automatically uninstall shell completion for your current shell.
+
+This command detects your shell (bash, zsh, fish, or PowerShell) and removes
+the completion script from the appropriate location. After uninstallation,
+restart your shell for changes to take effect.
+
+Supported shells:
+  - Bash:       Removes from ~/.bash_completion.d/ or /etc/bash_completion.d/
+  - Zsh:        Removes from ~/.zsh/completions/
+  - Fish:       Removes from ~/.config/fish/completions/
+  - PowerShell: Provides instructions to remove from PowerShell profile
+
+Examples:
+  gh aw completion uninstall           # Auto-detect and uninstall
+  gh aw completion uninstall --verbose # Show detailed uninstallation steps`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			return UninstallShellCompletion(verbose)
+		},
+	}
+
 	cmd.AddCommand(installCmd)
+	cmd.AddCommand(uninstallCmd)
 
 	return cmd
 }

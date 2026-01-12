@@ -101,6 +101,18 @@ func TestCompletionCommand_InstallSubcommand(t *testing.T) {
 	assert.Contains(t, installCmd.Long, "Automatically install shell completion")
 }
 
+func TestCompletionCommand_UninstallSubcommand(t *testing.T) {
+	cmd := NewCompletionCommand()
+
+	// Verify uninstall subcommand exists
+	uninstallCmd := findSubcommand(cmd, "uninstall")
+	require.NotNil(t, uninstallCmd, "uninstall subcommand should exist")
+
+	assert.Equal(t, "uninstall", uninstallCmd.Name())
+	assert.Equal(t, "Uninstall shell completion for the detected shell", uninstallCmd.Short)
+	assert.Contains(t, uninstallCmd.Long, "Automatically uninstall shell completion")
+}
+
 func TestCompletionCommand_LongHelp(t *testing.T) {
 	cmd := NewCompletionCommand()
 
