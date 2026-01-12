@@ -863,9 +863,9 @@ func TestThreatDetectionEngineFalse(t *testing.T) {
 	}
 }
 
-// TestDetectionJobSkipCondition verifies that the detection job has the correct
-// conditional logic to skip when there are no safe outputs and no patches
-func TestDetectionJobSkipCondition(t *testing.T) {
+// TestDetectionJobCondition verifies that the detection job has the correct
+// conditional logic to run whenever the agent completes (unless cancelled)
+func TestDetectionJobCondition(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	frontmatter := map[string]any{
@@ -897,30 +897,20 @@ func TestDetectionJobSkipCondition(t *testing.T) {
 		t.Error("Expected detection job to have an 'if' condition")
 	}
 
-	// Verify the condition checks for output_types
-	if !strings.Contains(job.If, "needs.agent.outputs.output_types") {
-		t.Error("Expected detection job condition to check output_types")
+	// Verify the condition checks for agent job result
+	if !strings.Contains(job.If, "needs.agent.result") {
+		t.Error("Expected detection job condition to check agent result")
 	}
 
-	// Verify the condition checks for has_patch
-	if !strings.Contains(job.If, "needs.agent.outputs.has_patch") {
-		t.Error("Expected detection job condition to check has_patch")
+	// Verify the condition checks that agent was not cancelled
+	if !strings.Contains(job.If, "!= 'cancelled'") {
+		t.Error("Expected detection job condition to check agent was not cancelled")
 	}
 
-	// Verify the condition uses OR logic (||)
-	if !strings.Contains(job.If, "||") {
-		t.Error("Expected detection job condition to use OR logic (||)")
-	}
-
-	// Verify the condition checks output_types is not empty
-	if !strings.Contains(job.If, "!= ''") {
-		t.Error("Expected detection job condition to check output_types is not empty")
-	}
-
-	// Verify the condition checks has_patch equals 'true'
-	if !strings.Contains(job.If, "== 'true'") {
-		t.Error("Expected detection job condition to check has_patch equals 'true'")
-	}
+	// The condition should allow detection to run even when agent produces no outputs
+	// This ensures detection and safe_outputs jobs run for campaigns and workflows
+	// that may not always produce safe outputs but still need threat detection
+	// and safe output processing (e.g., for workflow messages)
 }
 
 // TestCopilotDetectionDefaultModel verifies that the copilot engine uses the

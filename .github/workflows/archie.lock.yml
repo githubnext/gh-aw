@@ -1106,7 +1106,7 @@ jobs:
 
   detection:
     needs: agent
-    if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
+    if: needs.agent.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions: {}
     timeout-minutes: 10
