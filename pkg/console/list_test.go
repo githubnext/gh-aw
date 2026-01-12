@@ -33,7 +33,7 @@ func TestListItem_FilterValue(t *testing.T) {
 
 func TestItemDelegate_Height(t *testing.T) {
 	delegate := itemDelegate{}
-	assert.Equal(t, 2, delegate.Height())
+	assert.Equal(t, 1, delegate.Height())
 }
 
 func TestItemDelegate_Spacing(t *testing.T) {

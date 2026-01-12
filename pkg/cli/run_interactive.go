@@ -149,29 +149,8 @@ func findRunnableWorkflows(verbose bool) ([]WorkflowOption, error) {
 
 // buildWorkflowDescription creates a description string for a workflow
 func buildWorkflowDescription(inputs map[string]*workflow.InputDefinition) string {
-	if len(inputs) == 0 {
-		return "No inputs required"
-	}
-
-	requiredCount := 0
-	optionalCount := 0
-	for _, input := range inputs {
-		if input.Required {
-			requiredCount++
-		} else {
-			optionalCount++
-		}
-	}
-
-	var parts []string
-	if requiredCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d required input(s)", requiredCount))
-	}
-	if optionalCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d optional input(s)", optionalCount))
-	}
-
-	return strings.Join(parts, ", ")
+	// Always return empty string to avoid showing input counts
+	return ""
 }
 
 // selectWorkflow displays an interactive list for workflow selection
@@ -222,8 +201,6 @@ func showWorkflowInfo(wf *WorkflowOption) {
 			}
 			fmt.Fprintf(os.Stderr, "  • %s%s%s%s\n", name, required, desc, defaultVal)
 		}
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  No inputs required"))
 	}
 	fmt.Fprintln(os.Stderr, "")
 }

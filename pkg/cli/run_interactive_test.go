@@ -111,7 +111,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 		{
 			name:     "no inputs",
 			inputs:   nil,
-			expected: "No inputs required",
+			expected: "",
 		},
 		{
 			name: "only required inputs",
@@ -119,7 +119,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 				"input1": {Required: true},
 				"input2": {Required: true},
 			},
-			expected: "2 required input(s)",
+			expected: "",
 		},
 		{
 			name: "only optional inputs",
@@ -127,7 +127,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 				"input1": {Required: false},
 				"input2": {Required: false},
 			},
-			expected: "2 optional input(s)",
+			expected: "",
 		},
 		{
 			name: "mixed inputs",
@@ -136,7 +136,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 				"input2": {Required: false},
 				"input3": {Required: true},
 			},
-			expected: "2 required input(s), 1 optional input(s)",
+			expected: "",
 		},
 	}
 
@@ -296,7 +296,6 @@ on:
 	assert.NotNil(t, wf.Inputs)
 	assert.Len(t, wf.Inputs, 2)
 
-	// Verify description includes input counts
-	assert.Contains(t, wf.Description, "1 required input(s)")
-	assert.Contains(t, wf.Description, "1 optional input(s)")
+	// Verify description is empty (input counts no longer shown)
+	assert.Equal(t, "", wf.Description)
 }
