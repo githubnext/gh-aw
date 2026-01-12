@@ -107,6 +107,28 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 	return nil
 }
 
+// cleanupLegacyCreateAgenticWorkflowPrompt removes the legacy create-agentic-workflow.md file from .github/aw/ if it exists
+func cleanupLegacyCreateAgenticWorkflowPrompt(verbose bool) error {
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return nil // Not in a git repository, skip
+	}
+
+	legacyPath := filepath.Join(gitRoot, ".github", "aw", "create-agentic-workflow.md")
+
+	// Check if the legacy file exists and remove it
+	if _, err := os.Stat(legacyPath); err == nil {
+		if err := os.Remove(legacyPath); err != nil {
+			return fmt.Errorf("failed to remove legacy create-agentic-workflow.md: %w", err)
+		}
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Removed legacy prompt file: %s\n", legacyPath)
+		}
+	}
+
+	return nil
+}
+
 // ensureCopilotInstructions ensures that .github/aw/github-agentic-workflows.md contains the copilot instructions
 func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
 	// First, clean up the old file location if it exists
@@ -149,18 +171,6 @@ func cleanupOldCopilotInstructions(verbose bool) error {
 // ensureAgenticWorkflowsDispatcher ensures that .github/agents/agentic-workflows.agent.md contains the dispatcher agent
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
 	return ensureAgentFromTemplate("agentic-workflows.agent.md", agenticWorkflowsDispatcherTemplate, verbose, skipInstructions)
-}
-
-// ensureCreateAgenticWorkflowPrompt ensures that .github/aw/create-agentic-workflow.md contains the workflow creation prompt
-func ensureCreateAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	return ensureFileMatchesTemplate(
-		filepath.Join(".github", "aw"),
-		"create-agentic-workflow.md",
-		createAgenticWorkflowPromptTemplate,
-		"create workflow prompt",
-		verbose,
-		skipInstructions,
-	)
 }
 
 // ensureCreateWorkflowPrompt ensures that .github/aw/create.md contains the new workflow creation prompt

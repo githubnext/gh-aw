@@ -533,7 +533,8 @@ sync-templates:
 	@echo "Syncing templates from .github to pkg/cli/templates..."
 	@mkdir -p pkg/cli/templates
 	@cp .github/aw/github-agentic-workflows.md pkg/cli/templates/
-	@cp .github/aw/create-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/create.md pkg/cli/templates/
+	@cp .github/aw/update.md pkg/cli/templates/
 	@cp .github/aw/create-shared-agentic-workflow.md pkg/cli/templates/
 	@cp .github/aw/debug-agentic-workflow.md pkg/cli/templates/
 	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/

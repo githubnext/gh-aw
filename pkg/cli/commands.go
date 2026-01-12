@@ -36,9 +36,6 @@ var createWorkflowPromptTemplate string
 //go:embed templates/update.md
 var updateWorkflowPromptTemplate string
 
-//go:embed templates/create-agentic-workflow.md
-var createAgenticWorkflowPromptTemplate string
-
 //go:embed templates/create-shared-agentic-workflow.md
 var createSharedAgenticWorkflowPromptTemplate string
 
