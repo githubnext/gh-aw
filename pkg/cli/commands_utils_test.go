@@ -634,37 +634,59 @@ func TestCopyMarkdownFiles_ErrorScenarios(t *testing.T) {
 
 func TestIsRunnable(t *testing.T) {
 	tests := []struct {
-		name        string
-		content     string
-		expected    bool
-		expectError bool
+		name         string
+		mdContent    string
+		lockContent  string
+		expected     bool
+		expectError  bool
+		errorMessage string
 	}{
 		{
 			name: "workflow with schedule trigger",
-			content: `---
+			mdContent: `---
 on:
   schedule:
     - cron: "0 9 * * *"
 ---
 # Test Workflow
 This workflow runs on schedule.`,
+			lockContent: `name: "Test Workflow"
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
 		{
 			name: "workflow with workflow_dispatch trigger",
-			content: `---
+			mdContent: `---
 on:
   workflow_dispatch:
 ---
 # Manual Workflow
 This workflow can be triggered manually.`,
+			lockContent: `name: "Manual Workflow"
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
 		{
 			name: "workflow with both schedule and workflow_dispatch",
-			content: `---
+			mdContent: `---
 on:
   schedule:
     - cron: "0 9 * * 1"  
@@ -673,12 +695,25 @@ on:
     branches: [main]
 ---
 # Mixed Triggers Workflow`,
+			lockContent: `name: "Mixed Triggers Workflow"
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
 		{
 			name: "workflow with only push trigger (not runnable)",
-			content: `---
+			mdContent: `---
 on:
   push:
     branches: [main]
@@ -687,54 +722,104 @@ on:
 ---
 # CI Workflow
 This is not runnable via schedule or manual dispatch.`,
+			lockContent: `name: "CI Workflow"
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    false,
 			expectError: false,
 		},
 		{
 			name: "workflow with no 'on' section (defaults to runnable)",
-			content: `---
+			mdContent: `---
 name: Default Workflow
 ---
 # Default Workflow
 No on section means it defaults to runnable.`,
-			expected:    true,
+			lockContent: `name: "Default Workflow"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
+			expected:    false,
 			expectError: false,
 		},
 		{
 			name: "workflow with cron trigger (alternative schedule format)",
-			content: `---
+			mdContent: `---
 on:
   cron: "0 */6 * * *"
 ---
 # Cron Workflow
 Uses cron format directly.`,
+			lockContent: `name: "Cron Workflow"
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
 		{
 			name: "case insensitive schedule detection",
-			content: `---
+			mdContent: `---
 on:
   SCHEDULE:
     - cron: "0 12 * * 0"
 ---
 # Case Test Workflow`,
+			lockContent: `name: "Case Test Workflow"
+on:
+  schedule:
+    - cron: "0 12 * * 0"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
 		{
 			name: "case insensitive workflow_dispatch detection",
-			content: `---
+			mdContent: `---
 on:
   WORKFLOW_DISPATCH:
 ---
 # Case Test Manual Workflow`,
+			lockContent: `name: "Case Test Manual Workflow"
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
 		{
 			name: "complex on section with schedule buried in text",
-			content: `---
+			mdContent: `---
 on:
   push:
     branches: [main]
@@ -744,34 +829,68 @@ on:
     types: [opened]
 ---
 # Complex Workflow`,
+			lockContent: `name: "Complex Workflow"
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+  issues:
+    types: [opened]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
 		{
 			name: "empty on section (not runnable)",
-			content: `---
+			mdContent: `---
 on: {}
 ---
 # Empty On Section`,
+			lockContent: `name: "Empty On Section"
+on: {}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    false,
 			expectError: false,
 		},
 		{
 			name: "malformed frontmatter",
-			content: `---
+			mdContent: `---
 invalid yaml structure {
 on:
   schedule
 ---
 # Malformed YAML`,
-			expected:    false,
-			expectError: true,
+			lockContent: `invalid yaml`,
+			expected:     false,
+			expectError:  true,
+			errorMessage: "failed to parse lock file YAML",
 		},
 		{
 			name: "no frontmatter at all (defaults to runnable)",
-			content: `# Simple Markdown
+			mdContent: `# Simple Markdown
 This file has no frontmatter.
 Just plain markdown content.`,
+			lockContent: `name: "Simple Markdown"
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			expected:    true,
 			expectError: false,
 		},
@@ -779,21 +898,29 @@ Just plain markdown content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary test file
+			// Create temporary test files
 			tmpDir := testutil.TempDir(t, "test-*")
-			filePath := filepath.Join(tmpDir, "test-workflow.md")
+			mdPath := filepath.Join(tmpDir, "test-workflow.md")
+			lockPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
 
-			err := os.WriteFile(filePath, []byte(tt.content), 0644)
+			err := os.WriteFile(mdPath, []byte(tt.mdContent), 0644)
 			if err != nil {
-				t.Fatalf("Failed to create test file: %v", err)
+				t.Fatalf("Failed to create markdown file: %v", err)
+			}
+
+			err = os.WriteFile(lockPath, []byte(tt.lockContent), 0644)
+			if err != nil {
+				t.Fatalf("Failed to create lock file: %v", err)
 			}
 
 			// Test the function
-			result, err := IsRunnable(filePath)
+			result, err := IsRunnable(mdPath)
 
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
+				} else if tt.errorMessage != "" && !strings.Contains(err.Error(), tt.errorMessage) {
+					t.Errorf("Expected error containing '%s', got: %v", tt.errorMessage, err)
 				}
 			} else {
 				if err != nil {
