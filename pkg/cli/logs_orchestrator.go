@@ -499,6 +499,9 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	} else {
 		renderLogsConsole(logsData)
 
+		// Display aggregated gateway metrics if any runs have gateway.jsonl files
+		displayAggregatedGatewayMetrics(processedRuns, outputDir, verbose)
+
 		// Generate tool sequence graph if requested (console output only)
 		if toolGraph {
 			generateToolGraph(processedRuns, verbose)

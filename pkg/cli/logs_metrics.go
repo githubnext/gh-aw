@@ -165,6 +165,24 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		return nil
 	})
 
+	// Try to parse gateway.jsonl if it exists
+	gatewayMetrics, gatewayErr := parseGatewayLogs(logDir, verbose)
+	if gatewayErr == nil && gatewayMetrics != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully parsed gateway.jsonl"))
+		}
+		// We've successfully parsed gateway metrics, but we don't add them to the main metrics
+		// structure since they're tracked separately and displayed in their own table
+		logsMetricsLog.Printf("Parsed gateway.jsonl: %d servers, %d requests",
+			len(gatewayMetrics.Servers), gatewayMetrics.TotalRequests)
+	} else if gatewayErr != nil && !strings.Contains(gatewayErr.Error(), "not found") {
+		// Only log if it's an error other than "not found"
+		logsMetricsLog.Printf("Failed to parse gateway.jsonl: %v", gatewayErr)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse gateway.jsonl: %v", gatewayErr)))
+		}
+	}
+
 	if logsMetricsLog.Enabled() {
 		logsMetricsLog.Printf("Metrics extraction completed: tokens=%d, cost=%.4f, turns=%d",
 			metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
