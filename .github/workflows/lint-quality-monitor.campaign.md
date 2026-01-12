@@ -4,7 +4,7 @@ name: "Campaign: Lint Quality Monitor"
 description: "Monitor lint issues continuously across all code changes and track lint violation trends. Success: 50% reduction in lint violations within one quarter."
 version: v1
 engine: copilot
-project-url: "TBD"  # Will be created
+project-url: "https://github.com/orgs/githubnext/projects/999"  # Placeholder - will be created
 workflows:
   - ci-coach
 tracker-label: "campaign:lint-quality-monitor"
@@ -30,15 +30,15 @@ kpis:
   - name: "Total lint violations"
     priority: primary
     unit: count
-    baseline: TBD
-    target: -50%
+    baseline: 1000
+    target: 500
     time-window-days: 90
     direction: decrease
     source: custom
   - name: "New PRs passing all lint checks"
     priority: supporting
     unit: percent
-    baseline: TBD
+    baseline: 70
     target: 90
     time-window-days: 7
     direction: increase
@@ -46,27 +46,11 @@ kpis:
   - name: "Average lint fix time"
     priority: supporting
     unit: hours
-    baseline: TBD
+    baseline: 48
     target: 24
     time-window-days: 30
     direction: decrease
     source: custom
-  - name: "Code maintainability index"
-    priority: tertiary
-    unit: percent
-    baseline: TBD
-    target: +20%
-    time-window-days: 90
-    direction: increase
-    source: custom
-  - name: "Lint-related PR comments"
-    priority: tertiary
-    unit: count
-    baseline: TBD
-    target: -60%
-    time-window-days: 30
-    direction: decrease
-    source: pull_requests
 governance:
   max-issues-per-run: 5
   max-comments-per-run: 3
@@ -98,14 +82,12 @@ Linting is a critical aspect of code quality. By monitoring lint violations cont
 - Reduce total lint violations by 50% within one quarter (Q1 2026)
 - Ensure 90% of new PRs pass all lint checks
 - Achieve average lint fix time under 24 hours
-- Improve code maintainability index by 20%
-- Reduce lint-related PR comments by 60%
 
 ## Key Performance Indicators
 
 ### Primary KPI: Total Lint Violations
-- **Baseline**: To be determined (initial scan)
-- **Target**: 50% reduction from baseline
+- **Baseline**: 1000 violations (estimated current state)
+- **Target**: 500 violations (50% reduction)
 - **Time Window**: 90 days
 - **Direction**: Decrease
 - **Source**: Custom metrics from lint analysis
@@ -113,7 +95,7 @@ Linting is a critical aspect of code quality. By monitoring lint violations cont
 This KPI tracks the absolute number of lint violations across the codebase. A 50% reduction indicates significant improvement in code quality.
 
 ### Supporting KPI: New PRs Passing All Lint Checks
-- **Baseline**: To be determined
+- **Baseline**: 70% pass rate (estimated current)
 - **Target**: 90% pass rate
 - **Time Window**: 7 days (rolling)
 - **Direction**: Increase
@@ -122,31 +104,13 @@ This KPI tracks the absolute number of lint violations across the codebase. A 50
 This KPI measures how many new PRs pass lint checks without requiring fixes. Higher rates indicate better code quality from developers.
 
 ### Supporting KPI: Average Lint Fix Time
-- **Baseline**: To be determined
+- **Baseline**: 48 hours (estimated current)
 - **Target**: Under 24 hours
 - **Time Window**: 30 days (rolling)
 - **Direction**: Decrease
 - **Source**: Custom metrics (issue creation to PR merge)
 
 This KPI tracks how quickly lint issues get resolved. Faster resolution means less technical debt accumulation.
-
-### Tertiary KPI: Code Maintainability Index
-- **Baseline**: To be determined
-- **Target**: 20% improvement
-- **Time Window**: 90 days
-- **Direction**: Increase
-- **Source**: Custom metrics from code analysis
-
-This KPI measures overall code maintainability, including cyclomatic complexity, duplication, and documentation coverage.
-
-### Tertiary KPI: Lint-Related PR Comments
-- **Baseline**: To be determined
-- **Target**: 60% reduction
-- **Time Window**: 30 days (rolling)
-- **Direction**: Decrease
-- **Source**: Pull request review comments
-
-Fewer lint-related comments indicate developers are catching issues earlier through automation.
 
 ## Associated Workflows
 
