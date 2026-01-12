@@ -14,7 +14,7 @@ set -e
 # Usage: check_mcp_servers.sh GATEWAY_CONFIG_PATH GATEWAY_URL GATEWAY_API_KEY
 #
 # Arguments:
-#   GATEWAY_CONFIG_PATH : Path to the gateway output configuration file (gateway-output.json)
+#   GATEWAY_CONFIG_PATH : Path to the gateway configuration (can be a file or process substitution like <(echo "$config"))
 #   GATEWAY_URL         : The HTTP URL of the MCP gateway (e.g., http://localhost:8080)
 #   GATEWAY_API_KEY     : API key for gateway authentication
 #
@@ -40,7 +40,7 @@ if [ ! -f "$GATEWAY_CONFIG_PATH" ]; then
   exit 1
 fi
 
-# Parse the mcpServers section from gateway-output.json
+# Parse the mcpServers section from gateway configuration
 if ! MCP_SERVERS=$(jq -r '.mcpServers' "$GATEWAY_CONFIG_PATH" 2>/dev/null); then
   echo "ERROR: Failed to parse mcpServers from configuration file" >&2
   exit 1
