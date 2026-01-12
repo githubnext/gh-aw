@@ -54,32 +54,32 @@ type GatewayServerMetrics struct {
 
 // GatewayToolMetrics represents usage metrics for a specific tool
 type GatewayToolMetrics struct {
-	ToolName      string
-	CallCount     int
-	TotalDuration float64 // in milliseconds
-	AvgDuration   float64 // in milliseconds
-	MaxDuration   float64 // in milliseconds
-	MinDuration   float64 // in milliseconds
-	ErrorCount    int
+	ToolName        string
+	CallCount       int
+	TotalDuration   float64 // in milliseconds
+	AvgDuration     float64 // in milliseconds
+	MaxDuration     float64 // in milliseconds
+	MinDuration     float64 // in milliseconds
+	ErrorCount      int
 	TotalInputSize  int
 	TotalOutputSize int
 }
 
 // GatewayMetrics represents aggregated metrics from gateway logs
 type GatewayMetrics struct {
-	TotalRequests    int
-	TotalToolCalls   int
-	TotalErrors      int
-	Servers          map[string]*GatewayServerMetrics
-	StartTime        time.Time
-	EndTime          time.Time
-	TotalDuration    float64 // in milliseconds
+	TotalRequests  int
+	TotalToolCalls int
+	TotalErrors    int
+	Servers        map[string]*GatewayServerMetrics
+	StartTime      time.Time
+	EndTime        time.Time
+	TotalDuration  float64 // in milliseconds
 }
 
 // parseGatewayLogs parses a gateway.jsonl file and extracts metrics
 func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 	gatewayLogPath := filepath.Join(logDir, "gateway.jsonl")
-	
+
 	// Check if gateway.jsonl exists
 	if _, err := os.Stat(gatewayLogPath); os.IsNotExist(err) {
 		gatewayLogsLog.Printf("gateway.jsonl not found at: %s", gatewayLogPath)
@@ -100,11 +100,11 @@ func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
-	
+
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		// Skip empty lines
 		if line == "" {
 			continue
@@ -130,7 +130,7 @@ func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 	// Calculate aggregate statistics
 	calculateGatewayAggregates(metrics)
 
-	gatewayLogsLog.Printf("Successfully parsed gateway.jsonl: %d servers, %d total requests", 
+	gatewayLogsLog.Printf("Successfully parsed gateway.jsonl: %d servers, %d total requests",
 		len(metrics.Servers), metrics.TotalRequests)
 
 	return metrics, nil
@@ -156,7 +156,7 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 		if entry.ServerName != "" {
 			server := getOrCreateServer(metrics, entry.ServerName)
 			server.ErrorCount++
-			
+
 			if entry.ToolName != "" {
 				tool := getOrCreateTool(server, entry.ToolName)
 				tool.ErrorCount++
@@ -168,11 +168,11 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 	switch entry.Event {
 	case "request", "tool_call", "rpc_call":
 		metrics.TotalRequests++
-		
+
 		if entry.ServerName != "" {
 			server := getOrCreateServer(metrics, entry.ServerName)
 			server.RequestCount++
-			
+
 			if entry.Duration > 0 {
 				server.TotalDuration += entry.Duration
 				metrics.TotalDuration += entry.Duration
@@ -184,13 +184,13 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 				if toolName == "" {
 					toolName = entry.Method
 				}
-				
+
 				metrics.TotalToolCalls++
 				server.ToolCallCount++
-				
+
 				tool := getOrCreateTool(server, toolName)
 				tool.CallCount++
-				
+
 				if entry.Duration > 0 {
 					tool.TotalDuration += entry.Duration
 					if tool.MaxDuration == 0 || entry.Duration > tool.MaxDuration {
@@ -200,7 +200,7 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 						tool.MinDuration = entry.Duration
 					}
 				}
-				
+
 				if entry.InputSize > 0 {
 					tool.TotalInputSize += entry.InputSize
 				}
@@ -217,7 +217,7 @@ func getOrCreateServer(metrics *GatewayMetrics, serverName string) *GatewayServe
 	if server, exists := metrics.Servers[serverName]; exists {
 		return server
 	}
-	
+
 	server := &GatewayServerMetrics{
 		ServerName: serverName,
 		Tools:      make(map[string]*GatewayToolMetrics),
@@ -231,7 +231,7 @@ func getOrCreateTool(server *GatewayServerMetrics, toolName string) *GatewayTool
 	if tool, exists := server.Tools[toolName]; exists {
 		return tool
 	}
-	
+
 	tool := &GatewayToolMetrics{
 		ToolName: toolName,
 	}
@@ -257,22 +257,22 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	}
 
 	var output strings.Builder
-	
+
 	output.WriteString("\n")
 	output.WriteString(console.FormatInfoMessage("MCP Gateway Metrics"))
 	output.WriteString("\n\n")
 
 	// Summary statistics
-	output.WriteString(fmt.Sprintf("Total Requests: %d\n", metrics.TotalRequests))
-	output.WriteString(fmt.Sprintf("Total Tool Calls: %d\n", metrics.TotalToolCalls))
-	output.WriteString(fmt.Sprintf("Total Errors: %d\n", metrics.TotalErrors))
-	output.WriteString(fmt.Sprintf("Servers: %d\n", len(metrics.Servers)))
-	
+	fmt.Fprintf(&output, "Total Requests: %d\n", metrics.TotalRequests)
+	fmt.Fprintf(&output, "Total Tool Calls: %d\n", metrics.TotalToolCalls)
+	fmt.Fprintf(&output, "Total Errors: %d\n", metrics.TotalErrors)
+	fmt.Fprintf(&output, "Servers: %d\n", len(metrics.Servers))
+
 	if !metrics.StartTime.IsZero() && !metrics.EndTime.IsZero() {
 		duration := metrics.EndTime.Sub(metrics.StartTime)
-		output.WriteString(fmt.Sprintf("Time Range: %s\n", duration.Round(time.Second)))
+		fmt.Fprintf(&output, "Time Range: %s\n", duration.Round(time.Second))
 	}
-	
+
 	output.WriteString("\n")
 
 	// Server metrics table
@@ -297,15 +297,15 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			if server.RequestCount > 0 {
 				avgTime = server.TotalDuration / float64(server.RequestCount)
 			}
-			
-			output.WriteString(fmt.Sprintf("│ %-26s │ %8d │ %10d │ %7.0fms │ %6d │\n",
+
+			fmt.Fprintf(&output, "│ %-26s │ %8d │ %10d │ %7.0fms │ %6d │\n",
 				truncateString(serverName, 26),
 				server.RequestCount,
 				server.ToolCallCount,
 				avgTime,
-				server.ErrorCount))
+				server.ErrorCount)
 		}
-		
+
 		output.WriteString("└────────────────────────────┴──────────┴────────────┴───────────┴────────┘\n")
 	}
 
@@ -313,14 +313,14 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	if verbose {
 		output.WriteString("\n")
 		output.WriteString("Tool Usage Details:\n")
-		
+
 		for _, serverName := range getSortedServerNames(metrics) {
 			server := metrics.Servers[serverName]
 			if len(server.Tools) == 0 {
 				continue
 			}
-			
-			output.WriteString(fmt.Sprintf("\n%s:\n", serverName))
+
+			fmt.Fprintf(&output, "\n%s:\n", serverName)
 			output.WriteString("┌──────────────────────────┬───────┬──────────┬──────────┬──────────┐\n")
 			output.WriteString("│ Tool                     │ Calls │ Avg Time │ Max Time │ Errors   │\n")
 			output.WriteString("├──────────────────────────┼───────┼──────────┼──────────┼──────────┤\n")
@@ -336,14 +336,14 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 
 			for _, toolName := range toolNames {
 				tool := server.Tools[toolName]
-				output.WriteString(fmt.Sprintf("│ %-24s │ %5d │ %6.0fms │ %6.0fms │ %8d │\n",
+				fmt.Fprintf(&output, "│ %-24s │ %5d │ %6.0fms │ %6.0fms │ %8d │\n",
 					truncateString(toolName, 24),
 					tool.CallCount,
 					tool.AvgDuration,
 					tool.MaxDuration,
-					tool.ErrorCount))
+					tool.ErrorCount)
 			}
-			
+
 			output.WriteString("└──────────────────────────┴───────┴──────────┴──────────┴──────────┘\n")
 		}
 	}
@@ -372,4 +372,87 @@ func truncateString(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// displayAggregatedGatewayMetrics aggregates and displays gateway metrics across all processed runs
+func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir string, verbose bool) {
+	// Aggregate gateway metrics from all runs
+	aggregated := &GatewayMetrics{
+		Servers: make(map[string]*GatewayServerMetrics),
+	}
+
+	runCount := 0
+	for _, pr := range processedRuns {
+		runDir := pr.Run.LogsPath
+		if runDir == "" {
+			continue
+		}
+
+		// Try to parse gateway.jsonl from this run
+		runMetrics, err := parseGatewayLogs(runDir, false)
+		if err != nil {
+			// Skip runs without gateway.jsonl (this is normal for runs without MCP gateway)
+			continue
+		}
+
+		runCount++
+
+		// Merge metrics from this run into aggregated metrics
+		aggregated.TotalRequests += runMetrics.TotalRequests
+		aggregated.TotalToolCalls += runMetrics.TotalToolCalls
+		aggregated.TotalErrors += runMetrics.TotalErrors
+		aggregated.TotalDuration += runMetrics.TotalDuration
+
+		// Merge server metrics
+		for serverName, serverMetrics := range runMetrics.Servers {
+			aggServer := getOrCreateServer(aggregated, serverName)
+			aggServer.RequestCount += serverMetrics.RequestCount
+			aggServer.ToolCallCount += serverMetrics.ToolCallCount
+			aggServer.TotalDuration += serverMetrics.TotalDuration
+			aggServer.ErrorCount += serverMetrics.ErrorCount
+
+			// Merge tool metrics
+			for toolName, toolMetrics := range serverMetrics.Tools {
+				aggTool := getOrCreateTool(aggServer, toolName)
+				aggTool.CallCount += toolMetrics.CallCount
+				aggTool.TotalDuration += toolMetrics.TotalDuration
+				aggTool.ErrorCount += toolMetrics.ErrorCount
+				aggTool.TotalInputSize += toolMetrics.TotalInputSize
+				aggTool.TotalOutputSize += toolMetrics.TotalOutputSize
+
+				// Update max/min durations
+				if toolMetrics.MaxDuration > aggTool.MaxDuration {
+					aggTool.MaxDuration = toolMetrics.MaxDuration
+				}
+				if aggTool.MinDuration == 0 || (toolMetrics.MinDuration > 0 && toolMetrics.MinDuration < aggTool.MinDuration) {
+					aggTool.MinDuration = toolMetrics.MinDuration
+				}
+			}
+		}
+
+		// Update time range
+		if aggregated.StartTime.IsZero() || (!runMetrics.StartTime.IsZero() && runMetrics.StartTime.Before(aggregated.StartTime)) {
+			aggregated.StartTime = runMetrics.StartTime
+		}
+		if aggregated.EndTime.IsZero() || (!runMetrics.EndTime.IsZero() && runMetrics.EndTime.After(aggregated.EndTime)) {
+			aggregated.EndTime = runMetrics.EndTime
+		}
+	}
+
+	// Only display if we found gateway metrics
+	if runCount == 0 || len(aggregated.Servers) == 0 {
+		return
+	}
+
+	// Recalculate averages for aggregated data
+	calculateGatewayAggregates(aggregated)
+
+	// Display the aggregated metrics
+	if metricsOutput := renderGatewayMetricsTable(aggregated, verbose); metricsOutput != "" {
+		fmt.Fprint(os.Stderr, metricsOutput)
+		if runCount > 1 {
+			fmt.Fprintf(os.Stderr, "\n%s\n",
+				console.FormatInfoMessage(fmt.Sprintf("Gateway metrics aggregated from %d runs", runCount)))
+		}
+	}
 }

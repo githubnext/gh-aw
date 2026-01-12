@@ -173,7 +173,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		}
 		// We've successfully parsed gateway metrics, but we don't add them to the main metrics
 		// structure since they're tracked separately and displayed in their own table
-		logsMetricsLog.Printf("Parsed gateway.jsonl: %d servers, %d requests", 
+		logsMetricsLog.Printf("Parsed gateway.jsonl: %d servers, %d requests",
 			len(gatewayMetrics.Servers), gatewayMetrics.TotalRequests)
 	} else if gatewayErr != nil && !strings.Contains(gatewayErr.Error(), "not found") {
 		// Only log if it's an error other than "not found"

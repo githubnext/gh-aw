@@ -90,7 +90,7 @@ invalid json line
 			metrics, err := parseGatewayLogs(tmpDir, false)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
@@ -98,7 +98,7 @@ invalid json line
 			require.NotNil(t, metrics)
 
 			// Verify metrics
-			assert.Equal(t, tt.wantServers, len(metrics.Servers), "Server count mismatch")
+			assert.Len(t, metrics.Servers, tt.wantServers, "Server count mismatch")
 			assert.Equal(t, tt.wantRequests, metrics.TotalRequests, "Total requests mismatch")
 			assert.Equal(t, tt.wantToolCalls, metrics.TotalToolCalls, "Total tool calls mismatch")
 			assert.Equal(t, tt.wantErrors, metrics.TotalErrors, "Total errors mismatch")
@@ -108,10 +108,10 @@ invalid json line
 
 func TestParseGatewayLogsFileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	metrics, err := parseGatewayLogs(tmpDir, false)
-	
-	assert.Error(t, err)
+
+	require.Error(t, err)
 	assert.Nil(t, metrics)
 	assert.Contains(t, err.Error(), "gateway.jsonl not found")
 }
@@ -134,22 +134,22 @@ func TestGatewayToolMetrics(t *testing.T) {
 	require.NotNil(t, metrics)
 
 	// Verify server metrics
-	require.Equal(t, 1, len(metrics.Servers))
+	require.Len(t, metrics.Servers, 1)
 	server := metrics.Servers["github"]
 	require.NotNil(t, server)
 	assert.Equal(t, "github", server.ServerName)
 	assert.Equal(t, 3, server.RequestCount)
 
 	// Verify tool metrics
-	require.Equal(t, 1, len(server.Tools))
+	require.Len(t, server.Tools, 1)
 	tool := server.Tools["get_repository"]
 	require.NotNil(t, tool)
 	assert.Equal(t, "get_repository", tool.ToolName)
 	assert.Equal(t, 3, tool.CallCount)
-	assert.Equal(t, 600.0, tool.TotalDuration)
-	assert.Equal(t, 200.0, tool.AvgDuration)
-	assert.Equal(t, 300.0, tool.MaxDuration)
-	assert.Equal(t, 100.0, tool.MinDuration)
+	assert.InDelta(t, 600.0, tool.TotalDuration, 0.001)
+	assert.InDelta(t, 200.0, tool.AvgDuration, 0.001)
+	assert.InDelta(t, 300.0, tool.MaxDuration, 0.001)
+	assert.InDelta(t, 100.0, tool.MinDuration, 0.001)
 }
 
 func TestRenderGatewayMetricsTable(t *testing.T) {
@@ -294,13 +294,13 @@ func TestProcessGatewayLogEntry(t *testing.T) {
 	assert.Equal(t, 1, metrics.TotalRequests)
 	assert.Equal(t, 1, metrics.TotalToolCalls)
 	assert.Equal(t, 0, metrics.TotalErrors)
-	assert.Equal(t, 1, len(metrics.Servers))
+	assert.Len(t, metrics.Servers, 1)
 
 	server := metrics.Servers["github"]
 	require.NotNil(t, server)
 	assert.Equal(t, 1, server.RequestCount)
 	assert.Equal(t, 1, server.ToolCallCount)
-	assert.Equal(t, 150.5, server.TotalDuration)
+	assert.InDelta(t, 150.5, server.TotalDuration, 0.001)
 
 	// Test error entry
 	errorEntry := &GatewayLogEntry{
@@ -339,7 +339,7 @@ func TestGetSortedServerNames(t *testing.T) {
 
 	names := getSortedServerNames(metrics)
 	require.Len(t, names, 3)
-	
+
 	// Should be sorted by request count (descending)
 	assert.Equal(t, "tavily", names[0])
 	assert.Equal(t, "github", names[1])
@@ -362,14 +362,14 @@ func TestGatewayLogsWithMethodField(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, metrics)
 
-	assert.Equal(t, 1, len(metrics.Servers))
+	assert.Len(t, metrics.Servers, 1)
 	assert.Equal(t, 2, metrics.TotalRequests)
 	assert.Equal(t, 2, metrics.TotalToolCalls)
 
 	server := metrics.Servers["github"]
 	require.NotNil(t, server)
-	assert.Equal(t, 2, len(server.Tools))
-	
+	assert.Len(t, server.Tools, 2)
+
 	// Check that methods were tracked as tools
 	assert.Contains(t, server.Tools, "tools/list")
 	assert.Contains(t, server.Tools, "tools/call")
@@ -397,7 +397,7 @@ func TestGatewayLogsParsingIntegration(t *testing.T) {
 	require.NotNil(t, metrics)
 
 	// Verify overall metrics
-	assert.Equal(t, 2, len(metrics.Servers), "Should have 2 servers")
+	assert.Len(t, metrics.Servers, 2, "Should have 2 servers")
 	assert.Equal(t, 5, metrics.TotalRequests, "Should have 5 requests")
 	assert.Equal(t, 5, metrics.TotalToolCalls, "Should have 5 tool calls")
 	assert.Equal(t, 1, metrics.TotalErrors, "Should have 1 error")
@@ -417,8 +417,8 @@ func TestGatewayLogsParsingIntegration(t *testing.T) {
 	assert.Equal(t, 0, playwrightServer.ErrorCount)
 
 	// Verify tool metrics
-	assert.Equal(t, 2, len(githubServer.Tools))
-	assert.Equal(t, 2, len(playwrightServer.Tools))
+	assert.Len(t, githubServer.Tools, 2)
+	assert.Len(t, playwrightServer.Tools, 2)
 
 	// Verify GitHub tools
 	getRepoTool := githubServer.Tools["get_repository"]
