@@ -415,10 +415,10 @@ func uninstallBashCompletion(verbose bool) error {
 
 	// Check all possible locations where completion might be installed
 	var possiblePaths []string
-	
+
 	// User-level installations
 	possiblePaths = append(possiblePaths, filepath.Join(homeDir, ".bash_completion.d", "gh-aw"))
-	
+
 	// macOS with Homebrew
 	if runtime.GOOS == "darwin" {
 		brewPrefix := os.Getenv("HOMEBREW_PREFIX")
@@ -432,7 +432,7 @@ func uninstallBashCompletion(verbose bool) error {
 			possiblePaths = append(possiblePaths, filepath.Join(brewPrefix, "etc", "bash_completion.d", "gh-aw"))
 		}
 	}
-	
+
 	// System-wide installations (Linux)
 	if runtime.GOOS == "linux" {
 		possiblePaths = append(possiblePaths, "/etc/bash_completion.d/gh-aw")
@@ -440,7 +440,7 @@ func uninstallBashCompletion(verbose bool) error {
 
 	removed := false
 	var lastErr error
-	
+
 	for _, path := range possiblePaths {
 		if _, err := os.Stat(path); err == nil {
 			shellCompletionLog.Printf("Found completion file at: %s", path)
@@ -463,7 +463,7 @@ func uninstallBashCompletion(verbose bool) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for changes to take effect"))
-	
+
 	return nil
 }
 
@@ -478,20 +478,20 @@ func uninstallZshCompletion(verbose bool) error {
 
 	// Check possible locations
 	completionPath := filepath.Join(homeDir, ".zsh", "completions", "_gh-aw")
-	
+
 	if _, err := os.Stat(completionPath); err != nil {
 		return fmt.Errorf("no zsh completion file found at: %s", completionPath)
 	}
 
 	shellCompletionLog.Printf("Found completion file at: %s", completionPath)
-	
+
 	if err := os.Remove(completionPath); err != nil {
 		return fmt.Errorf("failed to remove completion file: %w", err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed zsh completion from: %s", completionPath)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for changes to take effect"))
-	
+
 	return nil
 }
 
@@ -505,20 +505,20 @@ func uninstallFishCompletion(verbose bool) error {
 	}
 
 	completionPath := filepath.Join(homeDir, ".config", "fish", "completions", "gh-aw.fish")
-	
+
 	if _, err := os.Stat(completionPath); err != nil {
 		return fmt.Errorf("no fish completion file found at: %s", completionPath)
 	}
 
 	shellCompletionLog.Printf("Found completion file at: %s", completionPath)
-	
+
 	if err := os.Remove(completionPath); err != nil {
 		return fmt.Errorf("failed to remove completion file: %w", err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed fish completion from: %s", completionPath)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fish will automatically detect the removal on next shell start"))
-	
+
 	return nil
 }
 
@@ -549,6 +549,6 @@ func uninstallPowerShellCompletion(verbose bool) error {
 	fmt.Fprintln(os.Stderr, "  gh aw completion powershell | Out-String | Invoke-Expression")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: . $PROFILE"))
-	
+
 	return nil
 }

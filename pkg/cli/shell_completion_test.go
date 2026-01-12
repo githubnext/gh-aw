@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetectShell(t *testing.T) {
@@ -197,19 +198,19 @@ func TestUninstallBashCompletion(t *testing.T) {
 	// Create completion directory and file
 	completionDir := tmpDir + "/.bash_completion.d"
 	err := os.MkdirAll(completionDir, 0750)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	completionFile := completionDir + "/gh-aw"
 	err = os.WriteFile(completionFile, []byte("# test completion"), 0600)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify file exists before uninstall
 	_, err = os.Stat(completionFile)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Uninstall
 	err = uninstallBashCompletion(false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify file is removed
 	_, err = os.Stat(completionFile)
@@ -225,7 +226,7 @@ func TestUninstallBashCompletionNotFound(t *testing.T) {
 
 	// Uninstall should fail when no file found
 	err := uninstallBashCompletion(false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no bash completion file found")
 }
 
@@ -239,19 +240,19 @@ func TestUninstallZshCompletion(t *testing.T) {
 	// Create completion directory and file
 	completionDir := tmpDir + "/.zsh/completions"
 	err := os.MkdirAll(completionDir, 0750)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	completionFile := completionDir + "/_gh-aw"
 	err = os.WriteFile(completionFile, []byte("# test completion"), 0600)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify file exists before uninstall
 	_, err = os.Stat(completionFile)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Uninstall
 	err = uninstallZshCompletion(false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify file is removed
 	_, err = os.Stat(completionFile)
@@ -267,7 +268,7 @@ func TestUninstallZshCompletionNotFound(t *testing.T) {
 
 	// Uninstall should fail when no file found
 	err := uninstallZshCompletion(false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no zsh completion file found")
 }
 
@@ -281,19 +282,19 @@ func TestUninstallFishCompletion(t *testing.T) {
 	// Create completion directory and file
 	completionDir := tmpDir + "/.config/fish/completions"
 	err := os.MkdirAll(completionDir, 0750)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	completionFile := completionDir + "/gh-aw.fish"
 	err = os.WriteFile(completionFile, []byte("# test completion"), 0600)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify file exists before uninstall
 	_, err = os.Stat(completionFile)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Uninstall
 	err = uninstallFishCompletion(false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify file is removed
 	_, err = os.Stat(completionFile)
@@ -309,7 +310,7 @@ func TestUninstallFishCompletionNotFound(t *testing.T) {
 
 	// Uninstall should fail when no file found
 	err := uninstallFishCompletion(false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no fish completion file found")
 }
 
@@ -317,7 +318,7 @@ func TestUninstallShellCompletion(t *testing.T) {
 	// Save original environment
 	originalShell := os.Getenv("SHELL")
 	originalHome := os.Getenv("HOME")
-	
+
 	// Restore environment after test
 	defer func() {
 		os.Setenv("SHELL", originalShell)
@@ -341,9 +342,9 @@ func TestUninstallShellCompletion(t *testing.T) {
 			setupFunc: func(t *testing.T, tmpDir string) {
 				completionDir := tmpDir + "/.bash_completion.d"
 				err := os.MkdirAll(completionDir, 0750)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = os.WriteFile(completionDir+"/gh-aw", []byte("# test"), 0600)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			},
 			expectError: false,
 		},
@@ -353,9 +354,9 @@ func TestUninstallShellCompletion(t *testing.T) {
 			setupFunc: func(t *testing.T, tmpDir string) {
 				completionDir := tmpDir + "/.zsh/completions"
 				err := os.MkdirAll(completionDir, 0750)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = os.WriteFile(completionDir+"/_gh-aw", []byte("# test"), 0600)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			},
 			expectError: false,
 		},
@@ -365,9 +366,9 @@ func TestUninstallShellCompletion(t *testing.T) {
 			setupFunc: func(t *testing.T, tmpDir string) {
 				completionDir := tmpDir + "/.config/fish/completions"
 				err := os.MkdirAll(completionDir, 0750)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = os.WriteFile(completionDir+"/gh-aw.fish", []byte("# test"), 0600)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			},
 			expectError: false,
 		},
@@ -386,10 +387,10 @@ func TestUninstallShellCompletion(t *testing.T) {
 			os.Unsetenv("BASH_VERSION")
 			os.Unsetenv("ZSH_VERSION")
 			os.Unsetenv("FISH_VERSION")
-			
+
 			// Set shell environment
 			os.Setenv("SHELL", tt.shellEnv)
-			
+
 			// Setup test
 			if tt.setupFunc != nil {
 				tt.setupFunc(t, tmpDir)
@@ -400,12 +401,12 @@ func TestUninstallShellCompletion(t *testing.T) {
 
 			// Verify results
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorMessage != "" {
 					assert.Contains(t, err.Error(), tt.errorMessage)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
