@@ -163,6 +163,30 @@ func ensureCreateAgenticWorkflowPrompt(verbose bool, skipInstructions bool) erro
 	)
 }
 
+// ensureCreateWorkflowPrompt ensures that .github/aw/create.md contains the new workflow creation prompt
+func ensureCreateWorkflowPrompt(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"create.md",
+		createWorkflowPromptTemplate,
+		"create workflow prompt",
+		verbose,
+		skipInstructions,
+	)
+}
+
+// ensureUpdateWorkflowPrompt ensures that .github/aw/update.md contains the workflow update prompt
+func ensureUpdateWorkflowPrompt(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"update.md",
+		updateWorkflowPromptTemplate,
+		"update workflow prompt",
+		verbose,
+		skipInstructions,
+	)
+}
+
 // ensureCreateSharedAgenticWorkflowPrompt ensures that .github/aw/create-shared-agentic-workflow.md contains the shared workflow creation prompt
 func ensureCreateSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(

@@ -62,14 +62,34 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent"))
 	}
 
-	// Write create agentic workflow prompt
-	initLog.Print("Writing create agentic workflow prompt")
+	// Write create agentic workflow prompt (legacy)
+	initLog.Print("Writing create agentic workflow prompt (legacy)")
 	if err := ensureCreateAgenticWorkflowPrompt(verbose, false); err != nil {
 		initLog.Printf("Failed to write create workflow prompt: %v", err)
 		return fmt.Errorf("failed to write create workflow prompt: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created workflow creation prompt"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created workflow creation prompt (legacy)"))
+	}
+
+	// Write create workflow prompt (new)
+	initLog.Print("Writing create workflow prompt")
+	if err := ensureCreateWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write create workflow prompt: %v", err)
+		return fmt.Errorf("failed to write create workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created create workflow prompt"))
+	}
+
+	// Write update workflow prompt (new)
+	initLog.Print("Writing update workflow prompt")
+	if err := ensureUpdateWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write update workflow prompt: %v", err)
+		return fmt.Errorf("failed to write update workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created update workflow prompt"))
 	}
 
 	// Write create shared agentic workflow prompt

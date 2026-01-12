@@ -30,6 +30,12 @@ var agenticWorkflowsDispatcherTemplate string
 //go:embed templates/agentic-campaigns.agent.md
 var agenticCampaignsDispatcherTemplate string
 
+//go:embed templates/create.md
+var createWorkflowPromptTemplate string
+
+//go:embed templates/update.md
+var updateWorkflowPromptTemplate string
+
 //go:embed templates/create-agentic-workflow.md
 var createAgenticWorkflowPromptTemplate string
 

@@ -22,7 +22,9 @@ This command:
 - Creates .github/aw/logs/.gitignore to ignore downloaded workflow logs
 - Creates GitHub Copilot custom instructions at .github/aw/github-agentic-workflows.md
 - Creates the dispatcher agent at .github/agents/agentic-workflows.agent.md
-- Creates workflow creation prompt at .github/aw/create-agentic-workflow.md
+- Creates workflow creation prompt at .github/aw/create-agentic-workflow.md (legacy)
+- Creates workflow creation prompt at .github/aw/create.md (for new workflows)
+- Creates workflow update prompt at .github/aw/update.md (for updating existing workflows)
 - Creates shared workflow creation prompt at .github/aw/create-shared-agentic-workflow.md
 - Creates debug workflow prompt at .github/aw/debug-agentic-workflow.md
 - Creates upgrade workflow prompt at .github/aw/upgrade-agentic-workflows.md
