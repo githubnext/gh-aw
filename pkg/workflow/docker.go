@@ -54,7 +54,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []str
 	if workflowData != nil && workflowData.SandboxConfig != nil {
 		// Check if sandbox is disabled
 		sandboxDisabled := workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled
-		
+
 		if !sandboxDisabled && workflowData.SandboxConfig.MCP != nil {
 			mcpGateway := workflowData.SandboxConfig.MCP
 			if mcpGateway.Container != "" {

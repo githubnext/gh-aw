@@ -14,7 +14,7 @@ import (
 func TestSandboxDisabled(t *testing.T) {
 	t.Run("sandbox: false is parsed correctly", func(t *testing.T) {
 		workflowsDir := t.TempDir()
-		
+
 		markdown := `---
 engine: copilot
 sandbox: false
@@ -39,7 +39,7 @@ Test workflow with sandbox disabled.
 
 	t.Run("sandbox: false is refused in strict mode", func(t *testing.T) {
 		workflowsDir := t.TempDir()
-		
+
 		markdown := `---
 engine: copilot
 sandbox: false
@@ -66,7 +66,7 @@ Test workflow with sandbox disabled in strict mode.
 
 	t.Run("sandbox: false disables firewall", func(t *testing.T) {
 		workflowsDir := t.TempDir()
-		
+
 		markdown := `---
 engine: copilot
 sandbox: false
@@ -107,7 +107,7 @@ Test workflow with network restrictions but sandbox disabled.
 
 	t.Run("sandbox: false skips MCP gateway configuration", func(t *testing.T) {
 		workflowsDir := t.TempDir()
-		
+
 		markdown := `---
 engine: copilot
 sandbox: false
@@ -148,7 +148,7 @@ Test workflow with tools but sandbox disabled.
 
 	t.Run("sandbox: false shows warning at compile time", func(t *testing.T) {
 		workflowsDir := t.TempDir()
-		
+
 		markdown := `---
 engine: copilot
 sandbox: false
@@ -180,7 +180,7 @@ Test workflow.
 
 	t.Run("sandbox: true is treated as unconfigured", func(t *testing.T) {
 		workflowsDir := t.TempDir()
-		
+
 		markdown := `---
 engine: copilot
 sandbox: true
@@ -292,7 +292,7 @@ Test workflow with sandbox: true.
 // TestSandboxDisabledWithToolsConfiguration tests that MCP servers work without gateway when sandbox is disabled
 func TestSandboxDisabledWithToolsConfiguration(t *testing.T) {
 	workflowsDir := t.TempDir()
-	
+
 	markdown := `---
 engine: copilot
 sandbox: false
@@ -339,7 +339,7 @@ Test workflow with tools and sandbox disabled.
 // TestSandboxDisabledCopilotExecution tests that copilot execution is direct (not wrapped with AWF) when sandbox is disabled
 func TestSandboxDisabledCopilotExecution(t *testing.T) {
 	workflowsDir := t.TempDir()
-	
+
 	markdown := `---
 engine: copilot
 sandbox: false
