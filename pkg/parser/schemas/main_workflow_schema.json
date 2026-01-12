@@ -5369,11 +5369,6 @@
             }
           ]
         },
-        "maintenance": {
-          "type": "boolean",
-          "description": "Controls automatic generation of maintenance workflow for expired items. If false, maintenance workflow will not be generated even when 'expires' is used. Defaults to true. When set to false with 'expires' in use, warnings will be shown.",
-          "default": true
-        },
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"

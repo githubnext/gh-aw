@@ -348,13 +348,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.Mentions = parseMentionsConfig(mentions)
 			}
 
-			// Handle maintenance configuration
-			if maintenance, exists := outputMap["maintenance"]; exists {
-				if maintenanceBool, ok := maintenance.(bool); ok {
-					config.Maintenance = &maintenanceBool
-				}
-			}
-
 			// Handle jobs (safe-jobs moved under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
