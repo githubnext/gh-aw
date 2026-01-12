@@ -1141,11 +1141,13 @@ jobs:
           The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
           </important>
           <instructions>
-          To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
+          To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST use the MCP tool calling mechanism to invoke the safe output tools. Do NOT write markdown code fences or JSON - you must make actual MCP tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop, upload_asset
+          **Available MCP tools**: create_discussion, missing_tool, noop, upload_asset
           
-          **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
+          **How to use**: Call the tools using your MCP tool calling capability. For example, to create a project, invoke the create_project tool with the required parameters.
+          
+          **Critical**: MCP tool calls write structured data that downstream jobs process. Without proper MCP tool invocations, follow-up actions will be skipped.
           </instructions>
           </safe-outputs>
           PROMPT_EOF
