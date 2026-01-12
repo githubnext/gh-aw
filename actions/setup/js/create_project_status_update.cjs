@@ -12,6 +12,25 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const HANDLER_TYPE = "create_project_status_update";
 
 /**
+ * Check if an error message indicates a transient issue that should be retried
+ * @param {string} errorMsg - Error message to check
+ * @returns {boolean} True if the error appears transient
+ */
+function isTransientError(errorMsg) {
+  const lowerMsg = errorMsg.toLowerCase();
+  return (
+    lowerMsg.includes("something went wrong") ||
+    lowerMsg.includes("internal error") ||
+    lowerMsg.includes("internal server error") ||
+    lowerMsg.includes("timeout") ||
+    lowerMsg.includes("temporarily unavailable") ||
+    lowerMsg.includes("service unavailable") ||
+    lowerMsg.includes("gateway timeout") ||
+    /5\d{2}/.test(lowerMsg) // 5xx status codes
+  );
+}
+
+/**
  * Log detailed GraphQL error information
  * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} error - GraphQL error
  * @param {string} operation - Operation description
@@ -131,9 +150,7 @@ async function listAccessibleProjectsV2(projectInfo, retries = 2) {
       const errorMsg = getErrorMessage(error);
 
       // Check if this is a transient error (internal server error, timeout, etc.)
-      const isTransient = errorMsg.includes("Something went wrong") || errorMsg.includes("internal error") || errorMsg.includes("timeout") || errorMsg.includes("temporarily unavailable");
-
-      if (!isTransient || attempt === retries) {
+      if (!isTransientError(errorMsg) || attempt === retries) {
         // Not transient or out of retries
         throw error;
       }
@@ -235,7 +252,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
     const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
 
     // Provide helpful error message based on the failure
-    if (listErrorMsg.includes("Something went wrong") || listErrorMsg.includes("internal error")) {
+    if (isTransientError(listErrorMsg)) {
       throw new Error(
         `Project #${projectNumberInt} could not be resolved for ${who}. ` +
           `The direct query failed, and the fallback list query encountered a GitHub API internal error. ` +
