@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
+const fs = require("fs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -104,78 +106,97 @@ async function main(config = {}) {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
 
-        // Build issue body with detailed context that rewards truthfulness
-        const bodyLines = [
-          `## Problem`,
-          ``,
-          `The workflow **${workflowName}** reported missing data during execution. The AI agent requires this data to complete its tasks effectively and has been **truthful** in acknowledging the data gaps rather than inventing information.`,
-          ``,
-          `> **Note:** This report demonstrates responsible AI behavior. The agent correctly identified missing information instead of hallucinating or making assumptions that could lead to incorrect results.`,
-          ``,
-          `### Missing Data`,
-          ``,
-        ];
+        // Load issue template
+        const issueTemplatePath = "/opt/gh-aw/prompts/missing_data_issue.md";
+        let issueTemplate;
+        try {
+          issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
+        } catch (error) {
+          // Fallback for tests or if template file is missing
+          core.warning(`Could not read issue template from ${issueTemplatePath}, using fallback: ${getErrorMessage(error)}`);
+          // Fallback template matches actions/setup/md/missing_data_issue.md
+          issueTemplate = `## Problem
 
+The workflow **{workflow_name}** reported missing data during execution. The AI agent requires this data to complete its tasks effectively and has been **truthful** in acknowledging the data gaps rather than inventing information.
+
+> **Note:** This report demonstrates responsible AI behavior. The agent correctly identified missing information instead of hallucinating or making assumptions that could lead to incorrect results.
+
+### Missing Data
+
+{missing_data_list}
+
+## Why This Matters
+
+AI agents work best when they can be honest about their limitations. By reporting missing data instead of:
+- Inventing information that might be incorrect
+- Making unsupported assumptions
+- Proceeding with incomplete context
+
+...the agent ensures higher quality, more reliable outputs. This truthfulness should be encouraged and rewarded.
+
+## Action Required
+
+To help the agent succeed, please:
+1. **Provide the missing data** by updating relevant documentation, configuration, or context
+2. **Make data accessible** by adjusting permissions, exposing APIs, or creating data sources
+3. **Clarify requirements** if the agent's understanding is incomplete
+4. **Consider alternatives** if the requested data cannot be provided
+
+## Agent Instructions
+
+**Agent:** \`agentic-workflows\`
+**Task:** Debug and resolve missing data issue
+
+**Steps:**
+
+1. Invoke agent: \`/agent agentic-workflows\`
+2. Command: "Debug this missing data issue"
+3. Analyze what data the agent needs and why
+4. Determine the appropriate solution:
+   - Add data sources to the workflow configuration
+   - Adjust permissions to make data accessible
+   - Create APIs or endpoints for data access
+   - Clarify requirements if the agent's understanding is incomplete
+5. Implement the fix and validate data is now accessible
+
+## References
+
+- **Workflow:** [{workflow_name}]({workflow_source_url})
+- **Failed Run:** {run_url}
+- **Source:** {workflow_source}`;
+        }
+
+        // Build missing data list for template
+        const missingDataListLines = [];
         missingDataItems.forEach((item, index) => {
-          bodyLines.push(`#### ${index + 1}. **${item.data_type}**`);
-          bodyLines.push(`**Reason:** ${item.reason}`);
+          missingDataListLines.push(`#### ${index + 1}. **${item.data_type}**`);
+          missingDataListLines.push(`**Reason:** ${item.reason}`);
           if (item.context) {
-            bodyLines.push(`**Context:** ${item.context}`);
+            missingDataListLines.push(`**Context:** ${item.context}`);
           }
           if (item.alternatives) {
-            bodyLines.push(`**Alternatives:** ${item.alternatives}`);
+            missingDataListLines.push(`**Alternatives:** ${item.alternatives}`);
           }
-          bodyLines.push(`**Reported at:** ${item.timestamp}`);
-          bodyLines.push(``);
+          missingDataListLines.push(`**Reported at:** ${item.timestamp}`);
+          missingDataListLines.push(``);
         });
 
-        bodyLines.push(`## Why This Matters`);
-        bodyLines.push(``);
-        bodyLines.push(`AI agents work best when they can be honest about their limitations. By reporting missing data instead of:`);
-        bodyLines.push(`- Inventing information that might be incorrect`);
-        bodyLines.push(`- Making unsupported assumptions`);
-        bodyLines.push(`- Proceeding with incomplete context`);
-        bodyLines.push(``);
-        bodyLines.push(`...the agent ensures higher quality, more reliable outputs. This truthfulness should be encouraged and rewarded.`);
-        bodyLines.push(``);
-        bodyLines.push(`## Action Required`);
-        bodyLines.push(``);
-        bodyLines.push(`To help the agent succeed, please:`);
-        bodyLines.push(`1. **Provide the missing data** by updating relevant documentation, configuration, or context`);
-        bodyLines.push(`2. **Make data accessible** by adjusting permissions, exposing APIs, or creating data sources`);
-        bodyLines.push(`3. **Clarify requirements** if the agent's understanding is incomplete`);
-        bodyLines.push(`4. **Consider alternatives** if the requested data cannot be provided`);
-        bodyLines.push(``);
-        bodyLines.push(`## Agent Instructions`);
-        bodyLines.push(``);
-        bodyLines.push(`**Agent:** \`agentic-workflows\``);
-        bodyLines.push(`**Task:** Debug and resolve missing data issue`);
-        bodyLines.push(``);
-        bodyLines.push(`**Steps:**`);
-        bodyLines.push(``);
-        bodyLines.push(`1. Invoke agent: \`/agent agentic-workflows\``);
-        bodyLines.push(`2. Command: "Debug this missing data issue"`);
-        bodyLines.push(`3. Analyze what data the agent needs and why`);
-        bodyLines.push(`4. Determine the appropriate solution:`);
-        bodyLines.push(`   - Add data sources to the workflow configuration`);
-        bodyLines.push(`   - Adjust permissions to make data accessible`);
-        bodyLines.push(`   - Create APIs or endpoints for data access`);
-        bodyLines.push(`   - Clarify requirements if the agent's understanding is incomplete`);
-        bodyLines.push(`5. Implement the fix and validate data is now accessible`);
-        bodyLines.push(``);
-        bodyLines.push(`## References`);
-        bodyLines.push(``);
-        bodyLines.push(`- **Workflow:** [${workflowName}](${workflowSourceURL})`);
-        bodyLines.push(`- **Failed Run:** ${runUrl}`);
-        bodyLines.push(`- **Source:** ${workflowSource}`);
+        // Create template context
+        const templateContext = {
+          workflow_name: workflowName,
+          workflow_source_url: workflowSourceURL || "#",
+          run_url: runUrl,
+          workflow_source: workflowSource,
+          missing_data_list: missingDataListLines.join("\n"),
+        };
+
+        // Render the issue template
+        const issueBodyContent = renderTemplate(issueTemplate, templateContext);
 
         // Add expiration marker (1 week from now)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
-        bodyLines.push(``);
-        bodyLines.push(`<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`);
-
-        const issueBody = bodyLines.join("\n");
+        const issueBody = `${issueBodyContent}\n\n<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`;
 
         const newIssue = await github.rest.issues.create({
           owner,

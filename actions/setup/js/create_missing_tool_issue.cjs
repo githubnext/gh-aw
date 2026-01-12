@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
+const fs = require("fs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -101,56 +103,82 @@ async function main(config = {}) {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
 
-        // Build issue body with agentic task description
-        const bodyLines = [`## Problem`, ``, `The workflow **${workflowName}** reported missing tools during execution. These tools are needed for the agent to complete its tasks effectively.`, ``, `### Missing Tools`, ``];
+        // Load issue template
+        const issueTemplatePath = "/opt/gh-aw/prompts/missing_tool_issue.md";
+        let issueTemplate;
+        try {
+          issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
+        } catch (error) {
+          // Fallback for tests or if template file is missing
+          core.warning(`Could not read issue template from ${issueTemplatePath}, using fallback: ${getErrorMessage(error)}`);
+          // Fallback template matches actions/setup/md/missing_tool_issue.md
+          issueTemplate = `## Problem
 
+The workflow **{workflow_name}** reported missing tools during execution. These tools are needed for the agent to complete its tasks effectively.
+
+### Missing Tools
+
+{missing_tools_list}
+
+## Action Required
+
+Please investigate why these tools are missing and either:
+1. Add the missing tools to the agent's configuration
+2. Update the workflow to use available alternatives
+3. Document why these tools are intentionally unavailable
+
+## Agent Instructions
+
+**Agent:** \`agentic-workflows\`
+**Task:** Debug and resolve missing tool issue
+
+**Steps:**
+
+1. Invoke agent: \`/agent agentic-workflows\`
+2. Command: "Debug this missing tool issue"
+3. Analyze which tools are missing and why they're needed
+4. Determine the appropriate solution:
+   - Add missing tools to the workflow configuration
+   - Update the workflow to use available alternatives
+   - Install required MCP servers or dependencies
+   - Document why certain tools are intentionally unavailable
+5. Implement the fix and validate tools are now accessible
+
+## References
+
+- **Workflow:** [{workflow_name}]({workflow_source_url})
+- **Failed Run:** {run_url}
+- **Source:** {workflow_source}`;
+        }
+
+        // Build missing tools list for template
+        const missingToolsListLines = [];
         missingTools.forEach((tool, index) => {
-          bodyLines.push(`#### ${index + 1}. \`${tool.tool}\``);
-          bodyLines.push(`**Reason:** ${tool.reason}`);
+          missingToolsListLines.push(`#### ${index + 1}. \`${tool.tool}\``);
+          missingToolsListLines.push(`**Reason:** ${tool.reason}`);
           if (tool.alternatives) {
-            bodyLines.push(`**Alternatives:** ${tool.alternatives}`);
+            missingToolsListLines.push(`**Alternatives:** ${tool.alternatives}`);
           }
-          bodyLines.push(`**Reported at:** ${tool.timestamp}`);
-          bodyLines.push(``);
+          missingToolsListLines.push(`**Reported at:** ${tool.timestamp}`);
+          missingToolsListLines.push(``);
         });
 
-        bodyLines.push(`## Action Required`);
-        bodyLines.push(``);
-        bodyLines.push(`Please investigate why these tools are missing and either:`);
-        bodyLines.push(`1. Add the missing tools to the agent's configuration`);
-        bodyLines.push(`2. Update the workflow to use available alternatives`);
-        bodyLines.push(`3. Document why these tools are intentionally unavailable`);
-        bodyLines.push(``);
-        bodyLines.push(`## Agent Instructions`);
-        bodyLines.push(``);
-        bodyLines.push(`**Agent:** \`agentic-workflows\``);
-        bodyLines.push(`**Task:** Debug and resolve missing tool issue`);
-        bodyLines.push(``);
-        bodyLines.push(`**Steps:**`);
-        bodyLines.push(``);
-        bodyLines.push(`1. Invoke agent: \`/agent agentic-workflows\``);
-        bodyLines.push(`2. Command: "Debug this missing tool issue"`);
-        bodyLines.push(`3. Analyze which tools are missing and why they're needed`);
-        bodyLines.push(`4. Determine the appropriate solution:`);
-        bodyLines.push(`   - Add missing tools to the workflow configuration`);
-        bodyLines.push(`   - Update the workflow to use available alternatives`);
-        bodyLines.push(`   - Install required MCP servers or dependencies`);
-        bodyLines.push(`   - Document why certain tools are intentionally unavailable`);
-        bodyLines.push(`5. Implement the fix and validate tools are now accessible`);
-        bodyLines.push(``);
-        bodyLines.push(`## References`);
-        bodyLines.push(``);
-        bodyLines.push(`- **Workflow:** [${workflowName}](${workflowSourceURL})`);
-        bodyLines.push(`- **Failed Run:** ${runUrl}`);
-        bodyLines.push(`- **Source:** ${workflowSource}`);
+        // Create template context
+        const templateContext = {
+          workflow_name: workflowName,
+          workflow_source_url: workflowSourceURL || "#",
+          run_url: runUrl,
+          workflow_source: workflowSource,
+          missing_tools_list: missingToolsListLines.join("\n"),
+        };
+
+        // Render the issue template
+        const issueBodyContent = renderTemplate(issueTemplate, templateContext);
 
         // Add expiration marker (1 week from now)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
-        bodyLines.push(``);
-        bodyLines.push(`<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`);
-
-        const issueBody = bodyLines.join("\n");
+        const issueBody = `${issueBodyContent}\n\n<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`;
 
         const newIssue = await github.rest.issues.create({
           owner,
