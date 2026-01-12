@@ -408,18 +408,6 @@ func init() {
 	// Set version template to match the version subcommand format
 	rootCmd.SetVersionTemplate(fmt.Sprintf("%s version {{.Version}}\n", string(constants.CLIExtensionPrefix)))
 
-	// Override the help function to hide completion command
-	originalHelpFunc := rootCmd.HelpFunc()
-	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		// Hide completion command before displaying help
-		for _, subCmd := range cmd.Commands() {
-			if subCmd.Name() == "completion" {
-				subCmd.Hidden = true
-			}
-		}
-		originalHelpFunc(cmd, args)
-	})
-
 	// Create custom help command that supports "all" subcommand
 	customHelpCmd := &cobra.Command{
 		Use:   "help [command]",
@@ -437,7 +425,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 
 				// Iterate through all commands and print their help
 				for _, subCmd := range rootCmd.Commands() {
-					// Skip hidden commands (like completion) and help itself
+					// Skip hidden commands and help itself
 					if subCmd.Hidden || subCmd.Name() == "help" {
 						continue
 					}
@@ -559,6 +547,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	campaignCmd := campaign.NewCommand()
 	secretsCmd := cli.NewSecretsCommand()
 	fixCmd := cli.NewFixCommand()
+	completionCmd := cli.NewCompletionCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -589,6 +578,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Utilities
 	mcpServerCmd.GroupID = "utilities"
 	prCmd.GroupID = "utilities"
+	completionCmd.GroupID = "utilities"
 
 	// version command is intentionally left without a group (common practice)
 
@@ -613,6 +603,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(campaignCmd)
 	rootCmd.AddCommand(secretsCmd)
 	rootCmd.AddCommand(fixCmd)
+	rootCmd.AddCommand(completionCmd)
 }
 
 func main() {

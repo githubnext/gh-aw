@@ -53,6 +53,7 @@ describe("handle_agent_failure.cjs", () => {
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
     process.env.GH_AW_WORKFLOW_SOURCE = "test-owner/test-repo/.github/workflows/test.md@main";
     process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/test-owner/test-repo/blob/main/.github/workflows/test.md";
+    process.env.GITHUB_REF_NAME = "main"; // Add this to prevent getCurrentBranch from failing
 
     // Load the module
     const module = await import("./handle_agent_failure.cjs");
@@ -130,21 +131,23 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify parent body contains troubleshooting info
       const parentCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
-      expect(parentCreateCall.body).toContain("debug-agentic-workflow");
+      expect(parentCreateCall.body).toContain("agentic-workflows");
       expect(parentCreateCall.body).toContain("gh aw logs");
       expect(parentCreateCall.body).toContain("gh aw audit");
       expect(parentCreateCall.body).toContain("no:parent-issue");
       expect(parentCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(parentCreateCall.body).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
 
-      // Verify failure issue was created
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
-        owner: "test-owner",
-        repo: "test-repo",
-        title: "[agentics] Test Workflow failed",
-        body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
-        labels: ["agentic-workflows"],
-      });
+      // Verify failure issue was created (second call, after parent issue)
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          title: "[agentics] Test Workflow failed",
+          body: expect.stringContaining("Test Workflow"),
+          labels: ["agentic-workflows"],
+        })
+      );
 
       // Verify sub-issue was linked
       expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), {
@@ -334,20 +337,22 @@ describe("handle_agent_failure.cjs", () => {
         per_page: 1,
       });
 
-      // Verify issue was created
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
-        owner: "test-owner",
-        repo: "test-repo",
-        title: "[agentics] Test Workflow failed",
-        body: expect.stringContaining("agentic workflow **Test Workflow** has failed"),
-        labels: ["agentic-workflows"],
-      });
+      // Verify failure issue was created (second call, after parent issue)
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          title: "[agentics] Test Workflow failed",
+          body: expect.stringContaining("Test Workflow"),
+          labels: ["agentic-workflows"],
+        })
+      );
 
       // Verify body contains required sections (check second call - failure issue)
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
-      expect(failureIssueCreateCall.body).toContain("## Problem");
-      expect(failureIssueCreateCall.body).toContain("## How to investigate");
-      expect(failureIssueCreateCall.body).toContain("debug-agentic-workflow");
+      expect(failureIssueCreateCall.body).toContain("## Workflow Failure");
+      expect(failureIssueCreateCall.body).toContain("## Action Required");
+      expect(failureIssueCreateCall.body).toContain("agentic-workflows");
       expect(failureIssueCreateCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(failureIssueCreateCall.body).not.toContain("## Common Causes");
@@ -358,18 +363,37 @@ describe("handle_agent_failure.cjs", () => {
     });
 
     it("should add a comment to existing issue when found", async () => {
-      // Mock existing issue
-      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
-        data: {
-          total_count: 1,
-          items: [
-            {
-              number: 10,
-              html_url: "https://github.com/test-owner/test-repo/issues/10",
-            },
-          ],
-        },
-      });
+      // Mock searches: PR search, parent search, and existing failure issue search
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: parent issue (exists)
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 1,
+                html_url: "https://github.com/test-owner/test-repo/issues/1",
+                node_id: "I_parent_1",
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          // Third search: existing failure issue
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 10,
+                html_url: "https://github.com/test-owner/test-repo/issues/10",
+              },
+            ],
+          },
+        });
 
       mockGithub.rest.issues.createComment.mockResolvedValue({});
 

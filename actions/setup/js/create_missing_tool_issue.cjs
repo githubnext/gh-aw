@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
+const fs = require("fs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -101,45 +103,38 @@ async function main(config = {}) {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
 
-        // Build issue body with agentic task description
-        const bodyLines = [`## Problem`, ``, `The workflow **${workflowName}** reported missing tools during execution. These tools are needed for the agent to complete its tasks effectively.`, ``, `### Missing Tools`, ``];
+        // Load issue template
+        const issueTemplatePath = "/opt/gh-aw/prompts/missing_tool_issue.md";
+        const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
+        // Build missing tools list for template
+        const missingToolsListLines = [];
         missingTools.forEach((tool, index) => {
-          bodyLines.push(`#### ${index + 1}. \`${tool.tool}\``);
-          bodyLines.push(`**Reason:** ${tool.reason}`);
+          missingToolsListLines.push(`#### ${index + 1}. \`${tool.tool}\``);
+          missingToolsListLines.push(`**Reason:** ${tool.reason}`);
           if (tool.alternatives) {
-            bodyLines.push(`**Alternatives:** ${tool.alternatives}`);
+            missingToolsListLines.push(`**Alternatives:** ${tool.alternatives}`);
           }
-          bodyLines.push(`**Reported at:** ${tool.timestamp}`);
-          bodyLines.push(``);
+          missingToolsListLines.push(`**Reported at:** ${tool.timestamp}`);
+          missingToolsListLines.push(``);
         });
 
-        bodyLines.push(`## Action Required`);
-        bodyLines.push(``);
-        bodyLines.push(`Please investigate why these tools are missing and either:`);
-        bodyLines.push(`1. Add the missing tools to the agent's configuration`);
-        bodyLines.push(`2. Update the workflow to use available alternatives`);
-        bodyLines.push(`3. Document why these tools are intentionally unavailable`);
-        bodyLines.push(``);
-        bodyLines.push(`## Debugging`);
-        bodyLines.push(``);
-        bodyLines.push(`To debug this issue, use the **debug-agentic-workflow** agent in GitHub Copilot Chat:`);
-        bodyLines.push(``);
-        bodyLines.push(`Type \`/agent\` and select **debug-agentic-workflow**.`);
-        bodyLines.push(``);
-        bodyLines.push(`## References`);
-        bodyLines.push(``);
-        bodyLines.push(`- **Workflow:** [${workflowName}](${workflowSourceURL})`);
-        bodyLines.push(`- **Failed Run:** ${runUrl}`);
-        bodyLines.push(`- **Source:** ${workflowSource}`);
+        // Create template context
+        const templateContext = {
+          workflow_name: workflowName,
+          workflow_source_url: workflowSourceURL || "#",
+          run_url: runUrl,
+          workflow_source: workflowSource,
+          missing_tools_list: missingToolsListLines.join("\n"),
+        };
+
+        // Render the issue template
+        const issueBodyContent = renderTemplate(issueTemplate, templateContext);
 
         // Add expiration marker (1 week from now)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
-        bodyLines.push(``);
-        bodyLines.push(`<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`);
-
-        const issueBody = bodyLines.join("\n");
+        const issueBody = `${issueBodyContent}\n\n<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`;
 
         const newIssue = await github.rest.issues.create({
           owner,

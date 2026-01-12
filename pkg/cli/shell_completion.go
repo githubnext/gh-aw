@@ -376,3 +376,179 @@ func installPowerShellCompletion(verbose bool, cmd *cobra.Command) error {
 
 	return nil
 }
+
+// UninstallShellCompletion uninstalls shell completion for the detected shell
+func UninstallShellCompletion(verbose bool) error {
+	shellCompletionLog.Print("Starting shell completion uninstallation")
+
+	shellType := DetectShell()
+	shellCompletionLog.Printf("Detected shell type: %s", shellType)
+
+	if shellType == ShellUnknown {
+		return fmt.Errorf("could not detect shell type. Please uninstall completions manually")
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected shell: %s", shellType)))
+
+	switch shellType {
+	case ShellBash:
+		return uninstallBashCompletion(verbose)
+	case ShellZsh:
+		return uninstallZshCompletion(verbose)
+	case ShellFish:
+		return uninstallFishCompletion(verbose)
+	case ShellPowerShell:
+		return uninstallPowerShellCompletion(verbose)
+	default:
+		return fmt.Errorf("shell completion not supported for: %s", shellType)
+	}
+}
+
+// uninstallBashCompletion uninstalls bash completion
+func uninstallBashCompletion(verbose bool) error {
+	shellCompletionLog.Print("Uninstalling bash completion")
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Check all possible locations where completion might be installed
+	var possiblePaths []string
+
+	// User-level installations
+	possiblePaths = append(possiblePaths, filepath.Join(homeDir, ".bash_completion.d", "gh-aw"))
+
+	// macOS with Homebrew
+	if runtime.GOOS == "darwin" {
+		brewPrefix := os.Getenv("HOMEBREW_PREFIX")
+		if brewPrefix == "" {
+			for _, prefix := range []string{"/opt/homebrew", "/usr/local"} {
+				if _, err := os.Stat(filepath.Join(prefix, "etc", "bash_completion.d")); err == nil {
+					possiblePaths = append(possiblePaths, filepath.Join(prefix, "etc", "bash_completion.d", "gh-aw"))
+				}
+			}
+		} else {
+			possiblePaths = append(possiblePaths, filepath.Join(brewPrefix, "etc", "bash_completion.d", "gh-aw"))
+		}
+	}
+
+	// System-wide installations (Linux)
+	if runtime.GOOS == "linux" {
+		possiblePaths = append(possiblePaths, "/etc/bash_completion.d/gh-aw")
+	}
+
+	removed := false
+	var lastErr error
+
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			shellCompletionLog.Printf("Found completion file at: %s", path)
+			if err := os.Remove(path); err != nil {
+				shellCompletionLog.Printf("Failed to remove %s: %v", path, err)
+				lastErr = err
+				continue
+			}
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed bash completion from: %s", path)))
+			removed = true
+		}
+	}
+
+	if !removed {
+		return fmt.Errorf("no bash completion file found to remove")
+	}
+
+	if lastErr != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some completion files could not be removed (may require elevated permissions)"))
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for changes to take effect"))
+
+	return nil
+}
+
+// uninstallZshCompletion uninstalls zsh completion
+func uninstallZshCompletion(verbose bool) error {
+	shellCompletionLog.Print("Uninstalling zsh completion")
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Check possible locations
+	completionPath := filepath.Join(homeDir, ".zsh", "completions", "_gh-aw")
+
+	if _, err := os.Stat(completionPath); err != nil {
+		return fmt.Errorf("no zsh completion file found at: %s", completionPath)
+	}
+
+	shellCompletionLog.Printf("Found completion file at: %s", completionPath)
+
+	if err := os.Remove(completionPath); err != nil {
+		return fmt.Errorf("failed to remove completion file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed zsh completion from: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for changes to take effect"))
+
+	return nil
+}
+
+// uninstallFishCompletion uninstalls fish completion
+func uninstallFishCompletion(verbose bool) error {
+	shellCompletionLog.Print("Uninstalling fish completion")
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	completionPath := filepath.Join(homeDir, ".config", "fish", "completions", "gh-aw.fish")
+
+	if _, err := os.Stat(completionPath); err != nil {
+		return fmt.Errorf("no fish completion file found at: %s", completionPath)
+	}
+
+	shellCompletionLog.Printf("Found completion file at: %s", completionPath)
+
+	if err := os.Remove(completionPath); err != nil {
+		return fmt.Errorf("failed to remove completion file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed fish completion from: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fish will automatically detect the removal on next shell start"))
+
+	return nil
+}
+
+// uninstallPowerShellCompletion uninstalls PowerShell completion
+func uninstallPowerShellCompletion(verbose bool) error {
+	shellCompletionLog.Print("Uninstalling PowerShell completion")
+
+	// Determine PowerShell profile path
+	var profileCmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		profileCmd = exec.Command("powershell", "-NoProfile", "-Command", "echo $PROFILE")
+	} else {
+		profileCmd = exec.Command("pwsh", "-NoProfile", "-Command", "echo $PROFILE")
+	}
+
+	var profileBuf bytes.Buffer
+	profileCmd.Stdout = &profileBuf
+	if err := profileCmd.Run(); err != nil {
+		return fmt.Errorf("failed to get PowerShell profile path: %w", err)
+	}
+
+	profilePath := strings.TrimSpace(profileBuf.String())
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PowerShell profile path: %s", profilePath)))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To uninstall completions, remove the following line from your PowerShell profile:"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  gh aw completion powershell | Out-String | Invoke-Expression")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: . $PROFILE"))
+
+	return nil
+}

@@ -319,8 +319,6 @@ engine: claude
 features:
   dangerous-permissions-write: true
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Normal Workflow
@@ -343,6 +341,8 @@ This is a normal-sized workflow that should compile successfully.`
 		"    types: [opened]\n" +
 		"permissions:\n" +
 		"  issues: write\n" +
+		"features:\n" +
+		"  dangerous-permissions-write: true\n" +
 		"strict: false\n" +
 		"tools:\n" +
 		"  github:\n" +
