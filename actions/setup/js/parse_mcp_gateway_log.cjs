@@ -6,7 +6,12 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
- * Log file locations:
+ * 
+ * IMPORTANT: File naming convention
+ * - The gateway log file MUST be named "gateway.log" (not "mcp-gateway.log")
+ * - This ensures consistency across the codebase and prevents confusion
+ * 
+ * Log file locations (in priority order):
  *  - /tmp/gh-aw/mcp-logs/gateway.md (markdown summary from gateway, preferred)
  *  - /tmp/gh-aw/mcp-logs/gateway.log (main gateway log, fallback)
  *  - /tmp/gh-aw/mcp-logs/stderr.log (stderr output, fallback)

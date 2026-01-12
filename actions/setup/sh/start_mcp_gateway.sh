@@ -5,6 +5,11 @@
 # Per MCP Gateway Specification v1.0.0: Only container-based execution is supported.
 #
 # This script reads the MCP configuration from stdin and pipes it to the gateway container.
+#
+# Log file naming convention:
+# - Gateway logs are written to /tmp/gh-aw/mcp-logs/gateway.log (NOT mcp-gateway.log)
+# - Gateway markdown summaries are written to /tmp/gh-aw/mcp-logs/gateway.md
+# - Standard error output is written to /tmp/gh-aw/mcp-logs/stderr.log
 
 set -e
 
