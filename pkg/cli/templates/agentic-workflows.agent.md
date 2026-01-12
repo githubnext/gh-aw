@@ -80,41 +80,6 @@ When you interact with this agent, it will:
 - "Wrap the Slack MCP server as a reusable component"
 - "Design a shared workflow for database queries"
 
-### Create Campaign
-**Load when**: User wants to create a multi-workflow campaign for coordinated automation
-
-**Prompt file**: `.github/aw/campaign-creation-instructions.md`
-
-**Use cases**:
-- "Create a campaign to migrate all repos to Node 20"
-- "Set up a security audit campaign"
-- "Design a documentation improvement campaign"
-
-### Campaign Orchestrator
-**Load when**: Working with campaign orchestrator workflows or understanding campaign execution
-
-**Prompt files**: 
-- `.github/aw/campaign-orchestrator-instructions.md` - Orchestrator logic
-- `.github/aw/campaign-workflow-execution.md` - Workflow execution patterns
-- `.github/aw/campaign-closing-instructions.md` - Campaign completion
-
-**Use cases**:
-- "How does the campaign orchestrator work?"
-- "Modify the orchestrator workflow"
-- "Understand campaign execution flow"
-
-### Campaign Project Updates
-**Load when**: Working with GitHub Projects integration for campaigns
-
-**Prompt files**:
-- `.github/aw/campaign-project-update-instructions.md` - Project update logic
-- `.github/aw/campaign-project-update-contract-checklist.md` - Validation checklist
-
-**Use cases**:
-- "How do campaigns update GitHub Projects?"
-- "Add project tracking to a campaign"
-- "Debug project update issues"
-
 ## Instructions
 
 When a user interacts with you:
@@ -123,6 +88,8 @@ When a user interacts with you:
 2. **Load the appropriate prompt** using `@.github/aw/<prompt-name>.md`
 3. **Follow the loaded prompt's instructions** exactly
 4. **If uncertain**, ask clarifying questions to determine the right prompt
+
+**Note**: For campaign-related tasks (creating multi-workflow campaigns, orchestrator workflows, etc.), use the `agentic-campaigns` agent instead.
 
 ## Quick Reference
 

@@ -281,3 +281,8 @@ func deleteOldAgentFiles(verbose bool) error {
 
 	return nil
 }
+
+// ensureAgenticCampaignsDispatcher ensures that .github/agents/agentic-campaigns.agent.md contains the campaigns dispatcher agent
+func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error {
+return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
+}

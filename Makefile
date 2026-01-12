@@ -538,6 +538,7 @@ sync-templates:
 	@cp .github/aw/debug-agentic-workflow.md pkg/cli/templates/
 	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/
 	@cp .github/agents/agentic-workflows.agent.md pkg/cli/templates/
+	@cp .github/agents/agentic-campaigns.agent.md pkg/cli/templates/
 	@echo "Syncing campaign prompts from .github/aw to pkg/campaign/prompts..."
 	@mkdir -p pkg/campaign/prompts
 	@cp .github/aw/campaign-creation-instructions.md pkg/campaign/prompts/campaign_creation_instructions.md

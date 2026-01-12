@@ -27,6 +27,9 @@ var copilotInstructionsTemplate string
 //go:embed templates/agentic-workflows.agent.md
 var agenticWorkflowsDispatcherTemplate string
 
+//go:embed templates/agentic-campaigns.agent.md
+var agenticCampaignsDispatcherTemplate string
+
 //go:embed templates/create-agentic-workflow.md
 var createAgenticWorkflowPromptTemplate string
 
