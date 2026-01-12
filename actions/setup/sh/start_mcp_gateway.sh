@@ -308,6 +308,16 @@ else
 fi
 echo ""
 
+# Delete gateway configuration file after conversion and checks are complete
+echo "Cleaning up gateway configuration file..."
+if [ -f /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+  rm /tmp/gh-aw/mcp-config/gateway-output.json
+  echo "Gateway configuration file deleted"
+else
+  echo "Gateway configuration file not found (already deleted or never created)"
+fi
+echo ""
+
 echo "MCP gateway is running:"
 echo "  - From host: http://localhost:${MCP_GATEWAY_PORT}"
 echo "  - From containers: http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
