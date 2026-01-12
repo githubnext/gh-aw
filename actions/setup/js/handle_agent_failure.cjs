@@ -96,13 +96,21 @@ All individual workflow failure issues are linked as sub-issues below. Click on 
 
 ## Troubleshooting Failed Workflows
 
-### Using debug-agentic-workflow Agent (Recommended)
+### Using agentic-workflows Agent (Recommended)
 
-The fastest way to investigate a failure is with the **debug-agentic-workflow** custom agent:
+**Agent:** \`agentic-workflows\`  
+**Purpose:** Debug and fix workflow failures
 
-1. In GitHub Copilot Chat, type \`/agent\` and select **debug-agentic-workflow**
-2. When prompted, provide the workflow run URL
-3. The agent will help you analyze logs, identify root causes, and suggest fixes
+**Instructions:**
+
+1. Invoke the agent: Type \`/agent\` in GitHub Copilot Chat and select **agentic-workflows**
+2. Provide context: Tell the agent to **debug** the workflow failure
+3. Supply the workflow run URL for analysis
+4. The agent will:
+   - Analyze failure logs
+   - Identify root causes
+   - Propose specific fixes
+   - Validate solutions
 
 ### Using gh-aw CLI
 
@@ -257,14 +265,7 @@ async function main() {
 
         // Read comment template
         const commentTemplatePath = "/opt/gh-aw/prompts/agent_failure_comment.md";
-        let commentTemplate;
-        try {
-          commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
-        } catch (error) {
-          // Fallback for tests or if template file is missing
-          core.warning(`Could not read comment template from ${commentTemplatePath}, using fallback: ${getErrorMessage(error)}`);
-          commentTemplate = `Agent job [{run_id}]({run_url}) failed.`;
-        }
+        const commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
 
         // Extract run ID from URL (e.g., https://github.com/owner/repo/actions/runs/123 -> "123")
         let runId = "";
@@ -311,34 +312,7 @@ async function main() {
 
         // Read issue template
         const issueTemplatePath = "/opt/gh-aw/prompts/agent_failure_issue.md";
-        let issueTemplate;
-        try {
-          issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
-        } catch (error) {
-          // Fallback for tests or if template file is missing
-          core.warning(`Could not read issue template from ${issueTemplatePath}, using fallback: ${getErrorMessage(error)}`);
-          issueTemplate = `## Problem
-
-The agentic workflow **{workflow_name}** has failed. This typically indicates a configuration or runtime error that requires user intervention.
-
-## Failed Run
-
-- **Workflow:** [{workflow_name}]({workflow_source_url})
-- **Failed Run:** {run_url}{pull_request_info}
-
-## How to investigate
-
-Use the **debug-agentic-workflow** agent to investigate this failure.
-
-In GitHub Copilot Chat, type \`/agent\` and select **debug-agentic-workflow**.
-
-When prompted, provide the workflow run URL: {run_url}
-
-The debug agent will help you:
-- Analyze the failure logs
-- Identify the root cause
-- Suggest fixes for configuration or runtime errors`;
-        }
+        const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
         // Create template context with sanitized workflow name
         const templateContext = {
