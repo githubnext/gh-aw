@@ -93,14 +93,11 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 
 	// Add setup step to copy scripts
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" {
+	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev mode (local action path), checkout the actions folder first
 		preSteps = append(preSteps, c.generateCheckoutActionsFolder(data)...)
 
-		preSteps = append(preSteps, "      - name: Setup Scripts\n")
-		preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-		preSteps = append(preSteps, "        with:\n")
-		preSteps = append(preSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 	}
 
 	// Step 1: Checkout repository

@@ -33,12 +33,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// For dev mode (local action path), checkout the actions folder first
 	// This requires contents: read permission
 	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
-	needsContentsRead := c.actionMode.IsDev() && len(c.generateCheckoutActionsFolder(data)) > 0
+	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
 
-	steps = append(steps, "      - name: Setup Scripts\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 
 	// Set permissions if checkout is needed (for local actions in dev mode)
 	if needsContentsRead {
@@ -340,10 +337,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// For dev mode (local action path), checkout the actions folder first
 	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
-	steps = append(steps, "      - name: Setup Scripts\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
@@ -578,14 +572,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	// Add setup action steps at the beginning of the job
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" {
+	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
-		steps = append(steps, "      - name: Setup Scripts\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 	}
 
 	// Find custom jobs that depend on pre_activation - these are handled by the activation job
