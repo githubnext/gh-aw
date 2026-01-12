@@ -22,7 +22,8 @@ const { updateBody } = require("./update_pr_description_helpers.cjs");
  */
 async function executeIssueUpdate(github, context, issueNumber, updateData) {
   // Handle body operation (append/prepend/replace/replace-island)
-  const operation = updateData._operation || "replace";
+  // Default to "append" to add footer with AI attribution
+  const operation = updateData._operation || "append";
   const rawBody = updateData._rawBody;
 
   // Remove internal fields

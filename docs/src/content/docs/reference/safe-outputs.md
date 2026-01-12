@@ -200,7 +200,7 @@ safe-outputs:
 
 ### Issue Updates (`update-issue:`)
 
-Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed".
+Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`.
 
 ```yaml wrap
 safe-outputs:
@@ -216,6 +216,14 @@ safe-outputs:
 **Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
 
 When using `target: "*"`, the agent must provide `issue_number` or `item_number` in the output to identify which issue to update.
+
+**Operation Types** (for body updates):
+- `append` (default): Adds content to the end with separator and attribution
+- `prepend`: Adds content to the start with separator and attribution
+- `replace`: Completely replaces existing body without attribution
+- `replace-island`: Updates a specific section marked with HTML comments
+
+Agent output format: `{"type": "update_issue", "issue_number": 123, "operation": "append", "body": "..."}`. The `operation` field is optional (defaults to `append`).
 
 ### Pull Request Updates (`update-pull-request:`)
 
