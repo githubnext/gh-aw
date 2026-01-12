@@ -284,3 +284,119 @@ After the two-phase process completes (typically 2-3 minutes total):
 - **Deterministic**: Workflow catalog enables consistent, fast discovery
 - **Intelligent**: AI-powered workflow matching based on your campaign goals
 - **Single source of truth**: All campaign design logic consolidated in one place
+
+## Troubleshooting
+
+### Campaign compilation fails
+
+**Problem**: `gh aw compile` reports validation errors
+
+**Solutions**:
+1. Check that `project-url` is a valid GitHub Projects URL
+2. Ensure `tracker-label` follows the pattern `campaign:<id>`
+3. Verify all referenced workflows exist in `.github/workflows/`
+4. Confirm KPIs have required fields (`id`, `name`, `priority`)
+
+**Example error**:
+```
+Error: workflow 'framework-scanner' not found in .github/workflows/
+```
+
+**Fix**: Either create the workflow or enable `execute-workflows: true` to let the orchestrator create it.
+
+### Orchestrator not discovering items
+
+**Problem**: Project board remains empty despite workflow runs creating issues/PRs
+
+**Solutions**:
+1. Verify tracker label is applied to issues/PRs: `campaign:<id>`
+2. Check that `tracker-label` in spec matches labels on issues
+3. Confirm workflow runs completed successfully
+4. Review orchestrator logs for discovery errors
+
+**Debugging commands**:
+```bash
+# List campaigns and verify tracker label
+gh aw campaign
+
+# Check campaign status
+gh aw campaign status <campaign-id>
+
+# Validate campaign spec
+gh aw campaign validate
+```
+
+### Project board updates not working
+
+**Problem**: Orchestrator runs successfully but project board doesn't update
+
+**Solutions**:
+1. Verify `project-github-token` has Projects: Read+Write permissions
+2. Ensure the project board exists and URL is correct
+3. Check custom field names match exactly (case-sensitive)
+4. Review governance limits - may be throttling updates
+
+**Example configuration**:
+```yaml
+project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+governance:
+  max-project-updates-per-run: 50  # Increase if hitting limit
+```
+
+### Too many/few items processed per run
+
+**Problem**: Orchestrator processes too many or too few items
+
+**Solution**: Adjust governance limits:
+
+```yaml
+governance:
+  # If too aggressive - reduce limits
+  max-new-items-per-run: 5
+  max-project-updates-per-run: 10
+  
+  # If too conservative - increase limits
+  max-new-items-per-run: 20
+  max-project-updates-per-run: 50
+```
+
+### Active mode workflows not executing
+
+**Problem**: `execute-workflows: true` set but workflows don't run
+
+**Solutions**:
+1. Verify orchestrator has permissions to trigger workflows
+2. Check workflow syntax - must be valid agentic workflow format
+3. Review orchestrator logs for execution errors
+4. Confirm workflows are not already running (concurrency limits)
+
+**Required permissions for active mode**:
+```yaml
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write  # Required to trigger workflows
+```
+
+### Common pitfalls
+
+1. **Forgetting to compile**: Run `gh aw compile` after every spec change
+2. **Label mismatch**: Tracker label must exactly match between spec and issues
+3. **Permissions**: Ensure tokens have sufficient permissions for all operations
+4. **Governance too strict**: Start conservative but increase limits if progress stalls
+5. **Missing workflows**: Either create them manually or use active mode
+
+### Getting help
+
+- Check [Campaign CLI Commands](/gh-aw/guides/campaigns/cli-commands/) for debugging commands
+- Review [Campaign Specs](/gh-aw/guides/campaigns/specs/) for configuration details
+- See [Project Management](/gh-aw/guides/campaigns/project-management/) for board setup
+- Consult orchestrator workflow logs in GitHub Actions for detailed errors
+
+## Next steps
+
+- **[Campaign Specs](/gh-aw/guides/campaigns/specs/)** - Deep dive into configuration options
+- **[Project Management](/gh-aw/guides/campaigns/project-management/)** - Set up effective project boards
+- **[CLI Commands](/gh-aw/guides/campaigns/cli-commands/)** - Learn debugging and management commands
+- **[Technical Overview](/gh-aw/guides/campaigns/technical-overview/)** - Understand orchestration architecture
