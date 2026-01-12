@@ -34,7 +34,7 @@ var (
 //
 // Example log entries:
 //   1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"
-//   1761332531.123 172.30.0.20:35289 blocked.example.com:443 140.82.112.23:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"
+//   1761332531.123 172.30.0.20:35289 blocked.example.com:443 0.0.0.0:0 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"
 //
 // # Field Mapping
 //
@@ -43,6 +43,8 @@ var (
 //  2. client_ip:port - Client IP and port (e.g., "172.30.0.20:35288") or "-"
 //  3. domain        - Target domain:port (e.g., "api.github.com:443") or "-"
 //  4. dest_ip:port  - Destination IP and port (e.g., "140.82.112.22:443") or "-"
+//                     Note: Blocked requests show "0.0.0.0:0" as the destination IP
+//                     because the connection was denied before DNS resolution/routing
 //  5. proto         - Protocol version (e.g., "1.1") or "-"
 //  6. method        - HTTP method (e.g., "CONNECT", "GET") or "-"
 //  7. status        - HTTP status code (e.g., "200", "403") or "0"
