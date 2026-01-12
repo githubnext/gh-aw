@@ -5,21 +5,11 @@
 
 set -e
 
-# Required environment variable:
-# - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
-
-if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
-  echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"
-  exit 1
-fi
-
-if [ ! -f "$MCP_GATEWAY_OUTPUT" ]; then
-  echo "ERROR: Gateway output file not found: $MCP_GATEWAY_OUTPUT"
-  exit 1
-fi
+# This script reads gateway configuration from stdin (in-memory)
+# No files are created for the gateway output - security requirement
 
 echo "Converting gateway configuration to Claude format..."
-echo "Input: $MCP_GATEWAY_OUTPUT"
+echo "Reading configuration from stdin..."
 
 # Convert gateway output to Claude format
 # Gateway format:
@@ -51,6 +41,7 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 # Claude uses "type": "http" for HTTP-based MCP servers.
 # The "tools" field is removed as it's Copilot-specific.
 
+# Read from stdin and convert
 jq '
   .mcpServers |= with_entries(
     .value |= (
@@ -58,7 +49,7 @@ jq '
       (del(.tools))
     )
   )
-' "$MCP_GATEWAY_OUTPUT" > /tmp/gh-aw/mcp-config/mcp-servers.json
+' > /tmp/gh-aw/mcp-config/mcp-servers.json
 
 echo "Claude configuration written to /tmp/gh-aw/mcp-config/mcp-servers.json"
 echo ""

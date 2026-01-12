@@ -107,10 +107,16 @@ export MCP_GATEWAY_LOG_DIR="/tmp/gh-aw/mcp-logs/"
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 echo "Full docker command: $MCP_GATEWAY_DOCKER_COMMAND"
 echo ""
+
+# Security requirement: Gateway configuration must never be stored in a file
+# We use a named pipe (FIFO) to keep configuration in memory only
+GATEWAY_OUTPUT_PIPE="/tmp/gh-aw/mcp-config/gateway-output.fifo"
+mkfifo "$GATEWAY_OUTPUT_PIPE"
+
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
 # Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
 echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
-  > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/stderr.log &
+  > "$GATEWAY_OUTPUT_PIPE" 2> /tmp/gh-aw/mcp-logs/stderr.log &
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"
@@ -120,11 +126,9 @@ if ps -p $GATEWAY_PID > /dev/null 2>&1; then
 else
   echo "ERROR: Gateway process exited immediately after start"
   echo ""
-  echo "Gateway stdout output:"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
-  echo ""
   echo "Gateway stderr logs:"
   cat /tmp/gh-aw/mcp-logs/stderr.log 2>/dev/null || echo "No stderr logs available"
+  rm -f "$GATEWAY_OUTPUT_PIPE"
   exit 1
 fi
 echo ""
@@ -178,9 +182,6 @@ else
   echo "Docker container status:"
   docker ps -a 2>/dev/null | head -20 || echo "Could not list docker containers"
   echo ""
-  echo "Gateway stdout (errors are written here per MCP Gateway Specification):"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
-  echo ""
   echo "Gateway stderr logs (debug output):"
   cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
   echo ""
@@ -192,26 +193,27 @@ fi
 echo ""
 
 # Wait for gateway output (rewritten configuration)
-echo "Reading gateway output configuration..."
-WAIT_ATTEMPTS=10
-WAIT_ATTEMPT=0
-while [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; do
-  if [ -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
-    echo "Gateway output received!"
-    break
-  fi
-  WAIT_ATTEMPT=$((WAIT_ATTEMPT + 1))
-  if [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; then
-    sleep 1
-  fi
-done
+echo "Reading gateway output configuration from named pipe (in-memory)..."
 
-# Verify output was written
-if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
-  echo "ERROR: Gateway did not write output configuration"
+# Read gateway configuration into memory from the named pipe
+# This blocks until the gateway writes its output
+# Timeout after 30 seconds
+if ! GATEWAY_CONFIG=$(timeout 30 cat "$GATEWAY_OUTPUT_PIPE" 2>/dev/null); then
+  echo "ERROR: Timeout or error reading gateway output"
   echo ""
-  echo "Gateway stdout (should contain error or config):"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  echo "Gateway stderr logs:"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
+  rm -f "$GATEWAY_OUTPUT_PIPE"
+  kill $GATEWAY_PID 2>/dev/null || true
+  exit 1
+fi
+
+# Remove the named pipe after reading
+rm -f "$GATEWAY_OUTPUT_PIPE"
+
+# Verify output was received
+if [ -z "$GATEWAY_CONFIG" ]; then
+  echo "ERROR: Gateway did not write output configuration"
   echo ""
   echo "Gateway stderr logs:"
   cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
@@ -219,13 +221,15 @@ if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   exit 1
 fi
 
+echo "Gateway output received (in-memory)!"
+
 # Check if output contains an error payload instead of valid configuration
 # Per MCP Gateway Specification v1.0.0 section 9.1, errors are written to stdout as error payloads
-if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; then
+if echo "$GATEWAY_CONFIG" | jq -e '.error' >/dev/null 2>&1; then
   echo "ERROR: Gateway returned an error payload instead of configuration"
   echo ""
   echo "Gateway error details:"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json
+  echo "$GATEWAY_CONFIG"
   echo ""
   echo "Gateway stderr logs:"
   cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
@@ -235,7 +239,9 @@ fi
 
 # Convert gateway output to agent-specific format
 echo "Converting gateway configuration to agent format..."
-export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json
+
+# Gateway configuration is now in-memory in GATEWAY_CONFIG variable
+# Pass it via stdin to converter scripts (no files created for gateway output)
 
 # Validate MCP_GATEWAY_API_KEY is set (required by converter scripts)
 if [ -z "$MCP_GATEWAY_API_KEY" ]; then
@@ -263,22 +269,22 @@ echo "Detected engine type: $ENGINE_TYPE"
 case "$ENGINE_TYPE" in
   copilot)
     echo "Using Copilot converter..."
-    bash /opt/gh-aw/actions/convert_gateway_config_copilot.sh
+    echo "$GATEWAY_CONFIG" | bash /opt/gh-aw/actions/convert_gateway_config_copilot.sh
     ;;
   codex)
     echo "Using Codex converter..."
-    bash /opt/gh-aw/actions/convert_gateway_config_codex.sh
+    echo "$GATEWAY_CONFIG" | bash /opt/gh-aw/actions/convert_gateway_config_codex.sh
     ;;
   claude)
     echo "Using Claude converter..."
-    bash /opt/gh-aw/actions/convert_gateway_config_claude.sh
+    echo "$GATEWAY_CONFIG" | bash /opt/gh-aw/actions/convert_gateway_config_claude.sh
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
     echo "Using gateway output directly"
-    # Default fallback - copy to most common location
+    # Default fallback - write to most common location (but only the final converted config)
     mkdir -p /home/runner/.copilot
-    cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+    echo "$GATEWAY_CONFIG" | jq '.' > /home/runner/.copilot/mcp-config.json
     cat /home/runner/.copilot/mcp-config.json
     ;;
 esac
@@ -291,9 +297,10 @@ if [ -f /opt/gh-aw/actions/check_mcp_servers.sh ]; then
   # Store check diagnostic logs in /tmp/gh-aw/mcp-logs/start-gateway.log for artifact upload
   # Use tee to output to both stdout and the log file
   # Enable pipefail so the exit code comes from check_mcp_servers.sh, not tee
+  # Use process substitution to pass in-memory configuration without creating a file
   set -o pipefail
   if ! bash /opt/gh-aw/actions/check_mcp_servers.sh \
-    /tmp/gh-aw/mcp-config/gateway-output.json \
+    <(echo "$GATEWAY_CONFIG") \
     "http://localhost:${MCP_GATEWAY_PORT}" \
     "${MCP_GATEWAY_API_KEY}" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log; then
     echo "ERROR: MCP server checks failed - no servers could be connected"

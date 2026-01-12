@@ -5,21 +5,11 @@
 
 set -e
 
-# Required environment variable:
-# - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
-
-if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
-  echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"
-  exit 1
-fi
-
-if [ ! -f "$MCP_GATEWAY_OUTPUT" ]; then
-  echo "ERROR: Gateway output file not found: $MCP_GATEWAY_OUTPUT"
-  exit 1
-fi
+# This script reads gateway configuration from stdin (in-memory)
+# No files are created for the gateway output - security requirement
 
 echo "Converting gateway configuration to Copilot format..."
-echo "Input: $MCP_GATEWAY_OUTPUT"
+echo "Reading configuration from stdin..."
 
 # Convert gateway output to Copilot format
 # Gateway format:
@@ -52,13 +42,14 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 # The main difference is that Copilot requires the "tools" field.
 # We also need to ensure headers use the actual API key value, not a placeholder.
 
+# Read from stdin and convert
 jq '
   .mcpServers |= with_entries(
     .value |= (
       if .tools then . else . + {"tools": ["*"]} end
     )
   )
-' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json
+' > /home/runner/.copilot/mcp-config.json
 
 echo "Copilot configuration written to /home/runner/.copilot/mcp-config.json"
 echo ""

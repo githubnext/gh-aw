@@ -5,21 +5,11 @@
 
 set -e
 
-# Required environment variable:
-# - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
-
-if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
-  echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"
-  exit 1
-fi
-
-if [ ! -f "$MCP_GATEWAY_OUTPUT" ]; then
-  echo "ERROR: Gateway output file not found: $MCP_GATEWAY_OUTPUT"
-  exit 1
-fi
+# This script reads gateway configuration from stdin (in-memory)
+# No files are created for the gateway output - security requirement
 
 echo "Converting gateway configuration to Codex TOML format..."
-echo "Input: $MCP_GATEWAY_OUTPUT"
+echo "Reading configuration from stdin..."
 
 # Convert gateway JSON output to Codex TOML format
 # Gateway format (JSON):
@@ -54,6 +44,7 @@ persistence = "none"
 
 TOML_EOF
 
+# Read from stdin and append to TOML
 jq -r '
   .mcpServers | to_entries[] | 
   "[mcp_servers.\(.key)]\n" +
@@ -61,7 +52,7 @@ jq -r '
   "\n" +
   "[mcp_servers.\(.key).headers]\n" +
   "Authorization = \"\(.value.headers.Authorization)\"\n"
-' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
+' >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
 echo ""
