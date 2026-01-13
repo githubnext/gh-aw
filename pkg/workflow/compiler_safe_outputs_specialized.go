@@ -16,17 +16,22 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", cfg.Max))
 	}
 
+	// Add default agent if specified
+	if cfg.DefaultAgent != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_DEFAULT: %q\n", cfg.DefaultAgent))
+	}
+
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{
-		StepName:      "Assign To Agent",
-		StepID:        "assign_to_agent",
-		ScriptName:    "assign_to_agent",
-		Script:        getAssignToAgentScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-		UseAgentToken: true,
+		StepName:        "Assign To Agent",
+		StepID:          "assign_to_agent",
+		ScriptName:      "assign_to_agent",
+		Script:          getAssignToAgentScript(),
+		CustomEnvVars:   customEnvVars,
+		Condition:       condition,
+		Token:           cfg.GitHubToken,
+		UseCopilotToken: true,
 	}
 }
 
