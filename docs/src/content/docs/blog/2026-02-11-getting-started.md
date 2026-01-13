@@ -6,7 +6,7 @@ authors:
 date: 2026-02-11
 draft: true
 prev:
-  link: /blog/2026-02-08-authoring-workflows/
+  link: /gh-aw/blog/2026-02-08-authoring-workflows/
   label: Authoring Workflows
 ---
 

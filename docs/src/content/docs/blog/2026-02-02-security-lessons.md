@@ -6,10 +6,10 @@ authors:
 date: 2026-02-02
 draft: true
 prev:
-  link: /blog/2026-01-30-imports-and-sharing/
+  link: /gh-aw/blog/2026-01-30-imports-and-sharing/
   label: Imports & Sharing
 next:
-  link: /blog/2026-02-05-how-workflows-work/
+  link: /gh-aw/blog/2026-02-05-how-workflows-work/
   label: How Workflows Work
 ---
 

@@ -6,10 +6,10 @@ authors:
 date: 2026-01-21
 draft: true
 prev:
-  link: /blog/2026-01-13-meet-the-workflows/
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows/
   label: Meet the Workflows
 next:
-  link: /blog/2026-01-24-design-patterns/
+  link: /gh-aw/blog/2026-01-24-design-patterns/
   label: 12 Design Patterns
 ---
 

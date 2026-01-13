@@ -6,10 +6,10 @@ authors:
 date: 2026-01-30
 draft: true
 prev:
-  link: /blog/2026-01-27-operational-patterns/
+  link: /gh-aw/blog/2026-01-27-operational-patterns/
   label: 9 Operational Patterns
 next:
-  link: /blog/2026-02-02-security-lessons/
+  link: /gh-aw/blog/2026-02-02-security-lessons/
   label: Security Lessons
 ---
 

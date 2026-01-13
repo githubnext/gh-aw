@@ -6,10 +6,10 @@ authors:
 date: 2026-01-24
 draft: true
 prev:
-  link: /blog/2026-01-21-twelve-lessons/
+  link: /gh-aw/blog/2026-01-21-twelve-lessons/
   label: 12 Lessons
 next:
-  link: /blog/2026-01-27-operational-patterns/
+  link: /gh-aw/blog/2026-01-27-operational-patterns/
   label: 9 Operational Patterns
 ---
 

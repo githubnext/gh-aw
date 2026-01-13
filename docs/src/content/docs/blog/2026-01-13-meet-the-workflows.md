@@ -5,11 +5,8 @@ authors:
   - dsyme
 date: 2026-01-13
 prev:
-  link: /blog/2026-01-12-welcome-to-pelis-agent-factory/
+  link: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
   label: Welcome to Peli's Agent Factory
-next:
-  link: /blog/2026-01-21-twelve-lessons/
-  label: Twelve Lessons from the Factory
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />

@@ -1056,6 +1056,11 @@ starlight-toc h2 {
   color: #656d76;
 }
 
+/* Hide blog plugin's card-grid pagination (uses reverse chronological order) */
+.post-footer .pagination.astro-q3jscx35 {
+  display: none;
+}
+
 /* Pagination Links */
 .pagination-links {
   border-top: 1px solid #30363d;

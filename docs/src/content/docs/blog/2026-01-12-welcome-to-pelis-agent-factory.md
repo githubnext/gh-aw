@@ -5,13 +5,13 @@ authors:
   - dsyme
 date: 2026-01-12
 next:
-  link: /blog/2026-01-13-meet-the-workflows/
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows/
   label: Meet the Workflows
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Hey there! 👋
+Hi there! 👋 Welcome to Peli's Agent Factory!
 
 Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress.
 
@@ -25,7 +25,7 @@ Welcome to the factory. Let's explore together!
 
 Peli's factory is a collection of **automated agentic workflows** we use in practice. 
 
-Over the course of this research project, we built and operated **over 100 autonomous agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These were used mostly in the context of the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) project itself, but many have also been applied at scale to GitHub and Microsoft internal repositories, and some external repositories. These weren't hypothetical demos - they were working agents that:
+Over the course of this research project, we built and operated **over 100 automated agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These were used mostly in the context of the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) project itself, but many have also been applied at scale to GitHub and Microsoft internal repositories, and some external repositories. These weren't hypothetical demos - they were working agents that:
 
 - Triage incoming issues
 - Diagnose CI failures

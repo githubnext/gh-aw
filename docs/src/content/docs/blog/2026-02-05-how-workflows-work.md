@@ -6,10 +6,10 @@ authors:
 date: 2026-02-05
 draft: true
 prev:
-  link: /blog/2026-02-02-security-lessons/
+  link: /gh-aw/blog/2026-02-02-security-lessons/
   label: Security Lessons
 next:
-  link: /blog/2026-02-08-authoring-workflows/
+  link: /gh-aw/blog/2026-02-08-authoring-workflows/
   label: Authoring Workflows
 ---
 
