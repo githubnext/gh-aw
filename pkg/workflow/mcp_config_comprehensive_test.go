@@ -574,7 +574,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"url": "http://localhost:9121"`,
+				`"url": "http://host.docker.internal:9121"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
@@ -593,7 +593,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"url": "http://localhost:9121"`,
+				`"url": "http://host.docker.internal:9121"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
@@ -612,7 +612,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"serena": {`,
 				`"type": "http"`,
-				`"url": "http://localhost:9121"`,
+				`"url": "http://host.docker.internal:9121"`,
 			},
 			unexpectedContent: []string{
 				`"container"`,
@@ -627,7 +627,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"serena": {`,
 				`"type": "http"`,
-				`"url": "http://localhost:9121"`,
+				`"url": "http://host.docker.internal:9121"`,
 			},
 			unexpectedContent: []string{
 				`"container"`,
@@ -644,7 +644,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"url": "http://localhost:9121"`,
+				`"url": "http://host.docker.internal:9121"`,
 			},
 			unexpectedContent: []string{
 				`"container"`,

@@ -160,8 +160,8 @@ Uses imported serena tool.
 	if !strings.Contains(workflowData, "uvx --from git+https://github.com/oraios/serena") {
 		t.Error("Expected compiled workflow to use uvx to start Serena")
 	}
-	if !strings.Contains(workflowData, "http://localhost:9121") {
-		t.Error("Expected compiled workflow to contain Serena HTTP URL")
+	if !strings.Contains(workflowData, "http://host.docker.internal:9121") {
+		t.Error("Expected compiled workflow to contain Serena HTTP URL with host.docker.internal")
 	}
 
 	// Verify that language service setup steps ARE present
@@ -324,8 +324,8 @@ Uses all imported tools.
 	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
 		t.Error("Expected compiled workflow to contain playwright Docker image")
 	}
-	if !strings.Contains(workflowData, "http://localhost:9121") {
-		t.Error("Expected compiled workflow to contain Serena HTTP URL")
+	if !strings.Contains(workflowData, "http://host.docker.internal:9121") {
+		t.Error("Expected compiled workflow to contain Serena HTTP URL with host.docker.internal")
 	}
 	if !strings.Contains(workflowData, "example.com") {
 		t.Error("Expected compiled workflow to contain example.com domain for playwright")
