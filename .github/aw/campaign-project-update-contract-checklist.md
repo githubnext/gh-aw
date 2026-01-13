@@ -29,7 +29,7 @@ This checklist is designed to validate LLM outputs before executing project writ
 - [ ] Backfill is used only when required fields are missing/empty/invalid.
 - [ ] No payload overwrites `priority`/`size`/`worker_workflow` with defaults during a normal status update.
 
-## D) Phase Separation Checks
+## D) Read-Write Separation Checks
 
 - [ ] All reads occur before any writes (no read/write interleaving).
 - [ ] Writes are batched separately from discovery.

@@ -66,10 +66,10 @@ For open items, `end_date` is a UI-required placeholder and does NOT represent a
 
 ---
 
-## 4) Two-Phase Execution (Prevents Read/Write Mixing)
+## 4) Read-Write Separation (Prevents Read/Write Mixing)
 
-1. **READ PHASE (no writes)** — validate existence and gather metadata
-2. **WRITE PHASE (writes only)** — execute `update-project`
+1. **READ STEP (no writes)** — validate existence and gather metadata
+2. **WRITE STEP (writes only)** — execute `update-project`
 
 Never interleave reads and writes.
 

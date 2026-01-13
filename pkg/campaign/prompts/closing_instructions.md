@@ -1,6 +1,6 @@
 # Closing Instructions (Highest Priority)
 
-Execute all four phases in strict order:
+Execute all four steps in strict order:
 
 1. Read State (no writes)
 2. Make Decisions (no writes)
