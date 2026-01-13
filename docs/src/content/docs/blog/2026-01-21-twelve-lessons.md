@@ -9,7 +9,7 @@ draft: true
 
 [Previous: Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome back to Peli's Agent Factory!
 

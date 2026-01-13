@@ -74,9 +74,8 @@ export default defineConfig({
 				starlightBlog({
 					authors: {
 						'gh-next': {
-							name: 'GitHub Next',
-							title: 'Research & Prototyping Team',
-							url: 'https://githubnext.com/',
+							name: 'Don Syme',
+							url: 'https://dsyme.net/',
 						},
 					},
 				}),

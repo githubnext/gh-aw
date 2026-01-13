@@ -6,7 +6,7 @@ authors:
 date: 2026-01-12
 ---
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Hey there! 👋
 
@@ -15,10 +15,6 @@ Imagine a software repository where AI agents work alongside your team - not rep
 Peli's Agent Factory is our exploration of what happens when you take the design philosophy of **let's create a new agentic workflow for that** as the answer to every opportunity that may present itself! What happens when you **max out on automated agentic workflows** - when you make and nurture dozens of specialized, automated AI agentic workflows in a real repository.
 
 Software development is changing rapidly. Peli's Agent Factory is our exploration into what happens when you build and operate **a collection of specialized AI automated agentic workflows** within a real software repository, handling actual development tasks. This is our attempt to understand how automated agentic AI can make software teams more efficient, collaborative, and maybe even enjoyable.
-
-<div align="center">
-  <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="250" style="border-radius: 8px; margin: 20px 0;" />
-</div>
 
 Welcome to the factory. Let's explore together!
 

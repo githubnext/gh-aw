@@ -11,7 +11,7 @@ draft: true
 
 ---
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome to our latest article in the Peli's Agent Factory series! After exploring [imports and sharing](/gh-aw/blog/2026-01-30-imports-and-sharing/) in our previous article, it's time to tackle one of the most critical aspects of running automated agentic workflows: security.
 

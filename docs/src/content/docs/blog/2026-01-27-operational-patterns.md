@@ -11,7 +11,7 @@ draft: true
 
 ---
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome back to our ongoing series about Peli's Agent Factory! In the [previous article](/gh-aw/blog/2026-01-24-design-patterns/), we explored the fundamental design patterns that define what agents do. Now let's shift from architecture to operations.
 
