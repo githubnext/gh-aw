@@ -60,6 +60,11 @@
       "version": "v4.3.1",
       "sha": "67a3573c9a986a3f9c594539f4ab511d57bb3ce9"
     },
+    "actions/setup-go@v6": {
+      "repo": "actions/setup-go",
+      "version": "v6",
+      "sha": "7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5"
+    },
     "actions/setup-go@v6.1.0": {
       "repo": "actions/setup-go",
       "version": "v6.1.0",
