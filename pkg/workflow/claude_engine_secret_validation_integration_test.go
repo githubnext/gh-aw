@@ -57,7 +57,7 @@ func TestSmokeClaude_UsesClaudeEngine_Integration(t *testing.T) {
 	// Find the smoke-claude.md and lock.yml files
 	workflowPath := filepath.Join("..", "..", ".github", "workflows", "smoke-claude.md")
 	lockFilePath := filepath.Join("..", "..", ".github", "workflows", "smoke-claude.lock.yml")
-	
+
 	// Check if files exist (skip test if not in CI environment)
 	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
 		t.Skip("smoke-claude.md not found, skipping integration test")
@@ -112,32 +112,32 @@ func TestSmokeClaude_UsesClaudeEngine_Integration(t *testing.T) {
 func TestValidateMultiSecretScript_Exists_Integration(t *testing.T) {
 	// Check if the script exists in the source location
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "validate_multi_secret.sh")
-	
+
 	info, err := os.Stat(scriptPath)
 	require.NoError(t, err, "validate_multi_secret.sh should exist at actions/setup/sh/")
-	
+
 	// Verify it's a file, not a directory
 	assert.False(t, info.IsDir(), "validate_multi_secret.sh should be a file, not a directory")
-	
+
 	// Verify it has executable permissions (on Unix systems)
 	if info.Mode()&0111 != 0 {
 		t.Logf("✓ validate_multi_secret.sh has executable permissions")
 	}
-	
+
 	// Read the script to verify it has the expected content
 	content, err := os.ReadFile(scriptPath)
 	require.NoError(t, err, "Failed to read validate_multi_secret.sh")
-	
+
 	scriptStr := string(content)
-	
+
 	// Verify it's a bash script
 	assert.True(t, strings.HasPrefix(scriptStr, "#!/bin/bash") || strings.HasPrefix(scriptStr, "#!/usr/bin/env bash"),
 		"Script should start with bash shebang")
-	
+
 	// Verify it has the expected usage pattern
 	assert.Contains(t, scriptStr, "Usage: $0 SECRET_NAME1 [SECRET_NAME2 ...] ENGINE_NAME DOCS_URL",
 		"Script should have expected usage pattern")
-	
+
 	// Verify it validates secrets
 	assert.Contains(t, scriptStr, "all_empty=true",
 		"Script should check if all secrets are empty")
