@@ -7,6 +7,22 @@ SpecOps is a pattern for maintaining formal specifications using agentic workflo
 
 Use SpecOps when formal specifications need to stay synchronized across multiple repositories.
 
+## How SpecOps Works
+
+The SpecOps workflow coordinates specification updates across multiple agents and repositories:
+
+1. **User initiates specification change** - The user triggers a workflow with the `w3c-specification-writer` agent, describing what needs to change in the specification.
+
+2. **Agent updates specification** - The coding agent modifies the specification document, applying RFC 2119 keywords (MUST, SHALL, SHOULD, MAY), updating version numbers, and adding change log entries. The user reviews and approves the changes.
+
+3. **Propagation workflows activate** - When the specification changes merge to main, agentic workflows automatically detect the updates and analyze the impact on consuming repositories.
+
+4. **Implementation plans generated** - Coding agents create plans to update implementations in consuming repositories (like [gh-aw-mcpg](https://github.com/githubnext/gh-aw-mcpg)) to comply with new specification requirements.
+
+5. **Compliance tests updated** - Test generation workflows update compliance test suites to verify implementations satisfy the new specification requirements, ensuring continuous conformance.
+
+This automated workflow ensures specifications remain the single source of truth while keeping all implementations synchronized and compliant.
+
 ## Update Specifications
 
 Create a workflow to update specifications using the w3c-specification-writer agent:
