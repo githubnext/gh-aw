@@ -137,6 +137,16 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
+      - name: Setup Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: '1.25'
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Cache memory file share configuration from frontmatter processed below
@@ -599,6 +609,41 @@ jobs:
           
           bash /opt/gh-aw/actions/start_safe_inputs_server.sh
           
+      - name: Start Serena MCP HTTP Server
+        id: serena-start
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/gh-aw/mcp-logs/serena
+          
+          echo "Starting Serena MCP HTTP server on port 9121..."
+          
+          # Start Serena MCP server in background with uvx
+          uvx --from git+https://github.com/oraios/serena \
+            serena start-mcp-server \
+            --transport streamable-http \
+            --port 9121 \
+            --project "${{ github.workspace }}" \
+            > /tmp/gh-aw/mcp-logs/serena/server.log 2>&1 &
+          
+          # Save PID for potential cleanup
+          echo $! > /tmp/gh-aw/serena-mcp-server.pid
+          
+          # Wait for server to start (max 30 seconds)
+          echo "Waiting for Serena MCP server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:9121/health > /dev/null 2>&1; then
+              echo "Serena MCP server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "ERROR: Serena MCP server failed to start within 30 seconds"
+              echo "Server logs:"
+              cat /tmp/gh-aw/mcp-logs/serena/server.log || true
+              exit 1
+            fi
+            sleep 1
+          done
+          
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
@@ -669,20 +714,7 @@ jobs:
           env_vars = ["GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]
           
           [mcp_servers.serena]
-          container = "ghcr.io/oraios/serena:latest"
-          args = [
-            "--network",
-            "host",
-          ]
-          entrypoint = "serena"
-          entrypointArgs = [
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
-            "${{ github.workspace }}"
-          ]
-          mounts = ["${{ github.workspace }}:${{ github.workspace }}:rw"]
+          url = "http://localhost:9121"
           
           [mcp_servers.tavily]
           url = "https://mcp.tavily.com/mcp/"
@@ -747,20 +779,7 @@ jobs:
                 }
               },
               "serena": {
-                "container": "ghcr.io/oraios/serena:latest",
-                "args": [
-                  "--network",
-                  "host"
-                ],
-                "entrypoint": "serena",
-                "entrypointArgs": [
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "${{ github.workspace }}"
-                ],
-                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
+                "url": "http://localhost:9121"
               },
               "tavily": {
               "type": "http",
