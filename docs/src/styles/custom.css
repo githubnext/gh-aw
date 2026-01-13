@@ -446,6 +446,24 @@ body:has(.hero)::before {
   background: transparent !important;
 }
 
+/* Mobile-specific: Increase touch targets for sidebar navigation */
+@media (max-width: 768px) {
+  .sidebar .top-level > li > details > summary,
+  .sidebar .top-level > li > a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+  }
+  
+  .sidebar nav li li a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+  }
+}
+
 .sidebar nav li li a:hover {
   color: #f0f6fc;
   background-color: transparent !important;
@@ -589,6 +607,25 @@ header::after {
   font-size: 0.2em;
   opacity: 0;
   transition: opacity 0.2s ease;
+}
+
+/* Mobile-specific: Increase touch targets for header anchor links */
+@media (max-width: 768px) {
+  .sl-markdown-content h1 a.header-anchor,
+  .sl-markdown-content h2 a.header-anchor,
+  .sl-markdown-content h3 a.header-anchor,
+  .sl-markdown-content h4 a.header-anchor,
+  .sl-markdown-content h5 a.header-anchor,
+  .sl-markdown-content h6 a.header-anchor,
+  .sl-markdown-content :is(h1, h2, h3, h4, h5, h6) a[aria-label^="Permalink"] {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    opacity: 0.5; /* Make visible on mobile for better discoverability */
+  }
 }
 
 .sl-markdown-content :is(h1, h2, h3, h4, h5, h6):hover a[aria-label^="Permalink"] {
@@ -836,6 +873,19 @@ header::after {
   border-bottom-color: rgba(216, 150, 255, 0.3);
 }
 
+/* Mobile-specific: Add padding to inline links for better touch targets */
+@media (max-width: 768px) {
+  .sl-markdown-content p a,
+  .sl-markdown-content li a {
+    padding: 0.25rem 0.125rem;
+    margin: -0.25rem -0.125rem;
+    display: inline-block;
+    min-height: 44px;
+    line-height: 1.6;
+    vertical-align: middle;
+  }
+}
+
 :root[data-theme='light'] .sl-markdown-content a {
   color: #0969da;
 }
@@ -867,6 +917,17 @@ nav a[aria-current="page"] {
 
 :root[data-theme='light'] .social-icons a[href*="github.com"] {
   color: #010409 !important;
+}
+
+/* Mobile-specific: Ensure social icons have adequate touch targets */
+@media (max-width: 768px) {
+  .social-icons a {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 :root[data-theme='light'] .icon-wrapper {
@@ -1199,6 +1260,17 @@ html {
   color: #f0f6fc;
 }
 
+/* Mobile-specific: Ensure site title has adequate touch target */
+@media (max-width: 768px) {
+  .site-title {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem;
+  }
+}
+
 /* Mobile Navigation - Ensure header elements are visible on mobile */
 @media (max-width: 769px) {
   /* Keep custom header links visible on mobile but make them more compact */
@@ -1208,9 +1280,15 @@ html {
     margin-right: 0.5rem !important;
   }
   
+  /* Increase touch target size for header links to meet WCAG 2.1 Level AAA (44x44px) */
   .header-link {
-    padding: 0.25rem 0.5rem !important;
+    padding: 0.625rem 0.75rem !important; /* Increased from 0.25rem 0.5rem */
     font-size: 0.8125rem !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   /* Ensure theme toggle is visible on mobile */
@@ -1228,6 +1306,17 @@ html {
   /* Hide title text on mobile to save space - keep only logo icon */
   .site-title span {
     display: none !important;
+  }
+  
+  /* Ensure search button meets minimum touch target */
+  site-search button[data-open-modal],
+  site-search button[aria-label="Search"] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.75rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   /* Force theme toggle and social icons to stay visible on mobile ONLY on landing page (with hero) */
@@ -1266,11 +1355,12 @@ html {
     visibility: visible !important;
   }
   
-  /* Make theme toggle easier to tap on mobile */
+  /* Make theme toggle easier to tap on mobile - WCAG 2.1 Level AAA (44x44px) */
   starlight-theme-select .icon-wrapper {
-    width: 2.5rem !important;
-    height: 2.5rem !important;
-    min-width: 2.5rem !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
   }
   
   /* Ensure proper spacing on mobile header */
@@ -1287,6 +1377,18 @@ html {
   backdrop-filter: blur(8px) !important;
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
   font-weight: 600 !important;
+}
+
+/* Mobile-specific: Ensure primary buttons meet minimum touch target */
+@media (max-width: 768px) {
+  .sl-link-button.primary,
+  .sl-link-button {
+    min-height: 44px !important;
+    padding: 0.75rem 1.5rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
 }
 
 .sl-link-button.primary:hover {
@@ -1424,5 +1526,31 @@ main,
   .sl-markdown-content {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+}
+
+/* Mobile-specific: Additional touch target improvements for remaining elements */
+@media (max-width: 768px) {
+  /* Skip to content link - accessibility feature */
+  a[href="#_top"],
+  a[class*="skip"] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.75rem 1rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Anchor links in markdown content */
+  .sl-anchor-link,
+  a.sl-anchor-link,
+  .sl-markdown-content .sl-anchor-link {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.75rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
