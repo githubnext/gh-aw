@@ -199,12 +199,12 @@ const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.5"
+const DefaultClaudeCodeVersion Version = "2.1.6"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.377"
+const DefaultCopilotVersion Version = "0.0.381"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
@@ -235,7 +235,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.28.1"
 const DefaultFirewallVersion Version = "v0.8.2"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.47"
+const DefaultMCPGatewayVersion Version = "v0.0.56"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
