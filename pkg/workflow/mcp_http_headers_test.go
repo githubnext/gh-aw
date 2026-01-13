@@ -182,23 +182,20 @@ func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 		}
 	}
 
-	// Check that env passthrough section is present
-	expectedEnvChecks := []string{
-		`"env": {`,
-		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
-		`"DD_SITE": "\${DD_SITE}"`,
+	// Per MCP Gateway Specification v1.4.0 section 4.1.2:
+	// HTTP servers only support: type, url, headers
+	// The env and tools fields are NOT allowed for HTTP servers
+	// Secrets in headers are resolved by the gateway from environment variables
+	// passed to the gateway container (not from an env field in the server config)
+
+	// Verify that env field is NOT present (not allowed for HTTP servers)
+	if strings.Contains(result, `"env": {`) {
+		t.Errorf("Unexpected env field found (not allowed for HTTP servers):\n%s", result)
 	}
 
-	for _, expected := range expectedEnvChecks {
-		if !strings.Contains(result, expected) {
-			t.Errorf("Expected env passthrough not found: %q\nActual output:\n%s", expected, result)
-		}
-	}
-
-	// Check that tools field is present
-	if !strings.Contains(result, `"tools": [`) {
-		t.Errorf("Expected tools field not found in output:\n%s", result)
+	// Verify that tools field is NOT present (not allowed for HTTP servers)
+	if strings.Contains(result, `"tools": [`) {
+		t.Errorf("Unexpected tools field found (not allowed for HTTP servers):\n%s", result)
 	}
 
 	// Verify original secret expressions are NOT in the output (they should be replaced)
@@ -321,19 +318,27 @@ func TestRenderSharedMCPConfig_PropertyOrder(t *testing.T) {
 
 	result := output.String()
 
-	// Verify property order: type, url, headers, tools, env
+	// Per MCP Gateway Specification v1.4.0 section 4.1.2:
+	// HTTP servers only support: type, url, headers (in that order)
+	// The tools and env fields are NOT allowed for HTTP servers
 	typeIdx := strings.Index(result, `"type":`)
 	urlIdx := strings.Index(result, `"url":`)
 	headersIdx := strings.Index(result, `"headers":`)
-	toolsIdx := strings.Index(result, `"tools":`)
-	envIdx := strings.Index(result, `"env":`)
 
-	if typeIdx == -1 || urlIdx == -1 || headersIdx == -1 || toolsIdx == -1 || envIdx == -1 {
+	if typeIdx == -1 || urlIdx == -1 || headersIdx == -1 {
 		t.Fatalf("Missing required properties in output:\n%s", result)
 	}
 
-	// Check order: type < url < headers < tools < env
-	if typeIdx >= urlIdx || urlIdx >= headersIdx || headersIdx >= toolsIdx || toolsIdx >= envIdx {
-		t.Errorf("Properties are not in expected order (type, url, headers, tools, env):\n%s", result)
+	// Check order: type < url < headers
+	if typeIdx >= urlIdx || urlIdx >= headersIdx {
+		t.Errorf("Properties are not in expected order (type, url, headers):\n%s", result)
+	}
+
+	// Verify that tools and env fields are NOT present (not allowed for HTTP servers)
+	if strings.Contains(result, `"tools":`) {
+		t.Errorf("Unexpected tools field found (not allowed for HTTP servers):\n%s", result)
+	}
+	if strings.Contains(result, `"env":`) {
+		t.Errorf("Unexpected env field found (not allowed for HTTP servers):\n%s", result)
 	}
 }
