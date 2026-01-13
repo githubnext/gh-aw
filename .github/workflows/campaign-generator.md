@@ -131,7 +131,7 @@ update_project({
   view: {
     name: "Campaign Roadmap",
     layout: "roadmap",
-    filter: "is:issue,is:pr"
+    filter: "is:issue,is:pull_request"
   }
 })
 ```
@@ -144,7 +144,7 @@ update_project({
   view: {
     name: "Task Tracker",
     layout: "table",
-    filter: "is:issue,is:pr"
+    filter: "is:issue,is:pull_request"
   }
 })
 ```
@@ -157,7 +157,7 @@ update_project({
   view: {
     name: "Progress Board",
     layout: "board",
-    filter: "is:issue,is:pr"
+    filter: "is:issue,is:pull_request"
   }
 })
 ```

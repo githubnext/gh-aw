@@ -869,7 +869,7 @@ jobs:
             view: {
               name: "Campaign Roadmap",
               layout: "roadmap",
-              filter: "is:issue,is:pr"
+              filter: "is:issue,is:pull_request"
             }
           })
           ```
@@ -882,7 +882,7 @@ jobs:
             view: {
               name: "Task Tracker",
               layout: "table",
-              filter: "is:issue,is:pr"
+              filter: "is:issue,is:pull_request"
             }
           })
           ```
@@ -895,7 +895,7 @@ jobs:
             view: {
               name: "Progress Board",
               layout: "board",
-              filter: "is:issue,is:pr"
+              filter: "is:issue,is:pull_request"
             }
           })
           ```
