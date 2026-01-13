@@ -100,7 +100,7 @@ func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 
 			// Build the container command (similar to what's done in mcp_servers.go)
 			containerImage := gatewayConfig.Container + ":" + gatewayConfig.Version
-			containerCmd := "docker run -i --rm --network host"
+			containerCmd := "docker run -i --rm -p 80:80"
 
 			// Add volume mounts (not individually quoted since entire command will be quoted)
 			if len(gatewayConfig.Mounts) > 0 {
