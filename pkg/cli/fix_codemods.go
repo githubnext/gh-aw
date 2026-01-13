@@ -37,6 +37,7 @@ func GetAllCodemods() []Codemod {
 		getAgentTaskToAgentSessionCodemod(),
 		getSandboxAgentFalseRemovalCodemod(),
 		getScheduleAtToAroundCodemod(),
+		getDeleteSchemaFileCodemod(),
 	}
 }
 
@@ -1073,6 +1074,21 @@ func getScheduleAtToAroundCodemod() Codemod {
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied schedule 'at' to 'around' migration")
 			return newContent, true, nil
+		},
+	}
+}
+
+// getDeleteSchemaFileCodemod creates a codemod for deleting the deprecated .github/aw/schemas/agentic-workflow.json file
+func getDeleteSchemaFileCodemod() Codemod {
+	return Codemod{
+		ID:           "delete-schema-file",
+		Name:         "Delete deprecated schema file",
+		Description:  "Deletes .github/aw/schemas/agentic-workflow.json which is no longer written by init command",
+		IntroducedIn: "0.6.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// This codemod is handled by the fix command itself (see runFixCommand)
+			// It doesn't modify workflow files, so we just return content unchanged
+			return content, false, nil
 		},
 	}
 }

@@ -67,17 +67,20 @@ describe("missing_tool.cjs handler", () => {
       expect(result.alternatives).toBeNull();
     });
 
-    it("should reject message missing tool field", async () => {
+    it("should process message without tool field (general limitation)", async () => {
       const message = {
         type: "missing_tool",
-        reason: "No tool specified",
+        reason: "Cannot access external APIs due to network restrictions",
+        alternatives: "User can manually fetch data and provide it",
       };
 
       const result = await handler(message, {});
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Missing required field: tool");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing 'tool' field"));
+      expect(result.success).toBe(true);
+      expect(result.tool).toBeNull();
+      expect(result.reason).toBe("Cannot access external APIs due to network restrictions");
+      expect(result.alternatives).toBe("User can manually fetch data and provide it");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("missing functionality/limitation"));
     });
 
     it("should reject message missing reason field", async () => {

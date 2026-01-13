@@ -192,6 +192,65 @@ describe("add_comment", () => {
       expect(result.error).toMatch(/no.*item_number/i);
     });
 
+    it("should use explicit item_number even with triggering target", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedIssueNumber = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      // Execute the handler factory with target: "triggering" (default)
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 777,
+        body: "Test comment with explicit item_number",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(777);
+      expect(result.itemNumber).toBe(777);
+    });
+
+    it("should resolve from context when item_number is not provided", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedIssueNumber = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      // Execute the handler factory with target: "triggering" (default)
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment without item_number, should use PR from context",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(8535); // Should use PR number from mockContext
+      expect(result.itemNumber).toBe(8535);
+    });
+
     it("should use issue context when triggered by an issue", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 

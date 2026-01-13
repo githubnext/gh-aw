@@ -10,9 +10,9 @@ sidebar:
 > Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
-## Adding Daily News to your repo
+## Adding a Daily Status Workflow to Your Repo
 
-This is a happy path guide to get you started with daily reports in an existing GitHub repository you have admin or write access to. If you stumbled on one of these steps, go to the [Prerequisites](#prerequisites) section for setup instructions.
+This is a happy path guide to get you started with automated daily team status reports in an existing GitHub repository you have admin or write access to. If you stumble on one of these steps, go to the [Prerequisites](#prerequisites) section for setup instructions.
 
 ### Step 1 — Install the extension
 
@@ -22,17 +22,27 @@ Install the [GitHub CLI](https://cli.github.com/), then install the GitHub Agent
 gh extension install githubnext/gh-aw
 ```
 
-:::caution[Working in GitHub Codespaces?]
+> [!CAUTION]
+> Working in GitHub Codespaces?
+>
+> If you're working in a GitHub Codespace, the extension installation *may* fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
+>
+> ```bash wrap
+> curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+> ```
+>
 
-If you're working in a GitHub Codespace, the extension installation *may* fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
+### Step 2 — Initialize your repository
+
+Initialize your repository to configure custom agents and MCP server:
 
 ```bash wrap
-curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+gh aw init
 ```
 
-:::
+This command installs agents and tools for GitHub Copilot.
 
-### Step 2 — Add a sample workflow
+### Step 3 — Add a sample workflow
 
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
@@ -44,7 +54,7 @@ This creates a pull request that adds `.github/workflows/daily-team-status.md` a
    - Review and merge the PR into your repo.
    - Pull the changes into your (local) repo.
 
-### Step 3 — Add an AI secret
+### Step 4 — Add an AI secret
 
 [Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).
 
@@ -65,11 +75,11 @@ Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-toke
    - Set to **"Access: Read"**
 4. Click **"Generate token"** and copy it immediately (you won't see it again)
 
-:::tip[Can't find Copilot Requests permission?]
-
-Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
-
-:::
+> [!TIP]
+> Can't find Copilot Requests permission?
+>
+> Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
+>
 
 #### Add the token to your repository
 
@@ -102,13 +112,13 @@ gh aw status
 
 This confirms the workflow is compiled, enabled, and scheduled correctly.
 
-:::tip[Troubleshooting]
+> [!TIP]
+> Troubleshooting
+>
+> If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
+>
 
-If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
-
-:::
-
-### Step 4 — Trigger a workflow run
+### Step 5 — Trigger a workflow run
 
 Trigger the workflow immediately in GitHub Actions (this may fail in a codespace):
 
@@ -122,15 +132,7 @@ After a few moments, check the status:
 gh aw status
 ```
 
-Once complete, a new issue will be created in your repository with daily news! The report will be automatically generated by the AI based on recent activity in your repository.
-
-### Agentic Setup
-
-If you want to use Copilot to configure GitHub Agentic Workflows, run:
-
-```bash wrap
-npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
-```
+Once complete, a new issue will be created in your repository with a daily team status report! The report will be automatically generated by the AI based on recent activity in your repository, including issues, PRs, discussions, releases, and code changes.
 
 ## Prerequisites
 
@@ -169,13 +171,13 @@ Before installing anything, it helps to understand the workflow lifecycle:
 
 Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
 
-:::caution[Important]
-**Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
-:::
+> [!CAUTION]
+> Important
+> **Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
 
 ## Understanding Your First Workflow
 
-The daily team status workflow creates a status report every weekday and posts it as an issue. The workflow file has two parts:
+The daily team status workflow creates a status report daily and posts it as an issue. The workflow file has two parts:
 
 - **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (YAML configuration section between `---` markers) — Configures when the workflow runs and what it can do
 - **Markdown instructions** — Natural language task descriptions for the AI
@@ -183,8 +185,7 @@ The daily team status workflow creates a status report every weekday and posts i
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 9 * * 1-5"
+  schedule: daily
   workflow_dispatch:
 permissions:
   contents: read
@@ -195,17 +196,29 @@ tools:
   github:
 safe-outputs:
   create-issue:
+    title-prefix: "[team-status] "
+    labels: [report, daily-status]
+    close-older-issues: true
 ---
 
 # Daily Team Status
 
 Create an upbeat daily status report for the team as a GitHub issue.
-- Recent repository activity (issues, PRs, releases, code changes)
+
+## What to include
+
+- Recent repository activity (issues, PRs, discussions, releases, code changes)
 - Team productivity suggestions and improvement ideas
 - Community engagement highlights
 - Project investment and feature recommendations
 
-...
+## Style
+
+- Be positive, encouraging, and helpful 🌟
+- Use emojis moderately for engagement
+- Keep it concise - adjust length based on actual activity
+
+## Process
 
 1. Gather recent activity from the repository
 2. Create a new GitHub issue with your findings and insights
@@ -213,18 +226,36 @@ Create an upbeat daily status report for the team as a GitHub issue.
 
 **Key configuration elements:**
 
+- **[`schedule: daily`](/gh-aw/reference/schedule-syntax/)** — Runs once per day at a randomized time to distribute load
 - **[`tools:`](/gh-aw/reference/tools/)** — Capabilities the AI can use (like GitHub API access)
 - **[`safe-outputs:`](/gh-aw/reference/safe-outputs/)** (pre-approved GitHub operations) — Allows creating issues without giving the AI write permissions
 
 ## Customize Your Workflow
 
-Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customization using GitHub Copilot CLI:
+Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customization, you can use the custom agents installed by `gh aw init`.
+
+### Using VS Code with GitHub Copilot
+
+In VS Code with GitHub Copilot Chat, use the `/agent` command to access the `create-agentic-workflow` agent:
+
+```
+/agent
+> select create-agentic-workflow
+> edit @.github/workflows/daily-team-status.md
+```
+
+### Using Interactive Copilot CLI
+
+To use the interactive Copilot CLI session with custom agents:
 
 ```bash wrap
 npm install -g @github/copilot-cli
-gh aw init
 copilot
-> /agent
+```
+
+Then in the interactive Copilot session, use the `/agent` command:
+```
+/agent
 > select create-agentic-workflow
 > edit @.github/workflows/daily-team-status.md
 ```

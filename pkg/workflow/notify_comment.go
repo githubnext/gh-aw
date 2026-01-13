@@ -47,14 +47,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Add setup step to copy scripts
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" {
+	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
-		steps = append(steps, "      - name: Setup Scripts\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 	}
 
 	// Add GitHub App token minting step if app is configured
@@ -145,6 +142,36 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		})
 		steps = append(steps, missingToolSteps...)
 	}
+
+	// Add agent failure handling step - creates/updates an issue when agent job fails
+	// This step always runs and checks if the agent job failed
+	// Build environment variables for the agent failure handler
+	var agentFailureEnvVars []string
+	agentFailureEnvVars = append(agentFailureEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+	agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+
+	// Pass custom messages config if present
+	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
+		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+		if err != nil {
+			notifyCommentLog.Printf("Warning: failed to serialize messages config for agent failure handler: %v", err)
+		} else if messagesJSON != "" {
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+		}
+	}
+
+	// Build the agent failure handling step
+	agentFailureSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+		StepName:      "Handle Agent Failure",
+		StepID:        "handle_agent_failure",
+		MainJobName:   mainJobName,
+		CustomEnvVars: agentFailureEnvVars,
+		Script:        "const { main } = require('/opt/gh-aw/actions/handle_agent_failure.cjs'); await main();",
+		ScriptFile:    "handle_agent_failure.cjs",
+		Token:         "", // Will use default GITHUB_TOKEN
+	})
+	steps = append(steps, agentFailureSteps...)
 
 	// Build environment variables for the conclusion script
 	var customEnvVars []string

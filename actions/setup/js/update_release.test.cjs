@@ -35,7 +35,15 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease }), mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: mockUpdatedRelease }), (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"));
         const result = await eval(`(async () => { ${updateReleaseScript}; const handler = await main(); return await handler(${JSON.stringify(message)}); })()`);
         expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", tag: "v1.0.0" });
-        expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", release_id: 1, body: "New release notes" });
+        // After the change, replace operation now adds footer
+        const callArgs = mockGithub.rest.repos.updateRelease.mock.calls[0][0];
+        expect(callArgs.owner).toBe("test-owner");
+        expect(callArgs.repo).toBe("test-repo");
+        expect(callArgs.release_id).toBe(1);
+        expect(callArgs.body).toContain("New release notes");
+        expect(callArgs.body).not.toContain("Old release notes");
+        expect(callArgs.body).toContain("Test Workflow");
+        expect(callArgs.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123456");
         expect(result.tag).toBe("v1.0.0");
         expect(result.id).toBe(1);
       }),
@@ -120,7 +128,14 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         await eval(`(async () => { ${updateReleaseScript}; const handler = await main(); return await handler(${JSON.stringify(message)}); })()`);
         expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Inferred release tag from event context: v1.5.0"));
         expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", tag: "v1.5.0" });
-        expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", release_id: 1, body: "Updated body" });
+        // After the change, replace operation now adds footer
+        const callArgs = mockGithub.rest.repos.updateRelease.mock.calls[0][0];
+        expect(callArgs.owner).toBe("test-owner");
+        expect(callArgs.repo).toBe("test-repo");
+        expect(callArgs.release_id).toBe(1);
+        expect(callArgs.body).toContain("Updated body");
+        expect(callArgs.body).toContain("GitHub Agentic Workflow");
+        expect(callArgs.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123456");
         delete mockContext.eventName;
         delete mockContext.payload;
       }),

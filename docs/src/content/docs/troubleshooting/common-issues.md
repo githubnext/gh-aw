@@ -34,6 +34,59 @@ GitHub Codespaces may have limited permissions for installing GitHub CLI extensi
 1. Try the standalone installer (recommended for Codespaces)
 2. Or grant additional permissions to your Codespace token
 
+## Organization Policy Issues
+
+### Custom Actions Not Allowed in Enterprise Organizations
+
+**Error Message:**
+
+```text
+The action githubnext/gh-aw/actions/setup@a933c835b5e2d12ae4dead665a0fdba420a2d421 is not allowed in {ORG} because all actions must be from a repository owned by your enterprise, created by GitHub, or verified in the GitHub Marketplace.
+```
+
+**Cause:** Your enterprise organization has policies that restrict which GitHub Actions can be used. By default, workflows compiled by gh-aw use the custom action `githubnext/gh-aw/actions/setup` which may not be allowed by your organization's policy.
+
+**Solution:** Enterprise administrators need to allow the `githubnext/gh-aw` repository in the organization's action policies. There are two approaches:
+
+#### Option 1: Allow Specific Repositories (Recommended)
+
+Add `githubnext/gh-aw` to your organization's allowed actions list:
+
+1. Navigate to your organization's settings: `https://github.com/organizations/YOUR_ORG/settings/actions`
+2. Under **Policies**, select **Allow select actions and reusable workflows**
+3. In the **Allow specified actions and reusable workflows** section, add:
+   ```text
+   githubnext/gh-aw@*
+   ```
+4. Save the changes
+
+For more details, see GitHub's documentation on [managing GitHub Actions permissions for your organization](https://docs.github.com/en/organizations/managing-organization-settings/disabling-or-limiting-github-actions-for-your-organization#allowing-select-actions-and-reusable-workflows-to-run).
+
+#### Option 2: Configure Organization-Wide Policy File
+
+If your enterprise uses a centralized `policies/actions.yml` file, add the gh-aw repository to the allowlist:
+
+```yaml
+# policies/actions.yml
+allowed_actions:
+  - "actions/*"  # GitHub-created actions
+  - "githubnext/gh-aw@*"  # Allow gh-aw custom actions
+```
+
+Commit this file to your organization's `.github` repository. For more information about policy files, see GitHub's documentation on [creating a default community health file](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file).
+
+#### Verification
+
+After updating the policy:
+
+1. Wait a few minutes for the policy to propagate
+2. Re-run your workflow
+3. If issues persist, verify the policy was applied: `https://github.com/organizations/YOUR_ORG/settings/actions`
+
+> [!TIP]
+> Security Consideration
+> The gh-aw custom actions are open source and can be audited at [github.com/githubnext/gh-aw/tree/main/actions](https://github.com/githubnext/gh-aw/tree/main/actions). The actions are pinned to specific commit SHAs in compiled workflows for security and reproducibility.
+
 ## Workflow Compilation Issues
 
 ### Workflow Won't Compile
@@ -74,9 +127,9 @@ tools:
     toolsets: [repos, issues]  # Recommended: use toolsets
 ```
 
-:::tip[Migrate to Toolsets]
-If you're using the `allowed:` pattern with GitHub tools, consider migrating to `toolsets:` for better maintainability. Tool names may change between Model Context Protocol (MCP) server versions, but toolsets provide a stable API. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets).
-:::
+> [!TIP]
+> Migrate to Toolsets
+> If you're using the `allowed:` pattern with GitHub tools, consider migrating to `toolsets:` for better maintainability. Tool names may change between Model Context Protocol (MCP) server versions, but toolsets provide a stable API. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets).
 
 ### Toolset Missing Expected Tools
 

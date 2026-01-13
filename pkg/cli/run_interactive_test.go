@@ -19,56 +19,100 @@ func TestFindRunnableWorkflows(t *testing.T) {
 
 	// Create test workflow files
 	tests := []struct {
-		name       string
-		content    string
-		shouldFind bool
+		name        string
+		mdContent   string
+		lockContent string
+		shouldFind  bool
 	}{
 		{
 			name: "workflow-dispatch.md",
-			content: `---
+			mdContent: `---
 on:
   workflow_dispatch:
 ---
 # Test Workflow with workflow_dispatch
 `,
+			lockContent: `name: "Test Workflow"
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			shouldFind: true,
 		},
 		{
 			name: "schedule.md",
-			content: `---
+			mdContent: `---
 on:
   schedule:
     - cron: "0 0 * * *"
 ---
 # Test Workflow with schedule
 `,
+			lockContent: `name: "Test Workflow"
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			shouldFind: true,
 		},
 		{
 			name: "push-only.md",
-			content: `---
+			mdContent: `---
 on:
   push:
     branches: [main]
 ---
 # Test Workflow with push only
 `,
+			lockContent: `name: "Test Workflow"
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
 			shouldFind: false,
 		},
 		{
 			name: "no-trigger.md",
-			content: `---
+			mdContent: `---
 engine: copilot
 ---
 # Test Workflow with no trigger
 `,
-			shouldFind: true, // Defaults to runnable
+			lockContent: `name: "Test Workflow"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
+			shouldFind: false, // No 'on' section means not runnable
 		},
 	}
 
 	for _, tt := range tests {
-		workflowPath := filepath.Join(workflowsDir, tt.name)
-		require.NoError(t, os.WriteFile(workflowPath, []byte(tt.content), 0600))
+		// Write markdown file
+		mdPath := filepath.Join(workflowsDir, tt.name)
+		require.NoError(t, os.WriteFile(mdPath, []byte(tt.mdContent), 0600))
+
+		// Write lock file
+		lockName := strings.TrimSuffix(tt.name, ".md") + ".lock.yml"
+		lockPath := filepath.Join(workflowsDir, lockName)
+		require.NoError(t, os.WriteFile(lockPath, []byte(tt.lockContent), 0600))
 	}
 
 	// Change to temp directory
@@ -111,7 +155,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 		{
 			name:     "no inputs",
 			inputs:   nil,
-			expected: "No inputs required",
+			expected: "",
 		},
 		{
 			name: "only required inputs",
@@ -119,7 +163,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 				"input1": {Required: true},
 				"input2": {Required: true},
 			},
-			expected: "2 required input(s)",
+			expected: "",
 		},
 		{
 			name: "only optional inputs",
@@ -127,7 +171,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 				"input1": {Required: false},
 				"input2": {Required: false},
 			},
-			expected: "2 optional input(s)",
+			expected: "",
 		},
 		{
 			name: "mixed inputs",
@@ -136,7 +180,7 @@ func TestBuildWorkflowDescription(t *testing.T) {
 				"input2": {Required: false},
 				"input3": {Required: true},
 			},
-			expected: "2 required input(s), 1 optional input(s)",
+			expected: "",
 		},
 	}
 
@@ -258,7 +302,7 @@ func TestFindRunnableWorkflows_WithInputs(t *testing.T) {
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
 
-	// Create workflow with inputs
+	// Create workflow with inputs (markdown file)
 	workflowContent := `---
 on:
   workflow_dispatch:
@@ -279,6 +323,29 @@ on:
 	workflowPath := filepath.Join(workflowsDir, "test-inputs.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0600))
 
+	// Create corresponding lock file
+	lockContent := `name: "Test Workflow"
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Name input'
+        required: true
+        type: string
+      optional:
+        description: 'Optional input'
+        required: false
+        type: string
+        default: 'default-value'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`
+	lockPath := filepath.Join(workflowsDir, "test-inputs.lock.yml")
+	require.NoError(t, os.WriteFile(lockPath, []byte(lockContent), 0600))
+
 	// Change to temp directory
 	oldWd, err := os.Getwd()
 	require.NoError(t, err)
@@ -296,7 +363,6 @@ on:
 	assert.NotNil(t, wf.Inputs)
 	assert.Len(t, wf.Inputs, 2)
 
-	// Verify description includes input counts
-	assert.Contains(t, wf.Description, "1 required input(s)")
-	assert.Contains(t, wf.Description, "1 optional input(s)")
+	// Verify description is empty (input counts no longer shown)
+	assert.Empty(t, wf.Description)
 }

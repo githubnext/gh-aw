@@ -71,6 +71,90 @@ function parseProjectUrl(projectUrl) {
 }
 
 /**
+ * List accessible Projects v2 for org or user
+ * @param {{ scope: string, ownerLogin: string, projectNumber: string }} projectInfo - Project info
+ * @returns {Promise<{ nodes: Array<{ id: string, number: number, title: string, closed?: boolean, url: string }>, totalCount?: number, diagnostics: { rawNodesCount: number, nullNodesCount: number, rawEdgesCount: number, nullEdgeNodesCount: number } }>} List result
+ */
+async function listAccessibleProjectsV2(projectInfo) {
+  const baseQuery = `projectsV2(first: 100) {
+    totalCount
+    nodes {
+      id
+      number
+      title
+      closed
+      url
+    }
+  }`;
+
+  const query =
+    projectInfo.scope === "orgs"
+      ? `query($login: String!) {
+        organization(login: $login) {
+          ${baseQuery}
+        }
+      }`
+      : `query($login: String!) {
+      user(login: $login) {
+        ${baseQuery}
+      }
+    }`;
+
+  const result = await github.graphql(query, { login: projectInfo.ownerLogin });
+  const conn = projectInfo.scope === "orgs" ? result?.organization?.projectsV2 : result?.user?.projectsV2;
+
+  const rawNodes = Array.isArray(conn?.nodes) ? conn.nodes : [];
+  const nodes = rawNodes.filter(Boolean);
+
+  return {
+    nodes: nodes,
+    totalCount: conn?.totalCount,
+    diagnostics: {
+      rawNodesCount: rawNodes.length,
+      nullNodesCount: rawNodes.length - nodes.length,
+      rawEdgesCount: 0,
+      nullEdgeNodesCount: 0,
+    },
+  };
+}
+
+/**
+ * Summarize list of projects
+ * @param {Array<{ number: number, title: string, closed?: boolean }>} projects - Projects list
+ * @param {number} [limit=20] - Max number to show
+ * @returns {string} Summary string
+ */
+function summarizeProjectsV2(projects, limit = 20) {
+  if (!Array.isArray(projects) || projects.length === 0) {
+    return "(none)";
+  }
+
+  const normalized = projects
+    .filter(p => p && typeof p.number === "number" && typeof p.title === "string")
+    .slice(0, limit)
+    .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`);
+
+  return normalized.length > 0 ? normalized.join("; ") : "(none)";
+}
+
+/**
+ * Summarize empty projects list with diagnostics
+ * @param {{ totalCount?: number, diagnostics?: { rawNodesCount: number, nullNodesCount: number, rawEdgesCount: number, nullEdgeNodesCount: number } }} list - List result
+ * @returns {string} Summary string
+ */
+function summarizeEmptyProjectsV2List(list) {
+  const total = typeof list.totalCount === "number" ? list.totalCount : undefined;
+  const d = list?.diagnostics;
+  const diag = d ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` : "";
+
+  if (typeof total === "number" && total > 0) {
+    return `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`;
+  }
+
+  return `(none${diag})`;
+}
+
+/**
  * Resolve a project by number
  * @param {{ scope: string, ownerLogin: string, projectNumber: string }} projectInfo - Project info
  * @param {number} projectNumberInt - Project number
@@ -109,14 +193,24 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
     const project = projectInfo.scope === "orgs" ? direct?.organization?.projectV2 : direct?.user?.projectV2;
 
     if (project) return project;
+
+    // If the query succeeded but returned null, fall back to list search
+    core.warning(`Direct projectV2(number) query returned null; falling back to projectsV2 list search`);
   } catch (error) {
-    // If GraphQL returned an error (e.g., insufficient permissions/scopes), surface it
-    // instead of masking it as "not found".
-    core.warning(`Direct projectV2(number) query failed: ${getErrorMessage(error)}`);
-    throw error;
+    core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${getErrorMessage(error)}`);
   }
 
-  throw new Error(`Project #${projectNumberInt} not found or not accessible for ${projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`}`);
+  const list = await listAccessibleProjectsV2(projectInfo);
+  const nodes = Array.isArray(list.nodes) ? list.nodes : [];
+  const found = nodes.find(p => p && typeof p.number === "number" && p.number === projectNumberInt);
+
+  if (found) return found;
+
+  const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list);
+  const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
+  const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
+
+  throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
 }
 
 /**

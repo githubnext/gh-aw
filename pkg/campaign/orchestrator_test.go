@@ -73,9 +73,9 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 		t.Fatalf("expected non-nil WorkflowData")
 	}
 
-	// Governed invariant: completion is reported explicitly in Phase 4.
+	// Governed invariant: completion is reported explicitly in Step 4.
 	expectedPhrases := []string{
-		"### Phase 4 — Report",
+		"### Step 4 — Report",
 		"completion state (work items only)",
 	}
 	for _, expected := range expectedPhrases {
@@ -208,18 +208,18 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 		t.Errorf("expected markdown to contain core principles section, got: %q", data.MarkdownContent)
 	}
 
-	// Verify separation of phases (read / decide / write / report)
-	if !strings.Contains(data.MarkdownContent, "Phase 1") || !strings.Contains(data.MarkdownContent, "Read State") {
-		t.Errorf("expected markdown to contain Phase 1 Read State, got: %q", data.MarkdownContent)
+	// Verify separation of steps (read / decide / write / report)
+	if !strings.Contains(data.MarkdownContent, "Step 1") || !strings.Contains(data.MarkdownContent, "Read State") {
+		t.Errorf("expected markdown to contain Step 1 Read State, got: %q", data.MarkdownContent)
 	}
-	if !strings.Contains(data.MarkdownContent, "Phase 2") || !strings.Contains(data.MarkdownContent, "Make Decisions") {
-		t.Errorf("expected markdown to contain Phase 2 Make Decisions, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Step 2") || !strings.Contains(data.MarkdownContent, "Make Decisions") {
+		t.Errorf("expected markdown to contain Step 2 Make Decisions, got: %q", data.MarkdownContent)
 	}
-	if !strings.Contains(data.MarkdownContent, "Phase 3") || !strings.Contains(data.MarkdownContent, "Write State") {
-		t.Errorf("expected markdown to contain Phase 3 Write State, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Step 3") || !strings.Contains(data.MarkdownContent, "Write State") {
+		t.Errorf("expected markdown to contain Step 3 Write State, got: %q", data.MarkdownContent)
 	}
-	if !strings.Contains(data.MarkdownContent, "Phase 4") || !strings.Contains(data.MarkdownContent, "Report") {
-		t.Errorf("expected markdown to contain Phase 4 Report, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "Step 4") || !strings.Contains(data.MarkdownContent, "Report") {
+		t.Errorf("expected markdown to contain Step 4 Report, got: %q", data.MarkdownContent)
 	}
 }
 

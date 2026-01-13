@@ -31,6 +31,21 @@ func NewCustomEngine() *CustomEngine {
 	}
 }
 
+// GetRequiredSecretNames returns empty for custom engine as secrets depend on user-defined steps
+// Custom engine steps should explicitly reference the secrets they need
+func (e *CustomEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	// Custom engine doesn't have predefined secrets
+	// User-defined steps should explicitly reference secrets they need
+	// MCP gateway API key is added if MCP servers are present
+	var secrets []string
+
+	if HasMCPServers(workflowData) {
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	return secrets
+}
+
 // GetInstallationSteps returns empty installation steps since custom engine doesn't need installation
 func (e *CustomEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	return []GitHubActionStep{}
@@ -162,7 +177,14 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 
 	// Use shared JSON MCP config renderer with unified renderer methods
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		ConfigPath:     "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		GatewayConfig:  buildMCPGatewayConfig(workflowData),
+		SkipValidation: workflowData == nil || workflowData.CompilerSkipValidation == nil || *workflowData.CompilerSkipValidation,
+		OnWarning: func() {
+			if workflowData != nil && workflowData.CompilerWarningCallback != nil {
+				workflowData.CompilerWarningCallback()
+			}
+		},
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)

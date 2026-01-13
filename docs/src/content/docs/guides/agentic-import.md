@@ -119,13 +119,10 @@ The `release.md` migration from `githubnext/gh-aw` to `githubnext/gh-aw-mcpg` pr
 
 ## Authoring with AI
 
-```bash
-# Interactive workflow creation/migration
-gh copilot agent --agent create-agentic-workflow
+In GitHub Copilot Chat, you can use custom agents to help create and debug workflows:
 
-# Compilation debugging
-gh copilot agent --agent debug-agentic-workflow
-```
+- Type `/agent` and select **create-agentic-workflow** for interactive workflow creation/migration
+- Type `/agent` and select **debug-agentic-workflow** for compilation debugging
 
 ## Limitations
 

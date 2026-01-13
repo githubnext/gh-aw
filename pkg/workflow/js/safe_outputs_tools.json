@@ -219,17 +219,16 @@
     "inputSchema": {
       "type": "object",
       "required": [
-        "body",
-        "item_number"
+        "body"
       ],
       "properties": {
         "body": {
           "type": "string",
-          "description": "Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation."
+          "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation."
         },
         "item_number": {
           "type": "number",
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion)."
         }
       },
       "additionalProperties": false
@@ -689,21 +688,20 @@
   },
   {
     "name": "missing_tool",
-    "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
     "inputSchema": {
       "type": "object",
       "required": [
-        "tool",
         "reason"
       ],
       "properties": {
         "tool": {
           "type": "string",
-          "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed."
+          "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed."
         },
         "reason": {
           "type": "string",
-          "description": "Explanation of why this tool is needed to complete the task (max 256 characters)."
+          "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters)."
         },
         "alternatives": {
           "type": "string",
@@ -788,18 +786,64 @@
   },
   {
     "name": "update_project",
-    "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+    "description": "Unified GitHub Projects v2 operations. Default behavior updates project items (add issue/PR/draft_issue and/or update custom fields). Also supports creating project views (table/board/roadmap) when operation=create_view.",
     "inputSchema": {
       "type": "object",
       "required": [
-        "project",
-        "content_type"
+        "project"
       ],
       "properties": {
+        "operation": {
+          "type": "string",
+          "enum": [
+            "update_item",
+            "create_view"
+          ],
+          "description": "Optional operation selector. Default: update_item. Use create_view to create a project view (table/board/roadmap)."
+        },
         "project": {
           "type": "string",
           "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
           "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted."
+        },
+        "view": {
+          "type": "object",
+          "description": "View configuration. Required when operation is create_view.",
+          "required": [
+            "name",
+            "layout"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name of the view (e.g., 'Sprint Board')."
+            },
+            "layout": {
+              "type": "string",
+              "enum": [
+                "table",
+                "board",
+                "roadmap"
+              ],
+              "description": "The layout of the view."
+            },
+            "filter": {
+              "type": "string",
+              "description": "Optional filter query for the view (e.g., 'is:issue is:open')."
+            },
+            "visible_fields": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Optional field IDs that should be visible in the view (table/board only). Not applicable to roadmap."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored."
+            }
+          },
+          "additionalProperties": false
         },
         "content_type": {
           "type": "string",

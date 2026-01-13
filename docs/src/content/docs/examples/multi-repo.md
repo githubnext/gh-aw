@@ -31,9 +31,8 @@ gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
 
 The PAT needs permissions **only on target repositories** (not the source repository where the workflow runs): `repo` for private repos, `contents: write` for commits, `issues: write` for issues, and `pull-requests: write` for PRs.
 
-:::tip
-**Security Best Practice**: If you only need to read from one repo and write to another, scope your PAT to have read access on the source and write access only on target repositories. Use separate tokens for different operations when possible.
-:::
+> [!TIP]
+> **Security Best Practice**: If you only need to read from one repo and write to another, scope your PAT to have read access on the source and write access only on target repositories. Use separate tokens for different operations when possible.
 
 ### GitHub App Configuration
 

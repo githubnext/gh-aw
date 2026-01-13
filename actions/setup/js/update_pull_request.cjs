@@ -28,9 +28,9 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   // Remove internal fields
   const { _operation, _rawBody, ...apiData } = updateData;
 
-  // If we have a body with operation, handle it
-  if (rawBody !== undefined && operation !== "replace") {
-    // Fetch current PR body for operations that need it
+  // If we have a body, process it with the appropriate operation
+  if (rawBody !== undefined) {
+    // Fetch current PR body for all operations (needed for append/prepend/replace-island/replace)
     const { data: currentPR } = await github.rest.pulls.get({
       owner: context.repo.owner,
       repo: context.repo.repo,
@@ -42,7 +42,7 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
     const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-    // Use helper to update body
+    // Use helper to update body (handles all operations including replace)
     apiData.body = updateBody({
       currentBody,
       newContent: rawBody,
@@ -53,9 +53,6 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     });
 
     core.info(`Will update body (length: ${apiData.body.length})`);
-  } else if (rawBody !== undefined) {
-    // Replace: just use the new content as-is (already in apiData.body)
-    core.info("Operation: replace (full body replacement)");
   }
 
   const { data: pr } = await github.rest.pulls.update({
@@ -82,6 +79,7 @@ function resolvePRNumber(item, updateTarget, context) {
     context: context,
     itemType: "update_pull_request",
     supportsPR: false, // update_pull_request only supports PRs, not issues
+    supportsIssue: false,
   });
 
   if (!targetResult.success) {
@@ -111,10 +109,10 @@ function buildPRUpdateData(item, config) {
 
   if (canUpdateBody && item.body !== undefined) {
     // Store operation information
-    if (item.operation !== undefined) {
-      updateData._operation = item.operation;
-      updateData._rawBody = item.body;
-    }
+    // Use operation from item, or fall back to config default, or use "replace" as final default
+    const operation = item.operation || config.default_operation || "replace";
+    updateData._operation = operation;
+    updateData._rawBody = item.body;
     updateData.body = item.body;
     hasUpdates = true;
   }

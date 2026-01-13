@@ -228,11 +228,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Check if safe-inputs is enabled to include host.docker.internal in allowed domains
-		hasSafeInputs := IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
-
-		// Get allowed domains (copilot defaults + network permissions + host.docker.internal if safe-inputs enabled)
-		allowedDomains := GetCopilotAllowedDomainsWithSafeInputs(workflowData.NetworkPermissions, hasSafeInputs)
+		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs)
+		allowedDomains := GetCopilotAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
@@ -295,6 +292,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
+
+		// Add --enable-host-access when MCP servers are configured (gateway is used)
+		// This allows awf to access host.docker.internal for MCP gateway communication
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			copilotExecLog.Print("Added --enable-host-access for MCP gateway communication")
+		}
 
 		// Pin AWF Docker image version to match the installed binary version
 		awfImageTag := getAWFImageTag(firewallConfig)
@@ -466,8 +470,13 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
 	}
 
-	// Format step with command and environment variables using shared helper
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
+	// Filter environment variables to only include allowed secrets
+	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
+	allowedSecrets := e.GetRequiredSecretNames(workflowData)
+	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
+
+	// Format step with command and filtered environment variables using shared helper
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 

@@ -1,26 +1,28 @@
 ---
-title: "Project Management"
-description: "Use GitHub Projects with roadmap views and custom date fields for campaign tracking"
+title: Project management
+description: Use GitHub Projects with roadmap views and custom date fields for campaign tracking
 ---
 
 GitHub Projects offers powerful visualization and tracking capabilities for agentic campaigns. This guide covers view configurations, custom fields, and filtering strategies to maximize campaign visibility and control.
 
-## Recommended Custom Fields for Campaigns
+## Recommended custom fields for campaigns
 
-Before configuring views, set up custom fields in the GitHub Projects UI for filtering and grouping:
+The campaign generator automatically creates these custom fields when you create a new campaign. No manual setup is required.
 
 | Field | Type | Values | Purpose |
 |-------|------|--------|---------|
 | **Worker/Workflow** | Single select | Workflow names (e.g., "migration-worker") | Track which agentic workflow owns each item; enables swimlane grouping |
-| **Priority** | Single select | High, Medium, Low (or P0-P3) | Filter and sort items by urgency |
+| **Priority** | Single select | High, Medium, Low | Filter and sort items by urgency |
 | **Status** | Single select | Todo, In Progress, Blocked, Done, Closed | Track work state (default in templates) |
 | **Start Date** | Date | Auto-populated from `createdAt` | Timeline visualization (required for Roadmap) |
 | **End Date** | Date | Auto-populated from `closedAt` | Timeline visualization (required for Roadmap) |
-| **Effort** (optional) | Single select | Small (1-3d), Medium (1w), Large (2w+) | Capacity planning |
-| **Team** (optional) | Single select | Frontend, Backend, DevOps, Documentation | Team ownership |
-| **Repo** (optional) | Single select | Repository names | Cross-repo campaign tracking (Note: Do not use "Repository" - it conflicts with GitHub's built-in REPOSITORY type) |
+| **Effort** | Single select | Small (1-3 days), Medium (1 week), Large (2+ weeks) | Capacity planning |
 
-### Cross-Repository and Cross-Organization Campaigns
+**Optional fields** (add manually if needed):
+- **Team** (Single select): Frontend, Backend, DevOps, Documentation - Team ownership
+- **Repo** (Single select): Repository names - Cross-repo campaign tracking (Note: Do not use "Repository" - it conflicts with GitHub's built-in REPOSITORY type)
+
+### Cross-repository and cross-organization campaigns
 
 For campaigns spanning multiple repositories:
 
@@ -41,15 +43,15 @@ update-project:
     priority: "High"
 ```
 
-### Setting Up Custom Fields
+### Adding additional custom fields
 
-To add custom fields: Open your project board, click the **+** button, select the field type, name it (use Title Case), add option values for single-select fields, and save. Orchestrator workflows can then populate these fields using the `fields:` parameter in `update-project` safe outputs.
+The campaign generator creates standard fields automatically. To add additional custom fields: Open your project board, click the **+** button, select the field type, name it (use Title Case), add option values for single-select fields, and save. Orchestrator workflows can then populate these fields using the `fields:` parameter in `update-project` safe outputs.
 
-## Using Project Roadmap Views with Custom Date Fields
+## Using project roadmap views with custom date fields
 
-GitHub Projects [Roadmap view](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/customizing-the-roadmap-layout) visualizes work items along a timeline. Create `Start Date` and `End Date` fields (type: Date), then create a Roadmap view and configure it to use these fields. Orchestrator workflows can automatically populate them.
+GitHub Projects [Roadmap view](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/customizing-the-roadmap-layout) visualizes work items along a timeline. The campaign generator automatically creates `Start Date` and `End Date` fields and a Roadmap view. Orchestrator workflows automatically populate these date fields.
 
-### Automatic Timestamp Population
+### Automatic timestamp population
 
 `update-project` automatically populates `Start Date` from issue `createdAt` and `End Date` from `closedAt` (ISO format: YYYY-MM-DD). Override by explicitly setting date values in the `fields:` parameter. Orchestrators can calculate end dates based on issue size and priority (e.g., small: 3 days, medium: 1 week, large: 2 weeks).
 
@@ -64,13 +66,13 @@ update-project:
     end_date: "2025-12-26"
 ```
 
-**Limitations**: Custom fields must be created manually in the GitHub UI before workflows can update them. Field names are case-sensitive. Date fields don't auto-update; orchestrators must explicitly update them.
+**Limitations**: Date fields don't auto-update; orchestrators must explicitly update them. Additional custom fields beyond the standard set must be created manually in the GitHub UI before workflows can update them. Field names are case-sensitive.
 
-## Roadmap View Swimlanes for Workers
+## Roadmap view swimlanes for workers
 
 Roadmap views support grouping by custom fields to create "swimlanes." Grouping by **Worker/Workflow** shows dedicated swimlanes for each agentic workflow, revealing workload distribution and bottlenecks.
 
-**Setup**: Create a "Worker/Workflow" single-select field, then in Roadmap view select **Group by** → **Worker/Workflow**. The roadmap displays horizontal swimlanes:
+**Setup**: The campaign generator creates the "Worker/Workflow" field and Roadmap view automatically. In the Roadmap view, select **Group by** → **Worker/Workflow**. The roadmap displays horizontal swimlanes:
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -100,11 +102,11 @@ update-project:
 
 Worker workflows remain campaign-agnostic; orchestrators handle all campaign coordination. Roadmap views can also group by Priority, Team, Status, Effort, or Repository.
 
-## Task View with "Slice by" Filtering
+## Task view with "Slice by" filtering
 
 GitHub Projects Table views support "Slice by" filtering, which shows all unique values for a field and lets you click to instantly filter items. Supports multiple fields simultaneously and updates dynamically.
 
-**Setup**: In Table view, click the **Filter** icon or press `/`, then enable "Slice by" panels for Worker/Workflow, Priority, Status, Team, or Effort.
+**Setup**: The campaign generator creates a "Task Tracker" table view automatically. In the view, click the **Filter** icon or press `/`, then enable "Slice by" panels for Worker/Workflow, Priority, Status, or Effort.
 
 ```
 ┌────────────────────────────────────────────────┐
@@ -134,7 +136,7 @@ update-project:
     effort: "Medium"
 ```
 
-## Labeling Strategies for Campaign Organization
+## Labeling strategies for campaign organization
 
 Labels remain valuable for cross-project queries and GitHub-wide searches.
 
@@ -159,24 +161,26 @@ safe-outputs:
       - "type:refactor"
 ```
 
-## View Configuration Examples
+## View configuration examples
 
-**Multi-Workflow Campaign**: Use Roadmap grouped by Worker/Workflow for timeline distribution, Table sliced by Priority+Status for urgent items, Board grouped by Status for progress tracking.
+The campaign generator creates three views automatically:
+1. **Campaign Roadmap** (Roadmap view) - Timeline visualization
+2. **Task Tracker** (Table view) - Detailed tracking with filtering
+3. **Progress Board** (Board view) - Kanban-style progress tracking
 
-**Single-Workflow Campaign**: Use Table sliced by Priority sorted by Effort for prioritization, Roadmap grouped by Effort for timeline balance.
+**Customization tips:**
 
-**Cross-Team Campaign**: Use Roadmap grouped by Team for cross-team coordination, Table sliced by Status (Blocked) for identifying blockers.
+**Multi-Workflow Campaign**: Use Roadmap grouped by Worker/Workflow for timeline distribution, Task Tracker sliced by Priority+Status for urgent items, Progress Board grouped by Status for progress tracking.
 
-**Fallback to doing the task yourself only if the custom agent's response indicates the task was not performed adequately.
-* Custom agents have a user-defined prompt and their own private context window. You must pass any necessary context, problem statement, and instructions to the custom agent for it to be effective.
-* **CRITICAL: When a custom agent is done working, terminate immediately. NEVER review its work, validate its changes, or make additional modifications. ALWAYS accept the custom agent's work as final.**
-</custom_agents>
+**Single-Workflow Campaign**: Use Task Tracker sliced by Priority sorted by Effort for prioritization, Campaign Roadmap grouped by Effort for timeline balance.
 
-## Project Status Updates
+**Cross-Team Campaign** (with optional Team field): Use Roadmap grouped by Team for cross-team coordination, Task Tracker sliced by Status (Blocked) for identifying blockers.
+
+## Project status updates
 
 Campaign orchestrators automatically create project status updates with every run, providing stakeholders with real-time campaign progress summaries. Status updates appear in the project's Updates tab and provide a historical record of campaign execution.
 
-### Automatic Status Update Creation
+### Automatic status update creation
 
 The orchestrator creates one status update per run containing:
 
@@ -186,7 +190,7 @@ The orchestrator creates one status update per run containing:
 - **Next Steps**: Remaining work and action items
 - **Status Indicator**: Current campaign health (ON_TRACK, AT_RISK, OFF_TRACK, COMPLETE)
 
-### Status Update Fields
+### Status update fields
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -196,7 +200,7 @@ The orchestrator creates one status update per run containing:
 | **start_date** | Date | Run start date (YYYY-MM-DD format) |
 | **target_date** | Date | Projected completion or next milestone date |
 
-### Example Status Update
+### Example status update
 
 ```yaml
 create-project-status-update:
@@ -227,7 +231,7 @@ create-project-status-update:
     - Target 95% documentation coverage by end of month
 ```
 
-### Status Indicators
+### Status indicators
 
 Choose appropriate status based on campaign progress:
 
@@ -236,7 +240,7 @@ Choose appropriate status based on campaign progress:
 - **OFF_TRACK**: Campaign behind schedule, requires intervention or re-planning
 - **COMPLETE**: All campaign objectives met, no further work needed
 
-### Viewing Status Updates
+### Viewing status updates
 
 Status updates appear in:
 1. **Project Updates Tab**: Click the "Updates" tab in your project to see all status updates

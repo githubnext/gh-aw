@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.1.0  
+**Version**: 1.5.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -192,7 +192,11 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
         "VAR_NAME": "value"
       },
       "type": "stdio" | "http",
-      "url": "string"
+      "url": "string",
+      "tools": ["*"] | ["tool1", "tool2"],
+      "headers": {
+        "Authorization": "Bearer ${TOKEN}"
+      }
     }
   },
   "gateway": {
@@ -218,6 +222,8 @@ Each server configuration MUST support:
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
 | `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
+| `tools` | array[string] | No | Tool filter for the MCP server. Use `["*"]` to allow all tools (default), or specify a list of tool names to allow. This field is passed through to agent configurations and applies to both stdio and http servers. |
+| `headers` | object | No | HTTP headers to include in requests (HTTP servers only). Commonly used for authentication to external HTTP servers. Values may contain variable expressions. |
 
 *Required for stdio servers (containerized execution)  
 **Required for HTTP servers
@@ -336,7 +342,7 @@ POST /close
 ```http
 POST /mcp/{server-name} HTTP/1.1
 Content-Type: application/json
-Authorization: {apiKey}
+Authorization: <apiKey>
 
 {
   "jsonrpc": "2.0",
@@ -345,6 +351,8 @@ Authorization: {apiKey}
   "id": "string|number"
 }
 ```
+
+**Note**: The format of the `Authorization` header is implementation-dependent. Consult your gateway implementation's documentation for the expected format.
 
 **Response Format**:
 
@@ -384,8 +392,10 @@ The gateway MUST provide a `/close` endpoint for graceful shutdown and resource 
 
 ```http
 POST /close HTTP/1.1
-Authorization: {apiKey}
+Authorization: <apiKey>
 ```
+
+**Note**: The format of the `Authorization` header is implementation-dependent. Consult your gateway implementation's documentation for the expected format.
 
 **Success Response**:
 
@@ -474,6 +484,15 @@ For HTTP-based servers, the gateway MUST:
 3. Return the server's response to the client
 4. Handle HTTP-level errors appropriately
 
+**Connection Failure Handling**:
+
+When a connection to an HTTP-based MCP server fails, the gateway MUST either:
+
+1. **Pass through the error**: Return an appropriate error response to the client indicating the server is unavailable (e.g., HTTP 503 Service Unavailable or JSON-RPC error -32001 "Server unavailable")
+2. **Handle with fallback**: Implement a fallback mechanism (e.g., retry logic, alternative server, cached response) and return a result to the client
+
+The gateway MUST NOT silently ignore connection failures. All connection failures MUST result in either an error response to the client or successful fallback handling.
+
 #### 5.2.3 Tool Signature Preservation
 
 The gateway SHOULD NOT modify:
@@ -510,7 +529,14 @@ The gateway SHOULD enforce `toolTimeout` for individual tool invocations:
 After successful initialization, the gateway MUST:
 
 1. Write a complete MCP server configuration to stdout
-2. Include gateway connection details:
+2. Include gateway connection details for each configured MCP server:
+   - `type`: MUST be set to "http"
+   - `url`: MUST be the gateway URL in format "http://{domain}:{port}/mcp/{server-name}"
+   - `headers`: SHOULD include authorization headers required to connect to the gateway
+     - `Authorization`: Contains the authentication credentials in an implementation-dependent format
+   - `tools`: MAY be included to specify tool filters from the original configuration
+   
+   Example output configuration:
    ```json
    {
      "mcpServers": {
@@ -519,16 +545,22 @@ After successful initialization, the gateway MUST:
          "url": "http://{domain}:{port}/mcp/server-name",
          "headers": {
            "Authorization": "{apiKey}"
-         }
+         },
+         "tools": ["*"]
        }
      }
    }
    ```
+   
+   The `headers` object SHOULD be present in each server configuration when authentication is required. The gateway is responsible for generating and including appropriate authentication credentials. The specific format of authentication headers is implementation-dependent.
+   
+   The `tools` field MAY be included in the output configuration to preserve tool filtering from the input configuration. When present, it specifies which tools are allowed for the server (`["*"]` for all tools, or a list of specific tool names).
+
 3. Write configuration as a single JSON document
 4. Flush stdout buffer
 5. Continue serving requests
 
-This allows clients to dynamically discover gateway endpoints.
+This allows clients to dynamically discover gateway endpoints and authentication credentials.
 
 ---
 
@@ -574,23 +606,47 @@ The gateway MUST NOT:
 
 ## 7. Authentication
 
-### 7.1 API Key Authentication
+### 7.1 Authorization Header Format
+
+The MCP Gateway uses a simple API key authentication scheme. When `gateway.apiKey` is configured:
+
+- The `Authorization` header contains the API key value
+- Implementations MAY use different formats (e.g., direct value or Bearer scheme)
+- The specific format is implementation-dependent
+
+**Example formats**:
+
+```http
+Authorization: my-secret-api-key-12345
+```
+
+or
+
+```http
+Authorization: Bearer my-secret-api-key-12345
+```
+
+This authentication scheme provides flexibility for different implementation requirements.
+
+### 7.2 API Key Authentication
 
 When `gateway.apiKey` is configured, the gateway MUST:
 
-1. Require `Authorization: {apiKey}` header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
+1. Require `Authorization` header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
+   - The specific format of the Authorization header is implementation-dependent
+   - Implementations SHOULD document their expected format
 2. Reject requests with missing or invalid tokens (HTTP 401)
 3. Reject requests with malformed Authorization headers (HTTP 400)
 4. NOT log API keys in plaintext
 
-### 7.2 Optimal Temporary API Key
+### 7.3 Optimal Temporary API Key
 
 The gateway SHOULD support temporary API keys:
 
 1. Generate a random API key on startup if not provided
 2. Include key in stdout configuration output
 
-### 7.3 Authentication Exemptions
+### 7.4 Authentication Exemptions
 
 The following endpoints MUST NOT require authentication:
 
@@ -608,11 +664,13 @@ The following endpoints MUST NOT require authentication:
 GET /health HTTP/1.1
 ```
 
-Response:
+**Response Format**:
 
 ```json
 {
   "status": "healthy" | "unhealthy",
+  "specVersion": "string",
+  "gatewayVersion": "string",
   "servers": {
     "server-name": {
       "status": "running" | "stopped" | "error",
@@ -621,6 +679,30 @@ Response:
   }
 }
 ```
+
+**Response Fields**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `status` | string | Yes | Overall gateway health status: "healthy" or "unhealthy" |
+| `specVersion` | string | Yes | MCP Gateway Specification version (e.g., "1.3.0") |
+| `gatewayVersion` | string | Yes | Gateway implementation version (e.g., "0.1.0") |
+| `servers` | object | Yes | Map of server names to their health status |
+| `servers[name].status` | string | Yes | Server status: "running", "stopped", or "error" |
+| `servers[name].uptime` | integer | No | Server uptime in seconds |
+
+**Requirements**:
+
+The gateway MUST include the following version information in the `/health` endpoint response:
+
+1. **`specVersion`**: The version of this MCP Gateway Specification that the implementation conforms to. This field MUST use semantic versioning (MAJOR.MINOR.PATCH format).
+2. **`gatewayVersion`**: The version of the gateway implementation itself. This field MUST use semantic versioning and represents the specific build or release version of the gateway software.
+
+These version fields enable clients to:
+- Verify specification compatibility
+- Detect implementation versions for debugging
+- Track deployment versions across environments
+- Ensure feature availability based on specification version
 
 ### 8.2 Health Check Behavior
 
@@ -725,6 +807,8 @@ A conforming implementation MUST pass the following test categories:
 - **T-PTL-004**: Concurrent request handling
 - **T-PTL-005**: Large payload handling
 - **T-PTL-006**: Partial response buffering
+- **T-PTL-007**: HTTP connection failure error response
+- **T-PTL-008**: HTTP connection failure is not silently ignored
 
 #### 10.1.3 Isolation Tests
 
@@ -757,8 +841,22 @@ A conforming implementation MUST pass the following test categories:
 - **T-HLT-003**: Readiness probe accuracy
 - **T-HLT-004**: Server status reporting
 - **T-HLT-005**: Automatic restart behavior
+- **T-HLT-006**: Health response includes specVersion field
+- **T-HLT-007**: Health response includes gatewayVersion field
+- **T-HLT-008**: specVersion uses semantic versioning format
+- **T-HLT-009**: gatewayVersion uses semantic versioning format
 
-#### 10.1.7 Error Handling Tests
+#### 10.1.7 Configuration Output Tests
+
+- **T-OUT-001**: Gateway outputs valid JSON configuration to stdout
+- **T-OUT-002**: Output configuration includes all configured servers
+- **T-OUT-003**: Each server configuration has "type": "http"
+- **T-OUT-004**: Each server configuration has correct "url" format
+- **T-OUT-005**: Each server configuration includes "headers" object when authentication is required
+- **T-OUT-006**: Authorization header is present when authentication is configured
+- **T-OUT-007**: Output configuration is complete before health endpoint becomes available
+
+#### 10.1.8 Error Handling Tests
 
 - **T-ERR-001**: Startup failure reporting
 - **T-ERR-002**: Runtime error handling
@@ -766,7 +864,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-ERR-004**: Server crash recovery
 - **T-ERR-005**: Error message quality
 
-#### 10.1.8 Gateway Lifecycle Tests
+#### 10.1.9 Gateway Lifecycle Tests
 
 - **T-LIFE-001**: Close endpoint authentication
 - **T-LIFE-002**: Close endpoint success response
@@ -788,6 +886,7 @@ A conforming implementation MUST pass the following test categories:
 | Timeout handling | T-TMO-* | 3 | Optional |
 | Health monitoring | T-HLT-* | 2 | Standard |
 | Server isolation | T-ISO-* | 1 | Required |
+| Configuration output | T-OUT-* | 1 | Required |
 | Error handling | T-ERR-* | 1 | Required |
 | Gateway lifecycle | T-LIFE-* | 2 | Standard |
 
@@ -860,11 +959,16 @@ Implementations SHOULD provide:
     "local-server": {
       "container": "ghcr.io/example/python-mcp:latest",
       "entrypointArgs": ["--config", "/app/config.json"],
-      "type": "stdio"
+      "type": "stdio",
+      "tools": ["read_file", "write_file", "list_directory"]
     },
     "remote-server": {
       "type": "http",
-      "url": "https://api.example.com/mcp"
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      },
+      "tools": ["*"]
     }
   },
   "gateway": {
@@ -907,6 +1011,8 @@ Host: localhost:8080
 Authorization: gateway-secret-token
 ```
 
+**Note**: Consult your gateway implementation's documentation for the expected authorization header format.
+
 **Success Response**:
 
 ```http
@@ -940,6 +1046,8 @@ POST /close HTTP/1.1
 Host: localhost:8080
 Authorization: gateway-secret-token
 ```
+
+**Note**: Consult your gateway implementation's documentation for the expected authorization header format.
 
 ```http
 HTTP/1.1 410 Gone
@@ -1013,6 +1121,52 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.5.0 (Draft)
+
+- **Added**: Documentation for `tools` field support for HTTP servers (Section 4.1.2)
+  - Clarified that the `tools` field applies to both stdio and HTTP server configurations
+  - Tool filtering allows `["*"]` for all tools or a list of specific tool names
+  - Updated configuration structure example to include `tools` and `headers` fields (Section 4.1.1)
+- **Added**: Example configurations demonstrating `tools` field usage (Appendix A.3)
+  - Shows stdio server with specific tool allowlist
+  - Shows HTTP server with all tools allowed (`["*"]`)
+- **Updated**: Stdout configuration output documentation (Section 5.4)
+  - Added guidance that `tools` field MAY be included in output to preserve tool filtering
+  - Updated example to show tools field in gateway output configuration
+
+### Version 1.4.0 (Draft)
+
+- **Changed**: Relaxed authorization header format requirements (Section 7.1, 7.2, 5.4)
+  - Authorization header format is now implementation-dependent rather than strictly prescribed
+  - Removed requirement to NOT use Bearer authentication scheme
+  - Updated examples to show multiple possible formats
+  - Modified stdout configuration output requirements from MUST to SHOULD for headers object
+- **Added**: Connection failure handling requirements (Section 5.2.2)
+  - Gateway MUST NOT silently ignore connection failures to HTTP-based MCP servers
+  - Gateway MUST either pass through errors or handle with fallback mechanisms
+  - Added protocol translation compliance tests (T-PTL-007, T-PTL-008)
+- **Updated**: Configuration output compliance tests (Section 10.1.7)
+  - Modified T-OUT-005 and T-OUT-006 to reflect relaxed authentication requirements
+  - Tests now verify presence of authentication headers when configured, not specific format
+
+### Version 1.3.0 (Draft)
+
+- **Added**: Health endpoint version information requirements (Section 8.1.1)
+  - `/health` endpoint MUST include `specVersion` field with MCP Gateway Specification version
+  - `/health` endpoint MUST include `gatewayVersion` field with gateway implementation version
+  - Both version fields MUST use semantic versioning format (MAJOR.MINOR.PATCH)
+- **Added**: Health monitoring compliance tests for version fields (T-HLT-006 through T-HLT-009)
+- **Improved**: Health endpoint documentation with detailed field descriptions and requirements
+
+### Version 1.2.0 (Draft)
+
+- **BREAKING**: Clarified stdout configuration output requirements (Section 5.4)
+  - Gateway MUST include `headers` object in output configuration for each server
+  - `Authorization` header MUST be present with API key value
+  - Made explicit that authorization headers are required for client connectivity
+- Added configuration output compliance tests (T-OUT-001 through T-OUT-007)
+- Updated compliance checklist to include configuration output as Level 1 (Required)
 
 ### Version 1.1.0 (Draft)
 

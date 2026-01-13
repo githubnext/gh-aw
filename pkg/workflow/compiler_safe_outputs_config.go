@@ -385,6 +385,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		} else {
 			handlerConfig["allow_body"] = true
 		}
+		// Add default operation if specified
+		if cfg.Operation != nil {
+			handlerConfig["default_operation"] = *cfg.Operation
+		}
 		if cfg.TargetRepoSlug != "" {
 			handlerConfig["target-repo"] = cfg.TargetRepoSlug
 		}

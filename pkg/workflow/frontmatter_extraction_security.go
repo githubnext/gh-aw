@@ -142,6 +142,22 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		return nil
 	}
 
+	// Handle boolean format: sandbox: false (disables all sandbox features)
+	if sandboxBool, ok := sandbox.(bool); ok {
+		if !sandboxBool {
+			frontmatterExtractionSecurityLog.Print("Sandbox explicitly disabled with sandbox: false")
+			// Return a marker config with Disabled flag set
+			return &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Disabled: true,
+				},
+			}
+		}
+		// sandbox: true is not meaningful, treat as no configuration
+		frontmatterExtractionSecurityLog.Print("Sandbox: true specified but has no effect, treating as unconfigured")
+		return nil
+	}
+
 	// Handle legacy string format: "default" or "sandbox-runtime"
 	if sandboxStr, ok := sandbox.(string); ok {
 		frontmatterExtractionSecurityLog.Printf("Sandbox string format: type=%s", sandboxStr)

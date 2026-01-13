@@ -26,14 +26,14 @@ func TestUpdateProjectGitHubTokenEnvVar(t *testing.T) {
 			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
 		},
 		{
-			name: "update-project without custom github-token (uses default fallback)",
+			name: "update-project without custom github-token (uses GH_AW_PROJECT_GITHUB_TOKEN)",
 			frontmatter: map[string]any{
 				"name": "Test Workflow",
 				"safe-outputs": map[string]any{
 					"update-project": nil,
 				},
 			},
-			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		},
 		{
 			name: "update-project with top-level github-token",

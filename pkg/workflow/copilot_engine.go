@@ -50,6 +50,38 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 	return string(constants.DefaultCopilotDetectionModel)
 }
 
+// GetRequiredSecretNames returns the list of secrets required by the Copilot engine
+// This includes COPILOT_GITHUB_TOKEN and optionally MCP_GATEWAY_API_KEY
+func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	secrets := []string{"COPILOT_GITHUB_TOKEN"}
+
+	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
+	if HasMCPServers(workflowData) {
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	// Add GitHub token for GitHub MCP server if present
+	if hasGitHubTool(workflowData.ParsedTools) {
+		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
+	}
+
+	// Add HTTP MCP header secret names
+	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
+	for varName := range headerSecrets {
+		secrets = append(secrets, varName)
+	}
+
+	// Add safe-inputs secret names
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName := range safeInputsSecrets {
+			secrets = append(secrets, varName)
+		}
+	}
+
+	return secrets
+}
+
 // GetInstallationSteps is implemented in copilot_engine_installation.go
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {

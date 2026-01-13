@@ -69,7 +69,7 @@ async function main() {
   }
 
   // Search for existing open issue about workflow recompilation
-  const issueTitle = "[aw] agentic workflows out of sync";
+  const issueTitle = "[agentics] agentic workflows out of sync";
   const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${issueTitle}"`;
 
   core.info(`Searching for existing issue with title: "${issueTitle}"`);
@@ -90,7 +90,7 @@ async function main() {
       const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
 
       // Get workflow metadata for footer
-      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
       const repository = `${owner}/${repo}`;
 
       // Create custom footer for workflow recompile comment
@@ -143,7 +143,7 @@ async function main() {
   let issueBody = issueTemplate.replace("{DIFF_CONTENT}", diffContent).replace("{REPOSITORY}", repository);
 
   // Get workflow metadata for footer
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
 
   // Create custom footer for workflow recompile issues
   const ctx = {

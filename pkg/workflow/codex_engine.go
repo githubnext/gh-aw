@@ -45,6 +45,27 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
+// GetRequiredSecretNames returns the list of secrets required by the Codex engine
+// This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY
+func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	secrets := []string{"CODEX_API_KEY", "OPENAI_API_KEY"}
+
+	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
+	if HasMCPServers(workflowData) {
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	// Add safe-inputs secret names
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName := range safeInputsSecrets {
+			secrets = append(secrets, varName)
+		}
+	}
+
+	return secrets
+}
+
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
@@ -153,8 +174,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Get allowed domains (Codex defaults + network permissions)
-		allowedDomains := GetCodexAllowedDomains(workflowData.NetworkPermissions)
+		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs)
+		allowedDomains := GetCodexAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
@@ -206,6 +227,13 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
+		// Add --enable-host-access when MCP servers are configured (gateway is used)
+		// This allows awf to access host.docker.internal for MCP gateway communication
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			codexEngineLog.Print("Added --enable-host-access for MCP gateway communication")
+		}
+
 		// Pin AWF Docker image version to match the installed binary version
 		awfImageTag := getAWFImageTag(firewallConfig)
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
@@ -237,7 +265,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Prepend PATH setup to find codex in hostedtoolcache
 		// This ensures codex and all its dependencies (including MCP servers) are accessible
 		// Split export from command substitution to avoid masking return values (SC2155)
-		pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
+		// Use -mindepth 1 to exclude the starting directory (/opt/hostedtoolcache/node itself)
+		pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
 		codexCommandWithPath := fmt.Sprintf("%s && %s", pathSetup, codexCommand)
 
 		// Build the command with agent file handling if specified
@@ -351,8 +380,13 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 
-	// Format step with command and environment variables using shared helper
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
+	// Filter environment variables to only include allowed secrets
+	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
+	allowedSecrets := e.GetRequiredSecretNames(workflowData)
+	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
+
+	// Format step with command and filtered environment variables using shared helper
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 

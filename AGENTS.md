@@ -2,6 +2,14 @@
 
 GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic workflows in natural language using markdown files, running them as GitHub Actions.
 
+## Important Note: gh-aw vs GitHub Copilot CLI
+
+**gh-aw** is a GitHub CLI extension (`gh aw`) that compiles markdown workflows into GitHub Actions. It is **not** the GitHub Copilot CLI (`copilot` command). While workflows can use the Copilot CLI as an AI engine, gh-aw itself is a separate tool for workflow management and compilation.
+
+- Use `gh aw` commands (e.g., `gh aw compile`, `gh aw run`) to work with agentic workflows
+- Use `/agent` in GitHub Copilot Chat to invoke custom agents like `create-agentic-workflow`
+- The `copilot` CLI command is only used internally within workflows when specified as the engine
+
 ## Important: Using Skills
 
 **BE LAZY**: Skills in `skills/` provide detailed, specialized knowledge about specific topics. **Only reference skills when you actually need their specialized knowledge**. Do not load or reference skills preemptively.
@@ -696,7 +704,7 @@ When modifying JSON schemas in `pkg/parser/schemas/`:
 ### Documentation
 
 The documentation for this project is available in the `docs/` directory. It includes information on how to use the CLI, API references, and examples.
-It uses the Astro Starlight system and Diátaxis framework.
+It uses the Diátaxis framework and GitHub-flavored markdown with Astro Starlight for rendering.
 
 See [documentation skill](skills/documentation/SKILL.md) for details.
 
@@ -796,7 +804,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 - **[http-mcp-headers](skills/http-mcp-headers/SKILL.md)** - HTTP MCP header secret support implementation
 
 ### Documentation & Communication
-- **[documentation](skills/documentation/SKILL.md)** - Documentation guidelines using Astro Starlight and Diátaxis framework
+- **[documentation](skills/documentation/SKILL.md)** - Documentation guidelines using Diátaxis framework and GitHub-flavored markdown
 - **[reporting](skills/reporting/SKILL.md)** - Report format guidelines using HTML details/summary tags
 - **[dictation](skills/dictation/SKILL.md)** - Fixing text-to-speech errors in dictated text
 - **[agentic-chat](skills/agentic-chat/SKILL.md)** - AI assistant for creating task descriptions

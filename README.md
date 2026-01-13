@@ -22,6 +22,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 - [Contributing](#contributing)
 - [Share Feedback](#share-feedback)
 - [Labs](#labs)
+- [Related Projects](#related-projects)
 
 ## Quick Start
 
@@ -37,16 +38,22 @@ GitHub Agentic Workflows transforms natural language markdown files into GitHub 
 
 ```markdown
 ---
-on: daily
-permissions: read
+on:
+  schedule: daily
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 safe-outputs:
-  create-discussion:
+  create-issue:
+    title-prefix: "[team-status] "
+    labels: [report, daily-status]
+    close-older-issues: true
 ---
 
 ## Daily Issues Report
 
-Analyze repository issues and create a daily discussion 
-with metrics, trends, and key insights.
+Create an upbeat daily status report for the team as a GitHub issue.
 ```
 
 The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment on a schedule or manually.
@@ -55,7 +62,7 @@ The AI agent reads your repository context, analyzes issues, generates visualiza
 
 ## Safe Agentic Workflows
 
-Security is foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allowlisting, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. See the [Security Guide](https://githubnext.github.io/gh-aw/guides/security/) for comprehensive details on threat modeling, implementation guidelines, and best practices.
+Security is foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allow-listing, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. See the [Security Guide](https://githubnext.github.io/gh-aw/guides/security/) for comprehensive details on threat modeling, implementation guidelines, and best practices.
 
 ## Documentation
 
@@ -81,3 +88,10 @@ and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Disc
 ## Labs
 
 See the [Labs](https://githubnext.github.io/gh-aw/labs/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
+
+## Related Projects
+
+GitHub Agentic Workflows is supported by companion projects that provide additional security and integration capabilities:
+
+- **[Agent Workflow Firewall (AWF)](https://github.com/githubnext/gh-aw-firewall)** - Network egress control for AI agents, providing domain-based access controls and activity logging for secure workflow execution
+- **[MCP Gateway](https://github.com/githubnext/gh-aw-mcpg)** - Routes Model Context Protocol (MCP) server calls through a unified HTTP gateway for centralized access management

@@ -2,6 +2,10 @@
 
 # Variables
 BINARY_NAME=gh-aw
+# Add .exe extension on Windows
+ifeq ($(OS),Windows_NT)
+	BINARY_NAME := gh-aw.exe
+endif
 VERSION ?= $(shell git describe --tags --always --dirty)
 DOCKER_IMAGE=ghcr.io/githubnext/gh-aw
 DOCKER_PLATFORMS=linux/amd64,linux/arm64
@@ -195,7 +199,6 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@# Remove main binary and platform-specific binaries
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-*
-	rm -f $(AWMG_BINARY_NAME) $(AWMG_BINARY_NAME)-*
 	@# Remove bundle-js binary
 	rm -f bundle-js
 	@# Remove coverage files
@@ -439,6 +442,7 @@ fmt-go:
 .PHONY: fmt-cjs
 fmt-cjs:
 	cd actions/setup/js && npm run format:cjs
+	npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore
 
 # Format JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-json
@@ -464,6 +468,7 @@ fmt-check:
 .PHONY: fmt-check-cjs
 fmt-check-cjs:
 	cd actions/setup/js && npm run lint:cjs
+	npx prettier --check 'scripts/**/*.js' --ignore-path .prettierignore
 
 # Check JSON file formatting in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-check-json
@@ -528,9 +533,21 @@ sync-templates:
 	@echo "Syncing templates from .github to pkg/cli/templates..."
 	@mkdir -p pkg/cli/templates
 	@cp .github/aw/github-agentic-workflows.md pkg/cli/templates/
-	@cp .github/agents/create-agentic-workflow.agent.md pkg/cli/templates/
-	@cp .github/agents/create-shared-agentic-workflow.agent.md pkg/cli/templates/
-	@cp .github/agents/debug-agentic-workflow.agent.md pkg/cli/templates/
+	@cp .github/aw/create-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/update-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/create-shared-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/debug-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/
+	@cp .github/agents/agentic-workflows.agent.md pkg/cli/templates/
+	@cp .github/agents/agentic-campaigns.agent.md pkg/cli/templates/
+	@echo "Syncing campaign prompts from .github/aw to pkg/campaign/prompts..."
+	@mkdir -p pkg/campaign/prompts
+	@cp .github/aw/campaign-creation-instructions.md pkg/campaign/prompts/campaign_creation_instructions.md
+	@cp .github/aw/campaign-orchestrator-instructions.md pkg/campaign/prompts/orchestrator_instructions.md
+	@cp .github/aw/campaign-project-update-instructions.md pkg/campaign/prompts/project_update_instructions.md
+	@cp .github/aw/campaign-workflow-execution.md pkg/campaign/prompts/workflow_execution.md
+	@cp .github/aw/campaign-closing-instructions.md pkg/campaign/prompts/closing_instructions.md
+	@cp .github/aw/campaign-project-update-contract-checklist.md pkg/campaign/prompts/project_update_contract_checklist.md
 	@echo "✓ Templates synced successfully"
 
 

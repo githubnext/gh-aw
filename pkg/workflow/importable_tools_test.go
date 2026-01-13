@@ -158,14 +158,14 @@ Uses imported serena tool.
 		t.Error("Expected compiled workflow to contain serena Docker container")
 	}
 
-	// Verify language service setup for Go
-	if !strings.Contains(workflowData, "Setup Go") {
-		t.Error("Expected compiled workflow to contain Go setup for serena")
+	// Verify that language service setup steps are NOT present
+	// since Serena now runs in a container with language services included
+	if strings.Contains(workflowData, "Install Go language service") {
+		t.Error("Did not expect Go language service installation step (Serena runs in container)")
 	}
 
-	// Verify language service setup for TypeScript (Node.js)
-	if !strings.Contains(workflowData, "Setup Node.js") {
-		t.Error("Expected compiled workflow to contain Node.js setup for serena")
+	if strings.Contains(workflowData, "Install TypeScript language service") {
+		t.Error("Did not expect TypeScript language service installation step (Serena runs in container)")
 	}
 }
 
@@ -391,21 +391,20 @@ Uses imported serena with language config.
 		t.Error("Expected compiled workflow to contain serena tool")
 	}
 
-	// Verify Go setup with version
-	if !strings.Contains(workflowData, "Setup Go") {
-		t.Error("Expected compiled workflow to contain Go setup")
-	}
-	if !strings.Contains(workflowData, "go-version: '1.21'") {
-		t.Error("Expected compiled workflow to contain Go version 1.21")
+	// Verify that language runtime setup steps are NOT present
+	// since Serena now runs in a container with language services included
+	if strings.Contains(workflowData, "Setup Go") {
+		t.Error("Did not expect Go setup step (Serena runs in container)")
 	}
 
-	// Verify Node.js setup with version
-	if !strings.Contains(workflowData, "Setup Node.js") {
-		t.Error("Expected compiled workflow to contain Node.js setup")
+	if strings.Contains(workflowData, "Setup Node.js") {
+		t.Error("Did not expect Node.js setup step (Serena runs in container)")
 	}
-	// Note: TypeScript version in serena config may use default Node.js version
-	// This is expected behavior as the TypeScript version configuration
-	// refers to Node.js version, and may fall back to defaults
+
+	// Verify serena container is present
+	if !strings.Contains(workflowData, "ghcr.io/oraios/serena") {
+		t.Error("Expected serena to use Docker container")
+	}
 }
 
 // TestImportPlaywrightWithCustomArgs tests playwright with custom arguments

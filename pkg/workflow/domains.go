@@ -221,9 +221,72 @@ func matchesDomain(domain, pattern string) bool {
 	return false
 }
 
+// extractHTTPMCPDomains extracts domain names from HTTP MCP server URLs in tools configuration
+// Returns a slice of domain names (e.g., ["mcp.tavily.com", "api.example.com"])
+func extractHTTPMCPDomains(tools map[string]any) []string {
+	if tools == nil {
+		return []string{}
+	}
+
+	domains := []string{}
+
+	// Iterate through tools to find HTTP MCP servers
+	for toolName, toolConfig := range tools {
+		configMap, ok := toolConfig.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Check if this is an HTTP MCP server
+		mcpType, hasType := configMap["type"].(string)
+		url, hasURL := configMap["url"].(string)
+
+		// HTTP MCP servers have either type: http or just a url field
+		isHTTPMCP := (hasType && mcpType == "http") || (!hasType && hasURL)
+
+		if isHTTPMCP && hasURL {
+			// Extract domain from URL (e.g., "https://mcp.tavily.com/mcp/" -> "mcp.tavily.com")
+			domain := extractDomainFromURL(url)
+			if domain != "" {
+				domainsLog.Printf("Extracted HTTP MCP domain '%s' from tool '%s'", domain, toolName)
+				domains = append(domains, domain)
+			}
+		}
+	}
+
+	return domains
+}
+
+// extractDomainFromURL extracts the domain name from a URL string
+// Examples:
+//   - "https://mcp.tavily.com/mcp/" -> "mcp.tavily.com"
+//   - "http://api.example.com:8080/path" -> "api.example.com"
+//   - "mcp.example.com" -> "mcp.example.com"
+func extractDomainFromURL(urlStr string) string {
+	// Remove protocol if present
+	urlStr = strings.TrimPrefix(urlStr, "https://")
+	urlStr = strings.TrimPrefix(urlStr, "http://")
+
+	// Remove port and path
+	if idx := strings.Index(urlStr, ":"); idx != -1 {
+		urlStr = urlStr[:idx]
+	}
+	if idx := strings.Index(urlStr, "/"); idx != -1 {
+		urlStr = urlStr[:idx]
+	}
+
+	return strings.TrimSpace(urlStr)
+}
+
 // mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermissions) string {
+	return mergeDomainsWithNetworkAndTools(defaultDomains, network, nil)
+}
+
+// mergeDomainsWithNetworkAndTools combines default domains with NetworkPermissions allowed domains and HTTP MCP server domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func mergeDomainsWithNetworkAndTools(defaultDomains []string, network *NetworkPermissions, tools map[string]any) string {
 	domainMap := make(map[string]bool)
 
 	// Add default domains
@@ -236,6 +299,14 @@ func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermission
 		// Expand ecosystem identifiers and add individual domains
 		expandedDomains := GetAllowedDomains(network)
 		for _, domain := range expandedDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Add HTTP MCP server domains (if tools are specified)
+	if tools != nil {
+		mcpDomains := extractHTTPMCPDomains(tools)
+		for _, domain := range mcpDomains {
 			domainMap[domain] = true
 		}
 	}
@@ -265,10 +336,22 @@ func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafe
 	return mergeDomainsWithNetwork(CopilotDefaultDomains, network)
 }
 
+// GetCopilotAllowedDomainsWithTools merges Copilot default domains with NetworkPermissions allowed domains and HTTP MCP server domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCopilotAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
+	return mergeDomainsWithNetworkAndTools(CopilotDefaultDomains, network, tools)
+}
+
 // GetCodexAllowedDomains merges Codex default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCodexAllowedDomains(network *NetworkPermissions) string {
 	return mergeDomainsWithNetwork(CodexDefaultDomains, network)
+}
+
+// GetCodexAllowedDomainsWithTools merges Codex default domains with NetworkPermissions allowed domains and HTTP MCP server domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCodexAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
+	return mergeDomainsWithNetworkAndTools(CodexDefaultDomains, network, tools)
 }
 
 // GetClaudeAllowedDomains merges Claude default domains with NetworkPermissions allowed domains
@@ -283,6 +366,12 @@ func GetClaudeAllowedDomains(network *NetworkPermissions) string {
 // since host.docker.internal is now in ClaudeDefaultDomains
 func GetClaudeAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
 	return mergeDomainsWithNetwork(ClaudeDefaultDomains, network)
+}
+
+// GetClaudeAllowedDomainsWithTools merges Claude default domains with NetworkPermissions allowed domains and HTTP MCP server domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetClaudeAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
+	return mergeDomainsWithNetworkAndTools(ClaudeDefaultDomains, network, tools)
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions

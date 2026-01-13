@@ -1,45 +1,16 @@
 ---
-title: Agentic Campaigns
+title: Agentic campaigns
 description: Coordinate AI agents across multiple workflow runs with structured, goal-driven initiatives tracked in GitHub Projects.
-template: splash
-tableOfContents: true
-hero:
-  title: Agentic Campaigns
-  tagline: <strong>Coordinate AI agents across multiple workflow runs</strong> with structured, goal-driven initiatives tracked in GitHub Projects. Strategic automation for large-scale repository operations.
-  actions:
-    - text: Getting Started
-      link: /gh-aw/guides/campaigns/getting-started/
-      icon: right-arrow
-      variant: primary
-    - text: View Specs
-      link: /gh-aw/guides/campaigns/specs/
-      icon: external
-      variant: minimal
 ---
 
 import FeatureCard from '../../../../components/FeatureCard.astro';
 import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
-## What are agentic campaigns?
+## Overview
 
-Agentic campaigns coordinate AI agents across multiple workflow runs to achieve strategic goals. Think of them as project management for AI: clear objectives, measurable KPIs, and automated progress tracking through GitHub Projects.
+Agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction/overview/) toward a single goal.
 
-**How it works:**
-1. **Define** - Write a `.campaign.md` spec with objectives and worker workflows
-2. **Compile** - Generate the orchestrator with `gh aw compile`
-3. **Execute** - Agents work autonomously toward your goals
-4. **Track** - GitHub Project board shows real-time progress
-
-### Campaigns vs Workflows
-
-| Agentic Workflow | Agentic Campaign |
-|------------------|------------------|
-| Executes single task | Coordinates multiple tasks toward a goal |
-| Event-triggered or scheduled | Strategic initiative over time |
-| Standalone automation | Orchestrated with shared progress tracking |
-| Success/failure per run | Success measured by KPIs across runs |
-
-## Why Use Campaigns?
+## Why use campaigns?
 
 <FeatureGrid columns={2}>
   <FeatureCard icon="goal" title="Strategic Goals" href="/gh-aw/guides/campaigns/specs/#core-fields-what-they-do">
@@ -56,9 +27,29 @@ Agentic campaigns coordinate AI agents across multiple workflow runs to achieve 
   </FeatureCard>
 </FeatureGrid>
 
-## Example Campaign
+## Workflow
 
-A simple framework upgrade campaign:
+1. **Define** - Write a `.campaign.md` spec with objectives and workflows
+2. **Compile** - Generate the orchestrator with `gh aw compile`
+3. **Execute** - Orchestrator coordinates work (passive tracking or active execution)
+4. **Track** - GitHub Project board shows real-time progress
+
+When compiled, this generates an orchestrator that discovers work, tracks progress on the GitHub Project board, and coordinates worker workflows to execute upgrades.
+
+Note that there are two orchestration modes:
+**Passive coordination** (default): Discover and track work created by independent workflows.
+**Active execution** (`execute-workflows: true`): Run workflows directly, create missing workflows, and drive progress.
+
+Apart from this spec file, a campaign is composed of:
+**Orchestrator** (`.campaign.lock.yml`) - Auto-generated coordinator workflow
+**Workers** - Your existing agentic workflows (no changes needed)
+
+The orchestrator discovers work, updates your project board, and delegates to workers. Workers stay focused on their specific tasks while the orchestrator handles coordination.
+
+## Example campaign
+
+A campaign is defined by a **Campaign Spec** `.campaign.md`.
+Here is an example of such a file for a simple framework upgrade campaign:
 
 ```yaml
 ---
@@ -75,18 +66,23 @@ kpis:
     target: 50
 
 workflows:
-  - framework-upgrade-worker
+  - framework-scanner
+  - framework-upgrader
+
+# Enable active workflow execution
+execute-workflows: true
 
 governance:
-  max-new-items-per-run: 10
+  max-project-updates-per-run: 20
 ---
-
-Coordinate systematic upgrades across all services.
 ```
+With `execute-workflows: true`, the orchestrator will:
+- Run `framework-scanner` (create it if doesn't exist)
+- Test newly created agentic workflows before use
+- Execute `framework-upgrader` using scanner outputs
+- Track all progress on the GitHub Project board
 
-When compiled, this generates an orchestrator that discovers work, tracks progress on the GitHub Project board, and coordinates worker workflows to execute upgrades.
-
-## Common Use Cases
+## Common use cases
 
 <FeatureGrid columns={2}>
   <FeatureCard icon="package" title="Migration Projects" badge="systematic">
@@ -103,29 +99,9 @@ When compiled, this generates an orchestrator that discovers work, tracks progre
   </FeatureCard>
 </FeatureGrid>
 
-## Getting Started
+## Next steps
 
-<FeatureGrid columns={2}>
-  <FeatureCard icon="rocket" title="Quick Start" href="/gh-aw/guides/campaigns/getting-started/">
-    Create your first campaign in 5 steps
-  </FeatureCard>
-  <FeatureCard icon="book" title="Campaign Specs" href="/gh-aw/guides/campaigns/specs/">
-    Learn the specification format and configuration options
-  </FeatureCard>
-  <FeatureCard icon="project" title="Project Management" href="/gh-aw/guides/campaigns/project-management/">
-    Set up GitHub Project boards for campaign dashboards
-  </FeatureCard>
-  <FeatureCard icon="terminal" title="CLI Commands" href="/gh-aw/guides/campaigns/cli-commands/">
-    Reference for campaign compilation and management
-  </FeatureCard>
-</FeatureGrid>
-
-## How It Works
-
-Campaigns have three components:
-
-1. **Campaign Spec** (`.campaign.md`) - Define objectives, KPIs, and governance rules
-2. **Orchestrator** (`.campaign.lock.yml`) - Auto-generated coordinator workflow
-3. **Workers** - Your existing agentic workflows (no changes needed)
-
-The orchestrator discovers work, updates your project board, and delegates to workers. Workers stay focused on their specific tasks while the orchestrator handles coordination.
+- **[Quick start](/gh-aw/guides/campaigns/getting-started/)** - Create your first campaign in 5 steps
+- **[Campaign specs](/gh-aw/guides/campaigns/specs/)** - Learn the specification format and configuration options
+- **[Project management](/gh-aw/guides/campaigns/project-management/)** - Set up GitHub Project boards for campaign dashboards
+- **[CLI commands](/gh-aw/guides/campaigns/cli-commands/)** - Reference for campaign compilation and management

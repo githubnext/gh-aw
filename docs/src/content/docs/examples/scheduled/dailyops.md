@@ -79,7 +79,7 @@ This repository implements several DailyOps workflows demonstrating different us
 - **daily-test-improver.md** - Systematically adds tests to improve coverage incrementally
 - **daily-perf-improver.md** - Identifies and implements performance optimizations
 - **daily-doc-updater.md** - Keeps documentation synchronized with merged code changes
-- **daily-news.md** - Creates engaging daily status reports with trend analysis
+- **daily-team-status** (from [agentics](https://github.com/githubnext/agentics)) - Creates daily team status reports with activity summaries
 - **daily-repo-chronicle.md** - Produces newspaper-style repository updates
 - **daily-firewall-report.md** - Analyzes and reports on firewall activity
 

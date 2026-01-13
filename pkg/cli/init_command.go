@@ -21,11 +21,14 @@ This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates .github/aw/logs/.gitignore to ignore downloaded workflow logs
 - Creates GitHub Copilot custom instructions at .github/aw/github-agentic-workflows.md
-- Creates the agent for workflow creation at .github/agents/create-agentic-workflow.agent.md
-- Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.agent.md
-- Creates the upgrade agentic workflow agent at .github/agents/upgrade-agentic-workflows.md
+- Creates the dispatcher agent at .github/agents/agentic-workflows.agent.md
+- Creates workflow creation prompt at .github/aw/create-agentic-workflow.md (for new workflows)
+- Creates workflow update prompt at .github/aw/update-agentic-workflow.md (for updating existing workflows)
+- Creates shared workflow creation prompt at .github/aw/create-shared-agentic-workflow.md
+- Creates debug workflow prompt at .github/aw/debug-agentic-workflow.md
+- Creates upgrade workflow prompt at .github/aw/upgrade-agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
-- Configures VSCode YAML schema validation (.github/aw/schemas/agentic-workflow.json, .vscode/settings.json)
+- Configures VSCode settings (.vscode/settings.json)
 
 By default (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
@@ -47,7 +50,8 @@ With --codespaces flag:
 - Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --campaign flag:
-- Creates .github/agents/agentic-campaign-designer.agent.md with the Agentic Campaign Designer agent for gh-aw campaigns
+- Creates .github/agents/agentic-campaigns.agent.md with the Campaigns dispatcher agent
+- Enables campaign-related prompts and functionality for multi-workflow coordination
 
 With --completions flag:
 - Automatically detects your shell (bash, zsh, fish, or PowerShell)
@@ -55,11 +59,12 @@ With --completions flag:
 - Provides instructions for enabling completions in your shell
 
 After running this command, you can:
-- Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
-- Use GitHub Copilot Chat: type /agent and select debug-agentic-workflow to debug existing workflows
-- Use GitHub Copilot Chat: type /agent and select upgrade-agentic-workflows to upgrade workflows to the latest gh-aw version
+- Use GitHub Copilot Chat: type /agent and select agentic-workflows to get started with workflow tasks
+- The dispatcher will route your request to the appropriate specialized prompt
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
+
+To create, update or debug automated agentic actions using github, playwright, and other tools, load the .github/agents/agentic-workflows.agent.md (applies to .github/workflows/*.md)
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init

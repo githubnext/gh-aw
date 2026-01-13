@@ -2110,6 +2110,10 @@
       "description": "Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox Runtime) and MCP gateway.",
       "oneOf": [
         {
+          "type": "boolean",
+          "description": "Set to false to completely disable sandbox features (firewall and gateway). Warning: This removes important security protections and should only be used in controlled environments. Not allowed in strict mode."
+        },
+        {
           "type": "string",
           "enum": ["default", "sandbox-runtime", "awf", "srt"],
           "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent Workflow Firewall"
@@ -4301,7 +4305,8 @@
                 },
                 "draft": {
                   "type": "boolean",
-                  "description": "Whether to create pull request as draft (defaults to true)"
+                  "description": "Whether to create pull request as draft (defaults to true)",
+                  "default": true
                 },
                 "if-no-changes": {
                   "type": "string",
@@ -4735,6 +4740,11 @@
                 "body": {
                   "type": "boolean",
                   "description": "Allow updating pull request body - defaults to true, set to false to disable"
+                },
+                "operation": {
+                  "type": "string",
+                  "description": "Default operation for body updates: 'append' (add to end), 'prepend' (add to start), or 'replace' (overwrite completely). Defaults to 'replace' if not specified.",
+                  "enum": ["append", "prepend", "replace"]
                 },
                 "max": {
                   "type": "integer",

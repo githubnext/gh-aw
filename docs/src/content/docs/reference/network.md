@@ -11,9 +11,9 @@ Control network access for AI engines using the top-level `network` field to spe
 
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
-:::tip[New to Network Configuration?]
-See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for practical examples, common patterns, and troubleshooting tips for package registries and CDNs.
-:::
+> [!TIP]
+> New to Network Configuration?
+> See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for practical examples, common patterns, and troubleshooting tips for package registries and CDNs.
 
 ## Configuration
 
@@ -105,12 +105,12 @@ network:
     - "cdn.example.com"    # Block specific CDN
 ```
 
-:::tip[When to Use Blocked Domains]
-- **Privacy**: Block tracking and analytics domains while allowing legitimate services
-- **Security**: Block known malicious or compromised domains
-- **Compliance**: Enforce organizational network policies
-- **Fine-grained control**: Allow broad ecosystem access but block specific problematic domains
-:::
+> [!TIP]
+> When to Use Blocked Domains
+> - **Privacy**: Block tracking and analytics domains while allowing legitimate services
+> - **Security**: Block known malicious or compromised domains
+> - **Compliance**: Enforce organizational network policies
+> - **Fine-grained control**: Allow broad ecosystem access but block specific problematic domains
 
 **Key behaviors**:
 - Blocked domains are subtracted from the allowed list
@@ -135,9 +135,9 @@ For fine-grained security control, you can restrict domains to specific protocol
 - Ensuring secure connections by restricting to HTTPS-only
 - Migrating from HTTP to HTTPS gradually
 
-:::tip[Copilot Engine Support]
-Protocol-specific filtering is currently supported by the Copilot engine with AWF firewall enabled. Domains without protocol prefixes allow both HTTP and HTTPS traffic (backward compatible).
-:::
+> [!TIP]
+> Copilot Engine Support
+> Protocol-specific filtering is currently supported by the Copilot engine with AWF firewall enabled. Domains without protocol prefixes allow both HTTP and HTTPS traffic (backward compatible).
 
 ### Usage Examples
 
@@ -162,13 +162,13 @@ network:
 - `http://` - HTTP-only access
 - No prefix - Both HTTP and HTTPS (backward compatible)
 
-:::caution[Protocol Validation]
-Invalid protocols (e.g., `ftp://`, `ws://`) are rejected at compile time with a clear error message:
-```
-error: network.allowed[0]: domain pattern 'ftp://invalid.example.com' 
-has invalid protocol, only 'http://' and 'https://' are allowed
-```
-:::
+> [!CAUTION]
+> Protocol Validation
+> Invalid protocols (e.g., `ftp://`, `ws://`) are rejected at compile time with a clear error message:
+> ```
+> error: network.allowed[0]: domain pattern 'ftp://invalid.example.com' 
+> has invalid protocol, only 'http://' and 'https://' are allowed
+> ```
 
 ### Best Practices
 
@@ -181,9 +181,8 @@ has invalid protocol, only 'http://' and 'https://' are allowed
 
 The `network:` configuration also controls which domains are allowed in sanitized content. URLs from domains not in the allowed list are replaced with `(redacted)` to prevent potential data exfiltration through untrusted links.
 
-:::tip
-If you see `(redacted)` in workflow outputs, add the domain to your `network.allowed` list. This applies the same domain allowlist to both network egress (when firewall is enabled) and content sanitization.
-:::
+> [!TIP]
+> If you see `(redacted)` in workflow outputs, add the domain to your `network.allowed` list. This applies the same domain allowlist to both network egress (when firewall is enabled) and content sanitization.
 
 GitHub domains (`github.com`, `githubusercontent.com`, etc.) are always allowed by default.
 
@@ -202,14 +201,14 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains |
 
-:::tip[Common Use Cases]
-- **Python projects**: Add `python` for PyPI, pip, and files.pythonhosted.org
-- **Node.js projects**: Add `node` for registry.npmjs.org, yarn, and pnpm
-- **Container builds**: Add `containers` for Docker Hub and other registries
-- **Go projects**: Add `go` for proxy.golang.org and sum.golang.org
-
-See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete examples and domain lists.
-:::
+> [!TIP]
+> Common Use Cases
+> - **Python projects**: Add `python` for PyPI, pip, and files.pythonhosted.org
+> - **Node.js projects**: Add `node` for registry.npmjs.org, yarn, and pnpm
+> - **Container builds**: Add `containers` for Docker Hub and other registries
+> - **Go projects**: Add `go` for proxy.golang.org and sum.golang.org
+>
+> See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete examples and domain lists.
 
 
 ## Implementation
@@ -266,9 +265,9 @@ See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network
 
 ### Disabling the Firewall
 
-:::caution[Deprecated]
-The `network.firewall` field is deprecated. The agent sandbox is now mandatory and defaults to AWF. See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
-:::
+> [!CAUTION]
+> Deprecated
+> The `network.firewall` field is deprecated. The agent sandbox is now mandatory and defaults to AWF. See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 
 The firewall is always enabled via the default `sandbox.agent: awf` configuration:
 
@@ -319,11 +318,11 @@ network:
 - Only a single wildcard at the start is allowed (e.g., `*.*.example.com` is invalid)
 - The wildcard must be followed by a dot and domain (e.g., `*` alone is not allowed in strict mode)
 
-:::tip[When to Use Wildcards vs Base Domains]
-Both approaches work for subdomain matching:
-- **Base domain** (`example.com`): Simpler syntax, automatically matches all subdomains
-- **Wildcard pattern** (`*.example.com`): Explicit about subdomain matching intent, useful when you want to clearly document that subdomains are expected
-:::
+> [!TIP]
+> When to Use Wildcards vs Base Domains
+> Both approaches work for subdomain matching:
+> - **Base domain** (`example.com`): Simpler syntax, automatically matches all subdomains
+> - **Wildcard pattern** (`*.example.com`): Explicit about subdomain matching intent, useful when you want to clearly document that subdomains are expected
 
 ## Best Practices
 

@@ -340,6 +340,13 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		renderConsole(auditData, runOutputDir)
 	}
 
+	// Display gateway metrics if available
+	if gatewayMetrics, err := parseGatewayLogs(runOutputDir, verbose); err == nil {
+		if metricsOutput := renderGatewayMetricsTable(gatewayMetrics, verbose); metricsOutput != "" {
+			fmt.Fprint(os.Stderr, metricsOutput)
+		}
+	}
+
 	// Conditionally attempt to render agentic log (similar to `logs --parse`) if --parse flag is set
 	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
 	// We intentionally do not fail the audit on parse errors; they are reported as warnings.

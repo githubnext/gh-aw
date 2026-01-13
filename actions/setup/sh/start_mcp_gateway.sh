@@ -19,7 +19,7 @@ if [ -z "$MCP_GATEWAY_DOCKER_COMMAND" ]; then
 fi
 
 # Create logs directory for gateway
-mkdir -p /tmp/gh-aw/mcp-logs/gateway
+mkdir -p /tmp/gh-aw/mcp-logs
 mkdir -p /tmp/gh-aw/mcp-config
 
 # Validate container syntax first (before accessing files)
@@ -42,8 +42,8 @@ if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--rm'; then
   exit 1
 fi
 
-if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network host'; then
-  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network host flag"
+if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network'; then
+  echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network flag for networking"
   exit 1
 fi
 
@@ -100,13 +100,17 @@ fi
 echo "Configuration validated successfully"
 echo ""
 
+# Set MCP_GATEWAY_LOG_DIR environment variable for use by the gateway
+export MCP_GATEWAY_LOG_DIR="/tmp/gh-aw/mcp-logs/"
+
 # Start gateway process with container
 echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
 echo "Full docker command: $MCP_GATEWAY_DOCKER_COMMAND"
 echo ""
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
-echo "$MCP_CONFIG" | $MCP_GATEWAY_DOCKER_COMMAND \
-  > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/gateway/stderr.log &
+# Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
+echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
+  > /tmp/gh-aw/mcp-config/gateway-output.json 2> /tmp/gh-aw/mcp-logs/stderr.log &
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"
@@ -120,7 +124,7 @@ else
   cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
   echo ""
   echo "Gateway stderr logs:"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log 2>/dev/null || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log 2>/dev/null || echo "No stderr logs available"
   exit 1
 fi
 echo ""
@@ -137,36 +141,30 @@ echo "Waiting for gateway to be ready..."
 HEALTH_CHECK_HOST="localhost"
 echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
 echo "(Note: MCP_GATEWAY_DOMAIN is '${MCP_GATEWAY_DOMAIN}' for container access)"
-MAX_ATTEMPTS=30
-ATTEMPT=0
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  # First check if the gateway process is still running
-  if ! ps -p $GATEWAY_PID > /dev/null 2>&1; then
-    echo "ERROR: Gateway process (PID: $GATEWAY_PID) has exited unexpectedly!"
-    echo ""
-    echo "Gateway stdout output:"
-    cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
-    echo ""
-    echo "Gateway stderr logs:"
-    cat /tmp/gh-aw/mcp-logs/gateway/stderr.log 2>/dev/null || echo "No stderr logs available"
-    exit 1
-  fi
-  
-  # Check health endpoint using localhost (since we're running on the host)
-  HEALTH_RESPONSE=$(curl -f -s "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1) && {
-    echo "Gateway is ready!"
-    echo "Health response: $HEALTH_RESPONSE"
-    break
-  }
-  ATTEMPT=$((ATTEMPT + 1))
-  if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Gateway not ready yet (curl response: $HEALTH_RESPONSE), waiting 1 second..."
-    sleep 1
-  fi
-done
+echo "Retrying up to 120 times with 1s delay (120s total timeout)"
 
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-  echo "ERROR: Gateway failed to become ready after $MAX_ATTEMPTS attempts"
+# Check health endpoint using localhost (since we're running on the host)
+# Per MCP Gateway Specification v1.3.0, /health must return HTTP 200 with JSON body containing specVersion and gatewayVersion
+# Use curl retry: 120 attempts with 1 second delay = 120s total
+RESPONSE=$(curl -s --retry 120 --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
+HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+HEALTH_RESPONSE=$(echo "$RESPONSE" | head -n -1)
+
+# Always log the health response for debugging
+echo "Health endpoint HTTP code: $HTTP_CODE"
+if [ -n "$HEALTH_RESPONSE" ]; then
+  echo "Health response body: $HEALTH_RESPONSE"
+else
+  echo "Health response body: (empty)"
+fi
+
+if [ "$HTTP_CODE" = "200" ] && [ -n "$HEALTH_RESPONSE" ]; then
+  echo "Gateway is ready!"
+else
+  echo ""
+  echo "ERROR: Gateway failed to become ready"
+  echo "Last HTTP code: $HTTP_CODE"
+  echo "Last health response: ${HEALTH_RESPONSE:-(empty)}"
   echo ""
   echo "Checking if gateway process is still alive..."
   if ps -p $GATEWAY_PID > /dev/null 2>&1; then
@@ -184,7 +182,7 @@ if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
   cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
   echo ""
   echo "Gateway stderr logs (debug output):"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
   echo ""
   echo "Checking network connectivity to gateway port..."
   netstat -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || ss -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || echo "Port ${MCP_GATEWAY_PORT} does not appear to be listening"
@@ -216,7 +214,7 @@ if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
   echo ""
   echo "Gateway stderr logs:"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
@@ -230,7 +228,7 @@ if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; the
   cat /tmp/gh-aw/mcp-config/gateway-output.json
   echo ""
   echo "Gateway stderr logs:"
-  cat /tmp/gh-aw/mcp-logs/gateway/stderr.log || echo "No stderr logs available"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
@@ -290,18 +288,33 @@ echo ""
 echo "Checking MCP server functionality..."
 if [ -f /opt/gh-aw/actions/check_mcp_servers.sh ]; then
   echo "Running MCP server checks..."
+  # Store check diagnostic logs in /tmp/gh-aw/mcp-logs/start-gateway.log for artifact upload
+  # Use tee to output to both stdout and the log file
+  # Enable pipefail so the exit code comes from check_mcp_servers.sh, not tee
+  set -o pipefail
   if ! bash /opt/gh-aw/actions/check_mcp_servers.sh \
     /tmp/gh-aw/mcp-config/gateway-output.json \
     "http://localhost:${MCP_GATEWAY_PORT}" \
-    "${MCP_GATEWAY_API_KEY}"; then
+    "${MCP_GATEWAY_API_KEY}" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log; then
     echo "ERROR: MCP server checks failed - no servers could be connected"
     echo "Gateway process will be terminated"
     kill $GATEWAY_PID 2>/dev/null || true
     exit 1
   fi
+  set +o pipefail
 else
   echo "WARNING: MCP server check script not found at /opt/gh-aw/actions/check_mcp_servers.sh"
   echo "Skipping MCP server functionality checks"
+fi
+echo ""
+
+# Delete gateway configuration file after conversion and checks are complete
+echo "Cleaning up gateway configuration file..."
+if [ -f /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+  rm /tmp/gh-aw/mcp-config/gateway-output.json
+  echo "Gateway configuration file deleted"
+else
+  echo "Gateway configuration file not found (already deleted or never created)"
 fi
 echo ""
 

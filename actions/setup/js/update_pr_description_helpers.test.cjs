@@ -99,7 +99,7 @@ describe("update_pr_description_helpers.cjs", () => {
   });
 
   describe("updateBody - replace operation", () => {
-    it("should replace entire body", () => {
+    it("should replace entire body and add footer", () => {
       const result = updateBody({
         currentBody: "Old content",
         newContent: "New content",
@@ -108,7 +108,11 @@ describe("update_pr_description_helpers.cjs", () => {
         runUrl: "https://github.com/test/actions/runs/123",
         runId: 123,
       });
-      expect(result).toBe("New content");
+      expect(result).toContain("New content");
+      expect(result).not.toContain("Old content");
+      // Should include footer with workflow information
+      expect(result).toContain("Test");
+      expect(result).toContain("https://github.com/test/actions/runs/123");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("replace"));
     });
   });

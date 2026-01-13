@@ -95,6 +95,5 @@ The three-phase approach takes longer than direct execution and requires develop
 - **[Threat Detection](/gh-aw/guides/threat-detection/)**: Continuous monitoring without planning phase
 - **[Custom Safe Outputs](/gh-aw/guides/custom-safe-outputs/)**: Create custom actions for plan phase
 
-:::note
-The ResearchPlanAssign strategy works best when research findings vary in relevance and priority. For issues that always require immediate action, consider using direct execution workflows instead.
-:::
+> [!NOTE]
+> The ResearchPlanAssign strategy works best when research findings vary in relevance and priority. For issues that always require immediate action, consider using direct execution workflows instead.

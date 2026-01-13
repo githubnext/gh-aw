@@ -14,7 +14,7 @@ For GitHub Agentic Workflows, you only need to create a few **optional** secrets
 
 | When you need this…                                  | Secret to create                       | Notes |
 |------------------------------------------------------|----------------------------------------|-------|
-| Copilot workflows (CLI, engine, agent sessions, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission and repo access. |
+| Copilot workflows (CLI, engine, agent sessions, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission. For org-owned repos, needs org permissions: Members (read-only), GitHub Copilot Business (read-only). |
 | Cross-repo Project Ops / remote GitHub tools         | `GH_AW_GITHUB_TOKEN`                   | PAT or app token with cross-repo access. |
 | Assigning agents/bots to issues or pull requests     | `GH_AW_AGENT_TOKEN`                    | Used by `assign-to-agent` and Copilot assignee/reviewer flows. |
 | Any GitHub Projects v2 operations                    | `GH_AW_PROJECT_GITHUB_TOKEN`           | **Required** for `update-project`. Default `GITHUB_TOKEN` cannot access Projects v2 API. |
@@ -146,9 +146,8 @@ gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_PAT"
 
 The compiler automatically sets `GITHUB_MCP_SERVER_TOKEN` and passes it as `GITHUB_PERSONAL_ACCESS_TOKEN` (local/Docker) or `Authorization: Bearer` header (remote).
 
-:::note
-In most cases, you don't need to set this token separately. Use `GH_AW_GITHUB_TOKEN` instead, which works for both general operations and GitHub MCP server.
-:::
+> [!NOTE]
+> In most cases, you don't need to set this token separately. Use `GH_AW_GITHUB_TOKEN` instead, which works for both general operations and GitHub MCP server.
 
 ## `GH_AW_PROJECT_GITHUB_TOKEN` (GitHub Projects v2)
 
@@ -228,28 +227,28 @@ safe-outputs:
 
 **For organization-owned projects**, the complete configuration should include both the GitHub tools and safe outputs using the same token with appropriate permissions.
 
-:::note[Default behavior]
-By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
+> [!NOTE]
+> Default behavior
+> By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
+>
+> **Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. 
+>
+> **GitHub Projects v2 PAT Requirements**:
+> - **User-owned Projects**: Require a **classic PAT** with the `project` scope (plus `repo` if accessing private repos). Fine-grained PATs do **not** work with user-owned Projects.
+> - **Organization-owned Projects**: Can use either a classic PAT with `project` + `read:org` scopes, **or** a fine-grained PAT with:
+>   - Repository access to specific repositories
+>   - Repository permissions: Contents: Read, Issues: Read, Pull requests: Read (as needed)
+>   - Organization permissions: Projects: Read & Write
+>   - Explicit organization access granted during token creation
+> - **GitHub App**: Works for both user and org Projects with Projects: Read+Write permission.
+>
+> To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
 
-**Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. 
-
-**GitHub Projects v2 PAT Requirements**:
-- **User-owned Projects**: Require a **classic PAT** with the `project` scope (plus `repo` if accessing private repos). Fine-grained PATs do **not** work with user-owned Projects.
-- **Organization-owned Projects**: Can use either a classic PAT with `project` + `read:org` scopes, **or** a fine-grained PAT with:
-  - Repository access to specific repositories
-  - Repository permissions: Contents: Read, Issues: Read, Pull requests: Read (as needed)
-  - Organization permissions: Projects: Read & Write
-  - Explicit organization access granted during token creation
-- **GitHub App**: Works for both user and org Projects with Projects: Read+Write permission.
-
-To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
-:::
-
-:::tip[When to use vs GH_AW_GITHUB_TOKEN]
-- Use `GH_AW_PROJECT_GITHUB_TOKEN` when you need **Projects-specific permissions** separate from other operations
-- Use `GH_AW_GITHUB_TOKEN` as the top-level token if it already has Projects permissions and you don't need isolation
-- The precedence chain allows the top-level token to be used if `GH_AW_PROJECT_GITHUB_TOKEN` isn't set
-:::
+> [!TIP]
+> When to use vs GH_AW_GITHUB_TOKEN
+> - Use `GH_AW_PROJECT_GITHUB_TOKEN` when you need **Projects-specific permissions** separate from other operations
+> - Use `GH_AW_GITHUB_TOKEN` as the top-level token if it already has Projects permissions and you don't need isolation
+> - The precedence chain allows the top-level token to be used if `GH_AW_PROJECT_GITHUB_TOKEN` isn't set
 
 ## `COPILOT_GITHUB_TOKEN` (Copilot Authentication)
 
@@ -266,10 +265,31 @@ The recommended token for all Copilot-related operations including the Copilot e
 
 **Setup**:
 
-1. Create a [PAT](https://github.com/settings/personal-access-tokens/new) with:
-   - Resource owner: Your user account (not organization)
-   - Repository access: "Public repositories" or specific repos
-   - Permissions: "Copilot Requests" (required)
+The required token type depends on whether you own the repository or an organization owns it:
+
+**For User-owned Repositories**:
+
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Resource owner**: Your user account
+   - **Repository access**: "Public repositories" or select specific repos
+   - **Permissions**: 
+     - Copilot Requests: Read-only (required)
+
+**For Organization-owned Repositories**:
+
+When an organization owns the repository, you need a fine-grained PAT with organization-level permissions:
+
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Resource owner**: The organization that owns the repository
+   - **Repository access**: Select the specific repositories that will use the workflow
+   - **Repository permissions**:
+     - Contents: Read (if needed for repository access)
+     - Issues: Read (if needed for issue-triggered workflows)
+     - Pull requests: Read (if needed for PR-triggered workflows)
+   - **Organization permissions** (must be explicitly granted):
+     - Members: Read-only (required)
+     - GitHub Copilot Business: Read-only (required)
+   - **Important**: You must explicitly grant organization access during token creation
 
 2. Add to repository secrets:
 
@@ -279,9 +299,16 @@ gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
 
 **Token precedence**: per-output → global safe-outputs → workflow-level → `COPILOT_GITHUB_TOKEN` → `GH_AW_GITHUB_TOKEN` (legacy, deprecated)
 
-:::caution
-`GITHUB_TOKEN` is **not** included in the fallback chain (lacks "Copilot Requests" permission). `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` are **no longer supported** as of v0.26+.
-:::
+> [!NOTE]
+> Organization token requirements
+> For organization-owned repositories, the token must have both:
+> - **Members: Read-only** - Required to access organization member information
+> - **GitHub Copilot Business: Read-only** - Required to authenticate with Copilot services
+>
+> These organization permissions must be explicitly granted during token creation and may require approval from your organization administrator.
+
+> [!CAUTION]
+> `GITHUB_TOKEN` is **not** included in the fallback chain (lacks "Copilot Requests" permission). `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` are **no longer supported** as of v0.26+.
 
 ## `GH_AW_AGENT_TOKEN` (Agent Assignment)
 
@@ -604,7 +631,8 @@ Specific fallback chains are documented in each token's section above. Note: Cop
 | Cross-repository read | Contents: Read |
 | Cross-repository issues | Issues: Read+Write, Contents: Read |
 | Cross-repository PRs | Pull requests: Read+Write, Contents: Read+Write |
-| Copilot operations | Copilot Requests (special permission) |
+| Copilot operations (user-owned repos) | Copilot Requests: Read-only |
+| Copilot operations (org-owned repos) | Copilot Requests: Read-only + Organization permissions: Members (read-only), GitHub Copilot Business (read-only) |
 | Agent assignments | Actions: Write, Contents: Write, Issues: Write, Pull requests: Write |
 | GitHub Projects v2 | Projects: Read+Write (org-level for org Projects) |
 | Remote GitHub MCP | Contents: Read (minimum), adjust based on toolsets |

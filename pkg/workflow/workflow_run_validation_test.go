@@ -27,12 +27,14 @@ func TestWorkflowRunBranchValidation(t *testing.T) {
 		{
 			name: "workflow_run without branches - normal mode - should warn",
 			frontmatter: `---
+strict: false
 on:
   workflow_run:
     workflows: ["build"]
     types: [completed]
 tools:
   github: false
+sandbox: false
 ---
 
 # Workflow Run Without Branches
@@ -41,7 +43,7 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: true,
-			warningCount:  1,
+			warningCount:  2, // 1 for workflow_run without branches + 1 for sandbox: false
 		},
 		{
 			name: "workflow_run without branches - strict mode - should error",
@@ -51,7 +53,8 @@ on:
     workflows: ["build"]
     types: [completed]
 tools:
-  github: false
+  github:
+    toolsets: [repos]
 ---
 
 # Workflow Run Without Branches Strict
@@ -65,6 +68,7 @@ Test workflow content.`,
 		{
 			name: "workflow_run with branches - should pass",
 			frontmatter: `---
+strict: false
 on:
   workflow_run:
     workflows: ["build"]
@@ -74,6 +78,7 @@ on:
       - develop
 tools:
   github: false
+sandbox: false
 ---
 
 # Workflow Run With Branches
@@ -82,7 +87,7 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: false,
-			warningCount:  0,
+			warningCount:  1, // 1 for sandbox: false
 		},
 		{
 			name: "workflow_run with branches - strict mode - should pass",
@@ -94,7 +99,8 @@ on:
     branches:
       - main
 tools:
-  github: false
+  github:
+    toolsets: [repos]
 ---
 
 # Workflow Run With Branches Strict
@@ -108,11 +114,13 @@ Test workflow content.`,
 		{
 			name: "no workflow_run - should pass",
 			frontmatter: `---
+strict: false
 on:
   push:
     branches: [main]
 tools:
   github: false
+sandbox: false
 ---
 
 # Push Workflow
@@ -121,11 +129,12 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: false,
-			warningCount:  0,
+			warningCount:  1, // 1 for sandbox: false
 		},
 		{
 			name: "mixed triggers with workflow_run without branches - should warn/error",
 			frontmatter: `---
+strict: false
 on:
   push:
     branches: [main]
@@ -134,6 +143,7 @@ on:
     types: [completed]
 tools:
   github: false
+sandbox: false
 ---
 
 # Mixed Triggers
@@ -142,11 +152,12 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: true,
-			warningCount:  1,
+			warningCount:  2, // 1 for workflow_run without branches + 1 for sandbox: false
 		},
 		{
 			name: "workflow_run with empty branches array - should warn/error",
 			frontmatter: `---
+strict: false
 on:
   workflow_run:
     workflows: ["build"]
@@ -154,6 +165,7 @@ on:
     branches: []
 tools:
   github: false
+sandbox: false
 ---
 
 # Workflow Run With Empty Branches
@@ -162,7 +174,7 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: false,
-			warningCount:  0,
+			warningCount:  1, // 1 for sandbox: false
 		},
 	}
 
@@ -218,33 +230,37 @@ func TestWorkflowRunBranchValidationEdgeCases(t *testing.T) {
 		{
 			name: "on field empty - should not error",
 			frontmatter: `---
+strict: false
 on: push
 tools:
   github: false
+sandbox: false
 ---
 
 # No On Field
 Test workflow content.`,
 			filename:     "no-on-field.md",
 			expectError:  false,
-			warningCount: 0,
+			warningCount: 1, // 1 for sandbox: false
 		},
 		{
 			name: "multiple workflow_run configs - first without branches - should warn",
 			frontmatter: `---
+strict: false
 on:
   workflow_run:
     workflows: ["build", "test"]
     types: [completed]
 tools:
   github: false
+sandbox: false
 ---
 
 # Multiple Workflows
 Test workflow content.`,
 			filename:     "multiple-workflows.md",
 			expectError:  false,
-			warningCount: 1,
+			warningCount: 2, // 1 for workflow_run without branches + 1 for sandbox: false
 		},
 	}
 

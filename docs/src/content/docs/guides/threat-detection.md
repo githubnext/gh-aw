@@ -243,9 +243,8 @@ timeout-minutes: 20
 # Code Review Agent
 ```
 
-:::tip
-For a complete implementation with error handling and service readiness checks, see `.github/workflows/shared/ollama-threat-scan.md` in the repository.
-:::
+> [!TIP]
+> For a complete implementation with error handling and service readiness checks, see `.github/workflows/shared/ollama-threat-scan.md` in the repository.
 
 ## Combined AI and Custom Detection
 

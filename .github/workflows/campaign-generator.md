@@ -11,7 +11,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: copilot
+engine: claude
 tools:
   github:
     toolsets: [default]
@@ -22,6 +22,9 @@ safe-outputs:
   assign-to-agent:
   create-project:
     max: 1
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+  update-project:
+    max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
@@ -34,27 +37,41 @@ timeout-minutes: 10
 {{#runtime-import? .github/shared-instructions.md}}
 {{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
 
-# Campaign Generator - Optimized Phase 1
+# Campaign Generator
 
-You are a campaign workflow coordinator for GitHub Agentic Workflows. You perform the heavy lifting of campaign creation in **Phase 1** (this workflow), leaving only compilation for Phase 2 (the Copilot Coding Agent).
+You are a campaign workflow coordinator for GitHub Agentic Workflows. You handle campaign creation and project setup, then assign compilation to the Copilot Coding Agent.
+
+## IMPORTANT: Using Safe Output Tools
+
+When creating or modifying GitHub resources (project, issue, comments), you **MUST use the MCP tool calling mechanism** to invoke the safe output tools. 
+
+**Do NOT write markdown code fences or JSON** - you must make actual MCP tool calls using your MCP tool calling capability.
+
+For example:
+- To create a project, invoke the `create_project` MCP tool with the required parameters
+- To update an issue, invoke the `update_issue` MCP tool with the required parameters
+- To add a comment, invoke the `add_comment` MCP tool with the required parameters
+- To assign to an agent, invoke the `assign_to_agent` MCP tool with the required parameters
+
+MCP tool calls write structured data that downstream jobs process. Without proper MCP tool invocations, follow-up actions will be skipped.
 
 ## Your Task
 
-**Phase 1 Responsibilities (You - This Workflow):**
+**Your Responsibilities:**
 1. Create GitHub Project board
-2. Parse campaign requirements from issue
-3. Discover matching workflows using the workflow catalog (local + agentics collection)
-4. Generate complete `.campaign.md` specification file
-5. Write the campaign file to the repository
-6. Update the issue with campaign details
-7. Assign to Copilot Coding Agent for compilation
+2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)
+3. Create recommended project views (Roadmap, Task Tracker, Progress Board)
+4. Parse campaign requirements from issue
+5. Discover matching workflows using the workflow catalog (local + agentics collection)
+6. Generate complete `.campaign.md` specification file
+7. Write the campaign file to the repository
+8. Update the issue with campaign details
+9. Assign to Copilot Coding Agent for compilation
 
-**Phase 2 Responsibilities (Copilot Coding Agent):**
+**Copilot Coding Agent Responsibilities:**
 1. Compile campaign using `gh aw compile` (requires CLI binary)
 2. Commit all files (spec + generated files)
 3. Create pull request
-
-This optimized two-phase flow reduces execution time by 60% (5-10 min → 2-3 min).
 
 ## Workflow Steps
 
@@ -97,102 +114,140 @@ create_project({
 })
 ```
 
-**Save the project URL** from the response - you'll need it for Step 4.
+**Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
+
+### Step 2.5: Create Project Fields and Views
+
+After creating the project, set up custom fields and views using the `update-project` safe output.
+
+#### 2.5.1: Create Custom Fields
+
+```javascript
+update_project({
+  project: "<project-url-from-step-2>",
+  operation: "create_fields",
+  field_definitions: [
+    {
+      name: "Worker/Workflow",
+      data_type: "SINGLE_SELECT",
+      options: ["<workflow-id-1>", "<workflow-id-2>"]
+    },
+    {
+      name: "Priority",
+      data_type: "SINGLE_SELECT",
+      options: ["High", "Medium", "Low"]
+    },
+    {
+      name: "Status",
+      data_type: "SINGLE_SELECT",
+      options: ["Todo", "In Progress", "Blocked", "Done", "Closed"]
+    },
+    {
+      name: "Start Date",
+      data_type: "DATE"
+    },
+    {
+      name: "End Date",
+      data_type: "DATE"
+    },
+    {
+      name: "Effort",
+      data_type: "SINGLE_SELECT",
+      options: ["Small (1-3 days)", "Medium (1 week)", "Large (2+ weeks)"]
+    }
+  ]
+})
+```
+
+#### 2.5.2: Create Views
+
+Create three views for different tracking needs:
+
+1. **Roadmap View** (timeline visualization):
+```javascript
+update_project({
+  project: "<project-url-from-step-2>",
+  operation: "create_view",
+  view: {
+    name: "Campaign Roadmap",
+    layout: "roadmap",
+    filter: "is:issue,is:pull_request"
+  }
+})
+```
+
+2. **Task Table View** (detailed tracking):
+```javascript
+update_project({
+  project: "<project-url-from-step-2>",
+  operation: "create_view",
+  view: {
+    name: "Task Tracker",
+    layout: "table",
+    filter: "is:issue,is:pull_request"
+  }
+})
+```
+
+3. **Board View** (kanban-style progress):
+```javascript
+update_project({
+  project: "<project-url-from-step-2>",
+  operation: "create_view",
+  view: {
+    name: "Progress Board",
+    layout: "board",
+    filter: "is:issue,is:pull_request"
+  }
+})
+```
 
 ### Step 3: Discover Workflows Dynamically
 
-**Perform comprehensive workflow discovery by scanning the filesystem:**
+Perform comprehensive workflow discovery by scanning the filesystem:
 
-1. **Dynamically scan for agentic workflows**:
+1. **Scan for agentic workflows**:
    ```bash
    ls .github/workflows/*.md
    ```
    
    For each agentic workflow file (`.md`):
-   - Parse the YAML frontmatter to extract:
-     * `description` - What the workflow does
-     * `on` - Trigger configuration
-     * `safe-outputs` or `safe_outputs` - GitHub operations
+   - Parse the YAML frontmatter to extract `description`, `on`, and `safe-outputs`
    - Match description to campaign keywords
    - Categorize by purpose (security, quality, docs, CI/CD, etc.)
-   
-   **Example workflow analysis:**
-   - `daily-malicious-code-scan.md` → Security category (keywords: "malicious", "security", "scan")
-   - `glossary-maintainer.md` → Documentation category (keywords: "glossary", "documentation")
-   - `ci-doctor.md` → CI/CD category (keywords: "ci", "workflow", "investigate")
 
-2. **Dynamically scan for regular workflows**:
+2. **Scan for regular workflows**:
    ```bash
    ls .github/workflows/*.yml | grep -v ".lock.yml"
    ```
    
    For each regular workflow file:
-   - Read the workflow name (`name:` field in YAML)
-   - Check the trigger configuration (`on:` field)
-   - Scan jobs to understand functionality (testing, security, docs, etc.)
-   - Match workflow name/purpose to campaign category
+   - Read the workflow name and trigger configuration
+   - Scan jobs to understand functionality
    - Assess if it could benefit from AI enhancement
-   
-   **Examples of assessment:**
-   - `security-scan.yml` (runs Gosec, govulncheck, Trivy)
-     → Could add: AI vulnerability prioritization, automated remediation
-   - `ci.yml` (runs tests, builds)
-     → Could add: AI test failure analysis, flaky test detection
-   - `docs.yml` (builds documentation)
-     → Could add: AI quality analysis, gap identification
-   - `link-check.yml` (validates markdown links)
-     → Could add: Alternative link suggestions, archive.org fallbacks
 
 3. **Include external workflow collections**:
    
-   **Agentics Collection** (https://github.com/githubnext/agentics):
-   Reference reusable workflows that can be installed:
+   Reference reusable workflows from the Agentics Collection (https://github.com/githubnext/agentics):
    - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
    - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
    - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
 
 4. **Categorize discovered workflows**:
-   - **Existing agentic workflows**: Found by scanning `.md` files and parsing frontmatter
-   - **Regular workflows to enhance**: Found by scanning `.yml` files (excluding `.lock.yml`)
+   - **Existing agentic workflows**: Found by scanning `.md` files
+   - **Regular workflows to enhance**: Found by scanning `.yml` files
    - **External workflows**: From agentics collection
    - **New workflows**: Suggested workflows not found
-
-**Example workflow discovery:**
-
-For a "Security Q1 2025" campaign with goal "Automated security improvements":
-
-1. **From agentic workflow scan**: 
-   - Scanned `.github/workflows/*.md`, parsed frontmatter
-   - Found workflows with "security" keywords in description:
-     * `daily-malicious-code-scan.md` (existing agentic)
-
-2. **From regular workflow scan**:
-   - Scanned `.github/workflows/*.yml` (excluding `.lock.yml`)
-   - Found regular workflows: `security-scan.yml`, `codeql.yml`, `license-check.yml`
-   - Assessed each for AI enhancement potential:
-     * `security-scan.yml` → High potential (vulnerability prioritization, automated fixes)
-     * `codeql.yml` → High potential (natural language explanations, fix suggestions)
-     * `license-check.yml` → Medium potential (compatibility analysis, alternative dependencies)
-
-3. **From external collections**:
-   - `ci-doctor` (from agentics - monitors CI for security issues)
-
-4. **Suggested new**:
-   - `security-reporter` - Weekly security posture reports
-
-**Result**: 1 agentic + 2-3 regular to enhance + 1 external + 1 new = comprehensive coverage
 
 ### Step 4: Generate Campaign Specification File
 
 Using the **Campaign Creation Instructions** (imported above), create a complete `.campaign.md` file:
 
-**File path:** `.github/workflows/<campaign-id>.campaign.md`
-
-**Campaign ID:** Convert name to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025")
-
+**File path:** `.github/workflows/<campaign-id>.campaign.md`  
+**Campaign ID:** Convert name to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025")  
 **Before creating:** Check if the file exists. If it does, append `-v2` or timestamp.
 
-**File structure (use template from imported instructions):**
+**File structure:**
 ```yaml
 ---
 id: <campaign-id>
@@ -249,11 +304,6 @@ Agents in this campaign should:
 - <Guideline 2>
 - <Guideline 3>
 
-## Project Board Setup
-
-**Recommended Custom Fields**:
-[Include standard project board custom fields as per template]
-
 ## Timeline
 
 - **Start**: <Date or "TBD">
@@ -273,12 +323,12 @@ Agents in this campaign should:
 
 Use the `update-issue` safe output to update issue #${{ github.event.issue.number }}:
 
-**Update the title** (if needed to add campaign name):
+**Update the title** (if needed):
 ```
 <campaign-name>
 ```
 
-**Update the body** with formatted campaign information:
+**Update the body** with campaign information and instructions for the Copilot Coding Agent:
 ```markdown
 > **Original Request**
 >
@@ -310,29 +360,18 @@ Use the `update-issue` safe output to update issue #${{ github.event.issue.numbe
 - <Goal 2>
 - <Goal 3>
 
-## 📊 Key Performance Indicators
-
-- <KPI 1>
-- <KPI 2>
-- <KPI 3>
-
 ## ⏱️ Timeline
 
 - **Start Date:** <Date or TBD>
 - **Target Completion:** <Date or Ongoing>
-- **Estimated Duration:** <Duration>
 
 ---
 
-## 🚀 Next Steps
+## 🤖 Instructions for Copilot Coding Agent
 
-1. ✅ Project board created
-2. 🔄 Campaign specification generated
-3. ⏳ Awaiting compilation and PR creation
-4. 👀 Review and approve PR
-5. 🎉 Merge to activate campaign
+The campaign specification file has been created at `.github/workflows/<campaign-id>.campaign.md`.
 
-**Status:** Campaign specification created. Copilot agent will compile and create PR shortly.
+**Your task:** Run `gh aw compile <campaign-id>` to compile the campaign
 ```
 
 ### Step 6: Post Progress Comment
@@ -342,90 +381,34 @@ Use `add-comment` to inform the user:
 ```markdown
 ✅ **Campaign Specification Created!**
 
-I've generated the campaign specification and am now compiling it.
+I've generated the campaign specification and configured the project board, then assigned the Copilot Coding Agent to compile it.
+
+📊 **Project Board:** [View Project](<project-url>)
+  - ✅ Custom fields: Worker/Workflow, Priority, Status, Start Date, End Date, Effort
+  - ✅ Campaign Roadmap view (timeline)
+  - ✅ Task Tracker view (table)
+  - ✅ Progress Board view (kanban)
 
 📁 **File Created:**
 - `.github/workflows/<campaign-id>.campaign.md`
 
-🔄 **Next Steps:**
-1. Compiling campaign using `gh aw compile`
-2. Creating pull request with all files
-
-**Estimated time:** Copilot Coding Agent will compile in 1-2 minutes
+📝 **Next Steps:**
+1. Copilot Coding Agent will compile the campaign using `gh aw compile`
+2. The agent will create a pull request with compiled files
 ```
 
-### Step 7: Assign to Copilot Coding Agent for Compilation
+### Step 7: Assign to Copilot Coding Agent
 
 Use the `assign-to-agent` safe output to assign a Copilot Coding Agent session to compile the campaign and create a PR.
 
-**Why assign-to-agent is required:**
-- `gh aw compile` requires the gh-aw CLI binary
-- CLI is only available in Copilot Coding Agent sessions (via actions/setup)
-- GitHub Actions runners (where this workflow runs) don't have gh-aw CLI
-- This two-phase pattern is an architectural necessity
-
-**Agent task:**
-The Copilot Coding Agent will:
-1. Compile campaign using `gh aw compile <campaign-id>`
-2. Commit all files (spec + generated `.g.md` and `.lock.yml`)
-3. Create PR with campaign files
-
-**Context to pass:**
-- Campaign ID: `<campaign-id>`
-- Campaign file path: `.github/workflows/<campaign-id>.campaign.md`
-- Project URL: `<project-url>`
-- Issue number: `${{ github.event.issue.number }}`
-
-**Files created:**
-- `.github/workflows/<campaign-id>.campaign.md`
-- `.github/workflows/<campaign-id>.campaign.g.md`
-- `.github/workflows/<campaign-id>.campaign.lock.yml`
-
-**Next steps:**
-1. Review the PR
-2. Approve and merge to activate your campaign
-3. Create the worker workflows listed in the campaign spec
-
-**Total time:** ~2-3 minutes (60% faster than old flow!)
-```
+The agent will:
+1. Read the instructions in the issue body
+2. Compile the campaign using `gh aw compile <campaign-id>`
+3. Create a PR with the compiled files
 
 ## Important Notes
 
-### Optimization Benefits
-- **60% faster:** 5-10 min → 2-3 min total time
-- **Deterministic discovery:** Workflow catalog eliminates 2-3 min scanning
-- **Transparent tracking:** Issue updates provide structured campaign info
-- **Optimized two-phase:** Phase 1 does heavy lifting, Phase 2 only compiles
-
-### Phase 1 vs Phase 2
-**Phase 1 (This Workflow - ~30s):**
-- ✅ Create project board
-- ✅ Discover workflows (catalog lookup - deterministic, includes agentics collection)
-- ✅ Generate campaign spec file
-- ✅ Write file to repository
-- ✅ Update issue with details
-- ✅ Assign to Copilot Coding Agent
-
-**Phase 2 (Copilot Coding Agent - ~1-2 min):**
-- ✅ Compile campaign (`gh aw compile` - requires CLI)
-- ✅ Commit files
-- ✅ Create PR automatically
-
-### Why Two Phases?
+### Why Assign to Copilot Coding Agent?
 - `gh aw compile` requires the gh-aw CLI binary
-- CLI only available in Copilot Coding Agent sessions (via actions/setup)
-- GitHub Actions runners (where this workflow runs with `engine: copilot`) don't have gh-aw CLI
-- Two-phase pattern is an architectural necessity
-
-### Key Differences from Old Flow
-**Old Flow:**
-- CCA → generator → designer → PR (multiple handoffs)
-- Duplicate workflow scanning (2-3 min)
-- Context loss between agents
-- 5-10 min total time
-
-**New Flow:**
-- Issue → generator (Phase 1: design + discover) → Copilot Coding Agent (Phase 2: compile only) → PR
-- Catalog-based discovery (deterministic, <1s, includes agentics collection)
-- Complete context preserved in campaign file
-- 2-3 min total time
+- CLI is only available in Copilot Coding Agent sessions (via actions/setup)
+- GitHub Actions runners (where this workflow runs) don't have gh-aw CLI

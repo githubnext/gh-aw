@@ -1,15 +1,15 @@
 ---
-title: "Comparison with GitHub Security Campaigns"
-description: "How GitHub's agentic campaigns and security campaigns compare"
+title: Comparison with GitHub Security Campaigns
+description: How GitHub's agentic campaigns and security campaigns compare
 ---
 
 **GitHub Security Campaigns** (Enterprise Cloud only) focus on remediating security alerts through alert assignment and Copilot Autofix.
 
-**GitHub agentic campaigns** (agentic campaigns) are flexible automation initiatives for any repeatable work, coordinated by AI agents via GitHub Actions workflows.
+**Agentic campaigns** are flexible automation initiatives for any repeatable work, coordinated by AI agents via GitHub Actions workflows.
 
-## Key Differences
+## Key differences
 
-| | Security Campaigns | Agentic Campaigns |
+| | Security Campaigns | Agentic campaigns |
 |---|---|---|
 | **Availability** | Enterprise Cloud only | Any GitHub account with Actions |
 | **Use Case** | Security alert remediation | Any repeatable initiative |
@@ -18,13 +18,13 @@ description: "How GitHub's agentic campaigns and security campaigns compare"
 | **Tracking** | Built-in dashboard | GitHub Projects |
 | **API** | REST API | Actions + Projects v2 |
 
-## When to Use Each
+## When to use each
 
 **Use Security Campaigns** for security alert remediation on Enterprise Cloud with Copilot Autofix integration.
 
-**Use Agentic Campaigns** for custom automation needs across repositories with version-controlled specs and AI-driven coordination.
+**Use agentic campaigns** for custom automation needs across repositories with version-controlled specs and AI-driven coordination.
 
-## Integration Example
+## Integration example
 
 Automate Security Campaign creation using agentic campaigns (requires Enterprise Cloud):
 
@@ -46,9 +46,9 @@ For CWE categories with 5+ alerts, create a Security Campaign via REST API.
 Assign alerts to appropriate teams.
 ```
 
-## Feature Comparison
+## Feature comparison
 
-| Feature | Security Campaigns | Agentic Campaigns |
+| Feature | Security Campaigns | Agentic campaigns |
 |---------|-------------------|-------------------|
 | Alert grouping | ✅ Native | ➖ Custom logic |
 | Copilot Autofix | ✅ Integrated | ➖ Separate |
@@ -58,8 +58,8 @@ Assign alerts to appropriate teams.
 | Scheduling | ➖ Manual | ✅ Cron + events |
 | Historical metrics | ➖ Live only | ✅ Git branches |
 
-## Learn More
+## Learn more
 
 - [Security Campaigns docs](https://docs.github.com/en/enterprise-cloud@latest/code-security/securing-your-organization/fixing-security-alerts-at-scale/about-security-campaigns)
-- [Agentic Campaigns overview](/gh-aw/guides/campaigns/)
+- [Agentic campaigns overview](/gh-aw/guides/campaigns/)
 - [Getting started guide](/gh-aw/guides/campaigns/getting-started/)

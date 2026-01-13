@@ -20,6 +20,7 @@ strict: true
 imports:
   - shared/mcp-pagination.md
   - shared/gh.md
+  - shared/mcp/tavily.md
 network:
   allowed:
     - defaults
@@ -64,7 +65,7 @@ timeout-minutes: 10
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 2. **Serena Go Testing**: Use the `serena-go` tool to run a basic go command like "go version" to verify the tool is available
 3. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
-4. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
+4. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
 5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${{ github.run_id }}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
 6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 

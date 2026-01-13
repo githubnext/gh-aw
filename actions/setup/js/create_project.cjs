@@ -1,14 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-
-/**
- * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
- */
-
-/** @type {string} Safe output type handled by this module */
-const HANDLER_TYPE = "create_project";
 
 /**
  * Log detailed GraphQL error information
@@ -81,7 +75,7 @@ async function getOwnerId(ownerType, ownerLogin) {
  * @param {string} title - Project title
  * @returns {Promise<{ projectId: string, projectNumber: number, projectTitle: string, projectUrl: string, itemId?: string }>} Created project info
  */
-async function createProject(ownerId, title) {
+async function createProjectV2(ownerId, title) {
   core.info(`Creating project with title: "${title}"`);
 
   const result = await github.graphql(
@@ -159,34 +153,31 @@ async function getIssueNodeId(owner, repo, issueNumber) {
 }
 
 /**
- * Main handler factory for create_project
- * Returns a message handler function that processes individual create_project messages
- * @type {HandlerFactoryFunction}
+ * Main entry point - handler factory that returns a message handler function
+ * @param {Object} config - Handler configuration
+ * @returns {Promise<Function>} Message handler function
  */
 async function main(config = {}) {
   // Extract configuration
-  const maxCount = config.max || 1;
   const defaultTargetOwner = config.target_owner || "";
+  const maxCount = config.max || 1;
 
-  core.info(`Max count: ${maxCount}`);
   if (defaultTargetOwner) {
     core.info(`Default target owner: ${defaultTargetOwner}`);
   }
+  core.info(`Max count: ${maxCount}`);
 
-  // Track how many items we've processed for max limit
+  // Track state
   let processedCount = 0;
-
-  // Track created projects for outputs
-  const createdProjects = [];
 
   /**
    * Message handler function that processes a single create_project message
    * @param {Object} message - The create_project message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status and project details
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs (unused for create_project)
+   * @returns {Promise<Object>} Result with success/error status
    */
   return async function handleCreateProject(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
+    // Check max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping create_project: max count of ${maxCount} reached`);
       return {
@@ -234,10 +225,7 @@ async function main(config = {}) {
       const ownerId = await getOwnerId(ownerType, targetOwner);
 
       // Create the project
-      const projectInfo = await createProject(ownerId, title);
-
-      // Track the created project
-      createdProjects.push(projectInfo);
+      const projectInfo = await createProjectV2(ownerId, title);
 
       // If item_url is provided, add it to the project
       if (item_url) {
@@ -262,6 +250,7 @@ async function main(config = {}) {
 
       core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
 
+      // Return result
       return {
         success: true,
         projectId: projectInfo.projectId,

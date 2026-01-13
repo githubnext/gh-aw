@@ -66,9 +66,9 @@ tools:
 
 ### GitHub Toolsets
 
-:::tip[Use Toolsets Instead of Allowed]
-[Toolsets](/gh-aw/reference/glossary/#toolsets) (capability collections) provide a stable API across MCP server versions and automatically include new related tools. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance.
-:::
+> [!TIP]
+> Use Toolsets Instead of Allowed
+> [Toolsets](/gh-aw/reference/glossary/#toolsets) (capability collections) provide a stable API across MCP server versions and automatically include new related tools. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance.
 
 Enable specific API groups to improve tool selection and reduce context size:
 
@@ -82,9 +82,9 @@ tools:
 
 **Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
-:::note[GitHub Actions Compatibility]
-`toolsets: [default]` expands to `[context, repos, issues, pull_requests]` (excluding `users`) since `GITHUB_TOKEN` lacks user permissions. Use a PAT for the full default set.
-:::
+> [!NOTE]
+> GitHub Actions Compatibility
+> `toolsets: [default]` expands to `[context, repos, issues, pull_requests]` (excluding `users`) since `GITHUB_TOKEN` lacks user permissions. Use a PAT for the full default set.
 
 **Common combinations**: `[default]` (read-only), `[default, discussions]` (issue/PR), `[default, actions]` (CI/CD), `[default, code_security]` (security), `[all]` (full access)
 
@@ -92,9 +92,8 @@ tools:
 
 Key toolsets: **context** (user/team info), **repos** (repository operations, code search, commits, releases), **issues** (issue management, comments, reactions), **pull_requests** (PR operations), **actions** (workflows, runs, artifacts), **code_security** (scanning alerts), **discussions**, **labels**.
 
-:::tip
-The `allowed:` field is not recommended for GitHub tools since tool names may change between versions. Use `toolsets:` for stability. For custom MCP servers, `allowed:` remains the standard approach.
-:::
+> [!TIP]
+> The `allowed:` field is not recommended for GitHub tools since tool names may change between versions. Use `toolsets:` for stability. For custom MCP servers, `allowed:` remains the standard approach.
 
 ### Modes and Restrictions
 

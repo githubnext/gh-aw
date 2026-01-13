@@ -96,14 +96,9 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	}
 
 	// Check for safe-inputs env vars
-	hasSafeInputs := false
-	for _, toolName := range mcpTools {
-		if toolName == "safe-inputs" {
-			hasSafeInputs = true
-			break
-		}
-	}
-	if hasSafeInputs {
+	// Only add env vars if safe-inputs is actually enabled (has tools configured)
+	// This prevents referencing step outputs that don't exist when safe-inputs isn't used
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		// Add server configuration env vars from step outputs
 		envVars["GH_AW_SAFE_INPUTS_PORT"] = "${{ steps.safe-inputs-start.outputs.port }}"
 		envVars["GH_AW_SAFE_INPUTS_API_KEY"] = "${{ steps.safe-inputs-start.outputs.api_key }}"
@@ -442,164 +437,187 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Use the engine's RenderMCPConfig method
-	yaml.WriteString("      - name: Start MCP gateway\n")
-	yaml.WriteString("        id: start-mcp-gateway\n")
+	// Skip gateway setup if sandbox is disabled
+	// When sandbox: false, MCP servers are configured without the gateway
+	if !isSandboxDisabled(workflowData) {
+		// Use the engine's RenderMCPConfig method
+		yaml.WriteString("      - name: Start MCP gateway\n")
+		yaml.WriteString("        id: start-mcp-gateway\n")
 
-	// Collect all MCP-related environment variables using centralized helper
-	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
+		// Collect all MCP-related environment variables using centralized helper
+		mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
 
-	// Add env block if any environment variables are needed
-	if len(mcpEnvVars) > 0 {
-		yaml.WriteString("        env:\n")
+		// Add env block if any environment variables are needed
+		if len(mcpEnvVars) > 0 {
+			yaml.WriteString("        env:\n")
 
-		// Sort environment variable names for consistent output
-		envVarNames := make([]string, 0, len(mcpEnvVars))
-		for envVarName := range mcpEnvVars {
-			envVarNames = append(envVarNames, envVarName)
+			// Sort environment variable names for consistent output
+			envVarNames := make([]string, 0, len(mcpEnvVars))
+			for envVarName := range mcpEnvVars {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			// Write environment variables in sorted order
+			for _, envVarName := range envVarNames {
+				envVarValue := mcpEnvVars[envVarName]
+				fmt.Fprintf(yaml, "          %s: %s\n", envVarName, envVarValue)
+			}
 		}
-		sort.Strings(envVarNames)
 
-		// Write environment variables in sorted order
-		for _, envVarName := range envVarNames {
-			envVarValue := mcpEnvVars[envVarName]
-			fmt.Fprintf(yaml, "          %s: %s\n", envVarName, envVarValue)
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          set -eo pipefail\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+
+		// Export gateway environment variables and build docker command BEFORE rendering MCP config
+		// This allows the config to be piped directly to the gateway script
+		// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
+		ensureDefaultMCPGatewayConfig(workflowData)
+		gatewayConfig := workflowData.SandboxConfig.MCP
+
+		port := gatewayConfig.Port
+		if port == 0 {
+			port = int(DefaultMCPGatewayPort)
 		}
-	}
 
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+		domain := gatewayConfig.Domain
+		if domain == "" {
+			if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+				domain = "localhost"
+			} else {
+				domain = "host.docker.internal"
+			}
+		}
 
-	// Export gateway environment variables and build docker command BEFORE rendering MCP config
-	// This allows the config to be piped directly to the gateway script
-	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
-	ensureDefaultMCPGatewayConfig(workflowData)
-	gatewayConfig := workflowData.SandboxConfig.MCP
+		apiKey := gatewayConfig.APIKey
+		if apiKey == "" {
+			// Generate random API key at runtime
+			apiKey = "$(openssl rand -base64 45 | tr -d '/+=')"
+		}
 
-	port := gatewayConfig.Port
-	if port == 0 {
-		port = int(DefaultMCPGatewayPort)
-	}
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
+		yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
+		yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
+		yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Register API key as secret to mask it from logs\n")
+		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
 
-	domain := gatewayConfig.Domain
-	if domain == "" {
-		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
-			domain = "localhost"
+		// Export engine type
+		yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
+
+		// Add user-configured environment variables
+		if len(gatewayConfig.Env) > 0 {
+			envVarNames := make([]string, 0, len(gatewayConfig.Env))
+			for envVarName := range gatewayConfig.Env {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				envVarValue := gatewayConfig.Env[envVarName]
+				fmt.Fprintf(yaml, "          export %s=%s\n", envVarName, envVarValue)
+			}
+		}
+
+		// Build container command
+		containerImage := gatewayConfig.Container
+		if gatewayConfig.Version != "" {
+			containerImage += ":" + gatewayConfig.Version
 		} else {
-			domain = "host.docker.internal"
+			containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 		}
-	}
 
-	apiKey := gatewayConfig.APIKey
-	if apiKey == "" {
-		// Generate random API key at runtime
-		apiKey = "$(openssl rand -base64 45 | tr -d '/+=')"
-	}
-
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
-	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
-	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
-	yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Register API key as secret to mask it from logs\n")
-	yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
-
-	// Export engine type
-	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
-
-	// Add user-configured environment variables
-	if len(gatewayConfig.Env) > 0 {
-		envVarNames := make([]string, 0, len(gatewayConfig.Env))
-		for envVarName := range gatewayConfig.Env {
-			envVarNames = append(envVarNames, envVarName)
+		containerCmd := "docker run -i --rm --network host"
+		containerCmd += " -v /var/run/docker.sock:/var/run/docker.sock" // Enable docker-in-docker for MCP gateway
+		// Pass required gateway environment variables
+		containerCmd += " -e MCP_GATEWAY_PORT"
+		containerCmd += " -e MCP_GATEWAY_DOMAIN"
+		containerCmd += " -e MCP_GATEWAY_API_KEY"
+		containerCmd += " -e DEBUG=\"*\""
+		// Pass environment variables that MCP servers reference in their config
+		// These are needed because awmg v0.0.12+ validates and resolves ${VAR} patterns at config load time
+		// Environment variables used by MCP gateway
+		containerCmd += " -e MCP_GATEWAY_LOG_DIR"
+		// Environment variables used by safeoutputs MCP server
+		containerCmd += " -e GH_AW_MCP_LOG_DIR"
+		containerCmd += " -e GH_AW_SAFE_OUTPUTS"
+		containerCmd += " -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH"
+		containerCmd += " -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH"
+		containerCmd += " -e GH_AW_ASSETS_BRANCH"
+		containerCmd += " -e GH_AW_ASSETS_MAX_SIZE_KB"
+		containerCmd += " -e GH_AW_ASSETS_ALLOWED_EXTS"
+		containerCmd += " -e DEFAULT_BRANCH"
+		// Environment variables used by GitHub MCP server
+		containerCmd += " -e GITHUB_MCP_SERVER_TOKEN"
+		containerCmd += " -e GITHUB_MCP_LOCKDOWN"
+		// Standard GitHub Actions environment variables
+		containerCmd += " -e GITHUB_REPOSITORY"
+		containerCmd += " -e GITHUB_SERVER_URL"
+		containerCmd += " -e GITHUB_SHA"
+		containerCmd += " -e GITHUB_WORKSPACE"
+		containerCmd += " -e GITHUB_TOKEN"
+		// Environment variables used by safeinputs MCP server
+		// Only add if safe-inputs is actually enabled (has tools configured)
+		if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+			containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
+			containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
 		}
-		sort.Strings(envVarNames)
-
-		for _, envVarName := range envVarNames {
-			envVarValue := gatewayConfig.Env[envVarName]
-			fmt.Fprintf(yaml, "          export %s=%s\n", envVarName, envVarValue)
+		if len(gatewayConfig.Env) > 0 {
+			envVarNames := make([]string, 0, len(gatewayConfig.Env))
+			for envVarName := range gatewayConfig.Env {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+			for _, envVarName := range envVarNames {
+				containerCmd += " -e " + envVarName
+			}
 		}
-	}
 
-	// Build container command
-	containerImage := gatewayConfig.Container
-	if gatewayConfig.Version != "" {
-		containerImage += ":" + gatewayConfig.Version
-	} else {
-		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
-	}
-
-	containerCmd := "docker run -i --rm --network host"
-	containerCmd += " -v /var/run/docker.sock:/var/run/docker.sock" // Enable docker-in-docker for MCP gateway
-	// Pass required gateway environment variables
-	containerCmd += " -e MCP_GATEWAY_PORT"
-	containerCmd += " -e MCP_GATEWAY_DOMAIN"
-	containerCmd += " -e MCP_GATEWAY_API_KEY"
-	containerCmd += " -e DEBUG=\"*\""
-	// Pass environment variables that MCP servers reference in their config
-	// These are needed because awmg v0.0.12+ validates and resolves ${VAR} patterns at config load time
-	// Environment variables used by safeoutputs MCP server
-	containerCmd += " -e GH_AW_MCP_LOG_DIR"
-	containerCmd += " -e GH_AW_SAFE_OUTPUTS"
-	containerCmd += " -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH"
-	containerCmd += " -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH"
-	containerCmd += " -e GH_AW_ASSETS_BRANCH"
-	containerCmd += " -e GH_AW_ASSETS_MAX_SIZE_KB"
-	containerCmd += " -e GH_AW_ASSETS_ALLOWED_EXTS"
-	containerCmd += " -e DEFAULT_BRANCH"
-	// Environment variables used by GitHub MCP server
-	containerCmd += " -e GITHUB_MCP_SERVER_TOKEN"
-	containerCmd += " -e GITHUB_MCP_LOCKDOWN"
-	// Standard GitHub Actions environment variables
-	containerCmd += " -e GITHUB_REPOSITORY"
-	containerCmd += " -e GITHUB_SERVER_URL"
-	containerCmd += " -e GITHUB_SHA"
-	containerCmd += " -e GITHUB_WORKSPACE"
-	containerCmd += " -e GITHUB_TOKEN"
-	// Environment variables used by safeinputs MCP server
-	containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
-	containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
-	if len(gatewayConfig.Env) > 0 {
-		envVarNames := make([]string, 0, len(gatewayConfig.Env))
-		for envVarName := range gatewayConfig.Env {
-			envVarNames = append(envVarNames, envVarName)
+		// Add volume mounts
+		if len(gatewayConfig.Mounts) > 0 {
+			for _, mount := range gatewayConfig.Mounts {
+				containerCmd += " -v " + mount
+			}
 		}
-		sort.Strings(envVarNames)
-		for _, envVarName := range envVarNames {
-			containerCmd += " -e " + envVarName
+
+		containerCmd += " " + containerImage
+
+		if len(gatewayConfig.EntrypointArgs) > 0 {
+			for _, arg := range gatewayConfig.EntrypointArgs {
+				containerCmd += " " + shellQuote(arg)
+			}
 		}
-	}
 
-	// Add volume mounts
-	if len(gatewayConfig.Mounts) > 0 {
-		for _, mount := range gatewayConfig.Mounts {
-			containerCmd += " -v " + mount
+		if len(gatewayConfig.Args) > 0 {
+			for _, arg := range gatewayConfig.Args {
+				containerCmd += " " + shellQuote(arg)
+			}
 		}
-	}
 
-	containerCmd += " " + containerImage
+		// Build the export command with proper quoting that allows variable expansion
+		// We need to break out of quotes for ${GITHUB_WORKSPACE} variables
+		cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
+		yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
+		yaml.WriteString("          \n")
 
-	if len(gatewayConfig.EntrypointArgs) > 0 {
-		for _, arg := range gatewayConfig.EntrypointArgs {
-			containerCmd += " " + shellQuote(arg)
+		// Render MCP config - this will pipe directly to the gateway script
+		// Pass the compiler's skipValidation flag through workflowData for schema validation
+		if workflowData.CompilerSkipValidation == nil {
+			skipValidation := c.skipValidation
+			workflowData.CompilerSkipValidation = &skipValidation
 		}
-	}
-
-	if len(gatewayConfig.Args) > 0 {
-		for _, arg := range gatewayConfig.Args {
-			containerCmd += " " + shellQuote(arg)
+		// Pass the compiler's warning callback through workflowData for MCP validation warnings
+		if workflowData.CompilerWarningCallback == nil {
+			workflowData.CompilerWarningCallback = func() {
+				c.IncrementWarningCount()
+			}
 		}
+		engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 	}
-
-	// Build the export command with proper quoting that allows variable expansion
-	// We need to break out of quotes for ${GITHUB_WORKSPACE} variables
-	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
-	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
-	yaml.WriteString("          \n")
-
-	// Render MCP config - this will pipe directly to the gateway script
-	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	// Note: When sandbox is disabled, gateway config will be nil and MCP config will be generated
+	// without the gateway section. The engine's RenderMCPConfig handles both cases.
 }
 
 // ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
@@ -627,8 +645,8 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 		if workflowData.SandboxConfig.MCP.Container == "" {
 			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
 		}
-		// Replace empty or "latest" with the pinned default version
-		if workflowData.SandboxConfig.MCP.Version == "" || workflowData.SandboxConfig.MCP.Version == "latest" {
+		// Only replace empty version with default - preserve user-specified versions including "latest"
+		if workflowData.SandboxConfig.MCP.Version == "" {
 			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
 		}
 		if workflowData.SandboxConfig.MCP.Port == 0 {
@@ -688,8 +706,14 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 
 // buildMCPGatewayConfig builds the gateway configuration for inclusion in MCP config files
 // Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required with port and domain
+// Returns nil if sandbox is disabled (sandbox: false) to skip gateway completely
 func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
 	if workflowData == nil {
+		return nil
+	}
+
+	// If sandbox is disabled, skip gateway configuration entirely
+	if isSandboxDisabled(workflowData) {
 		return nil
 	}
 
@@ -795,6 +819,15 @@ func hasGitHubLockdownExplicitlySet(githubTool any) bool {
 		return exists
 	}
 	return false
+}
+
+// isSandboxDisabled checks if sandbox features are completely disabled (sandbox: false)
+func isSandboxDisabled(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.SandboxConfig == nil {
+		return false
+	}
+	// Check if sandbox was explicitly disabled via sandbox: false
+	return workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled
 }
 
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool

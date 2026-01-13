@@ -17,6 +17,59 @@ We aim for strong, declarative guardrails -- clear policies the workflow author 
 
 This material documents some notes on the security of using partially-automated agentic workflows.
 
+## Security Architecture Overview
+
+The following diagram illustrates the multi-layered security architecture of GitHub Agentic Workflows, showing how agent processes, MCP servers, and skills are isolated within sandboxes and communicate through proxy/firewall layers:
+
+```mermaid
+flowchart TB
+    subgraph ActionJobVM["Action Job VM"]
+        subgraph Sandbox1["Sandbox"]
+            Agent["Agent Process"]
+        end
+
+        Proxy1["Proxy / Firewall"]
+        Gateway["Gateway<br/>(mcpg)"]
+
+        Agent --> Proxy1
+        Proxy1 --> Gateway
+
+        subgraph Sandbox2["Sandbox"]
+            MCP["MCP Server"]
+        end
+
+        subgraph Sandbox3["Sandbox"]
+            Skill["Skill"]
+        end
+
+        Gateway --> MCP
+        Gateway --> Skill
+
+        Proxy2["Proxy / Firewall"]
+        Proxy3["Proxy / Firewall"]
+
+        MCP --> Proxy2
+        Skill --> Proxy3
+    end
+
+    Service1{{"Service"}}
+    Service2{{"Service"}}
+
+    Proxy2 --> Service1
+    Proxy3 --> Service2
+```
+
+**Key Security Layers:**
+
+1. **Agent Sandbox**: The agent process runs in an isolated sandbox environment with restricted permissions
+2. **Primary Proxy/Firewall**: Filters outbound traffic from the agent to the MCP Gateway
+3. **MCP Gateway (mcpg)**: Central routing component that manages communication between agents and backend services
+4. **MCP Server & Skill Sandboxes**: Each MCP server and skill runs in its own isolated sandbox
+5. **Secondary Proxy/Firewalls**: Additional proxy layers control egress traffic from MCP servers and skills to external services
+6. **Service Layer**: External services accessed through multiple layers of security controls
+
+This defense-in-depth architecture ensures that even if one layer is compromised, multiple additional security controls remain in place to protect sensitive resources.
+
 ## Before You Begin
 
 Review workflow contents before installation, treating prompt templates and rule files as code. Assess compiled `.lock.yml` files to understand actual permissions and operations.
@@ -194,9 +247,9 @@ Permission checks occur at runtime. Failed checks auto-cancel with warnings. Use
 
 Token precedence (highest to lowest): individual safe-output `github-token` → safe-outputs global → top-level → default (`${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`).
 
-:::tip[Automatic Secret Validation]
-`github-token` fields require GitHub Actions secret expressions. Plaintext tokens or environment variables cause compilation failure.
-:::
+> [!TIP]
+> Automatic Secret Validation
+> `github-token` fields require GitHub Actions secret expressions. Plaintext tokens or environment variables cause compilation failure.
 
 ```yaml wrap
 github-token: ${{ secrets.CUSTOM_PAT }}
@@ -284,9 +337,9 @@ tools:
     lockdown: false  # Explicitly disable (use with caution in public repos)
 ```
 
-:::caution[Disabling Lockdown in Public Repositories]
-Explicitly setting `lockdown: false` in a public repository disables this security protection. Only do this if you fully understand the implications and have other controls in place to prevent data leakage.
-:::
+> [!CAUTION]
+> Disabling Lockdown in Public Repositories
+> Explicitly setting `lockdown: false` in a public repository disables this security protection. Only do this if you fully understand the implications and have other controls in place to prevent data leakage.
 
 **Security Benefits:**
 

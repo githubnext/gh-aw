@@ -2,7 +2,10 @@ package campaign
 
 import (
 	"bytes"
-	_ "embed"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -11,14 +14,33 @@ import (
 
 var templateLog = logger.New("campaign:template")
 
-//go:embed prompts/orchestrator_instructions.md
-var orchestratorInstructionsTemplate string
+// findGitRoot finds the root directory of the git repository
+func findGitRoot() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
 
-//go:embed prompts/project_update_instructions.md
-var projectUpdateInstructionsTemplate string
+// loadTemplate loads a template file from .github/aw/ directory
+func loadTemplate(filename string) (string, error) {
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return "", fmt.Errorf("failed to find git root: %w", err)
+	}
 
-//go:embed prompts/closing_instructions.md
-var closingInstructionsTemplate string
+	templatePath := filepath.Join(gitRoot, ".github", "aw", filename)
+	templateLog.Printf("Loading template from: %s", templatePath)
+
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read template file %s: %w", filename, err)
+	}
+
+	return string(content), nil
+}
 
 // CampaignPromptData holds data for rendering campaign orchestrator prompts.
 type CampaignPromptData struct {
@@ -87,9 +109,32 @@ func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 	return buf.String(), nil
 }
 
+// RenderWorkflowExecution renders the workflow execution instructions with the given data.
+func RenderWorkflowExecution(data CampaignPromptData) string {
+	tmplStr, err := loadTemplate("campaign-workflow-execution.md")
+	if err != nil {
+		templateLog.Printf("Failed to load workflow execution template: %v", err)
+		return ""
+	}
+
+	result, err := renderTemplate(tmplStr, data)
+	if err != nil {
+		templateLog.Printf("Failed to render workflow execution instructions: %v", err)
+		return ""
+	}
+	return strings.TrimSpace(result)
+}
+
 // RenderOrchestratorInstructions renders the orchestrator instructions with the given data.
 func RenderOrchestratorInstructions(data CampaignPromptData) string {
-	result, err := renderTemplate(orchestratorInstructionsTemplate, data)
+	tmplStr, err := loadTemplate("campaign-orchestrator-instructions.md")
+	if err != nil {
+		templateLog.Printf("Failed to load orchestrator instructions template: %v", err)
+		// Fallback to a simple version if template loading fails
+		return "Each time this orchestrator runs, generate a concise status report for this campaign."
+	}
+
+	result, err := renderTemplate(tmplStr, data)
 	if err != nil {
 		templateLog.Printf("Failed to render orchestrator instructions: %v", err)
 		// Fallback to a simple version if template rendering fails
@@ -100,7 +145,13 @@ func RenderOrchestratorInstructions(data CampaignPromptData) string {
 
 // RenderProjectUpdateInstructions renders the project update instructions with the given data
 func RenderProjectUpdateInstructions(data CampaignPromptData) string {
-	result, err := renderTemplate(projectUpdateInstructionsTemplate, data)
+	tmplStr, err := loadTemplate("campaign-project-update-instructions.md")
+	if err != nil {
+		templateLog.Printf("Failed to load project update instructions template: %v", err)
+		return ""
+	}
+
+	result, err := renderTemplate(tmplStr, data)
 	if err != nil {
 		templateLog.Printf("Failed to render project update instructions: %v", err)
 		return ""
@@ -110,7 +161,13 @@ func RenderProjectUpdateInstructions(data CampaignPromptData) string {
 
 // RenderClosingInstructions renders the closing instructions
 func RenderClosingInstructions() string {
-	result, err := renderTemplate(closingInstructionsTemplate, CampaignPromptData{})
+	tmplStr, err := loadTemplate("campaign-closing-instructions.md")
+	if err != nil {
+		templateLog.Printf("Failed to load closing instructions template: %v", err)
+		return "Use these details to coordinate workers and track progress."
+	}
+
+	result, err := renderTemplate(tmplStr, CampaignPromptData{})
 	if err != nil {
 		templateLog.Printf("Failed to render closing instructions: %v", err)
 		return "Use these details to coordinate workers and track progress."

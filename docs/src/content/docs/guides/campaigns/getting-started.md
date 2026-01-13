@@ -1,6 +1,6 @@
 ---
-title: "Getting Started"
-description: "Quick start guide for creating and launching agentic campaigns"
+title: Getting started
+description: Quick start guide for creating and launching agentic campaigns
 ---
 
 This guide is the shortest path from “we want a campaign” to a working dashboard.
@@ -10,30 +10,65 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 > Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
-## Quick start (5 steps)
+## Best practices
 
-1. Create a GitHub Project board (manual, one-time) and copy its URL.
-2. Add `.github/workflows/<id>.campaign.md` in a PR.
-3. Run `gh aw compile`.
-4. Run the generated orchestrator workflow from the Actions tab.
-5. Apply the tracker label to issues/PRs you want tracked.
+Before creating your first campaign, keep these core principles in mind:
 
-## 1) Create the dashboard (GitHub Project)
+- **Start small**: One clear goal per campaign (e.g., "Upgrade Node.js to v20")
+- **Start passive**: Use passive mode first to observe behavior and build trust
+- **Reuse workflows**: Search existing workflows before creating new ones
+- **Minimal permissions**: Grant only necessary permissions (issues/draft PRs, not merges)
+- **Standardized outputs**: Use consistent patterns for issues, PRs, and comments
+- **Escalate when uncertain**: Create issues requesting human review for risky decisions
 
-In GitHub: your org → **Projects** → **New project**. Start with a **Table** view, add a **Board** view grouped by `Status`, and optionally a **Roadmap** view for timelines.
+## Quick start (3 steps)
 
-Recommended custom fields (see [Project Management](/gh-aw/guides/campaigns/project-management/)):
+1. Create a campaign specification file `.github/workflows/<id>.campaign.md` in a PR.
+2. Run `gh aw compile`.
+3. Run the generated orchestrator workflow from the Actions tab.
 
-- **Status** (Single select): Todo, In Progress, Blocked, Done
-- **Worker/Workflow** (Single select): Names of your worker workflows
-- **Priority** (Single select): High, Medium, Low
-- **Start Date** / **End Date** (Date): For roadmap views
+The campaign generator automatically creates:
+- GitHub Project board with custom fields (Worker/Workflow, Priority, Status, Start/End Date, Effort)
+- Three views (Campaign Roadmap, Task Tracker, Progress Board)
+- Campaign orchestrator workflow
 
-Copy the Project URL (e.g., `https://github.com/orgs/myorg/projects/42`).
-
-## 2) Create the campaign spec
+## 1) Create the campaign spec
 
 Create `.github/workflows/<id>.campaign.md` with frontmatter like:
+
+**For your first campaign** (passive mode - recommended):
+
+```yaml
+id: framework-upgrade
+version: "v1"
+name: "Framework Upgrade"
+
+# Project board URL will be generated automatically
+tracker-label: "campaign:framework-upgrade"
+
+objective: "Upgrade all services to Framework vNext with zero downtime."
+kpis:
+  - id: services_upgraded
+    name: "Services upgraded"
+    priority: primary
+    direction: "increase"
+    baseline: 0
+    target: 50
+    time-window-days: 30
+
+workflows:
+  - framework-upgrade  # Use an existing workflow
+
+# Governance (conservative defaults for first campaign)
+governance:
+  max-new-items-per-run: 5
+  max-project-updates-per-run: 5
+  max-comments-per-run: 3
+```
+
+**Note:** The campaign generator will automatically create a GitHub Project board with the project URL if not provided. You can also specify an existing project URL using `project-url: "https://github.com/orgs/ORG/projects/1"`.
+
+**For experienced users** (active mode - advanced):
 
 ```yaml
 id: framework-upgrade
@@ -47,17 +82,33 @@ objective: "Upgrade all services to Framework vNext with zero downtime."
 kpis:
   - id: services_upgraded
     name: "Services upgraded"
-    primary: true
+    priority: primary
     direction: "increase"
+    baseline: 0
     target: 50
+    time-window-days: 30
 
 workflows:
-  - framework-upgrade
+  - framework-scanner
+  - framework-upgrader
+
+# Enable active execution (ADVANCED - only after passive campaign experience)
+execute-workflows: true
+
+# Governance (still start conservative even in active mode)
+governance:
+  max-new-items-per-run: 10
+  max-project-updates-per-run: 10
+  max-comments-per-run: 5
 ```
 
-You can add governance and repo-memory wiring later; start with a working loop.
+**Key differences:**
+- **Passive mode**: Discovers and tracks work created by existing workflows (safer, simpler)
+- **Active mode**: Can execute workflows and create missing ones (powerful but complex)
 
-## 3) Compile
+**Start passive** unless you have prior campaign experience. You can enable active execution later.
+
+## 2) Compile
 
 Run:
 
@@ -74,7 +125,7 @@ The orchestrator workflow consists of:
 
 **Note:** A `.campaign.g.md` file is generated locally as a debug artifact to help you understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
 
-## 4) Run the orchestrator
+## 3) Run the orchestrator
 
 Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the dashboard in sync:
 
@@ -82,7 +133,7 @@ Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the da
 2. **Agent coordination**: Reads the manifest, determines what needs updating, and updates the project board
 3. **Reporting**: Reports counts of items discovered, processed, and deferred
 
-## 5) Add work items
+## Adding work items
 
 Apply the tracker label (for example `campaign:framework-upgrade`) to issues/PRs you want tracked. The orchestrator will pick them up on the next run.
 
@@ -95,6 +146,50 @@ Items with campaign labels (`campaign:*`) are automatically protected from other
 - **Manual opt-out**: Use labels like `no-bot` or `no-campaign` to exclude items from all automation
 
 This ensures your campaign items remain under the control of the campaign orchestrator and aren't interfered with by other workflows.
+
+## Migrating from passive to active mode
+
+Once you've successfully run a passive campaign for 1-2 weeks and understand how it works, you can enable active execution:
+
+**Prerequisites before enabling active mode:**
+1. ✅ You've run at least 2-3 passive campaign runs successfully
+2. ✅ You understand how the orchestrator coordinates work
+3. ✅ You've reviewed the project board and it's tracking items correctly
+4. ✅ You have clear governance rules and conservative limits set
+
+**Migration steps:**
+
+1. **Update your campaign spec** to add `execute-workflows: true`:
+   ```yaml
+   execute-workflows: true  # Enable active execution
+   
+   governance:
+     max-new-items-per-run: 10  # Start conservative
+     max-project-updates-per-run: 10
+     max-comments-per-run: 5
+   ```
+
+2. **Recompile** the campaign: `gh aw compile <campaign-id>`
+
+3. **Test with a manual run** before scheduling:
+   - Trigger the workflow manually from GitHub Actions
+   - Watch the run logs carefully
+   - Verify it behaves as expected
+
+4. **Monitor closely** for the first few runs:
+   - Check that workflows execute correctly
+   - Review any new workflows it creates
+   - Ensure governance limits are appropriate
+
+5. **Adjust governance** based on observed behavior:
+   - Increase limits if runs are too conservative
+   - Decrease limits if runs are too aggressive
+   - Add opt-out labels if needed
+
+**Rollback if needed:**
+- Remove `execute-workflows: true` from spec
+- Recompile: `gh aw compile <campaign-id>`
+- Campaign reverts to passive mode
 
 ## Optional: repo-memory for durable state
 

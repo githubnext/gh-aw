@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# Download Docker images with retry logic
+# Download Docker images with retry logic and controlled parallelism
 # Usage: download_docker_images.sh IMAGE1 [IMAGE2 ...]
+#
+# This script downloads multiple Docker images in parallel with controlled
+# parallelism (max 4 concurrent downloads) to improve performance without
+# overwhelming the system. Docker daemon supports concurrent pulls, which can
+# provide significant speedup when downloading multiple images.
+#
+# Each image is pulled with retry logic (3 attempts with exponential backoff).
+# The script fails if any image fails to download after all retry attempts.
 
-set -e
+set -euo pipefail
 
 # Helper function to pull Docker images with retry logic
 docker_pull_with_retry() {
@@ -13,7 +21,7 @@ docker_pull_with_retry() {
   
   while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt of $max_attempts: Pulling $image..."
-    if docker pull --quiet "$image"; then
+    if docker pull --quiet "$image" 2>&1; then
       echo "Successfully pulled $image"
       return 0
     fi
@@ -30,7 +38,11 @@ docker_pull_with_retry() {
   done
 }
 
-# Pull all images passed as arguments
-for image in "$@"; do
-  docker_pull_with_retry "$image"
-done
+# Export function so xargs can use it
+export -f docker_pull_with_retry
+
+# Pull images with controlled parallelism using xargs
+echo "Starting download of ${#@} image(s) with max 4 concurrent downloads..."
+printf '%s\n' "$@" | xargs -P 4 -I {} bash -c 'docker_pull_with_retry "$@"' _ {}
+
+echo "All images downloaded successfully"

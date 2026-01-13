@@ -10,6 +10,7 @@ const HANDLER_TYPE = "update_issue";
 
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
+const { updateBody } = require("./update_pr_description_helpers.cjs");
 
 /**
  * Execute the issue update API call
@@ -20,8 +21,40 @@ const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
  * @returns {Promise<any>} Updated issue
  */
 async function executeIssueUpdate(github, context, issueNumber, updateData) {
-  // Remove internal fields used for operation handling
+  // Handle body operation (append/prepend/replace/replace-island)
+  // Default to "append" to add footer with AI attribution
+  const operation = updateData._operation || "append";
+  const rawBody = updateData._rawBody;
+
+  // Remove internal fields
   const { _operation, _rawBody, ...apiData } = updateData;
+
+  // If we have a body, process it with the appropriate operation
+  if (rawBody !== undefined) {
+    // Fetch current issue body for all operations (needed for append/prepend/replace-island/replace)
+    const { data: currentIssue } = await github.rest.issues.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+    });
+    const currentBody = currentIssue.body || "";
+
+    // Get workflow run URL for AI attribution
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
+    const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+    // Use helper to update body (handles all operations including replace)
+    apiData.body = updateBody({
+      currentBody,
+      newContent: rawBody,
+      operation,
+      workflowName,
+      runUrl,
+      runId: context.runId,
+    });
+
+    core.info(`Will update body (length: ${apiData.body.length})`);
+  }
 
   const { data: issue } = await github.rest.issues.update({
     owner: context.repo.owner,
@@ -46,7 +79,8 @@ function resolveIssueNumber(item, updateTarget, context) {
     item: { ...item, item_number: item.issue_number },
     context: context,
     itemType: "update_issue",
-    supportsPR: false, // update_issue only supports issues, not PRs
+    supportsPR: false, // Not used when supportsIssue is true
+    supportsIssue: true, // update_issue only supports issues, not PRs
   });
 
   if (!targetResult.success) {
@@ -69,6 +103,11 @@ function buildIssueUpdateData(item, config) {
     updateData.title = item.title;
   }
   if (item.body !== undefined) {
+    // Store operation information
+    if (item.operation !== undefined) {
+      updateData._operation = item.operation;
+      updateData._rawBody = item.body;
+    }
     updateData.body = item.body;
   }
   if (item.state !== undefined) {
@@ -110,7 +149,7 @@ function formatIssueSuccessResult(issueNumber, updatedIssue) {
 const main = createUpdateHandlerFactory({
   itemType: "update_issue",
   itemTypeName: "issue",
-  supportsPR: false,
+  supportsPR: false, // Not used by factory, but kept for documentation
   resolveItemNumber: resolveIssueNumber,
   buildUpdateData: buildIssueUpdateData,
   executeUpdate: executeIssueUpdate,

@@ -178,8 +178,8 @@ async function main(config = {}) {
         return { success: false, error: 'push-to-pull-request-branch with target "triggering" requires pull request context' };
       }
     } else if (target === "*") {
-      if (message.pull_number) {
-        pullNumber = parseInt(message.pull_number, 10);
+      if (message.pull_request_number) {
+        pullNumber = parseInt(message.pull_request_number, 10);
       }
     } else {
       pullNumber = parseInt(target, 10);

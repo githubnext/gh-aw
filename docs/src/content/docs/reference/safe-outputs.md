@@ -21,9 +21,8 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ## Available Safe Output Types
 
-:::note
-Most safe output types support cross-repository operations. Exceptions are noted below.
-:::
+> [!NOTE]
+> Most safe output types support cross-repository operations. Exceptions are noted below.
 
 ### Issues & Discussions
 
@@ -55,6 +54,7 @@ Most safe output types support cross-repository operations. Exceptions are noted
 
 ### Projects, Releases & Assets
 
+- [**Create Project**](#project-creation-create-project) (`create-project`) — Create new GitHub Projects boards (max: 1, cross-repo)
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) — Manage GitHub Projects boards (max: 10, same-repo only)
 - [**Copy Project**](#project-board-copy-copy-project) (`copy-project`) — Copy GitHub Projects boards (max: 1, cross-repo)
 - [**Create Project Status Update**](#project-status-updates-create-project-status-update) (`create-project-status-update`) — Create project status updates
@@ -72,9 +72,8 @@ Most safe output types support cross-repository operations. Exceptions are noted
 - [**Missing Tool**](#missing-tool-reporting-missing-tool) (`missing-tool`) — Report missing tools (max: unlimited, same-repo only)
 - [**Missing Data**](#missing-data-reporting-missing-data) (`missing-data`) — Report missing data required to achieve goals (max: unlimited, same-repo only)
 
-:::tip
-Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/). See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation and AI reasoning.
-:::
+> [!TIP]
+> Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/). See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation and AI reasoning.
 
 ### Custom Safe Output Jobs (`jobs:`)
 
@@ -202,7 +201,7 @@ safe-outputs:
 
 ### Issue Updates (`update-issue:`)
 
-Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed".
+Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`.
 
 ```yaml wrap
 safe-outputs:
@@ -214,6 +213,18 @@ safe-outputs:
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
 ```
+
+**Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
+
+When using `target: "*"`, the agent must provide `issue_number` or `item_number` in the output to identify which issue to update.
+
+**Operation Types** (for body updates):
+- `append` (default): Adds content to the end with separator and attribution
+- `prepend`: Adds content to the start with separator and attribution
+- `replace`: Completely replaces existing body with new content and attribution
+- `replace-island`: Updates a specific section marked with HTML comments
+
+Agent output format: `{"type": "update_issue", "issue_number": 123, "operation": "append", "body": "..."}`. The `operation` field is optional (defaults to `append`).
 
 ### Pull Request Updates (`update-pull-request:`)
 
@@ -229,10 +240,14 @@ safe-outputs:
     target-repo: "owner/repo" # cross-repository
 ```
 
+**Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
+
+When using `target: "*"`, the agent must provide `pull_request_number` in the output to identify which pull request to update.
+
 **Operation Types**:
 - `append` (default): Adds content to the end with separator and attribution
 - `prepend`: Adds content to the start with separator and attribution
-- `replace`: Completely replaces existing body
+- `replace`: Completely replaces existing body with new content and attribution
 
 Title updates always replace the existing title. Disable fields by setting to `false`.
 
@@ -252,6 +267,50 @@ safe-outputs:
 ```
 
 Agent output includes `parent_issue_number` and `sub_issue_number`. Validation ensures both issues exist and meet label/prefix requirements before linking.
+
+### Project Creation (`create-project:`)
+
+Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access. Creates empty projects that can be configured with custom fields and views using `update-project`.
+
+```yaml wrap
+safe-outputs:
+  create-project:
+    max: 1                              # max operations (default: 1)
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    target-owner: "myorg"               # default target owner (optional)
+```
+
+The `target-owner` field is an optional default. When configured, the agent can omit the owner field in tool calls, and the default will be used. The agent can still override by providing an explicit owner value.
+
+**Without default** (agent must provide owner):
+```javascript
+create_project({
+  title: "Campaign: Security Q1 2025",
+  owner: "myorg",
+  owner_type: "org",  // "org" or "user" (default: "org")
+  item_url: "https://github.com/myorg/repo/issues/123"  // Optional issue to add
+});
+```
+
+**With default configured** (agent only needs title):
+```javascript
+create_project({
+  title: "Campaign: Security Q1 2025"
+  // owner uses configured default
+  // owner_type defaults to "org"
+  // Can still override: owner: "...", owner_type: "user"
+});
+```
+
+Optionally include `item_url` (GitHub issue URL) to add the issue as the first project item. Exposes outputs: `project-id`, `project-number`, `project-title`, `project-url`, `item-id` (if item added).
+
+> [!IMPORTANT]
+> **Token Requirements**: The default `GITHUB_TOKEN` **cannot** create projects. You **must** configure a PAT with Projects permissions:
+> - **Classic PAT**: `project` scope (user projects) or `project` + `repo` scope (org projects)
+> - **Fine-grained PAT**: Organization permissions → Projects: Read & Write
+
+> [!NOTE]
+> After creating a project, use `update-project` to configure custom fields, views, and add items. See [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for field and view configuration patterns.
 
 ### Project Board Updates (`update-project:`)
 
@@ -286,9 +345,8 @@ fields:
   priority: "High"               # SINGLE_SELECT field
 ```
 
-:::note
-Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
-:::
+> [!NOTE]
+> Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
 
 
 
@@ -328,9 +386,8 @@ copy_project({
 
 Optionally include `includeDraftIssues: true` to copy draft issues (default: false). Exposes outputs: `project-id`, `project-title`, `project-url`.
 
-:::note
-Custom fields, views, and workflows are copied. Draft issues are excluded by default but can be included by setting `includeDraftIssues: true`.
-:::
+> [!NOTE]
+> Custom fields, views, and workflows are copied. Draft issues are excluded by default but can be included by setting `includeDraftIssues: true`.
 
 
 ### Project Status Updates (`create-project-status-update:`)
@@ -419,9 +476,8 @@ safe-outputs:
     target-repo: "owner/repo"     # cross-repository
 ```
 
-:::note
-PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. Fallback creates issue with branch link.
-:::
+> [!NOTE]
+> PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. Fallback creates issue with branch link.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -630,6 +686,8 @@ safe-outputs:
 **Field Enablement**: Include `title:`, `body:`, or `labels:` keys to enable updates for those fields. Without these keys, the field cannot be updated. Setting `allowed-labels` implicitly enables label updates.
 
 **Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
+
+When using `target: "*"`, the agent must provide `discussion_number` in the output to identify which discussion to update.
 
 ### Agent Session Creation (`create-agent-session:`)
 

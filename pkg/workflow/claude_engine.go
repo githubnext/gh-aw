@@ -33,6 +33,27 @@ func NewClaudeEngine() *ClaudeEngine {
 	}
 }
 
+// GetRequiredSecretNames returns the list of secrets required by the Claude engine
+// This includes ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, and optionally MCP_GATEWAY_API_KEY
+func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	secrets := []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"}
+
+	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
+	if HasMCPServers(workflowData) {
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	// Add safe-inputs secret names
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName := range safeInputsSecrets {
+			secrets = append(secrets, varName)
+		}
+	}
+
+	return secrets
+}
+
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
@@ -205,7 +226,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Prepend PATH setup to find claude in hostedtoolcache
 	// This ensures claude and all its dependencies (including MCP servers) are accessible
 	// Split export from command substitution to avoid masking return values (SC2155)
-	pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
+	// Use -mindepth 1 to exclude the starting directory (/opt/hostedtoolcache/node itself)
+	pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
 	claudeCommand = fmt.Sprintf(`%s && %s`, pathSetup, claudeCommand)
 
 	// Add conditional model flag if not explicitly configured
@@ -232,11 +254,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Check if safe-inputs is enabled to include host.docker.internal in allowed domains
-		hasSafeInputs := IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
-
-		// Get allowed domains (Claude defaults + network permissions + host.docker.internal if safe-inputs enabled)
-		allowedDomains := GetClaudeAllowedDomainsWithSafeInputs(workflowData.NetworkPermissions, hasSafeInputs)
+		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs)
+		allowedDomains := GetClaudeAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
@@ -294,6 +313,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
+		// Add --enable-host-access when MCP servers are configured (gateway is used)
+		// This allows awf to access host.docker.internal for MCP gateway communication
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			claudeLog.Print("Added --enable-host-access for MCP gateway communication")
+		}
+
 		// Pin AWF Docker image version to match the installed binary version
 		awfImageTag := getAWFImageTag(firewallConfig)
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
@@ -321,17 +347,23 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 
 		// Build the command with AWF wrapper
+		// AWF requires the command to be wrapped in a shell invocation because the claude command
+		// contains && chains that need shell interpretation. We use bash -c with properly escaped command.
+		// Escape single quotes in the command by replacing ' with '\''
+		escapedClaudeCommand := strings.ReplaceAll(claudeCommand, "'", "'\\''")
+		shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedClaudeCommand)
+
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
           %s
 %s %s \
   -- %s \
-  2>&1 | tee %s`, promptSetup, awfCommand, shellJoinArgs(awfArgs), claudeCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, promptSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), claudeCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
 		}
 	} else {
 		// Run Claude command without AWF wrapper
@@ -463,8 +495,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
 	}
 
-	// Format step with command and environment variables using shared helper
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
+	// Filter environment variables to only include allowed secrets
+	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
+	allowedSecrets := e.GetRequiredSecretNames(workflowData)
+	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
+
+	// Format step with command and filtered environment variables using shared helper
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 

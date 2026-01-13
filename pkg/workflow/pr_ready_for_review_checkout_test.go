@@ -91,8 +91,6 @@ engine: codex
 features:
   dangerous-permissions-write: true
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow

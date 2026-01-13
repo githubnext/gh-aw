@@ -69,7 +69,8 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		// For local workflows, use existing local validation
 		workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to resolve workflow: %w", err)
+			// Return error directly without wrapping - it already contains formatted message with suggestions
+			return err
 		}
 
 		// Check if the workflow is runnable (has workflow_dispatch trigger)
@@ -153,9 +154,14 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	var lockFilePath string
 
 	if repoOverride != "" {
-		// For remote repositories, construct lock file name directly
-		filename := strings.TrimSuffix(filepath.Base(workflowIdOrName), ".md")
-		lockFileName = filename + ".lock.yml"
+		// For remote repositories, construct lock file name from markdown path
+		// This handles regular workflows, campaigns, and campaign orchestrators
+		mdPath := workflowIdOrName
+		if !strings.HasSuffix(mdPath, ".md") {
+			mdPath += ".md"
+		}
+		lockPath := getLockFilePath(mdPath)
+		lockFileName = filepath.Base(lockPath)
 	} else {
 		// For local workflows, validate the workflow exists locally
 		workflowsDir := getWorkflowsDir()
@@ -165,9 +171,13 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			return fmt.Errorf("failed to find workflow in local .github/workflows: %w", err)
 		}
 
-		// For local workflows, use the simple filename
-		filename := strings.TrimSuffix(filepath.Base(workflowIdOrName), ".md")
-		lockFileName = filename + ".lock.yml"
+		// For local workflows, use getLockFilePath to handle campaigns properly
+		mdPath := workflowIdOrName
+		if !strings.HasSuffix(mdPath, ".md") {
+			mdPath += ".md"
+		}
+		lockPath := getLockFilePath(mdPath)
+		lockFileName = filepath.Base(lockPath)
 
 		// Check if the lock file exists in .github/workflows
 		lockFilePath = filepath.Join(".github/workflows", lockFileName)
@@ -175,7 +185,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			executionLog.Printf("Lock file not found: %s (workflow must be compiled first)", lockFilePath)
 			suggestions := []string{
 				fmt.Sprintf("Run '%s compile' to compile all workflows", string(constants.CLIExtensionPrefix)),
-				fmt.Sprintf("Run '%s compile %s' to compile this specific workflow", string(constants.CLIExtensionPrefix), filename),
+				fmt.Sprintf("Run '%s compile %s' to compile this specific workflow", string(constants.CLIExtensionPrefix), workflowIdOrName),
 			}
 			errMsg := console.FormatErrorWithSuggestions(
 				fmt.Sprintf("workflow lock file '%s' not found in .github/workflows", lockFileName),
@@ -540,7 +550,8 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 			// For local workflows, use existing local validation
 			workflowFile, err := resolveWorkflowFile(workflowName, verbose)
 			if err != nil {
-				return fmt.Errorf("failed to resolve workflow '%s': %w", workflowName, err)
+				// Return error directly without wrapping - it already contains formatted message with suggestions
+				return err
 			}
 
 			runnable, err := IsRunnable(workflowFile)

@@ -134,6 +134,29 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Check for action-mode feature flag override
+	if workflowData.Features != nil {
+		if actionModeVal, exists := workflowData.Features["action-mode"]; exists {
+			if actionModeStr, ok := actionModeVal.(string); ok && actionModeStr != "" {
+				mode := ActionMode(actionModeStr)
+				if !mode.IsValid() {
+					formattedErr := console.FormatError(console.CompilerError{
+						Position: console.ErrorPosition{
+							File:   markdownPath,
+							Line:   1,
+							Column: 1,
+						},
+						Type:    "error",
+						Message: fmt.Sprintf("invalid action-mode feature flag '%s'. Must be 'dev', 'release', or 'script'", actionModeStr),
+					})
+					return errors.New(formattedErr)
+				}
+				log.Printf("Overriding action mode from feature flag: %s", mode)
+				c.SetActionMode(mode)
+			}
+		}
+	}
+
 	// Validate dangerous permissions
 	log.Printf("Validating dangerous permissions")
 	if err := validateDangerousPermissions(workflowData); err != nil {
@@ -203,6 +226,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Emit experimental warning for sandbox-runtime feature
 	if isSRTEnabled(workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: sandbox-runtime firewall"))
+		c.IncrementWarningCount()
+	}
+
+	// Emit warning for sandbox: false (disables all sandbox features)
+	if isSandboxDisabled(workflowData) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Sandbox disabled (sandbox: false). This removes important security protections including the firewall and MCP gateway. The AI agent will have direct network access without any filtering. Only use this for testing or in controlled environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
 	}
 

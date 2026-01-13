@@ -44,7 +44,4 @@
 //   - Size limit validation: Expression sizes, file sizes
 //   - Feature detection: Repository capabilities
 //   - Security validation: Permission restrictions, expression safety
-//
-// For detailed documentation on validation architecture, see:
-// .github/instructions/developer.instructions.md#validation-architecture
 package workflow

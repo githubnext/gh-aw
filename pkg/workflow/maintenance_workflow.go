@@ -36,7 +36,7 @@ func generateMaintenanceCron(minExpiresDays int) (string, string) {
 }
 
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
-// if any workflows use the expires field for discussions
+// if any workflows use the expires field for discussions or issues
 func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, verbose bool) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
@@ -44,6 +44,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	// and track the minimum expires value to determine schedule frequency
 	hasExpires := false
 	minExpires := 0 // Track minimum expires value in hours
+
 	for _, workflowData := range workflowDataList {
 		if workflowData.SafeOutputs != nil {
 			// Check for expired discussions
@@ -73,6 +74,17 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 
 	if !hasExpires {
 		maintenanceLog.Print("No workflows use expires field, skipping maintenance workflow generation")
+
+		// Delete existing maintenance workflow file if it exists (no expires means no need for maintenance)
+		maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
+		if _, err := os.Stat(maintenanceFile); err == nil {
+			maintenanceLog.Printf("Deleting existing maintenance workflow: %s", maintenanceFile)
+			if err := os.Remove(maintenanceFile); err != nil {
+				return fmt.Errorf("failed to delete maintenance workflow: %w", err)
+			}
+			maintenanceLog.Print("Maintenance workflow deleted successfully")
+		}
+
 		return nil
 	}
 
@@ -105,7 +117,7 @@ Schedule frequency is automatically determined by the shortest expiration time.`
 	header := GenerateWorkflowHeader("", "pkg/workflow/maintenance_workflow.go", customInstructions)
 	yaml.WriteString(header)
 
-	yaml.WriteString(`name: Agentics Maintenance
+	yaml.WriteString(`name: Agentic Maintenance
 
 on:
   schedule:
