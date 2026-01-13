@@ -320,9 +320,6 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	// Server metrics table
 	if len(metrics.Servers) > 0 {
 		output.WriteString("Server Usage:\n")
-		output.WriteString("┌────────────────────────────┬──────────┬────────────┬───────────┬────────┬──────────┐\n")
-		output.WriteString("│ Server                     │ Requests │ Tool Calls │ Avg Time  │ Errors │ Timeouts │\n")
-		output.WriteString("├────────────────────────────┼──────────┼────────────┼───────────┼────────┼──────────┤\n")
 
 		// Sort servers by request count
 		var serverNames []string
@@ -333,6 +330,12 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			return metrics.Servers[serverNames[i]].RequestCount > metrics.Servers[serverNames[j]].RequestCount
 		})
 
+		// Build table config
+		tableConfig := console.TableConfig{
+			Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors", "Timeouts"},
+			Rows:    make([][]string, 0, len(serverNames)),
+		}
+
 		for _, serverName := range serverNames {
 			server := metrics.Servers[serverName]
 			avgTime := 0.0
@@ -340,16 +343,18 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 				avgTime = server.TotalDuration / float64(server.RequestCount)
 			}
 
-			fmt.Fprintf(&output, "│ %-26s │ %8d │ %10d │ %7.0fms │ %6d │ %8d │\n",
+			row := []string{
 				truncateString(serverName, 26),
-				server.RequestCount,
-				server.ToolCallCount,
-				avgTime,
-				server.ErrorCount,
-				server.TimeoutCount)
+				fmt.Sprintf("%d", server.RequestCount),
+				fmt.Sprintf("%d", server.ToolCallCount),
+				fmt.Sprintf("%.0fms", avgTime),
+				fmt.Sprintf("%d", server.ErrorCount),
+				fmt.Sprintf("%d", server.TimeoutCount),
+			}
+			tableConfig.Rows = append(tableConfig.Rows, row)
 		}
 
-		output.WriteString("└────────────────────────────┴──────────┴────────────┴───────────┴────────┴──────────┘\n")
+		output.WriteString(console.RenderTable(tableConfig))
 	}
 
 	// Tool metrics table (if verbose)
@@ -364,9 +369,6 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			}
 
 			fmt.Fprintf(&output, "\n%s:\n", serverName)
-			output.WriteString("┌──────────────────────────┬───────┬──────────┬──────────┬──────────┬──────────┐\n")
-			output.WriteString("│ Tool                     │ Calls │ Avg Time │ Max Time │ Errors   │ Timeouts │\n")
-			output.WriteString("├──────────────────────────┼───────┼──────────┼──────────┼──────────┼──────────┤\n")
 
 			// Sort tools by call count
 			var toolNames []string
@@ -377,18 +379,26 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 				return server.Tools[toolNames[i]].CallCount > server.Tools[toolNames[j]].CallCount
 			})
 
-			for _, toolName := range toolNames {
-				tool := server.Tools[toolName]
-				fmt.Fprintf(&output, "│ %-24s │ %5d │ %6.0fms │ %6.0fms │ %8d │ %8d │\n",
-					truncateString(toolName, 24),
-					tool.CallCount,
-					tool.AvgDuration,
-					tool.MaxDuration,
-					tool.ErrorCount,
-					tool.TimeoutCount)
+			// Build table config
+			tableConfig := console.TableConfig{
+				Headers: []string{"Tool", "Calls", "Avg Time", "Max Time", "Errors", "Timeouts"},
+				Rows:    make([][]string, 0, len(toolNames)),
 			}
 
-			output.WriteString("└──────────────────────────┴───────┴──────────┴──────────┴──────────┴──────────┘\n")
+			for _, toolName := range toolNames {
+				tool := server.Tools[toolName]
+				row := []string{
+					truncateString(toolName, 24),
+					fmt.Sprintf("%d", tool.CallCount),
+					fmt.Sprintf("%.0fms", tool.AvgDuration),
+					fmt.Sprintf("%.0fms", tool.MaxDuration),
+					fmt.Sprintf("%d", tool.ErrorCount),
+					fmt.Sprintf("%d", tool.TimeoutCount),
+				}
+				tableConfig.Rows = append(tableConfig.Rows, row)
+			}
+
+			output.WriteString(console.RenderTable(tableConfig))
 		}
 	}
 
