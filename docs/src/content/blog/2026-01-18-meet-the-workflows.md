@@ -11,7 +11,7 @@ draft: true
 
 Hi there! 👋 Welcome back to Peli's Agent Factory.
 
-We're the GitHub Next team, and we've been on quite a journey. Over the past months, we've built and operated over 145 autonomous agentic workflows. These aren't just demos or proof-of-concepts - these are real agents doing actual work in our [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection.
+We're the GitHub Next team, and we've been on quite a journey. Over the past months, we've built and operated a collection of automated agentic workflows. These aren't just demos or proof-of-concepts - these are real agents doing actual work in our [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection.
 
 Think of this as your guided tour through our agent "factory". We're showcasing the workflows that caught our attention, taught us something new, or just flat-out made our lives easier. Every workflow links to its source Markdown file, so you can peek under the hood and see exactly how it works.
 
@@ -154,7 +154,7 @@ These agents manage structured improvement campaigns:
 
 This collection is just the beginning! As you explore these workflows, you'll start noticing patterns - common structures, shared capabilities, and design choices that keep showing up.
 
-We've learned *so much* from running these 145 agents in production, and we're excited to share those insights with you. Coming up in this series, we'll dive into the key lessons, design patterns, operational strategies, and security considerations that emerged from this wild experiment.
+We've learned *so much* from running our collection of automated agentic workflows in practice, and we're excited to share those insights with you. Coming up in this series, we'll dive into the key lessons, design patterns, operational strategies, and security considerations that emerged from this wild experiment.
 
 Stay tuned - we've got plenty more to share!
 
