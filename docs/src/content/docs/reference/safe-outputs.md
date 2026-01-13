@@ -54,6 +54,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ### Projects, Releases & Assets
 
+- [**Create Project**](#project-creation-create-project) (`create-project`) — Create new GitHub Projects boards (max: 1, cross-repo)
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) — Manage GitHub Projects boards (max: 10, same-repo only)
 - [**Copy Project**](#project-board-copy-copy-project) (`copy-project`) — Copy GitHub Projects boards (max: 1, cross-repo)
 - [**Create Project Status Update**](#project-status-updates-create-project-status-update) (`create-project-status-update`) — Create project status updates
@@ -266,6 +267,50 @@ safe-outputs:
 ```
 
 Agent output includes `parent_issue_number` and `sub_issue_number`. Validation ensures both issues exist and meet label/prefix requirements before linking.
+
+### Project Creation (`create-project:`)
+
+Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access. Creates empty projects that can be configured with custom fields and views using `update-project`.
+
+```yaml wrap
+safe-outputs:
+  create-project:
+    max: 1                              # max operations (default: 1)
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    target-owner: "myorg"               # default target owner (optional)
+```
+
+The `target-owner` field is an optional default. When configured, the agent can omit the owner field in tool calls, and the default will be used. The agent can still override by providing an explicit owner value.
+
+**Without default** (agent must provide owner):
+```javascript
+create_project({
+  title: "Campaign: Security Q1 2025",
+  owner: "myorg",
+  owner_type: "org",  // "org" or "user" (default: "org")
+  item_url: "https://github.com/myorg/repo/issues/123"  // Optional issue to add
+});
+```
+
+**With default configured** (agent only needs title):
+```javascript
+create_project({
+  title: "Campaign: Security Q1 2025"
+  // owner uses configured default
+  // owner_type defaults to "org"
+  // Can still override: owner: "...", owner_type: "user"
+});
+```
+
+Optionally include `item_url` (GitHub issue URL) to add the issue as the first project item. Exposes outputs: `project-id`, `project-number`, `project-title`, `project-url`, `item-id` (if item added).
+
+> [!IMPORTANT]
+> **Token Requirements**: The default `GITHUB_TOKEN` **cannot** create projects. You **must** configure a PAT with Projects permissions:
+> - **Classic PAT**: `project` scope (user projects) or `project` + `repo` scope (org projects)
+> - **Fine-grained PAT**: Organization permissions → Projects: Read & Write
+
+> [!NOTE]
+> After creating a project, use `update-project` to configure custom fields, views, and add items. See [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for field and view configuration patterns.
 
 ### Project Board Updates (`update-project:`)
 

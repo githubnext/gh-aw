@@ -1,22 +1,31 @@
-# 9 Patterns for Automated Agent Ops on GitHub
+---
+title: "9 Patterns for Automated Agent Ops on GitHub"
+description: "Strategic patterns for operating agents in the GitHub ecosystem"
+authors:
+  - gh-next
+date: 2026-01-27
+draft: true
+---
 
-**Strategic patterns for operating agents in the GitHub ecosystem**
-
-[← Previous: Design Patterns](03-design-patterns.md) | [Back to Index](../index.md) | [Next: Imports & Sharing →](05-imports-and-sharing.md)
+[Previous Article](/gh-aw/blog/2026-01-24-design-patterns/)
 
 ---
 
-Beyond the 12 core behavioral patterns that define what agents **do**, Peli's Agent Factory revealed several strategic operational patterns for **how** agentic workflows operate in the context of GitHub's information primitives. These patterns emerged from building and operating workflows at scale and represent battle-tested approaches to common challenges.
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-While design patterns describe agent architecture, operational patterns describe how agents integrate with GitHub's workflow, issue, project, and event systems to create effective automation.
+Welcome back to our ongoing series about Peli's Agent Factory! In the [previous article](/gh-aw/blog/2026-01-24-design-patterns/), we explored the fundamental design patterns that define what agents do. Now let's shift from architecture to operations.
 
-## Pattern 1: ChatOps - Command-Driven Interactions 💬
+So you've learned what agents *do* (design patterns), but how do they actually *operate* in GitHub's ecosystem? That's where operational patterns come in.
 
-### Overview
+These patterns emerged from building and running workflows at scale - they're battle-tested approaches to common challenges. While design patterns describe agent architecture, operational patterns describe how agents integrate with GitHub's workflow, issue, project, and event systems to create effective automation.
 
-Workflows triggered by slash commands (`/review`, `/deploy`, `/fix`) in issue or PR comments. Creates an interactive conversation interface where team members can invoke powerful AI capabilities with simple commands.
+Let's explore 9 operational patterns that make agents work in practice!
 
-### When to Use
+## Pattern 1: ChatOps - Command-Driven Interactions
+
+These workflows are triggered by slash commands (`/review`, `/deploy`, `/fix`) in issue or PR comments. This creates an interactive conversation interface where team members can invoke powerful AI capabilities with simple commands.
+
+Use these when:
 
 - Code reviews on demand
 - Performance investigations
@@ -24,18 +33,18 @@ Workflows triggered by slash commands (`/review`, `/deploy`, `/fix`) in issue or
 - Research and documentation requests
 - Any operation requiring user authorization
 
-### How It Works
+These workflows do the following:
 
 1. User comments `/command` on an issue or PR
 2. Workflow triggers on `issue_comment` or `pull_request_comment` event
-3. Comment is parsed for command and parameters
+3. Comment gets parsed for command and parameters
 4. Role-gating validates user permissions
 5. Agent executes and responds in thread
 6. Cache-memory prevents duplicate work
 
 ### Example: Grumpy Reviewer
 
-The [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) workflow demonstrates ChatOps pattern perfectly:
+The [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) workflow is a perfect example of this pattern:
 
 - Triggered by `/grumpy` on PR comments
 - Performs critical code review with distinctive personality
@@ -43,7 +52,7 @@ The [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3
 - Role-gated to prevent abuse
 - Responds directly in PR thread
 
-### Key Benefits
+The key benefits are:
 
 - Natural, conversational interface
 - Role-based access control built-in
@@ -51,7 +60,7 @@ The [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3
 - Immediate feedback
 - Audit trail in comments
 
-### Implementation Tips
+Here are our tips!
 
 - Use clear, memorable command names
 - Document commands in README
@@ -63,13 +72,11 @@ The [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3
 
 ---
 
-## Pattern 2: DailyOps - Scheduled Incremental Progress 📅
-
-### Overview
+## Pattern 2: DailyOps - Scheduled Incremental Progress
 
 Workflows that run on weekday schedules to make small, daily progress toward large goals. Instead of overwhelming teams with major changes, work happens automatically in manageable pieces that are easy to review and integrate.
 
-### When to Use
+Use these when:
 
 - Test coverage improvements
 - Performance optimization
@@ -77,7 +84,7 @@ Workflows that run on weekday schedules to make small, daily progress toward lar
 - Technical debt reduction
 - Dependency management
 
-### How It Works
+These workflows do the following:
 
 1. Workflow runs on schedule (e.g., `0 9 * * 1-5` for weekdays at 9am)
 2. Agent checks state from previous runs
@@ -89,11 +96,11 @@ Workflows that run on weekday schedules to make small, daily progress toward lar
 
 The [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) workflow systematically identifies coverage gaps and implements new tests over multiple days:
 
-**Phase 1 (Day 1-2)**: Research coverage gaps and create plan
-**Phase 2 (Day 3-4)**: Set up test infrastructure
+**Phase 1 (Day 1-2)**: Research coverage gaps and create plan  
+**Phase 2 (Day 3-4)**: Set up test infrastructure  
 **Phase 3 (Day 5+)**: Implement tests incrementally with phased approval
 
-### Key Benefits
+The key benefits are:
 
 - Sustainable, non-disruptive improvements
 - Easy to review small changes
@@ -101,7 +108,7 @@ The [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/wor
 - Human checkpoints between phases
 - Natural task breaking
 
-### Implementation Tips
+Here are our tips!
 
 - Use repo-memory for state persistence
 - Limit changes per run (1-3 items)
@@ -113,13 +120,11 @@ The [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/wor
 
 ---
 
-## Pattern 3: IssueOps - Event-Driven Issue Automation 🎫
-
-### Overview
+## Pattern 3: IssueOps - Event-Driven Issue Automation
 
 Workflows that transform GitHub issues into automation triggers, automatically analyzing, categorizing, and responding to issues as they're created or updated. Uses safe outputs to ensure secure automated responses.
 
-### When to Use
+Use these when:
 
 - Automatic issue triage
 - Issue classification and labeling
@@ -127,7 +132,7 @@ Workflows that transform GitHub issues into automation triggers, automatically a
 - Initial response automation
 - Related issue linking
 
-### How It Works
+These workflows do the following:
 
 1. Workflow triggers on `issues: opened` or `issues: edited`
 2. Agent analyzes issue content
@@ -145,7 +150,7 @@ The [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae
 - Routes to appropriate team
 - Posts helpful resources
 
-### Key Benefits
+The key benefits are:
 
 - Immediate issue processing
 - Consistent categorization
@@ -153,7 +158,7 @@ The [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae
 - Improves issue quality over time
 - Creates audit trail
 
-### Implementation Tips
+Here are our tips!
 
 - Use safe outputs for all modifications
 - Include confidence scores in labels
@@ -167,11 +172,9 @@ The [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae
 
 ## Pattern 4: LabelOps - Label-Driven Workflow Automation 🏷️
 
-### Overview
-
 Workflows that use GitHub labels as triggers, metadata, and state markers. Responds to specific label changes with filtering to activate only for relevant labels while maintaining secure automated responses.
 
-### When to Use
+Use these when:
 
 - Priority escalation
 - Workflow routing
@@ -179,7 +182,7 @@ Workflows that use GitHub labels as triggers, metadata, and state markers. Respo
 - Feature flagging
 - Team assignment
 
-### How It Works
+These workflows do the following:
 
 1. Workflow triggers on `issues: labeled` or `pull_request: labeled`
 2. Filter checks for specific label(s)
@@ -190,12 +193,13 @@ Workflows that use GitHub labels as triggers, metadata, and state markers. Respo
 ### Example: Priority Escalation
 
 When `priority: critical` label is added:
+
 - Notifies team leads
 - Adds to urgent project board
 - Creates daily reminder
 - Updates SLA tracking
 
-### Key Benefits
+The key benefits are:
 
 - Visual state representation
 - User-friendly trigger mechanism
@@ -203,7 +207,7 @@ When `priority: critical` label is added:
 - GitHub-native pattern
 - Queryable via label filters
 
-### Implementation Tips
+Here are our tips!
 
 - Use consistent label naming conventions
 - Document label meanings
@@ -217,11 +221,9 @@ When `priority: critical` label is added:
 
 ## Pattern 5: ProjectOps - AI-Powered Project Board Management 📊
 
-### Overview
-
 Workflows that keep GitHub Projects v2 boards up to date using AI to analyze issues/PRs and intelligently decide routing, status, priority, and field values. Safe output architecture ensures security while automating project management.
 
-### When to Use
+Use these when:
 
 - Automatic project board updates
 - Sprint planning assistance
@@ -229,7 +231,7 @@ Workflows that keep GitHub Projects v2 boards up to date using AI to analyze iss
 - Status tracking
 - Resource allocation
 
-### How It Works
+These workflows do the following:
 
 1. Workflow triggers on issue/PR events
 2. Agent analyzes content and context
@@ -240,13 +242,14 @@ Workflows that keep GitHub Projects v2 boards up to date using AI to analyze iss
 ### Example: Automatic Board Population
 
 When issue is created:
+
 - AI determines which project(s) it belongs to
 - Sets initial status (Backlog, To Do, etc.)
 - Estimates size/effort
 - Assigns priority
 - Sets sprint/milestone if applicable
 
-### Key Benefits
+The key benefits are:
 
 - Always up-to-date project boards
 - Reduces manual project management
@@ -254,7 +257,7 @@ When issue is created:
 - AI-powered classification
 - Integrates with existing workflows
 
-### Implementation Tips
+Here are our tips!
 
 - Use project field types effectively
 - Define clear status transitions
@@ -268,11 +271,9 @@ When issue is created:
 
 ## Pattern 6: ResearchPlanAssign - Scaffolded Improvement Strategy 🔬
 
-### Overview
-
 A three-phase strategy that keeps developers in control while leveraging AI agents for systematic code improvements. Provides clear decision points at each phase: Research (investigate), Plan (break down work), Assign (execute).
 
-### When to Use
+Use these when:
 
 - Large refactoring initiatives
 - Code quality campaigns
@@ -280,21 +281,24 @@ A three-phase strategy that keeps developers in control while leveraging AI agen
 - Systematic cleanup projects
 - Knowledge transfer projects
 
-### How It Works
+These workflows do the following:
 
 **Phase 1: Research**
+
 - Agent analyzes codebase
 - Identifies improvement opportunities
 - Creates research discussion with findings
 - Human reviews and approves direction
 
 **Phase 2: Plan**
+
 - Agent creates detailed implementation plan
 - Breaks work into manageable issues
 - Estimates effort and dependencies
 - Human reviews and prioritizes
 
 **Phase 3: Assign**
+
 - Issues assigned to agents or developers
 - Work proceeds incrementally
 - Progress tracked via issues/PRs
@@ -308,7 +312,7 @@ The [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a
 **Plan**: Creates well-scoped issues (max 3 per run) with refactoring strategies
 **Assign**: Pre-assigns to `@copilot` since fixes are straightforward
 
-### Key Benefits
+The key benefits are:
 
 - Human control at decision points
 - Prevents runaway automation
@@ -316,7 +320,7 @@ The [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a
 - Incremental progress
 - Knowledge captured in issues
 
-### Implementation Tips
+Here are our tips!
 
 - Use discussions for research phase
 - Create issues for plan phase
@@ -330,11 +334,9 @@ The [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a
 
 ## Pattern 7: MultiRepoOps - Cross-Repository Coordination 🔗
 
-### Overview
-
 Workflows that coordinate operations across multiple GitHub repositories using cross-repository safe outputs and secure authentication. Enables feature synchronization, hub-and-spoke tracking, organization-wide enforcement, and upstream/downstream workflows.
 
-### When to Use
+Use these when:
 
 - Organization-wide policies
 - Dependency updates across repos
@@ -342,7 +344,7 @@ Workflows that coordinate operations across multiple GitHub repositories using c
 - Security compliance enforcement
 - Cross-repo health monitoring
 
-### How It Works
+These workflows do the following:
 
 1. Workflow runs in "hub" repository
 2. Uses GitHub App or PAT for authentication
@@ -361,7 +363,7 @@ The [`org-health-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7
 - Creates issues in problematic repos
 - Generates org-wide report
 
-### Key Benefits
+The key benefits are:
 
 - Organization-wide visibility
 - Consistent policy enforcement
@@ -369,7 +371,7 @@ The [`org-health-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7
 - Reduces duplication
 - Scales to many repos
 
-### Implementation Tips
+Here are our tips!
 
 - Use GitHub Apps for authentication
 - Implement rate limiting
@@ -383,26 +385,15 @@ The [`org-health-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7
 
 ## Pattern 8: SideRepoOps - Isolated Automation Infrastructure 🏗️
 
-### Overview
-
 Run workflows from a separate "side" repository that targets your main codebase, keeping AI-generated issues, comments, and workflow runs isolated from production code. Provides an easy way to get started with agentic workflows without cluttering your main repository.
 
-### When to Use
+Use these when:
 
 - Experimenting with agents
 - High-volume workflow runs
 - Sensitive or noisy operations
 - Testing before production
 - Organizational separation
-
-### How It Works
-
-1. Create separate "automation" repository
-2. Install workflows in automation repo
-3. Configure to target main repository
-4. Workflows create issues/PRs in main repo
-5. Discussions/artifacts stay in automation repo
-6. Monitor both repos for results
 
 ### Example: Separate Analysis Repository
 
@@ -411,7 +402,7 @@ Side repo: `company/product-automation` (workflows)
 
 Workflows in `product-automation` analyze `product` codebase and create issues/PRs in `product` when appropriate, but keep noisy discussions in `product-automation`.
 
-### Key Benefits
+The key benefits are:
 
 - Keeps main repo clean
 - Easy to experiment
@@ -419,7 +410,7 @@ Workflows in `product-automation` analyze `product` codebase and create issues/P
 - Can be more permissive in side repo
 - Easy to disable all automation
 
-### Implementation Tips
+Here are our tips!
 
 - Use GitHub Apps for cross-repo access
 - Document the relationship clearly
@@ -433,11 +424,9 @@ Workflows in `product-automation` analyze `product` codebase and create issues/P
 
 ## Pattern 9: TrialOps - Safe Workflow Validation 🧪
 
-### Overview
-
 A specialized testing pattern that extends SideRepoOps for validating workflows in temporary trial repositories before production deployment. Creates isolated private repositories where workflows execute and capture safe outputs without affecting actual codebases.
 
-### When to Use
+Use these when:
 
 - Testing new workflows
 - Validating workflow changes
@@ -445,7 +434,7 @@ A specialized testing pattern that extends SideRepoOps for validating workflows 
 - Compliance verification
 - Regression testing
 
-### How It Works
+These workflows do the following:
 
 1. Create temporary private repository
 2. Install workflow under test
@@ -453,32 +442,6 @@ A specialized testing pattern that extends SideRepoOps for validating workflows 
 4. Execute workflow
 5. Capture and validate outputs
 6. Delete trial repo or keep for reference
-
-### Example: Workflow Testing Pipeline
-
-Before deploying new triage agent:
-1. Create `test-triage-agent` repo
-2. Populate with sample issues
-3. Run triage agent
-4. Verify labeling accuracy
-5. Adjust prompts as needed
-6. Deploy to production
-
-### Key Benefits
-
-- Safe testing environment
-- No production impact
-- Repeatable validation
-- Confidence before deployment
-- Compliance documentation
-
-### Implementation Tips
-
-- Automate trial repo creation
-- Use realistic test data
-- Validate all safe outputs
-- Document test scenarios
-- Clean up trial repos regularly
 
 **Learn more**: [TrialOps Guide](https://githubnext.github.io/gh-aw/guides/trialops/)
 
@@ -505,8 +468,10 @@ When designing agent operations, consider:
 
 ## What's Next?
 
-These operational patterns work effectively because they build on a foundation of reusable, composable components. The secret weapon that enabled Peli's Agent Factory to scale to 145 workflows wasn't just good patterns - it was the ability to share and reuse components across all those workflows.
+These operational patterns work effectively because they build on a foundation of reusable, composable components. The secret weapon that enabled Peli's Agent Factory to scale wasn't just good patterns - it was the ability to share and reuse components across workflows.
 
-In the next article, we'll explore the imports and sharing system that made this scalability possible.
+In our next article, we'll explore the imports and sharing system that made this scalability possible.
 
-[← Previous: Design Patterns](03-design-patterns.md) | [Back to Index](../index.md) | [Next: Imports & Sharing →](05-imports-and-sharing.md)
+*More articles in this series coming soon.*
+
+[Previous Article](/gh-aw/blog/2026-01-24-design-patterns/)

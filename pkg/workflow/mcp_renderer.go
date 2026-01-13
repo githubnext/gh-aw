@@ -2,9 +2,11 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -480,6 +482,9 @@ type JSONMCPConfigOptions struct {
 	// SkipValidation indicates whether to skip MCP gateway configuration schema validation
 	// When true, validation is skipped. When false (with --validate flag), validation is performed
 	SkipValidation bool
+	// OnWarning is an optional callback function for handling validation warnings
+	// Called when schema validation fails (e.g., to increment warning count)
+	OnWarning func()
 }
 
 // GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
@@ -765,12 +770,17 @@ func RenderJSONMCPConfig(
 		mcpRendererLog.Print("Validating MCP gateway configuration against schema")
 		// Note: We need to clean up the indentation and substitute variables for validation
 		configForValidation := prepareConfigForValidation(generatedConfig)
-		if err := ValidateMCPGatewayConfig(configForValidation); err != nil {
-			// Return internal compiler error - this should never happen in production
-			mcpRendererLog.Printf("MCP gateway configuration validation failed: %v", err)
-			return err
+		if warningMsg := ValidateMCPGatewayConfig(configForValidation); warningMsg != "" {
+			// Emit warning instead of returning error
+			mcpRendererLog.Printf("MCP gateway configuration validation warning: %s", warningMsg)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			// Increment warning count if callback provided
+			if options.OnWarning != nil {
+				options.OnWarning()
+			}
+		} else {
+			mcpRendererLog.Print("MCP gateway configuration validated successfully")
 		}
-		mcpRendererLog.Print("MCP gateway configuration validated successfully")
 	} else {
 		mcpRendererLog.Print("Skipping MCP gateway configuration validation (--validate flag not set)")
 	}

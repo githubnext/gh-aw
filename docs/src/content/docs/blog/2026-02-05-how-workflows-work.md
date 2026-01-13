@@ -1,18 +1,29 @@
-# How Agentic Workflows Work
+---
+title: "How Agentic Workflows Work"
+description: "The technical foundation: from natural language to secure execution"
+authors:
+  - gh-next
+date: 2026-02-05
+draft: true
+---
 
-**The technical foundation: from natural language to secure execution**
-
-[← Previous: Security Lessons](06-security-lessons.md) | [Back to Index](../index.md) | [Next: Authoring Workflows →](08-authoring-workflows.md)
+[Previous Article](/gh-aw/blog/2026-02-02-security-lessons/)
 
 ---
 
-Every agent in Peli's Agent Factory follows the same basic lifecycle, transforming natural language descriptions into secure, auditable GitHub Actions workflows. Understanding this architecture helps you design effective agents and debug issues when they arise.
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-This article walks through the complete journey of an agentic workflow, from a simple Markdown file to production execution.
+Welcome to another deep dive into Peli's Agent Factory! Having covered [security lessons](/gh-aw/blog/2026-02-02-security-lessons/) in our previous article, we're now ready to peek under the hood and understand the technical foundation of how agentic workflows actually work.
+
+Ever wonder what actually happens when you write an agentic workflow? Let's take a journey from a simple Markdown file all the way to secure, auditable execution in GitHub Actions.
+
+Every agent in Peli's Agent Factory follows the same basic lifecycle, transforming natural language descriptions into production-ready workflows. Understanding this architecture helps you design effective agents and debug issues when they pop up.
+
+Let's walk through the complete journey together!
 
 ## The Three-Stage Lifecycle
 
-```
+```text
 ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
 │   Write     │      │   Compile   │      │     Run     │
 │  (Markdown) │ ───> │   (YAML)    │ ───> │  (Actions)  │
@@ -22,9 +33,11 @@ This article walks through the complete journey of an agentic workflow, from a s
   Human-Friendly       Machine-Ready        Observable
 ```
 
+Three stages, each with a clear purpose. Let's explore what happens at each step!
+
 ## Stage 1: Write in Natural Language
 
-Agentic workflows are authored in **Markdown files** that combine natural language prompts with declarative configuration.
+Agentic workflows start as **Markdown files** that combine natural language prompts with declarative configuration. Think of it as writing instructions for a helpful robot.
 
 ### Anatomy of a Workflow File
 
@@ -75,28 +88,33 @@ Include:
 The YAML frontmatter defines **how** the workflow runs:
 
 **Triggers** (`on:`):
+
 - Schedule: `schedule: "0 9 * * 1-5"` (weekdays at 9am)
 - Events: `workflow_run`, `issues`, `pull_request`
 - Manual: `workflow_dispatch`
 - Comments: `issue_comment` with body filters
 
 **Permissions** (`permissions:`):
-- Start with `contents: read`
+
+- Start with `contents: read` (always!)
 - Add write permissions sparingly
 - Scope to specific resources
 
 **Tools** (`tools:`):
+
 - GitHub API toolsets
 - Bash commands (explicitly listed)
 - MCP servers for specialized capabilities
-- Each tool is explicitly enumerated
+- Each tool is explicitly enumerated (no wildcards!)
 
 **Network** (`network:`):
+
 - Allowlisted domains only
 - Prevents data exfiltration
 - Enforced at infrastructure level
 
 **Safe Outputs** (`safe_outputs:`):
+
 - Templates for creating issues/PRs
 - Built-in guardrails (max_items, expire, etc.)
 - All writes go through safe outputs
@@ -106,6 +124,7 @@ The YAML frontmatter defines **how** the workflow runs:
 The Markdown content after frontmatter is the **agent's prompt** - natural language instructions describing what the agent should do, how it should behave, and what outputs to create.
 
 **Effective prompts:**
+
 - Start with clear objective
 - Provide step-by-step guidance
 - Include examples of good outputs
@@ -113,13 +132,15 @@ The Markdown content after frontmatter is the **agent's prompt** - natural langu
 - Reference available tools
 - Specify output format
 
+This is where you get to be creative! The prompt is your chance to give the agent personality and clear direction.
+
 ## Stage 2: Compile to Secure Workflows
 
 The `gh aw compile` command transforms natural language workflows into GitHub Actions YAML files with embedded security controls.
 
 ### Compilation Process
 
-```
+```text
 ┌──────────────┐
 │ workflow.md  │
 └──────┬───────┘
@@ -150,6 +171,7 @@ The `gh aw compile` command transforms natural language workflows into GitHub Ac
 **1. Schema Validation**
 
 Ensures frontmatter conforms to GitHub Agentic Workflows schema:
+
 - Valid trigger syntax
 - Recognized permissions
 - Known tool configurations
@@ -158,6 +180,7 @@ Ensures frontmatter conforms to GitHub Agentic Workflows schema:
 **2. Security Validation**
 
 Enforces security policies:
+
 - Permissions don't exceed requirements
 - Tools are explicitly listed (no wildcards in strict mode)
 - Network access is constrained
@@ -166,6 +189,7 @@ Enforces security policies:
 **3. Import Resolution**
 
 Loads and merges imported components:
+
 - Fetch shared component files
 - Merge tool configurations
 - Combine prompt instructions
@@ -176,18 +200,21 @@ Loads and merges imported components:
 Creates GitHub Actions jobs:
 
 **Setup Job**: Prepares environment
+
 - Installs required tools
 - Configures MCP servers
 - Sets up network restrictions
 - Prepares safe output infrastructure
 
 **Agent Job**: Runs AI agent
+
 - Provides access to tools
 - Executes prompt against AI engine
 - Captures outputs
 - Handles errors gracefully
 
 **Safe Output Jobs**: Applies changes
+
 - Processes safe output requests
 - Validates against templates
 - Applies guardrails (max_items, etc.)
@@ -196,6 +223,7 @@ Creates GitHub Actions jobs:
 **5. Lock File Generation**
 
 Produces a `.lock.yml` file:
+
 - Contains complete GitHub Actions workflow
 - Includes security validations
 - Embeds prompt and configuration
@@ -208,6 +236,7 @@ Produces a `.lock.yml` file:
 **Output: `ci-doctor.lock.yml`** (300 lines of validated YAML)
 
 The lock file includes:
+
 - All environment setup
 - Tool installations
 - Security controls
@@ -222,7 +251,7 @@ Compiled workflows execute on GitHub Actions runners, producing team-visible art
 
 ### Execution Flow
 
-```
+```text
 Workflow Triggered
     │
     ├─► Setup Job
@@ -251,12 +280,14 @@ Workflow Triggered
 The agent runs in a sandboxed environment with:
 
 **Tools Available:**
+
 - GitHub API (via MCP toolsets)
 - Bash commands (allowlisted)
 - File system access (repository only)
 - MCP servers (as configured)
 
 **Context Provided:**
+
 - Trigger event details
 - Repository state
 - Recent issues/PRs
@@ -264,6 +295,7 @@ The agent runs in a sandboxed environment with:
 - Previous workflow runs
 
 **Constraints Applied:**
+
 - Network allowlist enforced
 - Tool restrictions active
 - Permission boundaries set
@@ -274,6 +306,7 @@ The agent runs in a sandboxed environment with:
 Agents produce several types of outputs:
 
 **1. Issues**
+
 ```yaml
 safe_outputs:
   create_issue:
@@ -283,6 +316,7 @@ safe_outputs:
 ```
 
 **2. Pull Requests**
+
 ```yaml
 safe_outputs:
   create_pull_request:
@@ -292,6 +326,7 @@ safe_outputs:
 ```
 
 **3. Comments**
+
 ```yaml
 safe_outputs:
   add_comment:
@@ -300,6 +335,7 @@ safe_outputs:
 ```
 
 **4. Discussions**
+
 ```yaml
 safe_outputs:
   create_discussion:
@@ -309,6 +345,7 @@ safe_outputs:
 ```
 
 **5. Artifacts**
+
 - Charts and visualizations
 - Data files (CSV, JSON)
 - Reports (PDF, HTML)
@@ -319,23 +356,27 @@ safe_outputs:
 Every agent action creates a permanent record:
 
 **Workflow Runs**: Full execution logs
+
 - Start/end times
 - Tool invocations
 - API calls made
 - Errors encountered
 
 **Issues/PRs/Comments**: Timestamped, attributed
+
 - Who triggered (user or schedule)
 - What workflow ran
 - When it executed
 - What it created
 
 **Discussions**: Permanent, searchable
+
 - Historical reports
 - Trend analysis
 - Team knowledge base
 
 **Artifacts**: Versioned, downloadable
+
 - Charts and data files
 - Debug logs
 - Intermediate results
@@ -352,6 +393,7 @@ model: claude-sonnet-4  # or other models
 ```
 
 GitHub Copilot provides:
+
 - Code-aware context
 - GitHub API integration
 - Secure execution environment
@@ -365,6 +407,7 @@ model: claude-sonnet-4
 ```
 
 Anthropic Claude (via API key) provides:
+
 - Long context windows
 - Strong reasoning
 - Detailed analysis
@@ -377,6 +420,7 @@ engine: codex
 ```
 
 Azure OpenAI Codex provides:
+
 - Enterprise integration
 - Fine-tuned models
 - Compliance features
@@ -390,6 +434,7 @@ endpoint: "https://my-ai.example.com"
 ```
 
 Bring your own AI provider:
+
 - Custom endpoints
 - Proprietary models
 - Specialized fine-tuning
@@ -413,11 +458,13 @@ Agent ─────> MCP Gateway ─────> MCP Servers
 ### MCP Server Types
 
 **Built-in Servers:**
+
 - `github` - GitHub API operations
 - `bash` - Shell command execution
 - `filesystem` - File operations
 
 **External Servers:**
+
 - `serena` - Semantic code analysis
 - `tavily` - Web search
 - `markitdown` - Document conversion
@@ -443,6 +490,7 @@ When workflows fail, several debugging mechanisms help:
 ### Workflow Logs
 
 Every run produces detailed logs:
+
 - Job-level logs (setup, agent, outputs)
 - Step-level logs (individual actions)
 - Tool invocation logs (what tools were called)
@@ -451,6 +499,7 @@ Every run produces detailed logs:
 ### Safe Output Validation Errors
 
 If safe output validation fails:
+
 - Clear error messages explain why
 - Template requirements highlighted
 - Example corrections provided
@@ -459,6 +508,7 @@ If safe output validation fails:
 ### MCP Server Diagnostics
 
 The [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md) workflow validates:
+
 - Server availability
 - Authentication status
 - Network connectivity
@@ -467,6 +517,7 @@ The [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b6
 ### Meta-Agent Monitoring
 
 The [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) agent:
+
 - Tracks all workflow runs
 - Classifies failures
 - Identifies patterns
@@ -477,6 +528,7 @@ The [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3
 ### Execution Time
 
 Typical workflow execution:
+
 - Setup: 30-60 seconds
 - Agent execution: 1-5 minutes
 - Safe outputs: 10-30 seconds
@@ -485,6 +537,7 @@ Typical workflow execution:
 ### Cost Factors
 
 Workflow costs include:
+
 - GitHub Actions compute (free tier or paid)
 - AI engine API calls (per-token pricing)
 - MCP server usage (varies by provider)
@@ -493,16 +546,19 @@ Workflow costs include:
 ### Optimization Strategies
 
 **Reduce API calls:**
+
 - Cache repeated queries
 - Batch operations
 - Use repo-memory for persistence
 
 **Optimize prompts:**
+
 - Be concise but complete
 - Avoid redundant context
 - Use imports for shared logic
 
 **Limit tool scope:**
+
 - Request only needed permissions
 - Use specific GitHub API toolsets
 - Constrain bash commands
@@ -511,6 +567,8 @@ Workflow costs include:
 
 Now that you understand how workflows work under the hood, you're ready to start authoring your own agents for Peli's Agent Factory.
 
-In the next article, we'll provide a practical guide to creating effective agentic workflows, with examples and best practices from the factory.
+In our next article, we'll provide a practical guide to creating effective agentic workflows, with examples and best practices from the factory.
 
-[← Previous: Security Lessons](06-security-lessons.md) | [Back to Index](../index.md) | [Next: Authoring Workflows →](08-authoring-workflows.md)
+_More articles in this series coming soon._
+
+[Previous Article](/gh-aw/blog/2026-02-02-security-lessons/)

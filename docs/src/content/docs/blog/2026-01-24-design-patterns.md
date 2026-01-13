@@ -1,41 +1,50 @@
-# 12 Design Patterns from Peli's Agent Factory
+---
+title: "12 Design Patterns from Peli's Agent Factory"
+description: "Fundamental behavioral patterns for successful agentic workflows"
+authors:
+  - gh-next
+date: 2026-01-24
+draft: true
+---
 
-**Fundamental behavioral patterns for successful agentic workflows**
-
-[← Previous: 12 Lessons](02-twelve-lessons.md) | [Back to Index](../index.md) | [Next: Operational Patterns →](04-operational-patterns.md)
+[Previous Article](/gh-aw/blog/2026-01-21-twelve-lessons/)
 
 ---
 
-After developing 145 agents in Peli's Agent Factory, we identified 12 fundamental design patterns that capture the essential behaviors of successful agentic workflows. These patterns emerged organically from solving real problems - they weren't predetermined architectures, but rather patterns we discovered by building, observing, and iterating.
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Every workflow in the factory fits into at least one of these patterns. Some workflows combine multiple patterns. Understanding these patterns will help you design your own effective agents.
+Welcome to our third article in the Peli's Agent Factory series! Having shared the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/) and the [lessons we've learned](/gh-aw/blog/2026-01-21-twelve-lessons/), we're now diving into the fundamental design patterns that emerged from running our collection of automated agentic workflows in practice.
+
+After building our collection of agents in Peli's Agent Factory, we started noticing patterns. Not the kind we planned upfront - these emerged organically from solving real problems. Now we've identified 12 fundamental design patterns that capture what successful agentic workflows actually do.
+
+Think of these patterns as architectural blueprints for agents. Every workflow in the factory fits into at least one pattern, and many combine several. Understanding these patterns will help you design effective agents faster, without reinventing the wheel.
+
+Let's dive in!
 
 ## Pattern 1: The Read-Only Analyst 🔬
 
-**Observe, analyze, and report without changing anything**
+**Observe, analyze, and report - without changing anything**
 
-### Description
+These agents gather data, perform analysis, and publish insights through discussions or assets. They have zero write permissions to code. This makes them incredibly safe to run continuously at any frequency.
 
-Agents that gather data, perform analysis, and publish insights through discussions or assets. No write permissions to code. Safe for continuous operation at any frequency.
+Use these when:
 
-### When to Use
-
-- Building confidence in agent behavior
+- Building confidence in agent behavior (great for getting started!)
 - Establishing baselines before automation
 - Generating reports and metrics
 - Deep research and investigation
 
-### Examples
+Here are some examples:
 
 - [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) - Meta-agent that audits all other agents' runs
-- [`portfolio-analyst`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md) - Identifies cost optimization opportunities
+- [`portfolio-analyst`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md) - Spots cost optimization opportunities
 - [`session-insights`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-session-insights.md) - Analyzes Copilot usage patterns
 - [`org-health-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/org-health-report.md) - Organization-wide health metrics
 - [`scout`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md), [`archie`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/archie.md) - Deep research agents
 
-### Key Characteristics
+Some key characteristics are:
 
-- `permissions: contents: read` only
+- `permissions: contents: read` only (that's it!)
 - Output via discussions, issues, or artifact uploads
 - Can run on any schedule without risk
 - Builds trust through transparency
@@ -47,26 +56,24 @@ Agents that gather data, perform analysis, and publish insights through discussi
 
 **On-demand assistance via slash commands**
 
-### Description
+These agentic workflows areactivated by `/command` mentions in issues or PRs. Role-gated for security. They respond with analysis, visualizations, or actions.
 
-Agents activated by `/command` mentions in issues or PRs. Role-gated for security. Respond with analysis, visualizations, or actions.
-
-### When to Use
+Use these when:
 
 - Interactive code reviews
 - On-demand optimizations
 - User-initiated research
 - Specialized assistance requiring authorization
 
-### Examples
+Here are some examples:
 
-- [`q`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md) - Workflow optimizer
+- [`q`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md) - Workflow optimizer (type `/q` and it investigates!)
 - [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) - Critical code review with personality
-- [`poem-bot`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md) - Creative verse generation
+- [`poem-bot`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md) - Creative verse generation (because why not?)
 - [`mergefest`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md) - Branch merging automation
-- [`pr-fix`](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md) - Fix failing CI checks on demand
+- [`pr-fix`](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md) - Fixes failing CI checks on demand
 
-### Key Characteristics
+Some key characteristics are:
 
 - Triggered by `/command` in issue/PR comments
 - Often includes role-gating for security
@@ -80,11 +87,9 @@ Agents activated by `/command` mentions in issues or PRs. Role-gated for securit
 
 **Automated cleanup and maintenance**
 
-### Description
+These agentic workflows propose incremental improvements through PRs. Run on schedules (daily/weekly). Create scoped changes with descriptive labels and commit messages. Always require human review before merging.
 
-Agents that propose incremental improvements through PRs. Run on schedules (daily/weekly). Create scoped changes with descriptive labels and commit messages. Human review before merging.
-
-### When to Use
+Use these when:
 
 - Keeping dependencies up to date
 - Maintaining documentation sync
@@ -92,17 +97,17 @@ Agents that propose incremental improvements through PRs. Run on schedules (dail
 - Small refactorings and cleanups
 - File organization improvements
 
-### Examples
+Here are some examples:
 
 - [`daily-workflow-updater`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-workflow-updater.md) - Keeps actions and dependencies current
 - [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md) - Syncs glossary with codebase
 - [`daily-file-diet`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md) - Refactors oversized files
 - [`hourly-ci-cleaner`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/hourly-ci-cleaner.md) - Repairs CI issues
 
-### Key Characteristics
+Some key characteristics are:
 
 - Runs on fixed schedules
-- Creates PRs for human review
+- Creates PRs for human review (no auto-merge!)
 - Makes small, focused changes
 - Uses descriptive labels and commits
 - Often includes "if no changes" guards
@@ -113,11 +118,9 @@ Agents that propose incremental improvements through PRs. Run on schedules (dail
 
 **Continuous validation and compliance enforcement**
 
-### Description
+These agentic workflows validate system integrity through testing, scanning, and compliance checks. Run frequently (hourly/daily) to catch regressions early.
 
-Agents that validate system integrity through testing, scanning, and compliance checks. Run frequently (hourly/daily) to catch regressions early.
-
-### When to Use
+Use these when:
 
 - Smoke testing infrastructure
 - Security scanning
@@ -125,7 +128,7 @@ Agents that validate system integrity through testing, scanning, and compliance 
 - Schema consistency checks
 - Infrastructure health monitoring
 
-### Examples
+Here are some examples:
 
 - Smoke tests for [`copilot`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-copilot.md), [`claude`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-claude.md), [`codex`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-codex.md)
 - [`schema-consistency-checker`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/schema-consistency-checker.md)
@@ -133,7 +136,7 @@ Agents that validate system integrity through testing, scanning, and compliance 
 - [`firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md), [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md)
 - [`daily-accessibility-review`](https://github.com/githubnext/agentics/blob/main/workflows/daily-accessibility-review.md)
 
-### Key Characteristics
+Some key characteristics are:
 
 - Frequent execution (hourly to daily)
 - Clear pass/fail criteria
@@ -147,11 +150,9 @@ Agents that validate system integrity through testing, scanning, and compliance 
 
 **Intelligent workflow automation for issues and pull requests**
 
-### Description
+These agentic workflows triage, link, label, close, and coordinate issues and PRs. React to events or run on schedules.
 
-Agents that triage, link, label, close, and coordinate issues and PRs. React to events or run on schedules.
-
-### When to Use
+Use these when:
 
 - Automating issue triage
 - Linking related issues
@@ -159,14 +160,14 @@ Agents that triage, link, label, close, and coordinate issues and PRs. React to 
 - Coordinating merges
 - Optimizing issue templates
 
-### Examples
+Here are some examples:
 
 - [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md) - Auto-labels and categorizes
 - [`issue-arborist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md) - Links related issues
 - [`mergefest`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md) - Merge coordination
 - [`sub-issue-closer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/sub-issue-closer.md) - Closes completed sub-issues
 
-### Key Characteristics
+Some key characteristics are:
 
 - Event-driven (issue/PR triggers)
 - Uses safe outputs for modifications
@@ -180,11 +181,9 @@ Agents that triage, link, label, close, and coordinate issues and PRs. React to 
 
 **Progressive work across multiple days with human checkpoints**
 
-### Description
+These agentic workflows tackle complex improvements too large for single runs. Three phases: (1) Research and create plan discussion, (2) Infer/setup build infrastructure, (3) Implement changes via PR. Check state each run to determine current phase.
 
-Agents that tackle complex improvements too large for single runs. Three phases: (1) Research and create plan discussion, (2) Infer/setup build infrastructure, (3) Implement changes via PR. Check state each run to determine current phase.
-
-### When to Use
+Use these when:
 
 - Large refactoring projects
 - Test coverage improvements
@@ -192,14 +191,14 @@ Agents that tackle complex improvements too large for single runs. Three phases:
 - Backlog reduction initiatives
 - Quality improvement programs
 
-### Examples
+Here are some examples:
 
 - [`daily-backlog-burner`](https://github.com/githubnext/agentics/blob/main/workflows/daily-backlog-burner.md) - Systematic backlog reduction
 - [`daily-perf-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-perf-improver.md) - Performance optimization
 - [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) - Test coverage enhancement
 - [`daily-qa`](https://github.com/githubnext/agentics/blob/main/workflows/daily-qa.md) - Continuous quality assurance
 
-### Key Characteristics
+Some key characteristics are:
 
 - Multi-day operation
 - Three distinct phases with checkpoints
@@ -213,11 +212,9 @@ Agents that tackle complex improvements too large for single runs. Three phases:
 
 **Semantic analysis and pattern detection**
 
-### Description
-
 Agents using specialized code analysis tools (Serena, ast-grep) to detect patterns, duplicates, anti-patterns, and refactoring opportunities.
 
-### When to Use
+Use these when:
 
 - Finding duplicate code
 - Detecting anti-patterns
@@ -225,7 +222,7 @@ Agents using specialized code analysis tools (Serena, ast-grep) to detect patter
 - Analyzing code style consistency
 - Type system improvements
 
-### Examples
+Here are some examples:
 
 - [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) - Finds code duplicates
 - [`semantic-function-refactor`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/semantic-function-refactor.md) - Refactoring opportunities
@@ -233,7 +230,7 @@ Agents using specialized code analysis tools (Serena, ast-grep) to detect patter
 - [`go-pattern-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/go-pattern-detector.md) - Go-specific patterns
 - [`typist`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/typist.md) - Type analysis
 
-### Key Characteristics
+Some key characteristics are:
 
 - Uses specialized analysis tools (MCP servers)
 - Language-aware or cross-language
@@ -247,11 +244,9 @@ Agents using specialized code analysis tools (Serena, ast-grep) to detect patter
 
 **Maintain knowledge artifacts synchronized with code**
 
-### Description
+These agentic workflows keep documentation, glossaries, slide decks, blog posts, and other content fresh by monitoring codebase changes and updating corresponding docs.
 
-Agents that keep documentation, glossaries, slide decks, blog posts, and other content fresh by monitoring codebase changes and updating corresponding docs.
-
-### When to Use
+Use these when:
 
 - Keeping docs synchronized
 - Maintaining glossaries
@@ -259,14 +254,14 @@ Agents that keep documentation, glossaries, slide decks, blog posts, and other c
 - Analyzing multimedia content
 - Generating documentation
 
-### Examples
+Here are some examples:
 
 - [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md) - Glossary synchronization
 - [`technical-doc-writer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/technical-doc-writer.md) - Technical documentation
 - [`slide-deck-maintainer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/slide-deck-maintainer.md) - Presentation maintenance
 - [`ubuntu-image-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ubuntu-image-analyzer.md) - Environment documentation
 
-### Key Characteristics
+Some key characteristics are:
 
 - Monitors code changes
 - Creates documentation PRs
@@ -278,13 +273,11 @@ Agents that keep documentation, glossaries, slide decks, blog posts, and other c
 
 ## Pattern 9: The Meta-Agent Optimizer 🎯
 
-**Agents that monitor and optimize other agents**
+**Monitor and optimize other agents**
 
-### Description
+These agentic workflows analyze the agent ecosystem itself. Download workflow logs, classify failures, detect missing tools, track performance metrics, identify cost optimization opportunities.
 
-Agents that analyze the agent ecosystem itself. Download workflow logs, classify failures, detect missing tools, track performance metrics, identify cost optimization opportunities.
-
-### When to Use
+Use these when:
 
 - Managing agent ecosystems at scale
 - Cost optimization
@@ -292,14 +285,14 @@ Agents that analyze the agent ecosystem itself. Download workflow logs, classify
 - Failure pattern detection
 - Tool availability validation
 
-### Examples
+Here are some examples:
 
 - [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) - Comprehensive workflow auditing
 - [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md) - Agent quality metrics
 - [`portfolio-analyst`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md) - Cost optimization
 - [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md) - Health monitoring
 
-### Key Characteristics
+Some key characteristics are:
 
 - Accesses workflow run data
 - Analyzes logs and metrics
@@ -313,11 +306,9 @@ Agents that analyze the agent ecosystem itself. Download workflow logs, classify
 
 **Orchestrate multi-step workflows via state machines**
 
-### Description
+These agentic workflows coordinate complex workflows through campaigns or task queue patterns. Track state across runs (open/in-progress/completed).
 
-Agents that coordinate complex workflows through campaigns or task queue patterns. Track state across runs (open/in-progress/completed).
-
-### When to Use
+Use these when:
 
 - Campaign management
 - Multi-step coordination
@@ -325,13 +316,13 @@ Agents that coordinate complex workflows through campaigns or task queue pattern
 - Development monitoring
 - Task distribution
 
-### Examples
+Here are some examples:
 
 - [`campaign-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md) - Creates and coordinates campaigns
 - [`workflow-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md) - Generates new workflows
 - [`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md) - Development monitoring
 
-### Key Characteristics
+Some key characteristics are:
 
 - Manages state across runs
 - Uses GitHub primitives (issues, projects)
@@ -345,11 +336,9 @@ Agents that coordinate complex workflows through campaigns or task queue pattern
 
 **Advanced insights through machine learning and NLP**
 
-### Description
+These agentic workflows apply clustering, NLP, statistical analysis, or ML techniques to extract patterns from historical data. Generate visualizations and trend reports.
 
-Agents that apply clustering, NLP, statistical analysis, or ML techniques to extract patterns from historical data. Generate visualizations and trend reports.
-
-### When to Use
+Use these when:
 
 - Pattern discovery in large datasets
 - NLP on conversations
@@ -357,13 +346,13 @@ Agents that apply clustering, NLP, statistical analysis, or ML techniques to ext
 - Trend analysis
 - Longitudinal studies
 
-### Examples
+Here are some examples:
 
 - [`copilot-session-insights`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-session-insights.md) - Session usage analysis
 - [`copilot-pr-nlp-analysis`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-pr-nlp-analysis.md) - NLP on PR conversations
 - [`prompt-clustering`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/prompt-clustering-analysis.md) - Clusters and categorizes prompts
 
-### Key Characteristics
+Some key characteristics are:
 
 - Uses ML/statistical techniques
 - Requires historical data
@@ -377,11 +366,9 @@ Agents that apply clustering, NLP, statistical analysis, or ML techniques to ext
 
 **Protect repositories from threats and enforce policies**
 
-### Description
+These agentic workflows guard repositories through vulnerability scanning, secret detection, spam filtering, malicious code analysis, and compliance enforcement.
 
-Agents that guard repositories through vulnerability scanning, secret detection, spam filtering, malicious code analysis, and compliance enforcement.
-
-### When to Use
+Use these when:
 
 - Security vulnerability scanning
 - Secret detection
@@ -389,7 +376,7 @@ Agents that guard repositories through vulnerability scanning, secret detection,
 - Compliance enforcement
 - Security fix generation
 
-### Examples
+Here are some examples:
 
 - [`security-compliance`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-compliance.md) - Vulnerability campaigns
 - [`firewall`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md) - Network security testing
@@ -397,7 +384,7 @@ Agents that guard repositories through vulnerability scanning, secret detection,
 - [`ai-moderator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ai-moderator.md) - Comment spam filtering
 - [`security-fix-pr`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-fix-pr.md) - Automated security fixes
 
-### Key Characteristics
+Some key characteristics are:
 
 - Security-focused permissions
 - High accuracy requirements
@@ -409,7 +396,7 @@ Agents that guard repositories through vulnerability scanning, secret detection,
 
 ## Combining Patterns
 
-Many successful workflows combine multiple patterns. For example:
+Here's where it gets fun: many successful workflows combine multiple patterns. For example:
 
 - **Read-Only Analyst + ML Analytics** - Analyze historical data and generate insights
 - **ChatOps Responder + Multi-Phase Improver** - User triggers a multi-day improvement project
@@ -418,9 +405,9 @@ Many successful workflows combine multiple patterns. For example:
 
 ## Choosing the Right Pattern
 
-When designing a new agent, ask:
+When designing a new agent, ask yourself:
 
-1. **Does it modify anything?** → If no, start with Read-Only Analyst
+1. **Does it modify anything?** → If no, start with Read-Only Analyst (safest!)
 2. **Is it user-triggered?** → Consider ChatOps Responder
 3. **Should it run automatically?** → Choose between Janitor (PRs) or Guardian (validation)
 4. **Is it managing other agents?** → Use Meta-Agent Optimizer or Orchestrator
@@ -429,8 +416,10 @@ When designing a new agent, ask:
 
 ## What's Next?
 
-These design patterns describe *what* agents do behaviorally. But *how* they operate within GitHub's ecosystem requires understanding operational patterns.
+These design patterns describe *what* agents do behaviorally. But *how* they operate within GitHub's ecosystem - that requires understanding operational patterns.
 
-In the next article, we'll explore 9 operational patterns for running agents effectively on GitHub.
+In our next article, we'll explore 9 operational patterns for running agents effectively on GitHub. These are the strategies that make agents work in practice!
 
-[← Previous: 12 Lessons](02-twelve-lessons.md) | [Back to Index](../index.md) | [Next: Operational Patterns →](04-operational-patterns.md)
+*More articles in this series coming soon.*
+
+[Previous Article](/gh-aw/blog/2026-01-21-twelve-lessons/)

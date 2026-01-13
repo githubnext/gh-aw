@@ -1,58 +1,82 @@
-# Authoring New Workflows in Peli's Agent Factory
+---
+title: "Authoring New Workflows in Peli's Agent Factory"
+description: "A practical guide to creating effective agentic workflows"
+authors:
+  - gh-next
+date: 2026-02-08
+draft: true
+---
 
-**A practical guide to creating effective agentic workflows**
-
-[← Previous: How Workflows Work](07-how-workflows-work.md) | [Back to Index](../index.md) | [Next: Getting Started →](09-getting-started.md)
+[Previous Article](/gh-aw/blog/2026-02-05-how-workflows-work/)
 
 ---
 
-Now that you understand how agentic workflows operate under the hood, let's explore how to author your own workflows for Peli's Agent Factory. This article provides practical guidance, patterns, and best practices drawn from creating 145 production workflows.
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+
+Welcome to our practical guide in the Peli's Agent Factory series! Now that you understand [how workflows operate under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to roll up your sleeves and start creating your own.
+
+Ready to build your own agentic workflows? Awesome! Let's make it happen.
+
+Now that you understand how workflows operate under the hood, we'll walk through the practical side of creating your own. This guide shares patterns, tips, and best practices from creating our collection of automated agentic workflows in practice. Don't worry - we'll start simple and build up from there.
+
+Let's dive in!
 
 ## The Authoring Process
 
-Creating an effective agentic workflow involves five stages:
+Creating an effective agentic workflow breaks down into five straightforward stages:
 
-```
+```text
 1. Define Purpose → 2. Choose Pattern → 3. Write Prompt → 4. Configure → 5. Test & Iterate
 ```
 
-Let's walk through each stage with examples from the factory.
+Let's walk through each stage with real examples from the factory.
 
 ## Stage 1: Define Purpose
 
-Before writing any code, answer these questions:
+Before writing any code, get crystal clear on what you're building. Answer these questions:
 
 ### What Problem Are You Solving?
 
-Be specific. Instead of "improve code quality," try:
+Be specific! Instead of "improve code quality," try:
+
 - "Detect duplicate code blocks over 50 lines"
 - "Identify functions without test coverage"
 - "Find outdated API usage patterns"
+
+The more specific you are, the better your agent will perform.
 
 ### Who Is the Audience?
 
 Different audiences need different approaches:
 
-**Team members**: Conversational tone, explain recommendations
-**Maintainers**: Technical detail, include reproduction steps
+**Team members**: Conversational tone, explain recommendations  
+**Maintainers**: Technical detail, include reproduction steps  
 **External contributors**: Welcoming tone, provide context
+
+Know who you're talking to!
 
 ### What Should the Output Be?
 
 Define the artifact the agent will create:
+
 - Issue with findings and recommendations
 - PR with automated fixes
 - Discussion with metrics and visualizations
 - Comment with analysis results
 
+Be clear about what success looks like.
+
 ### How Often Should It Run?
 
 Consider the appropriate cadence:
+
 - **Continuous** (every commit): Quality checks, smoke tests
 - **Hourly**: CI monitoring, security scanning
 - **Daily**: Metrics, health checks, cleanup
 - **Weekly**: Deep analysis, trend reports
 - **On-demand**: Reviews, investigations, fixes
+
+Match the frequency to the need.
 
 ## Stage 2: Choose Your Pattern
 
@@ -87,6 +111,7 @@ The prompt is the heart of your workflow. Great prompts are:
 ❌ **Poor**: "Analyze the code"
 
 ✅ **Good**: "Analyze the codebase for functions longer than 100 lines. For each long function, identify:
+
 1. Primary responsibility
 2. Potential split points
 3. Suggested refactoring approach"
@@ -175,7 +200,6 @@ Reference available tools explicitly:
 Use Serena to find duplicate code:
 ```bash
 serena find-duplicates --min-lines 30 --similarity 0.8
-```
 ```
 
 ## Stage 4: Configure Effectively
@@ -441,6 +465,7 @@ repo-memory:
 ```
 
 In your prompt:
+
 ```markdown
 Check `/tmp/gh-aw/repo-memory/daily-metrics/` for historical data.
 Compare today's metrics with last week's baseline.
@@ -506,16 +531,19 @@ Store new analysis results for future reference.
 Browse the factory for inspiration:
 
 **Simple Examples:**
+
 - [`poem-bot`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/poem-bot.md) - ChatOps personality
 - [`daily-repo-chronicle`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/daily-repo-chronicle.md) - Daily summary
 - [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/issue-triage-agent.md) - Event-driven
 
 **Intermediate Examples:**
+
 - [`ci-doctor`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/ci-doctor.md) - Diagnostic analysis
 - [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/glossary-maintainer.md) - Content sync
 - [`terminal-stylist`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/terminal-stylist.md) - Code analysis
 
 **Advanced Examples:**
+
 - [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) - Multi-phase
 - [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/agent-performance-analyzer.md) - Meta-agent
 - [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/workflow-health-manager.md) - Orchestration
@@ -544,4 +572,8 @@ You now have everything you need to author effective agentic workflows:
 
 Ready to begin? The next article will walk you through getting your first workflow running.
 
-[← Previous: How Workflows Work](07-how-workflows-work.md) | [Back to Index](../index.md) | [Next: Getting Started →](09-getting-started.md)
+## What's Next?
+
+_More articles in this series coming soon._
+
+[Previous Article](/gh-aw/blog/2026-02-05-how-workflows-work/)

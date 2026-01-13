@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
+import starlightBlog from 'starlight-blog';
 import mermaid from 'astro-mermaid';
 import { fileURLToPath } from 'node:url';
 
@@ -70,6 +71,14 @@ export default defineConfig({
 				},
 			},
 			plugins: [
+				starlightBlog({
+					authors: {
+						'gh-next': {
+							name: 'Don Syme',
+							url: 'https://dsyme.net/',
+						},
+					},
+				}),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
