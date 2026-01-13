@@ -336,6 +336,31 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 			},
 		},
+		{
+			name: "handler manager with create_project uses project token",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjects: &CreateProjectsConfig{
+					GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+					TargetOwner: "test-org",
+				},
+			},
+			checkContains: []string{
+				"name: Process Safe Outputs",
+				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			},
+		},
+		{
+			name: "handler manager with create_project_status_update uses project token",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
+					GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+				},
+			},
+			checkContains: []string{
+				"name: Process Safe Outputs",
+				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			},
+		},
 	}
 
 	for _, tt := range tests {
