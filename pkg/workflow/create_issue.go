@@ -162,13 +162,13 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	// Build post-steps for non-copilot assignees only
 	// Copilot assignment must be done in a separate step with the agent token
 	var postSteps []string
-	
+
 	// Get the effective GitHub token to use for gh CLI
 	var safeOutputsToken string
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
-	
+
 	nonCopilotAssignees := filterNonCopilotAssignees(data.SafeOutputs.CreateIssues.Assignees)
 	if len(nonCopilotAssignees) > 0 {
 		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
