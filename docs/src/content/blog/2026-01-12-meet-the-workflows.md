@@ -3,8 +3,7 @@ title: "Meet the Agentic Workflows in Peli's Agent Factory"
 description: "A curated tour of the most interesting agents in the factory"
 authors:
   - gh-next
-date: 2026-01-18
-draft: true
+date: 2026-01-1
 ---
 
 <img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />

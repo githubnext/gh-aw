@@ -7,13 +7,13 @@ date: 2026-01-21
 draft: true
 ---
 
-[Previous: Meet the Workflows](/gh-aw/blog/2026-01-18-meet-the-workflows/)
+[Previous: Meet the Workflows](/gh-aw/blog/2026-01-12-meet-the-workflows/)
 
 <img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome back to Peli's Agent Factory!
 
-In our [previous article](/gh-aw/blog/2026-01-18-meet-the-workflows/), we introduced you to the workflows themselves. Now let's talk about what we've learned.
+In our [previous article](/gh-aw/blog/2026-01-12-meet-the-workflows/), we introduced you to the workflows themselves. Now let's talk about what we've learned.
 
 Running our collection of automated agentic workflows in practice is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Along the way, we've learned some hard-won lessons about what makes agent ecosystems actually work.
 
@@ -152,4 +152,4 @@ In our next article, we'll explore the 12 core design patterns that define what 
 
 *More articles in this series coming soon.*
 
-[Previous: Meet the Workflows](/gh-aw/blog/2026-01-18-meet-the-workflows/)
+[Previous: Meet the Workflows](/gh-aw/blog/2026-01-12-meet-the-workflows/)
