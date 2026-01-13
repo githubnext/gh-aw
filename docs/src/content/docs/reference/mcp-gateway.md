@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.4.0  
+**Version**: 1.5.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -192,7 +192,11 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
         "VAR_NAME": "value"
       },
       "type": "stdio" | "http",
-      "url": "string"
+      "url": "string",
+      "tools": ["*"] | ["tool1", "tool2"],
+      "headers": {
+        "Authorization": "Bearer ${TOKEN}"
+      }
     }
   },
   "gateway": {
@@ -218,6 +222,8 @@ Each server configuration MUST support:
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
 | `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
+| `tools` | array[string] | No | Tool filter for the MCP server. Use `["*"]` to allow all tools (default), or specify a list of tool names to allow. This field is passed through to agent configurations and applies to both stdio and http servers. |
+| `headers` | object | No | HTTP headers to include in requests (HTTP servers only). Commonly used for authentication to external HTTP servers. Values may contain variable expressions. |
 
 *Required for stdio servers (containerized execution)  
 **Required for HTTP servers
@@ -528,6 +534,7 @@ After successful initialization, the gateway MUST:
    - `url`: MUST be the gateway URL in format "http://{domain}:{port}/mcp/{server-name}"
    - `headers`: SHOULD include authorization headers required to connect to the gateway
      - `Authorization`: Contains the authentication credentials in an implementation-dependent format
+   - `tools`: MAY be included to specify tool filters from the original configuration
    
    Example output configuration:
    ```json
@@ -538,13 +545,16 @@ After successful initialization, the gateway MUST:
          "url": "http://{domain}:{port}/mcp/server-name",
          "headers": {
            "Authorization": "{apiKey}"
-         }
+         },
+         "tools": ["*"]
        }
      }
    }
    ```
    
    The `headers` object SHOULD be present in each server configuration when authentication is required. The gateway is responsible for generating and including appropriate authentication credentials. The specific format of authentication headers is implementation-dependent.
+   
+   The `tools` field MAY be included in the output configuration to preserve tool filtering from the input configuration. When present, it specifies which tools are allowed for the server (`["*"]` for all tools, or a list of specific tool names).
 
 3. Write configuration as a single JSON document
 4. Flush stdout buffer
@@ -949,11 +959,16 @@ Implementations SHOULD provide:
     "local-server": {
       "container": "ghcr.io/example/python-mcp:latest",
       "entrypointArgs": ["--config", "/app/config.json"],
-      "type": "stdio"
+      "type": "stdio",
+      "tools": ["read_file", "write_file", "list_directory"]
     },
     "remote-server": {
       "type": "http",
-      "url": "https://api.example.com/mcp"
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      },
+      "tools": ["*"]
     }
   },
   "gateway": {
@@ -1106,6 +1121,19 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.5.0 (Draft)
+
+- **Added**: Documentation for `tools` field support for HTTP servers (Section 4.1.2)
+  - Clarified that the `tools` field applies to both stdio and HTTP server configurations
+  - Tool filtering allows `["*"]` for all tools or a list of specific tool names
+  - Updated configuration structure example to include `tools` and `headers` fields (Section 4.1.1)
+- **Added**: Example configurations demonstrating `tools` field usage (Appendix A.3)
+  - Shows stdio server with specific tool allowlist
+  - Shows HTTP server with all tools allowed (`["*"]`)
+- **Updated**: Stdout configuration output documentation (Section 5.4)
+  - Added guidance that `tools` field MAY be included in output to preserve tool filtering
+  - Updated example to show tools field in gateway output configuration
 
 ### Version 1.4.0 (Draft)
 
