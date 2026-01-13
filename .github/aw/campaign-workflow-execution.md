@@ -170,8 +170,8 @@ For each workflow:
 
 ## After Workflow Execution
 
-Once all workflows have been executed (or created and executed), proceed with the normal orchestrator phases:
-- Phase 1: Discovery (read state from manifest and project board)
-- Phase 2: Planning (determine what needs updating)
-- Phase 3: Project Updates (write state to project board)
-- Phase 4: Status Reporting (report progress, failures, and next steps)
+Once all workflows have been executed (or created and executed), proceed with the normal orchestrator steps:
+- Step 1: Discovery (read state from manifest and project board)
+- Step 2: Planning (determine what needs updating)
+- Step 3: Project Updates (write state to project board)
+- Step 4: Status Reporting (report progress, failures, and next steps)
