@@ -56,15 +56,14 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
 #         "Authorization": "apiKey"
-#       },
-#       "tools": ["*"]
+#       }
 #     }
 #   }
 # }
 #
 # The main differences:
 # 1. Claude uses "type": "http" for HTTP-based MCP servers
-# 2. The "tools" field is preserved from gateway output (v1.5 spec)
+# 2. The "tools" field is removed as it's Copilot-specific
 # 3. URLs must use the correct domain (host.docker.internal) for container access
 
 # Build the correct URL prefix using the configured domain and port
@@ -74,7 +73,7 @@ jq --arg urlPrefix "$URL_PREFIX" '
   .mcpServers |= with_entries(
     .value |= (
       (.type = "http") |
-      # Preserve tools field if present (v1.5 spec compliance)
+      (del(.tools)) |
       # Fix the URL to use the correct domain
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )

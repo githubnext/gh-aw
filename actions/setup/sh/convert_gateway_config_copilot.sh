@@ -63,7 +63,8 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 # }
 #
 # The main differences:
-# 1. Copilot requires the "tools" field
+# 1. Copilot requires the "tools" field, always set to ["*"] (wildcard)
+#    Tool filtering is handled at the gateway level
 # 2. URLs must use the correct domain (host.docker.internal) for container access
 #    The gateway may output 0.0.0.0 or localhost which won't work from within containers
 
@@ -73,8 +74,8 @@ URL_PREFIX="http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 jq --arg urlPrefix "$URL_PREFIX" '
   .mcpServers |= with_entries(
     .value |= (
-      # Add tools field if not present
-      (if .tools then . else . + {"tools": ["*"]} end) |
+      # Always use wildcard for tools (filtering done at gateway level)
+      (.tools = ["*"]) |
       # Fix the URL to use the correct domain
       # Replace http://anything:port/mcp/ with http://domain:port/mcp/
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
