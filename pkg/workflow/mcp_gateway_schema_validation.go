@@ -131,11 +131,15 @@ func formatMCPGatewayValidationError(ve *jsonschema.ValidationError) string {
 	var result strings.Builder
 
 	// Main error - use Error() method to get formatted message
-	result.WriteString(fmt.Sprintf("  - %s\n", ve.Error()))
+	result.WriteString("  - ")
+	result.WriteString(ve.Error())
+	result.WriteString("\n")
 
 	// Add causes (nested validation errors) recursively
 	for _, cause := range ve.Causes {
-		result.WriteString(fmt.Sprintf("    - %s\n", cause.Error()))
+		result.WriteString("    - ")
+		result.WriteString(cause.Error())
+		result.WriteString("\n")
 	}
 
 	return result.String()

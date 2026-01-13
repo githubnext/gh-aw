@@ -807,19 +807,19 @@ func prepareConfigForValidation(config string) string {
 	// $GITHUB_MCP_SERVER_TOKEN -> "sample-token" (example token)
 	// $GITHUB_MCP_LOCKDOWN -> "1" (example lockdown value)
 	// \${...} (escaped for Copilot) -> ${...} (unescaped for validation)
-	
+
 	cleaned = strings.ReplaceAll(cleaned, "$MCP_GATEWAY_PORT", "8080")
 	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_DOMAIN}\"", "\"localhost\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_API_KEY}\"", "\"sample-api-key\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_LOCKDOWN\"", "\"1\"")
-	
+
 	// Handle Copilot-style escaped variables: \${VARIABLE} -> sample-value
 	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_PERSONAL_ACCESS_TOKEN}", "sample-token")
 	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_MCP_SERVER_TOKEN}", "sample-token")
-	
+
 	// Handle shell command substitutions: $([ "$VAR" = "1" ] && echo true || echo false) -> true
 	cleaned = strings.ReplaceAll(cleaned, "\"$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)\"", "\"true\"")
-	
+
 	return cleaned
 }
