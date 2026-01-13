@@ -29,8 +29,6 @@ function getAgentName(assignee) {
   // Normalize: remove @ prefix if present
   const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
 
-  const { getErrorMessage } = require("./error_helpers.cjs");
-
   // Check if it's a known agent
   if (AGENT_LOGIN_NAMES[normalized]) {
     return normalized;
