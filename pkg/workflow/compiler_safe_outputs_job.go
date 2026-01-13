@@ -106,7 +106,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// === Build safe output steps ===
-	// 
+	//
 	// IMPORTANT: Step order matters for safe outputs that depend on each other.
 	// Project and agent operations must run BEFORE handler manager to ensure:
 	// 1. Create Project - creates project board first
