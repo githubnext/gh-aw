@@ -104,12 +104,12 @@ func filterNonCopilotAssignees(assignees []string) []string {
 }
 
 // buildCopilotAssignmentStep generates a post-step for assigning copilot to created issues
-// This step uses the agent token (GH_AW_AGENT_TOKEN) for the GraphQL mutation
-func buildCopilotAssignmentStep(configToken string) []string {
+// This step uses the agent token with full precedence chain
+func buildCopilotAssignmentStep(configToken, safeOutputsToken, workflowToken string) []string {
 	var steps []string
 
-	// Get the effective agent token
-	effectiveToken := getEffectiveAgentGitHubToken(configToken)
+	// Get the effective agent token with full precedence chain
+	effectiveToken := getEffectiveAgentGitHubToken(configToken, getEffectiveAgentGitHubToken(safeOutputsToken, workflowToken))
 
 	steps = append(steps, "      - name: Assign copilot to created issues\n")
 	steps = append(steps, "        if: steps.create_issue.outputs.issues_to_assign_copilot != ''\n")
@@ -162,14 +162,15 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	// Build post-steps for non-copilot assignees only
 	// Copilot assignment must be done in a separate step with the agent token
 	var postSteps []string
+
+	// Get the effective GitHub token to use for gh CLI
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
 	nonCopilotAssignees := filterNonCopilotAssignees(data.SafeOutputs.CreateIssues.Assignees)
 	if len(nonCopilotAssignees) > 0 {
-		// Get the effective GitHub token to use for gh CLI
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-
 		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
 			Participants:       nonCopilotAssignees,
 			ParticipantType:    "assignee",
@@ -183,7 +184,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Add post-step for copilot assignment using agent token
 	if assignCopilot {
-		postSteps = append(postSteps, buildCopilotAssignmentStep(data.SafeOutputs.CreateIssues.GitHubToken)...)
+		postSteps = append(postSteps, buildCopilotAssignmentStep(data.SafeOutputs.CreateIssues.GitHubToken, safeOutputsToken, data.GitHubToken)...)
 	}
 
 	// Create outputs for the job
