@@ -27,6 +27,7 @@ const mockGithub = {
     },
   },
   graphql: vi.fn(),
+  request: vi.fn(),
 };
 
 const mockContext = {
@@ -80,6 +81,7 @@ function clearCoreMocks() {
 
 beforeEach(() => {
   mockGithub.graphql.mockReset();
+  mockGithub.request.mockReset();
   mockGithub.rest.issues.addLabels.mockClear();
   clearCoreMocks();
   vi.useRealTimers();
@@ -211,6 +213,103 @@ describe("generateCampaignId", () => {
 });
 
 describe("updateProject", () => {
+  it("creates a view for an org-owned project", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      operation: "create_view",
+      view: {
+        name: "Sprint Board",
+        layout: "board",
+        filter: "is:issue is:open label:sprint",
+        visible_fields: [123, 456, 789],
+        description: "Optional description (ignored)",
+      },
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-view")]);
+    mockGithub.request.mockResolvedValueOnce({ data: { id: 101, name: "Sprint Board" } });
+
+    await updateProject(output);
+
+    expect(mockGithub.request).toHaveBeenCalledWith(
+      "POST /orgs/{org}/projectsV2/{project_number}/views",
+      expect.objectContaining({
+        org: "testowner",
+        project_number: 60,
+        name: "Sprint Board",
+        layout: "board",
+        filter: "is:issue is:open label:sprint",
+        visible_fields: [123, 456, 789],
+      })
+    );
+
+    expect(getOutput("view-id")).toBe(101);
+  });
+
+  it("creates a view for a user-owned project", async () => {
+    const projectUrl = "https://github.com/users/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      operation: "create_view",
+      view: {
+        name: "All Issues",
+        layout: "table",
+        filter: "is:issue",
+      },
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), userProjectV2Response(projectUrl, 60, "project-user-view")]);
+    mockGithub.request.mockResolvedValueOnce({ data: { id: 202, name: "All Issues" } });
+
+    await updateProject(output);
+
+    expect(mockGithub.request).toHaveBeenCalledWith(
+      "POST /users/{user_id}/projectsV2/{project_number}/views",
+      expect.objectContaining({
+        user_id: "testowner",
+        project_number: 60,
+        name: "All Issues",
+        layout: "table",
+        filter: "is:issue",
+      })
+    );
+
+    expect(getOutput("view-id")).toBe(202);
+  });
+
+  it("ignores visible_fields for roadmap views", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      operation: "create_view",
+      view: {
+        name: "Product Roadmap",
+        layout: "roadmap",
+        visible_fields: [123],
+      },
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-roadmap")]);
+    mockGithub.request.mockResolvedValueOnce({ data: { id: 303, name: "Product Roadmap" } });
+
+    await updateProject(output);
+
+    const callArgs = mockGithub.request.mock.calls[0][1];
+    expect(callArgs).toEqual(
+      expect.objectContaining({
+        org: "testowner",
+        project_number: 60,
+        name: "Product Roadmap",
+        layout: "roadmap",
+      })
+    );
+    expect(callArgs.visible_fields).toBeUndefined();
+  });
+
   it("rejects project URL when project not found", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/99";
 
