@@ -3,8 +3,7 @@ title: "Welcome to Peli's Agent Factory"
 description: "An exploration of automated agentic workflows at scale"
 authors:
   - gh-next
-date: 2026-01-15
-draft: true
+date: 2026-01-12
 ---
 
 <img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -86,7 +85,7 @@ We'll dive deeper into these lessons in upcoming articles.
 
 ## Our First Installment: Meet the Workflows
 
-In our first article, [Meet the Workflows](/gh-aw/blog/2026-01-18-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
+In our first article, [Meet the Workflows](/gh-aw/blog/2026-01-12-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
 
 Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
 
@@ -119,4 +118,4 @@ This is part of GitHub Next's exploration of [Continuous AI](https://githubnext.
 
 ---
 
-[Next Article: Meet the Workflows](/gh-aw/blog/2026-01-18-meet-the-workflows/)
+[Next Article: Meet the Workflows](/gh-aw/blog/2026-01-12-meet-the-workflows/)
