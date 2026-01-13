@@ -332,19 +332,15 @@ Some content here.`;
       // Create a temporary directory structure
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const logsDir = path.join(tmpDir, "mcp-logs");
-      const configDir = path.join(tmpDir, "mcp-config");
 
       try {
         // Create directory structure
         fs.mkdirSync(logsDir, { recursive: true });
-        fs.mkdirSync(configDir, { recursive: true });
 
         // Create test files
         fs.writeFileSync(path.join(logsDir, "gateway.log"), "Gateway log content\nLine 2");
         fs.writeFileSync(path.join(logsDir, "stderr.log"), "Error message");
         fs.writeFileSync(path.join(logsDir, "gateway.md"), "# Gateway Summary");
-        fs.writeFileSync(path.join(configDir, "gateway-output.json"), '{"status": "ok"}');
-        fs.writeFileSync(path.join(configDir, "config.toml"), "[gateway]\nport = 8080");
 
         // Mock core
         const mockCore = { info: vi.fn() };
@@ -358,13 +354,11 @@ Some content here.`;
 
         fs.existsSync = vi.fn(filepath => {
           if (filepath === "/tmp/gh-aw/mcp-logs") return true;
-          if (filepath === "/tmp/gh-aw/mcp-config") return true;
           return originalExistsSync(filepath);
         });
 
         fs.readdirSync = vi.fn(filepath => {
           if (filepath === "/tmp/gh-aw/mcp-logs") return originalReaddirSync(logsDir);
-          if (filepath === "/tmp/gh-aw/mcp-config") return originalReaddirSync(configDir);
           return originalReaddirSync(filepath);
         });
 
@@ -373,10 +367,6 @@ Some content here.`;
             const filename = filepath.replace("/tmp/gh-aw/mcp-logs/", "");
             return originalStatSync(path.join(logsDir, filename));
           }
-          if (filepath.startsWith("/tmp/gh-aw/mcp-config/")) {
-            const filename = filepath.replace("/tmp/gh-aw/mcp-config/", "");
-            return originalStatSync(path.join(configDir, filename));
-          }
           return originalStatSync(filepath);
         });
 
@@ -384,10 +374,6 @@ Some content here.`;
           if (filepath.startsWith("/tmp/gh-aw/mcp-logs/")) {
             const filename = filepath.replace("/tmp/gh-aw/mcp-logs/", "");
             return originalReadFileSync(path.join(logsDir, filename), encoding);
-          }
-          if (filepath.startsWith("/tmp/gh-aw/mcp-config/")) {
-            const filename = filepath.replace("/tmp/gh-aw/mcp-config/", "");
-            return originalReadFileSync(path.join(configDir, filename), encoding);
           }
           return originalReadFileSync(filepath, encoding);
         });
@@ -405,21 +391,16 @@ Some content here.`;
 
         // Check directories are listed
         expect(allOutput).toContain("Directory: /tmp/gh-aw/mcp-logs");
-        expect(allOutput).toContain("Directory: /tmp/gh-aw/mcp-config");
 
         // Check files are listed
         expect(allOutput).toContain("gateway.log");
         expect(allOutput).toContain("stderr.log");
         expect(allOutput).toContain("gateway.md");
-        expect(allOutput).toContain("gateway-output.json");
-        expect(allOutput).toContain("config.toml");
 
         // Check file contents are printed
         expect(allOutput).toContain("Gateway log content");
         expect(allOutput).toContain("Error message");
         expect(allOutput).toContain("# Gateway Summary");
-        expect(allOutput).toContain('{"status": "ok"}');
-        expect(allOutput).toContain("port = 8080");
 
         // Restore original functions
         fs.existsSync = originalExistsSync;
@@ -454,7 +435,6 @@ Some content here.`;
 
         // Check that it reports missing directories
         expect(allOutput).toContain("Directory does not exist: /tmp/gh-aw/mcp-logs");
-        expect(allOutput).toContain("Directory does not exist: /tmp/gh-aw/mcp-config");
       } finally {
         // Restore original functions
         fs.existsSync = originalExistsSync;
@@ -470,11 +450,9 @@ Some content here.`;
       // Create empty directories
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const logsDir = path.join(tmpDir, "mcp-logs");
-      const configDir = path.join(tmpDir, "mcp-config");
 
       try {
         fs.mkdirSync(logsDir, { recursive: true });
-        fs.mkdirSync(configDir, { recursive: true });
 
         // Mock core
         const mockCore = { info: vi.fn() };
@@ -486,13 +464,11 @@ Some content here.`;
 
         fs.existsSync = vi.fn(filepath => {
           if (filepath === "/tmp/gh-aw/mcp-logs") return true;
-          if (filepath === "/tmp/gh-aw/mcp-config") return true;
           return originalExistsSync(filepath);
         });
 
         fs.readdirSync = vi.fn(filepath => {
           if (filepath === "/tmp/gh-aw/mcp-logs") return originalReaddirSync(logsDir);
-          if (filepath === "/tmp/gh-aw/mcp-config") return originalReaddirSync(configDir);
           return originalReaddirSync(filepath);
         });
 

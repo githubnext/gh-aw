@@ -19,7 +19,7 @@ function printAllGatewayFiles() {
   core.info("=== Listing All Gateway-Related Files ===");
   core.info("");
 
-  const gatewayDirs = ["/tmp/gh-aw/mcp-logs", "/tmp/gh-aw/mcp-config"];
+  const gatewayDirs = ["/tmp/gh-aw/mcp-logs"];
 
   for (const dir of gatewayDirs) {
     if (!fs.existsSync(dir)) {
