@@ -247,4 +247,79 @@ Some content here.`;
       expect(summary).toContain("Error 2");
     });
   });
+
+  describe("main function behavior", () => {
+    // These tests verify that when gateway.md exists, gateway.log is printed to core.info
+    // and gateway.md is printed to step summary
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    test("when gateway.md and gateway.log both exist, prints gateway.log to core.info", async () => {
+      // Create a temporary directory for test files
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const gatewayMdPath = path.join(tmpDir, "gateway.md");
+      const gatewayLogPath = path.join(tmpDir, "gateway.log");
+
+      try {
+        // Write test files
+        fs.writeFileSync(gatewayMdPath, "# Gateway Summary\n\nSome markdown content");
+        fs.writeFileSync(gatewayLogPath, "Gateway log line 1\nGateway log line 2");
+
+        // Mock core and fs for the test
+        const mockCore = {
+          info: vi.fn(),
+          summary: {
+            addRaw: vi.fn().mockReturnThis(),
+            write: vi.fn(),
+          },
+        };
+
+        // Mock fs.existsSync and fs.readFileSync to use our test files
+        const originalExistsSync = fs.existsSync;
+        const originalReadFileSync = fs.readFileSync;
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.log") return true;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") {
+            return fs.readFileSync(gatewayMdPath, encoding);
+          }
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.log") {
+            return fs.readFileSync(gatewayLogPath, encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        // Make core available globally for the test
+        global.core = mockCore;
+
+        // Run the main function
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        // Verify gateway.log was printed to core.info
+        const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("Gateway log line 1"));
+        expect(infoCall).toBeDefined();
+        expect(infoCall[0]).toContain("Gateway log line 1");
+        expect(infoCall[0]).toContain("Gateway log line 2");
+
+        // Verify gateway.md was written to step summary
+        expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Gateway Summary"));
+        expect(mockCore.summary.write).toHaveBeenCalled();
+
+        // Restore original functions
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+      } finally {
+        // Clean up test files
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
 });
