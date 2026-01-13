@@ -109,19 +109,19 @@ func TestInitRepository(t *testing.T) {
 			}
 
 			// Verify create workflow prompt was created
-			createPromptPath := filepath.Join(tempDir, ".github", "aw", "create.md")
+			createPromptPath := filepath.Join(tempDir, ".github", "aw", "create-agentic-workflow.md")
 			if _, err := os.Stat(createPromptPath); os.IsNotExist(err) {
 				t.Errorf("Expected create workflow prompt file to exist")
 			}
 
 			// Verify update workflow prompt was created
-			updatePromptPath := filepath.Join(tempDir, ".github", "aw", "update.md")
+			updatePromptPath := filepath.Join(tempDir, ".github", "aw", "update-agentic-workflow.md")
 			if _, err := os.Stat(updatePromptPath); os.IsNotExist(err) {
 				t.Errorf("Expected update workflow prompt file to exist")
 			}
 
 			// Verify debug workflow prompt was created
-			debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug.md")
+			debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug-agentic-workflow.md")
 			if _, err := os.Stat(debugPromptPath); os.IsNotExist(err) {
 				t.Errorf("Expected debug workflow prompt file to exist")
 			}
@@ -188,17 +188,17 @@ func TestInitRepository_Idempotent(t *testing.T) {
 		t.Errorf("Expected dispatcher agent file to exist after second call")
 	}
 
-	createPromptPath := filepath.Join(tempDir, ".github", "aw", "create.md")
+	createPromptPath := filepath.Join(tempDir, ".github", "aw", "create-agentic-workflow.md")
 	if _, err := os.Stat(createPromptPath); os.IsNotExist(err) {
 		t.Errorf("Expected create workflow prompt file to exist after second call")
 	}
 
-	updatePromptPath := filepath.Join(tempDir, ".github", "aw", "update.md")
+	updatePromptPath := filepath.Join(tempDir, ".github", "aw", "update-agentic-workflow.md")
 	if _, err := os.Stat(updatePromptPath); os.IsNotExist(err) {
 		t.Errorf("Expected update workflow prompt file to exist after second call")
 	}
 
-	debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug.md")
+	debugPromptPath := filepath.Join(tempDir, ".github", "aw", "debug-agentic-workflow.md")
 	if _, err := os.Stat(debugPromptPath); os.IsNotExist(err) {
 		t.Errorf("Expected debug workflow prompt file to exist after second call")
 	}

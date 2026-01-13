@@ -99,13 +99,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		return fmt.Errorf("failed to delete setup agentic workflows agent: %w", err)
 	}
 
-	// Clean up legacy create-agentic-workflow.md file if it exists
-	initLog.Print("Cleaning up legacy create-agentic-workflow.md")
-	if err := cleanupLegacyCreateAgenticWorkflowPrompt(verbose); err != nil {
-		initLog.Printf("Failed to cleanup legacy create-agentic-workflow.md: %v", err)
-		return fmt.Errorf("failed to cleanup legacy create-agentic-workflow.md: %w", err)
-	}
-
 	// Write debug workflow prompt
 	initLog.Print("Writing debug workflow prompt")
 	if err := ensureDebugWorkflowPrompt(verbose, false); err != nil {
