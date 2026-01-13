@@ -208,12 +208,20 @@
         },
         "customSchemas": {
           "type": "object",
-          "description": "Map of custom server type names to JSON Schema URLs for validation. Custom types enable extensibility for specialized MCP server implementations. Keys are type names (must not be 'stdio' or 'http'), values are HTTPS or file:// URLs pointing to JSON Schema definitions.",
+          "description": "Map of custom server type names to JSON Schema URLs for validation. Custom types enable extensibility for specialized MCP server implementations. Keys are type names (must not be 'stdio' or 'http'), values are HTTPS URLs pointing to JSON Schema definitions, or empty strings to skip validation.",
           "patternProperties": {
             "^(?!stdio$|http$)[a-z][a-z0-9-]*$": {
-              "type": "string",
-              "format": "uri",
-              "pattern": "^(https?|file)://.+"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://.+"
+                },
+                {
+                  "type": "string",
+                  "enum": [""]
+                }
+              ]
             }
           },
           "additionalProperties": false

@@ -269,10 +269,11 @@ Custom server types MUST be registered in the `gateway.customSchemas` field, whi
 When a server configuration includes a `type` field with a value not in `["stdio", "http"]`:
 
 1. The gateway MUST check if the type is registered in `customSchemas`
-2. If registered, the gateway MUST fetch and apply the corresponding JSON Schema for validation
-3. If not registered, the gateway MUST reject the configuration with an error indicating the unknown type
-4. Custom schemas MUST be valid JSON Schema Draft 7 or later
-5. Custom schemas MAY extend base server configuration fields
+2. If registered with an HTTPS URL, the gateway MUST fetch and apply the corresponding JSON Schema for validation
+3. If registered with an empty string, the gateway MUST skip schema validation for that type
+4. If not registered, the gateway MUST reject the configuration with an error indicating the unknown type
+5. Custom schemas MUST be valid JSON Schema Draft 7 or later
+6. Custom schemas MAY extend base server configuration fields
 
 **Example with Custom Type**:
 
@@ -303,10 +304,11 @@ When a server configuration includes a `type` field with a value not in `["stdio
 **Requirements**:
 
 - Custom types MUST NOT conflict with reserved types ("stdio", "http")
-- Custom schema URLs MUST be HTTPS URLs or file:// URLs
+- Custom schema URLs MUST be HTTPS URLs only (for security reasons)
+- Custom schema URLs MAY be empty strings to skip validation
 - Implementations SHOULD cache fetched schemas for performance
 - Schema fetch failures MUST result in configuration validation errors
-- Custom server configurations MUST validate against their registered schemas
+- Custom server configurations MUST validate against their registered schemas when a schema URL is provided
 
 ### 4.2 Variable Expression Rendering
 
@@ -1201,16 +1203,19 @@ Content-Type: application/json
   - Custom server configurations validated against registered schemas
   - Enables extensibility for specialized MCP server implementations (e.g., Safe Inputs)
 - **Added**: `customSchemas` field to gateway configuration (Section 4.1.3)
-  - Maps custom type names to JSON Schema URLs for validation
-  - Supports HTTPS and file:// URL schemes
+  - Maps custom type names to HTTPS URLs for JSON Schema validation
+  - Supports empty string to skip validation for a custom type
+  - HTTPS-only for security (no file:// URLs)
 - **Updated**: JSON Schema with custom server type support
   - Added `customServerConfig` definition for extensible server types
-  - Added `customSchemas` property to `gatewayConfig`
+  - Added `customSchemas` property to `gatewayConfig` with HTTPS-only validation
   - Added example configuration demonstrating custom type usage
 - **Added**: Compliance tests for custom server types
-  - T-CFG-011: Valid custom server type with registered schema
-  - T-CFG-012: Reject custom type without schema registration
-  - T-CFG-013: Validate custom configuration against registered schema
+  - T-CFG-009: Valid custom server type with registered schema
+  - T-CFG-010: Reject custom type without schema registration
+  - T-CFG-011: Validate custom configuration against registered schema
+  - T-CFG-012: Reject custom type conflicting with reserved types (stdio/http)
+  - T-CFG-013: Custom schema URL fetch and cache
 
 ### Version 1.5.0 (Draft)
 
