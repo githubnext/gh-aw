@@ -108,14 +108,16 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// === Build safe output steps ===
 	//
 	// IMPORTANT: Step order matters for safe outputs that depend on each other.
-	// Project and agent operations must run BEFORE handler manager to ensure:
+	// The execution order ensures dependencies are satisfied:
 	// 1. Create Project - creates project board first
 	// 2. Update Project - configures fields/views (depends on created project)
-	// 3. Assign To Agent - assigns issue to agent
-	// 4. Handler Manager - processes all other safe outputs (update_issue, add_comment, etc.)
+	// 3. Handler Manager - processes update_issue, add_comment, etc. (can reference project)
+	// 4. Assign To Agent - assigns issue to agent (after update_issue completes)
+	// 5. Create Agent Session - creates agent session (after assignment)
 	//
-	// This order prevents failures where update_issue or add_comment try to reference
-	// projects that don't exist yet, or where projects can't be found due to invalid URLs.
+	// This order allows update_issue to reference project resources before agent assignment,
+	// which is critical for workflows like campaign-generator that update issue body with
+	// project URLs before assigning to an agent for compilation.
 
 	// 1. Create Project step (must run first)
 	if data.SafeOutputs.CreateProjects != nil {
@@ -153,31 +155,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 	}
 
-	// 4. Assign To Agent step (must run before handler manager)
-	if data.SafeOutputs.AssignToAgent != nil {
-		stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-
-	// 5. Create Agent Session step
-	if data.SafeOutputs.CreateAgentSessions != nil {
-		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
-		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-
 	// Check if any handler-manager-supported types are enabled
 	hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
 		data.SafeOutputs.AddComments != nil ||
@@ -202,8 +179,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil
 
-	// 6. Handler Manager step (processes remaining safe outputs)
-	// If we have handler manager types, use the handler manager step
+	// 4. Handler Manager step (processes update_issue, add_comment, etc.)
+	// This runs AFTER project operations but BEFORE agent assignment, allowing
+	// update_issue to reference project resources before the agent is assigned.
+	// Critical for workflows like campaign-generator that update issue with project
+	// details before assigning to agent for compilation.
 	if hasHandlerManagerTypes {
 		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
 		handlerManagerSteps := c.buildHandlerManagerStep(data)
@@ -269,6 +249,31 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.DispatchWorkflow != nil {
 			permissions.Merge(NewPermissionsActionsWrite())
 		}
+	}
+
+	// 5. Assign To Agent step (runs after handler manager / update_issue)
+	if data.SafeOutputs.AssignToAgent != nil {
+		stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
+
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+
+	// 6. Create Agent Session step
+	if data.SafeOutputs.CreateAgentSessions != nil {
+		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
+		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
+
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
 
 	// Note: Create Pull Request is now handled by the handler manager
