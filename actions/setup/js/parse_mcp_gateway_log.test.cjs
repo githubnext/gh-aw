@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { generateGatewayLogSummary, generatePlainTextGatewaySummary, generatePlainTextLegacySummary } = require("./parse_mcp_gateway_log.cjs");
+const { generateGatewayLogSummary, generatePlainTextGatewaySummary, generatePlainTextLegacySummary, printAllGatewayFiles } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
   // Note: The main() function now checks for gateway.md first before falling back to log files.
@@ -318,6 +318,200 @@ Some content here.`;
         delete global.core;
       } finally {
         // Clean up test files
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe("printAllGatewayFiles", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    test("prints all files in gateway directories with content", () => {
+      // Create a temporary directory structure
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const logsDir = path.join(tmpDir, "mcp-logs");
+      const configDir = path.join(tmpDir, "mcp-config");
+
+      try {
+        // Create directory structure
+        fs.mkdirSync(logsDir, { recursive: true });
+        fs.mkdirSync(configDir, { recursive: true });
+
+        // Create test files
+        fs.writeFileSync(path.join(logsDir, "gateway.log"), "Gateway log content\nLine 2");
+        fs.writeFileSync(path.join(logsDir, "stderr.log"), "Error message");
+        fs.writeFileSync(path.join(logsDir, "gateway.md"), "# Gateway Summary");
+        fs.writeFileSync(path.join(configDir, "gateway-output.json"), '{"status": "ok"}');
+        fs.writeFileSync(path.join(configDir, "config.toml"), "[gateway]\nport = 8080");
+
+        // Mock core
+        const mockCore = { info: vi.fn() };
+        global.core = mockCore;
+
+        // Mock fs to redirect to our test directories
+        const originalExistsSync = fs.existsSync;
+        const originalReaddirSync = fs.readdirSync;
+        const originalStatSync = fs.statSync;
+        const originalReadFileSync = fs.readFileSync;
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs") return true;
+          if (filepath === "/tmp/gh-aw/mcp-config") return true;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readdirSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs") return originalReaddirSync(logsDir);
+          if (filepath === "/tmp/gh-aw/mcp-config") return originalReaddirSync(configDir);
+          return originalReaddirSync(filepath);
+        });
+
+        fs.statSync = vi.fn(filepath => {
+          if (filepath.startsWith("/tmp/gh-aw/mcp-logs/")) {
+            const filename = filepath.replace("/tmp/gh-aw/mcp-logs/", "");
+            return originalStatSync(path.join(logsDir, filename));
+          }
+          if (filepath.startsWith("/tmp/gh-aw/mcp-config/")) {
+            const filename = filepath.replace("/tmp/gh-aw/mcp-config/", "");
+            return originalStatSync(path.join(configDir, filename));
+          }
+          return originalStatSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath.startsWith("/tmp/gh-aw/mcp-logs/")) {
+            const filename = filepath.replace("/tmp/gh-aw/mcp-logs/", "");
+            return originalReadFileSync(path.join(logsDir, filename), encoding);
+          }
+          if (filepath.startsWith("/tmp/gh-aw/mcp-config/")) {
+            const filename = filepath.replace("/tmp/gh-aw/mcp-config/", "");
+            return originalReadFileSync(path.join(configDir, filename), encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        // Call the function
+        printAllGatewayFiles();
+
+        // Verify the output
+        const infoMessages = mockCore.info.mock.calls.map(call => call[0]);
+        const allOutput = infoMessages.join("\n");
+
+        // Check header
+        expect(allOutput).toContain("=== Listing All Gateway-Related Files ===");
+        expect(allOutput).toContain("=== End of Gateway-Related Files ===");
+
+        // Check directories are listed
+        expect(allOutput).toContain("Directory: /tmp/gh-aw/mcp-logs");
+        expect(allOutput).toContain("Directory: /tmp/gh-aw/mcp-config");
+
+        // Check files are listed
+        expect(allOutput).toContain("gateway.log");
+        expect(allOutput).toContain("stderr.log");
+        expect(allOutput).toContain("gateway.md");
+        expect(allOutput).toContain("gateway-output.json");
+        expect(allOutput).toContain("config.toml");
+
+        // Check file contents are printed
+        expect(allOutput).toContain("Gateway log content");
+        expect(allOutput).toContain("Error message");
+        expect(allOutput).toContain("# Gateway Summary");
+        expect(allOutput).toContain('{"status": "ok"}');
+        expect(allOutput).toContain("port = 8080");
+
+        // Restore original functions
+        fs.existsSync = originalExistsSync;
+        fs.readdirSync = originalReaddirSync;
+        fs.statSync = originalStatSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+      } finally {
+        // Clean up test files
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("handles missing directories gracefully", () => {
+      // Mock core
+      const mockCore = { info: vi.fn() };
+      global.core = mockCore;
+
+      // Mock fs to return false for directory existence
+      const fs = require("fs");
+      const originalExistsSync = fs.existsSync;
+
+      fs.existsSync = vi.fn(() => false);
+
+      try {
+        // Call the function
+        printAllGatewayFiles();
+
+        // Verify the output
+        const infoMessages = mockCore.info.mock.calls.map(call => call[0]);
+        const allOutput = infoMessages.join("\n");
+
+        // Check that it reports missing directories
+        expect(allOutput).toContain("Directory does not exist: /tmp/gh-aw/mcp-logs");
+        expect(allOutput).toContain("Directory does not exist: /tmp/gh-aw/mcp-config");
+      } finally {
+        // Restore original functions
+        fs.existsSync = originalExistsSync;
+        delete global.core;
+      }
+    });
+
+    test("handles empty directories", () => {
+      const fs = require("fs");
+      const path = require("path");
+      const os = require("os");
+
+      // Create empty directories
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const logsDir = path.join(tmpDir, "mcp-logs");
+      const configDir = path.join(tmpDir, "mcp-config");
+
+      try {
+        fs.mkdirSync(logsDir, { recursive: true });
+        fs.mkdirSync(configDir, { recursive: true });
+
+        // Mock core
+        const mockCore = { info: vi.fn() };
+        global.core = mockCore;
+
+        // Mock fs to use our test directories
+        const originalExistsSync = fs.existsSync;
+        const originalReaddirSync = fs.readdirSync;
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs") return true;
+          if (filepath === "/tmp/gh-aw/mcp-config") return true;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readdirSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs") return originalReaddirSync(logsDir);
+          if (filepath === "/tmp/gh-aw/mcp-config") return originalReaddirSync(configDir);
+          return originalReaddirSync(filepath);
+        });
+
+        // Call the function
+        printAllGatewayFiles();
+
+        // Verify the output
+        const infoMessages = mockCore.info.mock.calls.map(call => call[0]);
+        const allOutput = infoMessages.join("\n");
+
+        // Check that it reports empty directories
+        expect(allOutput).toContain("(empty directory)");
+
+        // Restore original functions
+        fs.existsSync = originalExistsSync;
+        fs.readdirSync = originalReaddirSync;
+        delete global.core;
+      } finally {
+        // Clean up
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
