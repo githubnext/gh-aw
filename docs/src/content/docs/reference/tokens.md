@@ -14,7 +14,7 @@ For GitHub Agentic Workflows, you only need to create a few **optional** secrets
 
 | When you need this…                                  | Secret to create                       | Notes |
 |------------------------------------------------------|----------------------------------------|-------|
-| Copilot workflows (CLI, engine, agent sessions, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission. For org-owned repos, also requires org permissions: Members (read-only), GitHub Copilot Business (read-only). |
+| Copilot workflows (CLI, engine, agent sessions, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission. For org-owned repos, needs org permissions: Members (read-only), GitHub Copilot Business (read-only). |
 | Cross-repo Project Ops / remote GitHub tools         | `GH_AW_GITHUB_TOKEN`                   | PAT or app token with cross-repo access. |
 | Assigning agents/bots to issues or pull requests     | `GH_AW_AGENT_TOKEN`                    | Used by `assign-to-agent` and Copilot assignee/reviewer flows. |
 | Any GitHub Projects v2 operations                    | `GH_AW_PROJECT_GITHUB_TOKEN`           | **Required** for `update-project`. Default `GITHUB_TOKEN` cannot access Projects v2 API. |
