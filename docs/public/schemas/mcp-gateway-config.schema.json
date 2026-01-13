@@ -15,6 +15,26 @@
     "gateway": {
       "$ref": "#/definitions/gatewayConfig",
       "description": "Gateway-specific configuration for the MCP Gateway service."
+    },
+    "customSchemas": {
+      "type": "object",
+      "description": "Map of custom server type names to JSON Schema URLs for validation. Custom types enable extensibility for specialized MCP server implementations. Keys are type names (must not be 'stdio' or 'http'), values are HTTPS URLs pointing to JSON Schema definitions, or empty strings to skip validation.",
+      "patternProperties": {
+        "^(?!stdio$|http$)[a-z][a-z0-9-]*$": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://.+"
+            },
+            {
+              "type": "string",
+              "enum": [""]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["mcpServers", "gateway"],
@@ -22,7 +42,7 @@
   "definitions": {
     "mcpServerConfig": {
       "type": "object",
-      "description": "Configuration for an individual MCP server. Supports stdio servers, HTTP servers, and custom server types registered via gateway.customSchemas. Per MCP Gateway Specification section 4.1.4, custom types enable extensibility for specialized MCP server implementations.",
+      "description": "Configuration for an individual MCP server. Supports stdio servers, HTTP servers, and custom server types registered via customSchemas. Per MCP Gateway Specification section 4.1.4, custom types enable extensibility for specialized MCP server implementations.",
       "oneOf": [
         {
           "$ref": "#/definitions/stdioServerConfig"
@@ -147,12 +167,12 @@
     },
     "customServerConfig": {
       "type": "object",
-      "description": "Configuration for a custom MCP server type. Custom types must be registered in gateway.customSchemas with a JSON Schema URL. The configuration is validated against the registered schema. Per MCP Gateway Specification section 4.1.4, this enables extensibility for specialized MCP server implementations.",
+      "description": "Configuration for a custom MCP server type. Custom types must be registered in customSchemas with a JSON Schema URL. The configuration is validated against the registered schema. Per MCP Gateway Specification section 4.1.4, this enables extensibility for specialized MCP server implementations.",
       "properties": {
         "type": {
           "type": "string",
           "pattern": "^(?!stdio$|http$)[a-z][a-z0-9-]*$",
-          "description": "Custom server type name. Must not be 'stdio' or 'http'. Must be registered in gateway.customSchemas."
+          "description": "Custom server type name. Must not be 'stdio' or 'http'. Must be registered in customSchemas."
         }
       },
       "required": ["type"],
@@ -205,26 +225,6 @@
           "description": "Tool invocation timeout in seconds. The gateway enforces this timeout for individual tool/method calls to MCP servers.",
           "minimum": 1,
           "default": 60
-        },
-        "customSchemas": {
-          "type": "object",
-          "description": "Map of custom server type names to JSON Schema URLs for validation. Custom types enable extensibility for specialized MCP server implementations. Keys are type names (must not be 'stdio' or 'http'), values are HTTPS URLs pointing to JSON Schema definitions, or empty strings to skip validation.",
-          "patternProperties": {
-            "^(?!stdio$|http$)[a-z][a-z0-9-]*$": {
-              "oneOf": [
-                {
-                  "type": "string",
-                  "format": "uri",
-                  "pattern": "^https://.+"
-                },
-                {
-                  "type": "string",
-                  "enum": [""]
-                }
-              ]
-            }
-          },
-          "additionalProperties": false
         }
       },
       "required": ["port", "domain", "apiKey"],
@@ -306,10 +306,10 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
-        "apiKey": "gateway-secret-token",
-        "customSchemas": {
-          "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
-        }
+        "apiKey": "gateway-secret-token"
+      },
+      "customSchemas": {
+        "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
       }
     }
   ]

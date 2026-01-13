@@ -205,6 +205,9 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
     "domain": "string",
     "startupTimeout": 30,
     "toolTimeout": 60
+  },
+  "customSchemas": {
+    "custom-type": "https://example.com/schema.json"
   }
 }
 ```
@@ -241,7 +244,14 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `apiKey` | string | Yes | API key for authentication |
 | `startupTimeout` | integer | No | Server startup timeout in seconds (default: 30) |
 | `toolTimeout` | integer | No | Tool invocation timeout in seconds (default: 60) |
-| `customSchemas` | object | No | Map of custom server type names to JSON Schema URLs for validation |
+
+#### 4.1.3a Top-Level Configuration Fields
+
+The following fields MAY be specified at the top level of the configuration:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `customSchemas` | object | No | Map of custom server type names to JSON Schema URLs for validation. See Section 4.1.4 for details. |
 
 #### 4.1.4 Custom Server Types
 
@@ -249,17 +259,22 @@ The gateway MAY support custom server types beyond the standard "stdio" and "htt
 
 **Registration Mechanism**:
 
-Custom server types MUST be registered in the `gateway.customSchemas` field, which maps type names to JSON Schema URLs:
+Custom server types MUST be registered in the `customSchemas` field at the top level of the configuration, which maps type names to JSON Schema URLs:
 
 ```json
 {
+  "mcpServers": {
+    "my-custom-server": {
+      "type": "safeinputs"
+    }
+  },
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "secret",
-    "customSchemas": {
-      "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
-    }
+    "apiKey": "secret"
+  },
+  "customSchemas": {
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
   }
 }
 ```
@@ -293,10 +308,10 @@ When a server configuration includes a `type` field with a value not in `["stdio
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "secret",
-    "customSchemas": {
-      "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
-    }
+    "apiKey": "secret"
+  },
+  "customSchemas": {
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
   }
 }
 ```
@@ -1199,16 +1214,17 @@ Content-Type: application/json
 
 - **Added**: Custom server type support (Section 4.1.4)
   - Gateway MAY support custom server types beyond "stdio" and "http"
-  - Custom types registered in `gateway.customSchemas` field mapping type names to JSON Schema URLs
+  - Custom types registered in top-level `customSchemas` field mapping type names to JSON Schema URLs
   - Custom server configurations validated against registered schemas
   - Enables extensibility for specialized MCP server implementations (e.g., Safe Inputs)
-- **Added**: `customSchemas` field to gateway configuration (Section 4.1.3)
+- **Added**: `customSchemas` field to top-level configuration (Section 4.1.3a)
   - Maps custom type names to HTTPS URLs for JSON Schema validation
   - Supports empty string to skip validation for a custom type
   - HTTPS-only for security (no file:// URLs)
+  - Moved from gateway configuration to top level for cleaner structure
 - **Updated**: JSON Schema with custom server type support
   - Added `customServerConfig` definition for extensible server types
-  - Added `customSchemas` property to `gatewayConfig` with HTTPS-only validation
+  - Added `customSchemas` property at top level with HTTPS-only validation
   - Added example configuration demonstrating custom type usage
 - **Added**: Compliance tests for custom server types
   - T-CFG-009: Valid custom server type with registered schema
