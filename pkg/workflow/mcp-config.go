@@ -147,7 +147,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
 // Serena now runs using uvx with HTTP transport in the agent job (not containerized)
-// The HTTP server is started in a background step and accessed via http://localhost:9121
+// The HTTP server is started in a background step and accessed via http://host.docker.internal:9121
+// Note: host.docker.internal is used because the MCP gateway runs in a container and needs to reach the host
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	yaml.WriteString("              \"serena\": {\n")
 
@@ -157,7 +158,8 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	}
 
 	// HTTP URL for Serena MCP server running on host
-	yaml.WriteString("                \"url\": \"http://localhost:9121\"\n")
+	// Use host.docker.internal so the gateway container can reach the host
+	yaml.WriteString("                \"url\": \"http://host.docker.internal:9121\"\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.

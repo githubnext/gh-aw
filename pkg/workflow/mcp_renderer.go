@@ -186,11 +186,12 @@ func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serena
 
 // renderSerenaTOML generates Serena MCP configuration in TOML format
 // Serena now runs using uvx with HTTP transport in the agent job (not containerized)
-// The HTTP server is started in a background step and accessed via http://localhost:9121
+// The HTTP server is started in a background step and accessed via http://host.docker.internal:9121
+// Note: host.docker.internal is used because the MCP gateway runs in a container and needs to reach the host
 func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.serena]\n")
-	yaml.WriteString("          url = \"http://localhost:9121\"\n")
+	yaml.WriteString("          url = \"http://host.docker.internal:9121\"\n")
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration

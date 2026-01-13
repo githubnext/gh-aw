@@ -761,7 +761,7 @@ jobs:
               },
               "serena": {
                 "type": "http",
-                "url": "http://localhost:9121"
+                "url": "http://host.docker.internal:9121"
               },
               "tavily": {
                 "type": "http",
