@@ -446,6 +446,24 @@ body:has(.hero)::before {
   background: transparent !important;
 }
 
+/* Mobile-specific: Increase touch targets for sidebar navigation */
+@media (max-width: 768px) {
+  .sidebar .top-level > li > details > summary,
+  .sidebar .top-level > li > a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+  }
+  
+  .sidebar nav li li a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+  }
+}
+
 .sidebar nav li li a:hover {
   color: #f0f6fc;
   background-color: transparent !important;
@@ -836,6 +854,19 @@ header::after {
   border-bottom-color: rgba(216, 150, 255, 0.3);
 }
 
+/* Mobile-specific: Add padding to inline links for better touch targets */
+@media (max-width: 768px) {
+  .sl-markdown-content p a,
+  .sl-markdown-content li a {
+    padding: 0.25rem 0.125rem;
+    margin: -0.25rem -0.125rem;
+    display: inline-block;
+    min-height: 44px;
+    line-height: 1.6;
+    vertical-align: middle;
+  }
+}
+
 :root[data-theme='light'] .sl-markdown-content a {
   color: #0969da;
 }
@@ -867,6 +898,17 @@ nav a[aria-current="page"] {
 
 :root[data-theme='light'] .social-icons a[href*="github.com"] {
   color: #010409 !important;
+}
+
+/* Mobile-specific: Ensure social icons have adequate touch targets */
+@media (max-width: 768px) {
+  .social-icons a {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 :root[data-theme='light'] .icon-wrapper {
@@ -1208,9 +1250,15 @@ html {
     margin-right: 0.5rem !important;
   }
   
+  /* Increase touch target size for header links to meet WCAG 2.1 Level AAA (44x44px) */
   .header-link {
-    padding: 0.25rem 0.5rem !important;
+    padding: 0.625rem 0.75rem !important; /* Increased from 0.25rem 0.5rem */
     font-size: 0.8125rem !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   /* Ensure theme toggle is visible on mobile */
@@ -1266,11 +1314,12 @@ html {
     visibility: visible !important;
   }
   
-  /* Make theme toggle easier to tap on mobile */
+  /* Make theme toggle easier to tap on mobile - WCAG 2.1 Level AAA (44x44px) */
   starlight-theme-select .icon-wrapper {
-    width: 2.5rem !important;
-    height: 2.5rem !important;
-    min-width: 2.5rem !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
   }
   
   /* Ensure proper spacing on mobile header */

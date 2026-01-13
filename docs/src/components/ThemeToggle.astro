@@ -120,6 +120,16 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
     position: relative;
   }
 
+  /* Mobile-specific: Ensure minimum 44x44px touch target for WCAG 2.1 Level AAA */
+  @media (max-width: 768px) {
+    .icon-wrapper {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
   .icon-wrapper:hover {
     background: rgba(110, 118, 129, 0.1);
     color: #f0f6fc;
