@@ -913,6 +913,53 @@ jobs:
           EOF
           
           # Generate JSON config for MCP gateway
+          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          {
+            "mcpServers": {
+              "github": {
+                "container": "ghcr.io/github/github-mcp-server:v0.28.1",
+                "env": {
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions"
+                }
+              },
+              "safeinputs": {
+                "type": "http",
+                "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
+                "headers": {
+                  "Authorization": "$GH_AW_SAFE_INPUTS_API_KEY"
+                }
+              },
+              "safeoutputs": {
+                "container": "node:lts-alpine",
+                "entrypoint": "node",
+                "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
+                "env": {
+                  "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
+                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
+                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
+                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
+                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
+                  "GITHUB_SHA": "$GITHUB_SHA",
+                  "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
+                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
+                }
+              }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}"
+            }
+          }
+          MCPCONFIG_EOF
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
