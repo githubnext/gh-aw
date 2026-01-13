@@ -185,6 +185,35 @@ network:
     - "api.example.com"  # Custom domain
 ```
 
+## MCP Gateway + Firewall Flow
+
+When the MCP gateway is enabled, the firewall and gateway work together to keep MCP traffic contained while still allowing the agent to reach the GitHub MCP server.
+
+```mermaid
+flowchart LR
+    subgraph Host["Host machine"]
+        GATEWAY["gh-aw-mcpg\nDocker container\nHost port 80 maps to container port 8000"]
+        GH_MCP["GitHub MCP Server\nspawned via Docker socket"]
+        GATEWAY -->|"spawns"| GH_MCP
+    end
+
+    subgraph AWFNet["AWF network namespace"]
+        AGENT["Agent container\nCopilot CLI + MCP client\n172.30.0.20"]
+        PROXY["Squid proxy\n172.30.0.10"]
+    end
+
+    AGENT -->|"CONNECT host.docker.internal:80"| PROXY
+    PROXY -->|"allowed domain\n(host.docker.internal)"| GATEWAY
+    GATEWAY -->|"forwards to"| GH_MCP
+```
+
+**How the pieces fit together**
+
+1. AWF starts an isolated network with a Squid proxy that enforces the workflow `network.allowed` list.
+2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). That hostname must be allowed by the firewall.
+3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It then uses the Docker socket to spawn the GitHub MCP server container.
+4. All MCP traffic stays inside the host boundary: the firewall restricts egress, and the gateway routes requests to the sandboxed GitHub MCP server.
+
 ## MCP Server Sandboxing
 
 Model Context Protocol (MCP) servers run in isolated containers with explicit tool filtering, preventing unauthorized access and limiting the attack surface.
