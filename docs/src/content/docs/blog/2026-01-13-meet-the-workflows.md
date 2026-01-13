@@ -3,6 +3,7 @@ title: "Meet the Workflows in Peli's Agent Factory"
 description: "A curated tour of some of the interesting agentic workflows in the factory"
 authors:
   - dsyme
+  - peli
 date: 2026-01-13
 prev:
   link: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/

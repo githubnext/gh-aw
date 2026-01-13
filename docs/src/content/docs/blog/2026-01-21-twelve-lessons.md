@@ -3,6 +3,7 @@ title: "12 Lessons from Peli's Agent Factory"
 description: "Key insights about what works, what doesn't, and how to design effective agent ecosystems"
 authors:
   - dsyme
+  - peli
 date: 2026-01-21
 draft: true
 prev:

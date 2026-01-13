@@ -3,6 +3,7 @@ title: "How Agentic Workflows Work"
 description: "The technical foundation: from natural language to secure execution"
 authors:
   - dsyme
+  - peli
 date: 2026-02-05
 draft: true
 prev:

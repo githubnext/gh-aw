@@ -81,6 +81,10 @@ export default defineConfig({
 							name: 'Don Syme',
 							url: 'https://dsyme.net/',
 						},
+						'peli': {
+							name: 'Peli de Halleux',
+							url: 'https://www.microsoft.com/research/people/jhalleux/',
+						},
 					},
 				}),
 				starlightGitHubAlerts(),

@@ -3,6 +3,7 @@ title: "Welcome to Peli's Agent Factory"
 description: "An exploration of automated agentic workflows at scale"
 authors:
   - dsyme
+  - peli
 date: 2026-01-12
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows/
