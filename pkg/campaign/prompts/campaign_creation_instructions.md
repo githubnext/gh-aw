@@ -375,7 +375,26 @@ Agents in this campaign should:
 
 ## Project Board Setup
 
-**Recommended Custom Fields**:
+**Project Views** (automatically created):
+
+The campaign generator creates three views optimized for campaign tracking:
+
+1. **Campaign Roadmap** (Roadmap layout)
+   - Timeline visualization with Worker/Workflow swimlanes
+   - Shows work distribution across time
+   - Group by Worker/Workflow field for swimlanes
+   
+2. **Task Tracker** (Table layout)
+   - Detailed task tracking with all fields visible
+   - Use "Slice by" filtering for Priority, Status, Worker/Workflow
+   - Sort by Priority or Effort for prioritization
+   
+3. **Progress Board** (Board layout)
+   - Kanban-style progress tracking
+   - Group by Status field (Todo, In Progress, Blocked, Done)
+   - Visual workflow state management
+
+**Recommended Custom Fields** (must be created manually in GitHub Projects UI):
 
 1. **Worker/Workflow** (Single select): <workflow-id-1>, <workflow-id-2>
    - Enables swimlane grouping in Roadmap views
@@ -392,7 +411,7 @@ Agents in this campaign should:
 5. **Effort** (Single select): Small (1-3 days), Medium (1 week), Large (2+ weeks)
    - Capacity planning
 
-The orchestrator automatically populates these fields. See the [Project Management guide](https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/guides/campaigns/project-management.md) for setup instructions.
+The orchestrator automatically populates these fields. See the [Project Management guide](https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/guides/campaigns/project-management.md) for detailed setup instructions and view configuration examples.
 
 ## Timeline
 
