@@ -80,41 +80,25 @@
         {
           "required": ["script"],
           "not": {
-            "anyOf": [
-              { "required": ["run"] },
-              { "required": ["py"] },
-              { "required": ["go"] }
-            ]
+            "anyOf": [{ "required": ["run"] }, { "required": ["py"] }, { "required": ["go"] }]
           }
         },
         {
           "required": ["run"],
           "not": {
-            "anyOf": [
-              { "required": ["script"] },
-              { "required": ["py"] },
-              { "required": ["go"] }
-            ]
+            "anyOf": [{ "required": ["script"] }, { "required": ["py"] }, { "required": ["go"] }]
           }
         },
         {
           "required": ["py"],
           "not": {
-            "anyOf": [
-              { "required": ["script"] },
-              { "required": ["run"] },
-              { "required": ["go"] }
-            ]
+            "anyOf": [{ "required": ["script"] }, { "required": ["run"] }, { "required": ["go"] }]
           }
         },
         {
           "required": ["go"],
           "not": {
-            "anyOf": [
-              { "required": ["script"] },
-              { "required": ["run"] },
-              { "required": ["py"] }
-            ]
+            "anyOf": [{ "required": ["script"] }, { "required": ["run"] }, { "required": ["py"] }]
           }
         }
       ],
@@ -146,11 +130,7 @@
           "type": "array",
           "description": "List of allowed values for the parameter. Restricts the parameter to specific options. Useful for parameters with limited valid values.",
           "items": {
-            "oneOf": [
-              { "type": "string" },
-              { "type": "number" },
-              { "type": "boolean" }
-            ]
+            "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
           },
           "minItems": 1
         }
