@@ -39,6 +39,15 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
     font-family: inherit;
   }
 
+  /* Mobile-specific: Increase touch targets to meet WCAG 2.1 Level AAA (44x44px) */
+  @media (max-width: 768px) {
+    .copy-entire-file-btn {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0.75rem 1rem;
+    }
+  }
+
   .copy-entire-file-btn:hover {
     background: var(--sl-color-gray-6);
   }
