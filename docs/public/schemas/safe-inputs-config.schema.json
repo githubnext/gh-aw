@@ -1,0 +1,243 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json",
+  "title": "Safe Inputs Configuration",
+  "description": "Configuration schema for Safe Inputs custom MCP tools as defined in the Safe Inputs Specification v1.0.0. Safe Inputs enables inline definition of custom MCP tools directly in workflow frontmatter using JavaScript, shell scripts, Python, or Go.",
+  "type": "object",
+  "patternProperties": {
+    "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+      "$ref": "#/definitions/safeInputToolConfig"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "safeInputToolConfig": {
+      "type": "object",
+      "description": "Configuration for a single safe-input tool. Each tool must have exactly one implementation method (script, run, py, or go).",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what the tool does. This is shown to the agent for tool selection. Required field per Safe Inputs Specification section 4.2.",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Input parameter definitions following JSON Schema conventions. Each parameter can specify type, description, required flag, default value, and enum constraints.",
+          "patternProperties": {
+            "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+              "$ref": "#/definitions/inputParameter"
+            }
+          },
+          "additionalProperties": false
+        },
+        "script": {
+          "type": "string",
+          "description": "JavaScript (CommonJS) implementation of the tool. The code is automatically wrapped in an async function with destructured inputs. Access secrets via process.env. Mutually exclusive with run, py, and go.",
+          "minLength": 1
+        },
+        "run": {
+          "type": "string",
+          "description": "Shell script implementation of the tool. Executes in bash with inputs as environment variables (INPUT_* prefix). Must output valid JSON to stdout. Mutually exclusive with script, py, and go.",
+          "minLength": 1
+        },
+        "py": {
+          "type": "string",
+          "description": "Python script implementation of the tool. Executes using Python 3.10+ with inputs available via 'inputs' dictionary. Must output valid JSON to stdout. Mutually exclusive with script, run, and go.",
+          "minLength": 1
+        },
+        "go": {
+          "type": "string",
+          "description": "Go code implementation of the tool. Executes using 'go run' with inputs as map[string]any from stdin. Must output valid JSON to stdout. Standard library imports (encoding/json, fmt, io, os) are automatically included. Mutually exclusive with script, run, and py.",
+          "minLength": 1
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the tool, typically used for secrets. Values may contain GitHub Actions secret expressions using '${{ secrets.NAME }}' syntax. Only explicitly declared environment variables are available to tools (secret isolation).",
+          "patternProperties": {
+            "^[A-Z_][A-Z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Execution timeout in seconds. Default is 60 seconds. Applies only to shell (run), Python (py), and Go (go) tools. JavaScript (script) tools execute in-process without timeout enforcement. Minimum value is 1 second.",
+          "minimum": 1,
+          "default": 60
+        }
+      },
+      "required": ["description"],
+      "oneOf": [
+        {
+          "required": ["script"],
+          "not": {
+            "anyOf": [
+              { "required": ["run"] },
+              { "required": ["py"] },
+              { "required": ["go"] }
+            ]
+          }
+        },
+        {
+          "required": ["run"],
+          "not": {
+            "anyOf": [
+              { "required": ["script"] },
+              { "required": ["py"] },
+              { "required": ["go"] }
+            ]
+          }
+        },
+        {
+          "required": ["py"],
+          "not": {
+            "anyOf": [
+              { "required": ["script"] },
+              { "required": ["run"] },
+              { "required": ["go"] }
+            ]
+          }
+        },
+        {
+          "required": ["go"],
+          "not": {
+            "anyOf": [
+              { "required": ["script"] },
+              { "required": ["run"] },
+              { "required": ["py"] }
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "inputParameter": {
+      "type": "object",
+      "description": "Input parameter definition following JSON Schema conventions. Defines the type, validation rules, and documentation for a single tool parameter.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "JSON Schema type for the parameter. Supported types: string, number, boolean, array, object.",
+          "enum": ["string", "number", "boolean", "array", "object"],
+          "default": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the parameter. Shown to the agent to help with tool usage."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether the parameter must be provided by the agent. If true, the tool invocation will fail if this parameter is missing.",
+          "default": false
+        },
+        "default": {
+          "description": "Default value for the parameter if not provided by the agent. Type should match the 'type' field."
+        },
+        "enum": {
+          "type": "array",
+          "description": "List of allowed values for the parameter. Restricts the parameter to specific options. Useful for parameters with limited valid values.",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" }
+            ]
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "greet-user": {
+        "description": "Greet a user by name",
+        "inputs": {
+          "name": {
+            "type": "string",
+            "required": true,
+            "description": "Name of the user to greet"
+          }
+        },
+        "script": "return { message: `Hello, ${name}!` };"
+      }
+    },
+    {
+      "list-prs": {
+        "description": "List pull requests using gh CLI",
+        "inputs": {
+          "repo": {
+            "type": "string",
+            "required": true,
+            "description": "Repository in owner/name format"
+          },
+          "state": {
+            "type": "string",
+            "default": "open",
+            "enum": ["open", "closed", "all"],
+            "description": "PR state filter"
+          }
+        },
+        "run": "gh pr list --repo \"$INPUT_REPO\" --state \"$INPUT_STATE\" --json number,title",
+        "env": {
+          "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+        },
+        "timeout": 30
+      }
+    },
+    {
+      "analyze-data": {
+        "description": "Analyze numeric data with Python",
+        "inputs": {
+          "numbers": {
+            "type": "string",
+            "description": "Comma-separated numbers",
+            "required": true
+          }
+        },
+        "py": "import json\n\nnumbers_str = inputs.get('numbers', '')\nnumbers = [float(x.strip()) for x in numbers_str.split(',') if x.strip()]\n\nresult = {\n    \"count\": len(numbers),\n    \"sum\": sum(numbers),\n    \"average\": sum(numbers) / len(numbers) if numbers else 0\n}\n\nprint(json.dumps(result))",
+        "timeout": 60
+      }
+    },
+    {
+      "calculate": {
+        "description": "Perform calculations with Go",
+        "inputs": {
+          "a": {
+            "type": "number",
+            "required": true
+          },
+          "b": {
+            "type": "number",
+            "required": true
+          }
+        },
+        "go": "a := inputs[\"a\"].(float64)\nb := inputs[\"b\"].(float64)\nresult := map[string]any{\n    \"sum\": a + b,\n    \"product\": a * b,\n}\njson.NewEncoder(os.Stdout).Encode(result)",
+        "timeout": 30
+      }
+    },
+    {
+      "fetch-api-data": {
+        "description": "Fetch data from external API with authentication",
+        "inputs": {
+          "endpoint": {
+            "type": "string",
+            "required": true,
+            "description": "API endpoint path"
+          },
+          "method": {
+            "type": "string",
+            "default": "GET",
+            "enum": ["GET", "POST", "PUT", "DELETE"]
+          }
+        },
+        "script": "const apiKey = process.env.API_KEY;\nconst response = await fetch(`https://api.example.com/${endpoint}`, {\n  method,\n  headers: { 'Authorization': `Bearer ${apiKey}` }\n});\nreturn await response.json();",
+        "env": {
+          "API_KEY": "${{ secrets.SERVICE_API_KEY }}"
+        }
+      }
+    }
+  ]
+}
