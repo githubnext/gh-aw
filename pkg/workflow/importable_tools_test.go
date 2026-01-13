@@ -153,13 +153,19 @@ Uses imported serena tool.
 		t.Error("Expected compiled workflow to contain serena tool")
 	}
 
-	// Verify serena container (now using Docker instead of uvx)
-	if !strings.Contains(workflowData, "ghcr.io/oraios/serena:latest") {
-		t.Error("Expected compiled workflow to contain serena Docker container")
+	// Verify serena HTTP server setup (now using uvx with HTTP transport)
+	if !strings.Contains(workflowData, "Start Serena MCP HTTP Server") {
+		t.Error("Expected compiled workflow to contain Serena HTTP server startup step")
+	}
+	if !strings.Contains(workflowData, "uvx --from git+https://github.com/oraios/serena") {
+		t.Error("Expected compiled workflow to use uvx to start Serena")
+	}
+	if !strings.Contains(workflowData, "http://localhost:9121") {
+		t.Error("Expected compiled workflow to contain Serena HTTP URL")
 	}
 
-	// Verify that language service setup steps are NOT present
-	// since Serena now runs in a container with language services included
+	// Verify that language service setup steps ARE present
+	// since Serena now runs with uvx on the host and needs language runtimes
 	if strings.Contains(workflowData, "Install Go language service") {
 		t.Error("Did not expect Go language service installation step (Serena runs in container)")
 	}
@@ -318,8 +324,8 @@ Uses all imported tools.
 	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
 		t.Error("Expected compiled workflow to contain playwright Docker image")
 	}
-	if !strings.Contains(workflowData, "ghcr.io/oraios/serena:latest") {
-		t.Error("Expected compiled workflow to contain serena Docker container")
+	if !strings.Contains(workflowData, "http://localhost:9121") {
+		t.Error("Expected compiled workflow to contain Serena HTTP URL")
 	}
 	if !strings.Contains(workflowData, "example.com") {
 		t.Error("Expected compiled workflow to contain example.com domain for playwright")
@@ -391,19 +397,18 @@ Uses imported serena with language config.
 		t.Error("Expected compiled workflow to contain serena tool")
 	}
 
-	// Verify that language runtime setup steps are NOT present
-	// since Serena now runs in a container with language services included
-	if strings.Contains(workflowData, "Setup Go") {
-		t.Error("Did not expect Go setup step (Serena runs in container)")
+	// Verify that runtime setup steps ARE present for Serena languages
+	// since Serena now runs with uvx on the host and needs language runtimes
+	if !strings.Contains(workflowData, "Setup Go") {
+		t.Error("Expected Go setup step (Serena needs Go runtime)")
+	}
+	if !strings.Contains(workflowData, "Setup Node.js") {
+		t.Error("Expected Node.js setup step (Serena needs Node for TypeScript)")
 	}
 
-	if strings.Contains(workflowData, "Setup Node.js") {
-		t.Error("Did not expect Node.js setup step (Serena runs in container)")
-	}
-
-	// Verify serena container is present
-	if !strings.Contains(workflowData, "ghcr.io/oraios/serena") {
-		t.Error("Expected serena to use Docker container")
+	// Verify serena HTTP server is started with uvx
+	if !strings.Contains(workflowData, "uvx --from git+https://github.com/oraios/serena") {
+		t.Error("Expected serena to use uvx for HTTP server")
 	}
 }
 

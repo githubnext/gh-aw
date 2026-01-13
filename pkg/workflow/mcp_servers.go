@@ -442,6 +442,68 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
+	// Start Serena MCP HTTP server if serena tool is enabled
+	hasSerena := false
+	for _, toolName := range mcpTools {
+		if toolName == "serena" {
+			hasSerena = true
+			break
+		}
+	}
+	if hasSerena {
+		// Get Serena tool configuration for custom args
+		serenaTool := tools["serena"]
+		customArgs := getSerenaCustomArgs(serenaTool)
+
+		yaml.WriteString("      - name: Start Serena MCP HTTP Server\n")
+		yaml.WriteString("        id: serena-start\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          set -eo pipefail\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/serena\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          echo \"Starting Serena MCP HTTP server on port 9121...\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Start Serena MCP server in background with uvx\n")
+		yaml.WriteString("          uvx --from git+https://github.com/oraios/serena \\\n")
+		yaml.WriteString("            serena start-mcp-server \\\n")
+		yaml.WriteString("            --transport streamable-http \\\n")
+		yaml.WriteString("            --port 9121 \\\n")
+		yaml.WriteString("            --project \"${{ github.workspace }}\"")
+
+		// Append custom args if present
+		if len(customArgs) > 0 {
+			yaml.WriteString(" \\\n")
+			for i, arg := range customArgs {
+				yaml.WriteString("            " + arg)
+				if i < len(customArgs)-1 {
+					yaml.WriteString(" \\\n")
+				}
+			}
+		}
+		yaml.WriteString(" \\\n")
+		yaml.WriteString("            > /tmp/gh-aw/mcp-logs/serena/server.log 2>&1 &\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Save PID for potential cleanup\n")
+		yaml.WriteString("          echo $! > /tmp/gh-aw/serena-mcp-server.pid\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Wait for server to start (max 30 seconds)\n")
+		yaml.WriteString("          echo \"Waiting for Serena MCP server to start...\"\n")
+		yaml.WriteString("          for i in {1..30}; do\n")
+		yaml.WriteString("            if curl -s http://localhost:9121/health > /dev/null 2>&1; then\n")
+		yaml.WriteString("              echo \"Serena MCP server is ready\"\n")
+		yaml.WriteString("              break\n")
+		yaml.WriteString("            fi\n")
+		yaml.WriteString("            if [ $i -eq 30 ]; then\n")
+		yaml.WriteString("              echo \"ERROR: Serena MCP server failed to start within 30 seconds\"\n")
+		yaml.WriteString("              echo \"Server logs:\"\n")
+		yaml.WriteString("              cat /tmp/gh-aw/mcp-logs/serena/server.log || true\n")
+		yaml.WriteString("              exit 1\n")
+		yaml.WriteString("            fi\n")
+		yaml.WriteString("            sleep 1\n")
+		yaml.WriteString("          done\n")
+		yaml.WriteString("          \n")
+	}
+
 	// Skip gateway setup if sandbox is disabled
 	// When sandbox: false, MCP servers are configured without the gateway
 	if !isSandboxDisabled(workflowData) {

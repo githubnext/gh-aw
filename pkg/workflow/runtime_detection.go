@@ -24,6 +24,11 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
 
+	// Detect from Serena language configuration
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.Serena != nil {
+		detectFromSerenaLanguages(workflowData.ParsedTools.Serena, requirements)
+	}
+
 	// Detect from engine requirements
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
 		detectFromEngineSteps(workflowData.EngineConfig.Steps, requirements)
@@ -129,9 +134,6 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 	allTools := tools.ToMap()
 	log.Printf("Scanning %d MCP configurations for runtime commands", len(allTools))
 
-	// Note: Serena and other built-in MCP servers now run in containers and do not
-	// require runtime detection. Language services are provided inside the containers.
-
 	// Scan custom MCP tools for runtime commands
 	// Skip containerized MCP servers as they don't need host runtime setup
 	for _, tool := range tools.Custom {
@@ -148,6 +150,113 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 			}
 		}
 	}
+}
+
+// detectFromSerenaLanguages detects runtime requirements based on Serena language configuration
+// Serena now runs using uvx with HTTP transport in the agent job, requiring language runtimes
+// to be installed on the host system
+func detectFromSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[string]*RuntimeRequirement) {
+	if serenaConfig == nil {
+		return
+	}
+
+	// uvx is always required to run Serena
+	uvRuntime := findRuntimeByID("uv")
+	if uvRuntime != nil {
+		runtimeSetupLog.Print("Serena detected, adding uv runtime requirement")
+		updateRequiredRuntime(uvRuntime, "", requirements)
+	}
+
+	// Map to track which languages we need to process
+	languagesToProcess := make(map[string]string) // language name -> version
+
+	// Check short syntax (array of language names)
+	if len(serenaConfig.ShortSyntax) > 0 {
+		runtimeSetupLog.Printf("Detecting runtimes from Serena short syntax: %v", serenaConfig.ShortSyntax)
+		for _, lang := range serenaConfig.ShortSyntax {
+			languagesToProcess[lang] = "" // No version specified in short syntax
+		}
+	}
+
+	// Check long syntax (detailed language configuration)
+	if len(serenaConfig.Languages) > 0 {
+		runtimeSetupLog.Printf("Detecting runtimes from Serena long syntax: %d languages", len(serenaConfig.Languages))
+		for lang, langConfig := range serenaConfig.Languages {
+			version := ""
+			if langConfig != nil && langConfig.Version != "" {
+				version = langConfig.Version
+			}
+			languagesToProcess[lang] = version
+		}
+	}
+
+	// Map Serena languages to runtime IDs and add requirements
+	for lang, version := range languagesToProcess {
+		runtimeID := mapSerenaLanguageToRuntime(lang)
+		if runtimeID == "" {
+			// Language doesn't map to a known runtime (e.g., bash, markdown, yaml)
+			runtimeSetupLog.Printf("Skipping Serena language '%s' - no runtime mapping", lang)
+			continue
+		}
+
+		runtime := findRuntimeByID(runtimeID)
+		if runtime != nil {
+			runtimeSetupLog.Printf("Adding runtime requirement for Serena language '%s' -> %s (version=%s)", lang, runtimeID, version)
+			updateRequiredRuntime(runtime, version, requirements)
+		}
+	}
+}
+
+// mapSerenaLanguageToRuntime maps a Serena language identifier to a runtime ID
+// Returns empty string if the language doesn't require a runtime setup
+func mapSerenaLanguageToRuntime(serenaLang string) string {
+	// Mapping based on .serena/project.yml language list and available runtimes
+	languageMap := map[string]string{
+		// Direct mappings
+		"go":         "go",
+		"typescript": "node", // JavaScript/TypeScript use Node.js
+		"python":     "python",
+		"java":       "java",
+		"ruby":       "ruby",
+		"haskell":    "haskell",
+		"elixir":     "elixir",
+		"rust":       "rust",
+
+		// Alternative names or variants
+		"python_jedi":       "python",
+		"typescript_vts":    "node",
+		"ruby_solargraph":   "ruby",
+		"kotlin":            "java", // Kotlin runs on JVM
+		"scala":             "java", // Scala runs on JVM
+		"csharp":            "dotnet",
+		"csharp_omnisharp":  "dotnet",
+		"erlang":            "elixir", // Erlang uses same runtime setup
+
+		// Languages that don't need runtime setup (return empty string)
+		"bash":     "",
+		"markdown": "",
+		"yaml":     "",
+
+		// Languages not in our runtime definitions (return empty string)
+		"cpp":       "",
+		"clojure":   "",
+		"dart":      "",
+		"elm":       "",
+		"fortran":   "",
+		"julia":     "",
+		"lua":       "",
+		"nix":       "",
+		"perl":      "",
+		"php":       "",
+		"r":         "",
+		"rego":      "",
+		"swift":     "",
+		"terraform": "",
+		"zig":       "",
+		"al":        "",
+	}
+
+	return languageMap[serenaLang]
 }
 
 // detectFromEngineSteps scans engine steps for runtime commands

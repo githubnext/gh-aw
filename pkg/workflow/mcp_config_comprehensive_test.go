@@ -574,15 +574,15 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"container": "ghcr.io/oraios/serena:latest"`,
-				`"entrypoint": "serena"`,
-				`"entrypointArgs"`,
-				`"start-mcp-server"`,
+				`"url": "http://localhost:9121"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
+				`"container"`,
+				`"entrypoint"`,
+				`"entrypointArgs"`,
 			},
 		},
 		{
@@ -593,12 +593,13 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"container": "ghcr.io/oraios/serena:latest"`,
+				`"url": "http://localhost:9121"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
+				`"container"`,
 				`              },`,
 			},
 		},
@@ -610,10 +611,12 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"type": "stdio"`,
-				`"container": "ghcr.io/oraios/serena:latest"`,
+				`"type": "http"`,
+				`"url": "http://localhost:9121"`,
 			},
-			unexpectedContent: []string{},
+			unexpectedContent: []string{
+				`"container"`,
+			},
 		},
 		{
 			name:                 "Serena config with inline args format",
@@ -623,11 +626,13 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           true,
 			expectedContent: []string{
 				`"serena": {`,
-				`"type": "stdio"`,
-				`"container": "ghcr.io/oraios/serena:latest"`,
-				`"entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"]`,
+				`"type": "http"`,
+				`"url": "http://localhost:9121"`,
 			},
-			unexpectedContent: []string{},
+			unexpectedContent: []string{
+				`"container"`,
+				`"entrypointArgs"`,
+			},
 		},
 		{
 			name: "Serena config with custom args",
@@ -639,11 +644,14 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"serena": {`,
-				`"container": "ghcr.io/oraios/serena:latest"`,
+				`"url": "http://localhost:9121"`,
+			},
+			unexpectedContent: []string{
+				`"container"`,
+				// Note: custom args are now used in the startup step, not in MCP config
 				`"--verbose"`,
 				`"--debug"`,
 			},
-			unexpectedContent: []string{},
 		},
 	}
 
