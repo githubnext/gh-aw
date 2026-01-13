@@ -310,20 +310,6 @@ func TestMCPValidationErrorQuality(t *testing.T) {
 			},
 		},
 		{
-			name: "unknown property in tool config",
-			tools: map[string]any{
-				"typo-tool": map[string]any{
-					"typ":     "stdio", // Typo: should be "type"
-					"command": "test",
-				},
-			},
-			errorContains: []string{
-				"unknown property",
-				"Valid properties",
-				"Example:",
-			},
-		},
-		{
 			name: "type field wrong type",
 			tools: map[string]any{
 				"bad-type": map[string]any{
@@ -335,7 +321,7 @@ func TestMCPValidationErrorQuality(t *testing.T) {
 				"type",
 				"must be a string",
 				"got int",
-				"Valid types:",
+				"Valid types per MCP Gateway Specification:", // Updated to match actual error message
 				"stdio",
 				"http",
 				"Example:",

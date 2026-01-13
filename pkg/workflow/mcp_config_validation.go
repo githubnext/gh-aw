@@ -45,7 +45,6 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -120,34 +119,6 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	// and causing validation errors.
 	mcpFields := []string{"type", "url", "command", "container", "env", "headers"}
 
-	// List of all known tool config fields (not just MCP)
-	knownToolFields := map[string]bool{
-		"type":            true,
-		"url":             true,
-		"command":         true,
-		"container":       true,
-		"env":             true,
-		"headers":         true,
-		"version":         true,
-		"args":            true,
-		"entrypoint":      true,
-		"entrypointArgs":  true,
-		"mounts":          true,
-		"proxy-args":      true,
-		"registry":        true,
-		"allowed":         true,
-		"mode":            true, // for github tool
-		"github-token":    true, // for github tool
-		"read-only":       true, // for github tool
-		"toolsets":        true, // for github tool
-		"id":              true, // for cache-memory (array notation)
-		"key":             true, // for cache-memory
-		"description":     true, // for cache-memory
-		"retention-days":  true, // for cache-memory
-		"allowed_domains": true, // for playwright tool
-		"allowed-domains": true, // for playwright tool (alternative notation)
-	}
-
 	// Check new format: direct fields in tool config
 	for _, field := range mcpFields {
 		if value, exists := toolConfig[field]; exists {
@@ -155,22 +126,11 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		}
 	}
 
-	// Check for unknown fields that might be typos or deprecated (like "network")
-	for field := range toolConfig {
-		if !knownToolFields[field] {
-			// Build list of valid fields for the error message
-			validFields := []string{}
-			for k := range knownToolFields {
-				validFields = append(validFields, k)
-			}
-			sort.Strings(validFields)
-			maxFields := 10
-			if len(validFields) < maxFields {
-				maxFields = len(validFields)
-			}
-			return nil, fmt.Errorf("unknown property '%s' in tool configuration. Valid properties include: %s. Example:\nmcp-servers:\n  my-tool:\n    command: \"node server.js\"\n    args: [\"--verbose\"]", field, strings.Join(validFields[:maxFields], ", ")) // Show up to 10 to keep message reasonable
-		}
-	}
+	// Per MCP Gateway Specification v1.6.0 Section 4.3.1, extension fields are allowed
+	// in server configurations. We no longer reject unknown fields as they may be
+	// implementation-specific extensions (e.g., retry-policy, circuit-breaker, timeouts).
+	// Extension fields are accepted but not validated - implementations may choose to
+	// use or ignore them based on their capabilities.
 
 	return result, nil
 }

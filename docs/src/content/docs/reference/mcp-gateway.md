@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.5.0  
+**Version**: 1.6.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -288,13 +288,39 @@ Required by: mcpServers.github.env.GITHUB_TOKEN
 
 ### 4.3 Configuration Validation
 
-#### 4.3.1 Unknown Features
+#### 4.3.1 Extension Fields
 
-The gateway MUST reject configurations containing unrecognized fields at the top level with an error message indicating:
+The gateway configuration supports extension fields to enable future enhancements and implementation-specific features.
+
+**Extension Behavior**:
+
+The gateway MUST:
+- Accept additional properties in `mcpServers[*]` server configurations (both stdio and HTTP)
+- Accept additional properties in the `gateway` configuration object
+- Preserve extension fields when processing configuration
+- NOT fail validation due to unknown extension fields
+
+The gateway SHOULD:
+- Ignore extension fields that it does not recognize
+- Log warnings for extension fields using reserved prefixes (e.g., fields starting with `_`, `x-`, or `vendor-`)
+- Document implementation-specific extensions in separate documentation
+
+**Extension Field Guidelines**:
+
+Extension field names SHOULD:
+- Use descriptive names that indicate their purpose
+- Avoid conflicts with current and planned specification fields
+- Use namespaced prefixes for vendor-specific extensions (e.g., `acme-timeout`, `vendor-retry-count`)
+
+**Top-Level Configuration**:
+
+The gateway MUST reject configurations containing unrecognized fields at the top level (outside of `mcpServers` and `gateway` objects) with an error message indicating:
 
 - The unrecognized field name
 - The location in the configuration
 - A suggestion to check the specification version
+
+This ensures that structural changes to the configuration format are handled explicitly.
 
 #### 4.3.2 Schema Validation
 
@@ -999,6 +1025,56 @@ Implementations SHOULD provide:
 }
 ```
 
+#### A.5 Configuration with Extension Fields
+
+This example demonstrates using extension fields for implementation-specific features like retry logic, circuit breakers, or custom timeout policies:
+
+```json
+{
+  "mcpServers": {
+    "resilient-server": {
+      "container": "ghcr.io/example/mcp-server:latest",
+      "env": {
+        "API_KEY": "${MY_API_KEY}"
+      },
+      "retry-policy": {
+        "max-attempts": 3,
+        "backoff": "exponential"
+      },
+      "circuit-breaker": {
+        "threshold": 5,
+        "timeout": 30
+      },
+      "custom-metrics": true
+    },
+    "http-server-with-extensions": {
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      },
+      "request-timeout": 120,
+      "connection-pool-size": 10,
+      "vendor-specific-option": "value"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "gateway-secret",
+    "log-level": "debug",
+    "metrics-enabled": true,
+    "custom-feature-flag": "enabled"
+  }
+}
+```
+
+**Notes on Extension Fields**:
+- Extension fields like `retry-policy`, `circuit-breaker`, `request-timeout`, and `log-level` are ignored by gateway implementations that don't support them
+- Implementations SHOULD document their supported extension fields separately
+- Extension field names SHOULD be descriptive and avoid conflicts with current specification fields
+- Use namespaced prefixes (e.g., `vendor-`) for implementation-specific extensions
+
 ### Appendix B: Gateway Lifecycle Examples
 
 #### B.1 Closing the Gateway
@@ -1121,6 +1197,24 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.6.0 (Draft)
+
+- **Added**: Support for extension fields in configuration (Section 4.3.1)
+  - Server configurations (`mcpServers[*]`) now accept additional properties via `additionalProperties: true` in JSON schema
+  - Gateway configuration (`gateway` object) now accepts additional properties
+  - Extension fields enable implementation-specific features without breaking specification compliance
+  - Documented extension field guidelines and best practices
+- **Changed**: Updated JSON schema (`mcp-gateway-config.schema.json`)
+  - Changed `stdioServerConfig.additionalProperties` from `false` to `true`
+  - Changed `httpServerConfig.additionalProperties` from `false` to `true`
+  - Changed `gatewayConfig.additionalProperties` from `false` to `true`
+- **Added**: Example configuration with extension fields (Appendix A.5)
+  - Demonstrates retry policies, circuit breakers, and custom timeout configurations
+  - Shows vendor-specific extension naming conventions
+- **Clarified**: Top-level configuration structure validation
+  - Top-level unrecognized fields (outside `mcpServers` and `gateway`) are still rejected
+  - Ensures structural changes to configuration format are handled explicitly
 
 ### Version 1.5.0 (Draft)
 

@@ -96,7 +96,7 @@
         }
       },
       "required": ["container"],
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "httpServerConfig": {
       "type": "object",
@@ -140,7 +140,7 @@
         }
       },
       "required": ["type", "url"],
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "gatewayConfig": {
       "type": "object",
@@ -192,7 +192,7 @@
         }
       },
       "required": ["port", "domain", "apiKey"],
-      "additionalProperties": false
+      "additionalProperties": true
     }
   },
   "examples": [
