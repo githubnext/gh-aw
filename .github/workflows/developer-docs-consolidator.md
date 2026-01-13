@@ -66,7 +66,7 @@ Analyze markdown files in the specs directory, standardize their tone and format
 
 - **Repository**: ${{ github.repository }}
 - **Specs Directory**: `specs/`
-- **Target File**: `.github/instructions/developer.instructions.md`
+- **Target File**: `.github/agents/developer.instructions.agent.md`
 - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
 
 ## Phase 0: Setup and Configuration
@@ -300,7 +300,7 @@ For each topic:
 
 ### 3. Create the Consolidated File
 
-**You have direct file editing capabilities** - Write the consolidated content directly to `.github/instructions/developer.instructions.md` using Serena's edit tools.
+**You have direct file editing capabilities** - Write the consolidated content directly to `.github/agents/developer.instructions.agent.md` using Serena's edit tools.
 
 The file should:
 - Start with frontmatter (description and applyTo)
@@ -366,7 +366,7 @@ Create a comprehensive report of what was done:
 
 ## Summary
 
-Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, added [Y] Mermaid diagrams, and consolidated content into `.github/instructions/developer.instructions.md`.
+Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, added [Y] Mermaid diagrams, and consolidated content into `.github/agents/developer.instructions.agent.md`.
 
 <details>
 <summary><b>Full Consolidation Report</b></summary>
@@ -459,7 +459,7 @@ Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, a
 
 ## Next Steps
 
-- Review the consolidated file at `.github/instructions/developer.instructions.md`
+- Review the consolidated file at `.github/agents/developer.instructions.agent.md`
 - Verify Mermaid diagrams render correctly
 - Check that all technical content is accurate
 - Consider additional sections if needed
@@ -483,7 +483,7 @@ The discussion should:
 
 Before the PR is created, you need to make the actual file changes:
 
-1. **Update `.github/instructions/developer.instructions.md`**:
+1. **Update `.github/agents/developer.instructions.agent.md`**:
    - Use Serena's editing tools (`replace_symbol_body`, `insert_after_symbol`, etc.)
    - Or use the standard `edit` tool to modify sections
    - Make all consolidation changes directly to the file
@@ -509,7 +509,7 @@ After you've made file changes, a pull request will be created automatically wit
 ```markdown
 ## Developer Documentation Consolidation
 
-This PR consolidates markdown specifications from the `specs/` directory into a unified `.github/instructions/developer.instructions.md` file.
+This PR consolidates markdown specifications from the `specs/` directory into a unified `.github/agents/developer.instructions.agent.md` file.
 
 ### Changes Made
 
@@ -521,7 +521,7 @@ This PR consolidates markdown specifications from the `specs/` directory into a 
 
 ### Files Modified
 
-- Created/Updated: `.github/instructions/developer.instructions.md`
+- Created/Updated: `.github/agents/developer.instructions.agent.md`
 - [List any spec files that were modified]
 
 ### Validation

@@ -244,5 +244,4 @@ Both zizmor template injection findings are **false positives**:
 ## References
 
 - GitHub Actions Template Injection: https://docs.zizmor.sh/audits/#template-injection
-- Security Best Practices: `.github/instructions/developer.instructions.md`
 - Compiler Code: `pkg/workflow/safe_outputs.go`, `pkg/workflow/mcp-config.go`
