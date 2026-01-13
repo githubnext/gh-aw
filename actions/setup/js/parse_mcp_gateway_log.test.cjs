@@ -491,5 +491,82 @@ Some content here.`;
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    test("truncates files larger than 10KB", () => {
+      const fs = require("fs");
+      const path = require("path");
+      const os = require("os");
+
+      // Create test directory
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const logsDir = path.join(tmpDir, "mcp-logs");
+
+      try {
+        fs.mkdirSync(logsDir, { recursive: true });
+
+        // Create a large file (15KB)
+        const largeContent = "A".repeat(15 * 1024);
+        fs.writeFileSync(path.join(logsDir, "large.log"), largeContent);
+
+        // Mock core
+        const mockCore = { info: vi.fn() };
+        global.core = mockCore;
+
+        // Mock fs to use our test directories
+        const originalExistsSync = fs.existsSync;
+        const originalReaddirSync = fs.readdirSync;
+        const originalStatSync = fs.statSync;
+        const originalReadFileSync = fs.readFileSync;
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs") return true;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readdirSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs") return originalReaddirSync(logsDir);
+          return originalReaddirSync(filepath);
+        });
+
+        fs.statSync = vi.fn(filepath => {
+          if (filepath.startsWith("/tmp/gh-aw/mcp-logs/")) {
+            const filename = filepath.replace("/tmp/gh-aw/mcp-logs/", "");
+            return originalStatSync(path.join(logsDir, filename));
+          }
+          return originalStatSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath.startsWith("/tmp/gh-aw/mcp-logs/")) {
+            const filename = filepath.replace("/tmp/gh-aw/mcp-logs/", "");
+            return originalReadFileSync(path.join(logsDir, filename), encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        // Call the function
+        printAllGatewayFiles();
+
+        // Verify the output
+        const infoMessages = mockCore.info.mock.calls.map(call => call[0]);
+        const allOutput = infoMessages.join("\n");
+
+        // Check that file was truncated
+        expect(allOutput).toContain("...");
+        expect(allOutput).toContain("truncated");
+        expect(allOutput).toContain("10240 bytes");
+        expect(allOutput).toContain("15360 total");
+
+        // Restore original functions
+        fs.existsSync = originalExistsSync;
+        fs.readdirSync = originalReaddirSync;
+        fs.statSync = originalStatSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+      } finally {
+        // Clean up
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 });

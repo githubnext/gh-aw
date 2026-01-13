@@ -52,11 +52,19 @@ function printAllGatewayFiles() {
               // Max 1MB
               try {
                 const content = fs.readFileSync(filePath, "utf8");
+                const maxOutputBytes = 10 * 1024; // 10KB limit per file
+                const contentToDisplay = content.length > maxOutputBytes ? content.substring(0, maxOutputBytes) : content;
+                const wasTruncated = content.length > maxOutputBytes;
+
                 core.info(`    --- Content of ${file} ---`);
                 // Split content into lines and prefix each line for readability
-                const lines = content.split("\n");
+                const lines = contentToDisplay.split("\n");
                 for (const line of lines) {
                   core.info(`    ${line}`);
+                }
+                if (wasTruncated) {
+                  core.info(`    ...`);
+                  core.info(`    (truncated, showing first ${maxOutputBytes} bytes of ${content.length} total)`);
                 }
                 core.info(`    --- End of ${file} ---`);
               } catch (/** @type {unknown} */ readError) {
