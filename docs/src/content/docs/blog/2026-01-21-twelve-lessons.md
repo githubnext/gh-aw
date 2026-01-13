@@ -7,15 +7,15 @@ date: 2026-01-21
 draft: true
 ---
 
-[Previous: Meet the Workflows](/gh-aw/blog/2026-01-18-meet-the-workflows/)
+[Previous: Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome back to Peli's Agent Factory!
 
-In our [previous article](/gh-aw/blog/2026-01-18-meet-the-workflows/), we introduced you to the workflows themselves. Now let's talk about what we've learned.
+In our [previous article](/gh-aw/blog/2026-01-13-meet-the-workflows/), we introduced you to the workflows themselves. Now let's talk about what we've learned.
 
-Running 145 autonomous agents in production is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Along the way, we've learned some hard-won lessons about what makes agent ecosystems actually work.
+Running our collection of automated agentic workflows in practice is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Along the way, we've learned some hard-won lessons about what makes agent ecosystems actually work.
 
 Here's what we've figured out so far.
 
@@ -35,7 +35,7 @@ With clear boundaries in place, we can prototype new agents without worrying abo
 
 ### 🔄 Meta-Agents Are Essential
 
-Agents that watch other agents? Sounds meta (pun intended), but they've become some of our most valuable workflows. They catch issues early and help us understand what's happening across the entire ecosystem.
+Agents that watch other agents? Sounds meta, but they've become some of our most valuable workflows. They catch issues early and help us understand what's happening across the entire ecosystem.
 
 Once we passed 50 workflows, tracking everything manually became impossible. Meta-agents like [Audit Workflows](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) and [Agent Performance Analyzer](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md) give us the observability layer we desperately needed. They spot patterns across runs, identify struggling agents, and surface systemic issues we'd never catch looking at individual workflows.
 
@@ -152,4 +152,4 @@ In our next article, we'll explore the 12 core design patterns that define what 
 
 *More articles in this series coming soon.*
 
-[Previous: Meet the Workflows](/gh-aw/blog/2026-01-18-meet-the-workflows/)
+[Previous: Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)

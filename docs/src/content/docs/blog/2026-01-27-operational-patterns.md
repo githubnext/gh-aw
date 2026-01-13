@@ -11,7 +11,7 @@ draft: true
 
 ---
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome back to our ongoing series about Peli's Agent Factory! In the [previous article](/gh-aw/blog/2026-01-24-design-patterns/), we explored the fundamental design patterns that define what agents do. Now let's shift from architecture to operations.
 
@@ -468,7 +468,7 @@ When designing agent operations, consider:
 
 ## What's Next?
 
-These operational patterns work effectively because they build on a foundation of reusable, composable components. The secret weapon that enabled Peli's Agent Factory to scale to 145 workflows wasn't just good patterns - it was the ability to share and reuse components across all those workflows.
+These operational patterns work effectively because they build on a foundation of reusable, composable components. The secret weapon that enabled Peli's Agent Factory to scale wasn't just good patterns - it was the ability to share and reuse components across workflows.
 
 In our next article, we'll explore the imports and sharing system that made this scalability possible.
 

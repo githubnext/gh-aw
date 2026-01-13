@@ -3,41 +3,42 @@ title: "Welcome to Peli's Agent Factory"
 description: "An exploration of automated agentic workflows at scale"
 authors:
   - gh-next
-date: 2026-01-15
-draft: true
+date: 2026-01-12
 ---
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Hey there! 👋
 
-At GitHub Next, we have the privilege of collaborating with amazing people across GitHub and the broader AI community to explore the future of software development. Today, we're excited to introduce **Peli's Agent Factory** - a research collaboration between GitHub Next and Peli de Halleux from Microsoft Research.
+Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress.
 
-<div align="center">
-  <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="250" style="border-radius: 8px; margin: 20px 0;" />
-</div>
+Peli's Agent Factory is our exploration of what happens when you take the design philosophy of **let's create a new agentic workflow for that** as the answer to every opportunity that may present itself! What happens when you **max out on automated agentic workflows** - when you make and nurture dozens of specialized, automated AI agentic workflows in a real repository.
 
-Software development is changing rapidly. Peli's Agent Factory is our exploration into what happens when you build and operate **145 specialized AI automated agents** within a real software repository: working agents handling actual development tasks. This is our attempt to understand how automated agentic AI can make software development more efficient, collaborative, and maybe even enjoyable.
+Software development is changing rapidly. Peli's Agent Factory is our exploration into what happens when you build and operate **a collection of specialized AI automated agentic workflows** within a real software repository, handling actual development tasks. This is our attempt to understand how automated agentic AI can make software teams more efficient, collaborative, and maybe even enjoyable.
 
-Welcome to the factory. Let's explore together.
+Welcome to the factory. Let's explore together!
 
 ## What Is Peli's Agent Factory?
 
-Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and progress. That's what we're building.
+Peli's factory is a collection of **automated agentic workflows** we use in practice. 
 
-The factory is an experimental collection of **over 145 autonomous agentic workflows**, each solving specific problems:
+Over the course of this research project, we built and operated **over 100 autonomous agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These were used mostly in the context of the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) project itself, but many have also been applied at scale to GitHub and Microsoft internal repositories, and some external repositories. These weren't hypothetical demos - they were working agents that:
 
-- **Triage incoming issues** the moment they arrive
-- **Diagnose CI failures** and open detailed reports
-- **Maintain documentation** to prevent drift
-- **Improve test coverage** incrementally
-- **Monitor security compliance** continuously
-- **Analyze agent performance** to optimize the ecosystem
-- **Execute multi-day projects** to reduce technical debt
+- Triage incoming issues
+- Diagnose CI failures
+- Maintain documentation
+- Improve test coverage
+- Monitor security compliance
+- Optimize workflow efficiency
+- Execute multi-day projects
+- Validate infrastructure
+- Even write poetry to boost team morale
 
-Think of this as an incubation lab where each agent has its own mode of operation, needs, and interactions. Some are simple read-only analysts. Others proactively propose changes through pull requests. A few are meta-agents that monitor and improve the health of all the other workflows.
+Think of this as a team where as part of our work we're creating a lot of agentic workflows. Some are simple read-only analysts. Others proactively propose changes through pull requests. A few are meta-agents that monitor and improve the health of all the other workflows.
 
-It's basically an agent zoo. And we're learning *so much* from watching them.
+We know we're taking things to an extreme here. Most repositories won't need dozens of agentic workflows. No one can read all these outputs (except, of course, another workflow). But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust and use.
+
+It's basically an agentic workflow cornucopia. And we're learning *so much* from it all, we'd like to share it with you.
 
 ## Why Build a Factory?
 
@@ -56,7 +57,7 @@ The factory becomes both an experiment and a reference collection - a living lib
 
 Here's what we've built so far:
 
-- **145 total workflows** demonstrating diverse agent patterns
+- **A comprehensive collection of workflows** demonstrating diverse agent patterns
 - **12 core design patterns** consolidating all observed behaviors
 - **9 operational patterns** for GitHub-native agent orchestration
 - **128 workflows** in the `.github/workflows` directory of the [`gh-aw`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) repository
@@ -78,9 +79,11 @@ Running this many agents in production is... quite the experience. We've watched
 
 We'll dive deeper into these lessons in upcoming articles.
 
-## What's Coming in This Series
+## Our First Installment: Meet the Workflows
 
-Over the next few weeks, we'll be sharing what we've learned through a series of detailed articles. We'll be looking at the most interesting agents, the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
+In our first article, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
+
+Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
 
 ## Try It Yourself
 
@@ -111,4 +114,4 @@ This is part of GitHub Next's exploration of [Continuous AI](https://githubnext.
 
 ---
 
-[Next Article: Meet the Workflows](/gh-aw/blog/2026-01-18-meet-the-workflows/)
+[Next Article: Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)

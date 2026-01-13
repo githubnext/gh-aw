@@ -11,13 +11,13 @@ draft: true
 
 ---
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome to our practical guide in the Peli's Agent Factory series! Now that you understand [how workflows operate under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to roll up your sleeves and start creating your own.
 
 Ready to build your own agentic workflows? Awesome! Let's make it happen.
 
-Now that you understand how workflows operate under the hood, we'll walk through the practical side of creating your own. This guide shares patterns, tips, and best practices from creating 145 production workflows. Don't worry - we'll start simple and build up from there.
+Now that you understand how workflows operate under the hood, we'll walk through the practical side of creating your own. This guide shares patterns, tips, and best practices from creating our collection of automated agentic workflows in practice. Don't worry - we'll start simple and build up from there.
 
 Let's dive in!
 

@@ -11,13 +11,13 @@ draft: true
 
 ---
 
-<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to our latest article in the Peli's Agent Factory series! After exploring [imports and sharing](/gh-aw/blog/2026-01-30-imports-and-sharing/) in our previous article, it's time to tackle one of the most critical aspects of running autonomous agents at scale: security.
+Welcome to our latest article in the Peli's Agent Factory series! After exploring [imports and sharing](/gh-aw/blog/2026-01-30-imports-and-sharing/) in our previous article, it's time to tackle one of the most critical aspects of running automated agentic workflows: security.
 
-Security in agentic workflows isn't just about locking things down - it's about designing environments where agents can do their jobs safely, even if they make mistakes. Running 145 autonomous agents in production has taught us a ton about what works (and what doesn't).
+Security in agentic workflows isn't just about locking things down - it's about designing environments where agentic workflows can do their jobs safely, even if they make mistakes. Our collection of workflows in practice has taught us a ton about what works (and what doesn't).
 
-Here's the thing: **safety isn't just about permissions**. It's about creating guardrails that let agents be productive while preventing them from accidentally causing harm. Many of the security features in GitHub Agentic Workflows came directly from lessons we learned the hard way in the factory.
+Here's the thing: **safety isn't just about permissions**. It's about creating guardrails that let workflows be productive while preventing them from accidentally causing harm. Many of the security features in GitHub Agentic Workflows came directly from lessons we learned in the factory.
 
 Let's share what we've figured out so you can build secure agent ecosystems from day one.
 
@@ -330,21 +330,6 @@ The factory experienced a few security-adjacent incidents that taught valuable l
 **Fix**: Re-enabled role check. Added test to verify it.
 
 **Lesson**: Security controls must be tested and visible.
-
-## Security Checklist for New Workflows
-
-Before deploying a new agent, verify:
-
-- [ ] Uses least privilege permissions
-- [ ] Safe outputs have `max_items`, `expire`, `close_older`
-- [ ] Tools are explicitly listed (no `"*"`)
-- [ ] Network access is allowlisted
-- [ ] Sensitive operations are role-gated
-- [ ] No secrets in prompts or logs
-- [ ] Workflow can't trigger itself
-- [ ] Human approval for high-impact changes
-- [ ] Expiration date for experiments
-- [ ] Security review completed
 
 ## Security Architecture Reference
 
