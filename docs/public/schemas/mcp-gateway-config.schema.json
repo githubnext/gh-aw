@@ -15,6 +15,26 @@
     "gateway": {
       "$ref": "#/definitions/gatewayConfig",
       "description": "Gateway-specific configuration for the MCP Gateway service."
+    },
+    "customSchemas": {
+      "type": "object",
+      "description": "Map of custom server type names to JSON Schema URLs for validation. Custom types enable extensibility for specialized MCP server implementations. Keys are type names (must not be 'stdio' or 'http'), values are HTTPS URLs pointing to JSON Schema definitions, or empty strings to skip validation.",
+      "patternProperties": {
+        "^(?!stdio$|http$)[a-z][a-z0-9-]*$": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://.+"
+            },
+            {
+              "type": "string",
+              "enum": [""]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["mcpServers", "gateway"],
@@ -22,13 +42,16 @@
   "definitions": {
     "mcpServerConfig": {
       "type": "object",
-      "description": "Configuration for an individual MCP server. Supports both containerized stdio servers and HTTP-based servers. Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based servers MUST be containerized.",
+      "description": "Configuration for an individual MCP server. Supports stdio servers, HTTP servers, and custom server types registered via customSchemas. Per MCP Gateway Specification section 4.1.4, custom types enable extensibility for specialized MCP server implementations.",
       "oneOf": [
         {
           "$ref": "#/definitions/stdioServerConfig"
         },
         {
           "$ref": "#/definitions/httpServerConfig"
+        },
+        {
+          "$ref": "#/definitions/customServerConfig"
         }
       ]
     },
@@ -142,6 +165,19 @@
       "required": ["type", "url"],
       "additionalProperties": false
     },
+    "customServerConfig": {
+      "type": "object",
+      "description": "Configuration for a custom MCP server type. Custom types must be registered in customSchemas with a JSON Schema URL. The configuration is validated against the registered schema. Per MCP Gateway Specification section 4.1.4, this enables extensibility for specialized MCP server implementations.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^(?!stdio$|http$)[a-z][a-z0-9-]*$",
+          "description": "Custom server type name. Must not be 'stdio' or 'http'. Must be registered in customSchemas."
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": true
+    },
     "gatewayConfig": {
       "type": "object",
       "description": "Gateway-specific configuration for the MCP Gateway service.",
@@ -247,6 +283,33 @@
         "port": 8080,
         "domain": "localhost",
         "apiKey": "gateway-secret-token"
+      }
+    },
+    {
+      "mcpServers": {
+        "safe-inputs-server": {
+          "type": "safeinputs",
+          "tools": {
+            "greet-user": {
+              "description": "Greet a user by name",
+              "inputs": {
+                "name": {
+                  "type": "string",
+                  "required": true
+                }
+              },
+              "script": "return { message: `Hello, ${name}!` };"
+            }
+          }
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "apiKey": "gateway-secret-token"
+      },
+      "customSchemas": {
+        "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
       }
     }
   ]

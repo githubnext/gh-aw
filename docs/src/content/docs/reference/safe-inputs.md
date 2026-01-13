@@ -358,6 +358,7 @@ Tools provide secret isolation (only specified env vars), process isolation (sep
 
 ## Related Documentation
 
+- [Safe Inputs Specification](/gh-aw/reference/safe-inputs-specification/) - Formal W3C-style specification
 - [Tools](/gh-aw/reference/tools/) - Other tool configuration options
 - [Imports](/gh-aw/reference/imports/) - Importing shared workflows
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Automated post-workflow actions
