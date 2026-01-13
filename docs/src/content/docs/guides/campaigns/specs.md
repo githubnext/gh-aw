@@ -55,7 +55,7 @@ owners:
 ## Core fields (what they do)
 
 - `id`: stable identifier used for file naming, reporting, and (if used) repo-memory paths.
-- `project-url`: the GitHub Project that acts as the campaign dashboard and canonical source of campaign membership.
+- `project-url` (optional): the GitHub Project that acts as the campaign dashboard and canonical source of campaign membership. If not provided, the campaign generator will automatically create a new project board with custom fields and views.
 - `project-github-token` (optional): a GitHub token expression (e.g., `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`) used for GitHub Projects v2 operations. When specified, this token is passed to the `update-project` safe output configuration in the generated orchestrator workflow. Use this when the default `GITHUB_TOKEN` doesn't have sufficient permissions for project board operations.
 - `tracker-label` (optional): an ingestion hint label that helps discover issues and pull requests created by workers (commonly `campaign:<id>`). When provided, the orchestrator's discovery precomputation step can discover work across runs. The project board remains the canonical source of truth.
 - `objective`: a single sentence describing what “done” means.
