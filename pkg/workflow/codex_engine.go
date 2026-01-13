@@ -227,6 +227,13 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
+		// Add --enable-host-access when MCP servers are configured (gateway is used)
+		// This allows awf to access host.docker.internal for MCP gateway communication
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			codexEngineLog.Print("Added --enable-host-access for MCP gateway communication")
+		}
+
 		// Pin AWF Docker image version to match the installed binary version
 		awfImageTag := getAWFImageTag(firewallConfig)
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
@@ -258,7 +265,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Prepend PATH setup to find codex in hostedtoolcache
 		// This ensures codex and all its dependencies (including MCP servers) are accessible
 		// Split export from command substitution to avoid masking return values (SC2155)
-		pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
+		// Use -mindepth 1 to exclude the starting directory (/opt/hostedtoolcache/node itself)
+		pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
 		codexCommandWithPath := fmt.Sprintf("%s && %s", pathSetup, codexCommand)
 
 		// Build the command with agent file handling if specified

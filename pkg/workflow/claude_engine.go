@@ -226,7 +226,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Prepend PATH setup to find claude in hostedtoolcache
 	// This ensures claude and all its dependencies (including MCP servers) are accessible
 	// Split export from command substitution to avoid masking return values (SC2155)
-	pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
+	// Use -mindepth 1 to exclude the starting directory (/opt/hostedtoolcache/node itself)
+	pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
 	claudeCommand = fmt.Sprintf(`%s && %s`, pathSetup, claudeCommand)
 
 	// Add conditional model flag if not explicitly configured
@@ -312,6 +313,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
+		// Add --enable-host-access when MCP servers are configured (gateway is used)
+		// This allows awf to access host.docker.internal for MCP gateway communication
+		if HasMCPServers(workflowData) {
+			awfArgs = append(awfArgs, "--enable-host-access")
+			claudeLog.Print("Added --enable-host-access for MCP gateway communication")
+		}
+
 		// Pin AWF Docker image version to match the installed binary version
 		awfImageTag := getAWFImageTag(firewallConfig)
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
@@ -339,17 +347,23 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 
 		// Build the command with AWF wrapper
+		// AWF requires the command to be wrapped in a shell invocation because the claude command
+		// contains && chains that need shell interpretation. We use bash -c with properly escaped command.
+		// Escape single quotes in the command by replacing ' with '\''
+		escapedClaudeCommand := strings.ReplaceAll(claudeCommand, "'", "'\\''")
+		shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedClaudeCommand)
+
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
           %s
 %s %s \
   -- %s \
-  2>&1 | tee %s`, promptSetup, awfCommand, shellJoinArgs(awfArgs), claudeCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, promptSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), claudeCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
 		}
 	} else {
 		// Run Claude command without AWF wrapper
