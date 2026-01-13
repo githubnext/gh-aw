@@ -410,7 +410,7 @@ async function updateProject(output) {
 
       const layout = typeof view.layout === "string" ? view.layout.trim() : "";
       if (!layout || !["table", "board", "roadmap"].includes(layout)) {
-        throw new Error('Invalid view.layout. Must be one of: table, board, roadmap.');
+        throw new Error("Invalid view.layout. Must be one of: table, board, roadmap.");
       }
 
       const filter = typeof view.filter === "string" ? view.filter : undefined;
@@ -429,17 +429,14 @@ async function updateProject(output) {
       }
 
       if (typeof view.description === "string" && view.description.trim()) {
-        core.warning('view.description is not supported by the GitHub Projects Views API; ignoring.');
+        core.warning("view.description is not supported by the GitHub Projects Views API; ignoring.");
       }
 
       if (typeof github.request !== "function") {
         throw new Error("GitHub client does not support github.request(); cannot call Projects Views REST API.");
       }
 
-      const route =
-        projectInfo.scope === "orgs"
-          ? "POST /orgs/{org}/projectsV2/{project_number}/views"
-          : "POST /users/{user_id}/projectsV2/{project_number}/views";
+      const route = projectInfo.scope === "orgs" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{user_id}/projectsV2/{project_number}/views";
 
       const params =
         projectInfo.scope === "orgs"

@@ -114,16 +114,16 @@ func TestParseUpdateProjectConfig(t *testing.T) {
 
 func TestUpdateProjectConfig_DefaultMax(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	
+
 	outputMap := map[string]any{
 		"update-project": map[string]any{
 			"github-token": "${{ secrets.TOKEN }}",
 		},
 	}
-	
+
 	config := compiler.parseUpdateProjectConfig(outputMap)
 	require.NotNil(t, config)
-	
+
 	// Default max should be 10 when not specified
 	assert.Equal(t, 10, config.Max, "Default max should be 10")
 }
@@ -149,13 +149,13 @@ func TestUpdateProjectConfig_TokenPrecedence(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
-			
+
 			outputMap := map[string]any{
 				"update-project": map[string]any{
 					"github-token": tt.configToken,
 				},
 			}
-			
+
 			config := compiler.parseUpdateProjectConfig(outputMap)
 			require.NotNil(t, config)
 			assert.Equal(t, tt.expectedToken, config.GitHubToken)
@@ -165,10 +165,10 @@ func TestUpdateProjectConfig_TokenPrecedence(t *testing.T) {
 
 func TestBuildUpdateProjectJob(t *testing.T) {
 	tests := []struct {
-		name        string
+		name         string
 		workflowData *WorkflowData
-		expectError bool
-		errorMsg    string
+		expectError  bool
+		errorMsg     string
 	}{
 		{
 			name: "valid config",
@@ -224,9 +224,9 @@ func TestBuildUpdateProjectJob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
-			
+
 			job, err := compiler.buildUpdateProjectJob(tt.workflowData, "main")
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -234,7 +234,7 @@ func TestBuildUpdateProjectJob(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, job)
-				
+
 				// Verify job has basic structure
 				assert.NotEmpty(t, job.Steps, "Job should have steps")
 			}
@@ -244,7 +244,7 @@ func TestBuildUpdateProjectJob(t *testing.T) {
 
 func TestUpdateProjectJob_EnvironmentVariables(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	
+
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -256,14 +256,14 @@ func TestUpdateProjectJob_EnvironmentVariables(t *testing.T) {
 			},
 		},
 	}
-	
+
 	job, err := compiler.buildUpdateProjectJob(workflowData, "main")
 	require.NoError(t, err)
 	require.NotNil(t, job)
-	
+
 	// Job should contain steps
 	assert.NotEmpty(t, job.Steps, "Job should have steps")
-	
+
 	// Check that GH_AW_PROJECT_GITHUB_TOKEN is set in the environment
 	hasProjectToken := false
 	for _, step := range job.Steps {
@@ -277,7 +277,7 @@ func TestUpdateProjectJob_EnvironmentVariables(t *testing.T) {
 
 func TestUpdateProjectJob_Permissions(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	
+
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -288,11 +288,11 @@ func TestUpdateProjectJob_Permissions(t *testing.T) {
 			},
 		},
 	}
-	
+
 	job, err := compiler.buildUpdateProjectJob(workflowData, "main")
 	require.NoError(t, err)
 	require.NotNil(t, job)
-	
+
 	// Verify permissions are set correctly
 	// update_project requires contents: read permission
 	require.NotEmpty(t, job.Permissions, "Job should have permissions")
