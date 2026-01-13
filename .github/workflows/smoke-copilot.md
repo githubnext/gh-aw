@@ -14,6 +14,7 @@ permissions:
 name: Smoke Copilot
 engine: copilot
 imports:
+  - shared/gh.md
   - shared/mcp/tavily.md
 network:
   allowed:
