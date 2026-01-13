@@ -153,118 +153,122 @@ async function getIssueNodeId(owner, repo, issueNumber) {
 }
 
 /**
- * Process a single create_project message
- * @param {Object} output - The create_project output message
- * @returns {Promise<void>}
+ * Main entry point - handler factory that returns a message handler function
+ * @param {Object} config - Handler configuration
+ * @returns {Promise<Function>} Message handler function
  */
-async function createProject(output) {
-  try {
-    let { title, owner, owner_type, item_url } = output;
+async function main(config = {}) {
+  // Extract configuration
+  const defaultTargetOwner = config.target_owner || "";
+  const maxCount = config.max || 1;
 
-    // Get default target owner from environment variable if set
-    const defaultTargetOwner = process.env.GH_AW_CREATE_PROJECT_TARGET_OWNER || "";
-
-    // Generate a title if not provided by the agent
-    if (!title) {
-      // Try to generate a campaign title from the issue context
-      const issueTitle = context.payload?.issue?.title;
-      const issueNumber = context.payload?.issue?.number;
-
-      if (issueTitle) {
-        // Use the issue title directly as the campaign name (no prefix extraction needed)
-        title = `Campaign: ${issueTitle}`;
-        core.info(`Generated campaign title from issue: "${title}"`);
-      } else if (issueNumber) {
-        // Fallback to issue number if no title is available
-        title = `Campaign #${issueNumber}`;
-        core.info(`Generated campaign title from issue number: "${title}"`);
-      } else {
-        throw new Error("Missing required field 'title' in create_project call and unable to generate from context");
-      }
-    }
-
-    // Determine owner - use explicit owner, default, or error
-    const targetOwner = owner || defaultTargetOwner;
-    if (!targetOwner) {
-      throw new Error("No owner specified and no default target-owner configured. Either provide 'owner' field or configure 'target-owner' in safe-outputs.create-project");
-    }
-
-    // Determine owner type (org or user)
-    const ownerType = owner_type || "org"; // Default to org if not specified
-
-    core.info(`Creating project "${title}" for ${ownerType}/${targetOwner}`);
-
-    // Get owner ID
-    const ownerId = await getOwnerId(ownerType, targetOwner);
-
-    // Create the project
-    const projectInfo = await createProjectV2(ownerId, title);
-
-    // If item_url is provided, add it to the project
-    if (item_url) {
-      core.info(`Adding item to project: ${item_url}`);
-
-      // Parse item URL to get issue number
-      const urlMatch = item_url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
-      if (urlMatch) {
-        const [, itemOwner, itemRepo, issueNumberStr] = urlMatch;
-        const issueNumber = parseInt(issueNumberStr, 10);
-
-        // Get issue node ID
-        const contentId = await getIssueNodeId(itemOwner, itemRepo, issueNumber);
-
-        // Add item to project
-        const itemId = await addItemToProject(projectInfo.projectId, contentId);
-        projectInfo.itemId = itemId;
-      } else {
-        core.warning(`Could not parse item URL: ${item_url}`);
-      }
-    }
-
-    core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
-
-    // Set outputs
-    core.setOutput("project-id", projectInfo.projectId);
-    core.setOutput("project-number", projectInfo.projectNumber);
-    core.setOutput("project-title", projectInfo.projectTitle);
-    core.setOutput("project-url", projectInfo.projectUrl);
-    if (projectInfo.itemId) {
-      core.setOutput("item-id", projectInfo.itemId);
-    }
-  } catch (err) {
-    // prettier-ignore
-    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-    logGraphQLError(error, "create_project");
-    throw error;
+  if (defaultTargetOwner) {
+    core.info(`Default target owner: ${defaultTargetOwner}`);
   }
-}
+  core.info(`Max count: ${maxCount}`);
 
-/**
- * Main entry point - standalone script that processes create_project messages
- */
-async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) return;
+  // Track state
+  let processedCount = 0;
 
-  const createProjectItems = result.items.filter(item => item.type === "create_project");
-  if (createProjectItems.length === 0) {
-    core.info("No create_project items found in agent output");
-    return;
-  }
+  /**
+   * Message handler function that processes a single create_project message
+   * @param {Object} message - The create_project message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs (unused for create_project)
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleCreateProject(message, resolvedTemporaryIds) {
+    // Check max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping create_project: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
 
-  core.info(`Found ${createProjectItems.length} create_project item(s) to process`);
+    processedCount++;
 
-  // Process each create_project item
-  for (let i = 0; i < createProjectItems.length; i++) {
-    const output = createProjectItems[i];
-    core.info(`Processing create_project item ${i + 1}/${createProjectItems.length}`);
     try {
-      await createProject(output);
-    } catch (error) {
-      core.error(`Failed to create project: ${getErrorMessage(error)}`);
-      throw error;
+      let { title, owner, owner_type, item_url } = message;
+
+      // Generate a title if not provided by the agent
+      if (!title) {
+        // Try to generate a campaign title from the issue context
+        const issueTitle = context.payload?.issue?.title;
+        const issueNumber = context.payload?.issue?.number;
+
+        if (issueTitle) {
+          // Use the issue title directly as the campaign name (no prefix extraction needed)
+          title = `Campaign: ${issueTitle}`;
+          core.info(`Generated campaign title from issue: "${title}"`);
+        } else if (issueNumber) {
+          // Fallback to issue number if no title is available
+          title = `Campaign #${issueNumber}`;
+          core.info(`Generated campaign title from issue number: "${title}"`);
+        } else {
+          throw new Error("Missing required field 'title' in create_project call and unable to generate from context");
+        }
+      }
+
+      // Determine owner - use explicit owner, default, or error
+      const targetOwner = owner || defaultTargetOwner;
+      if (!targetOwner) {
+        throw new Error("No owner specified and no default target-owner configured. Either provide 'owner' field or configure 'target-owner' in safe-outputs.create-project");
+      }
+
+      // Determine owner type (org or user)
+      const ownerType = owner_type || "org"; // Default to org if not specified
+
+      core.info(`Creating project "${title}" for ${ownerType}/${targetOwner}`);
+
+      // Get owner ID
+      const ownerId = await getOwnerId(ownerType, targetOwner);
+
+      // Create the project
+      const projectInfo = await createProjectV2(ownerId, title);
+
+      // If item_url is provided, add it to the project
+      if (item_url) {
+        core.info(`Adding item to project: ${item_url}`);
+
+        // Parse item URL to get issue number
+        const urlMatch = item_url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+        if (urlMatch) {
+          const [, itemOwner, itemRepo, issueNumberStr] = urlMatch;
+          const issueNumber = parseInt(issueNumberStr, 10);
+
+          // Get issue node ID
+          const contentId = await getIssueNodeId(itemOwner, itemRepo, issueNumber);
+
+          // Add item to project
+          const itemId = await addItemToProject(projectInfo.projectId, contentId);
+          projectInfo.itemId = itemId;
+        } else {
+          core.warning(`Could not parse item URL: ${item_url}`);
+        }
+      }
+
+      core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
+
+      // Return result
+      return {
+        success: true,
+        projectId: projectInfo.projectId,
+        projectNumber: projectInfo.projectNumber,
+        projectTitle: projectInfo.projectTitle,
+        projectUrl: projectInfo.projectUrl,
+        itemId: projectInfo.itemId,
+      };
+    } catch (err) {
+      // prettier-ignore
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+      logGraphQLError(error, "create_project");
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
     }
-  }
+  };
 }
 
 module.exports = { main };
