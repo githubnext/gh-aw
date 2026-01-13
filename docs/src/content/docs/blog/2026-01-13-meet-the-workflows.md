@@ -1,6 +1,6 @@
 ---
-title: "Meet the Agentic Workflows in Peli's Agent Factory"
-description: "A curated tour of the most interesting agents in the factory"
+title: "Meet the Workflows in Peli's Agent Factory"
+description: "A curated tour of some of the interesting agentic workflows in the factory"
 authors:
   - dsyme
 date: 2026-01-13
