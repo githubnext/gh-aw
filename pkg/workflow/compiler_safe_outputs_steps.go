@@ -168,14 +168,24 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
 
 	// With section for github-token
-	// If create_project_status_update is enabled with a custom token, use Projects token
+	// If create_project or create_project_status_update is enabled with a custom token, use Projects token
 	// Otherwise use the standard safe outputs token
 	steps = append(steps, "        with:\n")
-	if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken != "" {
+
+	// Check if we need a Projects token (for create_project or create_project_status_update)
+	var projectToken string
+	if data.SafeOutputs.CreateProjects != nil && data.SafeOutputs.CreateProjects.GitHubToken != "" {
+		projectToken = data.SafeOutputs.CreateProjects.GitHubToken
+		consolidatedSafeOutputsStepsLog.Print("Using Projects token for handler manager (create_project enabled with custom token)")
+	} else if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken != "" {
+		projectToken = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
 		consolidatedSafeOutputsStepsLog.Print("Using Projects token for handler manager (create_project_status_update enabled with custom token)")
+	}
+
+	if projectToken != "" {
 		// Use the project-specific token for the github-script step
 		// This ensures github.graphql() calls have Projects access
-		effectiveToken := getEffectiveProjectGitHubToken(data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken, data.GitHubToken)
+		effectiveToken := getEffectiveProjectGitHubToken(projectToken, data.GitHubToken)
 		steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
