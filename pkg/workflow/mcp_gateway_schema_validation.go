@@ -18,6 +18,7 @@
 //   - Schema is embedded in the binary as mcpGatewayConfigSchema
 //   - Cached compiled schema is reused across all validations
 //   - JSON is validated directly against the schema
+//   - Returns warning message (string) instead of error for validation failures
 //
 // # Schema Source
 //
@@ -30,7 +31,7 @@
 // This validation should be called:
 //   - Before writing MCP gateway configuration to the gateway script
 //   - In RenderJSONMCPConfig() after building the configuration
-//   - To catch compiler bugs that produce invalid configurations
+//   - To catch compiler bugs that produce invalid configurations (as warnings)
 //
 // For general validation, see validation.go.
 // For schema validation architecture, see schema_validation.go.
@@ -94,20 +95,20 @@ func getCompiledMCPGatewaySchema() (*jsonschema.Schema, error) {
 
 // ValidateMCPGatewayConfig validates the MCP gateway configuration JSON against the schema
 // This should be called before the configuration is sent to the gateway script
-// Returns an error if the configuration is invalid (indicates a compiler bug)
-func ValidateMCPGatewayConfig(configJSON string) error {
+// Returns a warning message if the configuration is invalid, or empty string if valid
+func ValidateMCPGatewayConfig(configJSON string) string {
 	mcpGatewaySchemaValidationLog.Print("Validating MCP gateway configuration against schema")
 
 	// Parse JSON configuration
 	var configData any
 	if err := json.Unmarshal([]byte(configJSON), &configData); err != nil {
-		return fmt.Errorf("internal compiler error: generated MCP gateway configuration is not valid JSON: %w", err)
+		return fmt.Sprintf("Generated MCP gateway configuration is not valid JSON: %v", err)
 	}
 
 	// Get compiled schema (cached after first call)
 	schema, err := getCompiledMCPGatewaySchema()
 	if err != nil {
-		return fmt.Errorf("internal compiler error: failed to load MCP Gateway configuration schema: %w", err)
+		return fmt.Sprintf("Failed to load MCP Gateway configuration schema: %v", err)
 	}
 
 	// Validate the configuration against the schema
@@ -115,15 +116,15 @@ func ValidateMCPGatewayConfig(configJSON string) error {
 		// Format validation error with details
 		if ve, ok := err.(*jsonschema.ValidationError); ok {
 			var errMsg strings.Builder
-			errMsg.WriteString("internal compiler error: generated MCP gateway configuration does not conform to schema:\n")
+			errMsg.WriteString("Generated MCP gateway configuration does not conform to schema:\n")
 			errMsg.WriteString(formatMCPGatewayValidationError(ve))
-			return fmt.Errorf("%s", errMsg.String())
+			return errMsg.String()
 		}
-		return fmt.Errorf("internal compiler error: MCP gateway configuration validation failed: %w", err)
+		return fmt.Sprintf("MCP gateway configuration validation failed: %v", err)
 	}
 
 	mcpGatewaySchemaValidationLog.Print("MCP gateway configuration is valid")
-	return nil
+	return ""
 }
 
 // formatMCPGatewayValidationError formats a jsonschema validation error into a readable message
