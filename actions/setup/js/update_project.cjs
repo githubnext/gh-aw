@@ -335,6 +335,8 @@ async function updateProject(output) {
       output?.draft_title === undefined &&
       output?.draft_body === undefined);
 
+  const wantsCreateFields = output?.operation === "create_fields";
+
   try {
     core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`);
     core.info("[1/4] Fetching repository information...");
@@ -464,6 +466,109 @@ async function updateProject(output) {
       if (created?.id) core.setOutput("view-id", created.id);
       if (created?.url) core.setOutput("view-url", created.url);
       core.info("✓ View created");
+      return;
+    }
+
+    if (wantsCreateFields) {
+      const fieldsConfig = output?.field_definitions;
+      if (!fieldsConfig || !Array.isArray(fieldsConfig)) {
+        throw new Error('Invalid field_definitions. When operation is "create_fields", you must provide field_definitions as an array.');
+      }
+
+      core.info(`[3/4] Creating ${fieldsConfig.length} project field(s)...`);
+      const createdFields = [];
+
+      for (const fieldDef of fieldsConfig) {
+        const fieldName = typeof fieldDef.name === "string" ? fieldDef.name.trim() : "";
+        if (!fieldName) {
+          core.warning("Skipping field with missing name");
+          continue;
+        }
+
+        const dataType = typeof fieldDef.data_type === "string" ? fieldDef.data_type.toUpperCase() : "";
+        if (!["DATE", "TEXT", "NUMBER", "SINGLE_SELECT", "ITERATION"].includes(dataType)) {
+          core.warning(`Skipping field "${fieldName}" with invalid data_type "${fieldDef.data_type}". Must be one of: DATE, TEXT, NUMBER, SINGLE_SELECT, ITERATION`);
+          continue;
+        }
+
+        try {
+          let field;
+          if (dataType === "SINGLE_SELECT") {
+            const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
+            if (options.length === 0) {
+              core.warning(`Skipping SINGLE_SELECT field "${fieldName}" with no options`);
+              continue;
+            }
+
+            const singleSelectOptions = options.map(opt => ({
+              name: typeof opt === "string" ? opt : String(opt),
+              description: "",
+              color: "GRAY"
+            }));
+
+            field = (
+              await github.graphql(
+                `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                  createProjectV2Field(input: {
+                    projectId: $projectId,
+                    name: $name,
+                    dataType: $dataType,
+                    singleSelectOptions: $options
+                  }) {
+                    projectV2Field {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        dataType
+                        options { id name }
+                      }
+                      ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                      }
+                    }
+                  }
+                }`,
+                { projectId, name: fieldName, dataType, options: singleSelectOptions }
+              )
+            ).createProjectV2Field.projectV2Field;
+          } else {
+            field = (
+              await github.graphql(
+                `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+                  createProjectV2Field(input: {
+                    projectId: $projectId,
+                    name: $name,
+                    dataType: $dataType
+                  }) {
+                    projectV2Field {
+                      ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                      }
+                    }
+                  }
+                }`,
+                { projectId, name: fieldName, dataType }
+              )
+            ).createProjectV2Field.projectV2Field;
+          }
+
+          createdFields.push({
+            id: field.id,
+            name: field.name,
+            dataType: field.dataType
+          });
+          core.info(`✓ Created field: ${field.name} (${field.dataType})`);
+        } catch (createError) {
+          core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
+        }
+      }
+
+      core.setOutput("created-fields", JSON.stringify(createdFields));
+      core.info(`✓ Created ${createdFields.length} field(s)`);
       return;
     }
 

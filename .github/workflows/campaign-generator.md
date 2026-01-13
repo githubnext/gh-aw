@@ -24,7 +24,7 @@ safe-outputs:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   update-project:
-    max: 5
+    max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
@@ -59,13 +59,14 @@ MCP tool calls write structured data that downstream jobs process. Without prope
 
 **Phase 1 Responsibilities (You - This Workflow):**
 1. Create GitHub Project board
-2. Create recommended project views (Roadmap, Task Tracker, Progress Board)
-3. Parse campaign requirements from issue
-4. Discover matching workflows using the workflow catalog (local + agentics collection)
-5. Generate complete `.campaign.md` specification file
-6. Write the campaign file to the repository
-7. Update the issue with campaign details
-8. Assign to Copilot Coding Agent for compilation
+2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)
+3. Create recommended project views (Roadmap, Task Tracker, Progress Board)
+4. Parse campaign requirements from issue
+5. Discover matching workflows using the workflow catalog (local + agentics collection)
+6. Generate complete `.campaign.md` specification file
+7. Write the campaign file to the repository
+8. Update the issue with campaign details
+9. Assign to Copilot Coding Agent for compilation
 
 **Phase 2 Responsibilities (Copilot Coding Agent):**
 1. Compile campaign using `gh aw compile` (requires CLI binary)
@@ -117,11 +118,56 @@ create_project({
 
 **Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
 
-### Step 2.5: Create Project Views with Custom Fields
+### Step 2.5: Create Project Fields and Views
 
-After creating the project, create recommended views using the `update-project` safe output with the `create-view` operation. This sets up the project board with optimal views for campaign tracking as described in the [Project Management guide](https://githubnext.github.io/gh-aw/guides/campaigns/project-management/).
+After creating the project, set up custom fields and views using the `update-project` safe output. This prepares the project board with optimal configuration for campaign tracking as described in the [Project Management guide](https://githubnext.github.io/gh-aw/guides/campaigns/project-management/).
 
-**Create three views:**
+#### 2.5.1: Create Custom Fields
+
+First, create the custom fields that campaigns need for tracking and organization:
+
+```javascript
+update_project({
+  project: "<project-url-from-step-2>",
+  operation: "create_fields",
+  field_definitions: [
+    {
+      name: "Worker/Workflow",
+      data_type: "SINGLE_SELECT",
+      options: ["<workflow-id-1>", "<workflow-id-2>"]
+    },
+    {
+      name: "Priority",
+      data_type: "SINGLE_SELECT",
+      options: ["High", "Medium", "Low"]
+    },
+    {
+      name: "Status",
+      data_type: "SINGLE_SELECT",
+      options: ["Todo", "In Progress", "Blocked", "Done", "Closed"]
+    },
+    {
+      name: "Start Date",
+      data_type: "DATE"
+    },
+    {
+      name: "End Date",
+      data_type: "DATE"
+    },
+    {
+      name: "Effort",
+      data_type: "SINGLE_SELECT",
+      options: ["Small (1-3 days)", "Medium (1 week)", "Large (2+ weeks)"]
+    }
+  ]
+})
+```
+
+**Note:** Save the field IDs from the output - you'll need them for configuring view visibility. The `created-fields` output contains an array of created fields with their IDs.
+
+#### 2.5.2: Create Views
+
+Then, create three views for different tracking needs:
 
 1. **Roadmap View** (for timeline visualization with Worker/Workflow swimlanes):
 ```javascript
@@ -149,7 +195,7 @@ update_project({
 })
 ```
 
-3. **Board View** (for kanban-style progress tracking):
+3. **Board View** (for kanban-style progress tracking grouped by Status):
 ```javascript
 update_project({
   project: "<project-url-from-step-2>",
@@ -162,7 +208,7 @@ update_project({
 })
 ```
 
-**Note:** Custom fields (Worker/Workflow, Priority, Status, Start Date, End Date, Effort) will need to be created manually in the GitHub Projects UI. The views will be ready to use once these fields are added. See the Project Board Setup section in the campaign specification template for field setup instructions.
+**Result:** The project board is now fully configured with custom fields and views. The orchestrator will automatically populate these fields when managing campaign items.
 
 ### Step 3: Discover Workflows Dynamically
 
@@ -403,25 +449,20 @@ Use `add-comment` to inform the user:
 ```markdown
 ✅ **Campaign Specification Created!**
 
-I've generated the campaign specification and project board with recommended views, then assigned the Copilot Coding Agent to compile it.
+I've generated the campaign specification and fully configured project board with custom fields and views, then assigned the Copilot Coding Agent to compile it.
 
 📊 **Project Board:** [View Project](<project-url>)
-  - Campaign Roadmap view (timeline with swimlanes)
-  - Task Tracker view (table with filtering)
-  - Progress Board view (kanban-style)
+  - ✅ Custom fields created: Worker/Workflow, Priority, Status, Start Date, End Date, Effort
+  - ✅ Campaign Roadmap view (timeline with swimlanes)
+  - ✅ Task Tracker view (table with filtering)
+  - ✅ Progress Board view (kanban-style)
 
 📁 **File Created:**
 - `.github/workflows/<campaign-id>.campaign.md`
 
 📝 **Next Steps:**
-1. Manually create custom fields in the GitHub Projects UI:
-   - Worker/Workflow (Single select)
-   - Priority (Single select)
-   - Status (Single select)
-   - Start Date / End Date (Date)
-   - Effort (Single select)
-2. Copilot Coding Agent will compile the campaign using `gh aw compile`
-3. The agent will create a pull request with compiled files
+1. Copilot Coding Agent will compile the campaign using `gh aw compile`
+2. The agent will create a pull request with compiled files
 
 **Estimated time:** 1-2 minutes for compilation
 ```
