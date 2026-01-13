@@ -1,0 +1,253 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.github.com/gh-aw/schemas/mcp-gateway-config.schema.json",
+  "title": "MCP Gateway Configuration",
+  "description": "Configuration schema for the Model Context Protocol (MCP) Gateway as defined in the MCP Gateway Specification v1.0.0. The gateway provides transparent HTTP access to multiple MCP servers with protocol translation, server isolation, and authentication capabilities.",
+  "type": "object",
+  "properties": {
+    "mcpServers": {
+      "type": "object",
+      "description": "Map of MCP server configurations. Each key is a unique server identifier, and the value is the server configuration.",
+      "additionalProperties": {
+        "$ref": "#/definitions/mcpServerConfig"
+      }
+    },
+    "gateway": {
+      "$ref": "#/definitions/gatewayConfig",
+      "description": "Gateway-specific configuration for the MCP Gateway service."
+    }
+  },
+  "required": ["mcpServers", "gateway"],
+  "additionalProperties": false,
+  "definitions": {
+    "mcpServerConfig": {
+      "type": "object",
+      "description": "Configuration for an individual MCP server. Supports both containerized stdio servers and HTTP-based servers. Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based servers MUST be containerized.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/stdioServerConfig"
+        },
+        {
+          "$ref": "#/definitions/httpServerConfig"
+        }
+      ]
+    },
+    "stdioServerConfig": {
+      "type": "object",
+      "description": "Configuration for a containerized stdio-based MCP server. The gateway communicates with the server via standard input/output streams. Per MCP Gateway Specification section 3.2.1, all stdio servers MUST be containerized - direct command execution is not supported.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["stdio"],
+          "description": "Transport type for the MCP server. For containerized servers, use 'stdio'.",
+          "default": "stdio"
+        },
+        "container": {
+          "type": "string",
+          "description": "Container image for the MCP server (e.g., 'ghcr.io/example/mcp-server:latest'). This field is required for stdio servers per MCP Gateway Specification section 4.1.2.",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./_-]*(:([a-zA-Z0-9._-]+|latest))?$"
+        },
+        "entrypoint": {
+          "type": "string",
+          "description": "Optional entrypoint override for the container, equivalent to 'docker run --entrypoint'. If not specified, the container's default entrypoint is used.",
+          "minLength": 1
+        },
+        "entrypointArgs": {
+          "type": "array",
+          "description": "Arguments passed to the container entrypoint. These are executed inside the container after the entrypoint command.",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "mounts": {
+          "type": "array",
+          "description": "Volume mounts for the container. Format: 'source:dest' or 'source:dest:mode' where mode is 'ro' (read-only) or 'rw' (read-write). Example: '/host/data:/container/data:ro'",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:]+:[^:]+(:(ro|rw))?$"
+          },
+          "default": []
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the server process. Values may contain variable expressions using '${VARIABLE_NAME}' syntax, which will be resolved from the process environment.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "args": {
+          "type": "array",
+          "description": "Additional Docker runtime arguments passed before the container image (e.g., '--network', 'host').",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool filter for the MCP server. Use ['*'] to allow all tools, or specify a list of tool names to allow. This field is passed through to agent configurations.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        }
+      },
+      "required": ["container"],
+      "additionalProperties": false
+    },
+    "httpServerConfig": {
+      "type": "object",
+      "description": "Configuration for an HTTP-based MCP server. The gateway forwards requests directly to the specified HTTP endpoint.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["http"],
+          "description": "Transport type for the MCP server. For HTTP servers, use 'http'."
+        },
+        "url": {
+          "type": "string",
+          "description": "HTTP endpoint URL for the MCP server (e.g., 'https://api.example.com/mcp'). This field is required for HTTP servers per MCP Gateway Specification section 4.1.2.",
+          "format": "uri",
+          "pattern": "^https?://.+",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "description": "HTTP headers to include in requests to the external HTTP MCP server. Commonly used for authentication to the external server (e.g., Authorization: 'Bearer ${API_TOKEN}' for servers that require Bearer tokens). Note: This is for authenticating to external HTTP servers, not for gateway client authentication. Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool filter for the MCP server. Use ['*'] to allow all tools, or specify a list of tool names to allow. This field is passed through to agent configurations.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables to pass through for variable resolution. Values may contain variable expressions using '${VARIABLE_NAME}' syntax, which will be resolved from the process environment.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      },
+      "required": ["type", "url"],
+      "additionalProperties": false
+    },
+    "gatewayConfig": {
+      "type": "object",
+      "description": "Gateway-specific configuration for the MCP Gateway service.",
+      "properties": {
+        "port": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ],
+          "description": "HTTP server port for the gateway. The gateway exposes endpoints at http://{domain}:{port}/. Can be an integer (1-65535) or a variable expression like '${MCP_GATEWAY_PORT}'."
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key for authentication. When configured, clients must include 'Authorization: <apiKey>' header in all RPC requests (the API key is used directly without Bearer or other scheme prefix). Per MCP Gateway Specification section 7.1, the authorization header format is 'Authorization: <apiKey>' where the API key is the complete header value. API keys must not be logged in plaintext per section 7.2.",
+          "minLength": 1
+        },
+        "domain": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["localhost", "host.docker.internal"]
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ],
+          "description": "Gateway domain for constructing URLs. Use 'localhost' for local development or 'host.docker.internal' when the gateway runs in a container and needs to access the host. Can also be a variable expression like '${MCP_GATEWAY_DOMAIN}'."
+        },
+        "startupTimeout": {
+          "type": "integer",
+          "description": "Server startup timeout in seconds. The gateway enforces this timeout when initializing containerized stdio servers.",
+          "minimum": 1,
+          "default": 30
+        },
+        "toolTimeout": {
+          "type": "integer",
+          "description": "Tool invocation timeout in seconds. The gateway enforces this timeout for individual tool/method calls to MCP servers.",
+          "minimum": 1,
+          "default": 60
+        }
+      },
+      "required": ["port", "domain", "apiKey"],
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "mcpServers": {
+        "github": {
+          "container": "ghcr.io/github/github-mcp-server:latest",
+          "env": {
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+          }
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "apiKey": "gateway-secret-token"
+      }
+    },
+    {
+      "mcpServers": {
+        "data-server": {
+          "container": "ghcr.io/example/data-mcp:latest",
+          "entrypoint": "/custom/entrypoint.sh",
+          "entrypointArgs": ["--config", "/app/config.json"],
+          "mounts": ["/host/data:/container/data:ro", "/host/config:/container/config:rw"],
+          "type": "stdio"
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "startupTimeout": 60,
+        "toolTimeout": 120
+      }
+    },
+    {
+      "mcpServers": {
+        "local-server": {
+          "container": "ghcr.io/example/python-mcp:latest",
+          "entrypointArgs": ["--config", "/app/config.json"],
+          "type": "stdio"
+        },
+        "remote-server": {
+          "type": "http",
+          "url": "https://api.example.com/mcp",
+          "headers": {
+            "Authorization": "Bearer ${API_TOKEN}"
+          }
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "apiKey": "gateway-secret-token"
+      }
+    }
+  ]
+}

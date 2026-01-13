@@ -477,6 +477,9 @@ type JSONMCPConfigOptions struct {
 	// GatewayConfig is an optional gateway configuration to include in the MCP config
 	// When set, adds a "gateway" section with port and apiKey for awmg to use
 	GatewayConfig *MCPGatewayRuntimeConfig
+	// SkipValidation indicates whether to skip MCP gateway configuration schema validation
+	// When true, validation is skipped. When false (with --validate flag), validation is performed
+	SkipValidation bool
 }
 
 // GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
@@ -679,13 +682,13 @@ func RenderJSONMCPConfig(
 	mcpTools []string,
 	workflowData *WorkflowData,
 	options JSONMCPConfigOptions,
-) {
+) error {
 	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools", len(mcpTools))
 
-	// Start the JSON structure inline (will be piped to gateway script)
-	yaml.WriteString("          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
+	// Build the JSON configuration in a separate builder for validation
+	var configBuilder strings.Builder
+	configBuilder.WriteString("          {\n")
+	configBuilder.WriteString("            \"mcpServers\": {\n")
 
 	// Filter tools if needed (e.g., Copilot filters out cache-memory)
 	var filteredTools []string
@@ -710,48 +713,113 @@ func RenderJSONMCPConfig(
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			options.Renderers.RenderGitHub(yaml, githubTool, isLast, workflowData)
+			options.Renderers.RenderGitHub(&configBuilder, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			options.Renderers.RenderPlaywright(yaml, playwrightTool, isLast)
+			options.Renderers.RenderPlaywright(&configBuilder, playwrightTool, isLast)
 		case "serena":
 			serenaTool := tools["serena"]
-			options.Renderers.RenderSerena(yaml, serenaTool, isLast)
+			options.Renderers.RenderSerena(&configBuilder, serenaTool, isLast)
 		case "cache-memory":
-			options.Renderers.RenderCacheMemory(yaml, isLast, workflowData)
+			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":
-			options.Renderers.RenderAgenticWorkflows(yaml, isLast)
+			options.Renderers.RenderAgenticWorkflows(&configBuilder, isLast)
 		case "safe-outputs":
-			options.Renderers.RenderSafeOutputs(yaml, isLast)
+			options.Renderers.RenderSafeOutputs(&configBuilder, isLast)
 		case "safe-inputs":
 			if options.Renderers.RenderSafeInputs != nil {
-				options.Renderers.RenderSafeInputs(yaml, workflowData.SafeInputs, isLast)
+				options.Renderers.RenderSafeInputs(&configBuilder, workflowData.SafeInputs, isLast)
 			}
 		case "web-fetch":
-			options.Renderers.RenderWebFetch(yaml, isLast)
+			options.Renderers.RenderWebFetch(&configBuilder, isLast)
 		default:
 			// Handle custom MCP tools using shared helper
-			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
+			HandleCustomMCPToolInSwitch(&configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
 		}
 	}
 
 	// Write config file footer - but don't add newline yet if we need to add gateway
 	if options.GatewayConfig != nil {
-		yaml.WriteString("            },\n")
+		configBuilder.WriteString("            },\n")
 		// Add gateway section (needed for gateway to process)
 		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
-		yaml.WriteString("            \"gateway\": {\n")
+		configBuilder.WriteString("            \"gateway\": {\n")
 		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
-		fmt.Fprintf(yaml, "              \"port\": $MCP_GATEWAY_PORT,\n")
-		fmt.Fprintf(yaml, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
-		fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
-		yaml.WriteString("            }\n")
+		fmt.Fprintf(&configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
+		fmt.Fprintf(&configBuilder, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
+		fmt.Fprintf(&configBuilder, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
+		configBuilder.WriteString("            }\n")
 	} else {
-		yaml.WriteString("            }\n")
+		configBuilder.WriteString("            }\n")
 	}
 
-	yaml.WriteString("          }\n")
+	configBuilder.WriteString("          }\n")
+
+	// Get the generated configuration
+	generatedConfig := configBuilder.String()
+
+	// Validate the generated configuration against the MCP Gateway schema (unless skipped)
+	// This catches compiler bugs that generate invalid configurations
+	// Validation only runs when --validate flag is enabled (skipValidation is false)
+	if !options.SkipValidation {
+		mcpRendererLog.Print("Validating MCP gateway configuration against schema")
+		// Note: We need to clean up the indentation and substitute variables for validation
+		configForValidation := prepareConfigForValidation(generatedConfig)
+		if err := ValidateMCPGatewayConfig(configForValidation); err != nil {
+			// Return internal compiler error - this should never happen in production
+			mcpRendererLog.Printf("MCP gateway configuration validation failed: %v", err)
+			return err
+		}
+		mcpRendererLog.Print("MCP gateway configuration validated successfully")
+	} else {
+		mcpRendererLog.Print("Skipping MCP gateway configuration validation (--validate flag not set)")
+	}
+
+	// Validation passed (or skipped) - write the configuration to the YAML output
+	yaml.WriteString("          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
+	yaml.WriteString(generatedConfig)
 	yaml.WriteString("          MCPCONFIG_EOF\n")
 
 	// Note: Post-EOF commands are no longer needed since we pipe directly to the gateway script
+	return nil
+}
+
+// prepareConfigForValidation prepares the generated MCP gateway configuration for schema validation
+// by removing YAML indentation and substituting shell variables with sample values
+func prepareConfigForValidation(config string) string {
+	// Remove the leading "          " indentation from each line
+	lines := strings.Split(config, "\n")
+	var cleanedLines []string
+	for _, line := range lines {
+		// Remove exactly 10 spaces of indentation
+		if len(line) >= 10 && line[:10] == "          " {
+			cleanedLines = append(cleanedLines, line[10:])
+		} else {
+			cleanedLines = append(cleanedLines, line)
+		}
+	}
+	cleaned := strings.Join(cleanedLines, "\n")
+
+	// Substitute shell variables with sample values for validation
+	// $MCP_GATEWAY_PORT -> 8080 (example port)
+	// ${MCP_GATEWAY_DOMAIN} -> "localhost" (example domain)
+	// ${MCP_GATEWAY_API_KEY} -> "sample-api-key" (example key)
+	// $GITHUB_MCP_SERVER_TOKEN -> "sample-token" (example token)
+	// $GITHUB_MCP_LOCKDOWN -> "1" (example lockdown value)
+	// \${...} (escaped for Copilot) -> ${...} (unescaped for validation)
+
+	cleaned = strings.ReplaceAll(cleaned, "$MCP_GATEWAY_PORT", "8080")
+	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_DOMAIN}\"", "\"localhost\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_API_KEY}\"", "\"sample-api-key\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_LOCKDOWN\"", "\"1\"")
+
+	// Handle Copilot-style escaped variables: \${VARIABLE} -> sample-value
+	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_PERSONAL_ACCESS_TOKEN}", "sample-token")
+	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_MCP_SERVER_TOKEN}", "sample-token")
+
+	// Handle shell command substitutions: $([ "$VAR" = "1" ] && echo true || echo false) -> true
+	cleaned = strings.ReplaceAll(cleaned, "\"$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)\"", "\"true\"")
+
+	return cleaned
 }

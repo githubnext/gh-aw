@@ -387,6 +387,11 @@ jobs:
                   "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
                 }
               }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}"
             }
           }
           MCPCONFIG_EOF
