@@ -626,11 +626,8 @@ async function runDiagnostics() {
 function generateMarkdownReport(results) {
   const timestamp = new Date().toISOString();
   
-  let report = `# Agentic Diagnostic Report\n\n`;
-  report += `**Generated:** ${timestamp}\n`;
-  report += `**Repository:** ${process.env.GITHUB_REPOSITORY || 'unknown'}\n\n`;
-  
-  report += `## Summary\n\n`;
+  let report = `## 📊 Summary\n\n`;
+  report += `**Generated:** ${timestamp} | **Repository:** ${process.env.GITHUB_REPOSITORY || 'unknown'}\n\n`;
   
   const summary = {
     total: results.length,
@@ -640,16 +637,50 @@ function generateMarkdownReport(results) {
     skipped: results.filter(r => r.status === Status.SKIPPED).length
   };
   
-  report += `- Total Tests: ${summary.total}\n`;
-  report += `- ✅ Successful: ${summary.success}\n`;
-  report += `- ❌ Failed: ${summary.failure}\n`;
-  report += `- ⚪ Not Set: ${summary.notSet}\n`;
+  // Create a summary table
+  report += `| Status | Count | Percentage |\n`;
+  report += `|--------|-------|------------|\n`;
+  report += `| ✅ Successful | ${summary.success} | ${Math.round((summary.success / summary.total) * 100)}% |\n`;
+  report += `| ❌ Failed | ${summary.failure} | ${Math.round((summary.failure / summary.total) * 100)}% |\n`;
+  report += `| ⚪ Not Set | ${summary.notSet} | ${Math.round((summary.notSet / summary.total) * 100)}% |\n`;
   if (summary.skipped > 0) {
-    report += `- ⏭️ Skipped: ${summary.skipped}\n`;
+    report += `| ⏭️ Skipped | ${summary.skipped} | ${Math.round((summary.skipped / summary.total) * 100)}% |\n`;
   }
-  report += `\n`;
+  report += `| **Total** | **${summary.total}** | **100%** |\n\n`;
   
-  report += `## Detailed Results\n\n`;
+  // Add recommendations section early with callouts
+  const notSetSecrets = [...new Set(results.filter(r => r.status === Status.NOT_SET).map(r => r.secret))];
+  const failedSecrets = [...new Set(results.filter(r => r.status === Status.FAILURE).map(r => r.secret))];
+  
+  if (notSetSecrets.length === 0 && failedSecrets.length === 0) {
+    report += `> [!TIP]\n`;
+    report += `> ✅ All configured secrets are working correctly!\n\n`;
+  } else {
+    if (failedSecrets.length > 0) {
+      report += `> [!WARNING]\n`;
+      report += `> **Failed Tests:** ${failedSecrets.length} secret(s) failed validation\n`;
+      report += `>\n`;
+      failedSecrets.forEach(secret => {
+        report += `> - \`${secret}\`\n`;
+      });
+      report += `>\n`;
+      report += `> Review the secret values and ensure they have proper permissions.\n\n`;
+    }
+    
+    if (notSetSecrets.length > 0) {
+      report += `> [!NOTE]\n`;
+      report += `> **Not Configured:** ${notSetSecrets.length} secret(s) not set\n`;
+      report += `>\n`;
+      notSetSecrets.forEach(secret => {
+        report += `> - \`${secret}\`\n`;
+      });
+      report += `>\n`;
+      report += `> Configure these secrets in repository settings if needed.\n\n`;
+    }
+  }
+  
+  report += `---\n\n`;
+  report += `## 🔍 Detailed Results\n\n`;
   
   // Group by secret
   const bySecret = {};
@@ -661,51 +692,36 @@ function generateMarkdownReport(results) {
   });
   
   Object.entries(bySecret).forEach(([secret, tests]) => {
-    report += `### ${secret}\n\n`;
+    // Determine overall status for the secret
+    const hasFailure = tests.some(t => t.status === Status.FAILURE);
+    const hasNotSet = tests.some(t => t.status === Status.NOT_SET);
+    const allSuccess = tests.every(t => t.status === Status.SUCCESS);
+    
+    let statusIcon = '✅';
+    if (hasFailure) statusIcon = '❌';
+    else if (hasNotSet) statusIcon = '⚪';
+    else if (tests.some(t => t.status === Status.SKIPPED)) statusIcon = '⏭️';
+    
+    // Use collapsible sections for each secret
+    report += `<details>\n`;
+    report += `<summary><strong>${statusIcon} ${secret}</strong> (${tests.length} test${tests.length > 1 ? 's' : ''})</summary>\n\n`;
     
     tests.forEach(test => {
-      report += `#### ${test.test}\n\n`;
-      report += `- **Status:** ${statusEmoji(test.status)} ${test.status}\n`;
-      report += `- **Message:** ${test.message}\n`;
+      report += `### ${statusEmoji(test.status)} ${test.test}\n\n`;
+      report += `**Status:** ${test.status} | **Message:** ${test.message}\n\n`;
       
       if (test.details) {
-        report += `- **Details:**\n`;
-        report += `  \`\`\`json\n`;
-        report += `  ${JSON.stringify(test.details, null, 2)}\n`;
-        report += `  \`\`\`\n`;
+        report += `<details>\n`;
+        report += `<summary>View details</summary>\n\n`;
+        report += `\`\`\`json\n`;
+        report += `${JSON.stringify(test.details, null, 2)}\n`;
+        report += `\`\`\`\n\n`;
+        report += `</details>\n\n`;
       }
-      report += `\n`;
     });
+    
+    report += `</details>\n\n`;
   });
-  
-  report += `## Recommendations\n\n`;
-  
-  const notSetSecrets = [...new Set(results.filter(r => r.status === Status.NOT_SET).map(r => r.secret))];
-  const failedSecrets = [...new Set(results.filter(r => r.status === Status.FAILURE).map(r => r.secret))];
-  
-  if (notSetSecrets.length > 0) {
-    report += `### Secrets Not Set\n\n`;
-    report += `The following secrets are not configured:\n\n`;
-    notSetSecrets.forEach(secret => {
-      report += `- \`${secret}\`\n`;
-    });
-    report += `\n`;
-    report += `Configure these secrets in repository settings if needed.\n\n`;
-  }
-  
-  if (failedSecrets.length > 0) {
-    report += `### Failed Tests\n\n`;
-    report += `The following secrets failed validation:\n\n`;
-    failedSecrets.forEach(secret => {
-      report += `- \`${secret}\`\n`;
-    });
-    report += `\n`;
-    report += `Review the secret values and ensure they have proper permissions.\n\n`;
-  }
-  
-  if (notSetSecrets.length === 0 && failedSecrets.length === 0) {
-    report += `✅ All configured secrets are working correctly!\n\n`;
-  }
   
   return report;
 }
