@@ -202,7 +202,7 @@ Add comprehensive tests for each new file:
 
 ## Additional Context
 
-- **Repository Guidelines**: Follow patterns in `.github/instructions/developer.instructions.md`
+- **Repository Guidelines**: Follow patterns in `.github/agents/developer.instructions.agent.md`
 - **Code Organization**: Prefer many small files grouped by functionality
 - **Testing**: Match existing test patterns in `pkg/workflow/*_test.go`
 
