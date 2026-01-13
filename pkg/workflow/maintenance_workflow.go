@@ -270,6 +270,51 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/check_workflow_recompile_needed.cjs');
             await main();
 
+  test-secrets-health:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+`)
+
+	// Add checkout step only in dev mode (for local action paths)
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+`)
+	}
+
+	// Add setup step with the resolved action reference
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: /opt/gh-aw/actions
+
+      - name: Test secrets health
+        uses: ` + GetActionPin("actions/github-script") + `
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/test_secrets_health.cjs');
+            await main();
+
   zizmor-scan:
     runs-on: ubuntu-latest
     needs: compile-workflows
