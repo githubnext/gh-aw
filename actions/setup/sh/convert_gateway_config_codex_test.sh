@@ -13,6 +13,13 @@ trap "rm -rf $TEST_DIR" EXIT
 echo "=== Testing convert_gateway_config_codex.sh ==="
 echo ""
 
+# Set required environment variables for all tests
+export MCP_GATEWAY_DOMAIN="host.docker.internal"
+export MCP_GATEWAY_PORT="80"
+
+# Create the output directory the script writes to
+mkdir -p /tmp/gh-aw/mcp-config
+
 # Test 1: Basic gateway output conversion
 echo "Test 1: Convert basic gateway output with Authorization headers"
 mkdir -p "$TEST_DIR/mcp-config"
@@ -78,6 +85,13 @@ if ! grep -q 'persistence = "none"' /tmp/gh-aw/mcp-config/config.toml; then
   exit 1
 fi
 
+# Check that URLs are correctly formatted with domain and port
+if ! grep -q 'url = "http://host.docker.internal:80/mcp/github"' /tmp/gh-aw/mcp-config/config.toml; then
+  echo "✗ FAIL: URL not correctly formatted for github server"
+  cat /tmp/gh-aw/mcp-config/config.toml
+  exit 1
+fi
+
 echo "✓ PASS: Basic gateway output conversion"
 echo ""
 
@@ -117,6 +131,31 @@ if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
 else
   echo "✓ PASS: Script correctly fails when gateway output file doesn't exist"
 fi
+echo ""
+
+# Test 5: Error handling - missing MCP_GATEWAY_DOMAIN
+echo "Test 5: Error handling for missing MCP_GATEWAY_DOMAIN"
+export MCP_GATEWAY_OUTPUT="$TEST_DIR/gateway-output.json"
+unset MCP_GATEWAY_DOMAIN
+if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
+  echo "✗ FAIL: Script should fail when MCP_GATEWAY_DOMAIN is not set"
+  exit 1
+else
+  echo "✓ PASS: Script correctly fails when MCP_GATEWAY_DOMAIN is not set"
+fi
+export MCP_GATEWAY_DOMAIN="host.docker.internal"
+echo ""
+
+# Test 6: Error handling - missing MCP_GATEWAY_PORT
+echo "Test 6: Error handling for missing MCP_GATEWAY_PORT"
+unset MCP_GATEWAY_PORT
+if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
+  echo "✗ FAIL: Script should fail when MCP_GATEWAY_PORT is not set"
+  exit 1
+else
+  echo "✓ PASS: Script correctly fails when MCP_GATEWAY_PORT is not set"
+fi
+export MCP_GATEWAY_PORT="80"
 echo ""
 
 echo "=== All tests passed ==="

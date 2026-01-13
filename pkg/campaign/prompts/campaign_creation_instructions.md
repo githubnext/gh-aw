@@ -375,24 +375,35 @@ Agents in this campaign should:
 
 ## Project Board Setup
 
-**Recommended Custom Fields**:
+**Project Views and Fields** (automatically created):
 
-1. **Worker/Workflow** (Single select): <workflow-id-1>, <workflow-id-2>
-   - Enables swimlane grouping in Roadmap views
-   
-2. **Priority** (Single select): High, Medium, Low
-   - Priority-based filtering and sorting
-   
-3. **Status** (Single select): Todo, In Progress, Blocked, Done
-   - Work state tracking
-   
-4. **Start Date** / **End Date** (Date)
-   - Timeline visualization in Roadmap views
-   
-5. **Effort** (Single select): Small (1-3 days), Medium (1 week), Large (2+ weeks)
-   - Capacity planning
+The campaign generator creates custom fields and three views optimized for campaign tracking:
 
-The orchestrator automatically populates these fields. See the [Project Management guide](https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/guides/campaigns/project-management.md) for setup instructions.
+**Custom Fields:**
+1. **Worker/Workflow** (Single select) - Track which workflow owns each item; enables swimlane grouping
+2. **Priority** (Single select: High, Medium, Low) - Priority-based filtering and sorting
+3. **Status** (Single select: Todo, In Progress, Blocked, Done, Closed) - Work state tracking
+4. **Start Date** (Date) - Timeline visualization (auto-populated from `createdAt`)
+5. **End Date** (Date) - Timeline visualization (auto-populated from `closedAt`)
+6. **Effort** (Single select: Small, Medium, Large) - Capacity planning
+
+**Project Views:**
+1. **Campaign Roadmap** (Roadmap layout)
+   - Timeline visualization with Worker/Workflow swimlanes
+   - Shows work distribution across time
+   - Configure "Group by Worker/Workflow" for swimlanes in the UI
+   
+2. **Task Tracker** (Table layout)
+   - Detailed task tracking with all fields visible
+   - Use "Slice by" filtering for Priority, Status, Worker/Workflow
+   - Sort by Priority or Effort for prioritization
+   
+3. **Progress Board** (Board layout)
+   - Kanban-style progress tracking
+   - Configure "Group by Status" field in the UI
+   - Visual workflow state management
+
+The orchestrator automatically populates these fields. See the [Project Management guide](https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/guides/campaigns/project-management.md) for detailed usage instructions and view configuration examples.
 
 ## Timeline
 

@@ -28,7 +28,7 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				RequiresCopilotFields: true,
 			},
 			expectedContent: []string{
-				`"type": "stdio"`, // Per MCP Gateway Spec, use stdio for containerized servers
+				`"type": "local"`, // stdio converted to local for copilot
 				`"tools": [`,
 				`"get_current_time"`,
 				`"command": "docker"`,
@@ -53,13 +53,12 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 			},
 			expectedContent: []string{
 				`"type": "http"`, // http stays http for copilot
+				`"tools": [`,
+				`"*"`, // default to all tools when no allowed specified
 				`"url": "https://api.example.com/mcp"`,
 				`"headers": {`,
 			},
-			unexpectedContent: []string{
-				`"tools":`, // Per MCP Gateway Spec v1.4.0, tools field not allowed for HTTP servers
-				`"env":`,   // Per MCP Gateway Spec v1.4.0, env field not allowed for HTTP servers
-			},
+			unexpectedContent: []string{},
 		},
 		{
 			name: "Claude engine with stdio MCP server (no copilot fields)",
@@ -210,10 +209,10 @@ func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 		shouldHaveType bool
 	}{
 		{
-			name:           "stdio type for copilot",
+			name:           "stdio to local conversion for copilot",
 			inputType:      "stdio",
 			copilotFields:  true,
-			expectedType:   `"type": "stdio"`, // Per MCP Gateway Spec, use stdio for containerized servers
+			expectedType:   `"type": "local"`,
 			shouldHaveType: true,
 		},
 		{

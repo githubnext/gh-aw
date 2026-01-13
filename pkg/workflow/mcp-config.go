@@ -564,10 +564,17 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			// TOML format for HTTP MCP servers uses url and http_headers
 			propertyOrder = []string{"url", "http_headers"}
 		} else {
-			// JSON format - Per MCP Gateway Specification v1.4.0 section 4.1.2,
-			// HTTP servers only support: type, url, headers
-			// The tools and env fields are NOT allowed for HTTP servers
-			propertyOrder = []string{"type", "url", "headers"}
+			// JSON format - include copilot fields if required
+			if renderer.RequiresCopilotFields {
+				// For HTTP MCP with secrets in headers, env passthrough is needed
+				if len(headerSecrets) > 0 {
+					propertyOrder = []string{"type", "url", "headers", "tools", "env"}
+				} else {
+					propertyOrder = []string{"type", "url", "headers", "tools"}
+				}
+			} else {
+				propertyOrder = []string{"type", "url", "headers"}
+			}
 		}
 	default:
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpType)))

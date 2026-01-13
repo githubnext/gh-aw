@@ -204,7 +204,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":10},"assign_to_agent":{},"create_project":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1}}
+          {"add_comment":{"max":10},"assign_to_agent":{},"create_project":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -327,6 +327,104 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Unified GitHub Projects v2 operations. Default behavior updates project items (add issue/PR/draft_issue and/or update custom fields). Also supports creating project views (table/board/roadmap) when operation=create_view.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "campaign_id": {
+                    "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
+                    "type": "string"
+                  },
+                  "content_number": {
+                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
+                    "type": "number"
+                  },
+                  "content_type": {
+                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
+                    "enum": [
+                      "issue",
+                      "pull_request",
+                      "draft_issue"
+                    ],
+                    "type": "string"
+                  },
+                  "create_if_missing": {
+                    "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
+                    "type": "boolean"
+                  },
+                  "draft_body": {
+                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "draft_title": {
+                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
+                    "type": "object"
+                  },
+                  "operation": {
+                    "description": "Optional operation selector. Default: update_item. Use create_view to create a project view (table/board/roadmap).",
+                    "enum": [
+                      "update_item",
+                      "create_view"
+                    ],
+                    "type": "string"
+                  },
+                  "project": {
+                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  },
+                  "view": {
+                    "additionalProperties": false,
+                    "description": "View configuration. Required when operation is create_view.",
+                    "properties": {
+                      "description": {
+                        "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored.",
+                        "type": "string"
+                      },
+                      "filter": {
+                        "description": "Optional filter query for the view (e.g., 'is:issue is:open').",
+                        "type": "string"
+                      },
+                      "layout": {
+                        "description": "The layout of the view.",
+                        "enum": [
+                          "table",
+                          "board",
+                          "roadmap"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "The name of the view (e.g., 'Sprint Board').",
+                        "type": "string"
+                      },
+                      "visible_fields": {
+                        "description": "Optional field IDs that should be visible in the view (table/board only). Not applicable to roadmap.",
+                        "items": {
+                          "type": "number"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "layout"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "project"
+                ],
+                "type": "object"
+              },
+              "name": "update_project"
             },
             {
               "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
@@ -512,6 +610,43 @@ jobs:
                 }
               },
               "customValidation": "requiresOneOf:status,title,body"
+            },
+            "update_project": {
+              "defaultMax": 10,
+              "fields": {
+                "campaign_id": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "content_number": {
+                  "optionalPositiveInteger": true
+                },
+                "content_type": {
+                  "type": "string",
+                  "enum": [
+                    "issue",
+                    "pull_request"
+                  ]
+                },
+                "fields": {
+                  "type": "object"
+                },
+                "issue": {
+                  "optionalPositiveInteger": true
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                },
+                "pull_request": {
+                  "optionalPositiveInteger": true
+                }
+              }
             }
           }
           EOF
@@ -662,12 +797,14 @@ jobs:
           
           **Phase 1 Responsibilities (You - This Workflow):**
           1. Create GitHub Project board
-          2. Parse campaign requirements from issue
-          3. Discover matching workflows using the workflow catalog (local + agentics collection)
-          4. Generate complete `.campaign.md` specification file
-          5. Write the campaign file to the repository
-          6. Update the issue with campaign details
-          7. Assign to Copilot Coding Agent for compilation
+          2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)
+          3. Create recommended project views (Roadmap, Task Tracker, Progress Board)
+          4. Parse campaign requirements from issue
+          5. Discover matching workflows using the workflow catalog (local + agentics collection)
+          6. Generate complete `.campaign.md` specification file
+          7. Write the campaign file to the repository
+          8. Update the issue with campaign details
+          9. Assign to Copilot Coding Agent for compilation
           
           **Phase 2 Responsibilities (Copilot Coding Agent):**
           1. Compile campaign using `gh aw compile` (requires CLI binary)
@@ -717,7 +854,99 @@ jobs:
           })
           ```
           
-          **Save the project URL** from the response - you'll need it for Step 4.
+          **Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
+          
+          ### Step 2.5: Create Project Fields and Views
+          
+          After creating the project, set up custom fields and views using the `update-project` safe output. This prepares the project board with optimal configuration for campaign tracking as described in the [Project Management guide](https://githubnext.github.io/gh-aw/guides/campaigns/project-management/).
+          
+          #### 2.5.1: Create Custom Fields
+          
+          First, create the custom fields that campaigns need for tracking and organization:
+          
+          ```javascript
+          update_project({
+            project: "<project-url-from-step-2>",
+            operation: "create_fields",
+            field_definitions: [
+              {
+                name: "Worker/Workflow",
+                data_type: "SINGLE_SELECT",
+                options: ["<workflow-id-1>", "<workflow-id-2>"]
+              },
+              {
+                name: "Priority",
+                data_type: "SINGLE_SELECT",
+                options: ["High", "Medium", "Low"]
+              },
+              {
+                name: "Status",
+                data_type: "SINGLE_SELECT",
+                options: ["Todo", "In Progress", "Blocked", "Done", "Closed"]
+              },
+              {
+                name: "Start Date",
+                data_type: "DATE"
+              },
+              {
+                name: "End Date",
+                data_type: "DATE"
+              },
+              {
+                name: "Effort",
+                data_type: "SINGLE_SELECT",
+                options: ["Small (1-3 days)", "Medium (1 week)", "Large (2+ weeks)"]
+              }
+            ]
+          })
+          ```
+          
+          **Note:** Save the field IDs from the output - you'll need them for configuring view visibility. The `created-fields` output contains an array of created fields with their IDs.
+          
+          #### 2.5.2: Create Views
+          
+          Then, create three views for different tracking needs:
+          
+          1. **Roadmap View** (for timeline visualization with Worker/Workflow swimlanes):
+          ```javascript
+          update_project({
+            project: "<project-url-from-step-2>",
+            operation: "create_view",
+            view: {
+              name: "Campaign Roadmap",
+              layout: "roadmap",
+              filter: "is:issue,is:pull_request"
+            }
+          })
+          ```
+          
+          2. **Task Table View** (for detailed tracking with "Slice by" filtering):
+          ```javascript
+          update_project({
+            project: "<project-url-from-step-2>",
+            operation: "create_view",
+            view: {
+              name: "Task Tracker",
+              layout: "table",
+              filter: "is:issue,is:pull_request"
+            }
+          })
+          ```
+          
+          3. **Board View** (for kanban-style progress tracking grouped by Status):
+          ```javascript
+          update_project({
+            project: "<project-url-from-step-2>",
+            operation: "create_view",
+            view: {
+              name: "Progress Board",
+              layout: "board",
+              filter: "is:issue,is:pull_request"
+            }
+          })
+          ```
+          
+          **Result:** The project board is now fully configured with custom fields and views. The orchestrator will automatically populate these fields when managing campaign items.
           
           ### Step 3: Discover Workflows Dynamically
           
@@ -958,16 +1187,22 @@ jobs:
           ```markdown
           ✅ **Campaign Specification Created!**
           
-          I've generated the campaign specification and assigned the Copilot Coding Agent to compile it.
+          I've generated the campaign specification and fully configured project board with custom fields and views, then assigned the Copilot Coding Agent to compile it.
+          
+          📊 **Project Board:** [View Project](<project-url>)
+            - ✅ Custom fields created: Worker/Workflow, Priority, Status, Start Date, End Date, Effort
+            - ✅ Campaign Roadmap view (timeline with swimlanes)
+            - ✅ Task Tracker view (table with filtering)
+            - ✅ Progress Board view (kanban-style)
           
           📁 **File Created:**
           - `.github/workflows/<campaign-id>.campaign.md`
           
-          🔄 **Next Steps:**
+          📝 **Next Steps:**
           1. Copilot Coding Agent will compile the campaign using `gh aw compile`
           2. The agent will create a pull request with compiled files
           
-          **Estimated time:** 1-2 minutes
+          **Estimated time:** 1-2 minutes for compilation
           ```
           
           ### Step 7: Assign to Copilot Coding Agent for Compilation
@@ -1074,7 +1309,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, assign_to_agent, create_project, missing_tool, noop, update_issue
+          **Available tools**: add_comment, assign_to_agent, create_project, missing_tool, noop, update_issue, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1747,6 +1982,19 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/assign_to_agent.cjs');
+            await main();
+      - name: Update Project
+        id: update_project
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+        with:
+          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/update_project.cjs');
             await main();
       - name: Create Project
         id: create_project
