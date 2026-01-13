@@ -35,6 +35,11 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		ConfigPath:     "/home/runner/.copilot/mcp-config.json",
 		GatewayConfig:  gatewayConfig,
 		SkipValidation: workflowData == nil || workflowData.CompilerSkipValidation == nil || *workflowData.CompilerSkipValidation,
+		OnWarning: func() {
+			if workflowData != nil && workflowData.CompilerWarningCallback != nil {
+				workflowData.CompilerWarningCallback()
+			}
+		},
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)
