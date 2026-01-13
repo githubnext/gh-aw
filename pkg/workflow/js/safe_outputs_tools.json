@@ -786,18 +786,64 @@
   },
   {
     "name": "update_project",
-    "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+    "description": "Unified GitHub Projects v2 operations. Default behavior updates project items (add issue/PR/draft_issue and/or update custom fields). Also supports creating project views (table/board/roadmap) when operation=create_view.",
     "inputSchema": {
       "type": "object",
       "required": [
-        "project",
-        "content_type"
+        "project"
       ],
       "properties": {
+        "operation": {
+          "type": "string",
+          "enum": [
+            "update_item",
+            "create_view"
+          ],
+          "description": "Optional operation selector. Default: update_item. Use create_view to create a project view (table/board/roadmap)."
+        },
         "project": {
           "type": "string",
           "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
           "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted."
+        },
+        "view": {
+          "type": "object",
+          "description": "View configuration. Required when operation is create_view.",
+          "required": [
+            "name",
+            "layout"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name of the view (e.g., 'Sprint Board')."
+            },
+            "layout": {
+              "type": "string",
+              "enum": [
+                "table",
+                "board",
+                "roadmap"
+              ],
+              "description": "The layout of the view."
+            },
+            "filter": {
+              "type": "string",
+              "description": "Optional filter query for the view (e.g., 'is:issue is:open')."
+            },
+            "visible_fields": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Optional field IDs that should be visible in the view (table/board only). Not applicable to roadmap."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored."
+            }
+          },
+          "additionalProperties": false
         },
         "content_type": {
           "type": "string",

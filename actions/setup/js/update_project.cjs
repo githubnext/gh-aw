@@ -324,6 +324,19 @@ async function updateProject(output) {
   const projectNumberFromUrl = projectInfo.projectNumber;
   const campaignId = output.campaign_id;
 
+  const wantsCreateView =
+    output?.operation === "create_view" ||
+    (output?.view &&
+      output?.content_type === undefined &&
+      output?.content_number === undefined &&
+      output?.issue === undefined &&
+      output?.pull_request === undefined &&
+      output?.fields === undefined &&
+      output?.draft_title === undefined &&
+      output?.draft_body === undefined);
+
+  const wantsCreateFields = output?.operation === "create_fields";
+
   try {
     core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`);
     core.info("[1/4] Fetching repository information...");
@@ -384,6 +397,179 @@ async function updateProject(output) {
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
       logGraphQLError(error, "Resolving project from URL");
       throw error;
+    }
+
+    if (wantsCreateView) {
+      const view = output?.view;
+      if (!view || typeof view !== "object") {
+        throw new Error('Invalid view. When operation is "create_view", you must provide view: { name, layout, ... }.');
+      }
+
+      const name = typeof view.name === "string" ? view.name.trim() : "";
+      if (!name) {
+        throw new Error('Invalid view.name. When operation is "create_view", view.name is required and must be a non-empty string.');
+      }
+
+      const layout = typeof view.layout === "string" ? view.layout.trim() : "";
+      if (!layout || !["table", "board", "roadmap"].includes(layout)) {
+        throw new Error("Invalid view.layout. Must be one of: table, board, roadmap.");
+      }
+
+      const filter = typeof view.filter === "string" ? view.filter : undefined;
+      let visibleFields = Array.isArray(view.visible_fields) ? view.visible_fields : undefined;
+
+      if (visibleFields) {
+        const invalid = visibleFields.filter(v => typeof v !== "number" || !Number.isFinite(v));
+        if (invalid.length > 0) {
+          throw new Error(`Invalid view.visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
+        }
+      }
+
+      if (layout === "roadmap" && visibleFields && visibleFields.length > 0) {
+        core.warning('view.visible_fields is not applicable to layout "roadmap"; ignoring.');
+        visibleFields = undefined;
+      }
+
+      if (typeof view.description === "string" && view.description.trim()) {
+        core.warning("view.description is not supported by the GitHub Projects Views API; ignoring.");
+      }
+
+      if (typeof github.request !== "function") {
+        throw new Error("GitHub client does not support github.request(); cannot call Projects Views REST API.");
+      }
+
+      const route = projectInfo.scope === "orgs" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{user_id}/projectsV2/{project_number}/views";
+
+      const params =
+        projectInfo.scope === "orgs"
+          ? {
+              org: projectInfo.ownerLogin,
+              project_number: parseInt(resolvedProjectNumber, 10),
+              name,
+              layout,
+              ...(filter ? { filter } : {}),
+              ...(visibleFields ? { visible_fields: visibleFields } : {}),
+            }
+          : {
+              user_id: projectInfo.ownerLogin,
+              project_number: parseInt(resolvedProjectNumber, 10),
+              name,
+              layout,
+              ...(filter ? { filter } : {}),
+              ...(visibleFields ? { visible_fields: visibleFields } : {}),
+            };
+
+      core.info(`[3/4] Creating project view: ${name} (${layout})...`);
+      const response = await github.request(route, params);
+      const created = response?.data;
+
+      if (created?.id) core.setOutput("view-id", created.id);
+      if (created?.url) core.setOutput("view-url", created.url);
+      core.info("✓ View created");
+      return;
+    }
+
+    if (wantsCreateFields) {
+      const fieldsConfig = output?.field_definitions;
+      if (!fieldsConfig || !Array.isArray(fieldsConfig)) {
+        throw new Error('Invalid field_definitions. When operation is "create_fields", you must provide field_definitions as an array.');
+      }
+
+      core.info(`[3/4] Creating ${fieldsConfig.length} project field(s)...`);
+      const createdFields = [];
+
+      for (const fieldDef of fieldsConfig) {
+        const fieldName = typeof fieldDef.name === "string" ? fieldDef.name.trim() : "";
+        if (!fieldName) {
+          core.warning("Skipping field with missing name");
+          continue;
+        }
+
+        const dataType = typeof fieldDef.data_type === "string" ? fieldDef.data_type.toUpperCase() : "";
+        if (!["DATE", "TEXT", "NUMBER", "SINGLE_SELECT", "ITERATION"].includes(dataType)) {
+          core.warning(`Skipping field "${fieldName}" with invalid data_type "${fieldDef.data_type}". Must be one of: DATE, TEXT, NUMBER, SINGLE_SELECT, ITERATION`);
+          continue;
+        }
+
+        try {
+          let field;
+          if (dataType === "SINGLE_SELECT") {
+            const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
+            if (options.length === 0) {
+              core.warning(`Skipping SINGLE_SELECT field "${fieldName}" with no options`);
+              continue;
+            }
+
+            const singleSelectOptions = options.map(opt => ({
+              name: typeof opt === "string" ? opt : String(opt),
+              description: "",
+              color: "GRAY",
+            }));
+
+            field = (
+              await github.graphql(
+                `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                  createProjectV2Field(input: {
+                    projectId: $projectId,
+                    name: $name,
+                    dataType: $dataType,
+                    singleSelectOptions: $options
+                  }) {
+                    projectV2Field {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        dataType
+                        options { id name }
+                      }
+                      ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                      }
+                    }
+                  }
+                }`,
+                { projectId, name: fieldName, dataType, options: singleSelectOptions }
+              )
+            ).createProjectV2Field.projectV2Field;
+          } else {
+            field = (
+              await github.graphql(
+                `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+                  createProjectV2Field(input: {
+                    projectId: $projectId,
+                    name: $name,
+                    dataType: $dataType
+                  }) {
+                    projectV2Field {
+                      ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                      }
+                    }
+                  }
+                }`,
+                { projectId, name: fieldName, dataType }
+              )
+            ).createProjectV2Field.projectV2Field;
+          }
+
+          createdFields.push({
+            id: field.id,
+            name: field.name,
+            dataType: field.dataType,
+          });
+          core.info(`✓ Created field: ${field.name} (${field.dataType})`);
+        } catch (createError) {
+          core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
+        }
+      }
+
+      core.setOutput("created-fields", JSON.stringify(createdFields));
+      core.info(`✓ Created ${createdFields.length} field(s)`);
+      return;
     }
 
     core.info("[3/4] Processing content (issue/PR/draft) if specified...");
