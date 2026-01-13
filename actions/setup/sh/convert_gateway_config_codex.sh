@@ -5,8 +5,10 @@
 
 set -e
 
-# Required environment variable:
+# Required environment variables:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
+# - MCP_GATEWAY_DOMAIN: Domain to use for MCP server URLs (e.g., host.docker.internal)
+# - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
 
 if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"
@@ -18,8 +20,19 @@ if [ ! -f "$MCP_GATEWAY_OUTPUT" ]; then
   exit 1
 fi
 
+if [ -z "$MCP_GATEWAY_DOMAIN" ]; then
+  echo "ERROR: MCP_GATEWAY_DOMAIN environment variable is required"
+  exit 1
+fi
+
+if [ -z "$MCP_GATEWAY_PORT" ]; then
+  echo "ERROR: MCP_GATEWAY_PORT environment variable is required"
+  exit 1
+fi
+
 echo "Converting gateway configuration to Codex TOML format..."
 echo "Input: $MCP_GATEWAY_OUTPUT"
+echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 
 # Convert gateway JSON output to Codex TOML format
 # Gateway format (JSON):
@@ -45,6 +58,10 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 #
 # Note: Codex doesn't use "type" or "tools" fields
 # Note: Codex uses http_headers as an inline table, not a separate section
+# Note: URLs must use the correct domain (host.docker.internal) for container access
+
+# Build the correct URL prefix using the configured domain and port
+URL_PREFIX="http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 
 # Create the TOML configuration
 cat > /tmp/gh-aw/mcp-config/config.toml << 'TOML_EOF'
@@ -53,10 +70,10 @@ persistence = "none"
 
 TOML_EOF
 
-jq -r '
-  .mcpServers | to_entries[] | 
+jq -r --arg urlPrefix "$URL_PREFIX" '
+  .mcpServers | to_entries[] |
   "[mcp_servers.\(.key)]\n" +
-  "url = \"\(.value.url)\"\n" +
+  "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
   "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
