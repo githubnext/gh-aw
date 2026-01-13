@@ -1,4 +1,4 @@
-name: Secrets Diagnostics
+name: Agentic Diagnostics
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   diagnostics:
-    name: Run Secrets Diagnostics
+    name: Run Agentic Diagnostics
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -43,12 +43,12 @@ jobs:
           # Repository context
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          node .github/scripts/secrets-diagnostics.cjs
+          node .github/scripts/agentic-diagnostics.cjs
 
       - name: Display report in step summary
         if: always()
         run: |
-          echo "# 🔐 Secrets Diagnostic Report" >> $GITHUB_STEP_SUMMARY
+          echo "# 🔐 Agentic Diagnostic Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f diagnostics.md ]; then
             cat diagnostics.md >> $GITHUB_STEP_SUMMARY
@@ -60,7 +60,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: secrets-diagnostic-report
+          name: agentic-diagnostic-report
           path: diagnostics.md
           retention-days: 30
           if-no-files-found: error

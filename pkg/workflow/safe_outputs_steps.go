@@ -62,15 +62,20 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 
 // addCustomActionGitHubToken adds a GitHub token as action input.
 // The token precedence depends on the tokenType flags:
-// - UseAgentToken: customToken > GH_AW_AGENT_TOKEN
-// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > COPILOT_GITHUB_TOKEN || GH_AW_GITHUB_TOKEN
-// - Default: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GITHUB_TOKEN
+// - UseAgentToken: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > data.GitHubToken > COPILOT_GITHUB_TOKEN || GH_AW_GITHUB_TOKEN
+// - Default: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
 func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string, useAgentToken, useCopilotToken bool) {
 	var token string
 
-	// Agent token mode: simple fallback to GH_AW_AGENT_TOKEN
+	// Agent token mode: use full precedence chain for agent assignment
 	if useAgentToken {
-		token = getEffectiveAgentGitHubToken(customToken)
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
+		}
+		// Precedence: customToken > safeOutputsToken > data.GitHubToken > default Agent fallback chain
+		token = getEffectiveAgentGitHubToken(customToken, getEffectiveAgentGitHubToken(safeOutputsToken, data.GitHubToken))
 	} else if useCopilotToken {
 		// Copilot mode: use getEffectiveCopilotGitHubToken with safe-outputs token precedence
 		var safeOutputsToken string

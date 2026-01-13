@@ -119,25 +119,34 @@ func TestGetEffectiveCopilotGitHubToken(t *testing.T) {
 
 func TestGetEffectiveAgentGitHubToken(t *testing.T) {
 	tests := []struct {
-		name        string
-		customToken string
-		expected    string
+		name          string
+		customToken   string
+		toplevelToken string
+		expected      string
 	}{
 		{
-			name:        "custom token has highest precedence",
-			customToken: "${{ secrets.CUSTOM_AGENT_TOKEN }}",
-			expected:    "${{ secrets.CUSTOM_AGENT_TOKEN }}",
+			name:          "custom token has highest precedence",
+			customToken:   "${{ secrets.CUSTOM_AGENT_TOKEN }}",
+			toplevelToken: "${{ secrets.TOP_LEVEL_TOKEN }}",
+			expected:      "${{ secrets.CUSTOM_AGENT_TOKEN }}",
 		},
 		{
-			name:        "default fallback for agent operations",
-			customToken: "",
-			expected:    "${{ secrets.GH_AW_AGENT_TOKEN }}",
+			name:          "toplevel token when custom is empty",
+			customToken:   "",
+			toplevelToken: "${{ secrets.TOP_LEVEL_TOKEN }}",
+			expected:      "${{ secrets.TOP_LEVEL_TOKEN }}",
+		},
+		{
+			name:          "default fallback chain for agent operations",
+			customToken:   "",
+			toplevelToken: "",
+			expected:      "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getEffectiveAgentGitHubToken(tt.customToken)
+			result := getEffectiveAgentGitHubToken(tt.customToken, tt.toplevelToken)
 			if result != tt.expected {
 				t.Errorf("getEffectiveAgentGitHubToken() = %q, want %q", result, tt.expected)
 			}

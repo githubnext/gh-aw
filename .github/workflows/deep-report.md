@@ -31,6 +31,10 @@ safe-outputs:
     category: "reports"
     max: 1
     close-older-discussions: true
+  create-issue:
+    title-prefix: "[deep-report] "
+    labels: [automation, improvement, quick-win]
+    max: 3
 
 tools:
   repo-memory:
@@ -192,7 +196,7 @@ Connect the dots between different data sources:
 
 ### Step 3.5: Extract Actionable Agentic Tasks
 
-**CRITICAL**: Based on your analysis, identify exactly **3 actionable tasks** (quick wins):
+**CRITICAL**: Based on your analysis, identify exactly **3 actionable tasks** (quick wins) and **CREATE GITHUB ISSUES** for each one:
 
 1. **Prioritize by impact and effort**: Look for high-impact, low-effort improvements
 2. **Be specific**: Tasks should be concrete with clear success criteria
@@ -207,14 +211,12 @@ Connect the dots between different data sources:
 - **Workflow optimization**: Reduce token usage, improve caching, fix inefficiencies
 - **Cleanup tasks**: Remove duplicates, archive stale items, organize files
 
-**Output format for each task:**
-```
-Task 1: [Clear title]
-- Description: [What needs to be done and why]
-- Expected Impact: [Measurable benefit]
-- Suggested Agent: [Which agent can do this]
-- Estimated Effort: [Quick/Medium/Fast]
-```
+**For each task, CREATE A GITHUB ISSUE** with:
+- **Title**: Clear, action-oriented name
+- **Body**: Description, expected impact, suggested agent, and estimated effort
+- Reference this deep-report analysis run
+
+**If no actionable tasks found**: Skip issue creation and note in the report that the project is operating optimally.
 
 ### Step 4: Store Insights in Repo Memory
 
@@ -277,21 +279,26 @@ Based on trend analysis, provide:
 
 ### ✅ Actionable Agentic Tasks (Quick Wins)
 
-**IMPORTANT**: Extract exactly **3 actionable tasks** that could be immediately assigned to an AI agent to improve the project. Focus on **quick wins** - tasks that are:
+**CRITICAL**: Identify exactly **3 actionable tasks** that could be immediately assigned to an AI agent to improve the project. Focus on **quick wins** - tasks that are:
 - **Specific and well-defined** - Clear scope with measurable outcome
 - **Achievable by an agent** - Can be automated or assisted by AI
 - **High impact, low effort** - Maximum benefit with minimal implementation time
 - **Data-driven** - Based on patterns and insights from this analysis
 - **Independent** - Can be completed without blocking dependencies
 
-For each task, provide:
-1. **Task Title** - Clear, action-oriented name (e.g., "Reduce token usage in daily-news workflow")
-2. **Description** - 2-3 sentences explaining what needs to be done and why
-3. **Expected Impact** - What improvement or benefit this will deliver
-4. **Suggested Agent** - Which existing agent could handle this, or suggest "New Agent" if needed
-5. **Estimated Effort** - Quick (< 1 hour), Medium (1-4 hours), or Fast (< 30 min)
+**REQUIRED ACTION**: For each identified task, **CREATE A GITHUB ISSUE** using the safe-outputs create-issue capability. Each issue should contain:
 
-**If no actionable tasks are identified** (the project is in excellent shape), explicitly state: "No actionable tasks identified - the project is operating optimally."
+1. **Title** - Clear, action-oriented name (e.g., "Reduce token usage in daily-news workflow")
+2. **Body** - Include the following sections:
+   - **Description**: 2-3 sentences explaining what needs to be done and why
+   - **Expected Impact**: What improvement or benefit this will deliver
+   - **Suggested Agent**: Which existing agent could handle this, or suggest "New Agent" if needed
+   - **Estimated Effort**: Quick (< 1 hour), Medium (1-4 hours), or Fast (< 30 min)
+   - **Data Source**: Reference to this deep-report analysis run
+
+**If no actionable tasks are identified** (the project is in excellent shape):
+- Do NOT create any issues
+- In the discussion report, explicitly state: "No actionable tasks identified - the project is operating optimally."
 
 **Examples of good actionable tasks:**
 - "Consolidate duplicate error handling patterns in 5 workflow files"
@@ -299,6 +306,8 @@ For each task, provide:
 - "Create automated labels for 10 unlabeled issues based on content analysis"
 - "Optimize token usage in verbose agent prompts (identified 4 candidates)"
 - "Add missing documentation for 2 frequently-used MCP tools"
+
+**Remember**: The maximum is 3 issues. Choose the most impactful tasks.
 
 ### 📚 Source Attribution
 
@@ -325,4 +334,7 @@ List all reports and data sources analyzed:
 - Be **objective** - report both positive and negative trends
 - **Cite sources** for all major claims
 
-Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your analysis.
+## Final Steps
+
+1. **Create GitHub Issues**: For each of the 3 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
+2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your full analysis (including the identified actionable tasks)

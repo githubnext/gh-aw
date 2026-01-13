@@ -66,15 +66,23 @@ func getEffectiveCopilotGitHubToken(customToken, toplevelToken string) string {
 // getEffectiveAgentGitHubToken returns the GitHub token to use for agent assignment operations,
 // with precedence:
 // 1. Custom token passed as parameter (e.g., from safe-outputs config github-token field)
-// 2. secrets.GH_AW_AGENT_TOKEN (default token for agent assignment)
-// Note: This is specifically for assign-to-agent operations which require elevated permissions.
-func getEffectiveAgentGitHubToken(customToken string) string {
+// 2. Top-level github-token from frontmatter
+// 3. secrets.GH_AW_AGENT_TOKEN (recommended token for agent assignment with elevated permissions)
+// 4. secrets.GH_AW_GITHUB_TOKEN (fallback with potentially sufficient permissions)
+// 5. secrets.GITHUB_TOKEN (last resort, may lack permissions for bot assignment)
+// Note: Assigning bots (like copilot-swe-agent) requires permissions that GITHUB_TOKEN may not have.
+// It's recommended to configure GH_AW_AGENT_TOKEN or GH_AW_GITHUB_TOKEN with appropriate permissions.
+func getEffectiveAgentGitHubToken(customToken, toplevelToken string) string {
 	if customToken != "" {
 		tokenLog.Print("Using custom agent GitHub token")
 		return customToken
 	}
-	tokenLog.Print("Using default agent GitHub token (GH_AW_AGENT_TOKEN)")
-	return "${{ secrets.GH_AW_AGENT_TOKEN }}"
+	if toplevelToken != "" {
+		tokenLog.Print("Using top-level agent GitHub token from frontmatter")
+		return toplevelToken
+	}
+	tokenLog.Print("Using default agent GitHub token fallback chain (GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)")
+	return "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 }
 
 // getEffectiveProjectGitHubToken returns the GitHub token to use for GitHub Projects v2 operations,

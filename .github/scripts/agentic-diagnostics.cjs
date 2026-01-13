@@ -2,7 +2,7 @@
 // @ts-check
 
 /**
- * Secrets Diagnostics Script
+ * Agentic Diagnostics Script
  * 
  * Tests each known secret in the repository and generates a diagnostic report
  * about their configuration status and availability.
@@ -88,7 +88,7 @@ async function testGitHubRESTAPI(token, owner, repo) {
       'api.github.com',
       `/repos/${owner}/${repo}`,
       {
-        'User-Agent': 'gh-aw-diagnostics',
+        'User-Agent': 'gh-aw-agentic-diagnostics',
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28'
@@ -154,7 +154,7 @@ async function testGitHubGraphQLAPI(token, owner, repo) {
         path: '/graphql',
         method: 'POST',
         headers: {
-          'User-Agent': 'gh-aw-diagnostics',
+          'User-Agent': 'gh-aw-agentic-diagnostics',
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData)
@@ -502,7 +502,7 @@ function statusColor(status) {
  * Main diagnostic function
  */
 async function runDiagnostics() {
-  console.log(`${colors.blue}Starting secrets diagnostics...${colors.reset}\n`);
+  console.log(`${colors.blue}Starting agentic diagnostics...${colors.reset}\n`);
 
   const owner = process.env.GITHUB_REPOSITORY?.split('/')[0] || 'unknown';
   const repo = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown';
@@ -626,7 +626,7 @@ async function runDiagnostics() {
 function generateMarkdownReport(results) {
   const timestamp = new Date().toISOString();
   
-  let report = `# Secrets Diagnostic Report\n\n`;
+  let report = `# Agentic Diagnostic Report\n\n`;
   report += `**Generated:** ${timestamp}\n`;
   report += `**Repository:** ${process.env.GITHUB_REPOSITORY || 'unknown'}\n\n`;
   
