@@ -54,7 +54,7 @@ func TestEnsureCreateWorkflowPrompt(t *testing.T) {
 			}
 
 			awDir := filepath.Join(tempDir, ".github", "aw")
-			promptPath := filepath.Join(awDir, "create.md")
+			promptPath := filepath.Join(awDir, "create-agentic-workflow.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
@@ -122,7 +122,7 @@ func TestEnsureCreateWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T) {
 
 	// Check that file was NOT created
 	awDir := filepath.Join(tempDir, ".github", "aw")
-	promptPath := filepath.Join(awDir, "create.md")
+	promptPath := filepath.Join(awDir, "create-agentic-workflow.md")
 	if _, err := os.Stat(promptPath); !os.IsNotExist(err) {
 		t.Fatalf("Expected prompt file to NOT exist when skipInstructions=true")
 	}
@@ -155,7 +155,7 @@ func TestEnsureCreateWorkflowPrompt_CreatesNewFile(t *testing.T) {
 
 	// Check that new prompt file was created in .github/aw/
 	awDir := filepath.Join(tempDir, ".github", "aw")
-	newPromptPath := filepath.Join(awDir, "create.md")
+	newPromptPath := filepath.Join(awDir, "create-agentic-workflow.md")
 	if _, err := os.Stat(newPromptPath); os.IsNotExist(err) {
 		t.Fatalf("Expected new prompt file to be created in .github/aw/")
 	}
