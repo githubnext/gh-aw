@@ -74,7 +74,9 @@ jq --arg urlPrefix "$URL_PREFIX" '
     .value |= (
       (.type = "http") |
       (del(.tools)) |
-      # Fix the URL to use the correct domain
+      # Fix the URL to use the correct domain for gateway-proxied servers only
+      # URLs with /mcp/ prefix are gateway-proxied and need rewriting
+      # Direct HTTP servers (like Serena on localhost) should pass through unchanged
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )
   )

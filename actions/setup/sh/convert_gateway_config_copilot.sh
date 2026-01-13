@@ -79,8 +79,9 @@ jq --arg urlPrefix "$URL_PREFIX" '
       (if .type == "stdio" then .type = "local" else . end) |
       # Add tools field if not present
       (if .tools then . else . + {"tools": ["*"]} end) |
-      # Fix the URL to use the correct domain
-      # Replace http://anything:port/mcp/ with http://domain:port/mcp/
+      # Fix the URL to use the correct domain for gateway-proxied servers only
+      # URLs with /mcp/ prefix are gateway-proxied and need rewriting
+      # Direct HTTP servers (like Serena on localhost) should pass through unchanged
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )
   )

@@ -73,7 +73,15 @@ TOML_EOF
 jq -r --arg urlPrefix "$URL_PREFIX" '
   .mcpServers | to_entries[] |
   "[mcp_servers.\(.key)]\n" +
-  "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
+  # Use original URL if it doesn'\''t contain /mcp/ (direct HTTP servers like Serena)
+  # Otherwise construct gateway URL
+  "url = \"" + (
+    if (.value.url | contains("/mcp/")) then
+      $urlPrefix + "/mcp/" + .key
+    else
+      .value.url
+    end
+  ) + "\"\n" +
   "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
