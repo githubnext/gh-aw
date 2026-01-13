@@ -55,9 +55,10 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 # [mcp_servers.server-name]
 # url = "http://domain:port/mcp/server-name"
 # http_headers = { Authorization = "apiKey" }
+# allowed_tools = ["*"]  # Optional: tool filter from v1.5 spec
 #
-# Note: Codex doesn't use "type" or "tools" fields
-# Note: Codex uses http_headers as an inline table, not a separate section
+# Note: Codex uses TOML format with http_headers as an inline table
+# Note: Codex supports allowed_tools field for tool filtering (v1.5 compliance)
 # Note: URLs must use the correct domain (host.docker.internal) for container access
 
 # Build the correct URL prefix using the configured domain and port
@@ -74,7 +75,14 @@ jq -r --arg urlPrefix "$URL_PREFIX" '
   .mcpServers | to_entries[] |
   "[mcp_servers.\(.key)]\n" +
   "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
-  "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
+  "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n" +
+  (if .value.tools then
+    if (.value.tools | length) == 1 and .value.tools[0] == "*" then
+      "allowed_tools = [\"*\"]\n"
+    else
+      "allowed_tools = [" + (.value.tools | map("\"" + . + "\"") | join(", ")) + "]\n"
+    end
+  else "" end)
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
