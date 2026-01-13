@@ -96,14 +96,9 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	}
 
 	// Check for safe-inputs env vars
-	hasSafeInputs := false
-	for _, toolName := range mcpTools {
-		if toolName == "safe-inputs" {
-			hasSafeInputs = true
-			break
-		}
-	}
-	if hasSafeInputs {
+	// Only add env vars if safe-inputs is actually enabled (has tools configured)
+	// This prevents referencing step outputs that don't exist when safe-inputs isn't used
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		// Add server configuration env vars from step outputs
 		envVars["GH_AW_SAFE_INPUTS_PORT"] = "${{ steps.safe-inputs-start.outputs.port }}"
 		envVars["GH_AW_SAFE_INPUTS_API_KEY"] = "${{ steps.safe-inputs-start.outputs.api_key }}"
@@ -564,8 +559,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		containerCmd += " -e GITHUB_WORKSPACE"
 		containerCmd += " -e GITHUB_TOKEN"
 		// Environment variables used by safeinputs MCP server
-		containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
-		containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
+		// Only add if safe-inputs is actually enabled (has tools configured)
+		if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+			containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
+			containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
+		}
 		if len(gatewayConfig.Env) > 0 {
 			envVarNames := make([]string, 0, len(gatewayConfig.Env))
 			for envVarName := range gatewayConfig.Env {
