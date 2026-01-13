@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.5.0  
+**Version**: 1.6.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -17,7 +17,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the Model Context Protocol (MCP) Gateway, a transparent proxy service that enables unified HTTP access to multiple MCP servers. The gateway supports containerized MCP servers and HTTP-based MCP servers. The gateway provides protocol translation, server isolation, authentication, and health monitoring capabilities.
+This specification defines the Model Context Protocol (MCP) Gateway, a transparent proxy service that enables unified HTTP access to multiple MCP servers. The gateway supports containerized MCP servers, HTTP-based MCP servers, and custom server types. The gateway provides protocol translation, server isolation, authentication, health monitoring, and extensibility for specialized server implementations.
 
 ## Status of This Document
 
@@ -205,6 +205,9 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
     "domain": "string",
     "startupTimeout": 30,
     "toolTimeout": 60
+  },
+  "customSchemas": {
+    "custom-type": "https://example.com/schema.json"
   }
 }
 ```
@@ -241,6 +244,86 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `apiKey` | string | Yes | API key for authentication |
 | `startupTimeout` | integer | No | Server startup timeout in seconds (default: 30) |
 | `toolTimeout` | integer | No | Tool invocation timeout in seconds (default: 60) |
+
+#### 4.1.3a Top-Level Configuration Fields
+
+The following fields MAY be specified at the top level of the configuration:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `customSchemas` | object | No | Map of custom server type names to JSON Schema URLs for validation. See Section 4.1.4 for details. |
+
+#### 4.1.4 Custom Server Types
+
+The gateway MAY support custom server types beyond the standard "stdio" and "http" types. Custom server types enable extensibility for specialized MCP server implementations with additional configuration requirements.
+
+**Registration Mechanism**:
+
+Custom server types MUST be registered in the `customSchemas` field at the top level of the configuration, which maps type names to JSON Schema URLs:
+
+```json
+{
+  "mcpServers": {
+    "my-custom-server": {
+      "type": "safeinputs"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "secret"
+  },
+  "customSchemas": {
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
+  }
+}
+```
+
+**Validation Behavior**:
+
+When a server configuration includes a `type` field with a value not in `["stdio", "http"]`:
+
+1. The gateway MUST check if the type is registered in `customSchemas`
+2. If registered with an HTTPS URL, the gateway MUST fetch and apply the corresponding JSON Schema for validation
+3. If registered with an empty string, the gateway MUST skip schema validation for that type
+4. If not registered, the gateway MUST reject the configuration with an error indicating the unknown type
+5. Custom schemas MUST be valid JSON Schema Draft 7 or later
+6. Custom schemas MAY extend base server configuration fields
+
+**Example with Custom Type**:
+
+```json
+{
+  "mcpServers": {
+    "my-custom-server": {
+      "type": "safeinputs",
+      "tools": {
+        "greet": {
+          "description": "Greet user",
+          "script": "return { message: 'Hello!' };"
+        }
+      }
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "secret"
+  },
+  "customSchemas": {
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
+  }
+}
+```
+
+**Requirements**:
+
+- Custom types MUST NOT conflict with reserved types ("stdio", "http")
+- Custom schema URLs MUST be HTTPS URLs only (for security reasons)
+- Custom schema URLs MAY be empty strings to skip validation
+- Implementations SHOULD cache fetched schemas for performance
+- Schema fetch failures MUST result in configuration validation errors
+- Custom server configurations MUST validate against their registered schemas when a schema URL is provided
 
 ### 4.2 Variable Expression Rendering
 
@@ -798,6 +881,11 @@ A conforming implementation MUST pass the following test categories:
 - **T-CFG-006**: Missing required field detection
 - **T-CFG-007**: Invalid type detection
 - **T-CFG-008**: Port range validation
+- **T-CFG-009**: Valid custom server type with registered schema
+- **T-CFG-010**: Reject custom type without schema registration
+- **T-CFG-011**: Validate custom configuration against registered schema
+- **T-CFG-012**: Reject custom type conflicting with reserved types (stdio/http)
+- **T-CFG-013**: Custom schema URL fetch and cache
 
 #### 10.1.2 Protocol Translation Tests
 
@@ -1121,6 +1209,29 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.6.0 (Draft)
+
+- **Added**: Custom server type support (Section 4.1.4)
+  - Gateway MAY support custom server types beyond "stdio" and "http"
+  - Custom types registered in top-level `customSchemas` field mapping type names to JSON Schema URLs
+  - Custom server configurations validated against registered schemas
+  - Enables extensibility for specialized MCP server implementations (e.g., Safe Inputs)
+- **Added**: `customSchemas` field to top-level configuration (Section 4.1.3a)
+  - Maps custom type names to HTTPS URLs for JSON Schema validation
+  - Supports empty string to skip validation for a custom type
+  - HTTPS-only for security (no file:// URLs)
+  - Moved from gateway configuration to top level for cleaner structure
+- **Updated**: JSON Schema with custom server type support
+  - Added `customServerConfig` definition for extensible server types
+  - Added `customSchemas` property at top level with HTTPS-only validation
+  - Added example configuration demonstrating custom type usage
+- **Added**: Compliance tests for custom server types
+  - T-CFG-009: Valid custom server type with registered schema
+  - T-CFG-010: Reject custom type without schema registration
+  - T-CFG-011: Validate custom configuration against registered schema
+  - T-CFG-012: Reject custom type conflicting with reserved types (stdio/http)
+  - T-CFG-013: Custom schema URL fetch and cache
 
 ### Version 1.5.0 (Draft)
 
