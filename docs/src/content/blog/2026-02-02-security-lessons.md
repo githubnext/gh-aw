@@ -1,44 +1,55 @@
-# Security Lessons from the Agent Factory
+---
+title: "Security Lessons from the Agent Factory"
+description: "Designing safe environments where agents can't accidentally cause harm"
+authors:
+  - gh-next
+date: 2026-02-02
+draft: true
+---
 
-**Designing safe environments where agents can't accidentally cause harm**
-
-[← Previous: Imports & Sharing](05-imports-and-sharing.md) | [Back to Index](../index.md) | [Next: How Workflows Work →](07-how-workflows-work.md)
+[Previous Article](/gh-aw/blog/2026-01-30-imports-and-sharing/)
 
 ---
 
-Security is critical in agentic workflows. Peli's Agent Factory taught us that **safety isn't just about permissions** - it's about designing environments where agents can't accidentally cause harm, even when they have the permissions they need to do their jobs.
+<img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Running 145 autonomous agents in a production repository required constant vigilance and iterative improvements to our security architecture. Many of the security features in GitHub Agentic Workflows were born from lessons learned in the factory.
+Welcome to our latest article in the Peli's Agent Factory series! After exploring [imports and sharing](/gh-aw/blog/2026-01-30-imports-and-sharing/) in our previous article, it's time to tackle one of the most critical aspects of running autonomous agents at scale: security.
 
-This article shares those lessons so you can build secure agent ecosystems from the start.
+Security in agentic workflows isn't just about locking things down - it's about designing environments where agents can do their jobs safely, even if they make mistakes. Running 145 autonomous agents in production has taught us a ton about what works (and what doesn't).
+
+Here's the thing: **safety isn't just about permissions**. It's about creating guardrails that let agents be productive while preventing them from accidentally causing harm. Many of the security features in GitHub Agentic Workflows came directly from lessons we learned the hard way in the factory.
+
+Let's share what we've figured out so you can build secure agent ecosystems from day one.
 
 ## Core Security Principles
 
 ### 🛡️ Least Privilege, Always
 
-**Start with read-only permissions. Add write permissions only when absolutely necessary and through constrained safe outputs.**
+**Start with read-only. Add write permissions only when absolutely necessary, and always through constrained safe outputs.**
 
-Every workflow begins with `permissions: contents: read`. This is the factory's default stance. Write permissions (`contents: write`, `pull-requests: write`, `issues: write`) are granted sparingly and only through safe output mechanisms.
+Every workflow begins with `permissions: contents: read`. That's our default stance. Write permissions (`contents: write`, `pull-requests: write`, `issues: write`) get granted sparingly and only through safe output mechanisms.
 
 **Example**: The [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) agent has read-only access to workflow runs but creates reports via discussions, which are append-only by nature.
 
-**Why it works**: If an agent can only read, the worst it can do is waste compute. It can't delete code, close important issues, or push malicious changes.
+**Why this works**: If an agent can only read, the worst it can do is waste compute time. It can't delete code, close important issues, or push malicious changes.
 
 ### 🚪 Safe Outputs as the Gateway
 
 **All effectful operations go through safe outputs with built-in limits.**
 
-Safe outputs are the factory's most important security control. They provide a constrained API for agents to interact with GitHub, with guardrails that prevent common mistakes:
+Safe outputs are hands-down the factory's most important security control. They provide a constrained API for agents to interact with GitHub, with guardrails that prevent common mistakes:
 
 **Built-in Protections:**
-- Maximum items to create (prevent spam)
-- Expiration times (prevent forgotten issues)
-- "Close older duplicates" logic (prevent duplication)
-- "If no changes" guards (prevent empty PRs)
-- Template validation (enforce structure)
-- Rate limiting (prevent abuse)
+
+- Maximum items to create (prevents spam)
+- Expiration times (prevents forgotten issues)
+- "Close older duplicates" logic (prevents duplication)
+- "If no changes" guards (prevents empty PRs)
+- Template validation (enforces structure)
+- Rate limiting (prevents abuse)
 
 **Example**: An agent creating issues through safe outputs can specify:
+
 ```yaml
 safe_outputs:
   create_issue:
@@ -50,17 +61,18 @@ safe_outputs:
     expire: "+7d"  # Auto-close if not addressed
 ```
 
-**Why it works**: Safe outputs transform "can the agent do X?" into "under what constraints can the agent do X?" The agent has power but can't abuse it.
+**Why this works**: Safe outputs transform "can the agent do X?" into "under what constraints can the agent do X?" The agent has power but can't abuse it. Pretty clever, right?
 
 ### 👥 Role-Gated Activation
 
 **Powerful agents (fixers, optimizers) require specific roles to invoke.**
 
-Not every mention or workflow event should trigger powerful agents. The factory uses role-gating to ensure only authorized users can invoke sensitive operations.
+Not every mention or workflow event should trigger powerful agents. We use role-gating to ensure only authorized users can invoke sensitive operations.
 
 **Example**: The [`q`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md) optimizer requires the user commenting `/q` to be a repository maintainer. Random contributors can't trigger expensive optimization runs.
 
 **Implementation**:
+
 ```yaml
 on:
   issue_comment:
@@ -74,15 +86,16 @@ jobs:
        github.event.comment.author_association == 'MEMBER')
 ```
 
-**Why it works**: Authorization is enforced at the GitHub platform level, not by the agent. The agent never runs if the user lacks permissions.
+**Why this works**: Authorization gets enforced at the GitHub platform level, not by the agent. The agent never even runs if the user lacks permissions.
 
 ### ⏱️ Time-Limited Experiments
 
 **Experimental agents include `stop-after: +1mo` to automatically expire.**
 
-The factory encourages experimentation, but experiments shouldn't run forever. Time limits prevent forgotten demos from consuming resources or causing confusion.
+We encourage experimentation, but experiments shouldn't run forever. Time limits prevent forgotten demos from consuming resources or causing confusion.
 
 **Example**:
+
 ```yaml
 ---
 description: Experimental code deduplication agent
@@ -90,9 +103,9 @@ stop-after: +1mo
 ---
 ```
 
-After one month, the workflow automatically disables itself. If the experiment was successful, it can be graduated to production without the time limit.
+After one month, the workflow automatically disables itself. If the experiment works out, you can graduate it to production without the time limit.
 
-**Why it works**: Explicit expiration forces intentional decisions. Every agent running in the factory was deliberately kept there, not just forgotten.
+**Why this works**: Explicit expiration forces intentional decisions. Every agent running in the factory is deliberately there, not just forgotten.
 
 ### 🔍 Explicit Tool Lists
 
@@ -101,6 +114,7 @@ After one month, the workflow automatically disables itself. If the experiment w
 Every workflow explicitly lists its tool requirements. There's no "give me access to everything" permission. This makes security review straightforward and catches tool misuse early.
 
 **Example**:
+
 ```yaml
 tools:
   github:
@@ -112,30 +126,32 @@ network:
     - "api.github.com"  # Only GitHub API
 ```
 
-**Why it works**: Explicit > implicit. Reviewers can quickly assess risk. Agents can't accidentally use tools they shouldn't have.
+**Why this works**: Explicit beats implicit every time. Reviewers can quickly assess risk. Agents can't accidentally use tools they shouldn't have.
 
 ### 📋 Auditable by Default
 
 **Discussions and assets create a natural "agent ledger." You can always trace what an agent did and when.**
 
 Every agent action leaves a trail:
+
 - Issues and PRs are timestamped
 - Comments are attributed
 - Discussions are permanent
 - Artifacts are versioned
 - Workflow runs are logged
 
-**Example**: The [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md) creates weekly discussion posts. You can scroll back months to see how agent quality evolved over time.
+**Example**: The [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md) creates weekly discussion posts. You can scroll back months to see how agent quality has evolved over time.
 
-**Why it works**: Transparency builds trust. When something goes wrong, the audit trail makes debugging straightforward. When something goes right, the evidence is visible.
+**Why this works**: Transparency builds trust. When something goes wrong, the audit trail makes debugging straightforward. When something goes right, the evidence is right there for everyone to see.
 
 ## Security Patterns
 
 ### Pattern 1: Read-Only Analysts
 
-The safest agents are read-only. They observe, analyze, and report but never modify anything.
+The safest agents are read-only. They observe, analyze, and report - but never modify anything.
 
 **Security Properties:**
+
 - ✅ Zero risk of code damage
 - ✅ Can't close or modify issues
 - ✅ Can't create spam
@@ -143,13 +159,14 @@ The safest agents are read-only. They observe, analyze, and report but never mod
 
 **Use case**: Metrics collection, health monitoring, research, auditing
 
-**Example**: All 15 read-only analyst workflows in the factory have perfect security records - zero incidents.
+**Example**: All 15 read-only analyst workflows in the factory have perfect security records - zero incidents. That says something!
 
 ### Pattern 2: Safe Output Bounded Writes
 
 When agents need write access, use safe outputs with strict bounds.
 
 **Security Properties:**
+
 - ✅ Constrained by max items
 - ✅ Auto-expiring issues/PRs
 - ✅ Duplicate detection
@@ -165,6 +182,7 @@ When agents need write access, use safe outputs with strict bounds.
 For high-impact operations, require human approval before execution.
 
 **Security Properties:**
+
 - ✅ Human reviews PR before merge
 - ✅ Explicit approval step
 - ✅ Can be reverted
@@ -179,6 +197,7 @@ For high-impact operations, require human approval before execution.
 Interactive agents that require authorization to invoke.
 
 **Security Properties:**
+
 - ✅ Platform-enforced authorization
 - ✅ Clear invocation trail
 - ✅ User attribution
@@ -193,6 +212,30 @@ Interactive agents that require authorization to invoke.
 Limit network access to specific allowlisted domains.
 
 **Security Properties:**
+
+- ✅ Prevents data exfiltration
+- ✅ Blocks unauthorized API calls
+- ✅ Enforced at infrastructure level
+- ✅ Clear audit of network usage
+
+**Use case**: Any agent that doesn't need external network access
+
+**Example**: Most analysis agents only need `api.github.com` access - nothing more.
+
+## Key Takeaways
+
+Building secure agent ecosystems isn't about saying "no" to everything. It's about designing environments where agents can be productive while staying safe:
+
+1. **Start read-only** - Add write permissions only when necessary
+2. **Use safe outputs** - They're your most important security control
+3. **Gate powerful operations** - Role-based access prevents abuse
+4. **Time-limit experiments** - Prevent forgotten demos from running forever
+5. **Be explicit about tools** - No ambient authority
+6. **Embrace auditability** - Transparency builds trust
+7. **Combine patterns** - Layer security controls for defense in depth
+
+Security in agentic workflows is about enabling innovation safely. With the right guardrails, agents can do amazing things without keeping you up at night.
+
 - ✅ Can't exfiltrate data
 - ✅ Can't access internal services
 - ✅ Can't download malicious payloads
@@ -306,6 +349,7 @@ Before deploying a new agent, verify:
 ## Security Architecture Reference
 
 For deeper technical details, see:
+
 - [Security Architecture](https://githubnext.github.io/gh-aw/introduction/architecture/)
 - [Security Guide](https://githubnext.github.io/gh-aw/guides/security/)
 - [Safe Outputs Documentation](https://githubnext.github.io/gh-aw/reference/safe-outputs/)
@@ -331,6 +375,8 @@ If one layer fails, others still provide protection.
 
 With security fundamentals in place, we can explore how agentic workflows actually work under the hood - from natural language markdown to secure execution on GitHub Actions.
 
-In the next article, we'll walk through the technical architecture that powers the factory.
+In our next article, we'll walk through the technical architecture that powers the factory.
 
-[← Previous: Imports & Sharing](05-imports-and-sharing.md) | [Back to Index](../index.md) | [Next: How Workflows Work →](07-how-workflows-work.md)
+_More articles in this series coming soon._
+
+[Previous Article](/gh-aw/blog/2026-01-30-imports-and-sharing/)
