@@ -42,6 +42,70 @@ Without explicit permission grants in your workflow YAML:
 
 3. **Projects V2**: GitHub Projects V2 requires the `project` OAuth scope, which is **not available** to `GITHUB_TOKEN` at all. You must use a PAT.
 
+## Personal Access Token Types
+
+When tools require a PAT (marked with ❌ in the tables below), you need to choose between two types of GitHub Personal Access Tokens:
+
+### Classic Personal Access Tokens
+
+**Characteristics**:
+- Account-wide scope - grants access to all repositories and organizations the user has access to
+- Broad permissions with limited granularity (e.g., `repo`, `admin:org`, `gist`)
+- No mandatory expiration (though organizations can enforce policies)
+- Required for some legacy use cases and specific scenarios
+
+**When to use**:
+- **User-owned Projects V2** - Classic PATs with `project` scope are **required** (fine-grained PATs do not work)
+- External collaborator access in certain configurations
+- Workflows requiring access across many repositories
+- Legacy API endpoints that don't yet support fine-grained tokens
+
+**Security considerations**:
+- Higher risk if compromised - grants access to all user resources
+- Difficult to audit and track usage
+- Less control over permission scope
+
+### Fine-Grained Personal Access Tokens (Recommended)
+
+**Characteristics**:
+- Repository-specific - you specify exactly which repositories the token can access
+- Granular permissions - over 50 permission types with read/write/none options
+- Mandatory expiration (up to 366 days, organization-configurable)
+- Organization administrators can require approval before use
+- Better audit trail and visibility
+
+**When to use**:
+- **Organization-owned Projects V2** - Fine-grained PATs work with proper organization permissions
+- Most MCP server operations requiring PAT access
+- CI/CD pipelines and automation requiring specific repository access
+- Any scenario where you can apply least-privilege principles
+
+**Security considerations**:
+- Lower risk if compromised - limited to specified repositories and permissions
+- Better organizational control and approval workflows
+- Enforced expiration reduces long-term exposure
+- Clearer permission model for auditing
+
+### Choosing the Right Token Type
+
+| Scenario | Recommended Token Type | Required Scopes/Permissions |
+|----------|------------------------|----------------------------|
+| User-owned Projects V2 | Classic PAT | `project`, `repo` (if private repos) |
+| Organization Projects V2 | Fine-grained PAT | Org permissions: Projects: Read & Write; Repo permissions: as needed |
+| Organization Projects V2 (alternative) | Classic PAT | `project`, `read:org`, `repo` (if private repos) |
+| Code scanning, Dependabot | Fine-grained or Classic PAT | `security_events` (classic) or Security events permissions (fine-grained) |
+| Organization/Team operations | Fine-grained or Classic PAT | `read:org` (classic) or Organization permissions: Members: Read (fine-grained) |
+| Gist operations | Fine-grained or Classic PAT | `gist` (classic) or appropriate gist permissions (fine-grained) |
+| Notifications | Fine-grained or Classic PAT | `notifications` (classic) or Notifications permissions (fine-grained) |
+
+**Best practice**: Always prefer fine-grained PATs unless you specifically need classic PAT functionality (like user-owned Projects V2). Use the principle of least privilege by:
+- Selecting only the repositories that need access
+- Granting only the minimum permissions required
+- Setting appropriate expiration dates
+- Requiring organization approval when applicable
+
+**Documentation**: See [GitHub's PAT documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) and the [GitHub Tokens reference](/gh-aw/reference/tokens/) for detailed setup instructions.
+
 ## Tool Requirements by Toolset
 
 The following tables show which tools in each GitHub MCP Server toolset work with default `GITHUB_TOKEN` permissions versus those requiring additional configuration or a PAT.
