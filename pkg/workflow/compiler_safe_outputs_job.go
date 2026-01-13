@@ -106,6 +106,54 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// === Build safe output steps ===
+	//
+	// IMPORTANT: Step order matters for safe outputs that depend on each other.
+	// The execution order ensures dependencies are satisfied:
+	// 1. Create Project - creates project board first
+	// 2. Update Project - configures fields/views (depends on created project)
+	// 3. Handler Manager - processes update_issue, add_comment, etc. (can reference project)
+	// 4. Assign To Agent - assigns issue to agent (after update_issue completes)
+	// 5. Create Agent Session - creates agent session (after assignment)
+	//
+	// This order allows update_issue to reference project resources before agent assignment,
+	// which is critical for workflows like campaign-generator that update issue body with
+	// project URLs before assigning to an agent for compilation.
+
+	// 1. Create Project step (must run first)
+	if data.SafeOutputs.CreateProjects != nil {
+		stepConfig := c.buildCreateProjectStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		// Create project requires organization-projects permission (via GitHub App token)
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
+
+	// 2. Update Project step (must run after create project)
+	if data.SafeOutputs.UpdateProjects != nil {
+		stepConfig := c.buildUpdateProjectStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		// Update project requires organization-projects permission (via GitHub App token)
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
+
+	// 3. Copy Project step
+	if data.SafeOutputs.CopyProjects != nil {
+		stepConfig := c.buildCopyProjectStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		// Copy project requires organization-projects permission (via GitHub App token)
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
 
 	// Check if any handler-manager-supported types are enabled
 	hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
@@ -131,7 +179,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil
 
-	// If we have handler manager types, use the handler manager step
+	// 4. Handler Manager step (processes update_issue, add_comment, etc.)
+	// This runs AFTER project operations but BEFORE agent assignment, allowing
+	// update_issue to reference project resources before the agent is assigned.
+	// Critical for workflows like campaign-generator that update issue with project
+	// details before assigning to agent for compilation.
 	if hasHandlerManagerTypes {
 		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
 		handlerManagerSteps := c.buildHandlerManagerStep(data)
@@ -199,6 +251,31 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 	}
 
+	// 5. Assign To Agent step (runs after handler manager / update_issue)
+	if data.SafeOutputs.AssignToAgent != nil {
+		stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
+
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+
+	// 6. Create Agent Session step
+	if data.SafeOutputs.CreateAgentSessions != nil {
+		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
+		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
+
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+
 	// Note: Create Pull Request is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 
@@ -231,18 +308,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
-	// 13. Assign To Agent step
-	if data.SafeOutputs.AssignToAgent != nil {
-		stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-
 	// Note: Assign To User is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignToUser != nil {
@@ -250,66 +315,17 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
-	// 16. Update Pull Request step - now handled by handler manager
+	// Note: Update Pull Request step - now handled by handler manager
 
-	// 17. Push To Pull Request Branch step - now handled by handler manager
+	// Note: Push To Pull Request Branch step - now handled by handler manager
 
-	// 18. Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
+	// Note: Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
 	// This was moved out of the consolidated job to allow proper git configuration
 	// for pushing to orphaned branches
 
-	// 19. Update Release step - now handled by handler manager
-	// 20. Link Sub Issue step - now handled by handler manager
-	// 21. Hide Comment step - now handled by handler manager
-
-	// 22. Create Agent Session step
-	if data.SafeOutputs.CreateAgentSessions != nil {
-		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
-		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-
-	// 23. Update Project step
-	if data.SafeOutputs.UpdateProjects != nil {
-		stepConfig := c.buildUpdateProjectStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		// Update project requires organization-projects permission (via GitHub App token)
-		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
-		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-	}
-
-	// 24. Copy Project step
-	if data.SafeOutputs.CopyProjects != nil {
-		stepConfig := c.buildCopyProjectStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		// Copy project requires organization-projects permission (via GitHub App token)
-		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
-		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-	}
-
-	// 25. Create Project step
-	if data.SafeOutputs.CreateProjects != nil {
-		stepConfig := c.buildCreateProjectStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		// Create project requires organization-projects permission (via GitHub App token)
-		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
-		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-	}
+	// Note: Update Release step - now handled by handler manager
+	// Note: Link Sub Issue step - now handled by handler manager
+	// Note: Hide Comment step - now handled by handler manager
 
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
