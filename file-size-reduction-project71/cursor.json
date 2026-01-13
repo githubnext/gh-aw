@@ -2,18 +2,8 @@
   "page": 1,
   "label": "campaign:file-size-reduction-project71",
   "last_processed_index": 9,
-  "processed_items": [
-    8901,
-    5536,
-    6132,
-    5853,
-    5610,
-    6265,
-    6532,
-    6803,
-    6820,
-    6962
-  ],
-  "remaining_count": 11,
-  "last_run_date": "2026-01-12"
+  "last_processed_updated_at": "2026-01-04T20:06:46Z",
+  "items_remaining": 12,
+  "total_discovered": 22,
+  "run_date": "2026-01-13"
 }
