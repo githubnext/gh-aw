@@ -21,28 +21,18 @@ Before creating your first campaign, keep these core principles in mind:
 - **Standardized outputs**: Use consistent patterns for issues, PRs, and comments
 - **Escalate when uncertain**: Create issues requesting human review for risky decisions
 
-## Quick start (5 steps)
+## Quick start (3 steps)
 
-1. Create a GitHub Project board (manual, one-time) and copy its URL.
-2. Add `.github/workflows/<id>.campaign.md` in a PR.
-3. Run `gh aw compile`.
-4. Run the generated orchestrator workflow from the Actions tab.
-5. Apply the tracker label to issues/PRs you want tracked.
+1. Create a campaign specification file `.github/workflows/<id>.campaign.md` in a PR.
+2. Run `gh aw compile`.
+3. Run the generated orchestrator workflow from the Actions tab.
 
-## 1) Create the dashboard (GitHub Project)
+The campaign generator automatically creates:
+- GitHub Project board with custom fields (Worker/Workflow, Priority, Status, Start/End Date, Effort)
+- Three views (Campaign Roadmap, Task Tracker, Progress Board)
+- Campaign orchestrator workflow
 
-In GitHub: your org → **Projects** → **New project**. Start with a **Table** view, add a **Board** view grouped by `Status`, and optionally a **Roadmap** view for timelines.
-
-Recommended custom fields (see [Project management](/gh-aw/guides/campaigns/project-management/)):
-
-- **Status** (Single select): Todo, In Progress, Blocked, Done
-- **Worker/Workflow** (Single select): Names of your worker workflows
-- **Priority** (Single select): High, Medium, Low
-- **Start Date** / **End Date** (Date): For roadmap views
-
-Copy the Project URL (e.g., `https://github.com/orgs/myorg/projects/42`).
-
-## 2) Create the campaign spec
+## 1) Create the campaign spec
 
 Create `.github/workflows/<id>.campaign.md` with frontmatter like:
 
@@ -53,7 +43,7 @@ id: framework-upgrade
 version: "v1"
 name: "Framework Upgrade"
 
-project-url: "https://github.com/orgs/ORG/projects/1"
+# Project board URL will be generated automatically
 tracker-label: "campaign:framework-upgrade"
 
 objective: "Upgrade all services to Framework vNext with zero downtime."
@@ -75,6 +65,8 @@ governance:
   max-project-updates-per-run: 5
   max-comments-per-run: 3
 ```
+
+**Note:** The campaign generator will automatically create a GitHub Project board with the project URL if not provided. You can also specify an existing project URL using `project-url: "https://github.com/orgs/ORG/projects/1"`.
 
 **For experienced users** (active mode - advanced):
 
@@ -116,7 +108,7 @@ governance:
 
 **Start passive** unless you have prior campaign experience. You can enable active execution later.
 
-## 3) Compile
+## 2) Compile
 
 Run:
 
@@ -133,7 +125,7 @@ The orchestrator workflow consists of:
 
 **Note:** A `.campaign.g.md` file is generated locally as a debug artifact to help you understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
 
-## 4) Run the orchestrator
+## 3) Run the orchestrator
 
 Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the dashboard in sync:
 
@@ -141,7 +133,7 @@ Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the da
 2. **Agent coordination**: Reads the manifest, determines what needs updating, and updates the project board
 3. **Reporting**: Reports counts of items discovered, processed, and deferred
 
-## 5) Add work items
+## Adding work items
 
 Apply the tracker label (for example `campaign:framework-upgrade`) to issues/PRs you want tracked. The orchestrator will pick them up on the next run.
 
