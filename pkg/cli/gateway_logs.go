@@ -27,29 +27,33 @@ var gatewayLogsLog = logger.New("cli:gateway_logs")
 
 // GatewayLogEntry represents a single log entry from gateway.jsonl
 type GatewayLogEntry struct {
-	Timestamp  string  `json:"timestamp"`
-	Level      string  `json:"level"`
-	Type       string  `json:"type"`
-	Event      string  `json:"event"`
-	ServerName string  `json:"server_name,omitempty"`
-	ToolName   string  `json:"tool_name,omitempty"`
-	Method     string  `json:"method,omitempty"`
-	Duration   float64 `json:"duration,omitempty"` // in milliseconds
-	InputSize  int     `json:"input_size,omitempty"`
-	OutputSize int     `json:"output_size,omitempty"`
-	Status     string  `json:"status,omitempty"`
-	Error      string  `json:"error,omitempty"`
-	Message    string  `json:"message,omitempty"`
+	Timestamp   string  `json:"timestamp"`
+	Level       string  `json:"level"`
+	Type        string  `json:"type"`
+	Event       string  `json:"event"`
+	ServerName  string  `json:"server_name,omitempty"`
+	ToolName    string  `json:"tool_name,omitempty"`
+	Method      string  `json:"method,omitempty"`
+	Duration    float64 `json:"duration,omitempty"` // in milliseconds
+	InputSize   int     `json:"input_size,omitempty"`
+	OutputSize  int     `json:"output_size,omitempty"`
+	Status      string  `json:"status,omitempty"`
+	Error       string  `json:"error,omitempty"`
+	Message     string  `json:"message,omitempty"`
+	TimeoutType string  `json:"timeout_type,omitempty"` // "startup" or "tool"
 }
 
 // GatewayServerMetrics represents usage metrics for a single MCP server
 type GatewayServerMetrics struct {
-	ServerName    string
-	RequestCount  int
-	ToolCallCount int
-	TotalDuration float64 // in milliseconds
-	ErrorCount    int
-	Tools         map[string]*GatewayToolMetrics
+	ServerName      string
+	RequestCount    int
+	ToolCallCount   int
+	TotalDuration   float64 // in milliseconds
+	ErrorCount      int
+	TimeoutCount    int
+	StartupTimeouts int
+	ToolTimeouts    int
+	Tools           map[string]*GatewayToolMetrics
 }
 
 // GatewayToolMetrics represents usage metrics for a specific tool
@@ -61,19 +65,23 @@ type GatewayToolMetrics struct {
 	MaxDuration     float64 // in milliseconds
 	MinDuration     float64 // in milliseconds
 	ErrorCount      int
+	TimeoutCount    int
 	TotalInputSize  int
 	TotalOutputSize int
 }
 
 // GatewayMetrics represents aggregated metrics from gateway logs
 type GatewayMetrics struct {
-	TotalRequests  int
-	TotalToolCalls int
-	TotalErrors    int
-	Servers        map[string]*GatewayServerMetrics
-	StartTime      time.Time
-	EndTime        time.Time
-	TotalDuration  float64 // in milliseconds
+	TotalRequests   int
+	TotalToolCalls  int
+	TotalErrors     int
+	TotalTimeouts   int
+	StartupTimeouts int
+	ToolTimeouts    int
+	Servers         map[string]*GatewayServerMetrics
+	StartTime       time.Time
+	EndTime         time.Time
+	TotalDuration   float64 // in milliseconds
 }
 
 // parseGatewayLogs parses a gateway.jsonl file and extracts metrics
@@ -166,6 +174,35 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 
 	// Process based on event type
 	switch entry.Event {
+	case "timeout":
+		// Track timeout events
+		metrics.TotalTimeouts++
+
+		if entry.ServerName != "" {
+			server := getOrCreateServer(metrics, entry.ServerName)
+			server.TimeoutCount++
+
+			// Track timeout type (startup vs tool)
+			switch entry.TimeoutType {
+			case "startup":
+				metrics.StartupTimeouts++
+				server.StartupTimeouts++
+			case "tool":
+				metrics.ToolTimeouts++
+				server.ToolTimeouts++
+
+				// Track tool-specific timeout
+				if entry.ToolName != "" || entry.Method != "" {
+					toolName := entry.ToolName
+					if toolName == "" {
+						toolName = entry.Method
+					}
+					tool := getOrCreateTool(server, toolName)
+					tool.TimeoutCount++
+				}
+			}
+		}
+
 	case "request", "tool_call", "rpc_call":
 		metrics.TotalRequests++
 
@@ -266,6 +303,11 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	fmt.Fprintf(&output, "Total Requests: %d\n", metrics.TotalRequests)
 	fmt.Fprintf(&output, "Total Tool Calls: %d\n", metrics.TotalToolCalls)
 	fmt.Fprintf(&output, "Total Errors: %d\n", metrics.TotalErrors)
+	fmt.Fprintf(&output, "Total Timeouts: %d", metrics.TotalTimeouts)
+	if metrics.TotalTimeouts > 0 {
+		fmt.Fprintf(&output, " (Startup: %d, Tool: %d)", metrics.StartupTimeouts, metrics.ToolTimeouts)
+	}
+	fmt.Fprintf(&output, "\n")
 	fmt.Fprintf(&output, "Servers: %d\n", len(metrics.Servers))
 
 	if !metrics.StartTime.IsZero() && !metrics.EndTime.IsZero() {
@@ -278,9 +320,6 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	// Server metrics table
 	if len(metrics.Servers) > 0 {
 		output.WriteString("Server Usage:\n")
-		output.WriteString("┌────────────────────────────┬──────────┬────────────┬───────────┬────────┐\n")
-		output.WriteString("│ Server                     │ Requests │ Tool Calls │ Avg Time  │ Errors │\n")
-		output.WriteString("├────────────────────────────┼──────────┼────────────┼───────────┼────────┤\n")
 
 		// Sort servers by request count
 		var serverNames []string
@@ -291,6 +330,12 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			return metrics.Servers[serverNames[i]].RequestCount > metrics.Servers[serverNames[j]].RequestCount
 		})
 
+		// Build table config
+		tableConfig := console.TableConfig{
+			Headers: []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors", "Timeouts"},
+			Rows:    make([][]string, 0, len(serverNames)),
+		}
+
 		for _, serverName := range serverNames {
 			server := metrics.Servers[serverName]
 			avgTime := 0.0
@@ -298,15 +343,18 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 				avgTime = server.TotalDuration / float64(server.RequestCount)
 			}
 
-			fmt.Fprintf(&output, "│ %-26s │ %8d │ %10d │ %7.0fms │ %6d │\n",
+			row := []string{
 				truncateString(serverName, 26),
-				server.RequestCount,
-				server.ToolCallCount,
-				avgTime,
-				server.ErrorCount)
+				fmt.Sprintf("%d", server.RequestCount),
+				fmt.Sprintf("%d", server.ToolCallCount),
+				fmt.Sprintf("%.0fms", avgTime),
+				fmt.Sprintf("%d", server.ErrorCount),
+				fmt.Sprintf("%d", server.TimeoutCount),
+			}
+			tableConfig.Rows = append(tableConfig.Rows, row)
 		}
 
-		output.WriteString("└────────────────────────────┴──────────┴────────────┴───────────┴────────┘\n")
+		output.WriteString(console.RenderTable(tableConfig))
 	}
 
 	// Tool metrics table (if verbose)
@@ -321,9 +369,6 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			}
 
 			fmt.Fprintf(&output, "\n%s:\n", serverName)
-			output.WriteString("┌──────────────────────────┬───────┬──────────┬──────────┬──────────┐\n")
-			output.WriteString("│ Tool                     │ Calls │ Avg Time │ Max Time │ Errors   │\n")
-			output.WriteString("├──────────────────────────┼───────┼──────────┼──────────┼──────────┤\n")
 
 			// Sort tools by call count
 			var toolNames []string
@@ -334,17 +379,26 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 				return server.Tools[toolNames[i]].CallCount > server.Tools[toolNames[j]].CallCount
 			})
 
-			for _, toolName := range toolNames {
-				tool := server.Tools[toolName]
-				fmt.Fprintf(&output, "│ %-24s │ %5d │ %6.0fms │ %6.0fms │ %8d │\n",
-					truncateString(toolName, 24),
-					tool.CallCount,
-					tool.AvgDuration,
-					tool.MaxDuration,
-					tool.ErrorCount)
+			// Build table config
+			tableConfig := console.TableConfig{
+				Headers: []string{"Tool", "Calls", "Avg Time", "Max Time", "Errors", "Timeouts"},
+				Rows:    make([][]string, 0, len(toolNames)),
 			}
 
-			output.WriteString("└──────────────────────────┴───────┴──────────┴──────────┴──────────┘\n")
+			for _, toolName := range toolNames {
+				tool := server.Tools[toolName]
+				row := []string{
+					truncateString(toolName, 24),
+					fmt.Sprintf("%d", tool.CallCount),
+					fmt.Sprintf("%.0fms", tool.AvgDuration),
+					fmt.Sprintf("%.0fms", tool.MaxDuration),
+					fmt.Sprintf("%d", tool.ErrorCount),
+					fmt.Sprintf("%d", tool.TimeoutCount),
+				}
+				tableConfig.Rows = append(tableConfig.Rows, row)
+			}
+
+			output.WriteString(console.RenderTable(tableConfig))
 		}
 	}
 
@@ -401,6 +455,9 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 		aggregated.TotalRequests += runMetrics.TotalRequests
 		aggregated.TotalToolCalls += runMetrics.TotalToolCalls
 		aggregated.TotalErrors += runMetrics.TotalErrors
+		aggregated.TotalTimeouts += runMetrics.TotalTimeouts
+		aggregated.StartupTimeouts += runMetrics.StartupTimeouts
+		aggregated.ToolTimeouts += runMetrics.ToolTimeouts
 		aggregated.TotalDuration += runMetrics.TotalDuration
 
 		// Merge server metrics
@@ -410,6 +467,9 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 			aggServer.ToolCallCount += serverMetrics.ToolCallCount
 			aggServer.TotalDuration += serverMetrics.TotalDuration
 			aggServer.ErrorCount += serverMetrics.ErrorCount
+			aggServer.TimeoutCount += serverMetrics.TimeoutCount
+			aggServer.StartupTimeouts += serverMetrics.StartupTimeouts
+			aggServer.ToolTimeouts += serverMetrics.ToolTimeouts
 
 			// Merge tool metrics
 			for toolName, toolMetrics := range serverMetrics.Tools {
@@ -417,6 +477,7 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 				aggTool.CallCount += toolMetrics.CallCount
 				aggTool.TotalDuration += toolMetrics.TotalDuration
 				aggTool.ErrorCount += toolMetrics.ErrorCount
+				aggTool.TimeoutCount += toolMetrics.TimeoutCount
 				aggTool.TotalInputSize += toolMetrics.TotalInputSize
 				aggTool.TotalOutputSize += toolMetrics.TotalOutputSize
 

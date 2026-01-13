@@ -43,6 +43,18 @@ func TestParseGatewayLogs(t *testing.T) {
 			wantErr:       false,
 		},
 		{
+			name: "gateway log with timeout events",
+			logContent: `{"timestamp":"2024-01-12T10:00:00Z","level":"error","type":"timeout","event":"timeout","server_name":"github","tool_name":"get_repository","timeout_type":"tool","error":"tool timeout exceeded"}
+{"timestamp":"2024-01-12T10:00:01Z","level":"error","type":"timeout","event":"timeout","server_name":"playwright","timeout_type":"startup","error":"startup timeout exceeded"}
+{"timestamp":"2024-01-12T10:00:02Z","level":"info","type":"request","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":100.0,"status":"success"}
+`,
+			wantServers:   2,
+			wantRequests:  1,
+			wantToolCalls: 1,
+			wantErrors:    2,
+			wantErr:       false,
+		},
+		{
 			name: "gateway log with multiple servers",
 			logContent: `{"timestamp":"2024-01-12T10:00:00Z","level":"info","type":"request","event":"rpc_call","server_name":"github","method":"list_repos","duration":100.0,"status":"success"}
 {"timestamp":"2024-01-12T10:00:01Z","level":"info","type":"request","event":"rpc_call","server_name":"playwright","method":"screenshot","duration":200.0,"status":"success"}
@@ -449,4 +461,74 @@ func TestGatewayLogsParsingIntegration(t *testing.T) {
 	assert.False(t, metrics.StartTime.IsZero())
 	assert.False(t, metrics.EndTime.IsZero())
 	assert.True(t, metrics.EndTime.After(metrics.StartTime))
+}
+
+// TestGatewayTimeoutEvents tests that timeout events are properly tracked
+func TestGatewayTimeoutEvents(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a log with timeout events
+	logContent := `{"timestamp":"2024-01-12T10:00:00Z","level":"error","type":"timeout","event":"timeout","server_name":"github","tool_name":"get_repository","timeout_type":"tool","error":"tool timeout exceeded","duration":60000}
+{"timestamp":"2024-01-12T10:00:01Z","level":"error","type":"timeout","event":"timeout","server_name":"playwright","timeout_type":"startup","error":"startup timeout exceeded","duration":30000}
+{"timestamp":"2024-01-12T10:00:02Z","level":"error","type":"timeout","event":"timeout","server_name":"github","tool_name":"list_issues","timeout_type":"tool","error":"tool timeout exceeded","duration":60000}
+{"timestamp":"2024-01-12T10:00:03Z","level":"info","type":"request","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":100.0,"status":"success"}
+`
+
+	gatewayLogPath := filepath.Join(tmpDir, "gateway.jsonl")
+	err := os.WriteFile(gatewayLogPath, []byte(logContent), 0644)
+	require.NoError(t, err)
+
+	metrics, err := parseGatewayLogs(tmpDir, false)
+	require.NoError(t, err)
+	require.NotNil(t, metrics)
+
+	// Verify timeout metrics
+	assert.Equal(t, 3, metrics.TotalTimeouts, "Should have 3 total timeouts")
+	assert.Equal(t, 1, metrics.StartupTimeouts, "Should have 1 startup timeout")
+	assert.Equal(t, 2, metrics.ToolTimeouts, "Should have 2 tool timeouts")
+	assert.Equal(t, 3, metrics.TotalErrors, "Should have 3 errors (all timeouts are errors)")
+	assert.Equal(t, 1, metrics.TotalRequests, "Should have 1 request")
+	assert.Equal(t, 1, metrics.TotalToolCalls, "Should have 1 tool call")
+
+	// Verify GitHub server timeout metrics
+	githubServer := metrics.Servers["github"]
+	require.NotNil(t, githubServer)
+	assert.Equal(t, 2, githubServer.TimeoutCount, "GitHub should have 2 timeouts")
+	assert.Equal(t, 0, githubServer.StartupTimeouts, "GitHub should have 0 startup timeouts")
+	assert.Equal(t, 2, githubServer.ToolTimeouts, "GitHub should have 2 tool timeouts")
+	assert.Equal(t, 2, githubServer.ErrorCount, "GitHub should have 2 errors")
+	assert.Equal(t, 1, githubServer.RequestCount, "GitHub should have 1 request")
+
+	// Verify Playwright server timeout metrics
+	playwrightServer := metrics.Servers["playwright"]
+	require.NotNil(t, playwrightServer)
+	assert.Equal(t, 1, playwrightServer.TimeoutCount, "Playwright should have 1 timeout")
+	assert.Equal(t, 1, playwrightServer.StartupTimeouts, "Playwright should have 1 startup timeout")
+	assert.Equal(t, 0, playwrightServer.ToolTimeouts, "Playwright should have 0 tool timeouts")
+	assert.Equal(t, 1, playwrightServer.ErrorCount, "Playwright should have 1 error")
+	assert.Equal(t, 0, playwrightServer.RequestCount, "Playwright should have 0 requests")
+
+	// Verify tool-specific timeout metrics
+	getRepoTool := githubServer.Tools["get_repository"]
+	require.NotNil(t, getRepoTool)
+	assert.Equal(t, 1, getRepoTool.TimeoutCount, "get_repository should have 1 timeout")
+	assert.Equal(t, 0, getRepoTool.CallCount, "get_repository should have 0 calls")
+
+	listIssuesTool := githubServer.Tools["list_issues"]
+	require.NotNil(t, listIssuesTool)
+	assert.Equal(t, 1, listIssuesTool.TimeoutCount, "list_issues should have 1 timeout")
+	assert.Equal(t, 1, listIssuesTool.CallCount, "list_issues should have 1 call")
+
+	// Test that timeout info appears in rendered output
+	output := renderGatewayMetricsTable(metrics, false)
+	assert.NotEmpty(t, output)
+	assert.Contains(t, output, "Total Timeouts: 3", "Output should show total timeouts")
+	assert.Contains(t, output, "Startup: 1", "Output should show startup timeouts")
+	assert.Contains(t, output, "Tool: 2", "Output should show tool timeouts")
+	assert.Contains(t, output, "Timeouts", "Output should have Timeouts column")
+
+	// Test verbose output includes timeout column
+	outputVerbose := renderGatewayMetricsTable(metrics, true)
+	assert.NotEmpty(t, outputVerbose)
+	assert.Contains(t, outputVerbose, "Timeouts", "Verbose output should have Timeouts column in tool details")
 }
