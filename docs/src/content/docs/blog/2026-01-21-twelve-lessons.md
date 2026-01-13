@@ -2,7 +2,7 @@
 title: "12 Lessons from Peli's Agent Factory"
 description: "Key insights about what works, what doesn't, and how to design effective agent ecosystems"
 authors:
-  - gh-next
+  - dsyme
 date: 2026-01-21
 draft: true
 ---
@@ -119,7 +119,7 @@ With agents creating dozens of issues and PRs daily, the repository's signal-to-
 
 Running many agents incurs significant costs. The Portfolio Analyst helps, but ongoing cost monitoring is essential.
 
-AI agent operations at scale aren't free. We've had to build cost awareness into the factory's culture, with regular reviews of spend-per-agent and value-per-dollar metrics. Some expensive but low-value agents get deprecated, while high-value agents get budget increases. Cost visibility turns out to be as important as functionality.
+Agentic AI operations at scale aren't free. We've had to build cost awareness into the factory's culture, with regular reviews of spend-per-agent and value-per-dollar metrics. Some expensive but low-value agents get deprecated, while high-value agents get budget increases. Cost visibility turns out to be as important as functionality.
 
 ### User Trust
 

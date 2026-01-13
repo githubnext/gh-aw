@@ -2,7 +2,7 @@
 title: "Security Lessons from the Agent Factory"
 description: "Designing safe environments where agents can't accidentally cause harm"
 authors:
-  - gh-next
+  - dsyme
 date: 2026-02-02
 draft: true
 ---

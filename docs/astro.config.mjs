@@ -74,6 +74,10 @@ export default defineConfig({
 				starlightBlog({
 					authors: {
 						'gh-next': {
+							name: 'GitHub Next',
+							url: 'https://githubnext.com/',
+						},
+						'dsyme': {
 							name: 'Don Syme',
 							url: 'https://dsyme.net/',
 						},

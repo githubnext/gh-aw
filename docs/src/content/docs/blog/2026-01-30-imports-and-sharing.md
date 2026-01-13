@@ -2,7 +2,7 @@
 title: "Imports & Sharing: Peli's Secret Weapon"
 description: "How modular, reusable components enabled scaling our agent collection"
 authors:
-  - gh-next
+  - dsyme
 date: 2026-01-30
 draft: true
 ---

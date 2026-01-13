@@ -2,7 +2,7 @@
 title: "9 Patterns for Automated Agent Ops on GitHub"
 description: "Strategic patterns for operating agents in the GitHub ecosystem"
 authors:
-  - gh-next
+  - dsyme
 date: 2026-01-27
 draft: true
 ---

@@ -2,7 +2,7 @@
 title: "Authoring New Workflows in Peli's Agent Factory"
 description: "A practical guide to creating effective agentic workflows"
 authors:
-  - gh-next
+  - dsyme
 date: 2026-02-08
 draft: true
 ---

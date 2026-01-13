@@ -1,5 +1,5 @@
 ---
-description: GitHub Agentic Campaigns - Create and manage multi-workflow campaigns for coordinated automation at scale
+description: GitHub Agentic Campaigns - Create and manage multi-workflow campaigns for coordinated automation
 infer: false
 ---
 

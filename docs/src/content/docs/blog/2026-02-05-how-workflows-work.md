@@ -2,7 +2,7 @@
 title: "How Agentic Workflows Work"
 description: "The technical foundation: from natural language to secure execution"
 authors:
-  - gh-next
+  - dsyme
 date: 2026-02-05
 draft: true
 ---

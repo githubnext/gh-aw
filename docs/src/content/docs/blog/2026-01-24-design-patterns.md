@@ -2,7 +2,7 @@
 title: "12 Design Patterns from Peli's Agent Factory"
 description: "Fundamental behavioral patterns for successful agentic workflows"
 authors:
-  - gh-next
+  - dsyme
 date: 2026-01-24
 draft: true
 ---
@@ -279,7 +279,7 @@ These agentic workflows analyze the agent ecosystem itself. Download workflow lo
 
 Use these when:
 
-- Managing agent ecosystems at scale
+- Managing agentic ecosystems at scale
 - Cost optimization
 - Performance monitoring
 - Failure pattern detection
