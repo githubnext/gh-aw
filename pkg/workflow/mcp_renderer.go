@@ -477,6 +477,9 @@ type JSONMCPConfigOptions struct {
 	// GatewayConfig is an optional gateway configuration to include in the MCP config
 	// When set, adds a "gateway" section with port and apiKey for awmg to use
 	GatewayConfig *MCPGatewayRuntimeConfig
+	// SkipValidation indicates whether to skip MCP gateway configuration schema validation
+	// When true, validation is skipped. When false (with --validate flag), validation is performed
+	SkipValidation bool
 }
 
 // GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
@@ -755,17 +758,24 @@ func RenderJSONMCPConfig(
 	// Get the generated configuration
 	generatedConfig := configBuilder.String()
 
-	// Validate the generated configuration against the MCP Gateway schema
+	// Validate the generated configuration against the MCP Gateway schema (unless skipped)
 	// This catches compiler bugs that generate invalid configurations
-	// Note: We need to clean up the indentation and substitute variables for validation
-	configForValidation := prepareConfigForValidation(generatedConfig)
-	if err := ValidateMCPGatewayConfig(configForValidation); err != nil {
-		// Return internal compiler error - this should never happen in production
-		mcpRendererLog.Printf("MCP gateway configuration validation failed: %v", err)
-		return err
+	// Validation only runs when --validate flag is enabled (skipValidation is false)
+	if !options.SkipValidation {
+		mcpRendererLog.Print("Validating MCP gateway configuration against schema")
+		// Note: We need to clean up the indentation and substitute variables for validation
+		configForValidation := prepareConfigForValidation(generatedConfig)
+		if err := ValidateMCPGatewayConfig(configForValidation); err != nil {
+			// Return internal compiler error - this should never happen in production
+			mcpRendererLog.Printf("MCP gateway configuration validation failed: %v", err)
+			return err
+		}
+		mcpRendererLog.Print("MCP gateway configuration validated successfully")
+	} else {
+		mcpRendererLog.Print("Skipping MCP gateway configuration validation (--validate flag not set)")
 	}
 
-	// Validation passed - write the configuration to the YAML output
+	// Validation passed (or skipped) - write the configuration to the YAML output
 	yaml.WriteString("          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString(generatedConfig)
 	yaml.WriteString("          MCPCONFIG_EOF\n")

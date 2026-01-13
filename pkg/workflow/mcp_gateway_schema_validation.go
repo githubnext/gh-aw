@@ -49,7 +49,7 @@ import (
 
 var mcpGatewaySchemaValidationLog = logger.New("workflow:mcp_gateway_schema_validation")
 
-//go:embed ../../docs/public/schemas/mcp-gateway-config.schema.json
+//go:embed schemas/mcp-gateway-config.schema.json
 var mcpGatewayConfigSchema string
 
 // Cached compiled MCP gateway schema to avoid recompiling on every validation
@@ -130,12 +130,12 @@ func ValidateMCPGatewayConfig(configJSON string) error {
 func formatMCPGatewayValidationError(ve *jsonschema.ValidationError) string {
 	var result strings.Builder
 
-	// Main error
-	result.WriteString(fmt.Sprintf("  - %s: %s\n", ve.InstanceLocation, ve.Message))
+	// Main error - use Error() method to get formatted message
+	result.WriteString(fmt.Sprintf("  - %s\n", ve.Error()))
 
-	// Add causes (nested validation errors)
+	// Add causes (nested validation errors) recursively
 	for _, cause := range ve.Causes {
-		result.WriteString(fmt.Sprintf("    - %s: %s\n", cause.InstanceLocation, cause.Message))
+		result.WriteString(fmt.Sprintf("    - %s\n", cause.Error()))
 	}
 
 	return result.String()

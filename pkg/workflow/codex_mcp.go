@@ -113,8 +113,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
-		GatewayConfig: gatewayConfig,
+		ConfigPath:     "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		GatewayConfig:  gatewayConfig,
+		SkipValidation: workflowData.CompilerSkipValidation != nil && *workflowData.CompilerSkipValidation,
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createJSONRenderer(isLast)
