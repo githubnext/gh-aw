@@ -52,10 +52,11 @@ flowchart TB
         Skill --> Proxy3
     end
 
-    Service{{"Service"}}
+    Service1{{"Service"}}
+    Service2{{"Service"}}
 
-    Proxy2 --> Service
-    Proxy3 --> Service
+    Proxy2 --> Service1
+    Proxy3 --> Service2
 ```
 
 **Key Security Layers:**
