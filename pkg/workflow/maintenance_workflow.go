@@ -117,7 +117,7 @@ Schedule frequency is automatically determined by the shortest expiration time.`
 	header := GenerateWorkflowHeader("", "pkg/workflow/maintenance_workflow.go", customInstructions)
 	yaml.WriteString(header)
 
-	yaml.WriteString(`name: Agentics Maintenance
+	yaml.WriteString(`name: Agentic Maintenance
 
 on:
   schedule:

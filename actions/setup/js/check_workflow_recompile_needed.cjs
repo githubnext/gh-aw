@@ -90,7 +90,7 @@ async function main() {
       const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
 
       // Get workflow metadata for footer
-      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
       const repository = `${owner}/${repo}`;
 
       // Create custom footer for workflow recompile comment
@@ -143,7 +143,7 @@ async function main() {
   let issueBody = issueTemplate.replace("{DIFF_CONTENT}", diffContent).replace("{REPOSITORY}", repository);
 
   // Get workflow metadata for footer
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentics Maintenance";
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
 
   // Create custom footer for workflow recompile issues
   const ctx = {

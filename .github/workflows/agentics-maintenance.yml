@@ -29,7 +29,7 @@
 # in create-discussions or create-issues safe-outputs configuration.
 # Schedule frequency is automatically determined by the shortest expiration time.
 #
-name: Agentics Maintenance
+name: Agentic Maintenance
 
 on:
   schedule:
