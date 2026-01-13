@@ -433,7 +433,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="claude"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.47'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.47'
           
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
@@ -576,7 +576,7 @@ jobs:
           
           - **Repository**: __GH_AW_GITHUB_REPOSITORY__
           - **Specs Directory**: `specs/`
-          - **Target File**: `.github/instructions/developer.instructions.md`
+          - **Target File**: `.github/agents/developer.instructions.agent.md`
           - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
           
           ## Phase 0: Setup and Configuration
@@ -810,7 +810,7 @@ jobs:
           
           ### 3. Create the Consolidated File
           
-          **You have direct file editing capabilities** - Write the consolidated content directly to `.github/instructions/developer.instructions.md` using Serena's edit tools.
+          **You have direct file editing capabilities** - Write the consolidated content directly to `.github/agents/developer.instructions.agent.md` using Serena's edit tools.
           
           The file should:
           - Start with frontmatter (description and applyTo)
@@ -876,7 +876,7 @@ jobs:
           
           ## Summary
           
-          Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, added [Y] Mermaid diagrams, and consolidated content into `.github/instructions/developer.instructions.md`.
+          Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, added [Y] Mermaid diagrams, and consolidated content into `.github/agents/developer.instructions.agent.md`.
           
           <details>
           <summary><b>Full Consolidation Report</b></summary>
@@ -969,7 +969,7 @@ jobs:
           
           ## Next Steps
           
-          - Review the consolidated file at `.github/instructions/developer.instructions.md`
+          - Review the consolidated file at `.github/agents/developer.instructions.agent.md`
           - Verify Mermaid diagrams render correctly
           - Check that all technical content is accurate
           - Consider additional sections if needed
@@ -993,7 +993,7 @@ jobs:
           
           Before the PR is created, you need to make the actual file changes:
           
-          1. **Update `.github/instructions/developer.instructions.md`**:
+          1. **Update `.github/agents/developer.instructions.agent.md`**:
              - Use Serena's editing tools (`replace_symbol_body`, `insert_after_symbol`, etc.)
              - Or use the standard `edit` tool to modify sections
              - Make all consolidation changes directly to the file
@@ -1019,7 +1019,7 @@ jobs:
           ```markdown
           ## Developer Documentation Consolidation
           
-          This PR consolidates markdown specifications from the `specs/` directory into a unified `.github/instructions/developer.instructions.md` file.
+          This PR consolidates markdown specifications from the `specs/` directory into a unified `.github/agents/developer.instructions.agent.md` file.
           
           ### Changes Made
           
@@ -1031,7 +1031,7 @@ jobs:
           
           ### Files Modified
           
-          - Created/Updated: `.github/instructions/developer.instructions.md`
+          - Created/Updated: `.github/agents/developer.instructions.agent.md`
           - [List any spec files that were modified]
           
           ### Validation

@@ -29,8 +29,14 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 
 	// Use shared JSON MCP config renderer with unified renderer methods
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
-		GatewayConfig: gatewayConfig,
+		ConfigPath:     "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		GatewayConfig:  gatewayConfig,
+		SkipValidation: workflowData == nil || workflowData.CompilerSkipValidation == nil || *workflowData.CompilerSkipValidation,
+		OnWarning: func() {
+			if workflowData != nil && workflowData.CompilerWarningCallback != nil {
+				workflowData.CompilerWarningCallback()
+			}
+		},
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)

@@ -134,6 +134,9 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 						Enabled: true,
 					},
 				},
+				Tools: map[string]any{
+					"github": map[string]any{}, // Add MCP server to satisfy validation
+				},
 			},
 			wantErr: false,
 		},
@@ -153,6 +156,9 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					Firewall: &FirewallConfig{
 						Enabled: true,
 					},
+				},
+				Tools: map[string]any{
+					"github": map[string]any{}, // Add MCP server to satisfy validation
 				},
 			},
 			wantErr: false,

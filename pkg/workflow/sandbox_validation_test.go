@@ -212,6 +212,9 @@ func TestSandboxConfigValidationWithInvalidTypes(t *testing.T) {
 				EngineConfig: &EngineConfig{
 					ID: "copilot", // SRT requires copilot engine
 				},
+				Tools: map[string]any{
+					"github": map[string]any{}, // Add MCP server to satisfy validation
+				},
 			}
 
 			// Enable the sandbox-runtime feature for SRT tests
@@ -340,6 +343,171 @@ func TestValidSandboxTypeConstants(t *testing.T) {
 		t.Run(string(sandboxType), func(t *testing.T) {
 			if !isSupportedSandboxType(sandboxType) {
 				t.Errorf("Constant %q should be valid but isSupportedSandboxType() returned false", sandboxType)
+			}
+		})
+	}
+}
+
+// TestSandboxMCPGatewayValidation tests that agent sandbox requires MCP gateway to be enabled
+func TestSandboxMCPGatewayValidation(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expectErr    bool
+		errContains  string
+	}{
+		{
+			name: "sandbox enabled without MCP servers - should error",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+				Tools: map[string]any{}, // No tools configured
+			},
+			expectErr:   true,
+			errContains: "agent sandbox is enabled but MCP gateway is not enabled",
+		},
+		{
+			name: "sandbox enabled with MCP servers - should pass",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+				Tools: map[string]any{
+					"github": map[string]any{}, // GitHub tool uses MCP
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "sandbox disabled without MCP servers - should pass",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Disabled: true,
+					},
+				},
+				Tools: map[string]any{}, // No tools configured
+			},
+			expectErr: false,
+		},
+		{
+			name: "sandbox disabled with MCP servers - should pass",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Disabled: true,
+					},
+				},
+				Tools: map[string]any{
+					"github": map[string]any{}, // GitHub tool uses MCP
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "no sandbox config with MCP servers - should pass (defaults applied)",
+			workflowData: &WorkflowData{
+				Name:  "test-workflow",
+				Tools: map[string]any{
+					"github": map[string]any{}, // GitHub tool uses MCP
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "sandbox with playwright tool - should pass",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+				Tools: map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"example.com"},
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "sandbox with safe-outputs enabled - should pass",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					AddComments: &AddCommentsConfig{},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "sandbox with agentic-workflows tool - should pass",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+				Tools: map[string]any{
+					"agentic-workflows": true,
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "SRT sandbox without MCP servers - should error",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeSRT,
+					},
+				},
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				Features: map[string]any{
+					"sandbox-runtime": true,
+				},
+				Tools: map[string]any{}, // No tools configured
+			},
+			expectErr:   true,
+			errContains: "agent sandbox is enabled but MCP gateway is not enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSandboxConfig(tt.workflowData)
+
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Expected error to contain %q, got: %v", tt.errContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
 			}
 		})
 	}

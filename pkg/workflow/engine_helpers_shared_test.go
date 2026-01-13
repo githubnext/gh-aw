@@ -521,7 +521,8 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github", "playwright"},
 			options: JSONMCPConfigOptions{
-				ConfigPath: "/tmp/test-config.json",
+				ConfigPath:     "/tmp/test-config.json",
+				SkipValidation: true, // Skip validation in tests
 				Renderers: MCPToolRenderers{
 					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": { \"test\": true }")
@@ -545,11 +546,11 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 				},
 			},
 			expectedContent: []string{
-				"cat > /tmp/test-config.json << EOF",
+				"cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh",
 				"\"mcpServers\": {",
 				"\"github\": { \"test\": true },",
 				"\"playwright\": { \"test\": true }",
-				"EOF",
+				"MCPCONFIG_EOF",
 			},
 		},
 		{
@@ -560,7 +561,8 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github", "cache-memory"},
 			options: JSONMCPConfigOptions{
-				ConfigPath: "/tmp/filtered-config.json",
+				ConfigPath:     "/tmp/filtered-config.json",
+				SkipValidation: true, // Skip validation in tests
 				Renderers: MCPToolRenderers{
 					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": { \"filtered\": true }")
@@ -582,7 +584,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 				},
 			},
 			expectedContent: []string{
-				"cat > /tmp/filtered-config.json << EOF",
+				"cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh",
 				"\"github\": { \"filtered\": true }",
 			},
 			unexpectedContent: []string{
@@ -596,7 +598,8 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github"},
 			options: JSONMCPConfigOptions{
-				ConfigPath: "/tmp/debug-config.json",
+				ConfigPath:     "/tmp/debug-config.json",
+				SkipValidation: true, // Skip validation in tests
 				Renderers: MCPToolRenderers{
 					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": {}\n")
@@ -614,7 +617,9 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 				},
 			},
 			expectedContent: []string{
-				"EOF",
+				"MCPCONFIG_EOF",
+			},
+			unexpectedContent: []string{
 				"echo \"DEBUG OUTPUT\"",
 				"cat /tmp/debug-config.json",
 			},
@@ -624,7 +629,8 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			tools:    map[string]any{},
 			mcpTools: []string{"web-fetch"},
 			options: JSONMCPConfigOptions{
-				ConfigPath: "/tmp/web-fetch-config.json",
+				ConfigPath:     "/tmp/web-fetch-config.json",
+				SkipValidation: true, // Skip validation in tests
 				Renderers: MCPToolRenderers{
 					RenderGitHub:           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {},
 					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
@@ -648,7 +654,10 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			var yaml strings.Builder
 			workflowData := &WorkflowData{}
 
-			RenderJSONMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData, tt.options)
+			err := RenderJSONMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData, tt.options)
+			if err != nil {
+				t.Fatalf("RenderJSONMCPConfig failed: %v", err)
+			}
 
 			result := yaml.String()
 
@@ -682,7 +691,8 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 	var isLastValues []bool
 
 	options := JSONMCPConfigOptions{
-		ConfigPath: "/tmp/test.json",
+		ConfigPath:     "/tmp/test.json",
+		SkipValidation: true, // Skip validation in tests
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				callOrder = append(callOrder, "github")
@@ -705,7 +715,10 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 
 	var yaml strings.Builder
 	workflowData := &WorkflowData{}
-	RenderJSONMCPConfig(&yaml, tools, mcpTools, workflowData, options)
+	err := RenderJSONMCPConfig(&yaml, tools, mcpTools, workflowData, options)
+	if err != nil {
+		t.Fatalf("RenderJSONMCPConfig failed: %v", err)
+	}
 
 	// Verify call order
 	expectedOrder := []string{"github", "playwright", "web-fetch"}

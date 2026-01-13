@@ -112,5 +112,24 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	// Validate that if agent sandbox is enabled, MCP gateway must be enabled
+	// The MCP gateway is enabled when MCP servers are configured (tools that use MCP)
+	// Only validate this when sandbox is explicitly configured (not nil)
+	// If SandboxConfig is nil, defaults will be applied later and MCP check doesn't apply yet
+	if !isSandboxDisabled(workflowData) {
+		// Sandbox is enabled - check if MCP gateway is enabled
+		// Only enforce this if sandbox was explicitly configured (has agent or type set)
+		// This prevents false positives for workflows where sandbox defaults haven't been applied yet
+		hasExplicitSandboxConfig := (sandboxConfig.Agent != nil && !sandboxConfig.Agent.Disabled) ||
+			sandboxConfig.Type != ""
+
+		if hasExplicitSandboxConfig && !HasMCPServers(workflowData) {
+			return fmt.Errorf("agent sandbox is enabled but MCP gateway is not enabled. The agent sandbox requires MCP servers to be configured. Add tools that use MCP (e.g., 'github', 'playwright') or disable the sandbox with 'sandbox: false'")
+		}
+		if hasExplicitSandboxConfig {
+			sandboxValidationLog.Print("Sandbox enabled with MCP gateway - validation passed")
+		}
+	}
+
 	return nil
 }

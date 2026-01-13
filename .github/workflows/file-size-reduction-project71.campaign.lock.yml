@@ -662,7 +662,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="claude"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.47'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.47'
           
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
@@ -850,40 +850,28 @@ jobs:
           
           ---
           
-          ## Core Principles (Non-Negotiable)
+          ## Core Principles
           
-          1. Workers are immutable.
-          2. Workers are campaign-agnostic.
-          3. Campaign logic is external to workers (orchestrator only).
-          4. The GitHub Project board is the authoritative campaign state.
-          5. Correlation is explicit (tracker-id).
-          6. Reads and writes are separate phases (never interleave).
-          7. Idempotent operation is mandatory (safe to re-run).
-          8. Only predefined project fields may be updated.
-          9. **Project Update Instructions take precedence for all project writes.**
-          
-          ### Why These Principles Matter
-          
-          **Workers are immutable** - Allows reuse across campaigns without coupling. You coordinate existing workflows, don't modify them.
-          
-          **Reads and writes are separate** - Prevents race conditions and inconsistent state. Always read all data first, then make all writes.
-          
-          **Idempotent operation** - Campaign can be re-run safely if interrupted. The orchestrator picks up where it left off using the cursor.
-          
-          **Only predefined fields** - Prevents accidental project board corruption. The orchestrator only updates fields it's configured to manage.
+          1. Workers are immutable and campaign-agnostic
+          2. The GitHub Project board is the authoritative campaign state
+          3. Correlation is explicit (tracker-id)
+          4. Reads and writes are separate steps (never interleave)
+          5. Idempotent operation is mandatory (safe to re-run)
+          6. Only predefined project fields may be updated
+          7. **Project Update Instructions take precedence for all project writes**
           
           ---
           
-          ## Required Phases (Execute In Order)
+          ## Execution Steps (Required Order)
           
-          ### Phase 0 — Epic Issue Initialization [FIRST RUN ONLY]
+          ### Step 0 — Epic Issue Initialization [FIRST RUN ONLY]
           
           **Campaign Epic Issue Requirements:**
           - Each project board MUST have exactly ONE Epic issue representing the campaign
           - The Epic serves as the parent for all campaign work issues
           - The Epic is narrative-only and tracks overall campaign progress
           
-          **On every run, before other phases:**
+          **On every run, before other steps:**
           
           1) **Check for existing Epic issue** by searching the repository for:
              - An open issue with label `epic` or `type:epic`
@@ -932,11 +920,11 @@ jobs:
           
           4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
           
-          **Note:** This phase typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
+          **Note:** This step typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
           
           ---
           
-          ### Phase 1 — Read State (Discovery) [NO WRITES]
+          ### Step 1 — Read State (Discovery) [NO WRITES]
           
           **IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
           
@@ -955,11 +943,11 @@ jobs:
           4) Check the manifest summary for work counts:
              - `needs_add_count`: Number of items that need to be added to the project
              - `needs_update_count`: Number of items that need status updates
-             - If both are 0, you may skip to reporting phase
+             - If both are 0, you may skip to reporting step
           
           5) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
           
-          ### Phase 2 — Make Decisions (Planning) [NO WRITES]
+          ### Step 2 — Make Decisions (Planning) [NO WRITES]
           
           5) Determine desired `status` strictly from explicit GitHub state:
           - Open → `Todo` (or `In Progress` only if explicitly indicated elsewhere)
@@ -987,7 +975,7 @@ jobs:
           
           **Why use deterministic order?** - Ensures predictable behavior and prevents starvation. Oldest items are processed first, ensuring fair treatment of all work items. The cursor saves progress for next run.
           
-          ### Phase 3 — Write State (Execution) [WRITES ONLY]
+          ### Step 3 — Write State (Execution) [WRITES ONLY]
           
           9) For each selected item, send an `update-project` request.
           - Do NOT interleave reads.
@@ -998,7 +986,7 @@ jobs:
           
           10) Record per-item outcome: success/failure + error details.
           
-          ### Phase 4 — Report & Status Update
+          ### Step 4 — Report & Status Update
           
           11) **REQUIRED: Create a project status update summarizing this run**
           
@@ -1160,10 +1148,10 @@ jobs:
           
           ---
           
-          ## 4) Two-Phase Execution (Prevents Read/Write Mixing)
+          ## 4) Read-Write Separation (Prevents Read/Write Mixing)
           
-          1. **READ PHASE (no writes)** — validate existence and gather metadata
-          2. **WRITE PHASE (writes only)** — execute `update-project`
+          1. **READ STEP (no writes)** — validate existence and gather metadata
+          2. **WRITE STEP (writes only)** — execute `update-project`
           
           Never interleave reads and writes.
           
@@ -1173,12 +1161,6 @@ jobs:
           
           ### Adding New Issues
           
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           When first adding an item to the project, you MUST write ALL required fields.
           
           ```yaml
@@ -1200,6 +1182,12 @@ jobs:
           
           ---
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           ## 6) Updating an Existing Item (Minimal Writes)
           
           ### Updating Existing Items
@@ -1298,7 +1286,7 @@ jobs:
           ---
           # Closing Instructions (Highest Priority)
           
-          Execute all four phases in strict order:
+          Execute all four steps in strict order:
           
           1. Read State (no writes)
           2. Make Decisions (no writes)
