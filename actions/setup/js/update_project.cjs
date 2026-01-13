@@ -503,7 +503,7 @@ async function updateProject(output) {
             const singleSelectOptions = options.map(opt => ({
               name: typeof opt === "string" ? opt : String(opt),
               description: "",
-              color: "GRAY"
+              color: "GRAY",
             }));
 
             field = (
@@ -559,7 +559,7 @@ async function updateProject(output) {
           createdFields.push({
             id: field.id,
             name: field.name,
-            dataType: field.dataType
+            dataType: field.dataType,
           });
           core.info(`✓ Created field: ${field.name} (${field.dataType})`);
         } catch (createError) {
