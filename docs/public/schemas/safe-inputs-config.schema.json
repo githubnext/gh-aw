@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json",
   "title": "Safe Inputs Configuration",
-  "description": "Configuration schema for Safe Inputs custom MCP tools as defined in the Safe Inputs Specification v1.0.0. Safe Inputs enables inline definition of custom MCP tools directly in workflow frontmatter using JavaScript, shell scripts, Python, or Go.",
+  "description": "Configuration schema for Safe Inputs custom MCP tools as defined in the Safe Inputs Specification v1.1.0. Safe Inputs enables inline definition of custom MCP tools directly in workflow frontmatter using JavaScript, shell scripts, Python, or Go.",
   "type": "object",
   "patternProperties": {
     "^[a-zA-Z][a-zA-Z0-9_-]*$": {

@@ -328,17 +328,21 @@ timeout: 120  # 2 minutes
 
 Implementations MUST validate:
 
-1. **Required Fields**: `description` field is present
+1. **Required Fields**: `description` field is present and non-empty
 2. **Mutually Exclusive Implementations**: Exactly one of `script`, `run`, `py`, `go` is provided
 3. **Input Schema**: Input definitions follow JSON Schema conventions
-4. **Timeout Range**: Timeout value is positive integer
-5. **Environment Variables**: Environment variable names are valid identifiers
+4. **Timeout Range**: Timeout value is positive integer (minimum 1 second)
+5. **Environment Variables**: Environment variable names are valid identifiers (uppercase alphanumeric with underscores)
+6. **Tool Names**: Tool names match pattern `^[a-zA-Z][a-zA-Z0-9_-]*$`
+7. **Dependencies**: Dependency names are valid for target package manager
 
 Implementations SHOULD validate:
 
 1. **Script Syntax**: Syntax errors in implementation code (language-specific)
 2. **Input Types**: Input parameter types are supported JSON Schema types
 3. **Reserved Names**: Tool names do not conflict with built-in MCP methods
+4. **Description Length**: Tool descriptions are clear and concise (recommended 10-200 characters)
+5. **Timeout Reasonableness**: Timeout values are reasonable for tool purpose (warn if >600 seconds)
 
 ---
 
@@ -860,6 +864,8 @@ A conforming implementation MUST pass the following test categories:
 - **T-SEC-004**: Input sanitization
 - **T-SEC-005**: Output sanitization
 - **T-SEC-006**: Secret masking in logs
+- **T-SEC-007**: Dependency installation security
+- **T-SEC-008**: GitHub Actions global objects access control
 
 #### 10.1.5 Large Output Tests
 
@@ -869,7 +875,16 @@ A conforming implementation MUST pass the following test categories:
 - **T-OUT-004**: File accessibility to agent
 - **T-OUT-005**: JSON schema preview generation
 
-#### 10.1.6 Integration Tests
+#### 10.1.6 Dependencies Tests
+
+- **T-DEP-001**: npm dependency installation for JavaScript tools
+- **T-DEP-002**: pip dependency installation for Python tools
+- **T-DEP-003**: go get dependency installation for Go tools
+- **T-DEP-004**: apt/yum dependency installation for shell tools
+- **T-DEP-005**: Dependency caching behavior
+- **T-DEP-006**: Dependency installation failure handling
+
+#### 10.1.7 Integration Tests
 
 - **T-INT-001**: MCP Gateway configuration generation
 - **T-INT-002**: HTTP MCP server startup
@@ -890,6 +905,8 @@ A conforming implementation MUST pass the following test categories:
 | Process isolation | T-SEC-003 | 2 | Standard |
 | Timeout handling | T-EXE-006 | 2 | Standard |
 | Large output handling | T-OUT-* | 3 | Complete |
+| Dependencies support | T-DEP-* | 2 | Standard |
+| GitHub Actions globals | T-SEC-008 | 1 | Required |
 | MCP Gateway integration | T-INT-* | 1 | Required |
 
 ### 10.3 Test Execution
@@ -1086,6 +1103,73 @@ safe-inputs:
     timeout: 60
 ```
 
+#### A.5 Complete Tool with Dependencies and GitHub Integration
+
+```yaml
+safe-inputs:
+  analyze-pr-complexity:
+    description: "Analyze pull request complexity and provide metrics"
+    inputs:
+      pr_number:
+        type: number
+        required: true
+        description: "Pull request number to analyze"
+      include_files:
+        type: boolean
+        default: true
+        description: "Include per-file analysis"
+    script: |
+      const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+      const { owner, repo } = context.repo;
+      
+      // Fetch PR data
+      const { data: pr } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pr_number
+      });
+      
+      // Fetch PR files
+      const { data: files } = await octokit.rest.pulls.listFiles({
+        owner,
+        repo,
+        pull_number: pr_number
+      });
+      
+      // Calculate complexity metrics
+      const metrics = {
+        pr_number: pr_number,
+        title: pr.title,
+        author: pr.user.login,
+        files_changed: files.length,
+        total_additions: files.reduce((sum, f) => sum + f.additions, 0),
+        total_deletions: files.reduce((sum, f) => sum + f.deletions, 0),
+        total_changes: files.reduce((sum, f) => sum + f.changes, 0),
+        complexity_score: 0
+      };
+      
+      // Calculate complexity score (simple heuristic)
+      metrics.complexity_score = 
+        (metrics.files_changed * 2) + 
+        (metrics.total_changes / 10);
+      
+      // Add per-file analysis if requested
+      if (include_files) {
+        metrics.file_analysis = files.map(f => ({
+          filename: f.filename,
+          status: f.status,
+          additions: f.additions,
+          deletions: f.deletions,
+          changes: f.changes
+        }));
+      }
+      
+      return metrics;
+    env:
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+    timeout: 120
+```
+
 ### Appendix B: Error Response Examples
 
 #### B.1 Missing Required Parameter
@@ -1145,6 +1229,25 @@ safe-inputs:
 }
 ```
 
+#### B.4 Dependency Installation Failure
+
+```json
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32603,
+    "message": "Internal error",
+    "data": {
+      "error": "Dependency installation failed",
+      "dependency": "requests",
+      "package_manager": "pip",
+      "stderr": "Could not find a version that satisfies the requirement requests"
+    }
+  },
+  "id": "req-101"
+}
+```
+
 ### Appendix C: Security Considerations
 
 #### C.1 Secret Management
@@ -1178,6 +1281,22 @@ safe-inputs:
 - Output SHOULD NOT contain secrets or sensitive data
 - Output size SHOULD be limited to prevent DoS
 - File paths SHOULD be non-predictable
+
+#### C.5 Dependency Security
+
+- Implementations SHOULD validate package names against known malicious packages
+- Dependency sources SHOULD be from trusted registries (npm, PyPI, Go modules)
+- Implementations MAY enforce allowlists for permitted packages
+- Dependency versions SHOULD be pinned when possible
+- Security advisories SHOULD be checked for known vulnerabilities
+
+#### C.6 GitHub Actions Integration Security
+
+- Global objects MUST be provided in sandboxed environment
+- Token access MUST be controlled through explicit env declarations
+- API rate limits SHOULD be enforced to prevent abuse
+- Actions permissions SHOULD follow least privilege principle
+- Audit logging SHOULD track all GitHub API operations
 
 ---
 
