@@ -548,3 +548,93 @@ func TestOptionCombinations(t *testing.T) {
 		})
 	}
 }
+
+func TestPrepareConfigForValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "replaces MCP_GATEWAY_PORT",
+			input:    `          "port": $MCP_GATEWAY_PORT,`,
+			expected: `"port": 8080,`,
+		},
+		{
+			name:     "replaces MCP_GATEWAY_DOMAIN",
+			input:    `          "domain": "${MCP_GATEWAY_DOMAIN}",`,
+			expected: `"domain": "localhost",`,
+		},
+		{
+			name:     "replaces MCP_GATEWAY_API_KEY",
+			input:    `          "apiKey": "${MCP_GATEWAY_API_KEY}"`,
+			expected: `"apiKey": "sample-api-key"`,
+		},
+		{
+			name:     "replaces GH_AW_SAFE_INPUTS_PORT in URL",
+			input:    `          "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",`,
+			expected: `"url": "http://host.docker.internal:3000",`,
+		},
+		{
+			name:     "replaces GH_AW_SAFE_INPUTS_API_KEY",
+			input:    `          "Authorization": "$GH_AW_SAFE_INPUTS_API_KEY"`,
+			expected: `"Authorization": "sample-api-key"`,
+		},
+		{
+			name:     "replaces GITHUB_MCP_SERVER_TOKEN",
+			input:    `          "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",`,
+			expected: `"GITHUB_PERSONAL_ACCESS_TOKEN": "sample-token",`,
+		},
+		{
+			name:     "replaces GITHUB_MCP_LOCKDOWN",
+			input:    `          "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN"`,
+			expected: `"GITHUB_LOCKDOWN_MODE": "1"`,
+		},
+		{
+			name:     "replaces escaped Copilot variables",
+			input:    `          "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+			expected: `"GITHUB_PERSONAL_ACCESS_TOKEN": "sample-token"`,
+		},
+		{
+			name:     "replaces escaped safe-outputs variables",
+			input:    `          "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
+			expected: `"GH_AW_SAFE_OUTPUTS": "add_comment,create_issue"`,
+		},
+		{
+			name:     "replaces escaped GitHub context variables",
+			input:    `          "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"`,
+			expected: `"GITHUB_REPOSITORY": "owner/repo"`,
+		},
+		{
+			name:     "removes YAML indentation",
+			input:    `          "test": "value"`,
+			expected: `"test": "value"`,
+		},
+		{
+			name: "handles complete safeinputs config",
+			input: `          "safeinputs": {
+            "type": "http",
+            "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
+            "headers": {
+              "Authorization": "$GH_AW_SAFE_INPUTS_API_KEY"
+            }
+          }`,
+			expected: `"safeinputs": {
+  "type": "http",
+  "url": "http://host.docker.internal:3000",
+  "headers": {
+    "Authorization": "sample-api-key"
+  }
+}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := prepareConfigForValidation(tt.input)
+			if !strings.Contains(result, tt.expected) {
+				t.Errorf("Expected result to contain %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}

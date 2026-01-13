@@ -806,6 +806,8 @@ func prepareConfigForValidation(config string) string {
 	// ${MCP_GATEWAY_API_KEY} -> "sample-api-key" (example key)
 	// $GITHUB_MCP_SERVER_TOKEN -> "sample-token" (example token)
 	// $GITHUB_MCP_LOCKDOWN -> "1" (example lockdown value)
+	// $GH_AW_SAFE_INPUTS_PORT -> 3000 (example port for safe-inputs HTTP server)
+	// $GH_AW_SAFE_INPUTS_API_KEY -> "sample-api-key" (example API key for safe-inputs)
 	// \${...} (escaped for Copilot) -> ${...} (unescaped for validation)
 
 	cleaned = strings.ReplaceAll(cleaned, "$MCP_GATEWAY_PORT", "8080")
@@ -813,10 +815,32 @@ func prepareConfigForValidation(config string) string {
 	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_API_KEY}\"", "\"sample-api-key\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_LOCKDOWN\"", "\"1\"")
+	// Safe-inputs HTTP server variables
+	cleaned = strings.ReplaceAll(cleaned, "$GH_AW_SAFE_INPUTS_PORT", "3000")
+	cleaned = strings.ReplaceAll(cleaned, "$GH_AW_SAFE_INPUTS_API_KEY", "sample-api-key")
 
 	// Handle Copilot-style escaped variables: \${VARIABLE} -> sample-value
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_PERSONAL_ACCESS_TOKEN}", "sample-token")
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_MCP_SERVER_TOKEN}", "sample-token")
+	// In YAML output, Copilot uses \${VAR} which is valid YAML but invalid JSON
+	// We need to replace the entire quoted value to make it valid JSON
+	// GitHub tokens and authentication
+	cleaned = strings.ReplaceAll(cleaned, `"\${GITHUB_PERSONAL_ACCESS_TOKEN}"`, `"sample-token"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GITHUB_MCP_SERVER_TOKEN}"`, `"sample-token"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GITHUB_TOKEN}"`, `"sample-token"`)
+	// GitHub context variables
+	cleaned = strings.ReplaceAll(cleaned, `"\${GITHUB_WORKSPACE}"`, `"/github/workspace"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GITHUB_REPOSITORY}"`, `"owner/repo"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GITHUB_SERVER_URL}"`, `"https://github.com"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GITHUB_SHA}"`, `"abcdef123456"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${DEFAULT_BRANCH}"`, `"main"`)
+	// Safe-outputs environment variables
+	cleaned = strings.ReplaceAll(cleaned, `"\${GH_AW_SAFE_OUTPUTS}"`, `"add_comment,create_issue"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`, `"/opt/gh-aw/safeoutputs/config.json"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}"`, `"/opt/gh-aw/safeoutputs/tools.json"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GH_AW_MCP_LOG_DIR}"`, `"/tmp/gh-aw/mcp-logs"`)
+	// Upload-assets environment variables
+	cleaned = strings.ReplaceAll(cleaned, `"\${GH_AW_ASSETS_BRANCH}"`, `"assets"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GH_AW_ASSETS_MAX_SIZE_KB}"`, `"1024"`)
+	cleaned = strings.ReplaceAll(cleaned, `"\${GH_AW_ASSETS_ALLOWED_EXTS}"`, `".png,.jpg,.gif"`)
 
 	// Handle shell command substitutions: $([ "$VAR" = "1" ] && echo true || echo false) -> true
 	cleaned = strings.ReplaceAll(cleaned, "\"$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)\"", "\"true\"")
