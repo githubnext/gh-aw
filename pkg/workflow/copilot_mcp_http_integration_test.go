@@ -41,17 +41,13 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	mcpOutput := mcpConfig.String()
 
 	// Verify MCP config contains headers with env var references (not secret expressions)
+	// Per MCP Gateway Spec v1.4.0, HTTP servers only support: type, url, headers
+	// The tools and env fields are NOT allowed for HTTP servers
 	expectedMCPChecks := []string{
 		`"datadog": {`,
 		`"type": "http"`,
 		`"url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"`,
 		`"headers": {`,
-		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
-		`"DD_SITE": "\${DD_SITE}"`,
-		`"tools": [`,
-		`"search_datadog_dashboards"`,
-		`"env": {`,
 		`"DD_API_KEY": "\${DD_API_KEY}"`,
 		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
 		`"DD_SITE": "\${DD_SITE}"`,
