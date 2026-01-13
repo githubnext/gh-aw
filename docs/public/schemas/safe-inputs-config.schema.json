@@ -65,6 +65,14 @@
           "description": "Execution timeout in seconds. Default is 60 seconds. Applies only to shell (run), Python (py), and Go (go) tools. JavaScript (script) tools execute in-process without timeout enforcement. Minimum value is 1 second.",
           "minimum": 1,
           "default": 60
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Package dependencies to install in execution environment. Package manager is inferred from implementation language: npm for JavaScript (script), pip for Python (py), go get for Go (go), and apt/yum for shell (run). Dependencies are installed before tool execution.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "required": ["description"],
@@ -237,6 +245,36 @@
         "env": {
           "API_KEY": "${{ secrets.SERVICE_API_KEY }}"
         }
+      }
+    },
+    {
+      "fetch-with-requests": {
+        "description": "Fetch URL with Python requests library",
+        "inputs": {
+          "url": {
+            "type": "string",
+            "required": true,
+            "description": "URL to fetch"
+          }
+        },
+        "py": "import requests\nimport json\nresponse = requests.get(inputs.get('url'))\nprint(json.dumps({'status': response.status_code, 'length': len(response.text)}))",
+        "dependencies": ["requests"],
+        "timeout": 60
+      }
+    },
+    {
+      "process-json-with-jq": {
+        "description": "Process JSON with jq command",
+        "inputs": {
+          "json": {
+            "type": "string",
+            "required": true,
+            "description": "JSON string to process"
+          }
+        },
+        "run": "echo \"$INPUT_JSON\" | jq '.data | length'",
+        "dependencies": ["jq"],
+        "timeout": 30
       }
     }
   ]

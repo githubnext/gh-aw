@@ -7,7 +7,7 @@ sidebar:
 
 # Safe Inputs Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Draft Specification  
 **Latest Version**: [safe-inputs-specification](/gh-aw/reference/safe-inputs-specification/)  
 **JSON Schema**: [safe-inputs-config.schema.json](/gh-aw/schemas/safe-inputs-config.schema.json)  
@@ -209,10 +209,64 @@ Each tool configuration MAY contain:
 | `go` | string | Conditional* | Go code implementation |
 | `env` | object | No | Environment variables (typically secrets) |
 | `timeout` | integer | No | Execution timeout in seconds (default: 60, applies to run/py/go only) |
+| `dependencies` | array[string] | No | Package dependencies to install in execution environment (runtime-specific) |
 
 *Exactly ONE of `script`, `run`, `py`, or `go` MUST be provided per tool.
 
-### 4.3 Input Parameter Schema
+### 4.3 Dependencies
+
+The `dependencies` field allows specification of runtime dependencies that MUST be installed before tool execution. The package manager is inferred from the implementation language:
+
+- **JavaScript (`script:`)**: Dependencies installed via `npm install`
+- **Shell (`run:`)**: Dependencies installed via appropriate package manager (apt, yum, etc.)
+- **Python (`py:`)**: Dependencies installed via `pip install`
+- **Go (`go:`)**: Dependencies installed via `go get`
+
+**Example**:
+
+```yaml
+safe-inputs:
+  analyze-json:
+    description: "Analyze JSON with jq"
+    inputs:
+      json:
+        type: string
+        required: true
+    run: |
+      echo "$INPUT_JSON" | jq '.data | length'
+    dependencies:
+      - jq
+    timeout: 30
+```
+
+**Python Dependencies Example**:
+
+```yaml
+safe-inputs:
+  fetch-url:
+    description: "Fetch URL with requests library"
+    inputs:
+      url:
+        type: string
+        required: true
+    py: |
+      import requests
+      import json
+      response = requests.get(inputs.get('url'))
+      print(json.dumps({"status": response.status_code, "content_length": len(response.text)}))
+    dependencies:
+      - requests
+    timeout: 60
+```
+
+**Requirements**:
+- Implementations MUST install dependencies before first tool invocation
+- Dependencies SHOULD be cached for subsequent invocations
+- Dependency installation failures MUST result in tool execution errors
+- Package names MUST be valid for the target package manager
+- Implementations MAY enforce security policies on allowed packages
+
+### 4.4 Input Parameter Schema
 
 Input parameters follow JSON Schema conventions:
 
@@ -239,7 +293,7 @@ inputs:
 - `enum: [...]` - Restrict to specific values
 - `description: "..."` - Help text for agent tool selection
 
-### 4.4 Environment Variables
+### 4.5 Environment Variables
 
 Environment variables provide secret access to tools:
 
@@ -255,7 +309,7 @@ env:
 - Secrets MUST be masked in logs
 - Only explicitly declared environment variables are available to tools
 
-### 4.5 Timeout Configuration
+### 4.6 Timeout Configuration
 
 Timeout applies to Shell (`run:`), Python (`py:`), and Go (`go:`) tools:
 
@@ -270,7 +324,7 @@ timeout: 120  # 2 minutes
 - Timeout enforcement: Process MUST be terminated with SIGTERM, then SIGKILL after grace period
 - JavaScript tools (`script:`) execute in-process and do NOT have timeout enforcement
 
-### 4.6 Validation Requirements
+### 4.7 Validation Requirements
 
 Implementations MUST validate:
 
@@ -371,8 +425,53 @@ JavaScript tools MUST:
 - Use CommonJS module format
 - Be wrapped in async function with destructured inputs
 - Have access to `process.env` for secrets
+- Have access to GitHub Actions global objects (`github`, `context`, `core`, `io`, `exec`, `glob`, `artifact`)
 
-#### 6.1.2 Code Wrapping
+#### 6.1.2 Available Global Objects
+
+JavaScript tools have access to standard GitHub Actions JavaScript libraries without explicit import:
+
+- **`github`**: GitHub API client from `@actions/github`
+- **`context`**: Workflow context information from `@actions/github`
+- **`core`**: Actions core utilities from `@actions/core`
+- **`io`**: File I/O utilities from `@actions/io`
+- **`exec`**: Command execution utilities from `@actions/exec`
+- **`glob`**: File pattern matching from `@actions/glob`
+- **`artifact`**: Artifact management from `@actions/artifact`
+
+**Example using global objects**:
+
+```yaml
+safe-inputs:
+  create-issue:
+    description: "Create a GitHub issue"
+    inputs:
+      title:
+        type: string
+        required: true
+      body:
+        type: string
+        required: true
+    script: |
+      const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+      const { data } = await octokit.rest.issues.create({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        title,
+        body
+      });
+      return { number: data.number, url: data.html_url };
+    env:
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+```
+
+**Requirements**:
+- Global objects MUST be available without `require()` statements
+- Tools MAY use these globals alongside user code
+- Implementations MUST provide same version of libraries as GitHub Actions runtime
+- No restrictions on where tools execute (in-process or containerized)
+
+#### 6.1.3 Code Wrapping
 
 Implementation code is wrapped as:
 
@@ -383,7 +482,7 @@ async function execute(inputs) {
 }
 ```
 
-#### 6.1.3 Example
+#### 6.1.4 Example
 
 ```yaml
 safe-inputs:
@@ -1100,6 +1199,20 @@ safe-inputs:
 ---
 
 ## Change Log
+
+### Version 1.1.0 (Draft)
+
+- **Added**: Dependencies support (Section 4.3)
+  - `dependencies` field for specifying runtime package dependencies
+  - Package manager inferred from implementation language (npm, pip, go get, apt/yum)
+  - Dependencies installed before tool execution
+  - Examples added for Python requests and shell jq dependencies
+- **Added**: GitHub Actions global objects for JavaScript tools (Section 6.1.2)
+  - Global `github`, `context`, `core`, `io`, `exec`, `glob`, `artifact` objects
+  - Available without explicit `require()` statements
+  - No restrictions on execution location (in-process or containerized)
+  - Example demonstrating GitHub API usage via global objects
+- **Updated**: Section numbering to accommodate new sections
 
 ### Version 1.0.0 (Draft)
 
