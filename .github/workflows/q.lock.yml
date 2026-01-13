@@ -176,18 +176,13 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version: '1.25'
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Set up Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
+        with:
+          cache: true
+          go-version-file: go.mod
       - name: Install dependencies
         run: make deps-dev
       - env:
@@ -487,41 +482,6 @@ jobs:
             }
           }
           EOF
-      - name: Start Serena MCP HTTP Server
-        id: serena-start
-        run: |
-          set -eo pipefail
-          mkdir -p /tmp/gh-aw/mcp-logs/serena
-          
-          echo "Starting Serena MCP HTTP server on port 9121..."
-          
-          # Start Serena MCP server in background with uvx
-          uvx --from git+https://github.com/oraios/serena \
-            serena start-mcp-server \
-            --transport streamable-http \
-            --port 9121 \
-            --project "${{ github.workspace }}" \
-            > /tmp/gh-aw/mcp-logs/serena/server.log 2>&1 &
-          
-          # Save PID for potential cleanup
-          echo $! > /tmp/gh-aw/serena-mcp-server.pid
-          
-          # Wait for server to start (max 30 seconds)
-          echo "Waiting for Serena MCP server to start..."
-          for i in {1..30}; do
-            if curl -s http://localhost:9121/health > /dev/null 2>&1; then
-              echo "Serena MCP server is ready"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "ERROR: Serena MCP server failed to start within 30 seconds"
-              echo "Server logs:"
-              cat /tmp/gh-aw/mcp-logs/serena/server.log || true
-              exit 1
-            fi
-            sleep 1
-          done
-          
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
@@ -533,7 +493,7 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-config
           
           # Export gateway environment variables for MCP config and gateway script
-          export MCP_GATEWAY_PORT="8080"
+          export MCP_GATEWAY_PORT="80"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
           export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
           
@@ -585,8 +545,12 @@ jobs:
                 }
               },
               "serena": {
-                "type": "http",
-                "url": "http://localhost:9121"
+                "type": "stdio",
+                "container": "ghcr.io/oraios/serena:latest",
+                "args": ["--network", "host"],
+                "entrypoint": "serena",
+                "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
               },
               "tavily": {
                 "type": "http",
@@ -1237,7 +1201,7 @@ jobs:
         timeout-minutes: 15
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,localhost,mcp.tavily.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.8.2 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,localhost,mcp.tavily.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.8.2 \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool gh-aw --allow-tool github --allow-tool safeoutputs --allow-tool shell --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:

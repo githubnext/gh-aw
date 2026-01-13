@@ -44,7 +44,7 @@ When you interact with this agent, it will:
 ### Create New Workflow
 **Load when**: User wants to create a new workflow from scratch, add automation, or design a workflow that doesn't exist yet
 
-**Prompt file**: `.github/aw/create.md`
+**Prompt file**: `.github/aw/create-agentic-workflow.md`
 
 **Use cases**:
 - "Create a workflow that triages issues"
@@ -54,7 +54,7 @@ When you interact with this agent, it will:
 ### Update Existing Workflow  
 **Load when**: User wants to modify, improve, or refactor an existing workflow
 
-**Prompt file**: `.github/aw/update.md`
+**Prompt file**: `.github/aw/update-agentic-workflow.md`
 
 **Use cases**:
 - "Add web-fetch tool to the issue-classifier workflow"
@@ -64,7 +64,7 @@ When you interact with this agent, it will:
 ### Debug Workflow  
 **Load when**: User needs to investigate, audit, debug, or understand a workflow, troubleshoot issues, analyze logs, or fix errors
 
-**Prompt file**: `.github/aw/debug.md`
+**Prompt file**: `.github/aw/debug-agentic-workflow.md`
 
 **Use cases**:
 - "Why is this workflow failing?"

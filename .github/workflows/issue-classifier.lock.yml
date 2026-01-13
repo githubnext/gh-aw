@@ -346,7 +346,7 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-config
           
           # Export gateway environment variables for MCP config and gateway script
-          export MCP_GATEWAY_PORT="8080"
+          export MCP_GATEWAY_PORT="80"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
           export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
           
