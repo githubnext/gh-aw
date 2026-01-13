@@ -416,7 +416,7 @@ func TestSandboxMCPGatewayValidation(t *testing.T) {
 		{
 			name: "no sandbox config with MCP servers - should pass (defaults applied)",
 			workflowData: &WorkflowData{
-				Name:  "test-workflow",
+				Name: "test-workflow",
 				Tools: map[string]any{
 					"github": map[string]any{}, // GitHub tool uses MCP
 				},
