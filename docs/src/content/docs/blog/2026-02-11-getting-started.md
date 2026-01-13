@@ -13,7 +13,7 @@ draft: true
 
 <img src="/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the final article in our Peli's Agent Factory series! We've covered [workflows](/gh-aw/blog/2026-01-12-meet-the-workflows/), [lessons](/gh-aw/blog/2026-01-21-twelve-lessons/), [patterns](/gh-aw/blog/2026-01-24-design-patterns/), [operations](/gh-aw/blog/2026-01-27-operational-patterns/), [imports](/gh-aw/blog/2026-01-30-imports-and-sharing/), [security](/gh-aw/blog/2026-02-02-security-lessons/), [architecture](/gh-aw/blog/2026-02-05-how-workflows-work/), and [authoring](/gh-aw/blog/2026-02-08-authoring-workflows/). Now let's put it all together with a practical getting started guide.
+Welcome to the final article in our Peli's Agent Factory series! We've covered [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), [lessons](/gh-aw/blog/2026-01-21-twelve-lessons/), [patterns](/gh-aw/blog/2026-01-24-design-patterns/), [operations](/gh-aw/blog/2026-01-27-operational-patterns/), [imports](/gh-aw/blog/2026-01-30-imports-and-sharing/), [security](/gh-aw/blog/2026-02-02-security-lessons/), [architecture](/gh-aw/blog/2026-02-05-how-workflows-work/), and [authoring](/gh-aw/blog/2026-02-08-authoring-workflows/). Now let's put it all together with a practical getting started guide.
 
 Ready to build your own agent ecosystem? Let's get you up and running!
 
