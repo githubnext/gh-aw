@@ -100,10 +100,10 @@ func TestGetEffectiveCopilotGitHubToken(t *testing.T) {
 			expected:      "${{ secrets.TOPLEVEL_TOKEN }}",
 		},
 		{
-			name:          "default fallback for Copilot includes multiple tokens",
+			name:          "default fallback for Copilot includes multiple tokens with empty string checks",
 			customToken:   "",
 			toplevelToken: "",
-			expected:      "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}",
+			expected:      "${{ (secrets.COPILOT_GITHUB_TOKEN != '' && secrets.COPILOT_GITHUB_TOKEN) || secrets.GH_AW_GITHUB_TOKEN }}",
 		},
 	}
 
@@ -137,10 +137,10 @@ func TestGetEffectiveAgentGitHubToken(t *testing.T) {
 			expected:      "${{ secrets.TOP_LEVEL_TOKEN }}",
 		},
 		{
-			name:          "default fallback chain for agent operations",
+			name:          "default fallback chain for agent operations with empty string checks",
 			customToken:   "",
 			toplevelToken: "",
-			expected:      "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expected:      "${{ (secrets.GH_AW_AGENT_TOKEN != '' && secrets.GH_AW_AGENT_TOKEN) || (secrets.GH_AW_GITHUB_TOKEN != '' && secrets.GH_AW_GITHUB_TOKEN) || secrets.GITHUB_TOKEN }}",
 		},
 	}
 

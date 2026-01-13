@@ -50,6 +50,8 @@ func getEffectiveSafeOutputGitHubToken(customToken, toplevelToken string) string
 // - create-agent-session
 // - assigning "copilot" to issues
 // - adding "copilot" as PR reviewer
+// Note: The fallback chain explicitly checks for non-empty values to avoid "bad credentials" errors
+// when a secret is defined but contains an empty string.
 func getEffectiveCopilotGitHubToken(customToken, toplevelToken string) string {
 	if customToken != "" {
 		tokenLog.Print("Using custom Copilot GitHub token")
@@ -60,7 +62,7 @@ func getEffectiveCopilotGitHubToken(customToken, toplevelToken string) string {
 		return toplevelToken
 	}
 	tokenLog.Print("Using default Copilot GitHub token fallback")
-	return "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
+	return "${{ (secrets.COPILOT_GITHUB_TOKEN != '' && secrets.COPILOT_GITHUB_TOKEN) || secrets.GH_AW_GITHUB_TOKEN }}"
 }
 
 // getEffectiveAgentGitHubToken returns the GitHub token to use for agent assignment operations,
@@ -72,6 +74,8 @@ func getEffectiveCopilotGitHubToken(customToken, toplevelToken string) string {
 // 5. secrets.GITHUB_TOKEN (last resort, may lack permissions for bot assignment)
 // Note: Assigning bots (like copilot-swe-agent) requires permissions that GITHUB_TOKEN may not have.
 // It's recommended to configure GH_AW_AGENT_TOKEN or GH_AW_GITHUB_TOKEN with appropriate permissions.
+// Note: The fallback chain explicitly checks for non-empty values to avoid "bad credentials" errors
+// when a secret is defined but contains an empty string.
 func getEffectiveAgentGitHubToken(customToken, toplevelToken string) string {
 	if customToken != "" {
 		tokenLog.Print("Using custom agent GitHub token")
@@ -82,7 +86,7 @@ func getEffectiveAgentGitHubToken(customToken, toplevelToken string) string {
 		return toplevelToken
 	}
 	tokenLog.Print("Using default agent GitHub token fallback chain (GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)")
-	return "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+	return "${{ (secrets.GH_AW_AGENT_TOKEN != '' && secrets.GH_AW_AGENT_TOKEN) || (secrets.GH_AW_GITHUB_TOKEN != '' && secrets.GH_AW_GITHUB_TOKEN) || secrets.GITHUB_TOKEN }}"
 }
 
 // getEffectiveProjectGitHubToken returns the GitHub token to use for GitHub Projects v2 operations,
@@ -94,6 +98,8 @@ func getEffectiveAgentGitHubToken(customToken, toplevelToken string) string {
 // with Projects: Read+Write) or GitHub App. The default GITHUB_TOKEN cannot access Projects v2.
 // You must configure GH_AW_PROJECT_GITHUB_TOKEN or provide a custom token for Projects v2 operations.
 // No fallback to GITHUB_TOKEN is provided as it will never work for Projects v2 operations.
+// Note: Since GH_AW_PROJECT_GITHUB_TOKEN is required and there's no fallback, we don't need
+// an empty string check here (the token either exists or the operation will fail with a clear error).
 func getEffectiveProjectGitHubToken(customToken, toplevelToken string) string {
 	if customToken != "" {
 		tokenLog.Print("Using custom project GitHub token")
