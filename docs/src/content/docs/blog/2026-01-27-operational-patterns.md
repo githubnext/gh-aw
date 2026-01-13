@@ -5,6 +5,12 @@ authors:
   - dsyme
 date: 2026-01-27
 draft: true
+prev:
+  link: /blog/2026-01-24-design-patterns/
+  label: 12 Design Patterns
+next:
+  link: /blog/2026-01-30-imports-and-sharing/
+  label: Imports & Sharing
 ---
 
 [Previous Article](/gh-aw/blog/2026-01-24-design-patterns/)
