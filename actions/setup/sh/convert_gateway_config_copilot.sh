@@ -26,7 +26,7 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 # {
 #   "mcpServers": {
 #     "server-name": {
-#       "type": "http",
+#       "type": "http" or "stdio",
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
 #         "Authorization": "apiKey"
@@ -39,7 +39,7 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 # {
 #   "mcpServers": {
 #     "server-name": {
-#       "type": "http",
+#       "type": "http" or "local",
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
 #         "Authorization": "apiKey"
@@ -49,12 +49,17 @@ echo "Input: $MCP_GATEWAY_OUTPUT"
 #   }
 # }
 #
-# The main difference is that Copilot requires the "tools" field.
-# We also need to ensure headers use the actual API key value, not a placeholder.
+# The main differences for Copilot:
+# 1. Copilot requires the "tools" field
+# 2. Copilot uses "local" instead of "stdio" for containerized servers
+# 3. HTTP servers keep "type": "http" and don't need conversion
 
 jq '
   .mcpServers |= with_entries(
     .value |= (
+      # Convert stdio to local for Copilot compatibility
+      if .type == "stdio" then .type = "local" else . end |
+      # Add tools field if not present
       if .tools then . else . + {"tools": ["*"]} end
     )
   )

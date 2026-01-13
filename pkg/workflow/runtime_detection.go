@@ -223,14 +223,14 @@ func mapSerenaLanguageToRuntime(serenaLang string) string {
 		"rust":       "rust",
 
 		// Alternative names or variants
-		"python_jedi":       "python",
-		"typescript_vts":    "node",
-		"ruby_solargraph":   "ruby",
-		"kotlin":            "java", // Kotlin runs on JVM
-		"scala":             "java", // Scala runs on JVM
-		"csharp":            "dotnet",
-		"csharp_omnisharp":  "dotnet",
-		"erlang":            "elixir", // Erlang uses same runtime setup
+		"python_jedi":      "python",
+		"typescript_vts":   "node",
+		"ruby_solargraph":  "ruby",
+		"kotlin":           "java", // Kotlin runs on JVM
+		"scala":            "java", // Scala runs on JVM
+		"csharp":           "dotnet",
+		"csharp_omnisharp": "dotnet",
+		"erlang":           "elixir", // Erlang uses same runtime setup
 
 		// Languages that don't need runtime setup (return empty string)
 		"bash":     "",
