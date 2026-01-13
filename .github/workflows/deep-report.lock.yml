@@ -224,10 +224,50 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"upload_asset":{"max":0}}
+          {"create_discussion":{"max":1},"create_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"upload_asset":{"max":0}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
+            {
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 3 issue(s) can be created. Title will be prefixed with \"[deep-report] \". Labels [automation improvement quick-win] will be automatically added.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "parent": {
+                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "temporary_id": {
+                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_issue"
+            },
             {
               "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"reports\".",
               "inputSchema": {
@@ -364,6 +404,39 @@ jobs:
                 "repo": {
                   "type": "string",
                   "maxLength": 256
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              }
+            },
+            "create_issue": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "parent": {
+                  "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
                 },
                 "title": {
                   "required": true,
@@ -908,7 +981,7 @@ jobs:
           
           ### Step 3.5: Extract Actionable Agentic Tasks
           
-          **CRITICAL**: Based on your analysis, identify exactly **3 actionable tasks** (quick wins):
+          **CRITICAL**: Based on your analysis, identify exactly **3 actionable tasks** (quick wins) and **CREATE GITHUB ISSUES** for each one:
           
           1. **Prioritize by impact and effort**: Look for high-impact, low-effort improvements
           2. **Be specific**: Tasks should be concrete with clear success criteria
@@ -923,14 +996,12 @@ jobs:
           - **Workflow optimization**: Reduce token usage, improve caching, fix inefficiencies
           - **Cleanup tasks**: Remove duplicates, archive stale items, organize files
           
-          **Output format for each task:**
-          ```
-          Task 1: [Clear title]
-          - Description: [What needs to be done and why]
-          - Expected Impact: [Measurable benefit]
-          - Suggested Agent: [Which agent can do this]
-          - Estimated Effort: [Quick/Medium/Fast]
-          ```
+          **For each task, CREATE A GITHUB ISSUE** with:
+          - **Title**: Clear, action-oriented name
+          - **Body**: Description, expected impact, suggested agent, and estimated effort
+          - Reference this deep-report analysis run
+          
+          **If no actionable tasks found**: Skip issue creation and note in the report that the project is operating optimally.
           
           ### Step 4: Store Insights in Repo Memory
           
@@ -993,21 +1064,26 @@ jobs:
           
           ### ✅ Actionable Agentic Tasks (Quick Wins)
           
-          **IMPORTANT**: Extract exactly **3 actionable tasks** that could be immediately assigned to an AI agent to improve the project. Focus on **quick wins** - tasks that are:
+          **CRITICAL**: Identify exactly **3 actionable tasks** that could be immediately assigned to an AI agent to improve the project. Focus on **quick wins** - tasks that are:
           - **Specific and well-defined** - Clear scope with measurable outcome
           - **Achievable by an agent** - Can be automated or assisted by AI
           - **High impact, low effort** - Maximum benefit with minimal implementation time
           - **Data-driven** - Based on patterns and insights from this analysis
           - **Independent** - Can be completed without blocking dependencies
           
-          For each task, provide:
-          1. **Task Title** - Clear, action-oriented name (e.g., "Reduce token usage in daily-news workflow")
-          2. **Description** - 2-3 sentences explaining what needs to be done and why
-          3. **Expected Impact** - What improvement or benefit this will deliver
-          4. **Suggested Agent** - Which existing agent could handle this, or suggest "New Agent" if needed
-          5. **Estimated Effort** - Quick (< 1 hour), Medium (1-4 hours), or Fast (< 30 min)
+          **REQUIRED ACTION**: For each identified task, **CREATE A GITHUB ISSUE** using the safe-outputs create-issue capability. Each issue should contain:
           
-          **If no actionable tasks are identified** (the project is in excellent shape), explicitly state: "No actionable tasks identified - the project is operating optimally."
+          1. **Title** - Clear, action-oriented name (e.g., "Reduce token usage in daily-news workflow")
+          2. **Body** - Include the following sections:
+             - **Description**: 2-3 sentences explaining what needs to be done and why
+             - **Expected Impact**: What improvement or benefit this will deliver
+             - **Suggested Agent**: Which existing agent could handle this, or suggest "New Agent" if needed
+             - **Estimated Effort**: Quick (< 1 hour), Medium (1-4 hours), or Fast (< 30 min)
+             - **Data Source**: Reference to this deep-report analysis run
+          
+          **If no actionable tasks are identified** (the project is in excellent shape):
+          - Do NOT create any issues
+          - In the discussion report, explicitly state: "No actionable tasks identified - the project is operating optimally."
           
           **Examples of good actionable tasks:**
           - "Consolidate duplicate error handling patterns in 5 workflow files"
@@ -1015,6 +1091,14 @@ jobs:
           - "Create automated labels for 10 unlabeled issues based on content analysis"
           - "Optimize token usage in verbose agent prompts (identified 4 candidates)"
           - "Add missing documentation for 2 frequently-used MCP tools"
+          
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          **Remember**: The maximum is 3 issues. Choose the most impactful tasks.
           
           ### 📚 Source Attribution
           
@@ -1028,12 +1112,6 @@ jobs:
           
           - Use clear, professional language suitable for a technical audience
           - Include specific metrics and numbers where available
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - Provide links to source discussions and workflow runs
           - Use emojis sparingly to categorize findings
           - Keep the report focused and actionable
@@ -1047,7 +1125,10 @@ jobs:
           - Be **objective** - report both positive and negative trends
           - **Cite sources** for all major claims
           
-          Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your analysis.
+          ## Final Steps
+          
+          1. **Create GitHub Issues**: For each of the 3 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
+          2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your full analysis (including the identified actionable tasks)
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1128,7 +1209,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop, upload_asset
+          **Available tools**: create_discussion, create_issue, missing_tool, noop, upload_asset
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1693,6 +1774,7 @@ jobs:
     permissions:
       contents: read
       discussions: write
+      issues: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "codex"
@@ -1729,7 +1811,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"reports\",\"close_older_discussions\":true,\"expires\":168,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"reports\",\"close_older_discussions\":true,\"expires\":168,\"max\":1},\"create_issue\":{\"labels\":[\"automation\",\"improvement\",\"quick-win\"],\"max\":3,\"title_prefix\":\"[deep-report] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
