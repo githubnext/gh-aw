@@ -22,13 +22,16 @@
   "definitions": {
     "mcpServerConfig": {
       "type": "object",
-      "description": "Configuration for an individual MCP server. Supports both containerized stdio servers and HTTP-based servers. Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based servers MUST be containerized.",
+      "description": "Configuration for an individual MCP server. Supports both containerized stdio servers, HTTP-based servers, and custom MCP server types. Per MCP Gateway Specification v1.6.0, the type field can be any string. For well-known types (stdio, http), strict validation applies. For custom types, any fields are allowed.",
       "oneOf": [
         {
           "$ref": "#/definitions/stdioServerConfig"
         },
         {
           "$ref": "#/definitions/httpServerConfig"
+        },
+        {
+          "$ref": "#/definitions/customServerConfig"
         }
       ]
     },
@@ -142,6 +145,21 @@
       "required": ["type", "url"],
       "additionalProperties": true
     },
+    "customServerConfig": {
+      "type": "object",
+      "description": "Configuration for a custom MCP server type. Per MCP Gateway Specification v1.6.0 Section 4.3.1, the type field can be any string. For custom types (not 'stdio' or 'http'), all fields are allowed as extensions and no strict validation is applied. This enables implementation-specific MCP server types.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Custom transport type for the MCP server. Can be any string value. Well-known types ('stdio', 'http') trigger strict validation, while custom types allow any fields.",
+          "not": {
+            "enum": ["stdio", "http"]
+          }
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": true
+    },
     "gatewayConfig": {
       "type": "object",
       "description": "Gateway-specific configuration for the MCP Gateway service.",
@@ -192,7 +210,7 @@
         }
       },
       "required": ["port", "domain", "apiKey"],
-      "additionalProperties": true
+      "additionalProperties": false
     }
   },
   "examples": [

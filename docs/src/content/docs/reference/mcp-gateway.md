@@ -288,17 +288,41 @@ Required by: mcpServers.github.env.GITHUB_TOKEN
 
 ### 4.3 Configuration Validation
 
-#### 4.3.1 Extension Fields
+#### 4.3.1 Extension Fields and Custom Types
 
-The gateway configuration supports extension fields to enable future enhancements and implementation-specific features.
+The gateway configuration supports extension fields and custom server types to enable future enhancements and implementation-specific features.
 
-**Extension Behavior**:
+**Custom Server Types**:
+
+Per MCP Gateway Specification v1.6.0, the `type` field in server configurations can be any string value:
 
 The gateway MUST:
-- Accept additional properties in `mcpServers[*]` server configurations (both stdio and HTTP)
-- Accept additional properties in the `gateway` configuration object
+- Accept any string value for the `type` field in `mcpServers[*]` configurations
+- Apply strict validation for well-known types (`stdio`, `http`)
+- Skip type-specific validation for custom/unknown types
+- Allow any fields for custom server types
+
+**Well-Known Types** (`stdio`, `http`):
+- Strict validation applies: required fields MUST be present
+- Standard fields have specific type and format requirements
+- Extension fields are allowed alongside standard fields
+- Cannot violate type-specific constraints (e.g., HTTP cannot use `container`)
+
+**Custom Types** (any other string):
+- No type-specific validation is applied
+- Any fields are allowed as implementation-specific extensions
+- Enables support for future MCP transport types (e.g., `websocket`, `grpc`, `ipc`)
+- Gateway implementations MAY recognize and handle custom types
+
+**Extension Fields Behavior**:
+
+The gateway MUST:
+- Accept additional properties in `mcpServers[*]` server configurations
 - Preserve extension fields when processing configuration
-- NOT fail validation due to unknown extension fields
+- NOT fail validation due to unknown extension fields in server configurations
+
+The gateway MUST NOT:
+- Accept additional properties in the `gateway` configuration object (strict validation applies)
 
 The gateway SHOULD:
 - Ignore extension fields that it does not recognize
@@ -311,6 +335,21 @@ Extension field names SHOULD:
 - Use descriptive names that indicate their purpose
 - Avoid conflicts with current and planned specification fields
 - Use namespaced prefixes for vendor-specific extensions (e.g., `acme-timeout`, `vendor-retry-count`)
+
+**Custom Type Example**:
+
+```json
+{
+  "mcpServers": {
+    "websocket-server": {
+      "type": "websocket",
+      "url": "wss://example.com/mcp",
+      "reconnect": true,
+      "ping-interval": 30
+    }
+  }
+}
+```
 
 **Top-Level Configuration**:
 
@@ -1025,9 +1064,9 @@ Implementations SHOULD provide:
 }
 ```
 
-#### A.5 Configuration with Extension Fields
+#### A.5 Configuration with Extension Fields and Custom Types
 
-This example demonstrates using extension fields for implementation-specific features like retry logic, circuit breakers, or custom timeout policies:
+This example demonstrates using extension fields for implementation-specific features and custom MCP server types:
 
 ```json
 {
@@ -1056,22 +1095,35 @@ This example demonstrates using extension fields for implementation-specific fea
       "request-timeout": 120,
       "connection-pool-size": 10,
       "vendor-specific-option": "value"
+    },
+    "websocket-server": {
+      "type": "websocket",
+      "url": "wss://realtime.example.com/mcp",
+      "reconnect": true,
+      "ping-interval": 30,
+      "max-message-size": 1048576
+    },
+    "grpc-server": {
+      "type": "grpc",
+      "address": "grpc://localhost:50051",
+      "use-tls": true,
+      "cert-path": "/path/to/cert.pem",
+      "max-connections": 10
     }
   },
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "gateway-secret",
-    "log-level": "debug",
-    "metrics-enabled": true,
-    "custom-feature-flag": "enabled"
+    "apiKey": "gateway-secret"
   }
 }
 ```
 
-**Notes on Extension Fields**:
-- Extension fields like `retry-policy`, `circuit-breaker`, `request-timeout`, and `log-level` are ignored by gateway implementations that don't support them
-- Implementations SHOULD document their supported extension fields separately
+**Notes on Extension Fields and Custom Types**:
+- **Extension fields** like `retry-policy`, `circuit-breaker`, `request-timeout` are ignored by gateway implementations that don't support them
+- **Custom types** like `websocket` and `grpc` allow any fields without validation, enabling future transport mechanisms
+- Well-known types (`stdio`, `http`) apply strict validation; custom types do not
+- Implementations SHOULD document their supported extension fields and custom types separately
 - Extension field names SHOULD be descriptive and avoid conflicts with current specification fields
 - Use namespaced prefixes (e.g., `vendor-`) for implementation-specific extensions
 
@@ -1200,18 +1252,24 @@ Content-Type: application/json
 
 ### Version 1.6.0 (Draft)
 
+- **Added**: Support for custom MCP server types (Section 4.3.1)
+  - The `type` field can now be any string value (not limited to `stdio`, `http`)
+  - Well-known types (`stdio`, `http`) apply strict validation for required fields
+  - Custom types (e.g., `websocket`, `grpc`, `ipc`) allow any fields without type-specific validation
+  - Enables implementation-specific transport mechanisms and future protocol extensions
 - **Added**: Support for extension fields in configuration (Section 4.3.1)
   - Server configurations (`mcpServers[*]`) now accept additional properties via `additionalProperties: true` in JSON schema
-  - Gateway configuration (`gateway` object) now accepts additional properties
   - Extension fields enable implementation-specific features without breaking specification compliance
   - Documented extension field guidelines and best practices
 - **Changed**: Updated JSON schema (`mcp-gateway-config.schema.json`)
   - Changed `stdioServerConfig.additionalProperties` from `false` to `true`
   - Changed `httpServerConfig.additionalProperties` from `false` to `true`
-  - Changed `gatewayConfig.additionalProperties` from `false` to `true`
+  - Added `customServerConfig` definition for custom MCP server types
+  - Gateway configuration (`gateway` object) keeps `additionalProperties: false` (strict validation)
 - **Added**: Example configuration with extension fields (Appendix A.5)
   - Demonstrates retry policies, circuit breakers, and custom timeout configurations
   - Shows vendor-specific extension naming conventions
+  - Includes custom type example with websocket transport
 - **Clarified**: Top-level configuration structure validation
   - Top-level unrecognized fields (outside `mcpServers` and `gateway`) are still rejected
   - Ensures structural changes to configuration format are handled explicitly

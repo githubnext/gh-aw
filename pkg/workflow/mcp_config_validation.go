@@ -201,12 +201,16 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		typeStr = "stdio"
 	}
 
-	// Validate type is one of the supported types
+	// Per MCP Gateway Specification v1.6.0, the type field can be any string.
+	// For well-known types (stdio, http), we apply strict validation.
+	// For unknown types, we allow any fields as extensions and skip validation.
 	if !parser.IsMCPType(typeStr) {
-		return fmt.Errorf("tool '%s' mcp configuration 'type' must be one of: stdio, http (per MCP Gateway Specification). Note: 'local' is accepted for backward compatibility and treated as 'stdio'. Got: %s. Example:\nmcp-servers:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"", toolName, typeStr, toolName)
+		mcpValidationLog.Printf("Tool '%s' uses custom MCP type '%s', skipping type-specific validation", toolName, typeStr)
+		// Unknown type - allow any fields, no validation required
+		return nil
 	}
 
-	// Validate type-specific requirements
+	// Validate type-specific requirements for well-known types
 	switch typeStr {
 	case "http":
 		// HTTP type requires 'url' property
