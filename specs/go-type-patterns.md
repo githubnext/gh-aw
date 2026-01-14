@@ -114,6 +114,97 @@ const DefaultClaudeCodeVersion Version = "2.0.76"
 - Enables future validation logic (e.g., semver parsing)
 - Provides helper methods for validation and string conversion
 
+#### WorkflowID Type
+
+**Location**: `pkg/constants/constants.go`
+
+**Purpose**: Represents workflow identifiers (basename without .md extension)
+
+```go
+// WorkflowID represents a workflow identifier (basename without .md extension)
+type WorkflowID string
+
+// String returns the string representation of the workflow ID
+func (w WorkflowID) String() string {
+	return string(w)
+}
+
+// IsValid returns true if the workflow ID is non-empty
+func (w WorkflowID) IsValid() bool {
+	return len(w) > 0
+}
+```
+
+**Benefits**:
+- Distinguishes workflow identifiers from file paths or arbitrary strings
+- Prevents mixing workflow IDs with other string types
+- Makes workflow operations explicit in function signatures
+- Type-safe workflow identifier handling
+
+**Usage**:
+```go
+func GetWorkflow(id WorkflowID) (*Workflow, error) { ... }
+func CompileWorkflow(id WorkflowID) error { ... }
+
+// Clear intent - this is a workflow identifier, not a file path
+workflowID := WorkflowID("ci-doctor")
+if workflowID.IsValid() {
+    err := CompileWorkflow(workflowID)
+}
+```
+
+#### EngineName Type
+
+**Location**: `pkg/constants/constants.go`
+
+**Purpose**: Represents AI engine name identifiers (copilot, claude, codex, custom)
+
+```go
+// EngineName represents an AI engine name identifier
+type EngineName string
+
+// String returns the string representation of the engine name
+func (e EngineName) String() string {
+	return string(e)
+}
+
+// IsValid returns true if the engine name is non-empty
+func (e EngineName) IsValid() bool {
+	return len(e) > 0
+}
+
+// Engine name constants for type safety
+const (
+	CopilotEngine EngineName = "copilot"
+	ClaudeEngine  EngineName = "claude"
+	CodexEngine   EngineName = "codex"
+	CustomEngine  EngineName = "custom"
+)
+```
+
+**Benefits**:
+- Distinguishes engine names from arbitrary strings
+- Prevents typos in engine name references
+- Makes engine selection explicit and type-safe
+- Provides compile-time validation for engine constants
+- Single source of truth for engine identifiers
+
+**Usage**:
+```go
+func SetEngine(engine EngineName) error { ... }
+func ValidateEngine(engine EngineName) bool { ... }
+
+// Type-safe engine selection
+engine := CopilotEngine
+if engine.IsValid() {
+    err := SetEngine(engine)
+}
+
+// Prevents mixing engine names with other strings
+// engine := "some-random-string" // Would require explicit conversion
+engine := EngineName("copilot")   // Explicit conversion when needed
+```
+
 #### Feature Flag Constants
 
 **Location**: `pkg/workflow/gateway.go`, `pkg/workflow/safe_inputs.go`
@@ -137,11 +228,12 @@ const SafeInputsFeatureFlag = "safe-inputs"
 
 ✅ **Use semantic type aliases when:**
 
-- You have a primitive type that represents a specific concept (e.g., `LineLength`, `Version`, `Duration`)
+- You have a primitive type that represents a specific concept (e.g., `LineLength`, `Version`, `WorkflowID`, `EngineName`)
 - Multiple unrelated concepts share the same primitive type (prevents confusion)
 - You want to prevent mixing incompatible values (type safety)
 - The type name adds clarity that a comment alone wouldn't provide
 - Future validation logic might be needed
+- The concept is used frequently across the codebase (e.g., workflow identifiers, engine names)
 
 ❌ **Don't use semantic type aliases when:**
 
@@ -691,11 +783,25 @@ Need to represent a value?
 
 | Pattern | When to Use | Example |
 |---------|-------------|---------|
-| Semantic Type Alias | Domain-specific primitives | `type LineLength int` |
+| Semantic Type Alias | Domain-specific primitives | `type LineLength int`, `type WorkflowID string`, `type EngineName string` |
 | `map[string]any` | Dynamic YAML/JSON parsing | Frontmatter, tool configs |
 | Behavior Interface | Multiple implementations | `CodingAgentEngine` |
 | Configuration Interface | Varied config structures | `ToolConfig` |
-| Named Constants | Feature flags, identifiers | `MCPGatewayFeatureFlag` |
+| Named Constants | Feature flags, identifiers | `MCPGatewayFeatureFlag`, `CopilotEngine` |
+
+### Semantic Type Examples by Domain
+
+| Domain | Type | Example Constants |
+|--------|------|-------------------|
+| **Measurements** | `LineLength` | `MaxExpressionLineLength`, `ExpressionBreakThreshold` |
+| **Versions** | `Version` | `DefaultCopilotVersion`, `DefaultClaudeCodeVersion` |
+| **Workflows** | `WorkflowID` | (user-provided workflow identifiers) |
+| **AI Engines** | `EngineName` | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `CustomEngine` |
+| **Feature Flags** | `FeatureFlag` | `SafeInputsFeatureFlag`, `MCPGatewayFeatureFlag` |
+| **URLs** | `URL` | `DefaultMCPRegistryURL` |
+| **Models** | `ModelName` | `DefaultCopilotDetectionModel` |
+| **GitHub Actions** | `JobName`, `StepID` | `AgentJobName`, `CheckMembershipStepID` |
+| **CLI** | `CommandPrefix` | `CLIExtensionPrefix` |
 
 ---
 
