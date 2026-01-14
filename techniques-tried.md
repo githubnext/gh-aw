@@ -24,3 +24,28 @@
 - [x] Technique 20: Telnet Raw HTTP (result: failure)
 
 **Summary**: All 20 techniques blocked successfully. Sandbox secure.
+
+## Run 20978685291 - 2026-01-14
+
+- [x] Technique 1: Container Capabilities Check (result: failure)
+- [x] Technique 2: Docker Socket Exploitation (result: failure)
+- [x] Technique 3: Docker Host Network Bypass (result: failure)
+- [x] Technique 4: DNS-over-HTTPS Bypass (result: failure)
+- [x] Technique 5: Unicode/IDN Homograph Attack (result: failure)
+- [x] Technique 6: GitHub Redirect Abuse (result: failure)
+- [x] Technique 7: QUIC/HTTP3 Protocol (result: failure)
+- [x] Technique 8: Squid Cache Poisoning (result: failure)
+- [x] Technique 9: Namespace Escape via nsenter (result: failure)
+- [x] Technique 10: Raw Socket Creation (result: failure)
+- [x] Technique 11: HTTP Request Pipelining (result: failure)
+- [x] Technique 12: Docker Embedded DNS Manipulation (result: failure)
+- [x] Technique 13: Concurrent Request Flooding (result: failure)
+- [x] Technique 14: PHP curl_exec Bypass (result: failure)
+- [x] Technique 15: Rust HTTP Client Bypass (result: failure)
+- [x] Technique 16: Perl LWP Bypass (result: failure)
+- [x] Technique 17: Ruby Net::HTTP Bypass (result: failure)
+- [x] Technique 18: Go net/http Bypass (result: failure)
+- [x] Technique 19: Netcat Direct TCP Connection (result: failure)
+- [x] Technique 20: socat Port Forwarding (result: failure)
+
+**Summary**: All 20 novel techniques blocked successfully. Cumulative: 40 techniques (2 runs), 0 escapes. Sandbox secure.
