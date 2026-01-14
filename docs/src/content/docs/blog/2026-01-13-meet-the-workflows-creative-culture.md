@@ -33,7 +33,12 @@ Okay, hear us out: the Poem Bot started as a joke. Someone said "wouldn't it be 
 
 The Daily News workflow curates relevant articles, but it also adds commentary and connects them to our work. These "fun" workflows have higher engagement than some of our "serious" ones, which tells you something about what makes people actually want to interact with automation.
 
-## Summon an Agent on Demand
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Summon an Agent on Demand
 
 Scheduled workflows are great, but sometimes you need help *right now*. Enter ChatOps and interactive workflows.
 

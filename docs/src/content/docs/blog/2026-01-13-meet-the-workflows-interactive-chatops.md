@@ -33,7 +33,12 @@ Interactive workflows changed how we think about agent invocation. Instead of ev
 
 The Grumpy Reviewer gave us surprisingly valuable feedback with a side of sass ("This function is so nested it has its own ZIP code"). We learned that **context is king** - these agents work because they're invoked at the right moment with the right context, not because they run on a schedule.
 
-## The Quiet Perfectionists
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Automated Code Quality & Refactoring
 
 While ChatOps agents respond to commands, another category works silently in the background, continuously improving code quality.
 

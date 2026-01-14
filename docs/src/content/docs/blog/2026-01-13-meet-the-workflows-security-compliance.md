@@ -33,7 +33,12 @@ Security workflows were where we got serious about trust boundaries. The Securit
 
 The Firewall workflow validates that our agents can't access unauthorized resources, because an AI agent with unrestricted network access is... let's just say we sleep better with these safeguards. These workflows prove that automation and security aren't at odds - when done right, automated security is more consistent than manual reviews.
 
-## From Safety to Shipping
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: From Safety to Shipping
 
 With guardrails in place, we could focus on the ultimate goal: getting software into users' hands reliably and repeatedly.
 

@@ -34,7 +34,12 @@ Documentation is where we challenged conventional wisdom. Can AI agents write *g
 
 These workflows don't replace technical writers; they multiply their effectiveness.
 
-## The Daily GitHub Grind
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Issue & PR Management
 
 Beyond writing code and docs, there's all that GitHub ceremony - issues, PRs, labels, merges. Lots of small papercuts.
 

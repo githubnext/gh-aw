@@ -36,7 +36,12 @@ This is where we got experimental with agent persistence and multi-day workflows
 
 These workflows prove that AI agents can handle complex, long-running projects when given the right architecture.
 
-## What's Next?
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Analytics & ML Workflows
 
 Basic metrics are useful, but we want to go deeper - to truly understand agent behavior patterns and developer interactions.
 

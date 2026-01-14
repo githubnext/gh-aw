@@ -33,7 +33,12 @@ Infrastructure for AI agents is different from traditional infrastructure - you 
 
 These workflows provide visibility into the invisible.
 
-## Breaking the Ephemeral Mold
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Multi-Phase Improver Workflows
 
 Most workflows we've seen are stateless - they run, complete, and disappear. But what if agents could maintain memory across days?
 

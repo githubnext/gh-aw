@@ -35,7 +35,12 @@ The Schema Consistency Checker caught drift that would have taken us days to not
 
 These "hygiene" workflows became our first line of defense, catching issues before they reached users.
 
-## What's Next?
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Metrics & Analytics Workflows
 
 With quality and hygiene workflows maintaining our codebase health, we needed a way to understand whether they were actually working. How do you know if your agents are performing well? That's where metrics and analytics come in.
 

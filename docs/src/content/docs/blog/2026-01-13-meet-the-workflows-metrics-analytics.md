@@ -33,6 +33,11 @@ Here's where things got meta: we built agents to monitor agents. The Metrics Col
 
 These workflows taught us that observability isn't optional when you're running dozens of AI agents - it's the difference between a well-oiled machine and an expensive black box.
 
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
 ## Up Next: Building Trust Boundaries
 
 Now that we can measure and optimize our agent ecosystem, we needed to ensure these powerful agents operate safely. Time to talk about security.

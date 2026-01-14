@@ -32,7 +32,12 @@ Shipping software is stressful enough without worrying about whether you formatt
 
 The Daily Workflow Updater taught us that maintenance is a perfect use case for agents - it's repetitive, necessary, and nobody enjoys doing it manually. These workflows handle the toil so we can focus on the interesting problems.
 
-## Time for a Palette Cleanser
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Creative & Culture Workflows
 
 After all this serious infrastructure talk, we discovered something delightful: agents don't have to be all business.
 

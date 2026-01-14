@@ -33,7 +33,12 @@ We learned the hard way that AI infrastructure needs constant health checks. The
 
 These workflows embody the principle: **trust but verify**. Just because it worked yesterday doesn't mean it works today.
 
-## Monitoring the Monitors
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Monitoring the Monitors
 
 But what about the infrastructure itself? Who watches the watchers? Time to go meta.
 

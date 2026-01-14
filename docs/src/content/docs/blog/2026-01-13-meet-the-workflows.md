@@ -33,7 +33,12 @@ What surprised us most about this category? The **tone** matters way more than w
 
 These workflows became our daily reading habit rather than another notification to dismiss.
 
-## In the Next Stage of Our Journey...
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Quality & Hygiene Workflows
 
 Now that we've explored how triage and summarization workflows help us stay on top of incoming activity, let's look next at the agents that maintain quality and hygiene in our repository. These diligent caretakers spot problems before they escalate and keep our codebase healthy.
 

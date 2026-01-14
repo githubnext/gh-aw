@@ -21,7 +21,7 @@ We've explored reactive workflows (triage and quality checks), observability wor
 
 Now let's talk about the agents that work quietly in the background, continuously pushing your codebase toward better design. Code quality and refactoring workflows never take a day off - they analyze console output styling, spot semantic duplication, identify structural improvements, and find patterns humans miss because they can hold entire codebases in context. These workflows embody the principle that *good enough* can always become *better*, and that incremental improvements compound over time. Let's meet the perfectionist agents.
 
-## 🔧 Code Quality & Refactoring Workflows
+## Code Quality & Refactoring Workflows
 
 These agents make our codebase cleaner and our developer experience better:
 
@@ -33,7 +33,12 @@ Code quality is where AI agents really shine - they never get bored doing the re
 
 These workflows continuously push our codebase toward better design.
 
-## But Does It Still Work?
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+
+## Next Up: Testing & Validation
 
 Making code better is great, but we also need to ensure improvements don't break existing functionality. Trust, but verify.
 
