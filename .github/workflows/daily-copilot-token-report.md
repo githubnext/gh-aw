@@ -20,7 +20,7 @@ tools:
   bash:
     - "*"
 steps:
-  - name: Set up Go
+  - name: Setup Go
     uses: actions/setup-go@v6
     with:
       go-version-file: go.mod

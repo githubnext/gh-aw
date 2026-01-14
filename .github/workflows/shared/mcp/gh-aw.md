@@ -6,7 +6,7 @@ mcp-servers:
     type: http
     url: http://localhost:8765
 steps:
-  - name: Set up Go
+  - name: Setup Go
     uses: actions/setup-go@v6
     with:
       go-version-file: go.mod

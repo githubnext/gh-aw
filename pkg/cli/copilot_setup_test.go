@@ -374,8 +374,8 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 		if strings.Contains(step.Name, "Checkout") || strings.Contains(step.Uses, "checkout@") {
 			t.Error("Template should not contain 'Checkout' step - not mandatory for extension install")
 		}
-		if strings.Contains(step.Name, "Set up Go") {
-			t.Error("Template should not contain 'Set up Go' step for universal use")
+		if strings.Contains(step.Name, "Setup Go") {
+			t.Error("Template should not contain 'Setup Go' step for universal use")
 		}
 		if strings.Contains(step.Name, "Build gh-aw from source") {
 			t.Error("Template should not contain 'Build gh-aw from source' step for universal use")

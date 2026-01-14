@@ -25,7 +25,7 @@ func TestCustomStepsIndentation(t *testing.T) {
 			stepsYAML: `steps:
   - name: Checkout code
     uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-  - name: Set up Go
+  - name: Setup Go
     uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
     with:
       go-version-file: go.mod
@@ -118,7 +118,7 @@ strict: false
 					continue
 				}
 				// Look for custom step content (not generated workflow infrastructure)
-				if strings.Contains(line, "Checkout code") || strings.Contains(line, "Set up Go") ||
+				if strings.Contains(line, "Checkout code") || strings.Contains(line, "Setup Go") ||
 					strings.Contains(line, "Odd indent") || strings.Contains(line, "Deep nesting") {
 					foundCustomSteps = true
 				}
