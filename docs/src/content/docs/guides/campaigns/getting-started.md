@@ -10,7 +10,8 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 Before creating your first campaign, keep these core principles in mind:
 
 - **Start small**: One clear goal per campaign (e.g., "Upgrade Node.js to v20")
-- **Start passive**: Use passive mode first to observe behavior and build trust
+- **Start passive**: Use passive mode first to observe behavior and build trust—this is essentially ProjectOps with campaign tracking
+- **Understand the progression**: ProjectOps (simple) → Passive Campaign (structured tracking) → Active Campaign (autonomous execution)
 - **Reuse workflows**: Search existing workflows before creating new ones
 - **Minimal permissions**: Grant only necessary permissions (issues/draft PRs, not merges)
 - **Standardized outputs**: Use consistent patterns for issues, PRs, and comments
@@ -33,6 +34,8 @@ Create `.github/workflows/<id>.campaign.md` with frontmatter like:
 
 **For your first campaign** (passive mode - recommended):
 
+This creates a **passive campaign**, which is essentially [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) with campaign structure. The orchestrator tracks work created by independent workflows on a project board and reports progress toward objectives.
+
 ```yaml
 id: framework-upgrade
 version: "v1"
@@ -52,7 +55,7 @@ kpis:
     time-window-days: 30
 
 workflows:
-  - framework-upgrade  # Use an existing workflow
+  - framework-upgrade  # Use an existing workflow (runs independently)
 
 # Governance (conservative defaults for first campaign)
 governance:
@@ -64,6 +67,8 @@ governance:
 **Note:** The campaign generator will automatically create a GitHub Project board with the project URL if not provided. You can also specify an existing project URL using `project-url: "https://github.com/orgs/ORG/projects/1"`.
 
 **For experienced users** (active mode - advanced):
+
+This creates an **active campaign** with true orchestration. The campaign actively executes workflows, creates missing ones, and drives progress autonomously.
 
 ```yaml
 id: framework-upgrade
@@ -98,10 +103,10 @@ governance:
 ```
 
 **Key differences:**
-- **Passive mode**: Discovers and tracks work created by existing workflows (safer, simpler)
-- **Active mode**: Can execute workflows and create missing ones (powerful but complex)
+- **Passive mode** (default): ProjectOps-based tracking—discovers and tracks work created by existing workflows (safer, simpler)
+- **Active mode** (`execute-workflows: true`): True campaign orchestration—executes workflows, creates missing ones (powerful but complex)
 
-**Start passive** unless you have prior campaign experience. You can enable active execution later.
+**Recommendation:** Start with passive mode to understand campaign patterns. This gives you ProjectOps benefits (project board updates, tracking) with campaign structure (objectives, KPIs, governance) before moving to autonomous execution.
 
 ## 2) Compile
 

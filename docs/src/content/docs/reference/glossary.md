@@ -254,9 +254,74 @@ The process of checking workflow files for errors, security issues, and best pra
 
 Persistent storage for workflows that preserves data between runs. Configured using `cache-memory:` in the tools section, it enables workflows to remember information and build on previous interactions.
 
+### ProjectOps
+
+AI-powered GitHub Projects board management that automates issue triage, routing, and field updates. ProjectOps workflows analyze issue/PR content and make intelligent decisions about project assignment, status, priority, and custom field values. Uses the `update-project` safe output for secure board updates without elevated permissions.
+
+**Key capabilities:**
+- Content-based routing to appropriate project boards
+- AI-driven priority and effort estimation
+- Automated status transitions and field updates
+- Multi-issue coordination with tracking labels
+- Works with both user-owned and organization-owned Projects v2
+
+**When to use:** Event-driven workflows (issue opened, PR created) that need to categorize and track work on project boards.
+
+See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for implementation details.
+
+### Passive Campaign
+
+A campaign operating in passive coordination mode (default), which is essentially **ProjectOps with campaign structure and KPI tracking**. The orchestrator discovers and tracks work created by independent workflows without actively executing them. Worker workflows run on their own schedules and create issues/PRs; the orchestrator tracks them on the project board and reports progress toward campaign objectives.
+
+**Key characteristics:**
+- Discovery-based coordination (doesn't execute workflows)
+- Project board synchronization and updates
+- Progress reporting with KPI tracking
+- Governance controls (rate limits, opt-out labels)
+- Repo-memory for cursor persistence and metrics
+
+**Conceptual positioning:** Passive campaigns add campaign structure (objectives, KPIs, governance) to ProjectOps patterns, making them suitable for tracked initiatives without active workflow execution.
+
+**When to use:** When you want campaign tracking and reporting but workflows should remain independently scheduled.
+
+```yaml
+# Passive mode (default - no execute-workflows flag)
+id: framework-upgrade
+project-url: "https://github.com/orgs/ORG/projects/1"
+tracker-label: "campaign:framework-upgrade"
+workflows: [framework-upgrade]  # Discovered, not executed
+```
+
+### Active Campaign
+
+A campaign with `execute-workflows: true` that actively runs workflows, creates missing ones, and drives progress toward objectives. The orchestrator takes control of workflow execution, making the campaign self-sufficient and actively managed rather than just tracking independent work.
+
+**Key characteristics:**
+- Workflow execution orchestration
+- Automated workflow creation and testing
+- Output-driven coordination between workflows
+- Full campaign lifecycle management
+- Active progress monitoring and intervention
+
+**Conceptual positioning:** Active campaigns represent true "campaign orchestration" where the campaign drives work execution, not just tracks it. This is the distinguishing feature that separates full campaigns from enhanced ProjectOps patterns.
+
+**When to use:** When the campaign should actively manage and execute workflows to drive progress, create missing components, and coordinate complex multi-workflow initiatives.
+
+```yaml
+# Active mode - true campaign orchestration
+id: framework-upgrade
+execute-workflows: true  # Key differentiator
+project-url: "https://github.com/orgs/ORG/projects/1"
+workflows:
+  - framework-scanner   # Will be created if missing
+  - framework-upgrader  # Will be created if missing
+```
+
+**Progression path:** Start with ProjectOps for simple tracking → Passive Campaign for structured initiatives → Active Campaign for autonomous execution.
+
 ### Agentic campaign
 
-A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Agentic campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking. Unlike regular workflows that execute operations, agentic campaigns manage business initiatives with measurable outcomes, defined budgets, stakeholder reporting, and compliance audit trails.
+A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Agentic campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking. Campaigns can operate in either passive mode (ProjectOps-based tracking) or active mode (workflow execution orchestration).
 
 **Key characteristics:**
 
@@ -267,6 +332,7 @@ A finite, enterprise-scale initiative with explicit ownership, approval gates, a
 - Stateful execution using repo-memory for audit trails
 - Cross-team and cross-repository coordination
 - Executive dashboards and KPI reporting
+- Two modes: passive coordination or active execution
 
 **File naming:** Use `.campaign.md` extension (e.g., `<campaign-id>.campaign.md`)
 
