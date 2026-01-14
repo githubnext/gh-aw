@@ -133,6 +133,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Set release tag environment variable
+        run: |
+          RELEASE_TAG="${{ needs.release.outputs.release_tag }}"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "Release tag: $RELEASE_TAG"
+      
       - name: Checkout repository
         uses: actions/checkout@v5
 
@@ -180,7 +186,6 @@ jobs:
       - name: Attach SBOM to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
         run: |
           echo "Attaching SBOM files to release: $RELEASE_TAG"
           gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
@@ -210,8 +215,11 @@ jobs:
       - name: Download release artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
         run: |
+          # Set release tag as environment variable for subsequent steps
+          RELEASE_TAG="${{ needs.release.outputs.release_tag }}"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          
           echo "Downloading release binaries..."
           mkdir -p dist
           gh release download "$RELEASE_TAG" --pattern "linux-*" --dir dist
@@ -247,7 +255,7 @@ jobs:
       - name: Generate SBOM for Docker image
         uses: anchore/sbom-action@v0.20.10
         with:
-          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
+          image: ghcr.io/${{ github.repository }}:${{ env.RELEASE_TAG }}
           artifact-name: docker-sbom.spdx.json
           output-file: docker-sbom.spdx.json
           format: spdx-json
@@ -273,6 +281,7 @@ steps:
       echo "Release tag from release job: $RELEASE_TAG"
       echo "Processing release: $RELEASE_TAG"
       
+      echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
       
       # Get the current release information
@@ -326,7 +335,7 @@ steps:
 
 Generate an engaging release highlights summary for **${{ github.repository }}** release `${RELEASE_TAG}`.
 
-**Release ID**: ${{ needs.release.outputs.release_id }}
+**Release ID**: ${RELEASE_ID}
 
 ## Data Available
 
