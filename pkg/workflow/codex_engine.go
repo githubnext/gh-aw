@@ -174,7 +174,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// PATH will be set to find codex in hostedtoolcache when firewall is enabled
 		commandName = "codex"
 	}
-	
+
 	codexCommand := fmt.Sprintf("%s %sexec%s%s%s\"$INSTRUCTION\"",
 		commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam)
 
@@ -316,7 +316,7 @@ mkdir -p "$CODEX_HOME/logs"
 		} else {
 			commandName = "codex"
 		}
-		
+
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			command = fmt.Sprintf(`set -o pipefail
