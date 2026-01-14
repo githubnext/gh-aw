@@ -111,11 +111,17 @@ function parseChangesetFile(filePath) {
 function readChangesets() {
   const changesetDir = ".changeset";
 
-  if (!fs.existsSync(changesetDir)) {
-    throw new Error("Changeset directory not found: .changeset/");
+  // Try to read directory without checking existence first (avoids TOCTOU)
+  let entries;
+  try {
+    entries = fs.readdirSync(changesetDir);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error("Changeset directory not found: .changeset/");
+    }
+    throw error;
   }
 
-  const entries = fs.readdirSync(changesetDir);
   const changesets = [];
 
   for (const entry of entries) {
@@ -388,11 +394,21 @@ function updateChangelog(version, changesets, dryRun = false) {
   const changelogPath = "CHANGELOG.md";
 
   // Read existing changelog or create header
+  // Use file descriptor to avoid TOCTOU vulnerability
   let existingContent = "";
-  if (fs.existsSync(changelogPath)) {
-    existingContent = fs.readFileSync(changelogPath, "utf8");
-  } else {
-    existingContent = "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n";
+  let fd;
+  try {
+    // Try to open existing file for reading
+    fd = fs.openSync(changelogPath, fs.constants.O_RDONLY);
+    existingContent = fs.readFileSync(fd, "utf8");
+    fs.closeSync(fd);
+  } catch (error) {
+    // File doesn't exist or can't be read, use default header
+    if (error.code === "ENOENT") {
+      existingContent = "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n";
+    } else {
+      throw error;
+    }
   }
 
   // Build new entry
@@ -459,8 +475,14 @@ function updateChangelog(version, changesets, dryRun = false) {
     return newEntry;
   }
 
-  // Write updated changelog
-  fs.writeFileSync(changelogPath, updatedContent, "utf8");
+  // Write updated changelog using file descriptor to avoid TOCTOU vulnerability
+  try {
+    fd = fs.openSync(changelogPath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC, 0o644);
+    fs.writeFileSync(fd, updatedContent, "utf8");
+    fs.closeSync(fd);
+  } catch (error) {
+    throw new Error(`Failed to write CHANGELOG.md: ${error.message}`);
+  }
   return newEntry;
 }
 
