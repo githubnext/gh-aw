@@ -20,7 +20,7 @@ tools:
     toolsets: [context, repos, code_security, pull_requests]
   cache-memory:
 safe-outputs:
-  autofix-code-scanning:
+  autofix-code-scanning-alert:
     max: 5
 timeout-minutes: 20
 ---
@@ -38,7 +38,7 @@ When triggered, you must:
    - Otherwise, list all open code scanning alerts and pick the first one
 2. **Analyze the Issue**: Understand the security vulnerability and its context
 3. **Generate a Fix**: Create a code autofix that addresses the security issue
-4. **Submit Autofix**: Use the `autofix_code_scanning` tool to submit the fix to GitHub Code Scanning
+4. **Submit Autofix**: Use the `autofix_code_scanning_alert` tool to submit the fix to GitHub Code Scanning
 
 ## Current Context
 
@@ -90,14 +90,14 @@ Create a code autofix to address the security issue:
 
 ### 5. Submit Autofix
 
-Use the `autofix_code_scanning` tool to submit the fix:
+Use the `autofix_code_scanning_alert` tool to submit the fix:
 - **alert_number**: The numeric ID of the code scanning alert
 - **fix_description**: A clear description of what the fix does and why it addresses the vulnerability
 - **fix_code**: The complete corrected code that resolves the security issue
 
 Example:
 ```jsonl
-{"type": "autofix_code_scanning", "alert_number": 123, "fix_description": "Fix SQL injection by using parameterized queries instead of string concatenation", "fix_code": "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);"}
+{"type": "autofix_code_scanning_alert", "alert_number": 123, "fix_description": "Fix SQL injection by using parameterized queries instead of string concatenation", "fix_code": "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);"}
 ```
 
 ## Security Guidelines
@@ -127,7 +127,7 @@ Fix SQL injection vulnerability in user query by replacing string concatenation 
 ## Important Notes
 
 - **Multiple Alerts**: You can fix up to 5 alerts per run
-- **Autofix API**: Use the `autofix_code_scanning` tool to submit fixes directly to GitHub Code Scanning
+- **Autofix API**: Use the `autofix_code_scanning_alert` tool to submit fixes directly to GitHub Code Scanning
 - **No Execute**: Never execute untrusted code during analysis
 - **Read-Only Analysis**: Use GitHub API tools to read code and understand vulnerabilities
 - **Complete Code**: Provide the complete fixed code section, not incremental changes

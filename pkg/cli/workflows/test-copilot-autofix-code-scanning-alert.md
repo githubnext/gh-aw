@@ -6,18 +6,18 @@ permissions:
   security-events: read
 engine: copilot
 safe-outputs:
-  autofix-code-scanning:
+  autofix-code-scanning-alert:
     max: 3
 timeout-minutes: 5
 ---
 
-# Test Autofix Code Scanning (Copilot)
+# Test Autofix Code Scanning Alert (Copilot)
 
-Test the autofix_code_scanning safe output type with the Copilot engine.
+Test the autofix_code_scanning_alert safe output type with the Copilot engine.
 
 ## Task
 
-You need to create an autofix for a code scanning alert. Use the `autofix_code_scanning` tool to:
+You need to create an autofix for a code scanning alert. Use the `autofix_code_scanning_alert` tool to:
 
 1. Create an autofix for alert number 1 with the following details:
    - **alert_number**: 1
@@ -29,4 +29,4 @@ You need to create an autofix for a code scanning alert. Use the `autofix_code_s
    - **fix_description**: "Fix XSS vulnerability by escaping HTML entities"
    - **fix_code**: `const escaped = escapeHtml(userInput);`
 
-Output the results in JSONL format using the autofix_code_scanning tool.
+Output the results in JSONL format using the autofix_code_scanning_alert tool.

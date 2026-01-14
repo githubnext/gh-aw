@@ -110,10 +110,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateCodeScanningAlerts = securityReportsConfig
 			}
 
-			// Handle autofix-code-scanning
-			addCodeScanningAutofixConfig := c.parseAutofixCodeScanningConfig(outputMap)
-			if addCodeScanningAutofixConfig != nil {
-				config.AutofixCodeScanning = addCodeScanningAutofixConfig
+			// Handle autofix-code-scanning-alert
+			autofixCodeScanningAlertConfig := c.parseAutofixCodeScanningAlertConfig(outputMap)
+			if autofixCodeScanningAlertConfig != nil {
+				config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
 			}
 
 			// Parse allowed-domains configuration

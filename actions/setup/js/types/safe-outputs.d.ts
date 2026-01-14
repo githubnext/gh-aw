@@ -329,8 +329,8 @@ interface CreateProjectItem extends BaseSafeOutputItem {
 /**
  * JSONL item for adding an autofix to a code scanning alert
  */
-interface AutofixCodeScanningItem extends BaseSafeOutputItem {
-  type: "autofix_code_scanning";
+interface AutofixCodeScanningAlertItem extends BaseSafeOutputItem {
+  type: "autofix_code_scanning_alert";
   /** The security alert number to create an autofix for */
   alert_number: number | string;
   /** Description of the fix being applied */
@@ -368,7 +368,7 @@ type SafeOutputItem =
   | LinkSubIssueItem
   | HideCommentItem
   | CreateProjectItem
-  | AutofixCodeScanningItem;
+  | AutofixCodeScanningAlertItem;
 
 /**
  * Sanitized safe output items
@@ -405,7 +405,7 @@ export {
   NoOpItem,
   LinkSubIssueItem,
   HideCommentItem,
-  AutofixCodeScanningItem,
+  AutofixCodeScanningAlertItem,
   SafeOutputItem,
   SafeOutputItems,
 };

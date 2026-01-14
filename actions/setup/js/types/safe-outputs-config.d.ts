@@ -101,7 +101,7 @@ interface CreateCodeScanningAlertConfig extends SafeOutputConfig {
 /**
  * Configuration for adding code scanning autofixes
  */
-interface AutofixCodeScanningConfig extends SafeOutputConfig {
+interface AutofixCodeScanningAlertConfig extends SafeOutputConfig {
   // No additional configuration beyond base config
 }
 
@@ -262,7 +262,7 @@ type SpecificSafeOutputConfig =
   | CreatePullRequestConfig
   | CreatePullRequestReviewCommentConfig
   | CreateCodeScanningAlertConfig
-  | AutofixCodeScanningConfig
+  | AutofixCodeScanningAlertConfig
   | AddLabelsConfig
   | AddReviewerConfig
   | UpdateIssueConfig
@@ -294,7 +294,7 @@ export {
   CreatePullRequestConfig,
   CreatePullRequestReviewCommentConfig,
   CreateCodeScanningAlertConfig,
-  AutofixCodeScanningConfig,
+  AutofixCodeScanningAlertConfig,
   AddLabelsConfig,
   AddReviewerConfig,
   UpdateIssueConfig,

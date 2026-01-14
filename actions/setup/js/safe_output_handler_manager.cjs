@@ -41,7 +41,7 @@ const HANDLER_MAP = {
   assign_milestone: "./assign_milestone.cjs",
   assign_to_user: "./assign_to_user.cjs",
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
-  autofix_code_scanning: "./autofix_code_scanning.cjs",
+  autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
   create_project: "./create_project.cjs",
   create_project_status_update: "./create_project_status_update.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",

@@ -944,7 +944,7 @@
     }
   },
   {
-    "name": "autofix_code_scanning",
+    "name": "autofix_code_scanning_alert",
     "description": "Create an autofix for a code scanning alert. Use this to provide automated fixes for security vulnerabilities detected by code scanning tools. The fix should contain the corrected code that resolves the security issue.",
     "inputSchema": {
       "type": "object",
