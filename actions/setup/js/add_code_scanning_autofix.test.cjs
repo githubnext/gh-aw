@@ -14,11 +14,7 @@ const mockCore = {
 
 // Mock @actions/github
 const mockGithub = {
-  rest: {
-    codeScanning: {
-      createAutofix: vi.fn(),
-    },
-  },
+  request: vi.fn(),
 };
 
 const mockContext = {
@@ -58,7 +54,7 @@ describe("add_code_scanning_autofix handler", () => {
         fix_code: "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);",
       };
 
-      mockGithub.rest.codeScanning.createAutofix.mockResolvedValue({
+      mockGithub.request.mockResolvedValue({
         data: {
           id: 123,
           alert_number: 42,
@@ -71,13 +67,16 @@ describe("add_code_scanning_autofix handler", () => {
       expect(result.alertNumber).toBe(42);
       expect(result.autofixUrl).toContain("security/code-scanning/42");
 
-      expect(mockGithub.rest.codeScanning.createAutofix).toHaveBeenCalledWith({
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/fixes", {
         owner: "test-owner",
         repo: "test-repo",
         alert_number: 42,
         fix: {
           description: "Fix SQL injection vulnerability",
           code: "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);",
+        },
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
         },
       });
 
@@ -93,7 +92,7 @@ describe("add_code_scanning_autofix handler", () => {
         fix_code: "const escaped = escapeHtml(userInput);",
       };
 
-      mockGithub.rest.codeScanning.createAutofix.mockResolvedValue({
+      mockGithub.request.mockResolvedValue({
         data: { id: 123 },
       });
 
@@ -192,7 +191,7 @@ describe("add_code_scanning_autofix handler", () => {
     it("should respect max count limit", async () => {
       const handlerWithMax = await (await import("./add_code_scanning_autofix.cjs")).main({ max: 2 });
 
-      mockGithub.rest.codeScanning.createAutofix.mockResolvedValue({ data: {} });
+      mockGithub.request.mockResolvedValue({ data: {} });
 
       const message = {
         type: "add_code_scanning_autofix",
@@ -236,7 +235,7 @@ describe("add_code_scanning_autofix handler", () => {
       expect(result.alertNumber).toBe(42);
 
       // Should not call the API in staged mode
-      expect(mockGithub.rest.codeScanning.createAutofix).not.toHaveBeenCalled();
+      expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });
 
@@ -249,9 +248,7 @@ describe("add_code_scanning_autofix handler", () => {
         fix_code: "const fixed = true;",
       };
 
-      mockGithub.rest.codeScanning.createAutofix.mockRejectedValue(
-        new Error("404 Not Found")
-      );
+      mockGithub.request.mockRejectedValue(new Error("404 Not Found"));
 
       const result = await handler(message, {});
 
@@ -268,9 +265,7 @@ describe("add_code_scanning_autofix handler", () => {
         fix_code: "const fixed = true;",
       };
 
-      mockGithub.rest.codeScanning.createAutofix.mockRejectedValue(
-        new Error("403 Forbidden")
-      );
+      mockGithub.request.mockRejectedValue(new Error("403 Forbidden"));
 
       const result = await handler(message, {});
 
@@ -283,17 +278,16 @@ describe("add_code_scanning_autofix handler", () => {
       const message = {
         type: "add_code_scanning_autofix",
         alert_number: 42,
-        fix_description: "",
+        fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
       };
 
-      mockGithub.rest.codeScanning.createAutofix.mockRejectedValue(
-        new Error("422 Unprocessable Entity")
-      );
+      mockGithub.request.mockRejectedValue(new Error("422 Unprocessable Entity"));
 
       const result = await handler(message, {});
 
       expect(result.success).toBe(false);
+      expect(result.error).toContain("422");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid request"));
     });
 
@@ -305,9 +299,7 @@ describe("add_code_scanning_autofix handler", () => {
         fix_code: "const fixed = true;",
       };
 
-      mockGithub.rest.codeScanning.createAutofix.mockRejectedValue(
-        new Error("Network error")
-      );
+      mockGithub.request.mockRejectedValue(new Error("Network error"));
 
       const result = await handler(message, {});
 
@@ -325,7 +317,7 @@ describe("add_code_scanning_autofix handler", () => {
         fix_code: "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);",
       };
 
-      mockGithub.rest.codeScanning.createAutofix.mockResolvedValue({
+      mockGithub.request.mockResolvedValue({
         data: { id: 123 },
       });
 

@@ -19,8 +19,8 @@ func (c *Compiler) parseAddCodeScanningAutofixConfig(outputMap map[string]any) *
 		addCodeScanningAutofixConfig.Max = 10 // Default max is 10
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &addCodeScanningAutofixConfig.BaseSafeOutputConfig)
+			// Parse common base fields with default max of 10
+			c.parseBaseSafeOutputConfig(configMap, &addCodeScanningAutofixConfig.BaseSafeOutputConfig, 10)
 		}
 
 		return addCodeScanningAutofixConfig

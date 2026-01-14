@@ -50,7 +50,7 @@ async function main(config = {}) {
     const autofixItem = message;
 
     // Validate required fields
-    if (!autofixItem.alert_number) {
+    if (autofixItem.alert_number === undefined || autofixItem.alert_number === null) {
       core.warning("Skipping add_code_scanning_autofix: alert_number is missing");
       return {
         success: false,
@@ -109,13 +109,18 @@ async function main(config = {}) {
 
       // Call the GitHub REST API to create the autofix
       // Reference: https://docs.github.com/en/rest/code-scanning/code-scanning?apiVersion=2022-11-28#create-an-autofix-for-a-code-scanning-alert
-      const result = await github.rest.codeScanning.createAutofix({
+      // Note: As of the time of writing, the createAutofix method may not be available in @actions/github
+      // We'll use the generic request method to call the API endpoint directly
+      const result = await github.request("POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/fixes", {
         owner: context.repo.owner,
         repo: context.repo.repo,
         alert_number: alertNumber,
         fix: {
           description: autofixItem.fix_description,
           code: autofixItem.fix_code,
+        },
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
         },
       });
 
