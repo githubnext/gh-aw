@@ -49,6 +49,9 @@ func (c *Compiler) normalizeScheduleString(scheduleStr string, itemIndex int) (p
 	// Scatter fuzzy schedules if workflow identifier is set
 	if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
 		// Combine repo slug and workflow identifier for scattering seed
+		// This ensures workflows with the same name in different repositories
+		// get different execution times, distributing load across an organization.
+		// Format: "owner/repo/workflow-path" or just "workflow-path" if no repo slug
 		seed := c.workflowIdentifier
 		if c.repositorySlug != "" {
 			seed = c.repositorySlug + "/" + c.workflowIdentifier

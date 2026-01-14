@@ -537,9 +537,9 @@ on: every 2h                 # Scattered minute offset
 
 ## How Scattering Works
 
-Fuzzy schedules use a deterministic hash of the workflow file path to assign each workflow a unique execution time:
+Fuzzy schedules use a deterministic hash of the workflow identifier to assign each workflow a unique execution time:
 
-1. **Workflow identifier**: Full file path (e.g., `.github/workflows/daily-report.md`)
+1. **Workflow identifier**: Repository slug + workflow file path (e.g., `githubnext/gh-aw/.github/workflows/daily-report.md`)
 2. **Stable hash**: FNV-1a hash algorithm (consistent across platforms)
 3. **Deterministic offset**: Hash modulo time range gives consistent offset
 4. **Same across recompiles**: Same workflow path always gets same scattered time
@@ -554,6 +554,31 @@ Workflow B: `17 14 * * *` (2:17 PM)
 Workflow C: `8 20 * * *` (8:08 PM)
 
 Each workflow gets a different time, but the same workflow always gets the same time.
+
+### Organization-Wide Scattering
+
+The scattering algorithm includes the repository slug (org/repo) in the hash computation, ensuring that:
+
+- Workflows with the same name in different repositories get different execution times
+- Load is distributed across an entire organization, not just within a single repository
+- Multiple repositories using the same workflow names don't create load spikes
+
+**Example**: Same workflow name in different repositories
+```yaml
+# githubnext/repo-1/.github/workflows/ci.md
+on: daily
+# Result: 22 10 * * * (10:22 AM)
+
+# githubnext/repo-2/.github/workflows/ci.md
+on: daily
+# Result: 51 7 * * * (7:51 AM)
+
+# githubnext/repo-3/.github/workflows/ci.md
+on: daily
+# Result: 12 2 * * * (2:12 AM)
+```
+
+Each repository's CI workflow runs at a different time, preventing simultaneous execution across the organization.
 
 ## Validation & Warnings
 
