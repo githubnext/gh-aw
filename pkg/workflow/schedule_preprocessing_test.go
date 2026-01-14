@@ -984,3 +984,253 @@ func TestSlashCommandShorthand(t *testing.T) {
 		})
 	}
 }
+
+// TestFuzzyScheduleScatteringWithRepositorySlug verifies that the repository slug (org/repo)
+// is properly included in the hash computation for schedule scattering across an organization
+func TestFuzzyScheduleScatteringWithRepositorySlug(t *testing.T) {
+	tests := []struct {
+		name               string
+		workflowIdentifier string
+		repositorySlug     string
+		expectedSeedFormat string // Format used to verify seed construction
+	}{
+		{
+			name:               "with repository slug",
+			workflowIdentifier: "test-workflow.md",
+			repositorySlug:     "githubnext/gh-aw",
+			expectedSeedFormat: "githubnext/gh-aw/test-workflow.md",
+		},
+		{
+			name:               "with different org, same workflow name",
+			workflowIdentifier: "test-workflow.md",
+			repositorySlug:     "otherorg/gh-aw",
+			expectedSeedFormat: "otherorg/gh-aw/test-workflow.md",
+		},
+		{
+			name:               "with different repo, same workflow name",
+			workflowIdentifier: "test-workflow.md",
+			repositorySlug:     "githubnext/other-repo",
+			expectedSeedFormat: "githubnext/other-repo/test-workflow.md",
+		},
+		{
+			name:               "without repository slug",
+			workflowIdentifier: "test-workflow.md",
+			repositorySlug:     "",
+			expectedSeedFormat: "test-workflow.md",
+		},
+	}
+
+	results := make(map[string]string)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a copy of frontmatter for this test
+			testFrontmatter := map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily",
+						},
+					},
+				},
+			}
+
+			compiler := NewCompiler(false, "", "test")
+			compiler.SetWorkflowIdentifier(tt.workflowIdentifier)
+			if tt.repositorySlug != "" {
+				compiler.SetRepositorySlug(tt.repositorySlug)
+			}
+
+			err := compiler.preprocessScheduleFields(testFrontmatter, "", "")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			onMap := testFrontmatter["on"].(map[string]any)
+			scheduleArray := onMap["schedule"].([]any)
+			firstSchedule := scheduleArray[0].(map[string]any)
+			actualCron := firstSchedule["cron"].(string)
+
+			// Should be scattered (not fuzzy)
+			if strings.HasPrefix(actualCron, "FUZZY:") {
+				t.Errorf("expected scattered schedule, got fuzzy: %s", actualCron)
+			}
+
+			// Should be a valid daily cron
+			fields := strings.Fields(actualCron)
+			if len(fields) != 5 {
+				t.Errorf("expected 5 fields in cron, got %d: %s", len(fields), actualCron)
+			}
+
+			// Store result for comparison
+			results[tt.expectedSeedFormat] = actualCron
+		})
+	}
+
+	// Verify that different org/repo combinations produce different schedules
+	// for the same workflow name
+	sameWorkflowDifferentOrg := results["githubnext/gh-aw/test-workflow.md"]
+	sameWorkflowOtherOrg := results["otherorg/gh-aw/test-workflow.md"]
+	sameWorkflowOtherRepo := results["githubnext/other-repo/test-workflow.md"]
+	workflowWithoutSlug := results["test-workflow.md"]
+
+	// All should be different
+	if sameWorkflowDifferentOrg == sameWorkflowOtherOrg {
+		t.Errorf("Expected different schedules for different orgs, got same: %s", sameWorkflowDifferentOrg)
+	}
+
+	if sameWorkflowDifferentOrg == sameWorkflowOtherRepo {
+		t.Errorf("Expected different schedules for different repos, got same: %s", sameWorkflowDifferentOrg)
+	}
+
+	if sameWorkflowOtherOrg == sameWorkflowOtherRepo {
+		t.Errorf("Expected different schedules for different org/repo combinations, got same: %s", sameWorkflowOtherOrg)
+	}
+
+	// Workflow without slug should likely be different from one with slug
+	// (This is a probabilistic check - they could theoretically collide)
+	if sameWorkflowDifferentOrg == workflowWithoutSlug && sameWorkflowOtherOrg == workflowWithoutSlug && sameWorkflowOtherRepo == workflowWithoutSlug {
+		t.Logf("Warning: All schedules with slug matched schedule without slug: %s (probabilistic collision)", workflowWithoutSlug)
+	}
+
+	t.Logf("Schedule results:")
+	for seed, cron := range results {
+		t.Logf("  Seed: %s -> Cron: %s", seed, cron)
+	}
+}
+
+// TestFuzzyScheduleScatteringAcrossOrganization verifies that workflows with the same name
+// in different repositories get different scattered schedules
+func TestFuzzyScheduleScatteringAcrossOrganization(t *testing.T) {
+	// Simulate multiple repositories in an organization with same workflow name
+	repositories := []struct {
+		slug         string
+		workflowName string
+	}{
+		{"githubnext/repo-1", "ci.md"},
+		{"githubnext/repo-2", "ci.md"},
+		{"githubnext/repo-3", "ci.md"},
+		{"other-org/repo-1", "ci.md"},
+	}
+
+	results := make(map[string]string)
+
+	for _, repo := range repositories {
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"schedule": []any{
+					map[string]any{
+						"cron": "daily",
+					},
+				},
+			},
+		}
+
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetRepositorySlug(repo.slug)
+		compiler.SetWorkflowIdentifier(repo.workflowName)
+
+		err := compiler.preprocessScheduleFields(frontmatter, "", "")
+		if err != nil {
+			t.Fatalf("unexpected error for %s: %v", repo.slug, err)
+		}
+
+		onMap := frontmatter["on"].(map[string]any)
+		scheduleArray := onMap["schedule"].([]any)
+		firstSchedule := scheduleArray[0].(map[string]any)
+		actualCron := firstSchedule["cron"].(string)
+
+		results[repo.slug] = actualCron
+		t.Logf("Repository %s: %s", repo.slug, actualCron)
+	}
+
+	// Verify that all schedules are different (high probability with good hash distribution)
+	uniqueSchedules := make(map[string]bool)
+	for _, cron := range results {
+		uniqueSchedules[cron] = true
+	}
+
+	// With 4 repositories and good hash distribution, we should get 4 unique schedules
+	// (or at least 3, allowing for small collision probability)
+	if len(uniqueSchedules) < 3 {
+		t.Errorf("Expected at least 3 unique schedules for 4 repositories, got %d unique schedules", len(uniqueSchedules))
+		t.Logf("Schedules: %v", results)
+	}
+
+	// Verify that same org different repos get different schedules
+	repo1Schedule := results["githubnext/repo-1"]
+	repo2Schedule := results["githubnext/repo-2"]
+	repo3Schedule := results["githubnext/repo-3"]
+
+	sameOrg := 0
+	if repo1Schedule == repo2Schedule {
+		sameOrg++
+	}
+	if repo1Schedule == repo3Schedule {
+		sameOrg++
+	}
+	if repo2Schedule == repo3Schedule {
+		sameOrg++
+	}
+
+	// Allow at most 1 collision among 3 repos in same org
+	if sameOrg > 1 {
+		t.Errorf("Too many schedule collisions within same org: %d collisions among 3 repos", sameOrg)
+	}
+}
+
+// TestFuzzyScheduleScatteringWarningWithoutRepoSlug verifies that a warning is shown
+// when fuzzy schedule scattering occurs without repository slug
+func TestFuzzyScheduleScatteringWarningWithoutRepoSlug(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"schedule": []any{
+				map[string]any{
+					"cron": "daily",
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetWorkflowIdentifier("test-workflow.md")
+	// Explicitly NOT setting repository slug
+
+	// Get initial warning count
+	initialWarnings := compiler.GetWarningCount()
+
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify schedule was still scattered
+	onMap := frontmatter["on"].(map[string]any)
+	scheduleArray := onMap["schedule"].([]any)
+	firstSchedule := scheduleArray[0].(map[string]any)
+	actualCron := firstSchedule["cron"].(string)
+
+	if strings.HasPrefix(actualCron, "FUZZY:") {
+		t.Errorf("expected scattered schedule, got fuzzy: %s", actualCron)
+	}
+
+	// Verify warning was added
+	finalWarnings := compiler.GetWarningCount()
+	if finalWarnings <= initialWarnings {
+		t.Errorf("expected warning count to increase, got initial=%d, final=%d", initialWarnings, finalWarnings)
+	}
+
+	// Verify warning message was added
+	warnings := compiler.GetScheduleWarnings()
+	foundWarning := false
+	for _, warning := range warnings {
+		if strings.Contains(warning, "repository context") && strings.Contains(warning, "Fuzzy schedule scattering") {
+			foundWarning = true
+			break
+		}
+	}
+
+	if !foundWarning {
+		t.Errorf("expected warning about missing repository context, got warnings: %v", warnings)
+	}
+}
