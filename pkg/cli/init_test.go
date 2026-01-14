@@ -279,7 +279,7 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Errorf("Expected campaign dispatcher agent to exist at %s", campaignAgentPath)
 	}
 
-	// Verify campaign-generator workflow was added
+	// Verify campaign-generator workflow was generated (not added from repo)
 	campaignWorkflowPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.md")
 	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {
 		t.Errorf("Expected campaign-generator workflow to exist at %s", campaignWorkflowPath)
@@ -297,10 +297,21 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Fatalf("Failed to read campaign-generator workflow: %v", err)
 	}
 	workflowStr := string(workflowContent)
-	if !strings.Contains(workflowStr, "description: Campaign generator") {
+	if !strings.Contains(workflowStr, "description: \"Campaign generator") {
 		t.Errorf("Expected campaign-generator workflow to contain description")
 	}
 	if !strings.Contains(workflowStr, "create-agentic-campaign") {
 		t.Errorf("Expected campaign-generator workflow to trigger on 'create-agentic-campaign' label")
+	}
+	
+	// Verify this is a GENERATED workflow (not from external source)
+	// Generated workflows should NOT have a "source:" field
+	if strings.Contains(workflowStr, "source: githubnext/gh-aw") {
+		t.Errorf("Generated workflow should not contain 'source' field - it should be built internally")
+	}
+	
+	// Verify it has the runtime imports for campaign creation instructions
+	if !strings.Contains(workflowStr, "{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}") {
+		t.Errorf("Expected campaign-generator to import campaign_creation_instructions.md")
 	}
 }
