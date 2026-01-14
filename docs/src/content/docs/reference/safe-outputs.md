@@ -321,6 +321,14 @@ safe-outputs:
   update-project:
     max: 20                         # max operations (default: 10)
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    views:                          # optional: auto-create views
+      - name: "Sprint Board"
+        layout: board
+        filter: "is:issue is:open"
+      - name: "Task Tracker"
+        layout: table
+      - name: "Campaign Roadmap"
+        layout: roadmap
 ```
 
 Agent must provide full project URL (e.g., `https://github.com/orgs/myorg/projects/42`). Optional `campaign_id` applies `campaign:<id>` labels for [Campaign Workflows](/gh-aw/guides/campaigns/). Exposes outputs: `project-id`, `project-number`, `project-url`, `campaign-id`, `item-id`.
@@ -347,6 +355,49 @@ fields:
 
 > [!NOTE]
 > Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
+
+#### Creating Project Views
+
+Project views can be created automatically by declaring them in the `views` array. Views are created when the workflow runs, after processing update_project items from the agent.
+
+**View configuration:**
+```yaml
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    views:
+      - name: "Sprint Board"        # required: view name
+        layout: board               # required: table, board, or roadmap
+        filter: "is:issue is:open"  # optional: filter query
+      - name: "Task Tracker"
+        layout: table
+        filter: "is:issue,is:pull_request"
+      - name: "Campaign Timeline"
+        layout: roadmap
+```
+
+**View properties:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | string | Yes | View name (e.g., "Sprint Board", "Task Tracker") |
+| `layout` | string | Yes | View layout: `table`, `board`, or `roadmap` |
+| `filter` | string | No | Filter query (e.g., `is:issue is:open`, `label:bug`) |
+| `visible-fields` | array | No | Field IDs to display (table/board only, not roadmap) |
+
+**Layout types:**
+- **`table`** — List view with customizable columns for detailed tracking
+- **`board`** — Kanban-style cards grouped by status or custom field
+- **`roadmap`** — Timeline visualization with date-based swimlanes
+
+**Filter syntax examples:**
+- `is:issue is:open` — Open issues only
+- `is:pull_request` — Pull requests only  
+- `is:issue,is:pull_request` — Both issues and PRs
+- `label:bug` — Items with bug label
+- `assignee:@me` — Items assigned to viewer
+
+Views are created automatically during workflow execution. The workflow must include at least one `update_project` operation to provide the target project URL. See [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for view customization strategies.
 
 
 

@@ -3694,7 +3694,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for managing GitHub Projects v2 boards. Smart tool that can add issue/PR items and update custom fields on existing items. By default it is update-only: if the project does not exist, the job fails with instructions to create it manually. To allow workflows to create missing projects, explicitly opt in via the agent output field create_if_missing=true (and/or provide a github-token override). NOTE: Projects v2 requires a Personal Access Token (PAT) or GitHub App token with appropriate permissions; the GITHUB_TOKEN cannot be used for Projects v2. Safe output items produced by the agent use type=update_project and may include: project (board name), content_type (issue|pull_request), content_number, fields, campaign_id, and create_if_missing.",
+              "description": "Configuration for managing GitHub Projects v2 boards. Smart tool that can add issue/PR items and update custom fields on existing items. By default it is update-only: if the project does not exist, the job fails with instructions to create it manually. To allow workflows to create missing projects, explicitly opt in via the agent output field create_if_missing=true (and/or provide a github-token override). NOTE: Projects v2 requires a Personal Access Token (PAT) or GitHub App token with appropriate permissions; the GITHUB_TOKEN cannot be used for Projects v2. Safe output items produced by the agent use type=update_project Configuration also supports an optional views array for declaring project views to create. Safe output items produced by the agent use type=update_project and may include: project (board name), content_type (issue|pull_request), content_number, fields, campaign_id, and create_if_missing.",
               "properties": {
                 "max": {
                   "type": "integer",
@@ -3705,6 +3705,42 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "views": {
+                  "type": "array",
+                  "description": "Optional array of project views to create. Each view must have a name and layout. Views are created during project setup.",
+                  "items": {
+                    "type": "object",
+                    "description": "View configuration for creating project views",
+                    "required": ["name", "layout"],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The name of the view (e.g., 'Sprint Board', 'Campaign Roadmap')"
+                      },
+                      "layout": {
+                        "type": "string",
+                        "enum": ["table", "board", "roadmap"],
+                        "description": "The layout type of the view"
+                      },
+                      "filter": {
+                        "type": "string",
+                        "description": "Optional filter query for the view (e.g., 'is:issue is:open', 'label:bug')"
+                      },
+                      "visible-fields": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        },
+                        "description": "Optional array of field IDs that should be visible in the view (table/board only, not applicable to roadmap)"
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored."
+                      }
+                    },
+                    "additionalProperties": false
+                  }
                 }
               },
               "additionalProperties": false,

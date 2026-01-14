@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -56,6 +57,14 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+	// If views are configured in frontmatter, pass them to the JavaScript via environment variable
+	if cfg != nil && len(cfg.Views) > 0 {
+		viewsJSON, err := json.Marshal(cfg.Views)
+		if err == nil {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: '%s'\n", string(viewsJSON)))
+		}
+	}
 
 	condition := BuildSafeOutputType("update_project")
 
