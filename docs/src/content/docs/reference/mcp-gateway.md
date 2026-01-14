@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.6.0  
+**Version**: 1.7.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -221,7 +221,7 @@ Each server configuration MUST support:
 | `container` | string | Conditional* | Container image for the MCP server (required for stdio servers) |
 | `entrypoint` | string | No | Optional entrypoint override for container (equivalent to `docker run --entrypoint`) |
 | `entrypointArgs` | array[string] | No | Arguments passed to container entrypoint (container only) |
-| `mounts` | array[string] | No | Volume mounts for container (format: "source:dest:mode" where mode is "ro" or "rw") |
+| `mounts` | array[string] | No | Volume mounts for containerized stdio servers (format: "host:container:mode" where mode is "ro" (read-only) or "rw" (read-write)). Applies to stdio servers only. See Section 4.1.5 for details. |
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
 | `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
@@ -324,6 +324,80 @@ When a server configuration includes a `type` field with a value not in `["stdio
 - Implementations SHOULD cache fetched schemas for performance
 - Schema fetch failures MUST result in configuration validation errors
 - Custom server configurations MUST validate against their registered schemas when a schema URL is provided
+
+#### 4.1.5 Volume Mounts for Stdio Servers
+
+Stdio (containerized) MCP servers MAY specify volume mounts to provide access to host filesystem paths. Volume mounts enable servers to read configuration files, access data directories, or write output files while maintaining container isolation.
+
+**Mount Format**:
+
+Volume mounts MUST use the format:
+
+```
+"host:container:mode"
+```
+
+Where:
+- **host**: Absolute path on the host filesystem
+- **container**: Absolute path inside the container
+- **mode**: Access mode, either "ro" (read-only) or "rw" (read-write)
+
+**Configuration Example**:
+
+```json
+{
+  "mcpServers": {
+    "data-processor": {
+      "container": "ghcr.io/example/data-mcp:latest",
+      "type": "stdio",
+      "mounts": [
+        "/var/data/input:/app/input:ro",
+        "/var/data/output:/app/output:rw",
+        "/etc/config/app.json:/app/config.json:ro"
+      ]
+    }
+  }
+}
+```
+
+**Requirements**:
+
+- The `mounts` field MUST only be specified for stdio servers (servers with `type: "stdio"` or servers without an explicit type, since stdio is the default)
+- Each mount string MUST conform to the "host:container:mode" format
+- The host path MUST be an absolute path
+- The container path MUST be an absolute path
+- The mode MUST be either "ro" (read-only) or "rw" (read-write)
+- The gateway MUST validate mount format during configuration parsing
+- Invalid mount formats MUST result in configuration validation errors
+
+**Security Considerations**:
+
+- Read-only mounts ("ro") SHOULD be preferred when the server only needs to read data
+- Read-write mounts ("rw") SHOULD be limited to specific directories required for output
+- Implementations SHOULD document any restrictions on host paths (e.g., disallowing system directories)
+- Volume mounts provide access to host filesystem while maintaining container process isolation
+
+**Use Cases**:
+
+1. **Configuration Files**: Mount read-only configuration files into containers
+   ```json
+   "mounts": ["/etc/app/config.yaml:/app/config.yaml:ro"]
+   ```
+
+2. **Data Directories**: Provide access to large datasets without copying into containers
+   ```json
+   "mounts": ["/var/data/corpus:/data:ro"]
+   ```
+
+3. **Output Directories**: Allow containers to write results to host filesystem
+   ```json
+   "mounts": ["/var/output:/results:rw"]
+   ```
+
+4. **Shared Cache**: Share cache directories between container and host
+   ```json
+   "mounts": ["/tmp/cache:/app/cache:rw"]
+   ```
 
 ### 4.2 Variable Expression Rendering
 
@@ -657,6 +731,7 @@ For stdio servers, the gateway MUST:
 2. Maintain isolated stdin/stdout/stderr streams
 3. Prevent cross-container communication
 4. Terminate containers on gateway shutdown (via `/close` endpoint or process termination)
+5. Apply volume mounts as configured in the server's `mounts` field (Section 4.1.5)
 
 All stdio-based MCP servers MUST be containerized to ensure:
 
@@ -664,8 +739,19 @@ All stdio-based MCP servers MUST be containerized to ensure:
 - **Resource Isolation**: Containers enforce CPU, memory, and filesystem boundaries
 - **Network Isolation**: Containers provide isolated network namespaces
 - **Security Boundaries**: Container runtimes enforce security policies and capabilities
+- **Filesystem Isolation**: Container filesystems are isolated, with controlled access to host paths via volume mounts
 
 The gateway SHALL NOT support non-containerized process execution for stdio servers.
+
+**Volume Mount Isolation**:
+
+When volume mounts are configured (Section 4.1.5):
+
+- The gateway MUST mount the specified host paths into the container at the configured container paths
+- The gateway MUST enforce the specified access mode (read-only "ro" or read-write "rw")
+- Each container's mounts MUST be independent; mounts configured for one server MUST NOT affect other servers
+- Volume mounts provide controlled access to host filesystem while maintaining container process isolation
+- The gateway MUST validate mount paths and modes before container startup
 
 ### 6.2 Resource Isolation
 
@@ -886,6 +972,11 @@ A conforming implementation MUST pass the following test categories:
 - **T-CFG-011**: Validate custom configuration against registered schema
 - **T-CFG-012**: Reject custom type conflicting with reserved types (stdio/http)
 - **T-CFG-013**: Custom schema URL fetch and cache
+- **T-CFG-014**: Valid volume mount format (host:container:mode)
+- **T-CFG-015**: Reject invalid mount format (missing components)
+- **T-CFG-016**: Reject invalid mount mode (not "ro" or "rw")
+- **T-CFG-017**: Multiple mounts for single stdio server
+- **T-CFG-018**: Reject mounts for HTTP servers (stdio only)
 
 #### 10.1.2 Protocol Translation Tests
 
@@ -905,6 +996,9 @@ A conforming implementation MUST pass the following test categories:
 - **T-ISO-003**: Credential isolation verification
 - **T-ISO-004**: Cross-container communication prevention
 - **T-ISO-005**: Container failure isolation
+- **T-ISO-006**: Volume mount isolation (mounts do not affect other containers)
+- **T-ISO-007**: Volume mount access mode enforcement (ro vs rw)
+- **T-ISO-008**: Volume mount path independence between containers
 
 #### 10.1.4 Authentication Tests
 
@@ -1209,6 +1303,32 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.7.0 (Draft)
+
+- **Added**: Comprehensive volume mount documentation for stdio servers (Section 4.1.5)
+  - Detailed specification of mount format: "host:container:mode" where mode is "ro" (read-only) or "rw" (read-write)
+  - Requirements for mount path validation and format enforcement
+  - Security considerations for read-only vs read-write mounts
+  - Common use cases: configuration files, data directories, output directories, shared caches
+- **Updated**: Server configuration field documentation (Section 4.1.2)
+  - Clarified that `mounts` field applies to stdio (containerized) servers only
+  - Updated mount format description to use "host:container:mode" terminology for clarity
+  - Added cross-reference to Section 4.1.5 for detailed mount documentation
+- **Updated**: Container isolation documentation (Section 6.1)
+  - Added requirement to apply volume mounts as configured
+  - Added "Filesystem Isolation" to isolation guarantees
+  - Added "Volume Mount Isolation" subsection explaining mount behavior and independence between containers
+  - Clarified that mounts provide controlled host filesystem access while maintaining process isolation
+- **Added**: Compliance tests for volume mounts
+  - T-CFG-014: Valid volume mount format (host:container:mode)
+  - T-CFG-015: Reject invalid mount format (missing components)
+  - T-CFG-016: Reject invalid mount mode (not "ro" or "rw")
+  - T-CFG-017: Multiple mounts for single stdio server
+  - T-CFG-018: Reject mounts for HTTP servers (stdio only)
+  - T-ISO-006: Volume mount isolation (mounts do not affect other containers)
+  - T-ISO-007: Volume mount access mode enforcement (ro vs rw)
+  - T-ISO-008: Volume mount path independence between containers
 
 ### Version 1.6.0 (Draft)
 
