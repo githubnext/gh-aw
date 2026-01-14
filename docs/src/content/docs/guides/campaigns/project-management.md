@@ -168,6 +168,27 @@ The campaign generator creates three views automatically:
 2. **Task Tracker** (Table view) - Detailed tracking with filtering
 3. **Progress Board** (Board view) - Kanban-style progress tracking
 
+### Declarative view configuration
+
+Views can be declared directly in workflow frontmatter using the `views` property:
+
+```yaml
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    views:
+      - name: "Sprint Board"
+        layout: board
+        filter: "is:issue is:open"
+      - name: "Task Tracker"  
+        layout: table
+        filter: "is:issue,is:pull_request"
+      - name: "Timeline"
+        layout: roadmap
+```
+
+Views are automatically created when the workflow runs. This declarative approach is simpler than programmatic view creation and ensures views are configured consistently across workflow runs.
+
 **Customization tips:**
 
 **Multi-Workflow Campaign**: Use Roadmap grouped by Worker/Workflow for timeline distribution, Task Tracker sliced by Priority+Status for urgent items, Progress Board grouped by Status for progress tracking.
