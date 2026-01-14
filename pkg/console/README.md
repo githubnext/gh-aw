@@ -2,6 +2,17 @@
 
 The `console` package provides utilities for rendering Go structs and data structures to formatted console output, as well as progress bar and spinner components for long-running operations.
 
+## Design Philosophy
+
+This package follows Charmbracelet best practices for terminal UI:
+
+- **Adaptive Colors**: All styling uses `lipgloss.AdaptiveColor` for light/dark theme support
+- **Rounded Borders**: Tables and boxes use rounded corners (╭╮╰╯) for a polished appearance
+- **Consistent Padding**: All rendered elements include proper spacing (horizontal and vertical)
+- **TTY Detection**: Automatically adapts output for terminals vs pipes/redirects
+- **Visual Hierarchy**: Clear separation between sections using borders and spacing
+- **Zebra Striping**: Tables use alternating row colors for improved readability
+
 ## Spinner Component
 
 The `Spinner` component provides animated visual feedback during long-running operations with automatic TTY detection and accessibility support.

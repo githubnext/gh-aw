@@ -255,27 +255,32 @@ func RenderTable(config TableConfig) string {
 			return lipgloss.NewStyle()
 		}
 		if row == table.HeaderRow {
-			return styles.TableHeader
+			// Add horizontal padding to header cells for better spacing
+			return styles.TableHeader.Copy().PaddingLeft(1).PaddingRight(1)
 		}
 		// If we have a total row and this is the last row
 		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
-			return styles.TableTotal
+			// Add horizontal padding to total row cells
+			return styles.TableTotal.Copy().PaddingLeft(1).PaddingRight(1)
 		}
 		// Zebra striping: alternate row colors
 		if row%2 == 0 {
-			return styles.TableCell
+			// Add horizontal padding to even row cells
+			return styles.TableCell.Copy().PaddingLeft(1).PaddingRight(1)
 		}
-		// Odd rows with subtle background
+		// Odd rows with subtle background and horizontal padding
 		return lipgloss.NewStyle().
 			Foreground(styles.ColorForeground).
-			Background(styles.ColorTableAltRow)
+			Background(styles.ColorTableAltRow).
+			PaddingLeft(1).
+			PaddingRight(1)
 	}
 
 	// Create table with lipgloss/table package
 	t := table.New().
 		Headers(config.Headers...).
 		Rows(allRows...).
-		Border(styles.NormalBorder).
+		Border(styles.RoundedBorder).
 		BorderStyle(styles.TableBorder).
 		StyleFunc(styleFunc)
 
