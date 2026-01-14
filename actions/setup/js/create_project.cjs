@@ -105,6 +105,59 @@ async function createProjectV2(ownerId, title) {
 }
 
 /**
+ * Create default views for a project
+ * @param {string} projectUrl - Full project URL
+ * @param {number} projectNumber - Project number
+ * @param {string} ownerType - Either "org" or "user"
+ * @param {string} ownerLogin - Login name of the owner
+ * @returns {Promise<void>}
+ */
+async function createDefaultViews(projectUrl, projectNumber, ownerType, ownerLogin) {
+  core.info("Creating default views for project...");
+
+  const defaultViews = [
+    { name: "Campaign Roadmap", layout: "roadmap", filter: "is:issue,is:pull_request" },
+    { name: "Task Tracker", layout: "table", filter: "is:issue,is:pull_request" },
+    { name: "Progress Board", layout: "board", filter: "is:issue,is:pull_request" },
+  ];
+
+  if (typeof github.request !== "function") {
+    core.warning("GitHub client does not support github.request(); cannot create default views");
+    return;
+  }
+
+  const route = ownerType === "org" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{user_id}/projectsV2/{project_number}/views";
+
+  for (const viewDef of defaultViews) {
+    try {
+      const params =
+        ownerType === "org"
+          ? {
+              org: ownerLogin,
+              project_number: projectNumber,
+              name: viewDef.name,
+              layout: viewDef.layout,
+              filter: viewDef.filter,
+            }
+          : {
+              user_id: ownerLogin,
+              project_number: projectNumber,
+              name: viewDef.name,
+              layout: viewDef.layout,
+              filter: viewDef.filter,
+            };
+
+      await github.request(route, params);
+      core.info(`✓ Created view: ${viewDef.name} (${viewDef.layout})`);
+    } catch (err) {
+      // Log error but don't fail project creation if view creation fails
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ err;
+      core.warning(`Failed to create view "${viewDef.name}": ${getErrorMessage(error)}`);
+    }
+  }
+}
+
+/**
  * Add an item to a project
  * @param {string} projectId - Project node ID
  * @param {string} contentId - Content node ID (issue, PR, etc.)
@@ -226,6 +279,9 @@ async function main(config = {}) {
 
       // Create the project
       const projectInfo = await createProjectV2(ownerId, title);
+
+      // Create default views for the project
+      await createDefaultViews(projectInfo.projectUrl, projectInfo.projectNumber, ownerType, targetOwner);
 
       // If item_url is provided, add it to the project
       if (item_url) {
