@@ -112,7 +112,7 @@ imports:
 ---
 ```
 
-Only one agent file can be imported per workflow. See [Custom Agent Files](/gh-aw/reference/engines/#custom-agent-files) for details on creating and using agent files.
+Only one agent file can be imported per workflow.
 
 ## Frontmatter Merging
 
