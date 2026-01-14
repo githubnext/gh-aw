@@ -27,6 +27,10 @@ network:
     - github
     - playwright
 sandbox:
+  agent:
+    mounts:
+      - "/usr/bin/go:/usr/bin/go:ro"
+      - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"
     version: latest
