@@ -25,6 +25,7 @@ name: "Slide Deck Maintainer"
 "on":
   schedule:
   - cron: "0 16 * * 1-5"
+    # Friendly format: weekly on monday around 18:00 (scattered)
   # skip-if-match: is:pr is:open in:title "[slides]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
     inputs:
