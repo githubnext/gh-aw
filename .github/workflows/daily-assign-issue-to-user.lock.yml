@@ -1053,7 +1053,7 @@ jobs:
       GH_AW_WORKFLOW_ID: "daily-assign-issue-to-user"
       GH_AW_WORKFLOW_NAME: "Auto-Assign Issue"
     outputs:
-      assign_to_user_assigned: ${{ steps.assign_to_user.outputs.assigned }}
+      assign_to_user_assigned: ${{ steps.process_safe_outputs.outputs.assigned }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:

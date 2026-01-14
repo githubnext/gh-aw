@@ -1113,7 +1113,9 @@ jobs:
             await main();
 
   safe_outputs:
-    needs: agent
+    needs:
+      - activation
+      - agent
     if: (!cancelled()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:

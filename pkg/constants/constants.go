@@ -391,6 +391,7 @@ var AllowedExpressions = []string{
 	"github.job",
 	"github.owner",
 	"github.repository",
+	"github.repository_owner",
 	"github.run_id",
 	"github.run_number",
 	"github.server_url",

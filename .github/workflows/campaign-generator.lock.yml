@@ -766,8 +766,8 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_OWNER: ${{ github.owner }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
@@ -847,7 +847,7 @@ jobs:
           ```javascript
           create_project({
             title: "Campaign: <campaign-name>",
-            owner: "__GH_AW_GITHUB_OWNER__",
+            owner: "__GH_AW_GITHUB_REPOSITORY_OWNER__",
             item_url: "__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/issues/__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"
           })
           ```
@@ -1116,8 +1116,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_OWNER: ${{ github.owner }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
@@ -1128,8 +1128,8 @@ jobs:
               file: process.env.GH_AW_PROMPT,
               substitutions: {
                 GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
-                GH_AW_GITHUB_OWNER: process.env.GH_AW_GITHUB_OWNER,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_REPOSITORY_OWNER: process.env.GH_AW_GITHUB_REPOSITORY_OWNER,
                 GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
               }
             });
@@ -1239,8 +1239,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_OWNER: ${{ github.owner }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
@@ -1753,6 +1753,7 @@ jobs:
 
   safe_outputs:
     needs:
+      - activation
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')

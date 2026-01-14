@@ -277,7 +277,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [agent]
+  - **Depends on jobs**: [activation agent]
 
 ### archie.md
 
@@ -516,7 +516,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [agent detection]
+  - **Depends on jobs**: [activation agent detection]
 
 ### changeset.md
 
@@ -4608,7 +4608,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [agent detection]
+  - **Depends on jobs**: [activation agent detection]
 
 ### workflow-health-manager.md
 
