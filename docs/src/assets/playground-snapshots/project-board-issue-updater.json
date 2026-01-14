@@ -287,7 +287,7 @@
           }
         },
         {
-          "name": "Downloading container images",
+          "name": "Download container images",
           "conclusion": "success",
           "number": 9,
           "status": "completed",

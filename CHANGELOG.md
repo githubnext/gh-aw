@@ -2205,7 +2205,7 @@ Adds automatic terminal clearing when files are modified in `--watch` mode, impr
 
 ### Bug Fixes
 
-#### Add "Downloading container images" step to predownload Docker images used in MCP configs
+#### Add "Download container images" step to predownload Docker images used in MCP configs
 
 #### Add shared agentic workflow for Microsoft Fabric RTI MCP server
 
