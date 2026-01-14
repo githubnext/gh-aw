@@ -71,6 +71,12 @@ Here's what we've built so far:
 
 Each workflow is written in natural language using Markdown, then compiled into secure GitHub Actions that run with carefully scoped permissions. Everything is observable, auditable, and remixable.
 
+## Our First Installment: Meet the Workflows
+
+In our first series of articles, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a 16-part tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
+
+Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
+
 ## What We're Learning
 
 Running this many agents in production is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Some key lessons emerging:
@@ -82,12 +88,6 @@ Running this many agents in production is... quite the experience. We've watched
 - **Cost-quality tradeoffs are real** - Longer analyses aren't always better
 
 We'll dive deeper into these lessons in upcoming articles.
-
-## Our First Installment: Meet the Workflows
-
-In our first series of articles, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a 16-part tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
-
-Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
 
 ## Try It Yourself
 
@@ -103,10 +103,9 @@ The workflows in Peli's factory are fully remixable. You can copy them, adapt th
 
 ## Learn More
 
+- **[Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)** - The 16-part tour of the workflows
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
-- **[Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)** - The 16-part tour of the workflows
-- **[The Agentics Collection](https://github.com/githubnext/agentics)** - Ready-to-install workflows
 
 ## Credits
 
