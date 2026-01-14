@@ -33,11 +33,11 @@ func TestCodexParseLogMetricsWithOutputSize(t *testing.T) {
 	toolCall := metrics.ToolCalls[0]
 	assert.Equal(t, "time_get_current_time", toolCall.Name)
 	assert.Equal(t, 1, toolCall.CallCount)
-	
+
 	// Verify output size was extracted (should be length of text content)
 	// The text content is: {"timezone":"UTC","datetime":"2025-08-31T12:37:33+00:00","is_dst":false}
 	expectedSize := len(`{"timezone":"UTC","datetime":"2025-08-31T12:37:33+00:00","is_dst":false}`)
-	assert.Greater(t, toolCall.MaxOutputSize, 0, "MaxOutputSize should be greater than 0")
+	assert.Positive(t, toolCall.MaxOutputSize, "MaxOutputSize should be greater than 0")
 	assert.Equal(t, expectedSize, toolCall.MaxOutputSize, "MaxOutputSize should match text content length")
 }
 
@@ -78,9 +78,10 @@ func TestCodexParseLogMetricsMultipleToolsWithOutputSizes(t *testing.T) {
 	// Find tools by name
 	var listPRTool, searchPRTool *ToolCallInfo
 	for i := range metrics.ToolCalls {
-		if metrics.ToolCalls[i].Name == "github_list_pull_requests" {
+		switch metrics.ToolCalls[i].Name {
+		case "github_list_pull_requests":
 			listPRTool = &metrics.ToolCalls[i]
-		} else if metrics.ToolCalls[i].Name == "github_search_pull_requests" {
+		case "github_search_pull_requests":
 			searchPRTool = &metrics.ToolCalls[i]
 		}
 	}
@@ -134,7 +135,7 @@ func TestCodexParseLogMetricsWithFailure(t *testing.T) {
 
 	toolCall := metrics.ToolCalls[0]
 	assert.Equal(t, "api_call_endpoint", toolCall.Name)
-	
+
 	// Verify output size was extracted even from failure
 	expectedSize := len("Error: Connection timeout")
 	assert.Equal(t, expectedSize, toolCall.MaxOutputSize, "MaxOutputSize should be extracted from failure result")
@@ -331,7 +332,7 @@ func TestCodexParseLogMetricsMaxOutputSize(t *testing.T) {
 	toolCall := metrics.ToolCalls[0]
 	assert.Equal(t, "api_fetch", toolCall.Name)
 	assert.Equal(t, 3, toolCall.CallCount, "Tool should be called 3 times")
-	
+
 	// Verify MaxOutputSize is the largest of all calls
 	expectedMaxSize := len("this is a much longer response with more data")
 	assert.Equal(t, expectedMaxSize, toolCall.MaxOutputSize, "MaxOutputSize should be the largest output")
@@ -361,7 +362,7 @@ func TestCodexParseLogMetricsBashCommand(t *testing.T) {
 
 	toolCall := metrics.ToolCalls[0]
 	assert.True(t, strings.HasPrefix(toolCall.Name, "bash_"), "Tool name should start with bash_")
-	
+
 	// Verify output size was extracted
 	expectedSize := len("total 8\ndrwxr-xr-x  2 user group 4096 Aug 31 12:37 .\ndrwxr-xr-x 20 user group 4096 Aug 31 12:30 ..")
 	assert.Equal(t, expectedSize, toolCall.MaxOutputSize, "MaxOutputSize should match bash output")
@@ -375,7 +376,7 @@ func TestCodexExtractOutputSizeFromJSONFallback(t *testing.T) {
 
 	// First try normal extraction (should fail and trigger fallback)
 	result := engine.extractOutputSizeFromJSON(jsonStr)
-	
+
 	// Fallback should still extract the text
-	assert.Greater(t, result, 0, "Fallback should extract some text")
+	assert.Positive(t, result, "Fallback should extract some text")
 }

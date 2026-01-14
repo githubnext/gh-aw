@@ -28,7 +28,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
-		
+
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -225,15 +225,15 @@ func (e *CodexEngine) extractOutputSizeFromResult(line string, lines []string, c
 	//   "content": [...],
 	//   "isError": false
 	// }
-	
+
 	var jsonLines []string
 	inJSON := false
 	braceCount := 0
-	
+
 	// Look ahead to collect JSON block
 	for i := currentIndex + 1; i < len(lines); i++ {
 		trimmedLine := strings.TrimSpace(lines[i])
-		
+
 		// Start of JSON block
 		if !inJSON && trimmedLine == "{" {
 			inJSON = true
@@ -241,32 +241,32 @@ func (e *CodexEngine) extractOutputSizeFromResult(line string, lines []string, c
 			jsonLines = append(jsonLines, lines[i])
 			continue
 		}
-		
+
 		if inJSON {
 			jsonLines = append(jsonLines, lines[i])
 			// Count braces to detect end of JSON
 			braceCount += strings.Count(lines[i], "{")
 			braceCount -= strings.Count(lines[i], "}")
-			
+
 			if braceCount == 0 {
 				break
 			}
 		}
-		
+
 		// If we hit a non-empty line that's not part of JSON, stop
 		if !inJSON && trimmedLine != "" {
 			break
 		}
 	}
-	
+
 	if len(jsonLines) == 0 {
 		return 0
 	}
-	
+
 	// Parse the JSON to extract content
 	jsonStr := strings.Join(jsonLines, "\n")
 	outputSize := e.extractOutputSizeFromJSON(jsonStr)
-	
+
 	return outputSize
 }
 
@@ -279,18 +279,18 @@ func (e *CodexEngine) extractOutputSizeFromJSON(jsonStr string) int {
 		codexLogsLog.Printf("Failed to parse JSON result, using fallback: %v", err)
 		return e.extractOutputSizeFromJSONFallback(jsonStr)
 	}
-	
+
 	// Extract content array
 	contentInterface, exists := result["content"]
 	if !exists {
 		return 0
 	}
-	
+
 	contentArray, ok := contentInterface.([]any)
 	if !ok {
 		return 0
 	}
-	
+
 	// Sum up text content from all content items
 	totalSize := 0
 	for _, item := range contentArray {
@@ -298,7 +298,7 @@ func (e *CodexEngine) extractOutputSizeFromJSON(jsonStr string) int {
 		if !ok {
 			continue
 		}
-		
+
 		// Look for text field
 		if text, exists := itemMap["text"]; exists {
 			if textStr, ok := text.(string); ok {
@@ -306,7 +306,7 @@ func (e *CodexEngine) extractOutputSizeFromJSON(jsonStr string) int {
 			}
 		}
 	}
-	
+
 	return totalSize
 }
 
@@ -315,11 +315,11 @@ func (e *CodexEngine) extractOutputSizeFromJSON(jsonStr string) int {
 func (e *CodexEngine) extractOutputSizeFromJSONFallback(jsonStr string) int {
 	// For simple extraction without full JSON parsing, look for "text" fields in content array
 	// Format: {"content": [{"text": "...", "type": "text"}], "isError": false}
-	
+
 	// Find all text content - use a simple approach counting characters in quoted strings
 	// after "text": markers
 	totalSize := 0
-	
+
 	// Split by "text": to find text content
 	parts := strings.Split(jsonStr, "\"text\":")
 	for i := 1; i < len(parts); i++ {
@@ -328,7 +328,7 @@ func (e *CodexEngine) extractOutputSizeFromJSONFallback(jsonStr string) int {
 		if len(part) == 0 || part[0] != '"' {
 			continue
 		}
-		
+
 		// Find the closing quote, handling escaped quotes
 		inEscape := false
 		endQuote := -1
@@ -346,13 +346,13 @@ func (e *CodexEngine) extractOutputSizeFromJSONFallback(jsonStr string) int {
 				break
 			}
 		}
-		
+
 		if endQuote > 0 {
 			textContent := part[1:endQuote]
 			totalSize += len(textContent)
 		}
 	}
-	
+
 	return totalSize
 }
 
