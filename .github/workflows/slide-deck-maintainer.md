@@ -48,7 +48,7 @@ network:
   allowed:
     - node
 steps:
-  - name: Set up Node.js
+  - name: Setup Node.js
     uses: actions/setup-node@v6
     with:
       node-version: "24"

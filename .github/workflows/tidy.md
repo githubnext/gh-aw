@@ -46,13 +46,13 @@ safe-outputs:
   push-to-pull-request-branch:
   missing-tool:
 steps:
-  - name: Set up Node.js
+  - name: Setup Node.js
     uses: actions/setup-node@v6
     with:
       node-version: "24"
       cache: npm
       cache-dependency-path: actions/setup/js/package-lock.json
-  - name: Set up Go
+  - name: Setup Go
     uses: actions/setup-go@v6
     with:
       go-version-file: go.mod
