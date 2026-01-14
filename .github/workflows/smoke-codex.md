@@ -41,6 +41,8 @@ mcp-servers:
     mounts:
       - "/usr/bin/go:/usr/bin/go:ro"
       - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
+    env:
+      GOROOT: "${{ env.GOROOT }}"
     entrypointArgs:
       - "start-mcp-server"
       - "--context"

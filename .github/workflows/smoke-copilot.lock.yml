@@ -550,6 +550,8 @@ jobs:
                   "run",
                   "--rm",
                   "-i",
+                  "-e",
+                  "GOROOT",
                   "-v",
                   "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro",
                   "-v",
@@ -562,7 +564,10 @@ jobs:
                   "codex",
                   "--project",
                   "${{ github.workspace }}"
-                ]
+                ],
+                "env": {
+                  "GOROOT": "${{ env.GOROOT }}"
+                }
               }
             },
             "gateway": {
