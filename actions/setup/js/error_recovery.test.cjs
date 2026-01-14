@@ -10,14 +10,7 @@ global.core = {
   debug: vi.fn(),
 };
 
-import {
-  withRetry,
-  isTransientError,
-  enhanceError,
-  createValidationError,
-  createOperationError,
-  DEFAULT_RETRY_CONFIG,
-} from "./error_recovery.cjs";
+import { withRetry, isTransientError, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG } from "./error_recovery.cjs";
 
 describe("error_recovery", () => {
   beforeEach(() => {
@@ -61,19 +54,17 @@ describe("error_recovery", () => {
     it("should succeed on first attempt", async () => {
       const operation = vi.fn().mockResolvedValue("success");
       const result = await withRetry(operation, {}, "test-operation");
-      
+
       expect(result).toBe("success");
       expect(operation).toHaveBeenCalledTimes(1);
       expect(core.info).not.toHaveBeenCalledWith(expect.stringContaining("Retry attempt"));
     });
 
     it("should retry transient errors and succeed", async () => {
-      const operation = vi.fn()
-        .mockRejectedValueOnce(new Error("Network timeout"))
-        .mockResolvedValue("success");
-      
+      const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
+
       const result = await withRetry(operation, { maxRetries: 2, initialDelayMs: 10 }, "test-operation");
-      
+
       expect(result).toBe("success");
       expect(operation).toHaveBeenCalledTimes(2);
       expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("test-operation failed (attempt 1/3)"));
@@ -83,39 +74,34 @@ describe("error_recovery", () => {
 
     it("should fail immediately on non-retryable errors", async () => {
       const operation = vi.fn().mockRejectedValue(new Error("Invalid input"));
-      
-      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 10 }, "test-operation"))
-        .rejects.toThrow("Invalid input");
-      
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 10 }, "test-operation")).rejects.toThrow("Invalid input");
+
       expect(operation).toHaveBeenCalledTimes(1);
       expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("non-retryable error"));
     });
 
     it("should exhaust all retries and fail with enhanced error", async () => {
       const operation = vi.fn().mockRejectedValue(new Error("Network timeout"));
-      
-      await expect(withRetry(operation, { maxRetries: 2, initialDelayMs: 10 }, "test-operation"))
-        .rejects.toThrow("All retry attempts exhausted");
-      
+
+      await expect(withRetry(operation, { maxRetries: 2, initialDelayMs: 10 }, "test-operation")).rejects.toThrow("All retry attempts exhausted");
+
       expect(operation).toHaveBeenCalledTimes(3); // Initial + 2 retries
       expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("failed after 2 retry attempts"));
     });
 
     it("should use exponential backoff", async () => {
-      const operation = vi.fn()
-        .mockRejectedValueOnce(new Error("Network timeout"))
-        .mockRejectedValueOnce(new Error("Network timeout"))
-        .mockResolvedValue("success");
-      
+      const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
+
       const config = {
         maxRetries: 3,
         initialDelayMs: 100,
         backoffMultiplier: 2,
         maxDelayMs: 1000,
       };
-      
+
       await withRetry(operation, config, "test-operation");
-      
+
       // Verify retry attempts were made
       expect(operation).toHaveBeenCalledTimes(3);
       // First retry: initialDelay * backoffMultiplier = 100 * 2 = 200ms
@@ -125,20 +111,17 @@ describe("error_recovery", () => {
     });
 
     it("should respect max delay limit", async () => {
-      const operation = vi.fn()
-        .mockRejectedValueOnce(new Error("Network timeout"))
-        .mockRejectedValueOnce(new Error("Network timeout"))
-        .mockResolvedValue("success");
-      
+      const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
+
       const config = {
         maxRetries: 3,
         initialDelayMs: 1000,
         backoffMultiplier: 10,
         maxDelayMs: 2000, // Cap at 2000ms
       };
-      
+
       await withRetry(operation, config, "test-operation");
-      
+
       // Second delay would be 10000ms without cap, but should be capped at 2000ms
       expect(core.info).toHaveBeenCalledWith(expect.stringContaining("after 2000ms delay"));
     });
@@ -146,10 +129,9 @@ describe("error_recovery", () => {
     it("should allow custom shouldRetry function", async () => {
       const operation = vi.fn().mockRejectedValue(new Error("Custom retryable error"));
       const shouldRetry = vi.fn().mockReturnValue(false);
-      
-      await expect(withRetry(operation, { shouldRetry, maxRetries: 2 }, "test-operation"))
-        .rejects.toThrow("Custom retryable error");
-      
+
+      await expect(withRetry(operation, { shouldRetry, maxRetries: 2 }, "test-operation")).rejects.toThrow("Custom retryable error");
+
       expect(operation).toHaveBeenCalledTimes(1);
       expect(shouldRetry).toHaveBeenCalled();
     });
@@ -164,9 +146,9 @@ describe("error_recovery", () => {
         retryable: true,
         suggestion: "Check your input",
       };
-      
+
       const enhanced = enhanceError(originalError, context);
-      
+
       expect(enhanced.message).toContain("create issue failed");
       expect(enhanced.message).toContain("Original error: Original message");
       expect(enhanced.message).toContain("Retryable: true");
@@ -184,9 +166,9 @@ describe("error_recovery", () => {
         retryable: true,
         suggestion: "Try again later",
       };
-      
+
       const enhanced = enhanceError(originalError, context);
-      
+
       expect(enhanced.message).toContain("after 3 retry attempts");
     });
 
@@ -198,9 +180,9 @@ describe("error_recovery", () => {
         retryable: false,
         suggestion: "Fix it",
       };
-      
+
       const enhanced = enhanceError(originalError, context);
-      
+
       expect(enhanced.message).toMatch(/\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\]/);
     });
   });
@@ -208,7 +190,7 @@ describe("error_recovery", () => {
   describe("createValidationError", () => {
     it("should create validation error with context", () => {
       const error = createValidationError("title", "", "cannot be empty", "Provide a non-empty title");
-      
+
       expect(error.message).toContain("Validation failed for field 'title'");
       expect(error.message).toContain("Reason: cannot be empty");
       expect(error.message).toContain("Suggestion: Provide a non-empty title");
@@ -219,21 +201,21 @@ describe("error_recovery", () => {
     it("should truncate long values", () => {
       const longValue = "a".repeat(200);
       const error = createValidationError("body", longValue, "too long");
-      
+
       expect(error.message).toContain("...");
       expect(error.message.length).toBeLessThan(longValue.length + 200);
     });
 
     it("should work without suggestion", () => {
       const error = createValidationError("labels", ["invalid"], "not allowed");
-      
+
       expect(error.message).toContain("Validation failed");
       expect(error.message).not.toContain("Suggestion:");
     });
 
     it("should include timestamp", () => {
       const error = createValidationError("field", "value", "reason");
-      
+
       expect(error.message).toMatch(/\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\]/);
     });
   });
@@ -242,7 +224,7 @@ describe("error_recovery", () => {
     it("should create operation error with full context", () => {
       const cause = new Error("API error");
       const error = createOperationError("update", "issue", cause, 123, "Check permissions");
-      
+
       expect(error.message).toContain("Failed to update issue #123");
       expect(error.message).toContain("Underlying error: API error");
       expect(error.message).toContain("Suggestion: Check permissions");
@@ -259,7 +241,7 @@ describe("error_recovery", () => {
     it("should work without entity ID", () => {
       const cause = new Error("Network error");
       const error = createOperationError("create", "PR", cause);
-      
+
       expect(error.message).toContain("Failed to create PR");
       expect(error.message).not.toContain("#");
     });
@@ -267,7 +249,7 @@ describe("error_recovery", () => {
     it("should provide default suggestion for transient errors", () => {
       const cause = new Error("Network timeout");
       const error = createOperationError("delete", "comment", cause, 456);
-      
+
       expect(error.message).toContain("This appears to be a transient error");
       expect(error.message).toContain("retried automatically");
     });
@@ -275,7 +257,7 @@ describe("error_recovery", () => {
     it("should provide default suggestion for non-transient errors", () => {
       const cause = new Error("Not found");
       const error = createOperationError("update", "discussion", cause, 789);
-      
+
       expect(error.message).toContain("Check that the discussion exists");
       expect(error.message).toContain("necessary permissions");
     });
@@ -283,7 +265,7 @@ describe("error_recovery", () => {
     it("should include timestamp", () => {
       const cause = new Error("Failed");
       const error = createOperationError("operation", "entity", cause, 1);
-      
+
       expect(error.message).toMatch(/\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\]/);
     });
   });

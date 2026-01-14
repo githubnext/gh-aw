@@ -18,25 +18,25 @@ type ValidationError struct {
 // Error implements the error interface
 func (e *ValidationError) Error() string {
 	var b strings.Builder
-	
-	b.WriteString(fmt.Sprintf("[%s] Validation failed for field '%s'", 
-		e.Timestamp.Format(time.RFC3339), e.Field))
-	
+
+	fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
+		e.Timestamp.Format(time.RFC3339), e.Field)
+
 	if e.Value != "" {
 		// Truncate long values
 		truncatedValue := e.Value
 		if len(truncatedValue) > 100 {
 			truncatedValue = truncatedValue[:97] + "..."
 		}
-		b.WriteString(fmt.Sprintf("\n\nValue: %s", truncatedValue))
+		fmt.Fprintf(&b, "\n\nValue: %s", truncatedValue)
 	}
-	
-	b.WriteString(fmt.Sprintf("\nReason: %s", e.Reason))
-	
+
+	fmt.Fprintf(&b, "\nReason: %s", e.Reason)
+
 	if e.Suggestion != "" {
-		b.WriteString(fmt.Sprintf("\nSuggestion: %s", e.Suggestion))
+		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
 	}
-	
+
 	return b.String()
 }
 
@@ -64,25 +64,25 @@ type OperationError struct {
 // Error implements the error interface
 func (e *OperationError) Error() string {
 	var b strings.Builder
-	
-	b.WriteString(fmt.Sprintf("[%s] Failed to %s %s", 
-		e.Timestamp.Format(time.RFC3339), e.Operation, e.EntityType))
-	
+
+	fmt.Fprintf(&b, "[%s] Failed to %s %s",
+		e.Timestamp.Format(time.RFC3339), e.Operation, e.EntityType)
+
 	if e.EntityID != "" {
-		b.WriteString(fmt.Sprintf(" #%s", e.EntityID))
+		fmt.Fprintf(&b, " #%s", e.EntityID)
 	}
-	
+
 	if e.Cause != nil {
-		b.WriteString(fmt.Sprintf("\n\nUnderlying error: %v", e.Cause))
+		fmt.Fprintf(&b, "\n\nUnderlying error: %v", e.Cause)
 	}
-	
+
 	if e.Suggestion != "" {
-		b.WriteString(fmt.Sprintf("\nSuggestion: %s", e.Suggestion))
+		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
 	} else {
 		// Provide default suggestion
-		b.WriteString(fmt.Sprintf("\nSuggestion: Check that the %s exists and you have the necessary permissions.", e.EntityType))
+		fmt.Fprintf(&b, "\nSuggestion: Check that the %s exists and you have the necessary permissions.", e.EntityType)
 	}
-	
+
 	return b.String()
 }
 
@@ -115,28 +115,28 @@ type ConfigurationError struct {
 // Error implements the error interface
 func (e *ConfigurationError) Error() string {
 	var b strings.Builder
-	
-	b.WriteString(fmt.Sprintf("[%s] Configuration error in '%s'", 
-		e.Timestamp.Format(time.RFC3339), e.ConfigKey))
-	
+
+	fmt.Fprintf(&b, "[%s] Configuration error in '%s'",
+		e.Timestamp.Format(time.RFC3339), e.ConfigKey)
+
 	if e.Value != "" {
 		// Truncate long values
 		truncatedValue := e.Value
 		if len(truncatedValue) > 100 {
 			truncatedValue = truncatedValue[:97] + "..."
 		}
-		b.WriteString(fmt.Sprintf("\n\nValue: %s", truncatedValue))
+		fmt.Fprintf(&b, "\n\nValue: %s", truncatedValue)
 	}
-	
-	b.WriteString(fmt.Sprintf("\nReason: %s", e.Reason))
-	
+
+	fmt.Fprintf(&b, "\nReason: %s", e.Reason)
+
 	if e.Suggestion != "" {
-		b.WriteString(fmt.Sprintf("\nSuggestion: %s", e.Suggestion))
+		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
 	} else {
 		// Provide default suggestion
-		b.WriteString(fmt.Sprintf("\nSuggestion: Check the safe-outputs configuration in your workflow frontmatter and ensure '%s' is correctly specified.", e.ConfigKey))
+		fmt.Fprintf(&b, "\nSuggestion: Check the safe-outputs configuration in your workflow frontmatter and ensure '%s' is correctly specified.", e.ConfigKey)
 	}
-	
+
 	return b.String()
 }
 
@@ -156,17 +156,17 @@ func EnhanceError(err error, context, suggestion string) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	timestamp := time.Now().Format(time.RFC3339)
-	
+
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("[%s] %s", timestamp, context))
-	b.WriteString(fmt.Sprintf("\n\nOriginal error: %v", err))
-	
+	fmt.Fprintf(&b, "[%s] %s", timestamp, context)
+	fmt.Fprintf(&b, "\n\nOriginal error: %v", err)
+
 	if suggestion != "" {
-		b.WriteString(fmt.Sprintf("\nSuggestion: %s", suggestion))
+		fmt.Fprintf(&b, "\nSuggestion: %s", suggestion)
 	}
-	
+
 	return fmt.Errorf("%s", b.String())
 }
 
@@ -176,13 +176,13 @@ func WrapErrorWithContext(err error, context, suggestion string) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	timestamp := time.Now().Format(time.RFC3339)
-	
+
 	if suggestion != "" {
 		return fmt.Errorf("[%s] %s (suggestion: %s): %w", timestamp, context, suggestion, err)
 	}
-	
+
 	return fmt.Errorf("[%s] %s: %w", timestamp, context, err)
 }
 
@@ -232,7 +232,7 @@ func ValidateInList(field, value string, allowedValues []string) error {
 			return nil
 		}
 	}
-	
+
 	return NewValidationError(
 		field,
 		value,

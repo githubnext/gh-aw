@@ -90,11 +90,11 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       }
 
       const result = await operation();
-      
+
       if (attempt > 0) {
         core.info(`✓ ${operationName} succeeded on retry attempt ${attempt}`);
       }
-      
+
       return result;
     } catch (error) {
       lastError = error;
@@ -149,15 +149,15 @@ async function withRetry(operation, config = {}, operationName = "operation") {
 function enhanceError(error, context) {
   const originalMessage = getErrorMessage(error);
   const timestamp = new Date().toISOString();
-  
+
   let enhancedMessage = `[${timestamp}] ${context.operation} failed`;
-  
+
   if (context.maxRetries !== undefined) {
     enhancedMessage += ` after ${context.maxRetries} retry attempts`;
   } else {
     enhancedMessage += ` (attempt ${context.attempt})`;
   }
-  
+
   enhancedMessage += `\n\nOriginal error: ${originalMessage}`;
   enhancedMessage += `\nRetryable: ${context.retryable}`;
   enhancedMessage += `\nSuggestion: ${context.suggestion}`;
@@ -167,7 +167,7 @@ function enhanceError(error, context) {
   enhancedError.originalError = error;
   // @ts-ignore - Adding custom properties to Error
   enhancedError.context = context;
-  
+
   return enhancedError;
 }
 
@@ -182,11 +182,11 @@ function enhanceError(error, context) {
 function createValidationError(field, value, reason, suggestion) {
   const timestamp = new Date().toISOString();
   const truncatedValue = String(value).length > 100 ? String(value).substring(0, 97) + "..." : String(value);
-  
+
   let message = `[${timestamp}] Validation failed for field '${field}'`;
   message += `\n\nValue: ${truncatedValue}`;
   message += `\nReason: ${reason}`;
-  
+
   if (suggestion) {
     message += `\nSuggestion: ${suggestion}`;
   }
@@ -198,7 +198,7 @@ function createValidationError(field, value, reason, suggestion) {
   error.field = field;
   // @ts-ignore - Adding custom properties to Error
   error.value = value;
-  
+
   return error;
 }
 
@@ -214,15 +214,15 @@ function createValidationError(field, value, reason, suggestion) {
 function createOperationError(operation, entityType, cause, entityId, suggestion) {
   const timestamp = new Date().toISOString();
   const causeMsg = getErrorMessage(cause);
-  
+
   let message = `[${timestamp}] Failed to ${operation} ${entityType}`;
-  
+
   if (entityId !== undefined) {
     message += ` #${entityId}`;
   }
-  
+
   message += `\n\nUnderlying error: ${causeMsg}`;
-  
+
   if (suggestion) {
     message += `\nSuggestion: ${suggestion}`;
   } else {
@@ -243,7 +243,7 @@ function createOperationError(operation, entityType, cause, entityId, suggestion
   error.entityType = entityType;
   // @ts-ignore - Adding custom properties to Error
   error.entityId = entityId;
-  
+
   return error;
 }
 
