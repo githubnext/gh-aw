@@ -18,7 +18,7 @@ next:
 
 ---
 
-<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="https://avatars.githubusercontent.com/pelikhan" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome to our third article in the Peli's Agent Factory series! Having shared the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/) and the [lessons we've learned](/gh-aw/blog/2026-01-21-twelve-lessons/), we're now diving into the fundamental design patterns that emerged from running our collection of automated agentic workflows in practice.
 

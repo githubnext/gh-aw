@@ -18,7 +18,7 @@ next:
 
 ---
 
-<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="https://avatars.githubusercontent.com/pelikhan" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome to our practical guide in the Peli's Agent Factory series! Now that you understand [how workflows operate under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to roll up your sleeves and start creating your own.
 

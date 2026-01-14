@@ -10,7 +10,7 @@ next:
   label: Meet the Workflows
 ---
 
-<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="https://avatars.githubusercontent.com/pelikhan" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Hi there! 👋 Welcome to Peli's Agent Factory!
 

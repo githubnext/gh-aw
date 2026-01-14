@@ -18,7 +18,7 @@ next:
 
 ---
 
-<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+<img src="https://avatars.githubusercontent.com/pelikhan" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome to another deep dive into Peli's Agent Factory! Having covered [security lessons](/gh-aw/blog/2026-02-02-security-lessons/) in our previous article, we're now ready to peek under the hood and understand the technical foundation of how agentic workflows actually work.
 
