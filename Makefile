@@ -643,6 +643,9 @@ pull-main:
 
 .PHONY: release
 release: pull-main build
+	@if [ "$(DRAFT)" = "true" ]; then \
+		echo "Creating draft release (set DRAFT_RELEASE repository variable to 'true')..."; \
+	fi
 	@node scripts/changeset.js release
 
 # Generate Software Bill of Materials (SBOM)
@@ -739,5 +742,6 @@ help:
 	@echo "  agent-finish     - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
 	@echo "  release   - Create release using changesets (depends on test)"
+	@echo "               Set DRAFT=true to create draft release (requires DRAFT_RELEASE=true repository variable)"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"

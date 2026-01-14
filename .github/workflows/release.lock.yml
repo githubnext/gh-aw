@@ -1320,6 +1320,7 @@ jobs:
         uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
         with:
           build_script_override: scripts/build-release.sh
+          draft: ${{ vars.DRAFT_RELEASE == 'true' }}
           go_version_file: go.mod
       - name: Upload checksums file
         run: |

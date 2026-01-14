@@ -15,6 +15,9 @@ node scripts/changeset.js release
 # Or use make target (recommended - runs tests first)
 make release
 
+# Create draft release (requires DRAFT_RELEASE repository variable set to 'true')
+DRAFT=true make release
+
 # Create specific release type
 node scripts/changeset.js release patch
 node scripts/changeset.js release minor
@@ -23,7 +26,7 @@ node scripts/changeset.js release major
 # Skip confirmation prompt
 node scripts/changeset.js release --yes
 node scripts/changeset.js release patch -y
-```text
+```
 
 **Note:** Using `make release` is recommended as it automatically runs tests before creating the release, ensuring code quality.
 
@@ -153,6 +156,43 @@ For maintenance releases with dependency updates or minor improvements that don'
    - Commit the changes
    - Create a git tag
    - Push the tag to remote
+
+### Draft Releases
+
+Draft releases allow you to create a release on GitHub without making it immediately public. This is useful for testing the release process or preparing release notes before publication.
+
+To create a draft release:
+
+1. **Set the DRAFT_RELEASE repository variable** (one-time setup):
+   ```bash
+   gh variable set DRAFT_RELEASE --body "true"
+   ```
+
+2. **Create the release with the DRAFT flag:**
+   ```bash
+   DRAFT=true make release
+   ```
+
+3. **The GitHub Actions workflow will**:
+   - Create the release as a draft (not publicly visible)
+   - Upload all binaries and assets
+   - Generate release highlights
+   - Leave the release in draft state for manual review
+
+4. **Publish the draft release manually**:
+   - Go to the Releases page on GitHub
+   - Find the draft release
+   - Review the release notes and assets
+   - Click "Publish release" when ready
+
+**To disable draft releases:**
+```bash
+gh variable delete DRAFT_RELEASE
+# Or set to false
+gh variable set DRAFT_RELEASE --body "false"
+```
+
+**Note:** The `DRAFT` environment variable in the Makefile command is just a convenience flag. The actual draft behavior is controlled by the `DRAFT_RELEASE` repository variable that the GitHub Actions workflow reads.
 
 ## Features
 

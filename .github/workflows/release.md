@@ -52,6 +52,7 @@ jobs:
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
+          draft: ${{ vars.DRAFT_RELEASE == 'true' }}
 
       - name: Upload checksums file
         env:
