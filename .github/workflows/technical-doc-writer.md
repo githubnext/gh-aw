@@ -78,31 +78,69 @@ This workflow is triggered manually via workflow_dispatch with a documentation t
 
 The documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.
 
-**To run the Astro dev server locally for live preview:**
+### Available Commands
+
+Use these commands from the repository root:
+
 ```bash
-cd docs && npm run dev
+# Rebuild the documentation after making changes
+make build-docs
+
+# Start development server for live preview
+make dev-docs
+
+# Preview built documentation
+make preview-docs
+
+# Clean documentation artifacts
+make clean-docs
 ```
 
-When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
+### Documentation Review Process
 
-1. **Analyze the topic** provided in the workflow input
-2. **Review relevant documentation files** in the docs/ folder related to: "${{ github.event.inputs.topic }}"
-3. **Verify the built documentation** in docs/dist is properly generated
-4. **Provide constructive feedback** as a comment addressing:
-   - Clarity and conciseness
-   - Tone and voice consistency with GitHub Docs
-   - Code block formatting and examples
-   - Structure and organization
-   - Developer experience considerations
-   - Any missing prerequisites or setup steps
-   - Appropriate use of GitHub alerts
-   - Link quality and accessibility
-   - Build output quality and completeness
-5. **Create a pull request with improvements** if you identify any changes needed:
-   - Make the necessary edits to improve the documentation
-   - Create a pull request with your changes using the safe-outputs create-pull-request functionality
+When reviewing documentation for the specified topic in the **docs/** folder:
+
+1. **Analyze the topic** provided in the workflow input: "${{ github.event.inputs.topic }}"
+
+2. **Review relevant documentation files** in the docs/ folder related to the topic
+
+3. **Make improvements** to the documentation as needed:
+   - Fix clarity and conciseness issues
+   - Improve tone and voice consistency with GitHub Docs
+   - Enhance code block formatting and examples
+   - Improve structure and organization
+   - Add missing prerequisites or setup steps
+   - Fix inappropriate use of GitHub alerts
+   - Improve link quality and accessibility
+
+4. **Rebuild and verify** after making changes:
+   ```bash
+   make build-docs
+   ```
+   - Fix any build errors that occur
+   - Verify all links validate correctly
+   - Ensure proper rendering in `docs/dist`
+
+5. **Only after successful build**, create a pull request with improvements:
+   - Use the safe-outputs create-pull-request functionality
    - Include a clear description of the improvements made
-   - Only create a pull request if you have made actual changes to the documentation files
+   - Document any build issues that were fixed
+   - Only create a pull request if you have made actual changes
+
+### Build Verification Requirements
+
+**Before returning to the user or creating a pull request:**
+
+- ✅ Run `make build-docs` to verify documentation builds successfully
+- ✅ Fix any build errors, warnings, or link validation issues
+- ✅ Verify the built output in `docs/dist` is properly generated
+- ✅ Confirm all changes render correctly
+
+**If build errors occur:**
+- Read error messages carefully to understand the issue
+- Fix broken links, invalid frontmatter, or markdown syntax errors
+- Rebuild with `make build-docs` to verify fixes
+- Do not proceed until the build succeeds without errors
 
 Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
 

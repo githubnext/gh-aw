@@ -219,6 +219,8 @@ clean:
 		echo "Removing installed gh-aw extension..."; \
 		gh extension remove gh-aw 2>/dev/null || rm -rf "$$HOME/.local/share/gh/extensions/gh-aw"; \
 	fi
+	@# Clean documentation artifacts
+	@rm -rf docs/dist docs/.astro 2>/dev/null || true
 	@# Clean Go build cache, module cache, and test cache
 	go clean -cache -modcache -testcache
 	@echo "✓ Clean complete"
@@ -527,6 +529,35 @@ build-slides:
 	@cd docs && npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o public/slides/gh-aw.html
 	@echo "✓ Slides built to docs/public/slides/gh-aw.html"
 
+# Documentation targets
+.PHONY: deps-docs
+deps-docs: check-node-version
+	@echo "Installing documentation dependencies..."
+	@cd docs && npm ci
+	@echo "✓ Documentation dependencies installed"
+
+.PHONY: build-docs
+build-docs: deps-docs
+	@echo "Building Astro documentation..."
+	@cd docs && npm run build
+	@echo "✓ Documentation built to docs/dist"
+
+.PHONY: dev-docs
+dev-docs: deps-docs
+	@echo "Starting Astro development server..."
+	@cd docs && npm run dev
+
+.PHONY: preview-docs
+preview-docs: build-docs
+	@echo "Starting Astro preview server..."
+	@cd docs && npm run preview
+
+.PHONY: clean-docs
+clean-docs:
+	@echo "Cleaning documentation artifacts..."
+	@rm -rf docs/dist docs/node_modules docs/.astro
+	@echo "✓ Documentation artifacts cleaned"
+
 # Sync templates from .github to pkg/cli/templates
 .PHONY: sync-templates
 sync-templates:
@@ -699,6 +730,11 @@ help:
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-agent-factory     - Generate agent factory documentation page"
 	@echo "  build-slides     - Build slides with Marp to docs/public/slides/gh-aw.html"
+	@echo "  deps-docs        - Install Astro documentation dependencies"
+	@echo "  build-docs       - Build Astro documentation to docs/dist"
+	@echo "  dev-docs         - Start Astro development server for live preview"
+	@echo "  preview-docs     - Preview built documentation with Astro"
+	@echo "  clean-docs       - Clean documentation artifacts (dist, node_modules, .astro)"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
