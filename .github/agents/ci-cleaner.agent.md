@@ -213,7 +213,7 @@ make agent-finish
 - `make recompile` - Recompile workflows
 - `make dependabot` - Generate Dependabot manifests
 - `make generate-schema-docs` - Generate schema documentation
-- `make generate-labs` - Generate labs documentation
+- `make generate-agent-factory` - Generate agent factory documentation
 - `make security-scan` - Run security scans
 
 Only run this if explicitly requested or for final verification.
