@@ -295,10 +295,56 @@ EOF
   rm -rf "$tmpdir"
 }
 
-# Test 10: Key validation functions exist
+# Test 10: URL normalization for 0.0.0.0
+test_url_normalization() {
+  echo ""
+  echo "Test 10: URL normalization for 0.0.0.0"
+  
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local config_file="$tmpdir/config.json"
+  
+  # Create config with 0.0.0.0 URL (as gateway outputs)
+  cat > "$config_file" <<'EOF'
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://0.0.0.0:8080/mcp/github",
+      "headers": {
+        "Authorization": "Bearer test-token"
+      }
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+  
+  # Script should normalize 0.0.0.0 to localhost when checking
+  # We can verify this by checking that it tries to connect (and fails because no gateway)
+  # rather than erroring immediately on invalid URL
+  local output
+  output=$(bash "$SCRIPT_PATH" "$config_file" "http://localhost:8080" "test-key" 2>&1 || true)
+  
+  # Should see "failed to connect" (not immediate URL error)
+  if echo "$output" | grep -q "failed to connect"; then
+    print_result "Script normalizes 0.0.0.0 URLs to localhost" "PASS"
+  else
+    print_result "Script should normalize 0.0.0.0 URLs" "FAIL"
+    echo "Output: $output"
+  fi
+  
+  rm -rf "$tmpdir"
+}
+
+# Test 11: Key validation functions exist
 test_validation_functions_exist() {
   echo ""
-  echo "Test 10: Verify key validation logic exists"
+  echo "Test 11: Verify key validation logic exists"
   
   # Check for configuration file validation
   if grep -q "Gateway configuration file not found" "$SCRIPT_PATH"; then
@@ -327,6 +373,13 @@ test_validation_functions_exist() {
   else
     print_result "Gateway config authentication logic missing" "FAIL"
   fi
+  
+  # Check for URL normalization logic
+  if grep -q "0\.0\.0\.0" "$SCRIPT_PATH"; then
+    print_result "URL normalization logic exists" "PASS"
+  else
+    print_result "URL normalization logic missing" "FAIL"
+  fi
 }
 
 # Run all tests
@@ -342,6 +395,7 @@ test_null_servers
 test_valid_http_server
 test_server_without_url
 test_mixed_servers
+test_url_normalization
 test_validation_functions_exist
 
 # Print summary

@@ -92,6 +92,10 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
   
+  # Normalize URL to use localhost if it contains 0.0.0.0
+  # Gateway outputs URLs with 0.0.0.0 as the bind address, but we need localhost to connect from host
+  SERVER_URL=$(echo "$SERVER_URL" | sed 's|://0\.0\.0\.0:|://localhost:|')
+  
   # Extract authentication headers from gateway configuration
   AUTH_HEADER=""
   if echo "$SERVER_CONFIG" | jq -e '.headers.Authorization' >/dev/null 2>&1; then
