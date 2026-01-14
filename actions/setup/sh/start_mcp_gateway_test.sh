@@ -82,7 +82,8 @@ test_config_not_found() {
   echo ""
   echo "Test 3: Configuration file not found"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
@@ -105,7 +106,8 @@ test_invalid_json_config() {
   echo ""
   echo "Test 4: Configuration file is invalid JSON"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
@@ -130,7 +132,8 @@ test_container_missing_docker_run() {
   echo ""
   echo "Test 5: Container missing 'docker run' prefix"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
@@ -156,7 +159,8 @@ test_container_missing_i_flag() {
   echo ""
   echo "Test 6: Container missing required -i flag"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
@@ -182,7 +186,8 @@ test_container_missing_rm_flag() {
   echo ""
   echo "Test 7: Container missing required --rm flag"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
@@ -208,7 +213,8 @@ test_container_missing_network_flag() {
   echo ""
   echo "Test 8: Container missing required --network host flag"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local fake_home="$tmpdir/home"
   mkdir -p "$fake_home/.copilot"
   
