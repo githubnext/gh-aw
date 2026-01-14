@@ -509,7 +509,7 @@ func TestShowUpdateSummary(t *testing.T) {
 			// This test just verifies the function doesn't panic and can be called
 			// We don't check the exact output format since it uses console helpers
 			// and the exact formatting may change
-			showUpdateSummary(tt.successfulUpdates, tt.failedUpdates)
+			showUpdateSummary(tt.successfulUpdates, tt.failedUpdates, false)
 		})
 	}
 }
@@ -829,7 +829,7 @@ func TestUpdateActions_NoFile(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should not error when file doesn't exist
-	err := UpdateActions(false, false)
+	err := UpdateActions(false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when actions-lock.json doesn't exist, got: %v", err)
 	}
@@ -860,7 +860,7 @@ func TestUpdateActions_EmptyFile(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should not error with empty file
-	err := UpdateActions(false, false)
+	err := UpdateActions(false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error with empty actions-lock.json, got: %v", err)
 	}
@@ -889,7 +889,7 @@ func TestUpdateActions_InvalidJSON(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should error with invalid JSON
-	err := UpdateActions(false, false)
+	err := UpdateActions(false, false, false)
 	if err == nil {
 		t.Error("Expected error with invalid JSON, got nil")
 	}

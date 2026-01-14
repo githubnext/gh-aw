@@ -12,8 +12,9 @@ import (
 )
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, merge bool) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, merge=%v", workflowsDir, workflowNames, merge)
+// If dryRun is true, it shows what would be updated without modifying files
+func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, merge bool, dryRun bool) error {
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, merge=%v, dryRun=%v", workflowsDir, workflowNames, merge, dryRun)
 
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
@@ -43,7 +44,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 
 	// Update each workflow
 	for _, wf := range workflows {
-		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, merge); err != nil {
+		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, merge, dryRun); err != nil {
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
 				Error: err.Error(),
@@ -54,7 +55,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 	}
 
 	// Show summary
-	showUpdateSummary(successfulUpdates, failedUpdates)
+	showUpdateSummary(successfulUpdates, failedUpdates, dryRun)
 
 	if len(successfulUpdates) == 0 {
 		return fmt.Errorf("no workflows were successfully updated")
@@ -256,8 +257,9 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, merge bool) error {
-	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, merge=%v", wf.Name, wf.SourceSpec, force, merge)
+// If dryRun is true, it shows what would be updated without modifying files
+func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, merge bool, dryRun bool) error {
+	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, merge=%v, dryRun=%v", wf.Name, wf.SourceSpec, force, merge, dryRun)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
@@ -439,24 +441,38 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		}
 	}
 
-	// Write updated content
-	if err := os.WriteFile(wf.Path, []byte(finalContent), 0644); err != nil {
-		return fmt.Errorf("failed to write updated workflow: %w", err)
+	// Write updated content (unless in dry-run mode)
+	if !dryRun {
+		if err := os.WriteFile(wf.Path, []byte(finalContent), 0644); err != nil {
+			return fmt.Errorf("failed to write updated workflow: %w", err)
+		}
 	}
 
 	if hasConflicts {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", wf.Name, currentRef, latestRef)))
+		if dryRun {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Would update %s from %s to %s with CONFLICTS - manual resolution required", wf.Name, currentRef, latestRef)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", wf.Name, currentRef, latestRef)))
+		}
 		return nil // Not an error, but user needs to resolve conflicts
 	}
 
 	updateLog.Printf("Successfully updated workflow %s from %s to %s", wf.Name, currentRef, latestRef)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, currentRef, latestRef)))
+	if dryRun {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Would update %s from %s to %s", wf.Name, currentRef, latestRef)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, currentRef, latestRef)))
+	}
 
-	// Compile the updated workflow with refreshStopTime enabled
-	updateLog.Printf("Compiling updated workflow: %s", wf.Name)
-	if err := compileWorkflowWithRefresh(wf.Path, verbose, engineOverride, true); err != nil {
-		updateLog.Printf("Compilation failed for workflow %s: %v", wf.Name, err)
-		return fmt.Errorf("failed to compile updated workflow: %w", err)
+	// Compile the updated workflow with refreshStopTime enabled (skip in dry-run mode)
+	if !dryRun {
+		updateLog.Printf("Compiling updated workflow: %s", wf.Name)
+		if err := compileWorkflowWithRefresh(wf.Path, verbose, engineOverride, true); err != nil {
+			updateLog.Printf("Compilation failed for workflow %s: %v", wf.Name, err)
+			return fmt.Errorf("failed to compile updated workflow: %w", err)
+		}
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("  Would compile workflow after update"))
 	}
 
 	return nil

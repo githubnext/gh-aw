@@ -8,12 +8,17 @@ import (
 )
 
 // showUpdateSummary displays a summary of workflow updates using console helpers
-func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure) {
+// If dryRun is true, it shows what would be updated
+func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure, dryRun bool) {
 	fmt.Fprintln(os.Stderr, "")
 
 	// Show successful updates
 	if len(successfulUpdates) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated and compiled %d workflow(s):", len(successfulUpdates))))
+		if dryRun {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Would update and compile %d workflow(s):", len(successfulUpdates))))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated and compiled %d workflow(s):", len(successfulUpdates))))
+		}
 		for _, name := range successfulUpdates {
 			fmt.Fprintln(os.Stderr, console.FormatListItem(name))
 		}

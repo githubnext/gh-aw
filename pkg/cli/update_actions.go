@@ -29,8 +29,9 @@ func extractBaseRepo(actionPath string) string {
 
 // UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
 // It checks each action for newer releases and updates the SHA if a newer version is found
-func UpdateActions(allowMajor, verbose bool) error {
-	updateLog.Print("Starting action updates")
+// If dryRun is true, it shows what would be updated without modifying files
+func UpdateActions(allowMajor, verbose bool, dryRun bool) error {
+	updateLog.Printf("Starting action updates (dryRun=%v)", dryRun)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking for GitHub Actions updates..."))
@@ -90,7 +91,12 @@ func UpdateActions(allowMajor, verbose bool) error {
 
 		// Update the entry
 		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, entry.SHA[:7], latestVersion, latestSHA[:7])
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
+		
+		if dryRun {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Would update %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
+		}
 
 		// Delete the old key (which has the old version)
 		delete(actionsLock.Entries, key)
@@ -110,7 +116,11 @@ func UpdateActions(allowMajor, verbose bool) error {
 	fmt.Fprintln(os.Stderr, "")
 
 	if len(updatedActions) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %d action(s):", len(updatedActions))))
+		if dryRun {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Would update %d action(s):", len(updatedActions))))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %d action(s):", len(updatedActions))))
+		}
 		for _, action := range updatedActions {
 			fmt.Fprintln(os.Stderr, console.FormatListItem(action))
 		}
@@ -131,7 +141,7 @@ func UpdateActions(allowMajor, verbose bool) error {
 	}
 
 	// Save the updated actions lock file if there were any updates
-	if len(updatedActions) > 0 {
+	if len(updatedActions) > 0 && !dryRun {
 		// Marshal with sorted keys and pretty printing
 		updatedData, err := marshalActionsLockSorted(&actionsLock)
 		if err != nil {
@@ -147,6 +157,8 @@ func UpdateActions(allowMajor, verbose bool) error {
 
 		updateLog.Printf("Successfully wrote updated actions-lock.json with %d updates", len(updatedActions))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated actions-lock.json file"))
+	} else if len(updatedActions) > 0 && dryRun {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Would update actions-lock.json file"))
 	}
 
 	return nil

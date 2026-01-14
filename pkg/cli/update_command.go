@@ -85,13 +85,7 @@ Examples:
 				return runDependencyAudit(verbose, jsonOutput)
 			}
 
-			// Handle dry-run mode
-			if dryRunFlag {
-				// TODO: Implement dry-run mode for workflow updates
-				return fmt.Errorf("--dry-run mode not yet implemented for workflow updates")
-			}
-
-			return UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag, noActions)
+			return UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag, noActions, dryRunFlag)
 		},
 	}
 
@@ -141,8 +135,14 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 // 3. Update workflows from source repositories (compiles each workflow after update)
 // 4. Apply automatic fixes to updated workflows
 // 5. Optionally create a PR
-func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string, merge bool, noActions bool) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, createPR=%v, merge=%v, noActions=%v", workflowNames, allowMajor, force, createPR, merge, noActions)
+func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string, merge bool, noActions bool, dryRun bool) error {
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, createPR=%v, merge=%v, noActions=%v, dryRun=%v", workflowNames, allowMajor, force, createPR, merge, noActions, dryRun)
+
+	// Show dry-run mode indicator
+	if dryRun {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in dry-run mode - no files will be modified"))
+		fmt.Fprintln(os.Stderr, "")
+	}
 
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
@@ -151,36 +151,40 @@ func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force
 
 	// Step 2: Update GitHub Actions versions (unless disabled)
 	if !noActions {
-		if err := UpdateActions(allowMajor, verbose); err != nil {
+		if err := UpdateActions(allowMajor, verbose, dryRun); err != nil {
 			return fmt.Errorf("action update failed: %w", err)
 		}
 	}
 
 	// Step 3: Update workflows from source repositories
 	// Note: Each workflow is compiled immediately after update
-	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, merge); err != nil {
+	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, merge, dryRun); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	// Step 4: Apply automatic fixes to updated workflows
-	fixConfig := FixConfig{
-		WorkflowIDs: workflowNames,
-		Write:       true,
-		Verbose:     verbose,
-	}
-	if err := RunFix(fixConfig); err != nil {
-		updateLog.Printf("Fix command failed (non-fatal): %v", err)
-		// Don't fail the update if fix fails - this is non-critical
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: automatic fixes failed: %v", err)))
+	// Step 4: Apply automatic fixes to updated workflows (skip in dry-run mode)
+	if !dryRun {
+		fixConfig := FixConfig{
+			WorkflowIDs: workflowNames,
+			Write:       true,
+			Verbose:     verbose,
+		}
+		if err := RunFix(fixConfig); err != nil {
+			updateLog.Printf("Fix command failed (non-fatal): %v", err)
+			// Don't fail the update if fix fails - this is non-critical
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: automatic fixes failed: %v", err)))
+			}
 		}
 	}
 
-	// Step 5: Optionally create PR if flag is set
-	if createPR {
+	// Step 5: Optionally create PR if flag is set (skip in dry-run mode)
+	if createPR && !dryRun {
 		if err := createUpdatePR(verbose); err != nil {
 			return fmt.Errorf("failed to create PR: %w", err)
 		}
+	} else if createPR && dryRun {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Would create PR with changes (skipped in dry-run mode)"))
 	}
 
 	return nil
