@@ -33,9 +33,9 @@ Okay, hear us out: the Poem Bot started as a joke. Someone said "wouldn't it be 
 
 The Daily News workflow curates relevant articles, but it also adds commentary and connects them to our work. These "fun" workflows have higher engagement than some of our "serious" ones, which tells you something about what makes people actually want to interact with automation.
 
-## In the Next Stage of Our Journey...
+## Summon an Agent on Demand
 
-Now that we've explored how creative workflows can bring joy and culture to our work, let's dive into the interactive agents - workflows that respond to commands and provide on-demand assistance whenever you need it.
+Scheduled workflows are great, but sometimes you need help *right now*. Enter ChatOps and interactive workflows.
 
 Continue reading: [Interactive & ChatOps Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/)
 

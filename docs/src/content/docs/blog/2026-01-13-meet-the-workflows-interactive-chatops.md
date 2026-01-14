@@ -33,9 +33,9 @@ Interactive workflows changed how we think about agent invocation. Instead of ev
 
 The Grumpy Reviewer gave us surprisingly valuable feedback with a side of sass ("This function is so nested it has its own ZIP code"). We learned that **context is king** - these agents work because they're invoked at the right moment with the right context, not because they run on a schedule.
 
-## In the Next Stage of Our Journey...
+## The Quiet Perfectionists
 
-Now that we've explored how interactive workflows respond to our commands, let's examine the agents that continuously improve our codebase - the code quality and refactoring workflows that make our code cleaner and more maintainable.
+While ChatOps agents respond to commands, another category works silently in the background, continuously improving code quality.
 
 Continue reading: [Code Quality & Refactoring Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/)
 

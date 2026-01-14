@@ -34,9 +34,9 @@ Documentation is where we challenged conventional wisdom. Can AI agents write *g
 
 These workflows don't replace technical writers; they multiply their effectiveness.
 
-## In the Next Stage of Our Journey...
+## The Daily GitHub Grind
 
-Now that we've explored documentation workflows, let's look at the daily rituals of software development - issue and PR management. These workflows enhance GitHub's native features to make collaboration smoother and more efficient.
+Beyond writing code and docs, there's all that GitHub ceremony - issues, PRs, labels, merges. Lots of small papercuts.
 
 Continue reading: [Issue & PR Management Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/)
 

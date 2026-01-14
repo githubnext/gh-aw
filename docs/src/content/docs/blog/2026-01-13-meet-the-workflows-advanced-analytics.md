@@ -34,9 +34,9 @@ We got nerdy with these workflows. The Prompt Clustering Analysis uses machine l
 
 These workflows helped us understand not just what our agents do, but *how* they behave and how users interact with them.
 
-## In the Next Stage of Our Journey...
+## Scaling Up: From Repo to Organization
 
-Now that we've explored sophisticated analytics on individual repositories, let's zoom out to organization scale - workflows that operate across multiple repositories to provide enterprise-wide insights and management.
+Single-repository insights are valuable, but the real patterns emerge when you analyze across an entire organization.
 
 Continue reading: [Organization & Cross-Repo Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/)
 

@@ -33,9 +33,9 @@ Security workflows were where we got serious about trust boundaries. The Securit
 
 The Firewall workflow validates that our agents can't access unauthorized resources, because an AI agent with unrestricted network access is... let's just say we sleep better with these safeguards. These workflows prove that automation and security aren't at odds - when done right, automated security is more consistent than manual reviews.
 
-## In the Next Stage of Our Journey...
+## From Safety to Shipping
 
-Now that we've explored how security and compliance workflows protect our systems, let's look at the agents that help us actually ship software - the operations and release workflows that handle the heavy lifting of deployment.
+With guardrails in place, we could focus on the ultimate goal: getting software into users' hands reliably and repeatedly.
 
 Continue reading: [Operations & Release Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/)
 

@@ -33,9 +33,9 @@ Infrastructure for AI agents is different from traditional infrastructure - you 
 
 These workflows provide visibility into the invisible.
 
-## In the Next Stage of Our Journey...
+## Breaking the Ephemeral Mold
 
-Now that we've explored the infrastructure layer, let's look at some of our most ambitious workflows - the multi-phase improvers that tackle big projects over multiple days, maintaining state and making incremental progress.
+Most workflows we've seen are stateless - they run, complete, and disappear. But what if agents could maintain memory across days?
 
 Continue reading: [Multi-Phase Improver Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/)
 

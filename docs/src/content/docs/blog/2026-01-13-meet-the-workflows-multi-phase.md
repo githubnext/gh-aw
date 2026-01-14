@@ -36,9 +36,9 @@ This is where we got experimental with agent persistence and multi-day workflows
 
 These workflows prove that AI agents can handle complex, long-running projects when given the right architecture.
 
-## In the Next Stage of Our Journey...
+## What's Next?
 
-Now that we've explored how multi-phase workflows tackle ambitious long-running projects, let's dive into the sophisticated analytics layer - workflows that use machine learning and natural language processing to extract deep insights from our data.
+Basic metrics are useful, but we want to go deeper - to truly understand agent behavior patterns and developer interactions.
 
 Continue reading: [Advanced Analytics & ML Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/)
 

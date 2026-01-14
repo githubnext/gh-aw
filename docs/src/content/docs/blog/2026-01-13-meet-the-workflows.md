@@ -33,17 +33,9 @@ What surprised us most about this category? The **tone** matters way more than w
 
 These workflows became our daily reading habit rather than another notification to dismiss.
 
-## 🔍 Quality & Hygiene Workflows
-
-These are our diligent caretakers - the agents that spot problems before they become, well, bigger problems:
-
-- **[CI Doctor](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/ci-doctor.md)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)
-- **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/schema-consistency-checker.md)** - Detects when schemas, code, and docs drift apart
-- **[Breaking Change Checker](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/breaking-change-checker.md)** - Watches for changes that might break things for users
-
 ## In the Next Stage of Our Journey...
 
-Now that we've explored how triage and summarization workflows help us stay on top of incoming activity, let's look at the agents that maintain quality and hygiene in our repository. These diligent caretakers spot problems before they escalate and keep our codebase healthy.
+Now that we've explored how triage and summarization workflows help us stay on top of incoming activity, let's look next at the agents that maintain quality and hygiene in our repository. These diligent caretakers spot problems before they escalate and keep our codebase healthy.
 
 Continue reading: [Quality & Hygiene Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)
 

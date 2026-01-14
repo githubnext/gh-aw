@@ -32,9 +32,9 @@ Shipping software is stressful enough without worrying about whether you formatt
 
 The Daily Workflow Updater taught us that maintenance is a perfect use case for agents - it's repetitive, necessary, and nobody enjoys doing it manually. These workflows handle the toil so we can focus on the interesting problems.
 
-## In the Next Stage of Our Journey...
+## Time for a Palette Cleanser
 
-Now that we've explored the serious business of operations and releases, let's lighten things up! Next, we'll look at the creative and culture workflows - agents that remind us that work can be fun and bring joy to our daily routines.
+After all this serious infrastructure talk, we discovered something delightful: agents don't have to be all business.
 
 Continue reading: [Creative & Culture Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
 

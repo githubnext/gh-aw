@@ -31,11 +31,13 @@ These are our diligent caretakers - the agents that spot problems before they be
 
 The CI Doctor was a revelation. Instead of drowning in CI failure notifications, we now get *timely*, *investigated* failures with actual diagnostic insights. The agent doesn't just tell us something broke - it analyzes logs, identifies patterns, searches for similar past issues, and even suggests fixes. We learned that agents excel at the tedious investigation work that humans find draining.
 
-The Schema Consistency Checker caught drift that would have taken us days to notice manually. These "hygiene" workflows became our first line of defense, catching issues before they reached users.
+The Schema Consistency Checker caught drift that would have taken us days to notice manually. 
 
-## In the Next Stage of Our Journey...
+These "hygiene" workflows became our first line of defense, catching issues before they reached users.
 
-Now that we've explored how quality and hygiene workflows maintain our codebase health, let's dive into the agents that turn raw repository activity into actionable insights through metrics and analytics.
+## What's Next?
+
+With quality and hygiene workflows maintaining our codebase health, we needed a way to understand whether they were actually working. How do you know if your agents are performing well? That's where metrics and analytics come in.
 
 Continue reading: [Metrics & Analytics Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)
 

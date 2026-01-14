@@ -33,9 +33,9 @@ Here's where things got meta: we built agents to monitor agents. The Metrics Col
 
 These workflows taught us that observability isn't optional when you're running dozens of AI agents - it's the difference between a well-oiled machine and an expensive black box.
 
-## In the Next Stage of Our Journey...
+## Up Next: Building Trust Boundaries
 
-Now that we've explored how metrics and analytics workflows help us optimize our agent ecosystem, let's examine the agents that keep watch over security and compliance, ensuring our AI agents operate within safe boundaries.
+Now that we can measure and optimize our agent ecosystem, we needed to ensure these powerful agents operate safely. Time to talk about security.
 
 Continue reading: [Security & Compliance Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
 

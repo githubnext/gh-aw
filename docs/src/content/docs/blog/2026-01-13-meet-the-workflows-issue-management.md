@@ -33,9 +33,9 @@ These agents enhance issue and pull request workflows:
 
 Issue management is tedious ceremony that developers tolerate rather than enjoy. The Issue Arborist automatically links related issues, building a dependency tree we'd never maintain manually. The Issue Monster became our task dispatcher for AI agents - it assigns one issue at a time to Copilot agents, preventing the chaos of parallel work on the same codebase. Mergefest eliminates the "please merge main" dance that happens on long-lived PRs. We learned that **tiny frustrations add up** - each of these workflows removes a small papercut, and collectively they make GitHub feel much more pleasant to use. The Issue Template Optimizer analyzes which fields in our templates actually get filled out and suggests improvements ("nobody uses the 'Expected behavior' field, remove it").
 
-## In the Next Stage of Our Journey...
+## The Orchestration Challenge
 
-Now that we've explored workflows that handle individual issues and PRs, let's look at the orchestration layer - campaign and project coordination workflows that manage structured improvement initiatives across multiple agents.
+Individual agents are great at focused tasks. But how do you coordinate multiple agents toward a shared, complex goal?
 
 Continue reading: [Campaign & Project Coordination Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/)
 

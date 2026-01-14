@@ -31,9 +31,9 @@ These agents work at organization scale, across multiple repositories:
 
 Scaling agents across an entire organization changes the game. The Org Health Report analyzes dozens of repositories at once, identifying patterns and outliers ("these three repos have no tests, these five haven't been updated in months"). The Stale Repo Identifier helps with organizational hygiene - finding abandoned projects that should be archived or transferred. We learned that **cross-repo insights are different** - what looks fine in one repository might be an outlier across the organization. These workflows require careful permission management (reading across repos needs organization-level tokens) and thoughtful rate limiting (you can hit API limits fast when analyzing 50+ repos). The Ubuntu Image Analyzer is wonderfully meta - it documents the very environment that runs our agents.
 
-## In the Next Stage of Our Journey...
+## The Eternal Documentation Challenge
 
-Now that we've explored organization-wide workflows, let's focus on a crucial aspect of any software project - documentation. These workflows maintain high-quality docs and content that stays in sync with your codebase.
+Code evolves fast. Documentation? Not so much. Can AI agents help solve this age-old problem?
 
 Continue reading: [Documentation & Content Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
 

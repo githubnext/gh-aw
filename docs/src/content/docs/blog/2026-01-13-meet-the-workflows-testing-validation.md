@@ -33,9 +33,9 @@ We learned the hard way that AI infrastructure needs constant health checks. The
 
 These workflows embody the principle: **trust but verify**. Just because it worked yesterday doesn't mean it works today.
 
-## In the Next Stage of Our Journey...
+## Monitoring the Monitors
 
-Now that we've explored how testing workflows ensure reliability, let's dive into the infrastructure layer - the tool and infrastructure workflows that monitor and analyze the agentic systems themselves.
+But what about the infrastructure itself? Who watches the watchers? Time to go meta.
 
 Continue reading: [Tool & Infrastructure Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/)
 
