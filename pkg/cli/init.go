@@ -346,20 +346,20 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 	// Safe outputs
 	if data.SafeOutputs != nil {
 		b.WriteString("safe-outputs:\n")
-		
+
 		if data.SafeOutputs.AddComments != nil {
 			b.WriteString("  add-comment:\n")
 			b.WriteString("    max: 10\n")
 		}
-		
+
 		if data.SafeOutputs.UpdateIssues != nil {
 			b.WriteString("  update-issue:\n")
 		}
-		
+
 		if data.SafeOutputs.AssignToAgent != nil {
 			b.WriteString("  assign-to-agent:\n")
 		}
-		
+
 		if data.SafeOutputs.CreateProjects != nil {
 			b.WriteString("  create-project:\n")
 			b.WriteString("    max: 1\n")
@@ -367,7 +367,7 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.CreateProjects.GitHubToken)
 			}
 		}
-		
+
 		if data.SafeOutputs.UpdateProjects != nil {
 			b.WriteString("  update-project:\n")
 			b.WriteString("    max: 10\n")
@@ -383,7 +383,7 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 				}
 			}
 		}
-		
+
 		if data.SafeOutputs.Messages != nil {
 			b.WriteString("  messages:\n")
 			if data.SafeOutputs.Messages.Footer != "" {
