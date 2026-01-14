@@ -13,6 +13,22 @@ This package follows Charmbracelet best practices for terminal UI:
 - **Visual Hierarchy**: Clear separation between sections using borders and spacing
 - **Zebra Striping**: Tables use alternating row colors for improved readability
 
+### Border Usage Guidelines
+
+- **RoundedBorder** (primary): Use for tables, boxes, and panels
+  - Creates a polished, modern appearance
+  - Consistent with Charmbracelet design language
+- **NormalBorder** (subtle): Use for left-side emphasis on info sections
+  - Provides gentle visual guidance without overwhelming
+- **ThickBorder** (reserved): Available for special cases requiring extra emphasis
+  - Use sparingly - rounded borders with bold text usually suffice
+
+### Padding Guidelines
+
+- **Table cells**: 1 character horizontal padding (left/right)
+- **Boxes**: 2 character horizontal padding, 0-1 vertical padding
+- **Info sections**: 2 character left padding for consistent indentation
+
 ## Spinner Component
 
 The `Spinner` component provides animated visual feedback during long-running operations with automatic TTY detection and accessibility support.

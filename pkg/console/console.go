@@ -384,15 +384,15 @@ func RenderTitleBox(title string, width int) []string {
 	return []string{separator, "  " + title, separator}
 }
 
-// RenderErrorBox renders an error/warning message with a thick border box in TTY mode,
+// RenderErrorBox renders an error/warning message with a rounded border box in TTY mode,
 // or plain text in non-TTY mode.
 // The box will be styled with the Error color scheme for critical messages.
 // Returns a slice of strings ready to be added to sections or printed directly.
 func RenderErrorBox(title string) []string {
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss styled box with thick border
+		// TTY mode: Use Lipgloss styled box with rounded border
 		box := lipgloss.NewStyle().
-			Border(lipgloss.ThickBorder()).
+			Border(styles.RoundedBorder).
 			BorderForeground(styles.ColorError).
 			Padding(1, 2).
 			Bold(true).
