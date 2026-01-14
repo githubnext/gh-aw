@@ -126,7 +126,7 @@ async function createDefaultViews(projectUrl, projectNumber, ownerType, ownerLog
     return;
   }
 
-  const route = ownerType === "org" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{user_id}/projectsV2/{project_number}/views";
+  const route = ownerType === "org" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{username}/projectsV2/{project_number}/views";
 
   for (const viewDef of defaultViews) {
     try {
@@ -140,7 +140,7 @@ async function createDefaultViews(projectUrl, projectNumber, ownerType, ownerLog
               filter: viewDef.filter,
             }
           : {
-              user_id: ownerLogin,
+              username: ownerLogin,
               project_number: projectNumber,
               name: viewDef.name,
               layout: viewDef.layout,
