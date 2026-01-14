@@ -2,11 +2,11 @@
 on: 
   workflow_dispatch:
     inputs:
-      issue_number:
-        description: Issue number to assign agent to
+      issue_url:
+        description: 'Issue URL to assign agent to (e.g., https://github.com/owner/repo/issues/123)'
         required: true
         type: string
-name: Dev
+name: Playground Assign to Agent
 description: Test assign-to-agent safe output feature
 permissions:
   contents: read
@@ -36,6 +36,11 @@ Test the `assign-to-agent` safe output feature by assigning the Copilot agent to
 
 ## Task
 
-Assign the Copilot agent to issue #${{ github.event.inputs.issue_number }} using the `assign_to_agent` tool from the `safeoutputs` MCP server.
+You have been provided with an issue URL: ${{ github.event.inputs.issue_url }}
 
-The `assign_to_agent` tool will handle the actual assignment. Do not use GitHub tools directly for assignment.
+1. Parse the issue URL to extract the owner, repo, and issue number
+2. Validate that the URL is an issue URL (not a pull request URL)
+3. Use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent to the issue
+4. Pass the numeric issue_number (extracted from the URL) to the `assign_to_agent` tool
+
+**Important**: Do not use GitHub tools directly for assignment. Only use the `assign_to_agent` safe output tool.
