@@ -863,7 +863,7 @@ func prepareConfigForValidation(config string) string {
 	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_MCP_SERVER_TOKEN}\"", "\"sample-token\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_PERSONAL_ACCESS_TOKEN}\"", "\"sample-token\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_TOKEN}\"", "\"sample-token\"")
-	
+
 	// Generic replacement for any remaining ${...} patterns
 	// This handles safe-outputs variables and other dynamic env vars
 	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_MCP_LOG_DIR}\"", "\"sample-value\"")
@@ -878,7 +878,7 @@ func prepareConfigForValidation(config string) string {
 	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_SHA}\"", "\"sample-value\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_WORKSPACE}\"", "\"sample-value\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"${DEFAULT_BRANCH}\"", "\"sample-value\"")
-	
+
 	// Legacy shell variable format (without braces) - used by non-Copilot engines
 	// These need to be replaced with sample values for validation
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
@@ -895,7 +895,7 @@ func prepareConfigForValidation(config string) string {
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_SHA\"", "\"sample-value\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_WORKSPACE\"", "\"sample-value\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$DEFAULT_BRANCH\"", "\"sample-value\"")
-	
+
 	// Safe inputs port variable in URLs (not quoted, part of URL string)
 	cleaned = strings.ReplaceAll(cleaned, "$GH_AW_SAFE_INPUTS_PORT", "8081")
 

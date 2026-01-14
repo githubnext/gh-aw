@@ -25,6 +25,7 @@ name: "Campaign: Discussion Task Mining for Code Quality"
 "on":
   schedule:
   - cron: "0 18 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions:
