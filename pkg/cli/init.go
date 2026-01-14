@@ -129,6 +129,16 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign dispatcher agent"))
 		}
+
+		// Add campaign-generator workflow from gh-aw repository
+		initLog.Print("Adding campaign-generator workflow")
+		if err := addCampaignGeneratorWorkflow(verbose); err != nil {
+			initLog.Printf("Failed to add campaign-generator workflow: %v", err)
+			return fmt.Errorf("failed to add campaign-generator workflow: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added campaign-generator workflow"))
+		}
 	}
 
 	// Configure MCP if requested
@@ -231,5 +241,36 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+string(constants.CLIExtensionPrefix)+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
 
+	return nil
+}
+
+// addCampaignGeneratorWorkflow adds the campaign-generator workflow from githubnext/gh-aw
+func addCampaignGeneratorWorkflow(verbose bool) error {
+	initLog.Print("Adding campaign-generator workflow from githubnext/gh-aw")
+
+	// Use the AddWorkflows function to add the campaign-generator workflow
+	// Format: owner/repo/workflow-name
+	workflows := []string{"githubnext/gh-aw/campaign-generator"}
+
+	// Call AddWorkflows with appropriate parameters:
+	// - workflows: the workflow spec
+	// - number: 1 (only add one copy)
+	// - verbose: pass through from init
+	// - engineOverride: "" (no engine override)
+	// - nameOverride: "" (use default name)
+	// - force: false (don't overwrite if exists)
+	// - appendText: "" (no text to append)
+	// - createPR: false (don't create PR during init)
+	// - noGitattributes: false (update gitattributes)
+	// - workflowDir: "" (use default .github/workflows/)
+	// - noStopAfter: false (use default behavior)
+	// - stopAfter: "" (no stop-after override)
+	err := AddWorkflows(workflows, 1, verbose, "", "", false, "", false, false, "", false, "")
+	if err != nil {
+		initLog.Printf("Failed to add campaign-generator workflow: %v", err)
+		return fmt.Errorf("failed to add campaign-generator workflow: %w", err)
+	}
+
+	initLog.Print("Campaign-generator workflow added successfully")
 	return nil
 }

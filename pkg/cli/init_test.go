@@ -244,3 +244,63 @@ func TestInitRepository_Verbose(t *testing.T) {
 		t.Errorf("Expected .gitattributes file to exist with verbose=true")
 	}
 }
+
+func TestInitRepository_Campaign(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Change to temp directory
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Call the function with campaign flag enabled
+	err = InitRepository(false, true, true, false, "", []string{}, false, false, nil)
+	if err != nil {
+		t.Fatalf("InitRepository with campaign flag returned error: %v", err)
+	}
+
+	// Verify campaign dispatcher agent was created
+	campaignAgentPath := filepath.Join(tempDir, ".github", "agents", "agentic-campaigns.agent.md")
+	if _, err := os.Stat(campaignAgentPath); os.IsNotExist(err) {
+		t.Errorf("Expected campaign dispatcher agent to exist at %s", campaignAgentPath)
+	}
+
+	// Verify campaign-generator workflow was added
+	campaignWorkflowPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.md")
+	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {
+		t.Errorf("Expected campaign-generator workflow to exist at %s", campaignWorkflowPath)
+	}
+
+	// Verify campaign-generator lock file was created
+	campaignLockPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.lock.yml")
+	if _, err := os.Stat(campaignLockPath); os.IsNotExist(err) {
+		t.Errorf("Expected campaign-generator lock file to exist at %s", campaignLockPath)
+	}
+
+	// Verify workflow content contains expected frontmatter
+	workflowContent, err := os.ReadFile(campaignWorkflowPath)
+	if err != nil {
+		t.Fatalf("Failed to read campaign-generator workflow: %v", err)
+	}
+	workflowStr := string(workflowContent)
+	if !strings.Contains(workflowStr, "description: Campaign generator") {
+		t.Errorf("Expected campaign-generator workflow to contain description")
+	}
+	if !strings.Contains(workflowStr, "create-agentic-campaign") {
+		t.Errorf("Expected campaign-generator workflow to trigger on 'create-agentic-campaign' label")
+	}
+}
