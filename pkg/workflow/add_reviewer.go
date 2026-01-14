@@ -36,8 +36,7 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed for safe outputs)
-	if config.TargetRepoSlug == "*" {
-		addReviewerLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+	if validateTargetRepoSlug(config.TargetRepoSlug, addReviewerLog) {
 		return nil
 	}
 

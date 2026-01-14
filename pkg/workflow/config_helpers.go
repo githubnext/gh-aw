@@ -123,6 +123,19 @@ func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
 	return targetRepoSlug, false
 }
 
+// validateTargetRepoSlug validates that a target-repo slug is not a wildcard.
+// Returns true if the value is invalid (i.e., equals "*").
+// This helper is used when the target-repo has already been parsed into a struct field.
+func validateTargetRepoSlug(targetRepoSlug string, log *logger.Logger) bool {
+	if targetRepoSlug == "*" {
+		if log != nil {
+			log.Print("Invalid target-repo: wildcard '*' is not allowed")
+		}
+		return true // Return true to indicate validation error
+	}
+	return false
+}
+
 // parseParticipantsFromConfig extracts and validates participants (assignees/reviewers) from a config map.
 // Supports both string (single participant) and array (multiple participants) formats.
 // Returns a slice of participant usernames, or nil if not present or invalid.
