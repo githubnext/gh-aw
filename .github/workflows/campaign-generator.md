@@ -23,6 +23,7 @@ safe-outputs:
   create-project:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    create-views: true
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
@@ -104,7 +105,7 @@ Extract requirements from the issue body #${{ github.event.issue.number }}:
 
 ### Step 2: Create GitHub Project Board
 
-Use the `create-project` safe output to create a new empty project:
+Use the `create-project` safe output to create a new project with default views:
 
 ```javascript
 create_project({
@@ -114,11 +115,16 @@ create_project({
 })
 ```
 
+**The project will be created with three default views automatically:**
+- Campaign Roadmap (roadmap layout)
+- Task Tracker (table layout)
+- Progress Board (board layout)
+
 **Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
 
-### Step 2.5: Create Project Fields and Views
+### Step 2.5: Create Project Fields
 
-After creating the project, set up custom fields and views using the `update-project` safe output.
+After creating the project, set up custom fields using the `update-project` safe output.
 
 #### 2.5.1: Create Custom Fields
 
@@ -159,48 +165,7 @@ update_project({
 })
 ```
 
-#### 2.5.2: Create Views
-
-Create three views for different tracking needs:
-
-1. **Roadmap View** (timeline visualization):
-```javascript
-update_project({
-  project: "<project-url-from-step-2>",
-  operation: "create_view",
-  view: {
-    name: "Campaign Roadmap",
-    layout: "roadmap",
-    filter: "is:issue,is:pull_request"
-  }
-})
-```
-
-2. **Task Table View** (detailed tracking):
-```javascript
-update_project({
-  project: "<project-url-from-step-2>",
-  operation: "create_view",
-  view: {
-    name: "Task Tracker",
-    layout: "table",
-    filter: "is:issue,is:pull_request"
-  }
-})
-```
-
-3. **Board View** (kanban-style progress):
-```javascript
-update_project({
-  project: "<project-url-from-step-2>",
-  operation: "create_view",
-  view: {
-    name: "Progress Board",
-    layout: "board",
-    filter: "is:issue,is:pull_request"
-  }
-})
-```
+**Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) were already created automatically in Step 2. You only need to create custom fields here.
 
 ### Step 3: Discover Workflows Dynamically
 
