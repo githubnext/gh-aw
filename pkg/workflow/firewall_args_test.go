@@ -219,4 +219,107 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Should use custom version, not default version")
 		}
 	})
+
+	t.Run("AWF command includes ssl-bump flag when enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					SSLBump: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --ssl-bump flag is included
+		if !strings.Contains(stepContent, "--ssl-bump") {
+			t.Error("Expected AWF command to contain '--ssl-bump' flag")
+		}
+	})
+
+	t.Run("AWF command includes allow-urls with ssl-bump enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled:   true,
+					SSLBump:   true,
+					AllowURLs: []string{"https://github.com/githubnext/*", "https://api.github.com/repos/*"},
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --ssl-bump flag is included
+		if !strings.Contains(stepContent, "--ssl-bump") {
+			t.Error("Expected AWF command to contain '--ssl-bump' flag")
+		}
+
+		// Check that --allow-urls is included with the comma-separated URLs
+		if !strings.Contains(stepContent, "--allow-urls") {
+			t.Error("Expected AWF command to contain '--allow-urls' flag")
+		}
+
+		if !strings.Contains(stepContent, "https://github.com/githubnext/*") {
+			t.Error("Expected AWF command to contain URL pattern 'https://github.com/githubnext/*'")
+		}
+	})
+
+	t.Run("AWF command does not include allow-urls without ssl-bump", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled:   true,
+					SSLBump:   false, // SSL Bump disabled
+					AllowURLs: []string{"https://github.com/githubnext/*"},
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --ssl-bump flag is NOT included
+		if strings.Contains(stepContent, "--ssl-bump") {
+			t.Error("Expected AWF command to NOT contain '--ssl-bump' flag when SSLBump is false")
+		}
+
+		// Check that --allow-urls is NOT included when ssl-bump is disabled
+		if strings.Contains(stepContent, "--allow-urls") {
+			t.Error("Expected AWF command to NOT contain '--allow-urls' flag when SSLBump is false")
+		}
+	})
 }

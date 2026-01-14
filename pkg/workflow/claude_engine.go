@@ -325,6 +325,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		claudeLog.Printf("Pinned AWF image tag to %s", awfImageTag)
 
+		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
+		sslBumpArgs := getSSLBumpArgs(firewallConfig)
+		awfArgs = append(awfArgs, sslBumpArgs...)
+
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
 			awfArgs = append(awfArgs, firewallConfig.Args...)
