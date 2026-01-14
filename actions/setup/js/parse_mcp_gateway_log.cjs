@@ -8,7 +8,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * Parses MCP gateway logs and creates a step summary
  * Log file locations:
  *  - /tmp/gh-aw/mcp-logs/gateway.md (markdown summary from gateway, preferred)
- *  - /tmp/gh-aw/mcp-logs/gateway.log (main gateway log, fallback)
+ *  - /tmp/gh-aw/mcp-logs/mcp-gateway.log (main gateway log, fallback)
  *  - /tmp/gh-aw/mcp-logs/stderr.log (stderr output, fallback)
  */
 
@@ -102,7 +102,7 @@ async function main() {
     printAllGatewayFiles();
 
     const gatewayMdPath = "/tmp/gh-aw/mcp-logs/gateway.md";
-    const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
+    const gatewayLogPath = "/tmp/gh-aw/mcp-logs/mcp-gateway.log";
     const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
     // First, try to read gateway.md if it exists
@@ -111,19 +111,19 @@ async function main() {
       if (gatewayMdContent && gatewayMdContent.trim().length > 0) {
         core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
 
-        // Read gateway.log for core.info output instead of gateway.md
+        // Read mcp-gateway.log for core.info output instead of gateway.md
         if (fs.existsSync(gatewayLogPath)) {
           const gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
           if (gatewayLogContent && gatewayLogContent.trim().length > 0) {
-            core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
-            // Generate plain text summary for core.info from gateway.log
+            core.info(`Found mcp-gateway.log (${gatewayLogContent.length} bytes)`);
+            // Generate plain text summary for core.info from mcp-gateway.log
             const plainTextSummary = generatePlainTextLegacySummary(gatewayLogContent, "");
             core.info(plainTextSummary);
           } else {
-            core.info("gateway.log is empty");
+            core.info("mcp-gateway.log is empty");
           }
         } else {
-          core.info(`No gateway.log found at: ${gatewayLogPath}`);
+          core.info(`No mcp-gateway.log found at: ${gatewayLogPath}`);
         }
 
         // Write the markdown directly to the step summary
@@ -138,12 +138,12 @@ async function main() {
     let gatewayLogContent = "";
     let stderrLogContent = "";
 
-    // Read gateway.log if it exists
+    // Read mcp-gateway.log if it exists
     if (fs.existsSync(gatewayLogPath)) {
       gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
-      core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
+      core.info(`Found mcp-gateway.log (${gatewayLogContent.length} bytes)`);
     } else {
-      core.info(`No gateway.log found at: ${gatewayLogPath}`);
+      core.info(`No mcp-gateway.log found at: ${gatewayLogPath}`);
     }
 
     // Read stderr.log if it exists
@@ -212,7 +212,7 @@ function generatePlainTextGatewaySummary(gatewayMdContent) {
 
 /**
  * Generates a plain text summary from legacy log files for console output
- * @param {string} gatewayLogContent - The gateway.log content
+ * @param {string} gatewayLogContent - The mcp-gateway.log content
  * @param {string} stderrLogContent - The stderr.log content
  * @returns {string} Plain text summary for console output
  */
@@ -223,9 +223,9 @@ function generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent) {
   lines.push("=== MCP Gateway Logs ===");
   lines.push("");
 
-  // Add gateway.log if it has content
+  // Add mcp-gateway.log if it has content
   if (gatewayLogContent && gatewayLogContent.trim().length > 0) {
-    lines.push("Gateway Log (gateway.log):");
+    lines.push("Gateway Log (mcp-gateway.log):");
     lines.push("");
     lines.push(gatewayLogContent.trim());
     lines.push("");
@@ -244,17 +244,17 @@ function generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent) {
 
 /**
  * Generates a markdown summary of MCP gateway logs
- * @param {string} gatewayLogContent - The gateway.log content
+ * @param {string} gatewayLogContent - The mcp-gateway.log content
  * @param {string} stderrLogContent - The stderr.log content
  * @returns {string} Markdown summary
  */
 function generateGatewayLogSummary(gatewayLogContent, stderrLogContent) {
   const summary = [];
 
-  // Add gateway.log if it has content
+  // Add mcp-gateway.log if it has content
   if (gatewayLogContent && gatewayLogContent.trim().length > 0) {
     summary.push("<details>");
-    summary.push("<summary>MCP Gateway Log (gateway.log)</summary>\n");
+    summary.push("<summary>MCP Gateway Log (mcp-gateway.log)</summary>\n");
     summary.push("```");
     summary.push(gatewayLogContent.trim());
     summary.push("```");

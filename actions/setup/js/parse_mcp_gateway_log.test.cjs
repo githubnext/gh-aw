@@ -88,14 +88,14 @@ Some content here.`;
   });
 
   describe("generatePlainTextLegacySummary", () => {
-    test("generates summary with both gateway.log and stderr.log", () => {
+    test("generates summary with both mcp-gateway.log and stderr.log", () => {
       const gatewayLogContent = "Gateway started\nServer listening on port 8080";
       const stderrLogContent = "Debug: connection accepted\nDebug: request processed";
 
       const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
 
       expect(summary).toContain("=== MCP Gateway Logs ===");
-      expect(summary).toContain("Gateway Log (gateway.log):");
+      expect(summary).toContain("Gateway Log (mcp-gateway.log):");
       expect(summary).toContain("Gateway started");
       expect(summary).toContain("Server listening on port 8080");
       expect(summary).toContain("Gateway Log (stderr.log):");
@@ -103,14 +103,14 @@ Some content here.`;
       expect(summary).toContain("Debug: request processed");
     });
 
-    test("generates summary with only gateway.log content", () => {
+    test("generates summary with only mcp-gateway.log content", () => {
       const gatewayLogContent = "Gateway started\nServer ready";
       const stderrLogContent = "";
 
       const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
 
       expect(summary).toContain("=== MCP Gateway Logs ===");
-      expect(summary).toContain("Gateway Log (gateway.log):");
+      expect(summary).toContain("Gateway Log (mcp-gateway.log):");
       expect(summary).toContain("Gateway started");
       expect(summary).not.toContain("Gateway Log (stderr.log):");
     });
@@ -122,7 +122,7 @@ Some content here.`;
       const summary = generatePlainTextLegacySummary(gatewayLogContent, stderrLogContent);
 
       expect(summary).toContain("=== MCP Gateway Logs ===");
-      expect(summary).not.toContain("Gateway Log (gateway.log):");
+      expect(summary).not.toContain("Gateway Log (mcp-gateway.log):");
       expect(summary).toContain("Gateway Log (stderr.log):");
       expect(summary).toContain("Error: connection failed");
     });
@@ -150,14 +150,14 @@ Some content here.`;
   });
 
   describe("generateGatewayLogSummary", () => {
-    test("generates summary with both gateway.log and stderr.log", () => {
+    test("generates summary with both mcp-gateway.log and stderr.log", () => {
       const gatewayLogContent = "Gateway started\nServer listening on port 8080";
       const stderrLogContent = "Debug: connection accepted\nDebug: request processed";
 
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
-      // Check gateway.log section
-      expect(summary).toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
+      // Check mcp-gateway.log section
+      expect(summary).toContain("<summary>MCP Gateway Log (mcp-gateway.log)</summary>");
       expect(summary).toContain("Gateway started");
       expect(summary).toContain("Server listening on port 8080");
 
@@ -172,13 +172,13 @@ Some content here.`;
       expect(summary).toContain("</details>");
     });
 
-    test("generates summary with only gateway.log content", () => {
+    test("generates summary with only mcp-gateway.log content", () => {
       const gatewayLogContent = "Gateway started\nServer ready";
       const stderrLogContent = "";
 
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
-      expect(summary).toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
+      expect(summary).toContain("<summary>MCP Gateway Log (mcp-gateway.log)</summary>");
       expect(summary).toContain("Gateway started");
       expect(summary).not.toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
     });
@@ -189,7 +189,7 @@ Some content here.`;
 
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
-      expect(summary).not.toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
+      expect(summary).not.toContain("<summary>MCP Gateway Log (mcp-gateway.log)</summary>");
       expect(summary).toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
       expect(summary).toContain("Error: connection failed");
     });
@@ -223,8 +223,8 @@ Some content here.`;
 
       const lines = summary.split("\n");
 
-      // Find gateway.log code block - look for summary line with gateway.log
-      const gatewaySummaryIndex = lines.findIndex(line => line.includes("gateway.log"));
+      // Find mcp-gateway.log code block - look for summary line with mcp-gateway.log
+      const gatewaySummaryIndex = lines.findIndex(line => line.includes("mcp-gateway.log"));
       expect(gatewaySummaryIndex).toBeGreaterThan(-1);
 
       // Find the code block start after the gateway summary
@@ -249,17 +249,17 @@ Some content here.`;
   });
 
   describe("main function behavior", () => {
-    // These tests verify that when gateway.md exists, gateway.log is printed to core.info
+    // These tests verify that when gateway.md exists, mcp-gateway.log is printed to core.info
     // and gateway.md is printed to step summary
     const fs = require("fs");
     const path = require("path");
     const os = require("os");
 
-    test("when gateway.md and gateway.log both exist, prints gateway.log to core.info", async () => {
+    test("when gateway.md and mcp-gateway.log both exist, prints mcp-gateway.log to core.info", async () => {
       // Create a temporary directory for test files
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const gatewayMdPath = path.join(tmpDir, "gateway.md");
-      const gatewayLogPath = path.join(tmpDir, "gateway.log");
+      const gatewayLogPath = path.join(tmpDir, "mcp-gateway.log");
 
       try {
         // Write test files
@@ -281,7 +281,7 @@ Some content here.`;
 
         fs.existsSync = vi.fn(filepath => {
           if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return true;
-          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.log") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/mcp-gateway.log") return true;
           return originalExistsSync(filepath);
         });
 
@@ -289,7 +289,7 @@ Some content here.`;
           if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") {
             return fs.readFileSync(gatewayMdPath, encoding);
           }
-          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.log") {
+          if (filepath === "/tmp/gh-aw/mcp-logs/mcp-gateway.log") {
             return fs.readFileSync(gatewayLogPath, encoding);
           }
           return originalReadFileSync(filepath, encoding);
@@ -302,7 +302,7 @@ Some content here.`;
         const { main } = require("./parse_mcp_gateway_log.cjs");
         await main();
 
-        // Verify gateway.log was printed to core.info
+        // Verify mcp-gateway.log was printed to core.info
         const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("Gateway log line 1"));
         expect(infoCall).toBeDefined();
         expect(infoCall[0]).toContain("Gateway log line 1");
@@ -338,7 +338,7 @@ Some content here.`;
         fs.mkdirSync(logsDir, { recursive: true });
 
         // Create test files
-        fs.writeFileSync(path.join(logsDir, "gateway.log"), "Gateway log content\nLine 2");
+        fs.writeFileSync(path.join(logsDir, "mcp-gateway.log"), "Gateway log content\nLine 2");
         fs.writeFileSync(path.join(logsDir, "stderr.log"), "Error message");
         fs.writeFileSync(path.join(logsDir, "gateway.md"), "# Gateway Summary");
 
@@ -393,7 +393,7 @@ Some content here.`;
         expect(allOutput).toContain("Directory: /tmp/gh-aw/mcp-logs");
 
         // Check files are listed
-        expect(allOutput).toContain("gateway.log");
+        expect(allOutput).toContain("mcp-gateway.log");
         expect(allOutput).toContain("stderr.log");
         expect(allOutput).toContain("gateway.md");
 

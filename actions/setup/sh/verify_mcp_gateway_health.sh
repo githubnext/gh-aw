@@ -30,18 +30,18 @@ echo '=== File Locations ==='
 echo "Gateway URL: $gateway_url"
 echo "MCP Config Path: $mcp_config_path"
 echo "Logs Folder: $logs_folder"
-echo "Gateway Log: ${logs_folder}/gateway.log"
+echo "Gateway Log: ${logs_folder}/mcp-gateway.log"
 echo ''
 
 # Check for gateway logs early
 echo '=== Gateway Logs Check ==='
-if [ -f "${logs_folder}/gateway.log" ]; then
-  echo "✓ Gateway log file exists at: ${logs_folder}/gateway.log"
-  echo "Log file size: $(stat -f%z "${logs_folder}/gateway.log" 2>/dev/null || stat -c%s "${logs_folder}/gateway.log" 2>/dev/null || echo 'unknown') bytes"
+if [ -f "${logs_folder}/mcp-gateway.log" ]; then
+  echo "✓ Gateway log file exists at: ${logs_folder}/mcp-gateway.log"
+  echo "Log file size: $(stat -f%z "${logs_folder}/mcp-gateway.log" 2>/dev/null || stat -c%s "${logs_folder}/mcp-gateway.log" 2>/dev/null || echo 'unknown') bytes"
   echo "Last few lines of gateway log:"
-  tail -10 "${logs_folder}/gateway.log" 2>/dev/null || echo "Could not read log tail"
+  tail -10 "${logs_folder}/mcp-gateway.log" 2>/dev/null || echo "Could not read log tail"
 else
-  echo "⚠ Gateway log file NOT found at: ${logs_folder}/gateway.log"
+  echo "⚠ Gateway log file NOT found at: ${logs_folder}/mcp-gateway.log"
 fi
 echo ''
 
@@ -73,7 +73,7 @@ else
   echo "Last health response: ${health_response:-(empty)}"
   echo ''
   echo '=== Gateway Logs (Full) ==='
-  cat "${logs_folder}/gateway.log" || echo 'No gateway logs found'
+  cat "${logs_folder}/mcp-gateway.log" || echo 'No gateway logs found'
   exit 1
 fi
 
@@ -174,7 +174,7 @@ if [ -n "$mcp_server" ]; then
     echo "⚠ MCP server returned HTTP $http_code (may need authentication or different request)"
     echo ''
     echo "Gateway logs (last 20 lines):"
-    tail -20 "${logs_folder}/gateway.log" 2>/dev/null || echo "Could not read gateway logs"
+    tail -20 "${logs_folder}/mcp-gateway.log" 2>/dev/null || echo "Could not read gateway logs"
   fi
 else
   echo "No external MCP servers configured for testing"
