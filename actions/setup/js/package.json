@@ -11,7 +11,6 @@
     "@vitest/ui": "^4.0.10",
     "prettier": "^3.6.2",
     "terser": "^5.44.1",
-    "tmp": "^0.2.5",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
     "vitest": "^4.0.10"
