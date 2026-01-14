@@ -210,8 +210,12 @@ jobs:
             await main();
 `)
 
-	// Add compile-workflows job
-	yaml.WriteString(`
+	// Add compile-workflows and zizmor-scan jobs only in dev mode
+	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.
+	// User repositories won't have these dependencies, so we skip them in release mode
+	if actionMode == ActionModeDev {
+		// Add compile-workflows job
+		yaml.WriteString(`
   compile-workflows:
     runs-on: ubuntu-latest
     permissions:
@@ -220,8 +224,6 @@ jobs:
     steps:
 `)
 
-	// Checkout step - different behavior based on mode
-	if actionMode == ActionModeDev {
 		// Dev mode: checkout entire repository (no sparse checkout, but no credentials)
 		yaml.WriteString(`      - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -229,19 +231,8 @@ jobs:
           persist-credentials: false
 
 `)
-	} else {
-		// Release mode: sparse checkout of .github folder only
-		yaml.WriteString(`      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          sparse-checkout: |
-            .github
-          persist-credentials: false
 
-`)
-	}
-
-	yaml.WriteString(`
+		yaml.WriteString(`
       - name: Setup Go
         uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
@@ -293,6 +284,7 @@ jobs:
           ./gh-aw compile --zizmor --verbose
           echo "✓ Zizmor security scan completed"
 `)
+	}
 
 	content := yaml.String()
 
