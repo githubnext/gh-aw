@@ -95,6 +95,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
+		mounts := getGitHubMounts(githubTool)
 
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
 			ReadOnly:           readOnly,
@@ -103,6 +104,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			Toolsets:           toolsets,
 			DockerImageVersion: githubDockerImageVersion,
 			CustomArgs:         customArgs,
+			Mounts:             mounts,
 			IncludeTypeField:   r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			EffectiveToken:     "", // Token passed via env
@@ -363,6 +365,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		// Local mode - use Docker-based GitHub MCP server with MCP Gateway spec format
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
+		mounts := getGitHubMounts(githubTool)
 
 		// MCP Gateway spec fields for containerized stdio servers
 		yaml.WriteString("          container = \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
@@ -374,6 +377,18 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 				yaml.WriteString("            \"" + arg + "\",\n")
 			}
 			yaml.WriteString("          ]\n")
+		}
+
+		// Add volume mounts if present
+		if len(mounts) > 0 {
+			yaml.WriteString("          mounts = [")
+			for i, mount := range mounts {
+				if i > 0 {
+					yaml.WriteString(", ")
+				}
+				yaml.WriteString("\"" + mount + "\"")
+			}
+			yaml.WriteString("]\n")
 		}
 
 		// Build environment variables
@@ -507,6 +522,8 @@ type GitHubMCPDockerOptions struct {
 	AllowedTools []string
 	// EffectiveToken is the GitHub token to use (Claude uses this, Copilot uses env passthrough)
 	EffectiveToken string
+	// Mounts specifies volume mounts for the GitHub MCP server container (format: "host:container:mode")
+	Mounts []string
 }
 
 // RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).
@@ -531,6 +548,19 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		yaml.WriteString("                \"args\": [\n")
 		for _, arg := range options.CustomArgs {
 			yaml.WriteString("                  \"" + arg + "\",\n")
+		}
+		yaml.WriteString("                ],\n")
+	}
+
+	// Add volume mounts if present
+	if len(options.Mounts) > 0 {
+		yaml.WriteString("                \"mounts\": [\n")
+		for i, mount := range options.Mounts {
+			yaml.WriteString("                  \"" + mount + "\"")
+			if i < len(options.Mounts)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
 		}
 		yaml.WriteString("                ],\n")
 	}
