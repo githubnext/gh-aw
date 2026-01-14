@@ -1,0 +1,44 @@
+---
+title: "Meet the Workflows in Peli's Agent Factory: Quality & Hygiene"
+description: "A curated tour of quality and hygiene workflows that maintain codebase health"
+authors:
+  - dsyme
+  - peli
+date: 2026-01-13
+prev:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows/
+  label: "Triage & Summarization Workflows"
+next:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/
+  label: "Metrics & Analytics Workflows"
+---
+
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+
+Welcome back to Peli's Agent Factory!
+
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows/), we explored how triage and summarization workflows help us stay on top of incoming activity - automatically labeling issues, creating digestible summaries, and narrating the day's events in an engaging way. These workflows taught us that tone matters and that even simple automation dramatically reduces cognitive load.
+
+Now let's shift from *reacting* to activity to *maintaining* quality. While triage workflows help us handle what comes in, quality and hygiene workflows act as vigilant caretakers - spotting problems before they escalate and keeping our codebase healthy. These are the agents that investigate failed CI runs, detect schema drift, and catch breaking changes before users do.
+
+## 🔍 Quality & Hygiene Workflows
+
+These are our diligent caretakers - the agents that spot problems before they become, well, bigger problems:
+
+- **[CI Doctor](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/ci-doctor.md)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)
+- **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/schema-consistency-checker.md)** - Detects when schemas, code, and docs drift apart
+- **[Breaking Change Checker](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/breaking-change-checker.md)** - Watches for changes that might break things for users
+
+The CI Doctor was a revelation. Instead of drowning in CI failure notifications, we now get *timely*, *investigated* failures with actual diagnostic insights. The agent doesn't just tell us something broke - it analyzes logs, identifies patterns, searches for similar past issues, and even suggests fixes. We learned that agents excel at the tedious investigation work that humans find draining.
+
+The Schema Consistency Checker caught drift that would have taken us days to notice manually. These "hygiene" workflows became our first line of defense, catching issues before they reached users.
+
+## In the Next Stage of Our Journey...
+
+Now that we've explored how quality and hygiene workflows maintain our codebase health, let's dive into the agents that turn raw repository activity into actionable insights through metrics and analytics.
+
+Continue reading: [Metrics & Analytics Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)
+
+---
+
+*This is part 2 of a 16-part series exploring the workflows in Peli's Agent Factory.*

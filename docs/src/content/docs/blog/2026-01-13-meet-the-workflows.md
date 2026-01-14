@@ -1,6 +1,6 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory"
-description: "A curated tour of some of the interesting agentic workflows in the factory"
+title: "Meet the Workflows in Peli's Agent Factory: Triage & Summarization"
+description: "A curated tour of triage and summarization workflows in the factory"
 authors:
   - dsyme
   - peli
@@ -8,9 +8,9 @@ date: 2026-01-13
 prev:
   link: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
   label: Welcome to Peli's Agent Factory
-# next:
-#   link: /gh-aw/blog/2026-01-21-twelve-lessons/
-#   label: 12 Lessons
+next:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/
+  label: "Quality & Hygiene Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -39,11 +39,15 @@ These are our diligent caretakers - the agents that spot problems before they be
 - **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/schema-consistency-checker.md)** - Detects when schemas, code, and docs drift apart
 - **[Breaking Change Checker](https://github.com/githubnext/gh-aw/tree/main/.github/workflows/breaking-change-checker.md)** - Watches for changes that might break things for users
 
-The CI Doctor was a revelation. Instead of drowning in CI failure notifications, we now get *timely*, *investigated* failures with actual diagnostic insights. The agent doesn't just tell us something broke - it analyzes logs, identifies patterns, searches for similar past issues, and even suggests fixes. We learned that agents excel at the tedious investigation work that humans find draining.
+## In the Next Stage of Our Journey...
 
-The Schema Consistency Checker caught drift that would have taken us days to notice manually. These "hygiene" workflows became our first line of defense, catching issues before they reached users.
+Now that we've explored how triage and summarization workflows help us stay on top of incoming activity, let's look at the agents that maintain quality and hygiene in our repository. These diligent caretakers spot problems before they escalate and keep our codebase healthy.
 
-## 📊 Metrics & Analytics Workflows
+Continue reading: [Quality & Hygiene Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)
+
+---
+
+*This is part 1 of a 16-part series exploring the workflows in Peli's Agent Factory.*
 
 Data nerds, rejoice! These agents turn raw repository activity into actual insights:
 

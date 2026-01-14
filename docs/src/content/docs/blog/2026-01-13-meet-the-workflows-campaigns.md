@@ -1,0 +1,47 @@
+---
+title: "Meet the Workflows in Peli's Agent Factory: Campaigns & Project Coordination"
+description: "A curated tour of workflows that coordinate multi-agent projects"
+authors:
+  - dsyme
+  - peli
+date: 2026-01-13
+prev:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/
+  label: "Issue & PR Management Workflows"
+# next:
+#   link: /gh-aw/blog/2026-01-21-twelve-lessons/
+#   label: 12 Lessons
+---
+
+<img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
+
+Welcome to the final stop in Peli's Agent Factory!
+
+We've journeyed through 15 categories of workflows, from triage bots to documentation maintainers, from security guards to creative poets. In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/), we explored issue and PR management workflows that enhance GitHub's collaboration features by removing tedious ceremony. Each workflow handles its individual task admirably.
+
+But here's the ultimate challenge: how do you coordinate *multiple* agents working toward a shared goal? How do you break down a large initiative like "migrate all workflows to a new engine" into trackable sub-tasks that different agents can tackle? How do you monitor progress, alert on delays, and ensure the whole is greater than the sum of its parts? This final post explores campaign and project coordination workflows - the orchestration layer that proves AI agents can handle not just individual tasks, but entire structured projects requiring careful coordination and progress tracking.
+
+## 🎯 Campaign & Project Coordination Workflows
+
+These agents manage structured improvement campaigns:
+
+- **[Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md)** - Creates and coordinates multi-step campaigns
+- **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md)** - Monitors and maintains workflow health
+
+Campaigns are where we tackled the "how do you coordinate multiple agents on a big project?" question. The Campaign Generator creates structured improvement campaigns - breaking down large initiatives ("migrate all workflows to new engine") into trackable sub-tasks that different agents can tackle. The Workflow Health Manager acts as a project manager, monitoring progress across campaigns and alerting when things fall behind. We learned that **coordination is the hard part** - individual agents are great at focused tasks, but orchestrating multiple agents toward a shared goal requires careful architecture.
+
+These workflows implement patterns like epic issues, progress tracking, and deadline management. They prove that AI agents can handle not just individual tasks, but entire projects when given proper coordination infrastructure.
+
+---
+
+## What We've Learned
+
+Throughout this 16-part journey, we've explored workflows spanning from simple triage bots to sophisticated multi-phase improvers, from security guards to creative poets, from individual task automation to organization-wide orchestration.
+
+The key insight? **AI agents are most powerful when they're specialized, well-coordinated, and designed for their specific context.** No single agent does everything - instead, we have an ecosystem where each agent excels at its particular job, and they work together through careful orchestration.
+
+We've learned that observability is essential, that incremental progress beats heroic efforts, that security needs careful boundaries, and that even "fun" workflows can drive meaningful engagement. We've discovered that AI agents can maintain documentation, manage campaigns, analyze their own behavior, and continuously improve codebases - when given the right architecture and guardrails.
+
+As you build your own agentic workflows, remember: start small, measure everything, iterate based on real usage, and don't be afraid to experiment. The workflows we've shown you evolved through experimentation and real-world use. Yours will too.
+
+*This is part 16 (final) of a 16-part series exploring the workflows in Peli's Agent Factory.*
