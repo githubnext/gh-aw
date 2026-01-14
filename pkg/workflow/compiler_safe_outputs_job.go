@@ -300,21 +300,21 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Note: Add Reviewer is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AddReviewer != nil {
-		outputs["add_reviewer_reviewers_added"] = "${{ steps.add_reviewer.outputs.reviewers_added }}"
+		outputs["add_reviewer_reviewers_added"] = "${{ steps.process_safe_outputs.outputs.reviewers_added }}"
 		permissions.Merge(NewPermissionsContentsReadPRWrite())
 	}
 
 	// Note: Assign Milestone is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignMilestone != nil {
-		outputs["assign_milestone_milestone_assigned"] = "${{ steps.assign_milestone.outputs.milestone_assigned }}"
+		outputs["assign_milestone_milestone_assigned"] = "${{ steps.process_safe_outputs.outputs.milestone_assigned }}"
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
 	// Note: Assign To User is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignToUser != nil {
-		outputs["assign_to_user_assigned"] = "${{ steps.assign_to_user.outputs.assigned }}"
+		outputs["assign_to_user_assigned"] = "${{ steps.process_safe_outputs.outputs.assigned }}"
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
@@ -399,8 +399,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	if threatDetectionEnabled {
 		needs = append(needs, string(constants.DetectionJobName))
 	}
-	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch)
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch, lock-for-agent)
+	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil || data.LockForAgent {
 		needs = append(needs, string(constants.ActivationJobName))
 	}
 

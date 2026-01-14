@@ -109,7 +109,7 @@ Use the `create-project` safe output to create a new empty project:
 ```javascript
 create_project({
   title: "Campaign: <campaign-name>",
-  owner: "${{ github.owner }}",
+  owner: "${{ github.repository_owner }}",
   item_url: "${{ github.server_url }}/${{ github.repository }}/issues/${{ github.event.issue.number }}"
 })
 ```
