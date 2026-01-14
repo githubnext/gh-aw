@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 describe("check_workflow_recompile_needed", () => {
   let mockCore;
@@ -9,9 +10,17 @@ describe("check_workflow_recompile_needed", () => {
   let mockContext;
   let mockExec;
   let originalGlobals;
-  const templatePath = "/opt/gh-aw/prompts/workflow_recompile_issue.md";
+  let originalEnv;
+  const testPromptsDir = path.join(os.tmpdir(), "gh-aw-test", "prompts");
+  const templatePath = path.join(testPromptsDir, "workflow_recompile_issue.md");
 
   beforeEach(() => {
+    // Save original environment
+    originalEnv = process.env.GH_AW_PROMPTS_DIR;
+
+    // Set test prompts directory
+    process.env.GH_AW_PROMPTS_DIR = testPromptsDir;
+
     // Create the template file for testing
     const templateDir = path.dirname(templatePath);
     if (!fs.existsSync(templateDir)) {
@@ -140,9 +149,17 @@ The following workflow lock files have changes:
   });
 
   afterEach(() => {
-    // Clean up the template file
-    if (fs.existsSync(templatePath)) {
-      fs.unlinkSync(templatePath);
+    // Restore environment variable
+    if (originalEnv !== undefined) {
+      process.env.GH_AW_PROMPTS_DIR = originalEnv;
+    } else {
+      delete process.env.GH_AW_PROMPTS_DIR;
+    }
+
+    // Clean up the test directory
+    const testDir = path.join(os.tmpdir(), "gh-aw-test");
+    if (fs.existsSync(testDir)) {
+      fs.rmSync(testDir, { recursive: true, force: true });
     }
 
     // Restore original globals
