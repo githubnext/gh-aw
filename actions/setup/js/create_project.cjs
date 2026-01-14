@@ -105,54 +105,6 @@ async function createProjectV2(ownerId, title) {
 }
 
 /**
- * Create default views for a project
- * @param {string} projectUrl - Full project URL
- * @param {number} projectNumber - Project number
- * @param {string} ownerType - Either "org" or "user"
- * @param {string} ownerLogin - Login name of the owner
- * @param {Array<{name: string, layout: string, filter?: string}>} views - Views to create
- * @returns {Promise<void>}
- */
-async function createDefaultViews(projectUrl, projectNumber, ownerType, ownerLogin, views) {
-  core.info("Creating views for project...");
-
-  if (typeof github.request !== "function") {
-    core.warning("GitHub client does not support github.request(); cannot create views");
-    return;
-  }
-
-  const route = ownerType === "org" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{username}/projectsV2/{project_number}/views";
-
-  for (const viewDef of views) {
-    try {
-      const params =
-        ownerType === "org"
-          ? {
-              org: ownerLogin,
-              project_number: projectNumber,
-              name: viewDef.name,
-              layout: viewDef.layout,
-              filter: viewDef.filter,
-            }
-          : {
-              username: ownerLogin,
-              project_number: projectNumber,
-              name: viewDef.name,
-              layout: viewDef.layout,
-              filter: viewDef.filter,
-            };
-
-      await github.request(route, params);
-      core.info(`✓ Created view: ${viewDef.name} (${viewDef.layout})`);
-    } catch (err) {
-      // Log error but don't fail project creation if view creation fails
-      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ err;
-      core.warning(`Failed to create view "${viewDef.name}": ${getErrorMessage(error)}`);
-    }
-  }
-}
-
-/**
  * Add an item to a project
  * @param {string} projectId - Project node ID
  * @param {string} contentId - Content node ID (issue, PR, etc.)
@@ -274,35 +226,6 @@ async function main(config = {}) {
 
       // Create the project
       const projectInfo = await createProjectV2(ownerId, title);
-
-      // Create default views for the project if configured
-      const shouldCreateViews = process.env.GH_AW_CREATE_PROJECT_VIEWS === "true";
-      if (shouldCreateViews) {
-        // Check if custom views are configured
-        const configuredViews = process.env.GH_AW_CREATE_PROJECT_VIEWS_CONFIG;
-        let viewsToCreate = [];
-
-        if (configuredViews) {
-          try {
-            viewsToCreate = JSON.parse(configuredViews);
-            core.info(`Using ${viewsToCreate.length} configured view(s) from frontmatter`);
-          } catch (parseError) {
-            core.warning(`Failed to parse GH_AW_CREATE_PROJECT_VIEWS_CONFIG: ${getErrorMessage(parseError)}`);
-          }
-        }
-
-        // If no custom views configured, use defaults
-        if (viewsToCreate.length === 0) {
-          viewsToCreate = [
-            { name: "Campaign Roadmap", layout: "roadmap", filter: "is:issue,is:pull_request" },
-            { name: "Task Tracker", layout: "table", filter: "is:issue,is:pull_request" },
-            { name: "Progress Board", layout: "board", filter: "is:issue,is:pull_request" },
-          ];
-          core.info("Using default view configuration");
-        }
-
-        await createDefaultViews(projectInfo.projectUrl, projectInfo.projectNumber, ownerType, targetOwner, viewsToCreate);
-      }
 
       // If item_url is provided, add it to the project
       if (item_url) {

@@ -121,19 +121,6 @@ func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
 	}
 
-	// Add create-views flag if configured
-	if cfg.CreateViews {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_VIEWS: \"true\"\n"))
-	}
-
-	// If views are configured in frontmatter, pass them to the JavaScript via environment variable
-	if cfg.CreateViews && len(cfg.Views) > 0 {
-		viewsJSON, err := json.Marshal(cfg.Views)
-		if err == nil {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_VIEWS_CONFIG: '%s'\n", string(viewsJSON)))
-		}
-	}
-
 	// Get the effective token using the Projects-specific precedence chain
 	// This includes fallback to GH_AW_PROJECT_GITHUB_TOKEN if no custom token is configured
 	// Note: Projects v2 requires a PAT or GitHub App - the default GITHUB_TOKEN cannot work

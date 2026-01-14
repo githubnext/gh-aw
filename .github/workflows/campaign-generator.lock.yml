@@ -842,7 +842,7 @@ jobs:
           
           ### Step 2: Create GitHub Project Board
           
-          Use the `create-project` safe output to create a new project with default views:
+          Use the `create-project` safe output to create a new empty project:
           
           ```javascript
           create_project({
@@ -852,16 +852,13 @@ jobs:
           })
           ```
           
-          **The project will be created with three default views automatically:**
-          - Campaign Roadmap (roadmap layout)
-          - Task Tracker (table layout)
-          - Progress Board (board layout)
-          
           **Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
           
-          ### Step 2.5: Create Project Fields
+          ### Step 2.5: Create Project Fields and Views
           
           After creating the project, set up custom fields using the `update-project` safe output.
+          
+          **Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created from the workflow's frontmatter configuration when the agent makes any `update_project` call. You don't need to create them manually.
           
           #### 2.5.1: Create Custom Fields
           
@@ -901,8 +898,6 @@ jobs:
             ]
           })
           ```
-          
-          **Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) were already created automatically in Step 2. You only need to create custom fields here.
           
           ### Step 3: Discover Workflows Dynamically
           
@@ -1815,6 +1810,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_PROJECT_VIEWS: '[{"name":"Campaign Roadmap","layout":"roadmap","filter":"is:issue,is:pull_request"},{"name":"Task Tracker","layout":"table","filter":"is:issue,is:pull_request"},{"name":"Progress Board","layout":"board","filter":"is:issue,is:pull_request"}]'
         with:
           github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
           script: |

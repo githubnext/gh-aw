@@ -3812,7 +3812,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating new GitHub Projects v2 boards. Creates a new empty project that can be populated with issues and custom fields. Optionally creates default views automatically. Requires a Personal Access Token (PAT) or GitHub App token with Projects permissions; the GITHUB_TOKEN cannot be used. Safe output items use type=create_project and include: title (project name), owner (org/user login), owner_type ('org' or 'user', default: 'org'), and optional item_url (GitHub issue URL to add as first item). The target-owner can be configured in the workflow frontmatter to provide a default that the agent can use or override.",
+              "description": "Configuration for creating new GitHub Projects v2 boards. Creates a new empty project that can be populated with issues and custom fields. Requires a Personal Access Token (PAT) or GitHub App token with Projects permissions; the GITHUB_TOKEN cannot be used. Safe output items use type=create_project and include: title (project name), owner (org/user login), owner_type ('org' or 'user', default: 'org'), and optional item_url (GitHub issue URL to add as first item). The target-owner can be configured in the workflow frontmatter to provide a default that the agent can use or override.",
               "properties": {
                 "max": {
                   "type": "integer",
@@ -3827,35 +3827,6 @@
                 "target-owner": {
                   "type": "string",
                   "description": "Optional default target owner (organization or user login, e.g., 'myorg' or 'username') for the new project. If specified, the agent can omit the owner field in the tool call and this default will be used. The agent can still override by providing an owner in the tool call."
-                },
-                "create-views": {
-                  "type": "boolean",
-                  "description": "Whether to automatically create default views when creating a project. If true, creates Campaign Roadmap (roadmap), Task Tracker (table), and Progress Board (board) views unless custom views are specified. Default: false.",
-                  "default": false
-                },
-                "views": {
-                  "type": "array",
-                  "description": "Custom views to create automatically when create-views is true. If not specified, default views are created.",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string",
-                        "description": "View name"
-                      },
-                      "layout": {
-                        "type": "string",
-                        "enum": ["table", "board", "roadmap"],
-                        "description": "View layout type"
-                      },
-                      "filter": {
-                        "type": "string",
-                        "description": "Optional filter expression (e.g., 'is:issue,is:pull_request')"
-                      }
-                    },
-                    "required": ["name", "layout"],
-                    "additionalProperties": false
-                  }
                 }
               },
               "additionalProperties": false

@@ -23,10 +23,19 @@ safe-outputs:
   create-project:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
-    create-views: true
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    views:
+      - name: "Campaign Roadmap"
+        layout: "roadmap"
+        filter: "is:issue,is:pull_request"
+      - name: "Task Tracker"
+        layout: "table"
+        filter: "is:issue,is:pull_request"
+      - name: "Progress Board"
+        layout: "board"
+        filter: "is:issue,is:pull_request"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
     run-started: "🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
@@ -105,7 +114,7 @@ Extract requirements from the issue body #${{ github.event.issue.number }}:
 
 ### Step 2: Create GitHub Project Board
 
-Use the `create-project` safe output to create a new project with default views:
+Use the `create-project` safe output to create a new empty project:
 
 ```javascript
 create_project({
@@ -115,16 +124,13 @@ create_project({
 })
 ```
 
-**The project will be created with three default views automatically:**
-- Campaign Roadmap (roadmap layout)
-- Task Tracker (table layout)
-- Progress Board (board layout)
-
 **Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
 
-### Step 2.5: Create Project Fields
+### Step 2.5: Create Project Fields and Views
 
 After creating the project, set up custom fields using the `update-project` safe output.
+
+**Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created from the workflow's frontmatter configuration when the agent makes any `update_project` call. You don't need to create them manually.
 
 #### 2.5.1: Create Custom Fields
 
@@ -164,8 +170,6 @@ update_project({
   ]
 })
 ```
-
-**Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) were already created automatically in Step 2. You only need to create custom fields here.
 
 ### Step 3: Discover Workflows Dynamically
 
