@@ -5,21 +5,21 @@ sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (which AI model/provider to use) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
+GitHub Agentic Workflows use AI [coding agents or engines](/gh-aw/reference/glossary/#engine) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 > [!NOTE]
 > Experimental Engines
 > Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
 
-### GitHub Copilot CLI
+## GitHub Copilot CLI
 
-GitHub Copilot is the default and recommended AI [engine](/gh-aw/reference/glossary/#engine) (which AI model/provider to use) for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides [Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP, the standardized protocol for connecting AI agents to tools) server support and is designed for conversational AI workflows.
+[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) is the default and recommended AI [coding agent engine](/gh-aw/reference/glossary/#engine).
 
 ```yaml wrap
 engine: copilot
 ```
 
-#### Extended Configuration
+### Extended Configuration
 
 ```yaml wrap
 engine:
@@ -31,11 +31,11 @@ engine:
 
 Configuration options: `model` (gpt-5 or claude-sonnet-4), `version` (CLI version), `args` (command-line arguments). Alternatively set model via `COPILOT_MODEL` environment variable.
 
-#### Required Secrets
+### Required Secrets
 
 **`COPILOT_GITHUB_TOKEN`**: GitHub [Personal Access Token](/gh-aw/reference/glossary/#personal-access-token-pat) (PAT, a token that authenticates you to GitHub's APIs) with "Copilot Requests" permission. **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#modes-and-restrictions).
 
-#### Authenticating with a Personal Access Token (PAT)
+### Authenticating with a Personal Access Token (PAT)
 
 Create a fine-grained PAT at <https://github.com/settings/personal-access-tokens/new>. Select your user account (not an organization), choose "Public repositories" access, and enable "Copilot Requests" permissions. Then add it to your repository:
 
@@ -60,7 +60,7 @@ For more information about GitHub Copilot CLI authentication, see the [official 
 > [!NOTE]
 > The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Using Web Search](/gh-aw/guides/web-search/) for available options and setup instructions.
 
-#### Network Permissions
+### Network Permissions
 
 The Copilot engine supports network access control through AWF (Agent Workflow Firewall) from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall). Enable it to enforce domain allowlists and log network activity:
 
@@ -80,35 +80,14 @@ Advanced configuration: set `firewall.version` (defaults to latest), `log-level`
 
 > [!NOTE]
 > Mandatory Sandbox
-> The agent sandbox is now mandatory for all workflows and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
+> The agent sandbox defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
 
 The sandbox configuration is controlled via the `sandbox.agent` field:
+
 - **AWF (default)**: Network egress control through domain-based access controls
 - **SRT**: Enhanced isolation using Anthropic's Sandbox Runtime (experimental, Copilot only)
 
 See [Network Permissions](/gh-aw/reference/network/) for domain configuration details.
-
-### Custom Engine
-
-Define custom GitHub Actions steps without AI interpretation for deterministic workflows.
-
-```yaml wrap
-engine: custom
-```
-
-#### Extended Configuration
-
-```yaml wrap
-engine:
-  id: custom
-  steps:
-    - name: Install dependencies
-      run: npm ci
-```
-
-## Custom Agent Files
-
-All AI engines support custom agent files that provide specialized instructions and behavior. See the [Custom Agent Files](/gh-aw/reference/custom-agents/) reference for complete documentation on creating and using custom agents.
 
 ## Engine Environment Variables
 
@@ -137,7 +116,25 @@ engine:
 
 Arguments are added in order and placed before the `--prompt` flag. Common uses include adding directories (`--add-dir`), enabling verbose logging (`--verbose`, `--debug`), and passing engine-specific flags. Consult the specific engine's CLI documentation for available flags.
 
-## Engine Error Patterns
+## Custom Engines
+
+Define custom GitHub Actions steps without AI interpretation for deterministic workflows.
+
+```yaml wrap
+engine: custom
+```
+
+Extended configuration:
+
+```yaml wrap
+engine:
+  id: custom
+  steps:
+    - name: Install dependencies
+      run: npm ci
+```
+
+## Custom Engine Error Patterns
 
 All engines (Copilot, Claude, Codex, and Custom) support custom error pattern recognition for enhanced log validation. This allows you to define project-specific error formats that should be detected in agent logs.
 
@@ -181,6 +178,7 @@ engine:
 Error patterns can be defined in shared workflows and imported:
 
 **`shared/error-patterns.md`:**
+
 ```yaml wrap
 ---
 engine:
@@ -192,6 +190,7 @@ engine:
 ```
 
 **Main workflow:**
+
 ```yaml wrap
 ---
 imports:
