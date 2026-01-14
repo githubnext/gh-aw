@@ -64,7 +64,7 @@ Here's what we've built so far:
 - **A comprehensive collection of workflows** demonstrating diverse agent patterns
 - **12 core design patterns** consolidating all observed behaviors
 - **9 operational patterns** for GitHub-native agent orchestration
-- **128 workflows** in the `.github/workflows` directory of the [`gh-aw`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) repository
+- **128 workflows** in the `.github/workflows` directory of the [`gh-aw`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows) repository
 - **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
 - **Dozens of MCP servers** integrated for specialized capabilities
 - **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
@@ -106,7 +106,7 @@ The workflows in Peli's factory are fully remixable. You can copy them, adapt th
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - How to write and compile workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 - **[gh-aw Repository](https://github.com/githubnext/gh-aw)** - The implementation
-- **[Peli's Agent Factory Workflows](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)** - The main collection of workflows which we use in GitHub Agentic Workflows itself
+- **[Peli's Agent Factory Workflows](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows)** - The main collection of workflows which we use in GitHub Agentic Workflows itself
 - **[The Agentics Collection](https://github.com/githubnext/agentics)** - Ready-to-install workflows
 - **[The Continuous AI Project](https://githubnext.com/projects/continuous-ai)** - The broader vision
 
