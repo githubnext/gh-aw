@@ -209,7 +209,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ${{ github.workspace }} ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -674,21 +674,25 @@ jobs:
           mounts = ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"]
           env_vars = ["GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]
           
-          [mcp_servers.serena]
-          container = "ghcr.io/oraios/serena:latest"
+          [mcp_servers.serena-go]
+          command = "docker"
           args = [
+            "run",
+            "--rm",
+            "-i",
+            "-v",
+            "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro",
+            "-v",
+            "/usr/bin/go:/usr/bin/go:ro",
             "--network",
             "host",
-          ]
-          entrypoint = "serena"
-          entrypointArgs = [
+            "ghcr.io/oraios/serena:latest",
             "start-mcp-server",
             "--context",
             "codex",
             "--project",
-            "${{ github.workspace }}"
+            "${{ github.workspace }}",
           ]
-          mounts = ["${{ github.workspace }}:${{ github.workspace }}:rw"]
           
           [mcp_servers.tavily]
           url = "https://mcp.tavily.com/mcp/"
@@ -752,21 +756,26 @@ jobs:
                   "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
                 }
               },
-              "serena": {
-                "container": "ghcr.io/oraios/serena:latest",
-                "args": [
-                  "--network",
-                  "host"
-                ],
-                "entrypoint": "serena",
-                "entrypointArgs": [
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "${{ github.workspace }}"
-                ],
-                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
+              "serena-go": {
+              "type": "stdio",
+              "command": "docker",
+              "args": [
+                "run",
+                "--rm",
+                "-i",
+                "-v",
+                "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro",
+                "-v",
+                "/usr/bin/go:/usr/bin/go:ro",
+                "--network",
+                "host",
+                "ghcr.io/oraios/serena:latest",
+                "start-mcp-server",
+                "--context",
+                "codex",
+                "--project",
+                "${{ github.workspace }}"
+              ]
               },
               "tavily": {
               "type": "http",

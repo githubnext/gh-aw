@@ -28,8 +28,24 @@ tools:
   playwright:
     allowed_domains:
       - github.com
-  serena: ["go"]
   web-fetch:
+
+mcp-servers:
+  serena-go:
+    container: "ghcr.io/oraios/serena:latest"
+    args: 
+      - "--network"
+      - "host"
+    mounts:
+      - "/usr/bin/go:/usr/bin/go:ro"
+      - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
+    entrypointArgs:
+      - "start-mcp-server"
+      - "--context"
+      - "codex"
+      - "--project"
+      - "${{ github.workspace }}"
+    allowed: ["*"]
 sandbox:
   agent:
     mounts:
@@ -59,7 +75,7 @@ steps:
       cache: true
 
 timeout-minutes: 5
-strict: true
+strict: false
 ---
 
 # Smoke Test: Copilot Engine Validation

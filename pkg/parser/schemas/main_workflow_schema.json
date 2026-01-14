@@ -5935,6 +5935,16 @@
           },
           "description": "Arguments to add after the container image (container entrypoint arguments)"
         },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:]+:[^:]+:(ro|rw)$",
+            "description": "Mount specification in format 'source:destination:mode'"
+          },
+          "description": "Volume mounts for container-based MCP servers. Each mount is specified using Docker mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or 'rw' (read-write). Example: '/usr/bin/go:/usr/bin/go:ro'",
+          "examples": [["/host/data:/data:ro", "/usr/local/bin/tool:/usr/local/bin/tool:ro"]]
+        },
         "env": {
           "type": "object",
           "patternProperties": {

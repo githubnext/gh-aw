@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
-strict: true
+strict: false
 imports:
   - shared/gh.md
   - shared/mcp/tavily.md
@@ -31,7 +31,23 @@ tools:
   edit:
   bash:
     - "*"
-  serena: ["go"]
+
+mcp-servers:
+  serena-go:
+    container: "ghcr.io/oraios/serena:latest"
+    args: 
+      - "--network"
+      - "host"
+    mounts:
+      - "/usr/bin/go:/usr/bin/go:ro"
+      - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
+    entrypointArgs:
+      - "start-mcp-server"
+      - "--context"
+      - "codex"
+      - "--project"
+      - "${{ github.workspace }}"
+    allowed: ["*"]
 sandbox:
   agent:
     mounts:

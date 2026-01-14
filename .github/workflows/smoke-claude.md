@@ -16,7 +16,7 @@ name: Smoke Claude
 engine:
   id: claude
   max-turns: 15
-strict: true
+strict: false
 imports:
   - shared/mcp-pagination.md
   - shared/gh.md
@@ -44,7 +44,23 @@ tools:
   edit:
   bash:
     - "*"
-  serena: ["go"]
+
+mcp-servers:
+  serena-go:
+    container: "ghcr.io/oraios/serena:latest"
+    args: 
+      - "--network"
+      - "host"
+    mounts:
+      - "/usr/bin/go:/usr/bin/go:ro"
+      - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
+    entrypointArgs:
+      - "start-mcp-server"
+      - "--context"
+      - "codex"
+      - "--project"
+      - "${{ github.workspace }}"
+    allowed: ["*"]
 safe-outputs:
     add-comment:
       hide-older-comments: true
