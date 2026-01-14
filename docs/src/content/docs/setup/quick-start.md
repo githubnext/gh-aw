@@ -55,7 +55,7 @@ This creates a pull request that adds `.github/workflows/daily-team-status.md` a
 
 ### Step 4 — Add an AI secret
 
-[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).
+[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the coding agent (the AI system that executes your instructions).
 
 To allow your workflows to use Copilot, you'll create a token and add it as a repository secret.
 

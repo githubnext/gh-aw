@@ -37,7 +37,7 @@ tools:
 Analyze the issue and provide a summary of similar existing issues.
 ```
 
-The `toolsets: [default]` configuration gives your [agent](/gh-aw/reference/glossary/#agent) (the AI system executing the workflow) access to repository, issue, and pull request tools.
+The `toolsets: [default]` configuration gives your agentic workflow access to repository, issue, and pull request tools.
 
 ### Step 2: Compile and Test
 
@@ -53,7 +53,7 @@ Verify the MCP configuration:
 gh aw mcp inspect my-workflow
 ```
 
-You now have a working MCP integration. The [agent](/gh-aw/reference/glossary/#agent) can read issues, search repositories, and access pull request information.
+You now have a working MCP integration. The agent can read issues, search repositories, and access pull request information.
 
 ## Configuration Patterns
 
