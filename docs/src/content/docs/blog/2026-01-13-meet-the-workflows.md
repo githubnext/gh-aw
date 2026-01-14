@@ -24,7 +24,7 @@ We're the GitHub Next team, and we've been on quite a journey. Over the past mon
 
 Think of this as your guided tour through our agent factory. We're showcasing the workflows that caught our attention, taught us something new, or just made our lives easier. Every workflow links to its source Markdown file, so you can peek under the hood and see exactly how it works.
 
-## Starting Simple: Issue Triage
+## Starting Simple: Automated Issue Triage
 
 To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage. This represents the "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful.
 
@@ -66,9 +66,9 @@ Note how concise and readable this is - it's almost like reading a to-do list fo
 
 In the frontmatter, we define permissions, tools, and safe outputs. This ensures the agent only has access to what it needs and can't perform any unsafe actions. The natural language instructions in the body guide the agent's behavior in a clear, human-readable way.
 
-## Summarization Workflows
+## Automated Activity Summarization
 
-To continue the tour, let's look briefly at two summarization workflows that help us stay on top of repository activity. These agents digest large amounts of information and present it in a concise, readable format.
+To continue the tour, let's look briefly at two automated summarization workflows that help us stay on top of repository activity. These agents digest large amounts of information and present it in a concise, readable format.
 
 First, the **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/weekly-issue-summary.md?plain=1)** creates digestible summaries complete with charts and trends (because who has time to read everything?)
 
