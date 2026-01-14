@@ -110,6 +110,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateCodeScanningAlerts = securityReportsConfig
 			}
 
+			// Handle add-code-scanning-autofix
+			addCodeScanningAutofixConfig := c.parseAddCodeScanningAutofixConfig(outputMap)
+			if addCodeScanningAutofixConfig != nil {
+				config.AddCodeScanningAutofixes = addCodeScanningAutofixConfig
+			}
+
 			// Parse allowed-domains configuration
 			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 				if domainsArray, ok := allowedDomains.([]any); ok {

@@ -944,6 +944,33 @@
     }
   },
   {
+    "name": "add_code_scanning_autofix",
+    "description": "Create an autofix for a code scanning alert. Use this to provide automated fixes for security vulnerabilities detected by code scanning tools. The fix should contain the corrected code that resolves the security issue.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "alert_number",
+        "fix_description",
+        "fix_code"
+      ],
+      "properties": {
+        "alert_number": {
+          "type": ["number", "string"],
+          "description": "The security alert number to create an autofix for. This is the numeric ID from the code scanning alert (e.g., 42 in github.com/owner/repo/security/code-scanning/42)."
+        },
+        "fix_description": {
+          "type": "string",
+          "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it."
+        },
+        "fix_code": {
+          "type": "string",
+          "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "missing_data",
     "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
     "inputSchema": {

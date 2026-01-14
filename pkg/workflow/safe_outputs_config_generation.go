@@ -522,6 +522,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		enabledTools["create_code_scanning_alert"] = true
 	}
+	if data.SafeOutputs.AddCodeScanningAutofixes != nil {
+		enabledTools["add_code_scanning_autofix"] = true
+	}
 	if data.SafeOutputs.AddLabels != nil {
 		enabledTools["add_labels"] = true
 	}
