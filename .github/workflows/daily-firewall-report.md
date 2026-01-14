@@ -156,6 +156,15 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 
 ## Instructions
 
+### MCP Servers are Pre-loaded
+
+**IMPORTANT**: The MCP servers configured in this workflow (including `gh-aw` with tools like `logs` and `audit`) are automatically loaded and available at agent startup. You do NOT need to:
+- Use the inspector tool to discover MCP servers
+- Run any external tools to check available MCP servers
+- Verify or list MCP servers before using them
+
+Simply call the MCP tools directly as described in the steps below. If you want to know what tools are available, you can list them using your built-in tool listing capability.
+
 ### Step 0: Check Repo Memory for Recent Analysis
 
 **EFFICIENCY FIRST**: Before starting the full analysis:
