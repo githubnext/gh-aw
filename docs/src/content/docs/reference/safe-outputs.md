@@ -348,6 +348,111 @@ fields:
 > [!NOTE]
 > Field names are case-insensitive and automatically normalized (e.g., `story_points` matches `Story Points`).
 
+#### Creating Project Views
+
+The `update-project` tool can create custom views (table, board, or roadmap layouts) on GitHub Projects v2 boards programmatically. This is useful for setting up campaign dashboards, creating custom filtering views, or automating project board configuration.
+
+To create a view, set `operation: "create_view"` and provide view configuration in the `view` parameter.
+
+**Basic view creation:**
+```javascript
+update_project({
+  project: "https://github.com/orgs/myorg/projects/42",
+  operation: "create_view",
+  view: {
+    name: "Campaign Roadmap",
+    layout: "roadmap",
+    filter: "is:issue,is:pull_request"
+  }
+});
+```
+
+##### View Configuration Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Name of the view (e.g., "Sprint Board", "Task Tracker") |
+| `layout` | string | Yes | View layout: `table`, `board`, or `roadmap` |
+| `filter` | string | No | Filter query for items (e.g., `is:issue is:open`, `label:bug`) |
+| `visible_fields` | array | No | Array of field IDs to display (table/board only, not applicable to roadmap) |
+| `description` | string | No | Human description (not supported by GitHub API, will be ignored) |
+
+##### View Layouts
+
+**Table View** — Detailed list with customizable columns:
+```javascript
+update_project({
+  project: "https://github.com/orgs/myorg/projects/42",
+  operation: "create_view",
+  view: {
+    name: "Task Tracker",
+    layout: "table",
+    filter: "is:issue is:open"
+  }
+});
+```
+
+**Board View** — Kanban-style cards grouped by status:
+```javascript
+update_project({
+  project: "https://github.com/orgs/myorg/projects/42",
+  operation: "create_view",
+  view: {
+    name: "Progress Board",
+    layout: "board",
+    filter: "is:issue"
+  }
+});
+```
+
+**Roadmap View** — Timeline visualization with swimlanes:
+```javascript
+update_project({
+  project: "https://github.com/orgs/myorg/projects/42",
+  operation: "create_view",
+  view: {
+    name: "Sprint Timeline",
+    layout: "roadmap",
+    filter: "is:issue,is:pull_request"
+  }
+});
+```
+
+##### View Filters
+
+Filters use GitHub's project query syntax to show specific items. Common patterns:
+
+- `is:issue is:open` — Open issues only
+- `is:pull_request` — Pull requests only
+- `is:issue,is:pull_request` — Both issues and PRs
+- `label:bug` — Items with bug label
+- `assignee:@me` — Items assigned to viewer
+- `status:"In Progress"` — Items with specific status field value
+
+Multiple filters can be combined with spaces (AND logic) or commas (OR logic).
+
+##### Field Visibility (Table/Board Only)
+
+The `visible_fields` parameter controls which custom fields appear in table and board views. This requires field IDs, which can be obtained from the project's GraphQL API or by inspecting existing views.
+
+> [!NOTE]
+> The `visible_fields` parameter is not applicable to roadmap views and will be ignored if provided.
+
+##### Outputs
+
+View creation exposes these outputs:
+- `view-id` — Unique identifier for the created view
+- `view-url` — Direct URL to the view
+
+##### Campaign Generator Integration
+
+The [Campaign Generator](/gh-aw/guides/campaigns/) automatically creates three default views when setting up a campaign:
+1. **Campaign Roadmap** (roadmap layout) — Timeline visualization
+2. **Task Tracker** (table layout) — Detailed tracking with filtering  
+3. **Progress Board** (board layout) — Kanban-style progress tracking
+
+For manual view configuration and advanced filtering strategies, see [Project Management Guide](/gh-aw/guides/campaigns/project-management/).
+
 
 
 ### Project Board Copy (`copy-project:`)

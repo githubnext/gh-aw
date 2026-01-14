@@ -168,6 +168,42 @@ The campaign generator creates three views automatically:
 2. **Task Tracker** (Table view) - Detailed tracking with filtering
 3. **Progress Board** (Board view) - Kanban-style progress tracking
 
+### Creating views programmatically
+
+Views can be created programmatically using the `update-project` safe output with `operation: "create_view"`. This is useful for custom campaign setups or automating project board configuration.
+
+**Example: Create a roadmap view**
+```yaml
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+```
+
+```javascript
+// In agent workflow
+update_project({
+  project: "https://github.com/orgs/myorg/projects/42",
+  operation: "create_view",
+  view: {
+    name: "Q1 Sprint Timeline",
+    layout: "roadmap",
+    filter: "is:issue is:open"
+  }
+});
+```
+
+**View layouts:**
+- `table` — List view with customizable columns
+- `board` — Kanban-style cards grouped by field
+- `roadmap` — Timeline with date-based swimlanes
+
+**Common filters:**
+- `is:issue,is:pull_request` — Show both issues and PRs
+- `label:campaign:migration-q1` — Filter by campaign label
+- `status:"In Progress"` — Show items with specific status
+
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#creating-project-views) for complete documentation on view creation parameters and examples.
+
 **Customization tips:**
 
 **Multi-Workflow Campaign**: Use Roadmap grouped by Worker/Workflow for timeline distribution, Task Tracker sliced by Priority+Status for urgent items, Progress Board grouped by Status for progress tracking.
