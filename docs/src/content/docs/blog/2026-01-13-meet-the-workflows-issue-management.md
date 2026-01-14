@@ -25,11 +25,16 @@ Now let's talk about the daily rituals of software development: managing issues 
 
 These agents enhance issue and pull request workflows:
 
-- **[Issue Arborist](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-arborist.md?plain=1)** - Links related issues as sub-issues
-- **[Issue Monster](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to Copilot agents one at a time
-- **[Mergefest](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/mergefest.md?plain=1)** - Automatically merges main branch into PR branches
-- **[Sub Issue Closer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/sub-issue-closer.md?plain=1)** - Closes completed sub-issues automatically
-- **[Issue Template Optimizer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-template-optimizer.md?plain=1)** - Improves issue templates based on usage
+- **[Issue Arborist](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-arborist.md?plain=1)** - Links related issues as sub-issues  
+  [→ View parent issues](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5BParent%5D%22+is%3Aissue&type=issues)
+- **[Issue Monster](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to Copilot agents one at a time  
+  [→ View assigned issues](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+assignee%3Acopilot+is%3Aissue&type=issues)
+- **[Mergefest](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/mergefest.md?plain=1)** - Automatically merges main branch into PR branches  
+  [→ View merge commits](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+author%3Aapp%2Fgithub-actions+merge+main+is%3Acommit&type=commits)
+- **[Sub Issue Closer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/sub-issue-closer.md?plain=1)** - Closes completed sub-issues automatically  
+  [→ View closed sub-issues](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+sub-issue+closed+is%3Aissue&type=issues)
+- **[Issue Template Optimizer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-template-optimizer.md?plain=1)** - Improves issue templates based on usage  
+  [→ View template improvements](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+issue+template+improvement+is%3Apr&type=pullrequests)
 
 Issue management is tedious ceremony that developers tolerate rather than enjoy. The Issue Arborist automatically links related issues, building a dependency tree we'd never maintain manually. The Issue Monster became our task dispatcher for AI agents - it assigns one issue at a time to Copilot agents, preventing the chaos of parallel work on the same codebase. Mergefest eliminates the "please merge main" dance that happens on long-lived PRs. We learned that **tiny frustrations add up** - each of these workflows removes a small papercut, and collectively they make GitHub feel much more pleasant to use. The Issue Template Optimizer analyzes which fields in our templates actually get filled out and suggests improvements ("nobody uses the 'Expected behavior' field, remove it").
 

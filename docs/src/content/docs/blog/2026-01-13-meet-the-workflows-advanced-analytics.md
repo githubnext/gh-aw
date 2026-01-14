@@ -25,10 +25,14 @@ Now let's get nerdy. Beyond tracking basic metrics (run time, cost, success rate
 
 These agents use sophisticated analysis techniques to extract insights:
 
-- **[Copilot Session Insights](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-session-insights.md?plain=1)** - Analyzes Copilot agent usage patterns and metrics
-- **[Copilot PR NLP Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-pr-nlp-analysis.md?plain=1)** - Natural language processing on PR conversations
-- **[Prompt Clustering Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/prompt-clustering-analysis.md?plain=1)** - Clusters and categorizes agent prompts using ML
-- **[Copilot Agent Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-agent-analysis.md?plain=1)** - Deep analysis of agent behavior patterns
+- **[Copilot Session Insights](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-session-insights.md?plain=1)** - Analyzes Copilot agent usage patterns and metrics  
+  [→ View session insights](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bcopilot-session-insights%5D%22+is%3Aissue&type=issues)
+- **[Copilot PR NLP Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-pr-nlp-analysis.md?plain=1)** - Natural language processing on PR conversations  
+  [→ View NLP analysis](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bnlp-analysis%5D%22+is%3Aissue&type=issues)
+- **[Prompt Clustering Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/prompt-clustering-analysis.md?plain=1)** - Clusters and categorizes agent prompts using ML  
+  [→ View clustering results](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bprompt-clustering%5D%22+is%3Aissue&type=issues)
+- **[Copilot Agent Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-agent-analysis.md?plain=1)** - Deep analysis of agent behavior patterns  
+  [→ View agent analysis](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bcopilot-agent-analysis%5D%22+is%3Aissue&type=issues)
 
 We got nerdy with these workflows. The Prompt Clustering Analysis uses machine learning to categorize thousands of agent prompts, revealing patterns we never noticed ("oh, 40% of our prompts are about error handling"). The Copilot PR NLP Analysis does sentiment analysis and linguistic analysis on PR conversations - it found that PRs with questions in the title get faster review. The Session Insights workflow analyzes how developers interact with Copilot agents, identifying common patterns and failure modes. What we learned: **meta-analysis is powerful** - using AI to analyze AI systems reveals insights that direct observation misses.
 

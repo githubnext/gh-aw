@@ -25,9 +25,12 @@ Now let's talk about the agents that work quietly in the background, continuousl
 
 These agents make our codebase cleaner and our developer experience better:
 
-- **[Terminal Stylist](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/terminal-stylist.md?plain=1)** - Analyzes and improves console output styling (because aesthetics matter!)
-- **[Semantic Function Refactor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed
-- **[Repository Quality Improver](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/repository-quality-improver.md?plain=1)** - Takes a holistic view of code quality and suggests improvements
+- **[Terminal Stylist](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/terminal-stylist.md?plain=1)** - Analyzes and improves console output styling (because aesthetics matter!)  
+  [→ View styling improvements](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+author%3Aapp%2Fgithub-actions+terminal+style+is%3Apr&type=pullrequests)
+- **[Semantic Function Refactor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed  
+  [→ View refactoring suggestions](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Brefactor%5D%22+label%3Arefactoring+is%3Aissue&type=issues)
+- **[Repository Quality Improver](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/repository-quality-improver.md?plain=1)** - Takes a holistic view of code quality and suggests improvements  
+  [→ View quality improvements](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+quality+improvement+is%3Apr&type=pullrequests)
 
 Code quality is where AI agents really shine - they never get bored doing the repetitive analysis that makes codebases better. The Terminal Stylist literally reads our console output code and suggests improvements to make our CLI prettier (and yes, it understands Lipgloss and modern terminal styling). The Semantic Function Refactor finds duplicated logic that's not quite identical enough for traditional duplicate detection. We learned that these agents see patterns humans miss because they can hold the entire codebase in context. The Repository Quality Improver takes a holistic view - it doesn't just find bugs, it identifies structural improvements and documentation gaps.
 

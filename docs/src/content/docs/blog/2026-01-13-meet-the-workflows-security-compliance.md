@@ -25,9 +25,12 @@ But measurement alone isn't enough - we also need *boundaries*. When AI agents c
 
 These agents are our security guards, keeping watch and enforcing the rules:
 
-- **[Security Compliance](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/security-compliance.md?plain=1)** - Runs vulnerability campaigns with deadline tracking
-- **[Firewall](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/firewall.md?plain=1)** - Tests network security and validates rules
-- **[Daily Secrets Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-secrets-analysis.md?plain=1)** - Scans for exposed credentials (yes, it happens)
+- **[Security Compliance](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/security-compliance.md?plain=1)** - Runs vulnerability campaigns with deadline tracking  
+  [→ View security reports](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+label%3Asecurity+is%3Aissue&type=issues)
+- **[Firewall](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/firewall.md?plain=1)** - Tests network security and validates rules  
+  [→ View firewall reports](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+firewall+is%3Aissue&type=issues)
+- **[Daily Secrets Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-secrets-analysis.md?plain=1)** - Scans for exposed credentials (yes, it happens)  
+  [→ View secrets analysis](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bdaily+secrets%5D%22+is%3Aissue&type=issues)
 
 Security workflows were where we got serious about trust boundaries. The Security Compliance agent manages entire vulnerability remediation campaigns with deadline tracking - perfect for those "audit in 3 weeks" panic moments. We learned that AI agents need guardrails just like humans need seat belts. 
 
