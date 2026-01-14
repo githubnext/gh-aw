@@ -404,6 +404,19 @@ gh aw version
 
 Enable tab completion for workflow names, engines, and paths.
 
+### Automatic Installation (Recommended)
+
+```bash wrap
+gh aw completion install    # Auto-detects your shell and installs
+gh aw completion uninstall  # Remove completions
+```
+
+After installation, restart your shell or source your configuration file.
+
+### Manual Installation
+
+For manual control, generate and install completion scripts for your shell:
+
 ```bash wrap
 # Bash
 gh aw completion bash > ~/.bash_completion.d/gh-aw && source ~/.bash_completion.d/gh-aw
