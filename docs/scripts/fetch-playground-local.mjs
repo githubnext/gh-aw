@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,23 +13,20 @@ function parseDotenv(content) {
   const vars = {};
   for (const lineRaw of content.split(/\r?\n/)) {
     const line = lineRaw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eq = line.indexOf('=');
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
     if (eq <= 0) continue;
     const key = line.slice(0, eq).trim();
     let value = line.slice(eq + 1).trim();
     if (!key) continue;
 
     // Strip surrounding quotes (simple .env compatibility)
-    if (
-      (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
-      (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
-    ) {
+    if ((value.startsWith('"') && value.endsWith('"') && value.length >= 2) || (value.startsWith("'") && value.endsWith("'") && value.length >= 2)) {
       value = value.slice(1, -1);
     }
 
     // Support basic escaped newlines in quoted values.
-    value = value.replaceAll('\\n', '\n');
+    value = value.replaceAll("\\n", "\n");
 
     vars[key] = value;
   }
@@ -39,11 +36,11 @@ function parseDotenv(content) {
 async function loadDotenvIfPresent(docsRoot) {
   // Node scripts do not automatically read .env files.
   // Load .env.local first, then .env (do not override real env vars).
-  const candidates = [path.join(docsRoot, '.env.local'), path.join(docsRoot, '.env')];
+  const candidates = [path.join(docsRoot, ".env.local"), path.join(docsRoot, ".env")];
 
   for (const envPath of candidates) {
     try {
-      const content = await fs.readFile(envPath, 'utf8');
+      const content = await fs.readFile(envPath, "utf8");
       const vars = parseDotenv(content);
       for (const [k, v] of Object.entries(vars)) {
         if (process.env[k] === undefined) process.env[k] = v;
@@ -56,29 +53,29 @@ async function loadDotenvIfPresent(docsRoot) {
 
 function parseArgs(argv) {
   const args = {
-    repo: process.env.PLAYGROUND_REPO || '',
-    ref: process.env.PLAYGROUND_REF || 'main',
-    token: process.env.PLAYGROUND_TOKEN || process.env.GITHUB_TOKEN || '',
-    snapshotsPath: process.env.PLAYGROUND_SNAPSHOTS_PATH || 'docs/playground-snapshots',
-    snapshotsMode: process.env.PLAYGROUND_SNAPSHOTS_MODE || 'actions',
-    snapshotsBranch: process.env.PLAYGROUND_SNAPSHOTS_BRANCH || '',
-    prefix: process.env.PLAYGROUND_ID_PREFIX || '',
-    mdx: process.env.PLAYGROUND_MDX || 'src/content/docs/playground/index.mdx',
-    workflowsDir: process.env.PLAYGROUND_WORKFLOWS_DIR || '.github/workflows',
+    repo: process.env.PLAYGROUND_REPO || "",
+    ref: process.env.PLAYGROUND_REF || "main",
+    token: process.env.PLAYGROUND_TOKEN || process.env.GITHUB_TOKEN || "",
+    snapshotsPath: process.env.PLAYGROUND_SNAPSHOTS_PATH || "docs/playground-snapshots",
+    snapshotsMode: process.env.PLAYGROUND_SNAPSHOTS_MODE || "actions",
+    snapshotsBranch: process.env.PLAYGROUND_SNAPSHOTS_BRANCH || "",
+    prefix: process.env.PLAYGROUND_ID_PREFIX || "",
+    mdx: process.env.PLAYGROUND_MDX || "src/content/docs/playground/index.mdx",
+    workflowsDir: process.env.PLAYGROUND_WORKFLOWS_DIR || ".github/workflows",
   };
 
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--repo') args.repo = argv[++i] || '';
-    else if (a === '--ref') args.ref = argv[++i] || 'main';
-    else if (a === '--token') args.token = argv[++i] || '';
-    else if (a === '--snapshots-path') args.snapshotsPath = argv[++i] || args.snapshotsPath;
-    else if (a === '--snapshots-mode') args.snapshotsMode = argv[++i] || args.snapshotsMode;
-    else if (a === '--snapshots-branch') args.snapshotsBranch = argv[++i] || args.snapshotsBranch;
-    else if (a === '--workflows-dir') args.workflowsDir = argv[++i] || args.workflowsDir;
-    else if (a === '--prefix') args.prefix = argv[++i] || args.prefix;
-    else if (a === '--mdx') args.mdx = argv[++i] || args.mdx;
-    else if (a === '--help' || a === '-h') {
+    if (a === "--repo") args.repo = argv[++i] || "";
+    else if (a === "--ref") args.ref = argv[++i] || "main";
+    else if (a === "--token") args.token = argv[++i] || "";
+    else if (a === "--snapshots-path") args.snapshotsPath = argv[++i] || args.snapshotsPath;
+    else if (a === "--snapshots-mode") args.snapshotsMode = argv[++i] || args.snapshotsMode;
+    else if (a === "--snapshots-branch") args.snapshotsBranch = argv[++i] || args.snapshotsBranch;
+    else if (a === "--workflows-dir") args.workflowsDir = argv[++i] || args.workflowsDir;
+    else if (a === "--prefix") args.prefix = argv[++i] || args.prefix;
+    else if (a === "--mdx") args.mdx = argv[++i] || args.mdx;
+    else if (a === "--help" || a === "-h") {
       printHelp();
       process.exit(0);
     } else {
@@ -111,13 +108,13 @@ Environment equivalents:
 }
 
 async function readWorkflowIdsFromMdx(mdxPath, prefix) {
-  const mdx = await fs.readFile(mdxPath, 'utf8');
+  const mdx = await fs.readFile(mdxPath, "utf8");
 
   const ids = new Set();
   const re = /\bid\s*:\s*['"]([^'"]+)['"]/g;
   let m;
   while ((m = re.exec(mdx)) !== null) {
-    const id = String(m[1] || '').trim();
+    const id = String(m[1] || "").trim();
     if (!id) continue;
     if (prefix && !id.startsWith(prefix)) continue;
     ids.add(id);
@@ -130,30 +127,30 @@ function runNodeScript({ scriptPath, cwd, env }) {
   const res = spawnSync(process.execPath, [scriptPath], {
     cwd,
     env: { ...process.env, ...env },
-    stdio: 'inherit',
+    stdio: "inherit",
   });
 
   if (res.error) throw res.error;
-  if (typeof res.status === 'number' && res.status !== 0) {
+  if (typeof res.status === "number" && res.status !== 0) {
     throw new Error(`Script failed: ${path.basename(scriptPath)} (exit ${res.status})`);
   }
 }
 
 async function main() {
-  const docsRoot = path.resolve(__dirname, '..');
+  const docsRoot = path.resolve(__dirname, "..");
   await loadDotenvIfPresent(docsRoot);
 
   const args = parseArgs(process.argv);
 
   if (!args.repo) {
-    console.error('[playground-local] Missing --repo (or PLAYGROUND_REPO).');
+    console.error("[playground-local] Missing --repo (or PLAYGROUND_REPO).");
     printHelp();
     process.exit(2);
   }
 
   if (!args.token) {
-    console.error('[playground-local] Missing token. Set PLAYGROUND_TOKEN or pass --token.');
-    console.error('[playground-local] For fine-grained PAT: give read access to Contents + Metadata on the repo.');
+    console.error("[playground-local] Missing token. Set PLAYGROUND_TOKEN or pass --token.");
+    console.error("[playground-local] For fine-grained PAT: give read access to Contents + Metadata on the repo.");
     process.exit(2);
   }
 
@@ -162,14 +159,11 @@ async function main() {
   const ids = await readWorkflowIdsFromMdx(mdxPath, args.prefix);
   if (ids.length === 0) {
     if (args.prefix) {
-      const fallbackIds = await readWorkflowIdsFromMdx(mdxPath, '');
+      const fallbackIds = await readWorkflowIdsFromMdx(mdxPath, "");
       if (fallbackIds.length > 0) {
-        console.warn(
-          `[playground-local] No workflow IDs found with prefix '${args.prefix}' in ${args.mdx}. ` +
-            `Falling back to fetching all workflows listed in that file.`
-        );
+        console.warn(`[playground-local] No workflow IDs found with prefix '${args.prefix}' in ${args.mdx}. ` + `Falling back to fetching all workflows listed in that file.`);
         // eslint-disable-next-line no-param-reassign
-        args.prefix = '';
+        args.prefix = "";
         // eslint-disable-next-line no-param-reassign
         ids.length = 0;
         ids.push(...fallbackIds);
@@ -184,12 +178,12 @@ async function main() {
 
   const repoPaths = [];
   for (const id of ids) {
-    repoPaths.push(`${args.workflowsDir.replace(/\/$/, '')}/${id}.md`);
-    repoPaths.push(`${args.workflowsDir.replace(/\/$/, '')}/${id}.lock.yml`);
+    repoPaths.push(`${args.workflowsDir.replace(/\/$/, "")}/${id}.md`);
+    repoPaths.push(`${args.workflowsDir.replace(/\/$/, "")}/${id}.lock.yml`);
   }
 
-  const workflowsScript = path.resolve(__dirname, 'fetch-playground-workflows.mjs');
-  const snapshotsScript = path.resolve(__dirname, 'fetch-playground-snapshots.mjs');
+  const workflowsScript = path.resolve(__dirname, "fetch-playground-workflows.mjs");
+  const snapshotsScript = path.resolve(__dirname, "fetch-playground-snapshots.mjs");
 
   console.log(`[playground-local] Repo: ${args.repo}@${args.ref}`);
   console.log(`[playground-local] Workflows: ${ids.length} (prefix '${args.prefix}')`);
@@ -201,7 +195,7 @@ async function main() {
       PLAYGROUND_WORKFLOWS_REPO: args.repo,
       PLAYGROUND_WORKFLOWS_REF: args.ref,
       PLAYGROUND_WORKFLOWS_TOKEN: args.token,
-      PLAYGROUND_WORKFLOWS_FILES: repoPaths.join(','),
+      PLAYGROUND_WORKFLOWS_FILES: repoPaths.join(","),
     },
   });
 
@@ -216,14 +210,14 @@ async function main() {
       PLAYGROUND_SNAPSHOTS_MODE: args.snapshotsMode,
       PLAYGROUND_SNAPSHOTS_BRANCH: args.snapshotsBranch || args.ref,
       PLAYGROUND_SNAPSHOTS_WORKFLOWS_DIR: args.workflowsDir,
-      PLAYGROUND_SNAPSHOTS_WORKFLOW_IDS: ids.join(','),
+      PLAYGROUND_SNAPSHOTS_WORKFLOW_IDS: ids.join(","),
     },
   });
 
-  console.log('[playground-local] Done. Start the dev server with: npm run dev');
+  console.log("[playground-local] Done. Start the dev server with: npm run dev");
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error(String(err?.stack || err));
   process.exitCode = 1;
 });

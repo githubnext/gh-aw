@@ -732,3 +732,17 @@ func TestCodexEngineHttpMCPServerRendered(t *testing.T) {
 		})
 	}
 }
+
+func TestCodexEngineSkipInstallationWithCommand(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// Test with custom command - should skip installation
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-codex"},
+	}
+	steps := engine.GetInstallationSteps(workflowData)
+
+	if len(steps) != 0 {
+		t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
+	}
+}

@@ -57,6 +57,12 @@ func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
+	// Skip installation if custom command is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		claudeLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
+
 	var steps []GitHubActionStep
 
 	// Define engine configuration for shared validation
@@ -214,8 +220,17 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build the command string with proper argument formatting
-	// Use claude command directly (available in PATH from hostedtoolcache mount)
-	commandParts := []string{"claude"}
+	// Determine which command to use
+	var commandName string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+		claudeLog.Printf("Using custom command: %s", commandName)
+	} else {
+		// Use claude command directly (available in PATH from hostedtoolcache mount)
+		commandName = "claude"
+	}
+	
+	commandParts := []string{commandName}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
