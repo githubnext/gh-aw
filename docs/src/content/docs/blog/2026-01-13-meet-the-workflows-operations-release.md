@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Operations & Release"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/
   label: "Security & Compliance Workflows"

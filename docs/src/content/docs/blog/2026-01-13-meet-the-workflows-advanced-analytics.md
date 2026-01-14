@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Advanced Analytics & ML"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/
   label: "Multi-Phase Improver Workflows"
