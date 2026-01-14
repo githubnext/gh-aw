@@ -26,7 +26,7 @@ permissions:
 # 3. Repository Settings > Actions > General > Workflow permissions:
 #    Must be set to "Read and write permissions"
 
-github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
+github-token: ${{ secrets.GH_AW_AGENT_TOKEN2 }}
 
 safe-outputs:
   assign-to-agent:
