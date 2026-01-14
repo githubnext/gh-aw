@@ -467,9 +467,11 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid max value: invalid"));
   });
 
-  it.skip("should generate permission error summary when appropriate", async () => {
-    // TODO: This test needs to be fixed - the mock setup doesn't work correctly with eval()
-    // The error from getIssueDetails is not being propagated properly in the test environment
+  it("should generate permission error summary when appropriate", async () => {
+    // Explicitly reset mocks to ensure clean state
+    vi.clearAllMocks();
+    mockGithub.graphql.mockReset();
+    
     setAgentOutput({
       items: [
         {
@@ -481,10 +483,28 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
+    // Clear module cache for all dependencies AND re-read the script file
+    // This ensures we have the latest code when eval executes
+    const modulesToClear = [
+      "./assign_agent_helpers.cjs",
+      "./load_agent_output.cjs",
+      "./staged_preview.cjs",
+      "./error_helpers.cjs",
+    ];
+    for (const mod of modulesToClear) {
+      const modPath = require.resolve(mod);
+      delete require.cache[modPath];
+    }
+    
+    // Re-read the script file to ensure we have the latest version
+    const scriptPath = path.join(process.cwd(), "assign_to_agent.cjs");
+    const freshScript = fs.readFileSync(scriptPath, "utf8");
+
     // Simulate permission error during agent assignment mutation (not during getIssueDetails)
     // First call: findAgent succeeds
     // Second call: getIssueDetails succeeds
     // Third call: assignAgentToIssue fails with permission error
+    // Fourth call: fallback mutation also fails with permission error
     const permissionError = new Error("Resource not accessible by integration");
     mockGithub.graphql
       .mockResolvedValueOnce({
@@ -504,9 +524,10 @@ describe("assign_to_agent", () => {
           },
         },
       })
+      .mockRejectedValueOnce(permissionError)
       .mockRejectedValueOnce(permissionError);
 
-    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+    await eval(`(async () => { ${freshScript}; await main(); })()`);
 
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];

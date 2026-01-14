@@ -310,10 +310,13 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
         core.error(`Fallback addAssigneesToAssignable failed: ${fallbackErrMsg}`);
       }
       logPermissionError(agentName);
+      // Re-throw the original error to preserve the error message for permission error detection in summary
+      throw error;
     } else {
       core.error(`Failed to assign ${agentName}: ${errorMessage}`);
     }
-    return false;
+    // Re-throw the original error to preserve the error message
+    throw error;
   }
 }
 
