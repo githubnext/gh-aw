@@ -182,9 +182,9 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 func renderBuiltinMCPServerBlock(opts BuiltinMCPServerOptions) {
 	opts.Yaml.WriteString("              \"" + opts.ServerID + "\": {\n")
 
-	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
+	// Add type field for Copilot (use "local" for command-based MCP servers)
 	if opts.IncludeCopilotFields {
-		opts.Yaml.WriteString("                \"type\": \"stdio\",\n")
+		opts.Yaml.WriteString("                \"type\": \"local\",\n")
 	}
 
 	opts.Yaml.WriteString("                \"command\": \"" + opts.Command + "\",\n")
@@ -199,8 +199,10 @@ func renderBuiltinMCPServerBlock(opts BuiltinMCPServerOptions) {
 	}
 	opts.Yaml.WriteString("],\n")
 
-	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot. This keeps the gateway config compatible with the schema.
+	// Add tools field for Copilot (defaults to all tools)
+	if opts.IncludeCopilotFields {
+		opts.Yaml.WriteString("                \"tools\": [\"*\"],\n")
+	}
 
 	opts.Yaml.WriteString("                \"env\": {\n")
 
