@@ -450,6 +450,7 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL: ${{ github.event.inputs.security_url }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -484,15 +485,22 @@ jobs:
             - Skip to step 2 to get the alert details directly
           - **If no security URL is provided**:
             - Use the GitHub API to list all open code scanning alerts
-            - Use `list_code_scanning_alerts` to get all open alerts
-            - Filter for `state: open` alerts
-            - Sort by severity (critical/high first)
+            - Call `list_code_scanning_alerts` with the following parameters:
+              - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
+              - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__`)
+              - `state`: "open"
+              - `sort`: "created" (or use default sorting)
+            - Sort results by severity (critical/high first) if not already sorted
             - Select the first alert from the list
             - If no alerts exist, stop and report "No open security alerts found"
           
           ### 2. Get Alert Details
           
           Get detailed information about the selected alert using `get_code_scanning_alert`:
+          - Call with parameters:
+            - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
+            - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__`)
+            - `alert_number`: The alert number from step 1
           - Extract key information:
             - Alert number
             - Severity level
@@ -503,7 +511,11 @@ jobs:
           ### 3. Analyze the Vulnerability
           
           Understand the security issue:
-          - Read the affected file using `get_file_contents`
+          - Read the affected file using `get_file_contents`:
+            - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
+            - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__`)
+            - `path`: The file path from the alert
+            - `ref`: Use the default branch or the ref where the alert was found
           - Review the code context around the vulnerability
           - Understand the root cause of the security issue
           - Research the specific vulnerability type and best practices for fixing it
@@ -588,6 +600,7 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL: ${{ github.event.inputs.security_url }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         with:
           script: |
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
@@ -598,7 +611,8 @@ jobs:
               substitutions: {
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL: process.env.GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_REPOSITORY_OWNER: process.env.GH_AW_GITHUB_REPOSITORY_OWNER
               }
             });
       - name: Append XPIA security instructions to prompt
@@ -734,6 +748,7 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL: ${{ github.event.inputs.security_url }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');

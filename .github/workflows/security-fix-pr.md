@@ -56,15 +56,22 @@ Check if a security URL was provided:
   - Skip to step 2 to get the alert details directly
 - **If no security URL is provided**:
   - Use the GitHub API to list all open code scanning alerts
-  - Use `list_code_scanning_alerts` to get all open alerts
-  - Filter for `state: open` alerts
-  - Sort by severity (critical/high first)
+  - Call `list_code_scanning_alerts` with the following parameters:
+    - `owner`: ${{ github.repository_owner }}
+    - `repo`: The repository name (extract from `${{ github.repository }}`)
+    - `state`: "open"
+    - `sort`: "created" (or use default sorting)
+  - Sort results by severity (critical/high first) if not already sorted
   - Select the first alert from the list
   - If no alerts exist, stop and report "No open security alerts found"
 
 ### 2. Get Alert Details
 
 Get detailed information about the selected alert using `get_code_scanning_alert`:
+- Call with parameters:
+  - `owner`: ${{ github.repository_owner }}
+  - `repo`: The repository name (extract from `${{ github.repository }}`)
+  - `alert_number`: The alert number from step 1
 - Extract key information:
   - Alert number
   - Severity level
@@ -75,7 +82,11 @@ Get detailed information about the selected alert using `get_code_scanning_alert
 ### 3. Analyze the Vulnerability
 
 Understand the security issue:
-- Read the affected file using `get_file_contents`
+- Read the affected file using `get_file_contents`:
+  - `owner`: ${{ github.repository_owner }}
+  - `repo`: The repository name (extract from `${{ github.repository }}`)
+  - `path`: The file path from the alert
+  - `ref`: Use the default branch or the ref where the alert was found
 - Review the code context around the vulnerability
 - Understand the root cause of the security issue
 - Research the specific vulnerability type and best practices for fixing it
