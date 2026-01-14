@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://githubnext.github.io/gh-aw/',
+	site: 'https://githubnext.github.io',
 	base: '/gh-aw/',
 	vite: {
 		server: {
