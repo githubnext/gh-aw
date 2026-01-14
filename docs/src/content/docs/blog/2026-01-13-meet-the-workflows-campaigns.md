@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Campaigns & Projects"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/
   label: "Issue & PR Management Workflows"
@@ -25,8 +27,10 @@ But here's the ultimate challenge: how do you coordinate *multiple* agents worki
 
 These agents manage structured improvement campaigns:
 
-- **[Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md?plain=1)** - Creates and coordinates multi-step campaigns
-- **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md?plain=1)** - Monitors and maintains workflow health
+- **[Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md?plain=1)** - Creates and coordinates multi-step campaigns  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20campaign-generator%22&type=issues)
+- **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md?plain=1)** - Monitors and maintains workflow health  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20workflow-health-manager%22&type=issues)
 
 Campaigns are where we tackled the "how do you coordinate multiple agents on a big project?" question. The Campaign Generator creates structured improvement campaigns - breaking down large initiatives ("migrate all workflows to new engine") into trackable sub-tasks that different agents can tackle. The Workflow Health Manager acts as a project manager, monitoring progress across campaigns and alerting when things fall behind. We learned that **coordination is the hard part** - individual agents are great at focused tasks, but orchestrating multiple agents toward a shared goal requires careful architecture.
 

@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Creative & Culture"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/
   label: "Operations & Release Workflows"
@@ -25,9 +27,12 @@ But here's the thing: work doesn't have to be all business. While we were buildi
 
 Not everything needs to be serious! These agents remind us that work can be fun:
 
-- **[Poem Bot](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/poem-bot.md?plain=1)** - Responds to `/poem-bot` commands with creative verses (yes, really)
-- **[Daily Team Status](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-team-status.md?plain=1)** - Shares team mood and status updates
-- **[Daily News](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-news.md?plain=1)** - Curates relevant news for the team
+- **[Poem Bot](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/poem-bot.md?plain=1)** - Responds to `/poem-bot` commands with creative verses (yes, really)  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20poem-bot%22&type=issues)
+- **[Daily Team Status](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-team-status.md?plain=1)** - Shares team mood and status updates  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20daily-team-status%22&type=issues)
+- **[Daily News](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-news.md?plain=1)** - Curates relevant news for the team  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22tracker-id%3A%20daily-news-weekday%22&type=issues)
 
 Okay, hear us out: the Poem Bot started as a joke. Someone said "wouldn't it be funny if we had an agent that writes poems about our code?" and then we actually built it. And you know what? People *love* it. It became a team tradition to invoke `/poem-bot` after particularly gnarly PR merges. We learned that AI agents don't have to be all business - they can build culture and create moments of joy.
 

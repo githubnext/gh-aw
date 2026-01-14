@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Documentation & Content"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-organization/
   label: "Organization & Cross-Repo Workflows"
@@ -25,10 +27,14 @@ Now let's address one of software development's eternal challenges: keeping docu
 
 These agents maintain high-quality documentation and content:
 
-- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase
-- **[Technical Doc Writer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/technical-doc-writer.md?plain=1)** - Generates and updates technical documentation
-- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks
-- **[Blog Auditor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/blog-auditor.md?plain=1)** - Reviews blog content for quality and accuracy
+- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20glossary-maintainer%22&type=issues)
+- **[Technical Doc Writer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/technical-doc-writer.md?plain=1)** - Generates and updates technical documentation  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20technical-doc-writer%22&type=issues)
+- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20slide-deck-maintainer%22&type=issues)
+- **[Blog Auditor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/blog-auditor.md?plain=1)** - Reviews blog content for quality and accuracy  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22tracker-id%3A%20blog-auditor-weekly%22&type=issues)
 
 Documentation is where we challenged conventional wisdom. Can AI agents write *good* documentation? The Technical Doc Writer generates API docs from code, but more importantly, it *maintains* them - updating docs when code changes. The Glossary Maintainer caught terminology drift ("we're using three different terms for the same concept"). The Slide Deck Maintainer keeps our presentation materials current without manual updates. We learned that **AI-generated docs need human review**, but they're dramatically better than *no* docs (which is often the alternative). The Blog Auditor ensures our blog posts stay accurate as the codebase evolves - it flags outdated code examples and broken links. 
 
