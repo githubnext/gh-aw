@@ -541,10 +541,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
-	// Extract secrets from headers for HTTP MCP tools (copilot engine only)
+	// Extract secrets from headers and env for HTTP MCP tools (copilot engine only)
 	var headerSecrets map[string]string
+	var envSecrets map[string]string
 	if mcpConfig.Type == "http" && renderer.RequiresCopilotFields {
 		headerSecrets = ExtractSecretsFromMap(mcpConfig.Headers)
+		envSecrets = ExtractSecretsFromMap(mcpConfig.Env)
 	}
 
 	// Determine properties based on type
@@ -566,8 +568,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		} else {
 			// JSON format - include copilot fields if required
 			if renderer.RequiresCopilotFields {
-				// For HTTP MCP with secrets in headers, env passthrough is needed
-				if len(headerSecrets) > 0 {
+				// For HTTP MCP with secrets in headers or env, env passthrough is needed
+				// Also include env if there are explicit env vars (even without secrets)
+				if len(headerSecrets) > 0 || len(envSecrets) > 0 || len(mcpConfig.Env) > 0 {
 					propertyOrder = []string{"type", "url", "headers", "tools", "env"}
 				} else {
 					propertyOrder = []string{"type", "url", "headers", "tools"}
@@ -602,8 +605,8 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				existingProperties = append(existingProperties, prop)
 			}
 		case "env":
-			// Include env if there are existing env vars OR if there are header secrets to passthrough
-			if len(mcpConfig.Env) > 0 || len(headerSecrets) > 0 {
+			// Include env if there are existing env vars OR if there are header/env secrets to passthrough
+			if len(mcpConfig.Env) > 0 || len(headerSecrets) > 0 || len(envSecrets) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "url":
@@ -726,7 +729,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
 
 				// CWE-190: Allocation Size Overflow Prevention
-				// Instead of pre-calculating capacity (len(mcpConfig.Env)+len(headerSecrets)),
+				// Instead of pre-calculating capacity (len(mcpConfig.Env)+len(headerSecrets)+len(envSecrets)),
 				// which could overflow if the maps are extremely large, we let Go's append
 				// handle capacity growth automatically. This is safe and efficient for
 				// environment variable maps which are typically small in practice.
@@ -741,6 +744,15 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						envKeys = append(envKeys, varName)
 					}
 				}
+				// Add env secrets for passthrough (copilot only)
+				for varName := range envSecrets {
+					// Only add if not already in env or headerSecrets
+					if _, exists := mcpConfig.Env[varName]; !exists {
+						if _, existsInHeader := headerSecrets[varName]; !existsInHeader {
+							envKeys = append(envKeys, varName)
+						}
+					}
+				}
 				sort.Strings(envKeys)
 
 				for envIndex, envKey := range envKeys {
@@ -749,9 +761,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						envComma = ""
 					}
 
-					// Check if this is a header secret (needs passthrough)
+					// Check if this is a header secret or env secret (needs passthrough)
 					if _, isHeaderSecret := headerSecrets[envKey]; isHeaderSecret && renderer.RequiresCopilotFields {
 						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
+						fmt.Fprintf(yaml, "%s  \"%s\": \"\\${%s}\"%s\n", renderer.IndentLevel, envKey, envKey, envComma)
+					} else if _, isEnvSecret := envSecrets[envKey]; isEnvSecret && renderer.RequiresCopilotFields {
+						// Use passthrough syntax for env secrets: "VAR_NAME": "\\${VAR_NAME}"
 						fmt.Fprintf(yaml, "%s  \"%s\": \"\\${%s}\"%s\n", renderer.IndentLevel, envKey, envKey, envComma)
 					} else {
 						// Use existing env value
@@ -918,7 +933,7 @@ func (m MapToolConfig) GetAny(key string) (any, bool) {
 	return value, exists
 }
 
-// collectHTTPMCPHeaderSecrets collects all secrets from HTTP MCP tool headers
+// collectHTTPMCPHeaderSecrets collects all secrets from HTTP MCP tool headers and env
 // Returns a map of environment variable names to their secret expressions
 func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 	allSecrets := make(map[string]string)
@@ -927,10 +942,16 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 		// Check if this is an MCP tool configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
 			if hasMcp, mcpType := hasMCPConfig(toolConfig); hasMcp && mcpType == "http" {
-				// Extract MCP config to get headers
+				// Extract MCP config to get headers and env
 				if mcpConfig, err := getMCPConfig(toolConfig, toolName); err == nil {
+					// Extract secrets from headers
 					secrets := ExtractSecretsFromMap(mcpConfig.Headers)
 					for varName, expr := range secrets {
+						allSecrets[varName] = expr
+					}
+					// Extract secrets from env section
+					envSecrets := ExtractSecretsFromMap(mcpConfig.Env)
+					for varName, expr := range envSecrets {
 						allSecrets[varName] = expr
 					}
 				}
@@ -1085,6 +1106,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		}
 		if headers, hasHeaders := config.GetStringMap("headers"); hasHeaders {
 			result.Headers = headers
+		}
+		if env, hasEnv := config.GetStringMap("env"); hasEnv {
+			result.Env = env
 		}
 	default:
 		mcpLog.Printf("Unsupported MCP type '%s' for tool '%s'", result.Type, toolName)

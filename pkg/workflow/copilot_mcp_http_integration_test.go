@@ -249,3 +249,89 @@ func TestCopilotEngine_HTTPMCPWithoutSecrets_Integration(t *testing.T) {
 		}
 	}
 }
+
+func TestCopilotEngine_HTTPMCPWithExplicitEnv_Integration(t *testing.T) {
+// Create workflow data with HTTP MCP tool with explicit env section
+// This tests that env variables can be explicitly specified for HTTP servers,
+// not just derived from header secrets
+workflowData := &WorkflowData{
+Name: "test-workflow",
+Tools: map[string]any{
+"api-server": map[string]any{
+"type": "http",
+"url":  "https://api.example.com/mcp",
+"env": map[string]any{
+"API_KEY":     "${{ secrets.API_KEY }}",
+"API_SECRET":  "${{ secrets.API_SECRET }}",
+"API_TIMEOUT": "30",
+},
+"headers": map[string]any{
+"Authorization": "Bearer ${{ secrets.API_KEY }}",
+"X-Timeout":     "30",
+},
+},
+},
+EngineConfig: &EngineConfig{
+ID: "copilot",
+},
+}
+
+engine := NewCopilotEngine()
+
+// Test MCP config rendering
+var mcpConfig strings.Builder
+mcpTools := []string{"api-server"}
+engine.RenderMCPConfig(&mcpConfig, workflowData.Tools, mcpTools, workflowData)
+
+mcpOutput := mcpConfig.String()
+
+// Verify MCP config contains env section with all explicit env vars
+expectedMCPChecks := []string{
+`"api-server": {`,
+`"type": "http"`,
+`"url": "https://api.example.com/mcp"`,
+`"headers": {`,
+`"Authorization": "Bearer \${API_KEY}"`,
+`"X-Timeout": "30"`,
+`"env": {`,
+`"API_KEY": "\${API_KEY}"`,
+`"API_SECRET": "\${API_SECRET}"`,
+`"API_TIMEOUT": "30"`,
+}
+
+for _, expected := range expectedMCPChecks {
+if !strings.Contains(mcpOutput, expected) {
+t.Errorf("Expected MCP config content not found: %q\nActual MCP config:\n%s", expected, mcpOutput)
+}
+}
+
+// Test execution steps to verify env variables are declared
+steps := engine.GetExecutionSteps(workflowData, "/tmp/log.txt")
+
+// Find the execution step
+var executionStepContent string
+for _, step := range steps {
+stepStr := strings.Join(step, "\n")
+if strings.Contains(stepStr, "Execute GitHub Copilot CLI") {
+executionStepContent = stepStr
+break
+}
+}
+
+if executionStepContent == "" {
+t.Fatal("Execution step not found")
+}
+
+// Verify env variables from explicit env section are declared
+expectedEnvChecks := []string{
+`API_KEY: ${{ secrets.API_KEY }}`,
+`API_SECRET: ${{ secrets.API_SECRET }}`,
+// API_TIMEOUT is not a secret, so it should be inline in the env section
+}
+
+for _, expected := range expectedEnvChecks {
+if !strings.Contains(executionStepContent, expected) {
+t.Errorf("Expected env declaration not found: %q\nActual execution step:\n%s", expected, executionStepContent)
+}
+}
+}
