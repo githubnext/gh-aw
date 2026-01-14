@@ -220,8 +220,17 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build the command string with proper argument formatting
-	// Use claude command directly (available in PATH from hostedtoolcache mount)
-	commandParts := []string{"claude"}
+	// Determine which command to use
+	var commandName string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+		claudeLog.Printf("Using custom command: %s", commandName)
+	} else {
+		// Use claude command directly (available in PATH from hostedtoolcache mount)
+		commandName = "claude"
+	}
+	
+	commandParts := []string{commandName}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
