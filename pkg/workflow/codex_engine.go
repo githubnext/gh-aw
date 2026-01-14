@@ -69,6 +69,12 @@ func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
+	// Skip installation if custom command is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		codexEngineLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
+
 	// Use base installation steps (secret validation + npm install)
 	steps := GetBaseInstallationSteps(EngineInstallConfig{
 		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},

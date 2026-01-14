@@ -511,3 +511,17 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		}
 	})
 }
+
+func TestClaudeEngineSkipInstallationWithCommand(t *testing.T) {
+engine := NewClaudeEngine()
+
+// Test with custom command - should skip installation
+workflowData := &WorkflowData{
+EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-claude"},
+}
+steps := engine.GetInstallationSteps(workflowData)
+
+if len(steps) != 0 {
+t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
+}
+}

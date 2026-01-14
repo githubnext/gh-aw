@@ -5944,6 +5944,10 @@
               "type": "string",
               "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
             },
+            "command": {
+              "type": "string",
+              "description": "Custom executable path for the AI engine CLI. When specified, the workflow will skip the standard installation steps and use this command instead. The command should be the full path to the executable or a command available in PATH."
+            },
             "env": {
               "type": "object",
               "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",

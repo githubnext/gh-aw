@@ -183,3 +183,68 @@ func TestEngineVersionWithOtherFields(t *testing.T) {
 		t.Errorf("Expected DEBUG='true', got %q", config.Env["DEBUG"])
 	}
 }
+
+// TestEngineCommandField tests that the command field is correctly extracted
+func TestEngineCommandField(t *testing.T) {
+tests := []struct {
+name            string
+frontmatter     map[string]any
+expectedCommand string
+}{
+{
+name: "command field provided",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id":      "copilot",
+"command": "/usr/local/bin/custom-copilot",
+},
+},
+expectedCommand: "/usr/local/bin/custom-copilot",
+},
+{
+name: "command field not provided",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id": "copilot",
+},
+},
+expectedCommand: "",
+},
+{
+name: "command with relative path",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id":      "claude",
+"command": "./bin/claude-cli",
+},
+},
+expectedCommand: "./bin/claude-cli",
+},
+{
+name: "command with environment variable",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id":      "codex",
+"command": "$HOME/.local/bin/codex",
+},
+},
+expectedCommand: "$HOME/.local/bin/codex",
+},
+}
+
+compiler := NewCompiler(false, "", "test")
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+
+if config == nil {
+t.Fatal("Expected config to be non-nil")
+}
+
+if config.Command != tt.expectedCommand {
+t.Errorf("Expected command %q, got %q", tt.expectedCommand, config.Command)
+}
+})
+}
+}

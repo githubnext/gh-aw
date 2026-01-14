@@ -57,6 +57,12 @@ func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
+	// Skip installation if custom command is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		claudeLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
+
 	var steps []GitHubActionStep
 
 	// Define engine configuration for shared validation

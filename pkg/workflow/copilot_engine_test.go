@@ -1420,3 +1420,17 @@ func TestCopilotEngineParseLogMetrics_WithToolSizes(t *testing.T) {
 		t.Errorf("Expected MaxOutputSize 0, got %d", githubTool.MaxOutputSize)
 	}
 }
+
+func TestCopilotEngineSkipInstallationWithCommand(t *testing.T) {
+engine := NewCopilotEngine()
+
+// Test with custom command - should skip installation
+workflowData := &WorkflowData{
+EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-copilot"},
+}
+steps := engine.GetInstallationSteps(workflowData)
+
+if len(steps) != 0 {
+t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
+}
+}

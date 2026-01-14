@@ -31,8 +31,17 @@ var copilotInstallLog = logger.New("workflow:copilot_engine_installation")
 // 2. Node.js setup
 // 3. Sandbox installation (SRT or AWF, if needed)
 // 4. Copilot CLI installation
+//
+// If a custom command is specified in the engine configuration, this function returns
+// an empty list of steps, skipping the standard installation process.
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	copilotInstallLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
+
+	// Skip installation if custom command is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		copilotInstallLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
 
 	var steps []GitHubActionStep
 

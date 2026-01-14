@@ -18,6 +18,7 @@ type EngineConfig struct {
 	MaxTurns    string
 	Concurrency string // Agent job-level concurrency configuration (YAML format)
 	UserAgent   string
+	Command     string            // Custom executable path (when set, skip installation steps)
 	Env         map[string]string
 	Steps       []map[string]any
 	Config      string
@@ -116,6 +117,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if userAgent, hasUserAgent := engineObj["user-agent"]; hasUserAgent {
 				if userAgentStr, ok := userAgent.(string); ok {
 					config.UserAgent = userAgentStr
+				}
+			}
+
+			// Extract optional 'command' field
+			if command, hasCommand := engineObj["command"]; hasCommand {
+				if commandStr, ok := command.(string); ok {
+					config.Command = commandStr
 				}
 			}
 
