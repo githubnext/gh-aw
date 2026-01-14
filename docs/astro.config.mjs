@@ -76,14 +76,17 @@ export default defineConfig({
 						'gh-next': {
 							name: 'GitHub Next',
 							url: 'https://githubnext.com/',
+							picture: '/gh-aw/gh-next.png',
 						},
 						'dsyme': {
 							name: 'Don Syme',
 							url: 'https://dsyme.net/',
+							picture: '/gh-aw/dsyme.png',
 						},
 						'peli': {
 							name: 'Peli de Halleux',
 							url: 'https://www.microsoft.com/research/people/jhalleux/',
+							picture: '/gh-aw/peli.png',
 						},
 					},
 				}),
