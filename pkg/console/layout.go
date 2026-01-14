@@ -105,8 +105,6 @@ func LayoutInfoSection(label, value string) string {
 			Border(lipgloss.NormalBorder(), false, false, false, true).
 			BorderForeground(styles.ColorInfo).
 			PaddingLeft(2).
-			PaddingTop(0).
-			PaddingBottom(0).
 			Render(content)
 		return section
 	}
