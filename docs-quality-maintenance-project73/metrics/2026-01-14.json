@@ -1,0 +1,59 @@
+{
+  "campaign_id": "docs-quality-maintenance-project73",
+  "date": "2026-01-14",
+  "tasks_total": 18,
+  "tasks_completed": 16,
+  "tasks_in_progress": 1,
+  "tasks_todo": 1,
+  "tasks_blocked": 0,
+  "items_discovered_this_run": 18,
+  "items_processed_this_run": 15,
+  "items_deferred": 3,
+  "completion_percentage": 88.89,
+  "velocity_per_day": 1.5,
+  "estimated_completion_days": 2,
+  "kpis": {
+    "documentation_coverage": {
+      "baseline": 85,
+      "current": 88,
+      "target": 95,
+      "unit": "percent",
+      "direction": "increase",
+      "velocity_per_week": 1.0,
+      "status": "on_track"
+    },
+    "accessibility_score": {
+      "baseline": 90,
+      "current": 91,
+      "target": 98,
+      "unit": "percent",
+      "direction": "increase",
+      "velocity_per_month": 1.0,
+      "status": "at_risk"
+    },
+    "user_reported_issues": {
+      "baseline": 15,
+      "current": 12,
+      "target": 5,
+      "unit": "count",
+      "direction": "decrease",
+      "velocity_per_month": -3,
+      "status": "on_track"
+    }
+  },
+  "workers": {
+    "daily-doc-updater": {
+      "items_processed": 10,
+      "items_completed": 10
+    },
+    "daily-multi-device-docs-tester": {
+      "items_processed": 5,
+      "items_completed": 4,
+      "items_open": 1
+    },
+    "technical-doc-writer": {
+      "items_processed": 2,
+      "items_completed": 2
+    }
+  }
+}

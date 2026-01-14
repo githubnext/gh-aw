@@ -1,7 +1,26 @@
 {
   "page": 1,
   "label": "campaign:docs-quality-maintenance-project73",
-  "last_processed_at": "2026-01-12T18:11:15.466Z",
-  "items_processed": 17,
-  "items_remaining": 0
+  "last_processed_updated_at": "2026-01-04T21:07:24Z",
+  "last_processed_number": 5733,
+  "deferred_items": [
+    {
+      "number": 6974,
+      "content_type": "pull_request",
+      "updated_at": "2026-01-05T08:23:28Z"
+    },
+    {
+      "number": 8600,
+      "content_type": "pull_request",
+      "updated_at": "2026-01-05T13:45:59Z"
+    },
+    {
+      "number": 9719,
+      "content_type": "issue",
+      "updated_at": "2026-01-13T01:38:33Z"
+    }
+  ],
+  "run_date": "2026-01-14",
+  "items_processed_this_run": 15,
+  "items_remaining": 3
 }
