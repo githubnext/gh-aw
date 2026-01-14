@@ -189,3 +189,26 @@ func getAWFImageTag(firewallConfig *FirewallConfig) string {
 	// Strip the 'v' prefix if present (AWF expects version without 'v' prefix)
 	return strings.TrimPrefix(version, "v")
 }
+
+// getSSLBumpArgs returns the AWF arguments for SSL Bump configuration.
+// Returns arguments for --ssl-bump and --allow-urls flags if SSL Bump is enabled.
+// SSL Bump enables HTTPS content inspection (v0.9.0+), allowing URL path filtering
+// instead of domain-only filtering.
+func getSSLBumpArgs(firewallConfig *FirewallConfig) []string {
+	if firewallConfig == nil || !firewallConfig.SSLBump {
+		return nil
+	}
+
+	var args []string
+	args = append(args, "--ssl-bump")
+	firewallLog.Print("Added --ssl-bump for HTTPS content inspection")
+
+	// Add allow-urls if specified (requires SSL Bump)
+	if len(firewallConfig.AllowURLs) > 0 {
+		allowURLs := strings.Join(firewallConfig.AllowURLs, ",")
+		args = append(args, "--allow-urls", allowURLs)
+		firewallLog.Printf("Added --allow-urls: %s", allowURLs)
+	}
+
+	return args
+}
