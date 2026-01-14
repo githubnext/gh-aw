@@ -34,17 +34,48 @@ Agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction
 3. **Execute** - Orchestrator coordinates work (passive tracking or active execution)
 4. **Track** - GitHub Project board shows real-time progress
 
-When compiled, this generates an orchestrator that discovers work, tracks progress on the GitHub Project board, and coordinates worker workflows to execute upgrades.
+When compiled, this generates an orchestrator that discovers work, tracks progress on the GitHub Project board, and optionally executes workflows to drive progress.
 
-Note that there are two orchestration modes:
-**Passive coordination** (default): Discover and track work created by independent workflows.
-**Active execution** (`execute-workflows: true`): Run workflows directly, create missing workflows, and drive progress.
+## Campaign modes
 
-Apart from this spec file, a campaign is composed of:
-**Orchestrator** (`.campaign.lock.yml`) - Auto-generated coordinator workflow
-**Workers** - Your existing agentic workflows (no changes needed)
+Campaigns operate in two distinct modes:
 
-The orchestrator discovers work, updates your project board, and delegates to workers. Workers stay focused on their specific tasks while the orchestrator handles coordination.
+### ProjectOps Pattern (default)
+**What it is:** A [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) pattern with campaign structure
+
+The orchestrator discovers and tracks work created by independent workflows. This is ProjectOps—automated project board management—with added campaign structure (objectives, KPIs, governance, metrics persistence).
+
+**How it works:**
+- Worker workflows run on their own schedules
+- Workers create issues/PRs with tracker labels
+- Orchestrator discovers items and updates project board
+- Progress tracked against campaign objectives
+- No workflow execution by the orchestrator
+
+**When to use:** When workflows should remain independently scheduled but you want campaign-level tracking and reporting.
+
+### Campaign Orchestration (`execute-workflows: true`)
+**What it is:** True campaign mode with autonomous workflow management
+
+The orchestrator actively runs workflows, creates missing ones, and drives progress toward objectives. This is true campaign orchestration where the campaign manages and executes work autonomously.
+
+**How it works:**
+- Orchestrator executes workflows sequentially
+- Creates missing workflows based on campaign needs
+- Tests new workflows before use
+- Collects outputs for coordination
+- Drives progress actively toward objectives
+
+**When to use:** When the campaign should autonomously manage and execute workflows to drive complex initiatives.
+
+**Progression path:** Start with ProjectOps pattern → Enable campaign orchestration when ready.
+
+Apart from the spec file, a campaign includes:
+- **Orchestrator** (`.campaign.lock.yml`) - Auto-generated coordinator workflow
+- **Workers** - Your existing agentic workflows (or created automatically in orchestration mode)
+- **Project Board** - GitHub Projects dashboard for tracking
+
+The orchestrator updates your project board and (in orchestration mode) delegates work execution to workers. Workers stay focused on their specific tasks while the orchestrator handles coordination.
 
 ## Example campaign
 
@@ -81,6 +112,8 @@ With `execute-workflows: true`, the orchestrator will:
 - Test newly created agentic workflows before use
 - Execute `framework-upgrader` using scanner outputs
 - Track all progress on the GitHub Project board
+
+**Note:** Without `execute-workflows: true`, this would be a **ProjectOps pattern** where workflows run independently and the orchestrator only tracks their outputs on the project board.
 
 ## Common use cases
 

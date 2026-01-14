@@ -10,7 +10,8 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 Before creating your first campaign, keep these core principles in mind:
 
 - **Start small**: One clear goal per campaign (e.g., "Upgrade Node.js to v20")
-- **Start passive**: Use passive mode first to observe behavior and build trust
+- **Start with ProjectOps pattern**: Use default mode (no `execute-workflows` flag) first to observe behavior and build trust
+- **Understand the progression**: ProjectOps pattern (tracking only) → Campaign orchestration (autonomous execution)
 - **Reuse workflows**: Search existing workflows before creating new ones
 - **Minimal permissions**: Grant only necessary permissions (issues/draft PRs, not merges)
 - **Standardized outputs**: Use consistent patterns for issues, PRs, and comments
@@ -31,7 +32,9 @@ The campaign generator automatically creates:
 
 Create `.github/workflows/<id>.campaign.md` with frontmatter like:
 
-**For your first campaign** (passive mode - recommended):
+**For your first campaign** (ProjectOps pattern - recommended):
+
+This uses the **ProjectOps pattern** with campaign structure. The orchestrator tracks work created by independent workflows on a project board and reports progress toward objectives. See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for more on this pattern.
 
 ```yaml
 id: framework-upgrade
@@ -52,7 +55,7 @@ kpis:
     time-window-days: 30
 
 workflows:
-  - framework-upgrade  # Use an existing workflow
+  - framework-upgrade  # Use an existing workflow (runs independently)
 
 # Governance (conservative defaults for first campaign)
 governance:
@@ -63,7 +66,9 @@ governance:
 
 **Note:** The campaign generator will automatically create a GitHub Project board with the project URL if not provided. You can also specify an existing project URL using `project-url: "https://github.com/orgs/ORG/projects/1"`.
 
-**For experienced users** (active mode - advanced):
+**For experienced users** (campaign orchestration - advanced):
+
+This enables **campaign orchestration** mode. The campaign actively executes workflows, creates missing ones, and drives progress autonomously.
 
 ```yaml
 id: framework-upgrade
@@ -87,10 +92,10 @@ workflows:
   - framework-scanner
   - framework-upgrader
 
-# Enable active execution (ADVANCED - only after passive campaign experience)
+# Enable campaign orchestration (ADVANCED - only after ProjectOps pattern experience)
 execute-workflows: true
 
-# Governance (still start conservative even in active mode)
+# Governance (still start conservative even in orchestration mode)
 governance:
   max-new-items-per-run: 10
   max-project-updates-per-run: 10
@@ -98,10 +103,10 @@ governance:
 ```
 
 **Key differences:**
-- **Passive mode**: Discovers and tracks work created by existing workflows (safer, simpler)
-- **Active mode**: Can execute workflows and create missing ones (powerful but complex)
+- **ProjectOps pattern** (default): Discovers and tracks work created by existing workflows (safer, simpler)
+- **Campaign orchestration** (`execute-workflows: true`): Executes workflows, creates missing ones (powerful but complex)
 
-**Start passive** unless you have prior campaign experience. You can enable active execution later.
+**Recommendation:** Start with the ProjectOps pattern to understand campaign tracking. This gives you project board updates and tracking with campaign structure (objectives, KPIs, governance) before moving to autonomous execution.
 
 ## 2) Compile
 
@@ -142,12 +147,12 @@ Items with campaign labels (`campaign:*`) are automatically protected from other
 
 This ensures your campaign items remain under the control of the campaign orchestrator and aren't interfered with by other workflows.
 
-## Migrating from passive to active mode
+## Migrating from ProjectOps pattern to campaign orchestration
 
-Once you've successfully run a passive campaign for 1-2 weeks and understand how it works, you can enable active execution:
+Once you've successfully run campaigns with the ProjectOps pattern for 1-2 weeks and understand how it works, you can enable campaign orchestration:
 
-**Prerequisites before enabling active mode:**
-1. ✅ You've run at least 2-3 passive campaign runs successfully
+**Prerequisites before enabling orchestration:**
+1. ✅ You've run at least 2-3 campaign runs successfully with the ProjectOps pattern
 2. ✅ You understand how the orchestrator coordinates work
 3. ✅ You've reviewed the project board and it's tracking items correctly
 4. ✅ You have clear governance rules and conservative limits set
@@ -156,7 +161,7 @@ Once you've successfully run a passive campaign for 1-2 weeks and understand how
 
 1. **Update your campaign spec** to add `execute-workflows: true`:
    ```yaml
-   execute-workflows: true  # Enable active execution
+   execute-workflows: true  # Enable campaign orchestration
    
    governance:
      max-new-items-per-run: 10  # Start conservative
@@ -183,6 +188,8 @@ Once you've successfully run a passive campaign for 1-2 weeks and understand how
 
 **Rollback if needed:**
 - Remove `execute-workflows: true` from spec
+- Recompile: `gh aw compile <campaign-id>`
+- Campaign reverts to ProjectOps pattern
 - Recompile: `gh aw compile <campaign-id>`
 - Campaign reverts to passive mode
 

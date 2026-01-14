@@ -116,9 +116,16 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 Initialize repository for agentic workflows. Configures `.gitattributes`, Copilot instructions, prompt files, and logs `.gitignore`. Enables MCP server integration by default (use `--no-mcp` to skip).
 
 ```bash wrap
-gh aw init         # With MCP integration (default)
-gh aw init --no-mcp # Skip MCP server integration
+gh aw init                              # With MCP integration (default)
+gh aw init --no-mcp                     # Skip MCP server integration
+gh aw init --tokens --engine copilot    # Check Copilot token configuration
+gh aw init --codespaces                 # Configure devcontainer for current repo
+gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
+gh aw init --campaign                   # Enable campaign functionality
+gh aw init --completions                # Install shell completions
 ```
+
+**Options:** `--no-mcp`, `--tokens`, `--engine` (copilot, claude, codex), `--codespaces`, `--campaign`, `--completions`
 
 #### `add`
 
@@ -404,6 +411,19 @@ gh aw version
 
 Enable tab completion for workflow names, engines, and paths.
 
+### Automatic Installation (Recommended)
+
+```bash wrap
+gh aw completion install    # Auto-detects your shell and installs
+gh aw completion uninstall  # Remove completions
+```
+
+After installation, restart your shell or source your configuration file.
+
+### Manual Installation
+
+For manual control, generate and install completion scripts for your shell:
+
 ```bash wrap
 # Bash
 gh aw completion bash > ~/.bash_completion.d/gh-aw && source ~/.bash_completion.d/gh-aw
@@ -467,4 +487,4 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 - [Security Guide](/gh-aw/guides/security/) - Security best practices
 - [VS Code Setup](/gh-aw/setup/vscode/) - Editor integration and watch mode
 - [MCP Server Guide](/gh-aw/setup/mcp-server/) - MCP server configuration
-- [Labs](/gh-aw/labs/) - Experimental workflows
+- [Agent Factory](/gh-aw/agent-factory/) - Experimental workflows

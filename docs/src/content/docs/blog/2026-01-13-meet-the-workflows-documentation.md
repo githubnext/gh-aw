@@ -5,6 +5,8 @@ authors:
   - mnkiefer
   - peli
 date: 2026-01-13T03:00:00
+sidebar:
+  label: "Documentation & Content"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/
   label: "Code Quality & Refactoring Workflows"
@@ -25,12 +27,11 @@ Now let's address one of software development's eternal challenges: keeping docu
 
 These agents maintain high-quality documentation and content:
 
-- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase
-- **[Technical Doc Writer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/technical-doc-writer.md?plain=1)** - Generates and updates technical documentation
-- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks
+- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
+- **[Technical Doc Writer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/technical-doc-writer.md?plain=1)** - Generates and updates technical documentation  
+- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
 - **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices
-- **[Blog Auditor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/blog-auditor.md?plain=1)** - Reviews blog content for quality and accuracy
-
+  
 Documentation is where we challenged conventional wisdom. Can AI agents write *good* documentation?
 
 The Technical Doc Writer generates API docs from code, but more importantly, it *maintains* them - updating docs when code changes. The Glossary Maintainer caught terminology drift ("we're using three different terms for the same concept").

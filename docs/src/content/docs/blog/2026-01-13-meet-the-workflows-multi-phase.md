@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13T13:00:00
+sidebar:
+  label: "Multi-Phase Improvers"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/
   label: "Tool & Infrastructure Workflows"

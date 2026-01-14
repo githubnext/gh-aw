@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13T05:00:00
+sidebar:
+  label: "Quality & Hygiene"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/
   label: "Issue & PR Management Workflows"
@@ -25,9 +27,9 @@ Now let's shift from collaboration ceremony to codebase maintenance. While issue
 
 These are our diligent caretakers - the agents that spot problems before they become, well, bigger problems:
 
-- **[CI Doctor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/ci-doctor.md?plain=1)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)
-- **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/schema-consistency-checker.md?plain=1)** - Detects when schemas, code, and docs drift apart
-- **[Breaking Change Checker](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/breaking-change-checker.md?plain=1)** - Watches for changes that might break things for users
+- **[CI Doctor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/ci-doctor.md?plain=1)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)  
+- **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/schema-consistency-checker.md?plain=1)** - Detects when schemas, code, and docs drift apart  
+- **[Breaking Change Checker](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/breaking-change-checker.md?plain=1)** - Watches for changes that might break things for users  
 
 The CI Doctor was a revelation. Instead of drowning in CI failure notifications, we now get *timely*, *investigated* failures with actual diagnostic insights. The agent doesn't just tell us something broke - it analyzes logs, identifies patterns, searches for similar past issues, and even suggests fixes. We learned that agents excel at the tedious investigation work that humans find draining.
 

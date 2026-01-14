@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13T14:00:00
+sidebar:
+  label: "Organization & Cross-Repo"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/
   label: "Multi-Phase Improver Workflows"
@@ -25,9 +27,9 @@ But all that sophisticated functionality has focused on a single repository. Wha
 
 These agents work at organization scale, across multiple repositories:
 
-- **[Org Health Report](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/org-health-report.md?plain=1)** - Organization-wide repository health metrics
-- **[Stale Repo Identifier](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/stale-repo-identifier.md?plain=1)** - Identifies inactive repositories
-- **[Ubuntu Image Analyzer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/ubuntu-image-analyzer.md?plain=1)** - Documents GitHub Actions runner environments
+- **[Org Health Report](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/org-health-report.md?plain=1)** - Organization-wide repository health metrics  
+- **[Stale Repo Identifier](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/stale-repo-identifier.md?plain=1)** - Identifies inactive repositories  
+- **[Ubuntu Image Analyzer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/ubuntu-image-analyzer.md?plain=1)** - Documents GitHub Actions runner environments  
 
 Scaling agents across an entire organization changes the game. The Org Health Report analyzes dozens of repositories at once, identifying patterns and outliers ("these three repos have no tests, these five haven't been updated in months"). The Stale Repo Identifier helps with organizational hygiene - finding abandoned projects that should be archived or transferred. We learned that **cross-repo insights are different** - what looks fine in one repository might be an outlier across the organization. These workflows require careful permission management (reading across repos needs organization-level tokens) and thoughtful rate limiting (you can hit API limits fast when analyzing 50+ repos). The Ubuntu Image Analyzer is wonderfully meta - it documents the very environment that runs our agents.
 

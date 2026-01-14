@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Test for Labs Page Generator
+ * Test for Agent Factory Page Generator
  *
- * Validates that the labs page generator correctly:
+ * Validates that the agent factory page generator correctly:
  * - Extracts workflow information from lock files
  * - Extracts engine types from markdown files
  * - Generates a properly formatted table
@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Paths
-const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/labs.mdx");
+const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/agent-factory.mdx");
 
 /**
  * Test helper to check if output contains expected content
@@ -54,9 +54,9 @@ function countOccurrences(content, pattern) {
   return matches ? matches.length : 0;
 }
 
-// Run the labs page generator
-console.log("Running labs page generator...");
-import("./generate-labs.js");
+// Run the agent factory page generator
+console.log("Running agent factory page generator...");
+import("./generate-agent-factory.js");
 
 // Wait a bit for the file to be written
 await new Promise(resolve => setTimeout(resolve, 500));
@@ -97,7 +97,7 @@ allPassed &= assertContains(output, "https://github.com/githubnext/gh-aw/actions
 allPassed &= assertNotContains(output, "| unknown |", "No workflows with unknown engine (should default to copilot)");
 
 // Test 8: Frontmatter is correct
-allPassed &= assertContains(output, "title: Labs", "Frontmatter title is present");
+allPassed &= assertContains(output, "title: Agent Factory", "Frontmatter title is present");
 
 allPassed &= assertContains(output, "description: Experimental agentic workflows used by the team to learn and build.", "Frontmatter description is present");
 

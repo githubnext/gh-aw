@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13T10:00:00
+sidebar:
+  label: "Interactive & ChatOps"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/
   label: "Creative & Culture Workflows"
@@ -25,7 +27,7 @@ But sometimes you need help *right now*, at the exact moment you're stuck on a p
 
 These agents respond to commands, providing on-demand assistance whenever you need it:
 
-- **[Q](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs
+- **[Q](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
 - **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with, well, personality
 - **[Workflow Generator](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
 

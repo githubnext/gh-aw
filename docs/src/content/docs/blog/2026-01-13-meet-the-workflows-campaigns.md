@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13T16:00:00
+sidebar:
+  label: "Campaigns & Projects"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/
   label: "Advanced Analytics & ML Workflows"
@@ -27,7 +29,6 @@ These agents coordinate multi-agent plans and projects:
 
 - **[Plan Command](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/plan.md?plain=1)** - Breaks down issues into actionable sub-tasks via `/plan` command
 - **[Discussion Task Miner](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/discussion-task-miner.md?plain=1)** - Extracts actionable tasks from discussion threads
-- **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md?plain=1)** - Monitors and maintains workflow health
 
 The Plan Command provides on-demand task decomposition: developers can comment `/plan` on any issue to get an AI-generated breakdown into actionable sub-issues that agents can work on.
 

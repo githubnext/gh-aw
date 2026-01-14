@@ -9,13 +9,28 @@ They provide a simple layer for managing work: define objectives with measurable
 
 ## Campaign modes
 
-Campaigns can operate in two modes:
+Campaigns operate in two distinct modes:
 
-### Passive coordination (default)
-The orchestrator discovers and tracks work created by independent workflows. Worker workflows run on their own schedule and create issues/PRs, which the orchestrator tracks on the project board.
+### ProjectOps pattern (default)
+**What it is:** A [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) pattern with campaign structure
 
-### Active execution (`execute-workflows: true`)
-The orchestrator actively runs workflows, creates missing workflows if needed, and uses outputs to drive progress. This makes campaigns self-sufficient and easier to bootstrap.
+The orchestrator discovers and tracks work created by independent workflows. This is ProjectOps—AI-powered project board management—with added campaign-specific capabilities:
+
+- **ProjectOps foundation**: Discovers issues/PRs and updates project boards
+- **Campaign additions**: KPI tracking, governance policies, metrics persistence, objective-based reporting
+
+Worker workflows run on their own schedules and create issues/PRs. The orchestrator tracks them on the project board and reports progress toward campaign objectives without executing the workflows.
+
+**Use the ProjectOps pattern when:**
+- Workflows should remain independently scheduled
+- You want campaign tracking without workflow orchestration
+- Starting your first campaign (safest learning path)
+- Adding structure to existing ProjectOps workflows
+
+### Campaign orchestration (`execute-workflows: true`)
+**What it is:** True campaign mode with autonomous workflow management
+
+The orchestrator actively runs workflows, creates missing ones, and drives progress toward objectives. This is campaign orchestration where the campaign manages and executes work autonomously.
 
 ```yaml
 execute-workflows: true
@@ -29,6 +44,12 @@ When enabled, the orchestrator will:
 2. Create and test any missing workflows based on campaign objective
 3. Execute workflows sequentially
 4. Collect outputs for coordination
+
+**Use campaign orchestration when:**
+- Campaign should autonomously drive work execution
+- Need to create workflows on demand
+- Coordinating complex multi-workflow initiatives
+- Ready for advanced orchestration (after ProjectOps pattern experience)
 
 ## When to use a campaign
 

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -23,8 +24,11 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	inThinkingSection := false
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls
 	var currentSequence []string                  // Track tool sequence
+	var lastToolName string                       // Track most recent tool for output size extraction
 
-	for _, line := range lines {
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -51,6 +55,17 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		// Extract tool calls from Codex logs and add to sequence
 		if toolName := e.parseCodexToolCallsWithSequence(line, toolCallMap); toolName != "" {
 			currentSequence = append(currentSequence, toolName)
+			lastToolName = toolName
+		}
+
+		// Extract output size from success/failure lines followed by JSON blocks
+		if outputSize := e.extractOutputSizeFromResult(line, lines, i); outputSize > 0 && lastToolName != "" {
+			if toolInfo, exists := toolCallMap[lastToolName]; exists {
+				if outputSize > toolInfo.MaxOutputSize {
+					toolInfo.MaxOutputSize = outputSize
+					codexLogsLog.Printf("Updated %s MaxOutputSize to %d characters", lastToolName, outputSize)
+				}
+			}
 		}
 
 		// Extract Codex-specific token usage (always sum for Codex)
@@ -118,7 +133,7 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 			toolCallMap[prettifiedName] = &ToolCallInfo{
 				Name:          prettifiedName,
 				CallCount:     1,
-				MaxOutputSize: 0, // TODO: Extract output size from results if available
+				MaxOutputSize: 0, // Will be updated when output is extracted from result lines
 				MaxDuration:   0, // Will be updated when duration is found
 			}
 		}
@@ -193,6 +208,152 @@ func (e *CodexEngine) updateMostRecentToolWithDuration(toolCallMap map[string]*T
 			break
 		}
 	}
+}
+
+// extractOutputSizeFromResult extracts output size from success/failure result lines
+// Returns the character count of the output content if found, 0 otherwise
+func (e *CodexEngine) extractOutputSizeFromResult(line string, lines []string, currentIndex int) int {
+	// Check if this is a success or failure line
+	if !strings.Contains(line, "success in") && !strings.Contains(line, "failure in") && !strings.Contains(line, "failed in") {
+		return 0
+	}
+
+	// Parse JSON block following the result line
+	// The format is typically:
+	// [timestamp] tool.method(...) success in Xms:
+	// {
+	//   "content": [...],
+	//   "isError": false
+	// }
+
+	var jsonLines []string
+	inJSON := false
+	braceCount := 0
+
+	// Look ahead to collect JSON block
+	for i := currentIndex + 1; i < len(lines); i++ {
+		trimmedLine := strings.TrimSpace(lines[i])
+
+		// Start of JSON block
+		if !inJSON && trimmedLine == "{" {
+			inJSON = true
+			braceCount = 1
+			jsonLines = append(jsonLines, lines[i])
+			continue
+		}
+
+		if inJSON {
+			jsonLines = append(jsonLines, lines[i])
+			// Count braces to detect end of JSON
+			braceCount += strings.Count(lines[i], "{")
+			braceCount -= strings.Count(lines[i], "}")
+
+			if braceCount == 0 {
+				break
+			}
+		}
+
+		// If we hit a non-empty line that's not part of JSON, stop
+		if !inJSON && trimmedLine != "" {
+			break
+		}
+	}
+
+	if len(jsonLines) == 0 {
+		return 0
+	}
+
+	// Parse the JSON to extract content
+	jsonStr := strings.Join(jsonLines, "\n")
+	outputSize := e.extractOutputSizeFromJSON(jsonStr)
+
+	return outputSize
+}
+
+// extractOutputSizeFromJSON extracts the output size from a Codex result JSON block
+func (e *CodexEngine) extractOutputSizeFromJSON(jsonStr string) int {
+	// Try to parse as proper JSON first
+	var result map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+		// If JSON parsing fails, fallback to simple string extraction
+		codexLogsLog.Printf("Failed to parse JSON result, using fallback: %v", err)
+		return e.extractOutputSizeFromJSONFallback(jsonStr)
+	}
+
+	// Extract content array
+	contentInterface, exists := result["content"]
+	if !exists {
+		return 0
+	}
+
+	contentArray, ok := contentInterface.([]any)
+	if !ok {
+		return 0
+	}
+
+	// Sum up text content from all content items
+	totalSize := 0
+	for _, item := range contentArray {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Look for text field
+		if text, exists := itemMap["text"]; exists {
+			if textStr, ok := text.(string); ok {
+				totalSize += len(textStr)
+			}
+		}
+	}
+
+	return totalSize
+}
+
+// extractOutputSizeFromJSONFallback is a fallback method for extracting output size
+// when proper JSON parsing fails
+func (e *CodexEngine) extractOutputSizeFromJSONFallback(jsonStr string) int {
+	// For simple extraction without full JSON parsing, look for "text" fields in content array
+	// Format: {"content": [{"text": "...", "type": "text"}], "isError": false}
+
+	// Find all text content - use a simple approach counting characters in quoted strings
+	// after "text": markers
+	totalSize := 0
+
+	// Split by "text": to find text content
+	parts := strings.Split(jsonStr, "\"text\":")
+	for i := 1; i < len(parts); i++ {
+		// Find the quoted string value
+		part := strings.TrimSpace(parts[i])
+		if len(part) == 0 || part[0] != '"' {
+			continue
+		}
+
+		// Find the closing quote, handling escaped quotes
+		inEscape := false
+		endQuote := -1
+		for j := 1; j < len(part); j++ {
+			if inEscape {
+				inEscape = false
+				continue
+			}
+			if part[j] == '\\' {
+				inEscape = true
+				continue
+			}
+			if part[j] == '"' {
+				endQuote = j
+				break
+			}
+		}
+
+		if endQuote > 0 {
+			textContent := part[1:endQuote]
+			totalSize += len(textContent)
+		}
+	}
+
+	return totalSize
 }
 
 // extractCodexTokenUsage extracts token usage from Codex-specific log lines

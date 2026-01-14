@@ -5,6 +5,8 @@ authors:
   - dsyme
   - mnkiefer
 date: 2026-01-13T04:00:00
+sidebar:
+  label: "Issue & PR Management"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-documentation/
   label: "Documentation & Content Workflows"
@@ -25,7 +27,7 @@ Now let's talk about the daily rituals of software development: managing issues 
 
 These agents enhance issue and pull request workflows:
 
-- **[Issue Arborist](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-arborist.md?plain=1)** - Links related issues as sub-issues
+- **[Issue Arborist](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-arborist.md?plain=1)** - Links related issues as sub-issues  
 - **[Issue Monster](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to Copilot agents one at a time
 - **[Mergefest](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/mergefest.md?plain=1)** - Automatically merges main branch into PR branches
 - **[Sub Issue Closer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/sub-issue-closer.md?plain=1)** - Closes completed sub-issues automatically

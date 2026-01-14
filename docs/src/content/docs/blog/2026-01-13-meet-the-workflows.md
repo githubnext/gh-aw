@@ -6,6 +6,8 @@ authors:
   - peli
   - mnkiefer
 date: 2026-01-13T01:00:00
+sidebar:
+  label: "Triage & Summarization"
 prev:
   link: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
   label: Welcome to Peli's Agent Factory
