@@ -174,10 +174,10 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 
 func TestGenerateMaintenanceWorkflow_ActionModeJobs(t *testing.T) {
 	tests := []struct {
-		name                         string
-		actionMode                   ActionMode
-		expectCompileWorkflowsJob    bool
-		expectZizmorScanJob          bool
+		name                      string
+		actionMode                ActionMode
+		expectCompileWorkflowsJob bool
+		expectZizmorScanJob       bool
 	}{
 		{
 			name:                      "dev mode - should include compile-workflows and zizmor-scan jobs",
