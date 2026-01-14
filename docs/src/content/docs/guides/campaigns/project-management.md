@@ -3,11 +3,18 @@ title: Project management
 description: Use GitHub Projects with roadmap views and custom date fields for campaign tracking
 ---
 
-GitHub Projects offers powerful visualization and tracking capabilities for agentic campaigns. This guide covers view configurations, custom fields, and filtering strategies to maximize campaign visibility and control.
+GitHub Projects offers powerful visualization and tracking capabilities for agentic campaigns. The campaign generator automatically creates everything you need out of the box.
 
-## Recommended custom fields for campaigns
+## What's Created Automatically
 
-The campaign generator automatically creates these custom fields when you create a new campaign. No manual setup is required.
+When you create a new campaign using the campaign generator, the following are created automatically:
+
+### Project Board
+- Empty GitHub Project (user or organization level)
+- Three default views: Campaign Roadmap, Task Tracker, Progress Board
+
+### Custom Fields
+The following custom fields are created and configured:
 
 | Field | Type | Values | Purpose |
 |-------|------|--------|---------|
@@ -18,11 +25,33 @@ The campaign generator automatically creates these custom fields when you create
 | **End Date** | Date | Auto-populated from `closedAt` | Timeline visualization (required for Roadmap) |
 | **Effort** | Single select | Small (1-3 days), Medium (1 week), Large (2+ weeks) | Capacity planning |
 
-**Optional fields** (add manually if needed):
-- **Team** (Single select): Frontend, Backend, DevOps, Documentation - Team ownership
-- **Repo** (Single select): Repository names - Cross-repo campaign tracking (Note: Do not use "Repository" - it conflicts with GitHub's built-in REPOSITORY type)
+### Project Views
+Three views are automatically created:
 
-### Cross-repository and cross-organization campaigns
+1. **Campaign Roadmap** (roadmap layout) - Timeline visualization with date-based swimlanes
+2. **Task Tracker** (table layout) - Detailed tracking with filtering and sorting
+3. **Progress Board** (board layout) - Kanban-style progress tracking
+
+**No manual setup is required.** The campaign generator handles all project creation, field configuration, and view setup automatically.
+
+## Adding Custom Fields
+
+The campaign generator creates standard fields automatically. To add additional custom fields:
+
+1. Open your project board in GitHub
+2. Click the **+** button
+3. Select the field type
+4. Name it (use Title Case)
+5. Add option values for single-select fields
+6. Save
+
+Orchestrator workflows can then populate these fields using the `fields:` parameter in `update-project` safe outputs.
+
+**Optional fields** you might want to add:
+- **Team** (Single select): Frontend, Backend, DevOps, Documentation
+- **Repo** (Single select): Repository names for cross-repo tracking (Note: Do not use "Repository" - it conflicts with GitHub's built-in REPOSITORY type)
+
+## Cross-Repository Campaigns
 
 For campaigns spanning multiple repositories:
 
@@ -42,10 +71,6 @@ update-project:
     worker_workflow: "migration-worker"
     priority: "High"
 ```
-
-### Adding additional custom fields
-
-The campaign generator creates standard fields automatically. To add additional custom fields: Open your project board, click the **+** button, select the field type, name it (use Title Case), add option values for single-select fields, and save. Orchestrator workflows can then populate these fields using the `fields:` parameter in `update-project` safe outputs.
 
 ## Using project roadmap views with custom date fields
 
@@ -161,41 +186,34 @@ safe-outputs:
       - "type:refactor"
 ```
 
-## View configuration examples
+## Using the Auto-Created Views
 
-The campaign generator creates three views automatically:
-1. **Campaign Roadmap** (Roadmap view) - Timeline visualization
-2. **Task Tracker** (Table view) - Detailed tracking with filtering
-3. **Progress Board** (Board view) - Kanban-style progress tracking
+The campaign generator creates three views automatically. Here's how to use them effectively:
 
-### Declarative view configuration
+**Campaign Roadmap (Roadmap view)**
+- Timeline visualization with date-based swimlanes
+- Group by Worker/Workflow to see workload distribution
+- Use for timeline coordination across multiple workflows
 
-Views can be declared directly in workflow frontmatter using the `views` property:
+**Task Tracker (Table view)**
+- Detailed tracking with filtering and sorting
+- Use "Slice by" for Worker/Workflow, Priority, Status, or Effort
+- Best for focused views and drill-down investigation
 
-```yaml
-safe-outputs:
-  update-project:
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-    views:
-      - name: "Sprint Board"
-        layout: board
-        filter: "is:issue is:open"
-      - name: "Task Tracker"  
-        layout: table
-        filter: "is:issue,is:pull_request"
-      - name: "Timeline"
-        layout: roadmap
-```
+**Progress Board (Board view)**
+- Kanban-style progress tracking
+- Group by Status for visual progress tracking
+- Use for sprint management and daily standups
 
-Views are automatically created when the workflow runs. This declarative approach is simpler than programmatic view creation and ensures views are configured consistently across workflow runs.
-
-**Customization tips:**
+**View customization tips:**
 
 **Multi-Workflow Campaign**: Use Roadmap grouped by Worker/Workflow for timeline distribution, Task Tracker sliced by Priority+Status for urgent items, Progress Board grouped by Status for progress tracking.
 
 **Single-Workflow Campaign**: Use Task Tracker sliced by Priority sorted by Effort for prioritization, Campaign Roadmap grouped by Effort for timeline balance.
 
 **Cross-Team Campaign** (with optional Team field): Use Roadmap grouped by Team for cross-team coordination, Task Tracker sliced by Status (Blocked) for identifying blockers.
+
+For advanced view configuration and creating additional custom views, see the [ProjectOps guide](/gh-aw/examples/issue-pr-events/projectops/#creating-project-views).
 
 ## Project status updates
 
