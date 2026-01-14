@@ -29,10 +29,8 @@ These agents respond to commands, providing on-demand assistance whenever you ne
 
 - **[Q](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
   [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20q%22&type=issues)
-- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with, well, personality  
-  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20grumpy-reviewer%22&type=issues)
-- **[Workflow Generator](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests  
-  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20workflow-generator%22&type=issues)
+- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with, well, personality
+- **[Workflow Generator](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
 
 Interactive workflows changed how we think about agent invocation. Instead of everything running on a schedule, these respond to slash commands and reactions - `/q` summons the workflow optimizer, a 🚀 reaction triggers analysis. Q (yes, named after the James Bond quartermaster) became our go-to troubleshooter - it investigates workflow performance issues and opens PRs with optimizations.
 
