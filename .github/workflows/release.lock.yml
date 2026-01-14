@@ -1335,7 +1335,7 @@ jobs:
           persist-credentials: false
       - name: Setup Node.js
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
       - name: Create release from workflow_dispatch
@@ -1344,8 +1344,9 @@ jobs:
           # Run changeset release script with specified type and --yes flag
           node scripts/changeset.js release "$RELEASE_TYPE" --yes
 
-          # Get the newly created tag
+          # Get the newly created tag and set as environment variable
           RELEASE_TAG=$(git describe --tags --abbrev=0)
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
           echo "Created tag: $RELEASE_TAG"
 
           # Mark release as draft if requested
@@ -1358,6 +1359,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_DRAFT: ${{ github.event.inputs.draft }}
           RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+      - name: Set release tag for tag push events
+        if: github.event_name == 'push'
+        run: |
+          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "Release tag: $RELEASE_TAG"
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
         with:
@@ -1365,13 +1372,6 @@ jobs:
           go_version_file: go.mod
       - name: Upload checksums file
         run: |
-          # Get release tag from either tag push or workflow_dispatch
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RELEASE_TAG=$(git describe --tags --abbrev=0)
-          else
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-          fi
-
           if [ -f "dist/checksums.txt" ]; then
             echo "Uploading checksums file to release: $RELEASE_TAG"
             gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
@@ -1384,13 +1384,6 @@ jobs:
       - name: Get release ID
         id: get_release
         run: |
-          # Get release tag from either tag push or workflow_dispatch
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RELEASE_TAG=$(git describe --tags --abbrev=0)
-          else
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-          fi
-
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"

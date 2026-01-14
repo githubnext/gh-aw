@@ -79,8 +79,9 @@ jobs:
           # Run changeset release script with specified type and --yes flag
           node scripts/changeset.js release "$RELEASE_TYPE" --yes
           
-          # Get the newly created tag
+          # Get the newly created tag and set as environment variable
           RELEASE_TAG=$(git describe --tags --abbrev=0)
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
           echo "Created tag: $RELEASE_TAG"
           
           # Mark release as draft if requested
@@ -89,6 +90,13 @@ jobs:
             gh release edit "$RELEASE_TAG" --draft
             echo "✓ Release marked as draft"
           fi
+          
+      - name: Set release tag for tag push events
+        if: github.event_name == 'push'
+        run: |
+          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "Release tag: $RELEASE_TAG"
           
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@v2
@@ -100,13 +108,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get release tag from either tag push or workflow_dispatch
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RELEASE_TAG=$(git describe --tags --abbrev=0)
-          else
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          
           if [ -f "dist/checksums.txt" ]; then
             echo "Uploading checksums file to release: $RELEASE_TAG"
             gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
@@ -120,13 +121,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get release tag from either tag push or workflow_dispatch
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RELEASE_TAG=$(git describe --tags --abbrev=0)
-          else
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
