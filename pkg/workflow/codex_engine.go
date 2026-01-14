@@ -241,6 +241,19 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
 
+		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
+		if firewallConfig != nil && firewallConfig.SSLBump {
+			awfArgs = append(awfArgs, "--ssl-bump")
+			codexEngineLog.Print("Added --ssl-bump for HTTPS content inspection")
+
+			// Add allow-urls if specified (requires SSL Bump)
+			if len(firewallConfig.AllowURLs) > 0 {
+				allowURLs := strings.Join(firewallConfig.AllowURLs, ",")
+				awfArgs = append(awfArgs, "--allow-urls", allowURLs)
+				codexEngineLog.Printf("Added --allow-urls: %s", allowURLs)
+			}
+		}
+
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
 			awfArgs = append(awfArgs, firewallConfig.Args...)

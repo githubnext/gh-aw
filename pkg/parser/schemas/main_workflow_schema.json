@@ -2115,6 +2115,21 @@
                       "type": "string",
                       "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
                       "enum": ["debug", "info", "warn", "error"]
+                    },
+                    "ssl-bump": {
+                      "type": "boolean",
+                      "description": "Enable SSL Bump for HTTPS content inspection (allows URL path filtering for HTTPS). When enabled, AWF can filter HTTPS traffic by URL patterns instead of just domain names. Default: false",
+                      "default": false
+                    },
+                    "allow-urls": {
+                      "type": "array",
+                      "description": "URL patterns to allow for HTTPS traffic (requires ssl-bump: true). Supports wildcards for flexible path matching. Must include https:// scheme.",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^https://.*",
+                        "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
+                      },
+                      "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
                     }
                   },
                   "additionalProperties": false
