@@ -75,7 +75,8 @@ test_config_not_found() {
   echo ""
   echo "Test 3: Config file not found"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local nonexistent_config="$tmpdir/nonexistent.json"
   
   if ! bash "$SCRIPT_PATH" "github" "$nonexistent_config" "http://localhost:8080" 2>/dev/null; then
@@ -92,7 +93,8 @@ test_server_not_found() {
   echo ""
   echo "Test 4: Server not found in config"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with different server
@@ -121,7 +123,8 @@ test_server_missing_url() {
   echo ""
   echo "Test 5: Server missing URL field"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with server but no URL
@@ -149,7 +152,8 @@ test_server_wrong_type() {
   echo ""
   echo "Test 6: Server wrong type"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with non-http type
@@ -180,7 +184,8 @@ test_url_wrong_gateway() {
   echo ""
   echo "Test 7: URL doesn't point to gateway"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with URL pointing to different gateway
@@ -209,7 +214,8 @@ test_valid_gatewayed_server() {
   echo ""
   echo "Test 8: Valid gatewayed server"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create valid config
@@ -239,7 +245,8 @@ test_valid_gatewayed_server_with_auth() {
   echo ""
   echo "Test 9: Valid gatewayed server with authentication"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create valid config with auth header
@@ -272,7 +279,8 @@ test_mixed_servers() {
   echo ""
   echo "Test 10: Multiple servers with mixed config"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with multiple servers
