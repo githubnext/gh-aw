@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Labs Page Generator
+ * Agent Factory Page Generator
  *
  * Generates a markdown documentation page with GitHub Actions status badges
  * for all workflows in the repository (only from .lock.yml files).
  * Displays workflows in a table with columns for name, agent, status, and workflow link.
  *
  * Usage:
- *   node scripts/generate-labs.js
+ *   node scripts/generate-agent-factory.js
  */
 
 import fs from "fs";
@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 // Paths
 const WORKFLOWS_DIR = path.join(__dirname, "../.github/workflows");
-const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/labs.mdx");
+const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/agent-factory.mdx");
 
 // Repository owner and name
 const REPO_OWNER = "githubnext";
@@ -135,11 +135,15 @@ function extractCommandFromMarkdown(mdFilePath) {
 
     const content = fs.readFileSync(mdFilePath, "utf-8");
 
-    // Look for command.name in frontmatter
+    // Look for command.name in frontmatter (both command and slash_command)
     // on:
     //   command:
     //     name: brave
-    const commandMatch = content.match(/^  command:\s*\n\s+name:\s*["']?(\w+)["']?/m);
+    // or
+    // on:
+    //   slash_command:
+    //     name: brave
+    const commandMatch = content.match(/^  (?:slash_)?command:\s*\n\s+name:\s*["']?(\w+)["']?/m);
     if (commandMatch) {
       return commandMatch[1];
     }
@@ -159,7 +163,7 @@ function generateMarkdown(workflows) {
 
   // Frontmatter
   lines.push("---");
-  lines.push("title: Labs");
+  lines.push("title: Agent Factory");
   lines.push("description: Experimental agentic workflows used by the team to learn and build.");
   lines.push("sidebar:");
   lines.push("  order: 1000");
@@ -204,7 +208,7 @@ function generateMarkdown(workflows) {
 }
 
 // Main execution
-console.log("Generating labs documentation...");
+console.log("Generating agent factory documentation...");
 
 // Read all .lock.yml files
 const lockFiles = fs
@@ -255,5 +259,5 @@ if (!fs.existsSync(outputDir)) {
 
 // Write the output
 fs.writeFileSync(OUTPUT_PATH, markdown, "utf-8");
-console.log(`✓ Generated labs documentation: ${OUTPUT_PATH}`);
+console.log(`✓ Generated agent factory documentation: ${OUTPUT_PATH}`);
 console.log(`✓ Total workflows: ${workflows.length}`);

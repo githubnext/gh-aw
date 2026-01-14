@@ -515,10 +515,10 @@ install: build
 generate-schema-docs:
 	node scripts/generate-schema-docs.js
 
-# Generate labs documentation page
-.PHONY: generate-labs
-generate-labs:
-	node scripts/generate-labs.js
+# Generate agent factory documentation page
+.PHONY: generate-agent-factory
+generate-agent-factory:
+	node scripts/generate-agent-factory.js
 
 # Build slides with Marp
 .PHONY: build-slides
@@ -634,7 +634,7 @@ sbom:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test-all fix recompile dependabot generate-schema-docs generate-labs security-scan
+agent-finish: deps-dev fmt lint build test-all fix recompile dependabot generate-schema-docs generate-agent-factory security-scan
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -697,7 +697,7 @@ help:
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
-	@echo "  generate-labs              - Generate labs documentation page"
+	@echo "  generate-agent-factory     - Generate agent factory documentation page"
 	@echo "  build-slides     - Build slides with Marp to docs/public/slides/gh-aw.html"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"

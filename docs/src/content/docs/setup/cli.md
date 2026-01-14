@@ -487,4 +487,4 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 - [Security Guide](/gh-aw/guides/security/) - Security best practices
 - [VS Code Setup](/gh-aw/setup/vscode/) - Editor integration and watch mode
 - [MCP Server Guide](/gh-aw/setup/mcp-server/) - MCP server configuration
-- [Labs](/gh-aw/labs/) - Experimental workflows
+- [Agent Factory](/gh-aw/agent-factory/) - Experimental workflows
