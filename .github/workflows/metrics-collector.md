@@ -11,7 +11,6 @@ engine: copilot
 tools:
   agentic-workflows:
   github:
-    mode: remote
     toolsets: [default]
   repo-memory:
     branch-name: memory/meta-orchestrators
