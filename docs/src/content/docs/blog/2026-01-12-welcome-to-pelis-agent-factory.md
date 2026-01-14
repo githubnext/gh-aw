@@ -85,7 +85,7 @@ We'll dive deeper into these lessons in upcoming articles.
 
 ## Our First Installment: Meet the Workflows
 
-In our first article, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
+In our first series of articles, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a 16-part tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
 
 Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
 
