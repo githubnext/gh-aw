@@ -17,6 +17,7 @@ async function run() {
     core.info(`Copying activation files to ${destination}`);
 
     // Create destination directory with secure permissions if it doesn't exist
+    // Note: mode parameter is ignored on Windows; relies on default NTFS permissions
     if (!fs.existsSync(destination)) {
       fs.mkdirSync(destination, { recursive: true, mode: 0o700 });
       core.info(`Created directory: ${destination}`);
@@ -28,6 +29,7 @@ async function run() {
     for (const [filename, content] of Object.entries(FILES)) {
       const filePath = path.join(destination, filename);
       // Create file with secure permissions (readable/writable only by owner)
+      // Note: mode parameter is ignored on Windows; relies on default NTFS permissions
       fs.writeFileSync(filePath, content, { encoding: "utf8", mode: 0o600 });
       core.info(`Copied: ${filename}`);
       fileCount++;
