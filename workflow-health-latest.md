@@ -1,99 +1,179 @@
-# Workflow Health Dashboard - 2026-01-08
+# Workflow Health Dashboard - 2026-01-14
 
 ## Executive Summary
 
-- **Total Workflows**: 123 executable workflows (+1 from last run)
+- **Total Workflows**: 123 executable workflows
 - **Compilation Status**: 123 lock files (100% coverage) ✅
-- **Outdated Lock Files**: 0 workflows (0%) ✅ *Improved from 8 last run*
-- **Engine Distribution**: 63 Copilot (51%), 25 Claude (20%), 7 Codex (6%), 28 Unknown (23%)
-- **Scheduled Workflows**: 82 (67%) have schedule triggers
-- **Tools Adoption**: 116 workflows (94%) use tools, 89 (72%) use GitHub MCP
-- **Critical Issues**: None - all workflows healthy ✅
+- **Critical Failing Workflows**: 3 workflows (P0/P1)
+- **Warning Status**: 2 workflows with intermittent failures (P2)
+- **Overall Health Score**: 75/100 ⚠️ (Needs Attention)
 
-## Health Status Overview
+## Critical Issues 🚨
 
-### ✅ Healthy (100%)
-- **Perfect compilation coverage**: All 123 workflows have up-to-date lock files
-- **Zero outdated workflows**: Previous timestamp issue resolved
-- **Diverse engine distribution**: No single point of failure
-- **High tools adoption**: 94% use tools, 72% use GitHub MCP
-- **Well-organized categories**: Clear naming conventions
-- **New workflow added**: github-remote-mcp-auth-test
+### 1. CI Doctor - **COMPLETELY BROKEN** (P0)
+- **Status**: 0% success rate (last 20 runs all failed)
+- **Last Success**: Before 2025-12-21
+- **Error Pattern**: Exit code 7 (timeout after 120s)
+- **Impact**: Unable to diagnose CI failures
+- **Issue**: Needs immediate investigation
+- **Run**: https://github.com/githubnext/gh-aw/actions/runs/20685353923
 
-### ⚠️ Warning (0 workflows, 0%)
-- No warnings identified this run
+### 2. Daily News - **HIGH FAILURE RATE** (P1)
+- **Status**: 50% success rate (10/20 successful)
+- **Error**: Exit code 7 - timeout after 120 seconds
+- **Pattern**: Consistent timeout failures starting 2026-01-09
+- **Last Failure**: Run #101 (2026-01-13)
+- **Impact**: Users not receiving daily repository news
+- **Logs**: "Retrying up to 120 times with 1s delay (120s total timeout)"
+- **Run**: https://github.com/githubnext/gh-aw/actions/runs/20951135921
 
-### 🚨 Critical Issues
-**None identified** - All workflows are structurally healthy
+### 3. Metrics Collector - **RECENT REGRESSION** (P1)
+- **Status**: 50% success rate (5/10 successful)
+- **Error**: MCP Gateway configuration validation error
+- **Pattern**: Started failing 2026-01-09, was 100% before
+- **Impact**: No workflow metrics being collected since Jan 9
+- **Root Cause**: MCP Gateway config schema mismatch
+  - Missing 'container' property for stdio server config
+  - Invalid 'command' property in config
+  - Schema validation failing with v0.0.47
+- **Last Failure**: Run #24 (2026-01-13)
+- **Run**: https://github.com/githubnext/gh-aw/actions/runs/20960733354
+
+## Warnings ⚠️
+
+### 4. Agent Performance Analyzer - **DEGRADED** (P2)
+- **Status**: 20% success rate (2/10 successful)
+- **Pattern**: Consistent failures from 2026-01-09 to 2026-01-13
+- **Last Success**: 2026-01-08
+- **Impact**: No agent quality metrics for 5 days
+- **Action Required**: Investigation needed
+
+### 5. Daily Repo Chronicle - **INTERMITTENT** (P2)
+- **Status**: 30% success rate (3/10 successful)
+- **Pattern**: Intermittent failures
+- **Last Success**: 2026-01-13
+- **Impact**: Inconsistent repository chronicle updates
+- **Action Required**: Monitor and investigate root cause
+
+## Healthy Workflows ✅
+
+- **Workflow Health Manager**: Running (this workflow)
+- **Daily Repo Chronicle**: Mostly working (3 recent successes)
+- **117+ other workflows**: Compilation status healthy
+
+## Systemic Issues
+
+### Issue 1: Timeout Pattern Across Multiple Workflows (P1)
+- **Affected workflows**: CI Doctor, Daily News
+- **Pattern**: Exit code 7 after 120s timeout
+- **Root Cause**: Unknown - needs investigation
+- **Recommendation**: 
+  1. Review timeout configuration
+  2. Check for network/API latency issues
+  3. Consider increasing timeout or optimizing operations
+
+### Issue 2: MCP Gateway Schema Breaking Change (P0)
+- **Affected workflows**: Metrics Collector
+- **Pattern**: Configuration validation failures with MCP Gateway v0.0.47
+- **Root Cause**: Schema changed requiring 'container' property
+- **Recommendation**:
+  1. Update MCP server configurations to new schema
+  2. Replace `command`/`args` with `container` property
+  3. Review all workflows using MCP Gateway
+
+### Issue 3: Meta-Orchestrator Cascade Failure (P1)
+- **Agent Performance Analyzer**: Failing (20% success)
+- **Metrics Collector**: Failing (50% success)
+- **Workflow Health Manager**: Running (analyzing now)
+- **Impact**: Loss of visibility into system health
+- **Recommendation**: Prioritize fixing Metrics Collector to restore metrics
 
 ## Detailed Analysis
 
 ### Compilation Status
-
 **Status**: Perfect ✅
 - 123 `.md` workflow files
 - 123 `.lock.yml` compiled workflows
 - 0 missing lock files
-- 0 outdated lock files (previous 8 resolved)
+- 0 outdated lock files
 
-**Improvement**: The 8 outdated workflows from the 2026-01-05 run have been resolved, confirming they were timestamp anomalies from file operations.
+### Workflow Run Analysis (Last 7 Days)
+| Workflow | Success Rate | Status | Priority |
+|----------|--------------|--------|----------|
+| CI Doctor | 0% (0/20) | 🚨 Critical | P0 |
+| Agent Performance Analyzer | 20% (2/10) | 🚨 Critical | P2 |
+| Daily Repo Chronicle | 30% (3/10) | ⚠️ Warning | P2 |
+| Daily News | 50% (10/20) | 🚨 Critical | P1 |
+| Metrics Collector | 50% (5/10) | 🚨 Critical | P1 |
+| Workflow Health Manager | Running | ✅ Healthy | - |
 
-### New Workflows
+### Error Pattern Summary
+1. **Timeout errors (exit code 7)**: 2 workflows
+2. **MCP Gateway schema errors**: 1 workflow
+3. **Unknown failures**: 2 workflows
 
-**Added since last run** (1 workflow):
-1. **github-remote-mcp-auth-test** - Testing workflow for GitHub MCP remote authentication
+## Recommendations
 
-### Engine Distribution
+### Immediate Actions (P0)
+1. **Fix CI Doctor** - completely non-functional
+   - Investigate exit code 7 timeout
+   - Review workflow configuration
+   - Consider temporary disable until fixed
 
-| Engine | Count | Percentage | Health Assessment |
-|--------|-------|------------|-------------------|
-| Copilot | 63 | 51.2% | ✅ Primary engine, well-tested |
-| Claude | 25 | 20.3% | ✅ Strong alternative coverage |
-| Codex | 7 | 5.7% | ✅ Specialized use cases |
-| Unknown | 28 | 22.8% | ⚠️ Need explicit engine declarations |
+### High Priority (P1)
+1. **Fix Metrics Collector MCP Gateway config**
+   - Update to new schema format
+   - Add 'container' property
+   - Remove invalid 'command' property
+   - Test with MCP Gateway v0.0.47
 
-**Analysis**: Healthy distribution remains stable. Copilot dominance is appropriate for GitHub-integrated workflows.
+2. **Fix Daily News timeout issues**
+   - Investigate cause of 120s timeout
+   - Optimize operations
+   - Consider increasing timeout limit
 
-### Tool Usage Patterns
+3. **Restore Meta-Orchestrator Health**
+   - Fix Metrics Collector (blocks other monitoring)
+   - Fix Agent Performance Analyzer
+   - Restore system visibility
 
-| Tool Category | Workflows | Percentage | Purpose |
-|--------------|-----------|------------|---------|
-| Any Tools | 116 | 94% | Tool-enabled workflows |
-| GitHub MCP | 89 | 72% | GitHub API operations |
-| Playwright | ~11 | 9% | Browser automation (est.) |
+### Medium Priority (P2)
+1. **Investigate Agent Performance Analyzer failures**
+2. **Stabilize Daily Repo Chronicle**
+3. **Add alerting for cascade failures**
 
-**Observation**: Very high tool adoption (94%) indicates strong integration with external systems.
+### Long-Term Improvements
+1. Implement circuit breakers for failing workflows
+2. Add health check endpoints
+3. Create automated remediation for common failures
+4. Improve timeout handling and retry logic
 
-### Workflow Categories
+## Trends
 
-| Category | Count | Schedule Pattern | Notes |
-|----------|-------|------------------|-------|
-| Daily Workflows | 18 | Daily (typically 9am UTC) | Regular maintenance |
-| Smoke Tests | 10 | On-demand/PR triggers | Testing infrastructure |
-| Campaign Workflows | 3 | Varied | Strategic orchestration |
-| Weekly Workflows | 1 | Weekly | Long-term analysis |
-| Hourly Workflows | 1 | Every hour | High-frequency monitoring |
-| Event-triggered | ~90 | On events | Reactive workflows |
+- **Overall health**: 75/100 (↓ from 95/100 on 2026-01-08)
+- **New failures this week**: 3 critical
+- **Systemic issues identified**: 3
+- **Workflows needing attention**: 5
+- **Health degradation**: -20 points since last run
 
-## Overall Assessment
+## Actions Taken This Run
 
-**Health Score**: 95/100 ✅ (Excellent)
+- Analyzed 123 workflows for compilation status
+- Queried recent run data for 5 workflows
+- Downloaded and analyzed failure logs for 2 critical workflows
+- Identified 3 systemic issues affecting multiple workflows
+- Documented 5 failing/degraded workflows with error details
 
-**Key Strengths**:
-- Perfect compilation coverage (100%)
-- Zero outdated workflows
-- Very high tool adoption (94%)
-- Strong GitHub MCP usage (72%)
+## Next Steps
 
-**Key Gaps**:
-- No execution health metrics (authentication constraints)
-- 28 workflows need explicit engine declarations
-
-**Confidence Level**: High (80%)
-
-**Status**: ✅ **HEALTHY**
+1. Create GitHub issues for P0/P1 workflows
+2. Alert team about meta-orchestrator cascade failure
+3. Monitor for additional failures with similar patterns
+4. Track resolution progress
 
 ---
-**Last Updated**: 2026-01-08T02:52:28Z  
-**Next Check**: 2026-01-09 (scheduled daily)  
-**Workflows Analyzed**: 123/123 (100%)
+**Last Updated**: 2026-01-14T02:56:33Z  
+**Next Check**: 2026-01-15 (scheduled daily)  
+**Workflows Analyzed**: 123/123 (100%)  
+**Critical Issues**: 3  
+**Warnings**: 2
