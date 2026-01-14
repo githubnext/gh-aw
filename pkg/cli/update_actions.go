@@ -91,7 +91,7 @@ func UpdateActions(allowMajor, verbose bool, dryRun bool) error {
 
 		// Update the entry
 		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, entry.SHA[:7], latestVersion, latestSHA[:7])
-		
+
 		if dryRun {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Would update %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
 		} else {
