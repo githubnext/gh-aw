@@ -3,7 +3,7 @@ on: workflow_dispatch
 permissions:
   contents: read
   actions: read
-  security-events: write
+  security-events: read
 engine: codex
 safe-outputs:
   add-code-scanning-autofix:
