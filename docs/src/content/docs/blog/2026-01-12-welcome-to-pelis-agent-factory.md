@@ -81,6 +81,7 @@ Over the next few weeks, we'll also be sharing what we've learned through a seri
 
 Running this many agents in production is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Some key lessons emerging:
 
+- **Repository-level automation is incredibly powerful** - Agents embedded in the development workflow can have outsized impact
 - **Diversity beats perfection** - A collection of focused agents works better than one universal assistant
 - **Guardrails enable innovation** - Strict constraints actually make it easier to experiment safely
 - **Meta-agents are valuable** - Agents that watch other agents become incredibly valuable
