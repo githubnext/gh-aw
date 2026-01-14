@@ -53,6 +53,14 @@ safe-outputs:
       run-started: "💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*"
       run-success: "🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨"
       run-failure: "💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges..."
+
+steps:
+  - name: Set up Go
+    uses: actions/setup-go@v6
+    with:
+      go-version-file: go.mod
+      cache: true
+
 timeout-minutes: 10
 ---
 

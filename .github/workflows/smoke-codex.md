@@ -49,6 +49,14 @@ safe-outputs:
       run-started: "🔮 The ancient spirits stir... [{workflow_name}]({run_url}) awakens to divine this {event_type}..."
       run-success: "✨ The prophecy is fulfilled... [{workflow_name}]({run_url}) has completed its mystical journey. The stars align. 🌟"
       run-failure: "🌑 The shadows whisper... [{workflow_name}]({run_url}) {status}. The oracle requires further meditation..."
+
+steps:
+  - name: Set up Go
+    uses: actions/setup-go@v6
+    with:
+      go-version-file: go.mod
+      cache: true
+
 timeout-minutes: 10
 ---
 
