@@ -8,11 +8,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 
 /** @type {string} Safe output type handled by this module */
-const HANDLER_TYPE = "add_code_scanning_autofix";
+const HANDLER_TYPE = "autofix_code_scanning";
 
 /**
- * Main handler factory for add_code_scanning_autofix
- * Returns a message handler function that processes individual add_code_scanning_autofix messages
+ * Main handler factory for autofix_code_scanning
+ * Returns a message handler function that processes individual autofix_code_scanning messages
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
@@ -30,15 +30,15 @@ async function main(config = {}) {
   const processedAutofixes = [];
 
   /**
-   * Message handler function that processes a single add_code_scanning_autofix message
-   * @param {Object} message - The add_code_scanning_autofix message to process
+   * Message handler function that processes a single autofix_code_scanning message
+   * @param {Object} message - The autofix_code_scanning message to process
    * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
    * @returns {Promise<Object>} Result with success/error status
    */
-  return async function handleAddCodeScanningAutofix(message, resolvedTemporaryIds) {
+  return async function handleAutofixCodeScanning(message, resolvedTemporaryIds) {
     // Check if we've hit the max limit
     if (processedCount >= maxCount) {
-      core.warning(`Skipping add_code_scanning_autofix: max count of ${maxCount} reached`);
+      core.warning(`Skipping autofix_code_scanning: max count of ${maxCount} reached`);
       return {
         success: false,
         error: `Max count of ${maxCount} reached`,
@@ -51,7 +51,7 @@ async function main(config = {}) {
 
     // Validate required fields
     if (autofixItem.alert_number === undefined || autofixItem.alert_number === null) {
-      core.warning("Skipping add_code_scanning_autofix: alert_number is missing");
+      core.warning("Skipping autofix_code_scanning: alert_number is missing");
       return {
         success: false,
         error: "alert_number is required",
@@ -59,7 +59,7 @@ async function main(config = {}) {
     }
 
     if (!autofixItem.fix_description) {
-      core.warning("Skipping add_code_scanning_autofix: fix_description is missing");
+      core.warning("Skipping autofix_code_scanning: fix_description is missing");
       return {
         success: false,
         error: "fix_description is required",
@@ -67,7 +67,7 @@ async function main(config = {}) {
     }
 
     if (!autofixItem.fix_code) {
-      core.warning("Skipping add_code_scanning_autofix: fix_code is missing");
+      core.warning("Skipping autofix_code_scanning: fix_code is missing");
       return {
         success: false,
         error: "fix_code is required",
@@ -84,7 +84,7 @@ async function main(config = {}) {
       };
     }
 
-    core.info(`Processing add_code_scanning_autofix: alert_number=${alertNumber}, fix_description="${autofixItem.fix_description.substring(0, 50)}..."`);
+    core.info(`Processing autofix_code_scanning: alert_number=${alertNumber}, fix_description="${autofixItem.fix_description.substring(0, 50)}..."`);
 
     // Staged mode: collect for preview
     if (isStaged) {

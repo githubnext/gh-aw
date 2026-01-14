@@ -325,7 +325,7 @@ type SafeOutputsConfig struct {
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comments,omitempty"`
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
-	AddCodeScanningAutofixes        *AddCodeScanningAutofixConfig          `yaml:"add-code-scanning-autofix,omitempty"`
+	AutofixCodeScanning        *AutofixCodeScanningConfig          `yaml:"autofix-code-scanning,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	AddReviewer                     *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`
 	AssignMilestone                 *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`

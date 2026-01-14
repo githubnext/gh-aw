@@ -30,7 +30,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("add_code_scanning_autofix handler", () => {
+describe("autofix_code_scanning handler", () => {
   let handler;
 
   beforeEach(async () => {
@@ -41,14 +41,14 @@ describe("add_code_scanning_autofix handler", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
 
     // Import the module fresh for each test
-    const module = await import("./add_code_scanning_autofix.cjs");
+    const module = await import("./autofix_code_scanning.cjs");
     handler = await module.main({ max: 10 });
   });
 
   describe("valid autofix creation", () => {
     it("should create autofix successfully", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_description: "Fix SQL injection vulnerability",
         fix_code: "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);",
@@ -80,13 +80,13 @@ describe("add_code_scanning_autofix handler", () => {
         },
       });
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processing add_code_scanning_autofix"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processing autofix_code_scanning"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully created autofix"));
     });
 
     it("should handle string alert_number", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: "42",
         fix_description: "Fix XSS vulnerability",
         fix_code: "const escaped = escapeHtml(userInput);",
@@ -106,7 +106,7 @@ describe("add_code_scanning_autofix handler", () => {
   describe("validation errors", () => {
     it("should fail when alert_number is missing", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
       };
@@ -120,7 +120,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should fail when fix_description is missing", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_code: "const fixed = true;",
       };
@@ -133,7 +133,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should fail when fix_code is missing", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_description: "Fix vulnerability",
       };
@@ -146,7 +146,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should fail with invalid alert_number", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: "invalid",
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -160,7 +160,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should fail with zero alert_number", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 0,
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -174,7 +174,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should fail with negative alert_number", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: -1,
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -189,12 +189,12 @@ describe("add_code_scanning_autofix handler", () => {
 
   describe("max count enforcement", () => {
     it("should respect max count limit", async () => {
-      const handlerWithMax = await (await import("./add_code_scanning_autofix.cjs")).main({ max: 2 });
+      const handlerWithMax = await (await import("./autofix_code_scanning.cjs")).main({ max: 2 });
 
       mockGithub.request.mockResolvedValue({ data: {} });
 
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 1,
         fix_description: "Fix",
         fix_code: "code",
@@ -219,10 +219,10 @@ describe("add_code_scanning_autofix handler", () => {
     it("should collect autofixes in staged mode", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
 
-      const stagedHandler = await (await import("./add_code_scanning_autofix.cjs")).main({ max: 10 });
+      const stagedHandler = await (await import("./autofix_code_scanning.cjs")).main({ max: 10 });
 
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -242,7 +242,7 @@ describe("add_code_scanning_autofix handler", () => {
   describe("API error handling", () => {
     it("should handle 404 errors with helpful message", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 999,
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -259,7 +259,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should handle 403 permission errors", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -276,7 +276,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should handle 422 validation errors", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -293,7 +293,7 @@ describe("add_code_scanning_autofix handler", () => {
 
     it("should handle generic API errors", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_description: "Fix vulnerability",
         fix_code: "const fixed = true;",
@@ -311,7 +311,7 @@ describe("add_code_scanning_autofix handler", () => {
   describe("extensive logging", () => {
     it("should log all relevant information", async () => {
       const message = {
-        type: "add_code_scanning_autofix",
+        type: "autofix_code_scanning",
         alert_number: 42,
         fix_description: "Fix SQL injection vulnerability by using prepared statements",
         fix_code: "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);",
@@ -323,7 +323,7 @@ describe("add_code_scanning_autofix handler", () => {
 
       await handler(message, {});
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processing add_code_scanning_autofix"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processing autofix_code_scanning"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("alert_number=42"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Creating autofix for code scanning alert 42"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Fix description:"));

@@ -173,7 +173,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.HideComment != nil ||
 		data.SafeOutputs.DispatchWorkflow != nil ||
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
-		data.SafeOutputs.AddCodeScanningAutofixes != nil ||
+		data.SafeOutputs.AutofixCodeScanning != nil ||
 		data.SafeOutputs.CreateProjectStatusUpdates != nil ||
 		data.SafeOutputs.CreateProjects != nil ||
 		data.SafeOutputs.MissingTool != nil ||

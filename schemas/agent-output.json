@@ -52,7 +52,7 @@
         { "$ref": "#/$defs/LinkSubIssueOutput" },
         { "$ref": "#/$defs/HideCommentOutput" },
         { "$ref": "#/$defs/DispatchWorkflowOutput" },
-        { "$ref": "#/$defs/AddCodeScanningAutofixOutput" }
+        { "$ref": "#/$defs/AutofixCodeScanningOutput" }
       ]
     },
     "CreateIssueOutput": {
@@ -680,13 +680,13 @@
       "required": ["type", "workflow_name"],
       "additionalProperties": false
     },
-    "AddCodeScanningAutofixOutput": {
+    "AutofixCodeScanningOutput": {
       "title": "Add Code Scanning Autofix Output",
       "description": "Output for creating an autofix for a code scanning alert using the GitHub REST API",
       "type": "object",
       "properties": {
         "type": {
-          "const": "add_code_scanning_autofix"
+          "const": "autofix_code_scanning"
         },
         "alert_number": {
           "oneOf": [
