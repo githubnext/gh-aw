@@ -77,7 +77,7 @@ Running this many agents in production is... quite the experience. We've watched
 
 - **Diversity beats perfection** - A collection of focused agents works better than one universal assistant
 - **Guardrails enable innovation** - Strict constraints actually make it easier to experiment safely
-- **Meta-agents are essential** - Agents that watch other agents become incredibly valuable
+- **Meta-agents are valuable** - Agents that watch other agents become incredibly valuable
 - **Personality matters** - Agents with distinct characters (like our Grumpy Reviewer or Poem Bot) are easier to trust
 - **Cost-quality tradeoffs are real** - Longer analyses aren't always better
 
