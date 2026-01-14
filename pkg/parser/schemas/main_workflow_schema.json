@@ -2657,6 +2657,16 @@
                   },
                   "minItems": 1,
                   "$comment": "At least one toolset is required when toolsets array is specified. Use null or omit the field to use all toolsets."
+                },
+                "mounts": {
+                  "type": "array",
+                  "description": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write). Applies to local mode only. Example: '/data:/data:ro'",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[^:]+:[^:]+(:(ro|rw))?$",
+                    "description": "Mount specification in format 'host:container:mode'"
+                  },
+                  "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
                 }
               },
               "additionalProperties": false,
