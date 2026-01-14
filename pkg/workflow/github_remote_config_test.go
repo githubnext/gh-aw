@@ -64,7 +64,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				ReadOnly:           false,
 				Toolsets:           "default",
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
-				IncludeToolsField:  true,  // This flag exists but tools field is added by converter script, not here
+				IncludeToolsField:  true, // This flag exists but tools field is added by converter script, not here
 				AllowedTools:       []string{"list_issues", "create_issue"},
 				IncludeEnvSection:  false, // env section is not valid for HTTP servers
 			},
@@ -110,7 +110,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				ReadOnly:           true,
 				Toolsets:           "repos",
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
-				IncludeToolsField:  true,  // This flag exists but tools field is added by converter script, not here
+				IncludeToolsField:  true, // This flag exists but tools field is added by converter script, not here
 				AllowedTools:       []string{"list_repositories", "get_repository"},
 				IncludeEnvSection:  false, // env section is not valid for HTTP servers
 			},
@@ -211,7 +211,7 @@ func TestRenderGitHubMCPRemoteConfigToolsCommas(t *testing.T) {
 	// the tools field - it's added by the converter script (convert_gateway_config_copilot.sh).
 	// See the comment in RenderGitHubMCPRemoteConfig for details.
 	t.Skip("tools field is added by converter script, not by RenderGitHubMCPRemoteConfig")
-	
+
 	// Test that tools array is properly formatted with commas
 	var yaml strings.Builder
 	RenderGitHubMCPRemoteConfig(&yaml, GitHubMCPRemoteOptions{
