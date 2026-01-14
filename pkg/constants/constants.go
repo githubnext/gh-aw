@@ -234,6 +234,10 @@ const ExpressionBreakThreshold LineLength = 100
 // DefaultMCPRegistryURL is the default MCP registry URL.
 const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 
+// GitHubCopilotMCPDomain is the domain for the hosted GitHub MCP server.
+// Used when github tool is configured with mode: remote.
+const GitHubCopilotMCPDomain = "api.githubcopilot.com"
+
 // DefaultCampaignTemplateProjectURL is the default source project URL for copying campaign templates.
 // This points to the githubnext "[TEMPLATE: Agentic Campaign]" project (Project 74).
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"

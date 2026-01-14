@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -235,7 +236,20 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	for toolName, toolConfig := range tools {
 		configMap, ok := toolConfig.(map[string]any)
 		if !ok {
+			// Tool has no explicit config (e.g., github: null means local mode)
 			continue
+		}
+
+		// Special handling for GitHub MCP in remote mode
+		// When mode: remote is set, the URL is implicitly the hosted GitHub Copilot MCP server
+		if toolName == "github" {
+			if modeField, hasMode := configMap["mode"]; hasMode {
+				if modeStr, ok := modeField.(string); ok && modeStr == "remote" {
+					domainsLog.Printf("Detected GitHub MCP remote mode, adding %s to domains", constants.GitHubCopilotMCPDomain)
+					domains = append(domains, constants.GitHubCopilotMCPDomain)
+					continue
+				}
+			}
 		}
 
 		// Check if this is an HTTP MCP server
