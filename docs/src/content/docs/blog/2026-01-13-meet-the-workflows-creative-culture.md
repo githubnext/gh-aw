@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Creative & Culture"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/
   label: "Operations & Release Workflows"

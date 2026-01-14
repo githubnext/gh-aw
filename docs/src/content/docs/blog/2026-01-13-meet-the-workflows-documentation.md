@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Documentation & Content"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-organization/
   label: "Organization & Cross-Repo Workflows"

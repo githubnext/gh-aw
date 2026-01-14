@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Interactive & ChatOps"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/
   label: "Creative & Culture Workflows"

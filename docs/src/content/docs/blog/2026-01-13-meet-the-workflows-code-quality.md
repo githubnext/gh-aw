@@ -5,6 +5,8 @@ authors:
   - dsyme
   - peli
 date: 2026-01-13
+sidebar:
+  label: "Code Quality & Refactoring"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/
   label: "Interactive & ChatOps Workflows"
