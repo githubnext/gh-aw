@@ -183,7 +183,8 @@
                             "description": "Command name without leading slash"
                           }
                         }
-                      ]
+                      ],
+                      "description": "Name of the slash command that triggers the workflow (e.g., '/help', '/analyze'). Used for comment-based workflow activation."
                     },
                     "events": {
                       "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
@@ -246,7 +247,8 @@
                             "description": "Command name without leading slash"
                           }
                         }
-                      ]
+                      ],
+                      "description": "Name of the slash command that triggers the workflow (e.g., '/deploy', '/test'). Used for command-based workflow activation."
                     },
                     "events": {
                       "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
@@ -467,7 +469,8 @@
                         "description": "Repository pattern with optional glob support"
                       }
                     }
-                  ]
+                  ],
+                  "description": "When true, allows workflow to run on pull requests from forked repositories. Security consideration: fork PRs have limited permissions."
                 },
                 "names": {
                   "oneOf": [
@@ -484,7 +487,8 @@
                       },
                       "minItems": 1
                     }
-                  ]
+                  ],
+                  "description": "Array of pull request type names that trigger the workflow. Filters workflow execution to specific PR categories."
                 }
               },
               "additionalProperties": false,
@@ -573,7 +577,8 @@
                       },
                       "minItems": 1
                     }
-                  ]
+                  ],
+                  "description": "Array of issue type names that trigger the workflow. Filters workflow execution to specific issue categories."
                 },
                 "lock-for-agent": {
                   "type": "boolean",
@@ -1084,7 +1089,8 @@
                         "type": "string"
                       }
                     }
-                  ]
+                  ],
+                  "description": "When true, allows workflow to run on pull requests from forked repositories with write permissions. Security consideration: use cautiously as fork PRs run with base repository permissions."
                 }
               },
               "additionalProperties": false,
@@ -1449,7 +1455,8 @@
             },
             "id-token": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for OIDC token requests (read/write/none). Allows workflows to request JWT tokens for cloud provider authentication."
             },
             "issues": {
               "type": "string",
@@ -1468,23 +1475,28 @@
             },
             "packages": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for GitHub Packages (read/write/none). Controls access to publish, modify, or delete packages."
             },
             "pages": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for GitHub Pages (read/write/none). Controls access to deploy and manage GitHub Pages sites."
             },
             "pull-requests": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for pull requests (read/write/none). Controls access to create, edit, review, and manage pull requests."
             },
             "security-events": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for security events (read/write/none). Controls access to view and manage code scanning alerts and security findings."
             },
             "statuses": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for commit statuses (read/write/none). Controls access to create and update commit status checks."
             },
             "all": {
               "type": "string",
@@ -1530,7 +1542,8 @@
                 "description": "Runner type as object",
                 "additionalProperties": false
               }
-            ]
+            ],
+            "description": "Runner label or environment where the job executes. Can be a string (single runner) or array (multiple runner requirements)."
           },
           "steps": {
             "type": "array",
@@ -1639,7 +1652,8 @@
                   "type": "string"
                 }
               }
-            ]
+            ],
+            "description": "List of job IDs that must complete successfully before this job runs. Creates job dependencies for workflow orchestration."
           },
           "env": {
             "type": "object",
@@ -1649,7 +1663,8 @@
             }
           },
           "permissions": {
-            "$ref": "#/properties/permissions"
+            "$ref": "#/properties/permissions",
+            "description": "GitHub token permissions for this specific job. Overrides workflow-level permissions. Can be a string (shorthand) or object (detailed)."
           },
           "timeout-minutes": {
             "type": "integer",
@@ -1685,7 +1700,8 @@
             }
           },
           "concurrency": {
-            "$ref": "#/properties/concurrency"
+            "$ref": "#/properties/concurrency",
+            "description": "Concurrency control configuration for this job. Prevents parallel execution of jobs with the same concurrency group."
           },
           "uses": {
             "type": "string",
@@ -1895,10 +1911,12 @@
               "description": "Credentials for private registries",
               "properties": {
                 "username": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Username for Docker registry authentication when pulling private container images."
                 },
                 "password": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Password or access token for Docker registry authentication. Should use secrets syntax: ${{ secrets.DOCKER_PASSWORD }}"
                 }
               },
               "additionalProperties": false
@@ -1963,10 +1981,12 @@
                 "description": "Credentials for private registries",
                 "properties": {
                   "username": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Username for Docker registry authentication when pulling private container images."
                   },
                   "password": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Password or access token for Docker registry authentication. Should use secrets syntax: ${{ secrets.DOCKER_PASSWORD }}"
                   }
                 },
                 "additionalProperties": false
@@ -2207,7 +2227,8 @@
                               }
                             }
                           },
-                          "additionalProperties": false
+                          "additionalProperties": false,
+                          "description": "Filesystem access control configuration for the agent within the sandbox. Controls read/write permissions and path restrictions."
                         },
                         "ignoreViolations": {
                           "type": "object",
@@ -2242,22 +2263,26 @@
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "description": "Array of path patterns that deny read access in the sandboxed environment. Takes precedence over other read permissions."
                     },
                     "allowWrite": {
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "description": "Array of path patterns that allow write access in the sandboxed environment. Paths outside these patterns are read-only."
                     },
                     "denyWrite": {
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "description": "Array of path patterns that deny write access in the sandboxed environment. Takes precedence over other write permissions."
                     }
                   },
-                  "additionalProperties": false
+                  "additionalProperties": false,
+                  "description": "Filesystem access control configuration for sandboxed workflows. Controls read/write permissions and path restrictions for file operations."
                 },
                 "ignoreViolations": {
                   "type": "object",
@@ -2266,10 +2291,12 @@
                     "items": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "description": "When true, log sandbox violations without blocking execution. Useful for debugging and gradual enforcement of sandbox policies."
                 },
                 "enableWeakerNestedSandbox": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "description": "When true, allows nested sandbox processes to run with relaxed restrictions. Required for certain containerized tools that spawn subprocesses."
                 }
               },
               "additionalProperties": false
@@ -2447,7 +2474,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -2976,7 +3003,8 @@
                           },
                           "additionalProperties": false
                         }
-                      ]
+                      ],
+                      "description": "Configuration for Go language support in Serena code analysis. Enables Go-specific parsing, linting, and security checks."
                     },
                     "typescript": {
                       "oneOf": [
@@ -2994,7 +3022,8 @@
                           },
                           "additionalProperties": false
                         }
-                      ]
+                      ],
+                      "description": "Configuration for TypeScript language support in Serena code analysis. Enables TypeScript-specific parsing, linting, and type checking."
                     },
                     "python": {
                       "oneOf": [
@@ -3012,7 +3041,8 @@
                           },
                           "additionalProperties": false
                         }
-                      ]
+                      ],
+                      "description": "Configuration for Python language support in Serena code analysis. Enables Python-specific parsing, linting, and security checks."
                     },
                     "java": {
                       "oneOf": [
@@ -3030,7 +3060,8 @@
                           },
                           "additionalProperties": false
                         }
-                      ]
+                      ],
+                      "description": "Configuration for Java language support in Serena code analysis. Enables Java-specific parsing, linting, and security checks."
                     },
                     "rust": {
                       "oneOf": [
@@ -3048,7 +3079,8 @@
                           },
                           "additionalProperties": false
                         }
-                      ]
+                      ],
+                      "description": "Configuration for Rust language support in Serena code analysis. Enables Rust-specific parsing, linting, and security checks."
                     },
                     "csharp": {
                       "oneOf": [
@@ -3066,7 +3098,8 @@
                           },
                           "additionalProperties": false
                         }
-                      ]
+                      ],
+                      "description": "Configuration for C# language support in Serena code analysis. Enables C#-specific parsing, linting, and security checks."
                     }
                   },
                   "additionalProperties": false
@@ -3119,7 +3152,8 @@
                         "type": "string"
                       }
                     }
-                  ]
+                  ],
+                  "description": "Glob patterns for files to include in repository memory. Supports wildcards (e.g., '**/*.md', 'docs/**/*.json') to filter cached files."
                 },
                 "max-file-size": {
                   "type": "integer",
@@ -3196,7 +3230,8 @@
                           "type": "string"
                         }
                       }
-                    ]
+                    ],
+                    "description": "Glob patterns for files to include in repository memory. Supports wildcards (e.g., '**/*.md', 'docs/**/*.json') to filter cached files."
                   },
                   "max-file-size": {
                     "type": "integer",
@@ -3369,7 +3404,8 @@
                     "type": "string"
                   }
                 }
-              ]
+              ],
+              "description": "File path or directory to cache for faster workflow execution. Can be a single path or an array of paths to cache multiple locations."
             },
             "restore-keys": {
               "oneOf": [
@@ -3384,7 +3420,8 @@
                     "type": "string"
                   }
                 }
-              ]
+              ],
+              "description": "Optional list of fallback cache key patterns to use if exact cache key is not found. Enables partial cache restoration for better performance."
             },
             "upload-chunk-size": {
               "type": "integer",
@@ -3438,7 +3475,8 @@
                       "type": "string"
                     }
                   }
-                ]
+                ],
+                "description": "File path or directory to cache for faster workflow execution. Can be a single path or an array of paths to cache multiple locations."
               },
               "restore-keys": {
                 "oneOf": [
@@ -3453,7 +3491,8 @@
                       "type": "string"
                     }
                   }
-                ]
+                ],
+                "description": "Optional list of fallback cache key patterns to use if exact cache key is not found. Enables partial cache restoration for better performance."
               },
               "upload-chunk-size": {
                 "type": "integer",
@@ -3550,7 +3589,8 @@
                         "type": "string"
                       }
                     }
-                  ]
+                  ],
+                  "description": "GitHub usernames to assign the created issue to. Can be a single username string or array of usernames. Use 'copilot' to assign to GitHub Copilot."
                 },
                 "max": {
                   "type": "integer",
@@ -3607,7 +3647,8 @@
               "type": "null",
               "description": "Enable issue creation with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to create GitHub issues from workflow output. Supports title prefixes, automatic labeling, assignees, and cross-repository creation. Does not require 'issues: write' permission."
         },
         "create-agent-task": {
           "oneOf": [
@@ -3648,7 +3689,8 @@
               "type": "null",
               "description": "Enable agent session creation with default configuration"
             }
-          ]
+          ],
+          "description": "Enable creation of GitHub Copilot agent tasks from workflow output. Allows workflows to spawn new agent sessions for follow-up work."
         },
         "create-agent-session": {
           "oneOf": [
@@ -3688,7 +3730,8 @@
               "type": "null",
               "description": "Enable agent session creation with default configuration"
             }
-          ]
+          ],
+          "description": "Enable creation of GitHub Copilot agent sessions from workflow output. Allows workflows to start interactive agent conversations."
         },
         "update-project": {
           "oneOf": [
@@ -3758,7 +3801,8 @@
               "type": "null",
               "description": "Enable project management with default configuration (max=10)"
             }
-          ]
+          ],
+          "description": "Enable AI agents to update GitHub Project items (issues, pull requests) with status changes, field updates, and metadata modifications."
         },
         "copy-project": {
           "oneOf": [
@@ -3806,7 +3850,8 @@
               "type": "null",
               "description": "Enable project copying with default configuration (max=1)"
             }
-          ]
+          ],
+          "description": "Enable AI agents to duplicate GitHub Project boards with all configuration, views, and settings."
         },
         "create-project": {
           "oneOf": [
@@ -3842,7 +3887,8 @@
           ],
           "default": {
             "max": 1
-          }
+          },
+          "description": "Enable AI agents to create new GitHub Project boards with custom fields, views, and configurations."
         },
         "create-project-status-update": {
           "oneOf": [
@@ -3876,7 +3922,8 @@
               "type": "null",
               "description": "Enable project status updates with default configuration (max=1)"
             }
-          ]
+          ],
+          "description": "Enable AI agents to post status updates to GitHub Projects, providing progress reports and milestone tracking."
         },
         "create-discussion": {
           "oneOf": [
@@ -3979,7 +4026,8 @@
               "type": "null",
               "description": "Enable discussion creation with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to create GitHub Discussions from workflow output. Supports categorization, labeling, and automatic closure of older discussions. Does not require 'discussions: write' permission."
         },
         "close-discussion": {
           "oneOf": [
@@ -4032,7 +4080,8 @@
               "type": "null",
               "description": "Enable discussion closing with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to close GitHub Discussions based on workflow analysis or conditions."
         },
         "update-discussion": {
           "oneOf": [
@@ -4080,7 +4129,8 @@
               "type": "null",
               "description": "Enable discussion updating with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to edit and update existing GitHub Discussion content, titles, and metadata."
         },
         "close-issue": {
           "oneOf": [
@@ -4129,7 +4179,8 @@
               "type": "null",
               "description": "Enable issue closing with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to close GitHub issues based on workflow analysis, resolution detection, or automated triage."
         },
         "close-pull-request": {
           "oneOf": [
@@ -4182,7 +4233,8 @@
               "type": "null",
               "description": "Enable pull request closing with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to close pull requests based on workflow analysis or automated review decisions."
         },
         "mark-pull-request-as-ready-for-review": {
           "oneOf": [
@@ -4235,7 +4287,8 @@
               "type": "null",
               "description": "Enable marking pull requests as ready for review with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to mark draft pull requests as ready for review when criteria are met."
         },
         "add-comment": {
           "oneOf": [
@@ -4297,7 +4350,8 @@
               "type": "null",
               "description": "Enable issue comment creation with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to add comments to GitHub issues, pull requests, or discussions. Supports templating, cross-repository commenting, and automatic mentions."
         },
         "create-pull-request": {
           "oneOf": [
@@ -4403,7 +4457,8 @@
               "type": "null",
               "description": "Enable pull request creation with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to create GitHub pull requests from workflow-generated code changes, patches, or analysis results."
         },
         "create-pull-request-review-comment": {
           "oneOf": [
@@ -4448,7 +4503,8 @@
               "type": "null",
               "description": "Enable PR review comment creation with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to add review comments to specific lines in pull request diffs during code review workflows."
         },
         "create-code-scanning-alert": {
           "oneOf": [
@@ -4476,7 +4532,8 @@
               "type": "null",
               "description": "Enable code scanning alert creation with default configuration (unlimited findings)"
             }
-          ]
+          ],
+          "description": "Enable AI agents to create GitHub Advanced Security code scanning alerts for detected vulnerabilities or security issues."
         },
         "add-labels": {
           "oneOf": [
@@ -4516,7 +4573,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to add labels to GitHub issues or pull requests based on workflow analysis or classification."
         },
         "add-reviewer": {
           "oneOf": [
@@ -4556,7 +4614,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to request reviews from users or teams on pull requests based on code changes or expertise matching."
         },
         "assign-milestone": {
           "oneOf": [
@@ -4592,7 +4651,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to assign GitHub milestones to issues or pull requests based on workflow analysis or project planning."
         },
         "assign-to-agent": {
           "oneOf": [
@@ -4624,7 +4684,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to assign issues or pull requests to GitHub Copilot (@copilot) for automated handling."
         },
         "assign-to-user": {
           "oneOf": [
@@ -4663,7 +4724,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to assign issues or pull requests to specific GitHub users based on workflow logic or expertise matching."
         },
         "link-sub-issue": {
           "oneOf": [
@@ -4716,7 +4778,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to create hierarchical relationships between issues using GitHub's sub-issue (tasklist) feature."
         },
         "update-issue": {
           "oneOf": [
@@ -4757,7 +4820,8 @@
               "type": "null",
               "description": "Enable issue updating with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to edit and update existing GitHub issue content, titles, labels, assignees, and metadata."
         },
         "update-pull-request": {
           "oneOf": [
@@ -4803,7 +4867,8 @@
               "type": "null",
               "description": "Enable pull request updating with default configuration (title and body updates enabled)"
             }
-          ]
+          ],
+          "description": "Enable AI agents to edit and update existing pull request content, titles, labels, reviewers, and metadata."
         },
         "push-to-pull-request-branch": {
           "oneOf": [
@@ -4850,7 +4915,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to push commits directly to pull request branches for automated fixes or improvements."
         },
         "hide-comment": {
           "oneOf": [
@@ -4883,7 +4949,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to minimize (hide) comments on issues or pull requests based on relevance, spam detection, or moderation rules."
         },
         "missing-tool": {
           "oneOf": [
@@ -4930,7 +4997,8 @@
               "const": false,
               "description": "Explicitly disable missing tool reporting (false). Missing tool reporting is enabled by default when safe-outputs is configured."
             }
-          ]
+          ],
+          "description": "Enable AI agents to report when required MCP tools are unavailable. Used for workflow diagnostics and tool discovery."
         },
         "missing-data": {
           "oneOf": [
@@ -4977,7 +5045,8 @@
               "const": false,
               "description": "Explicitly disable missing data reporting (false). Missing data reporting is enabled by default when safe-outputs is configured."
             }
-          ]
+          ],
+          "description": "Enable AI agents to report when required data or context is missing. Used for workflow troubleshooting and data validation."
         },
         "noop": {
           "oneOf": [
@@ -5007,7 +5076,8 @@
               "const": false,
               "description": "Explicitly disable noop output (false). Noop is enabled by default when safe-outputs is configured."
             }
-          ]
+          ],
+          "description": "Enable AI agents to explicitly indicate no action is needed. Used for workflow control flow and conditional logic."
         },
         "upload-asset": {
           "oneOf": [
@@ -5052,7 +5122,8 @@
               "type": "null",
               "description": "Enable asset publishing with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to publish files (images, charts, reports) to an orphaned git branch for persistent storage and web access."
         },
         "update-release": {
           "oneOf": [
@@ -5079,7 +5150,8 @@
               "type": "null",
               "description": "Enable release updates with default configuration"
             }
-          ]
+          ],
+          "description": "Enable AI agents to edit and update GitHub release content, including release notes, assets, and metadata."
         },
         "staged": {
           "type": "boolean",
@@ -5182,7 +5254,8 @@
               },
               "additionalProperties": false
             }
-          ]
+          ],
+          "description": "Enable AI agents to report detected security threats, policy violations, or suspicious patterns for security review."
         },
         "jobs": {
           "type": "object",
@@ -5343,8 +5416,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
-              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
+              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -5358,18 +5431,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
             }
           },
           "additionalProperties": false
@@ -5444,12 +5517,12 @@
       "additionalProperties": false
     },
     "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": ["all"],
-          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
