@@ -42,12 +42,9 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
   }
 `}</style>
 
-## What is GitHub Agentic Workflows?
+## What are GitHub Agentic Workflows?
 
-Instead of writing complex YAML configurations, you describe your automation goals in plain markdown. AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can understand and execute instructions) then execute these workflows safely with built-in security controls, making intelligent decisions based on context.
-
-> [!WARNING]
-> GitHub Agentic Workflows is in early development and may change significantly. Using agentic workflows requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
+GitHub Agentic Workflows allow you to write repository-level AI agent descriptions in plain markdown and run automatically in GitHub Actions. Describe your repository automation goals and execute safely with built-in security controls, having AI make intelligent decisions based on context.
 
 **How it works:**
 1. **Write** - Create a `.md` file with your automation instructions in natural language
@@ -117,12 +114,6 @@ The `gh aw compile` command transforms this into a GitHub Actions workflow that 
   <FeatureCard icon="issue-opened" title="IssueOps" badge="automated" href="/gh-aw/examples/issue-pr-events/issueops/">
     Auto-triage and respond to issues as they're created
   </FeatureCard>
-  <FeatureCard icon="tag" title="LabelOps" badge="automated" href="/gh-aw/examples/issue-pr-events/labelops/">
-    Workflows triggered by label changes on issues and PRs
-  </FeatureCard>
-  <FeatureCard icon="calendar" title="DailyOps" badge="scheduled" href="/gh-aw/examples/scheduled/dailyops/">
-    Small daily improvements that compound over time
-  </FeatureCard>
   <FeatureCard icon="graph" title="Research & Planning" badge="scheduled" href="/gh-aw/examples/scheduled/research-planning/">
     Weekly research reports and automated team status updates
   </FeatureCard>
@@ -136,3 +127,7 @@ The `gh aw compile` command transforms this into a GitHub Actions workflow that 
     Test coverage improvements and performance optimization
   </FeatureCard>
 </FeatureGrid>
+
+## Peli's Agent Factory
+
+Take a magical journey with agentic wizard Peli de Halleux to explore our collection of over 100 specialized agentic workflows in [Peli's Agent Factory](https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/), demonstrating diverse patterns for AI-powered repository automation.

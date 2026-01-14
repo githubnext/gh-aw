@@ -117,6 +117,7 @@ export default defineConfig({
 					label: 'Setup',
 					items: [
 						{ label: 'Quick Start', link: '/setup/quick-start/' },
+						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
 						{ label: 'CLI Commands', link: '/setup/cli/' },
 						{ label: 'VS Code Integration', link: '/setup/vscode/' },
 					],
@@ -124,7 +125,6 @@ export default defineConfig({
 				{
 					label: 'Guides',
 					items: [
-						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
 						{ label: 'Packaging & Distribution', link: '/guides/packaging-imports/' },
 						{ label: 'Security Best Practices', link: '/guides/security/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
@@ -159,7 +159,7 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Agentic campaigns',
+					label: 'Campaigns',
 					items: [
 						{ label: 'Overview', link: '/guides/campaigns/' },
 						{ label: 'Campaign Specs', link: '/guides/campaigns/specs/' },
@@ -192,13 +192,17 @@ export default defineConfig({
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
-						{ label: 'MCP Server', link: '/setup/mcp-server/' },
+						{ label: 'GH-AW as MCP Server', link: '/setup/mcp-server/' },
 						{ label: 'MCP Gateway', link: '/reference/mcp-gateway/' },
 					],
 				},
 				{
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
+				},
+				{
+					label: 'Peli\'s Agent Factory',
+					link: '/blog/2026-01-12-welcome-to-pelis-agent-factory/', 
 				},
 				{
 					label: 'Labs',

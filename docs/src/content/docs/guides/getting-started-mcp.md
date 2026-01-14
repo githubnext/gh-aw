@@ -9,7 +9,7 @@ This guide walks you through integrating [Model Context Protocol](/gh-aw/referen
 
 ## What is MCP?
 
-[Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) is a standardized protocol that enables AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) to connect to external tools, databases, and APIs. [MCP servers](/gh-aw/reference/glossary/#mcp-server) act as specialized adapters, giving agents access to GitHub, web search, databases, and third-party services like Notion, Slack, and Datadog.
+[Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) is a standardized protocol that enables agents to connect to external tools, databases, and APIs. [MCP servers](/gh-aw/reference/glossary/#mcp-server) act as specialized adapters, giving agents access to GitHub, web search, databases, and third-party services like Notion, Slack, and Datadog.
 
 ## Quick Start
 
