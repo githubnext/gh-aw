@@ -19,31 +19,35 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Creates weekly summary of issue activity including trends, charts, and insights every Monday
+# Daily expert that analyzes one test file and creates an issue with testify-based improvements
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#     - shared/trends.md
-#     - shared/python-dataviz.md
+#     - shared/safe-output-app.md
 
-name: "Weekly Issue Summary"
+name: "Daily Testify Uber Super Expert"
 "on":
   schedule:
-  - cron: "0 15 * * 1"
+  - cron: "59 10 * * *"
     # Friendly format: daily (scattered)
+  # skip-if-match: is:issue is:open in:title "[testify-expert]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 
 permissions:
+  contents: read
   issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Weekly Issue Summary"
+run-name: "Daily Testify Uber Super Expert"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -64,7 +68,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "weekly-issue-summary.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-testify-uber-super-expert.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -76,15 +80,16 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-          contents: read
-          issues: read
+      contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GH_AW_ASSETS_MAX_SIZE_KB: 10240
+      GH_AW_ASSETS_ALLOWED_EXTS: ""
+      GH_AW_ASSETS_BRANCH: ""
+      GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
@@ -105,42 +110,21 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Setup Python environment
-        run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
-      - name: Install Python scientific libraries
-        run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
-      - if: always()
-        name: Upload generated charts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          if-no-files-found: warn
-          name: data-charts
-          path: /tmp/gh-aw/python/charts/*.png
-          retention-days: 30
-      - if: always()
-        name: Upload source files and data
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          if-no-files-found: warn
-          name: python-source-and-data
-          path: |
-            /tmp/gh-aw/python/*.py
-            /tmp/gh-aw/python/data/*
-          retention-days: 30
-
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/testify-expert
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: true
+        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -152,6 +136,19 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
         run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
@@ -193,25 +190,39 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"upload_asset":{"max":0}}
+          {"create_issue":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[Weekly Summary] \". Discussions will be created in category \"Audits\".",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[testify-expert] \". Labels [testing code-quality automated-analysis] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
+                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
                     "type": "string"
                   },
-                  "category": {
-                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
+                  "labels": {
+                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "parent": {
+                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "temporary_id": {
+                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
                     "type": "string"
                   },
                   "title": {
-                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
+                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
                     "type": "string"
                   }
                 },
@@ -221,24 +232,7 @@ jobs:
                 ],
                 "type": "object"
               },
-              "name": "create_discussion"
-            },
-            {
-              "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "path": {
-                    "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "path"
-                ],
-                "type": "object"
-              },
-              "name": "upload_asset"
+              "name": "create_issue"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -316,7 +310,7 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_discussion": {
+            "create_issue": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -325,14 +319,21 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
-                "category": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "parent": {
+                  "issueOrPRNumber": true
                 },
                 "repo": {
                   "type": "string",
                   "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
                 },
                 "title": {
                   "required": true,
@@ -374,24 +375,12 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "upload_asset": {
-              "defaultMax": 10,
-              "fields": {
-                "path": {
-                  "required": true,
-                  "type": "string"
-                }
-              }
             }
           }
           EOF
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
-          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
-          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
-          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -420,7 +409,7 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "issues"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               },
               "safeoutputs": {
@@ -443,6 +432,14 @@ jobs:
                   "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
+              },
+              "serena": {
+                "type": "stdio",
+                "container": "ghcr.io/oraios/serena:latest",
+                "args": ["--network", "host"],
+                "entrypoint": "serena",
+                "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
               }
             },
             "gateway": {
@@ -465,7 +462,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.381",
-              workflow_name: "Weekly Issue Summary",
+              workflow_name: "Daily Testify Uber Super Expert",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -479,7 +476,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","node","python"],
+              allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.8.2",
               awmg_version: "v0.0.56",
@@ -508,6 +505,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -522,562 +520,478 @@ jobs:
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
           
-          # Trends Visualization Guide
           
-          You are an expert at creating compelling trend visualizations that reveal insights from data over time.
           
-          ## Trending Chart Best Practices
+          {{#runtime-import? .github/shared-instructions.md}}
           
-          When generating trending charts, focus on:
+          # Daily Testify Uber Super Expert 🧪✨
           
-          ### 1. **Time Series Excellence**
-          - Use line charts for continuous trends over time
-          - Add trend lines or moving averages to highlight patterns
-          - Include clear date/time labels on the x-axis
-          - Show confidence intervals or error bands when relevant
+          You are the Daily Testify Uber Super Expert - an elite testing specialist who analyzes Go test files and provides expert recommendations for improving test quality using testify assertion library best practices.
           
-          ### 2. **Comparative Trends**
-          - Use multi-line charts to compare multiple trends
-          - Apply distinct colors for each series with a clear legend
-          - Consider using area charts for stacked trends
-          - Highlight key inflection points or anomalies
+          ## Mission
           
-          ### 3. **Visual Impact**
-          - Use vibrant, contrasting colors to make trends stand out
-          - Add annotations for significant events or milestones
-          - Include grid lines for easier value reading
-          - Use appropriate scale (linear vs. logarithmic)
+          Analyze one Go test file daily that hasn't been processed recently, evaluate its quality, and create an issue with specific, actionable improvements focused on testify best practices, test coverage, table-driven tests, and overall test quality.
           
-          ### 4. **Contextual Information**
-          - Show percentage changes or growth rates
-          - Include baseline comparisons (year-over-year, month-over-month)
-          - Add summary statistics (min, max, average, median)
-          - Highlight recent trends vs. historical patterns
+          ## Current Context
           
-          ## Example Trend Chart Types
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Analysis Date**: $(date +%Y-%m-%d)
+          - **Workspace**: __GH_AW_GITHUB_WORKSPACE__
+          - **Cache Location**: `/tmp/gh-aw/repo-memory/default/memory/testify-expert/`
           
-          ### Temporal Trends
-          ```python
-          # Line chart with multiple trends
-          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-          for column in data.columns:
-              ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
-          ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
-          ax.set_xlabel('Date', fontsize=12)
-          ax.set_ylabel('Value', fontsize=12)
-          ax.legend(loc='best')
-          ax.grid(True, alpha=0.3)
-          plt.xticks(rotation=45)
-          ```
+          ## Analysis Process
           
-          ### Growth Rates
-          ```python
-          # Bar chart showing period-over-period growth
-          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
-          ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
-          ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-          ax.set_ylabel('Growth %', fontsize=12)
-          ```
+          ### 1. Load Processed Files Cache
           
-          ### Moving Averages
-          ```python
-          # Trend with moving average overlay
-          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-          ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
-          ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
-          ax.fill_between(dates, values, moving_avg, alpha=0.2)
-          ```
+          Check the repo-memory cache to see which files have been processed recently:
           
-          ## Data Preparation for Trends
-          
-          ### Time-Based Indexing
-          ```python
-          # Convert to datetime and set as index
-          data['date'] = pd.to_datetime(data['date'])
-          data.set_index('date', inplace=True)
-          data = data.sort_index()
-          ```
-          
-          ### Resampling and Aggregation
-          ```python
-          # Resample daily data to weekly
-          weekly_data = data.resample('W').mean()
-          
-          # Calculate rolling statistics
-          data['rolling_mean'] = data['value'].rolling(window=7).mean()
-          data['rolling_std'] = data['value'].rolling(window=7).std()
-          ```
-          
-          ### Growth Calculations
-          ```python
-          # Calculate percentage change
-          data['pct_change'] = data['value'].pct_change() * 100
-          
-          # Calculate year-over-year growth
-          data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
-          ```
-          
-          ## Color Palettes for Trends
-          
-          Use these palettes for impactful trend visualizations:
-          
-          - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
-          - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
-          - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
-          - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
-          
-          ## Annotation Best Practices
-          
-          ```python
-          # Annotate key points
-          max_idx = data['value'].idxmax()
-          max_val = data['value'].max()
-          ax.annotate(f'Peak: {max_val:.2f}',
-                      xy=(max_idx, max_val),
-                      xytext=(10, 20),
-                      textcoords='offset points',
-                      arrowprops=dict(arrowstyle='->', color='red'),
-                      fontsize=10,
-                      fontweight='bold')
-          ```
-          
-          ## Styling for Awesome Charts
-          
-          ```python
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          # Set professional style
-          sns.set_style("whitegrid")
-          sns.set_context("notebook", font_scale=1.2)
-          
-          # Custom color palette
-          custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
-          sns.set_palette(custom_colors)
-          
-          # Figure with optimal dimensions
-          fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-          
-          # ... your plotting code ...
-          
-          # Tight layout for clean appearance
-          plt.tight_layout()
-          
-          # Save with high quality
-          plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
-                      dpi=300,
-                      bbox_inches='tight',
-                      facecolor='white',
-                      edgecolor='none')
-          ```
-          
-          ## Tips for Trending Charts
-          
-          1. **Start with the story**: What trend are you trying to show?
-          2. **Choose the right timeframe**: Match granularity to the pattern
-          3. **Smooth noise**: Use moving averages for volatile data
-          4. **Show context**: Include historical baselines or benchmarks
-          5. **Highlight insights**: Use annotations to draw attention
-          6. **Test readability**: Ensure labels and legends are clear
-          7. **Optimize colors**: Use colorblind-friendly palettes
-          8. **Export high quality**: Always use DPI 300+ for presentations
-          
-          ## Common Trend Patterns to Visualize
-          
-          - **Seasonal patterns**: Monthly or quarterly cycles
-          - **Long-term growth**: Exponential or linear trends
-          - **Volatility changes**: Periods of stability vs. fluctuation
-          - **Correlations**: How multiple trends relate
-          - **Anomalies**: Outliers or unusual events
-          - **Forecasts**: Projected future trends with uncertainty
-          
-          Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
-          
-          # Python Data Visualization Guide
-          
-          Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
-          
-          ## Installed Libraries
-          
-          - **NumPy**: Array processing and numerical operations
-          - **Pandas**: Data manipulation and analysis
-          - **Matplotlib**: Chart generation and plotting
-          - **Seaborn**: Statistical data visualization
-          - **SciPy**: Scientific computing utilities
-          
-          ## Directory Structure
-          
-          ```
-          /tmp/gh-aw/python/
-          ├── data/          # Store all data files here (CSV, JSON, etc.)
-          ├── charts/        # Generated chart images (PNG)
-          ├── artifacts/     # Additional output files
-          └── *.py           # Python scripts
-          ```
-          
-          ## Data Separation Requirement
-          
-          **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
-          
-          ### ❌ PROHIBITED - Inline Data
-          ```python
-          # DO NOT do this
-          data = [10, 20, 30, 40, 50]
-          labels = ['A', 'B', 'C', 'D', 'E']
-          ```
-          
-          ### ✅ REQUIRED - External Data Files
-          ```python
-          # Always load data from external files
-          import pandas as pd
-          
-          # Load data from CSV
-          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-          
-          # Or from JSON
-          data = pd.read_json('/tmp/gh-aw/python/data/data.json')
-          ```
-          
-          ## Chart Generation Best Practices
-          
-          ### High-Quality Chart Settings
-          
-          ```python
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          # Set style for better aesthetics
-          sns.set_style("whitegrid")
-          sns.set_palette("husl")
-          
-          # Create figure with high DPI
-          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          
-          # Your plotting code here
-          # ...
-          
-          # Save with high quality
-          plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
-                      dpi=300, 
-                      bbox_inches='tight',
-                      facecolor='white',
-                      edgecolor='none')
-          ```
-          
-          ### Chart Quality Guidelines
-          
-          - **DPI**: Use 300 or higher for publication quality
-          - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
-          - **Labels**: Always include clear axis labels and titles
-          - **Legend**: Add legends when plotting multiple series
-          - **Grid**: Enable grid lines for easier reading
-          - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
-          
-          ## Including Images in Reports
-          
-          When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
-          
-          ### Step 1: Generate and Upload Chart
-          ```python
-          # Generate your chart
-          plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-          ```
-          
-          ### Step 2: Upload as Asset
-          Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
-          
-          ### Step 3: Include in Markdown Report
-          When creating your discussion or issue, include the image using markdown:
-          
-          ```markdown
-          ## Visualization Results
-          
-          ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
-          
-          The chart above shows...
-          ```
-          
-          **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
-          
-          ## Cache Memory Integration
-          
-          The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
-          
-          **Helper Functions to Cache:**
-          - Data loading utilities: `data_loader.py`
-          - Chart styling functions: `chart_utils.py`
-          - Common data transformations: `transforms.py`
-          
-          **Check Cache Before Creating:**
           ```bash
-          # Check if helper exists in cache
-          if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
-            cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
-            echo "Using cached data_loader.py"
+          # Check if cache file exists
+          CACHE_FILE="/tmp/gh-aw/repo-memory/default/memory/testify-expert/processed_files.txt"
+          if [ -f "$CACHE_FILE" ]; then
+            echo "Found cache with $(wc -l < "$CACHE_FILE") processed files"
+            cat "$CACHE_FILE"
+          else
+            echo "No cache found - first run"
           fi
           ```
           
-          **Save to Cache for Future Runs:**
+          The cache file contains one file path per line with a timestamp:
+          ```
+          ./pkg/workflow/compiler_test.go|2026-01-14
+          ./pkg/cli/compile_command_test.go|2026-01-13
+          ```
+          
+          ### 2. Select Target Test File
+          
+          Find all Go test files and select one that hasn't been processed in the last 30 days:
+          
           ```bash
-          # Save useful helpers to cache
-          cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
-          echo "Saved data_loader.py to cache for future runs"
+          # Get all test files
+          find . -name '*_test.go' -type f > /tmp/all_test_files.txt
+          
+          # Filter out recently processed files (last 30 days)
+          CUTOFF_DATE=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
+          
+          # Create list of candidate files (not processed or processed >30 days ago)
+          while IFS='|' read -r filepath timestamp; do
+            if [[ "$timestamp" < "$CUTOFF_DATE" ]]; then
+              echo "$filepath" >> /tmp/candidate_files.txt
+            fi
+          done < "$CACHE_FILE" 2>/dev/null || true
+          
+          # If no cache or all files old, use all test files
+          if [ ! -f /tmp/candidate_files.txt ]; then
+            cp /tmp/all_test_files.txt /tmp/candidate_files.txt
+          fi
+          
+          # Select a random file from candidates
+          TARGET_FILE=$(shuf -n 1 /tmp/candidate_files.txt)
+          echo "Selected file: $TARGET_FILE"
           ```
           
-          ## Complete Example Workflow
-          
-          ```python
-          #!/usr/bin/env python3
-          """
-          Example data visualization script
-          Generates a bar chart from external data
-          """
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          # Set style
-          sns.set_style("whitegrid")
-          sns.set_palette("husl")
-          
-          # Load data from external file (NEVER inline)
-          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-          
-          # Process data
-          summary = data.groupby('category')['value'].sum()
-          
-          # Create chart
-          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          summary.plot(kind='bar', ax=ax)
-          
-          # Customize
-          ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
-          ax.set_xlabel('Category', fontsize=12)
-          ax.set_ylabel('Value', fontsize=12)
-          ax.grid(True, alpha=0.3)
-          
-          # Save chart
-          plt.savefig('/tmp/gh-aw/python/charts/chart.png',
-                      dpi=300,
-                      bbox_inches='tight',
-                      facecolor='white')
-          
-          print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
+          **Important**: If no unprocessed files remain, output a message and exit:
+          ```
+          ✅ All test files have been analyzed in the last 30 days!
+          The testify expert will resume analysis after the cache expires.
           ```
           
-          ## Error Handling
+          ### 3. Analyze Test File with Serena
           
-          **Check File Existence:**
-          ```python
-          import os
+          Use the Serena MCP server to perform deep semantic analysis of the selected test file:
           
-          data_file = '/tmp/gh-aw/python/data/data.csv'
-          if not os.path.exists(data_file):
-              raise FileNotFoundError(f"Data file not found: {data_file}")
+          1. **Read the file contents** and understand its structure
+          2. **Identify the corresponding source file** (e.g., `pkg/workflow/compiler_test.go` → `pkg/workflow/compiler.go`)
+          3. **Analyze test quality** - Look for:
+             - Use of testify assertions vs plain Go error handling
+             - Table-driven test patterns
+             - Test coverage gaps (functions in source not tested)
+             - Test organization and clarity
+             - Setup/teardown patterns
+             - Mock usage and test isolation
+             - Edge cases and error conditions
+             - Test naming conventions
+          
+          4. **Evaluate testify usage** - Check for:
+             - Using `assert.*` for validations that should continue
+             - Using `require.*` for critical setup that should stop test on failure
+             - Proper use of assertion messages for debugging
+             - Avoiding anti-patterns (e.g., `if err != nil { t.Fatal() }` instead of `require.NoError(t, err)`)
+          
+          5. **Assess test structure** - Review:
+             - Use of `t.Run()` for subtests
+             - Table-driven tests with descriptive names
+             - Clear test case organization
+             - Helper functions vs inline test logic
+          
+          ### 4. Analyze Current Test Coverage
+          
+          Examine what's being tested and what's missing:
+          
+          ```bash
+          # Get the source file
+          SOURCE_FILE=$(echo "$TARGET_FILE" | sed 's/_test\.go$/.go/')
+          
+          if [ -f "$SOURCE_FILE" ]; then
+            # Extract function signatures from source
+            grep -E '^func [A-Z]' "$SOURCE_FILE" | sed 's/func //' | cut -d'(' -f1
+            
+            # Extract test function names
+            grep -E '^func Test' "$TARGET_FILE" | sed 's/func //' | cut -d'(' -f1
+            
+            # Compare to find untested functions
+            echo "=== Comparing coverage ==="
+          else
+            echo "Source file not found: $SOURCE_FILE"
+          fi
           ```
           
-          **Validate Data:**
-          ```python
-          # Check for required columns
-          required_cols = ['category', 'value']
-          missing = set(required_cols) - set(data.columns)
-          if missing:
-              raise ValueError(f"Missing columns: {missing}")
-          ```
+          Calculate:
+          - **Functions in source**: Count of exported functions
+          - **Functions tested**: Count of test functions
+          - **Coverage gaps**: Functions without corresponding tests
           
-          ## Artifact Upload
+          ### 5. Generate Issue with Improvements
           
-          Charts and source files are automatically uploaded as artifacts:
-          
-          **Charts Artifact:**
-          - Name: `data-charts`
-          - Contents: PNG files from `/tmp/gh-aw/python/charts/`
-          - Retention: 30 days
-          
-          **Source and Data Artifact:**
-          - Name: `python-source-and-data`
-          - Contents: Python scripts and data files
-          - Retention: 30 days
-          
-          Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
-          
-          ## Tips for Success
-          
-          1. **Always Separate Data**: Store data in files, never inline in code
-          2. **Use Cache Memory**: Store reusable helpers for faster execution
-          3. **High Quality Charts**: Use DPI 300+ and proper sizing
-          4. **Clear Documentation**: Add docstrings and comments
-          5. **Error Handling**: Validate data and check file existence
-          6. **Type Hints**: Use type annotations for better code quality
-          7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
-          8. **Reproducibility**: Set random seeds when needed
-          
-          ## Common Data Sources
-          
-          Based on common use cases:
-          
-          **Repository Statistics:**
-          ```python
-          # Collect via GitHub API, save to data.csv
-          # Then load and visualize
-          data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
-          ```
-          
-          **Workflow Metrics:**
-          ```python
-          # Collect via GitHub Actions API, save to data.json
-          data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
-          ```
-          
-          **Sample Data Generation:**
-          ```python
-          # Generate with NumPy, save to file first
-          import numpy as np
-          data = np.random.randn(100, 2)
-          df = pd.DataFrame(data, columns=['x', 'y'])
-          df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
-          
-          # Then load it back (demonstrating the pattern)
-          data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
-          ```
-          
-          # Weekly Issue Summary
-          
-          ## 📊 Trend Charts Requirement
-          
-          **IMPORTANT**: Generate exactly 2 trend charts that showcase issue activity patterns over time.
-          
-          ### Chart Generation Process
-          
-          **Phase 1: Data Collection**
-          
-          Collect data for the past 30 days (or available data) using GitHub API:
-          
-          1. **Issue Activity Data**:
-             - Count of issues opened per day
-             - Count of issues closed per day
-             - Running count of open issues
-          
-          2. **Issue Resolution Data**:
-             - Average time to close issues (in days)
-             - Distribution of issue lifespans
-             - Issues by label category over time
-          
-          **Phase 2: Data Preparation**
-          
-          1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-             - `issue_activity.csv` - Daily opened/closed counts and open count
-             - `issue_resolution.csv` - Resolution time statistics
-          
-          2. Each CSV should have a date column and metric columns with appropriate headers
-          
-          **Phase 3: Chart Generation**
-          
-          Generate exactly **2 high-quality trend charts**:
-          
-          **Chart 1: Issue Activity Trends**
-          - Multi-line chart showing:
-            - Issues opened per week (line or bar)
-            - Issues closed per week (line or bar)
-            - Net change (opened - closed) per week
-            - Running total of open issues (line)
-          - X-axis: Week (last 12 weeks or 30 days)
-          - Y-axis: Count
-          - Save as: `/tmp/gh-aw/python/charts/issue_activity_trends.png`
-          
-          **Chart 2: Issue Resolution Time Trends**
-          - Line chart with statistics showing:
-            - Average time to close (in days, 7-day moving average)
-            - Median time to close
-            - Shaded area showing resolution time variance
-          - X-axis: Date (last 30 days)
-          - Y-axis: Days to resolution
-          - Save as: `/tmp/gh-aw/python/charts/issue_resolution_trends.png`
-          
-          **Chart Quality Requirements**:
-          - DPI: 300 minimum
-          - Figure size: 12x7 inches for better readability
-          - Use seaborn styling with a professional color palette
-          - Include grid lines for easier reading
-          - Clear, large labels and legend
-          - Title with context (e.g., "Issue Activity - Last 12 Weeks")
-          - Annotations for notable patterns or changes
-          
-          **Phase 4: Upload Charts**
-          
-          1. Upload both charts using the `upload asset` tool
-          2. Collect the returned URLs for embedding in the discussion
-          
-          **Phase 5: Embed Charts in Discussion**
-          
-          Include the charts in your weekly summary with this structure:
+          Create a detailed issue with this structure:
           
           ```markdown
-          ## 📈 Issue Activity Trends
+          # Improve Test Quality: [FILE_PATH]
           
-          ### Weekly Activity Patterns
-          ![Issue Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
+          ## Overview
           
-          [Brief 2-3 sentence analysis of issue activity trends, highlighting increases/decreases in activity or backlog growth]
+          The test file `[FILE_PATH]` has been selected for quality improvement by the Testify Uber Super Expert. This issue provides specific, actionable recommendations to enhance test quality, coverage, and maintainability using testify best practices.
           
-          ### Resolution Time Analysis
-          ![Issue Resolution Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
+          ## Current State
           
-          [Brief 2-3 sentence analysis of how quickly issues are being resolved, noting improvements or slowdowns]
+          - **Test File**: `[FILE_PATH]`
+          - **Source File**: `[SOURCE_FILE]` (if exists)
+          - **Test Functions**: [COUNT] test functions
+          - **Lines of Code**: [LOC] lines
+          - **Last Modified**: [DATE if available]
+          
+          ## Test Quality Analysis
+          
+          ### Strengths ✅
+          
+          [List 2-3 things the test file does well]
+          
+          ### Areas for Improvement 🎯
+          
+          #### 1. Testify Assertions
+          
+          **Current Issues:**
+          - [Specific examples of non-testify patterns]
+          - Example: Using `if err != nil { t.Fatal(err) }` instead of `require.NoError(t, err)`
+          - Example: Manual comparison `if got != want` instead of `assert.Equal(t, want, got)`
+          
+          **Recommended Changes:**
+          ```go
+          // ❌ CURRENT (anti-pattern)
+          if err != nil {
+              t.Fatalf("unexpected error: %v", err)
+          }
+          if result != expected {
+              t.Errorf("got %v, want %v", result, expected)
+          }
+          
+          // ✅ IMPROVED (testify)
+          require.NoError(t, err, "operation should succeed")
+          assert.Equal(t, expected, result, "result should match expected value")
           ```
           
-          ### Python Implementation Notes
+          **Why this matters**: Testify provides clearer error messages, better test output, and is the standard used throughout this codebase (see `specs/testing.md`).
           
-          - Use pandas for data manipulation and date handling
-          - Use matplotlib.pyplot and seaborn for visualization
-          - Set appropriate date formatters for x-axis labels
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+          #### 2. Table-Driven Tests
+          
+          **Current Issues:**
+          - [Specific tests that should be table-driven]
+          - Example: Multiple similar test functions that could be combined
+          - Example: Repeated test patterns with minor variations
+          
+          **Recommended Changes:**
+          ```go
+          // ✅ IMPROVED - Table-driven test
+          func TestFunctionName(t *testing.T) {
+              tests := []struct {
+                  name      string
+                  input     string
+                  expected  string
+                  shouldErr bool
+              }{
+                  {
+                      name:      "valid input",
+                      input:     "test",
+                      expected:  "result",
+                      shouldErr: false,
+                  },
+                  {
+                      name:      "empty input",
+                      input:     "",
+                      shouldErr: true,
+                  },
+                  // Add more test cases...
               }
-            });
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          - Use `plt.xticks(rotation=45)` for readable date labels
-          - Apply `plt.tight_layout()` before saving
-          - Handle cases where data might be sparse or missing
           
-          ### Error Handling
+              for _, tt := range tests {
+                  t.Run(tt.name, func(t *testing.T) {
+                      result, err := FunctionName(tt.input)
+                      
+                      if tt.shouldErr {
+                          require.Error(t, err)
+                      } else {
+                          require.NoError(t, err)
+                          assert.Equal(t, tt.expected, result)
+                      }
+                  })
+              }
+          }
+          ```
           
-          If insufficient data is available (less than 7 days):
-          - Generate the charts with available data
-          - Add a note in the analysis mentioning the limited data range
-          - Consider using a bar chart instead of line chart for very sparse data
+          **Why this matters**: Table-driven tests are easier to extend, maintain, and understand. They follow the pattern used in `specs/testing.md`.
+          
+          #### 3. Test Coverage Gaps
+          
+          **Missing Tests:**
+          
+          [List specific functions from the source file that lack tests]
+          
+          **Priority Functions to Test:**
+          1. **`FunctionName1`** - [Why it's important]
+          2. **`FunctionName2`** - [Why it's important]
+          3. **`FunctionName3`** - [Why it's important]
+          
+          **Recommended Test Cases:**
+          ```go
+          func TestFunctionName1(t *testing.T) {
+              tests := []struct {
+                  name string
+                  // ... test case fields
+              }{
+                  {name: "success case"},
+                  {name: "error case"},
+                  {name: "edge case - empty input"},
+                  {name: "edge case - nil input"},
+              }
+              // ... implementation
+          }
+          ```
+          
+          #### 4. Test Organization
+          
+          **Current Issues:**
+          - [Issues with test structure, naming, or organization]
+          - Example: Tests not using `t.Run()` for subtests
+          - Example: Unclear test names
+          - Example: Missing helper functions
+          
+          **Recommended Improvements:**
+          - Use descriptive test names that explain what's being tested
+          - Group related tests using `t.Run()` subtests
+          - Extract repeated setup into helper functions
+          - Follow naming pattern: `Test<Function>_<Scenario>` or use table-driven tests
+          
+          #### 5. Assertion Messages
+          
+          **Current Issues:**
+          - [Examples of missing or poor assertion messages]
+          
+          **Recommended Improvements:**
+          ```go
+          // ❌ CURRENT
+          assert.Equal(t, expected, result)
+          
+          // ✅ IMPROVED  
+          assert.Equal(t, expected, result, "function should return correct value for valid input")
+          require.NoError(t, err, "setup should succeed without errors")
+          ```
+          
+          **Why this matters**: Good assertion messages make test failures easier to debug.
+          
+          ## Implementation Guidelines
+          
+          ### Priority Order
+          1. **High**: Add missing tests for critical functions
+          2. **High**: Convert manual error checks to testify assertions
+          3. **Medium**: Refactor similar tests into table-driven tests
+          4. **Medium**: Improve test names and organization
+          5. **Low**: Add assertion messages
+          
+          ### Best Practices from `specs/testing.md`
+          - ✅ Use `require.*` for critical setup (stops test on failure)
+          - ✅ Use `assert.*` for test validations (continues checking)
+          - ✅ Write table-driven tests with `t.Run()` and descriptive names
+          - ✅ No mocks or test suites - test real component interactions
+          - ✅ Always include helpful assertion messages
+          
+          ### Testing Commands
+          ```bash
+          # Run tests for this file
+          go test -v [PACKAGE_PATH] -run [TEST_NAME]
+          
+          # Run tests with coverage
+          go test -cover [PACKAGE_PATH]
+          
+          # Run all tests
+          make test-unit
+          ```
+          
+          ## Acceptance Criteria
+          
+          - [ ] All manual error checks replaced with testify assertions (`require.NoError`, `assert.Equal`, etc.)
+          - [ ] Similar test functions refactored into table-driven tests
+          - [ ] All critical functions in source file have corresponding tests
+          - [ ] Test names are descriptive and follow conventions
+          - [ ] All assertions include helpful messages
+          - [ ] Tests pass: `make test-unit`
+          - [ ] Code follows patterns in `specs/testing.md`
+          
+          ## Additional Context
+          
+          - **Repository Testing Guidelines**: See `specs/testing.md` for comprehensive testing patterns
+          - **Example Tests**: Look at recent test files in `pkg/workflow/*_test.go` for examples
+          - **Testify Documentation**: https://github.com/stretchr/testify
           
           ---
           
-          ## Weekly Analysis
+          **Priority**: Medium  
+          **Effort**: [Small/Medium/Large based on amount of work]  
+          **Expected Impact**: Improved test quality, better error messages, easier maintenance
           
-          Analyze all issues opened in the repository __GH_AW_GITHUB_REPOSITORY__ over the last 7 days.
+          **Files Involved:**
+          - Test file: `[FILE_PATH]`
+          - Source file: `[SOURCE_FILE]` (if exists)
+          ```
           
-          Create a comprehensive summary that includes:
-          - Total number of issues opened
-          - List of issue titles with their numbers and authors
-          - Any notable patterns or trends (common labels, types of issues, etc.)
+          ### 6. Update Processed Files Cache
           
-          Format the summary clearly with proper markdown formatting for easy reading.
+          After creating the issue, update the cache to record this file as processed:
+          
+          ```bash
+          # Append to cache with current date
+          CACHE_FILE="/tmp/gh-aw/repo-memory/default/memory/testify-expert/processed_files.txt"
+          mkdir -p "$(dirname "$CACHE_FILE")"
+          TODAY=$(date '+%Y-%m-%d')
+          echo "${TARGET_FILE}|${TODAY}" >> "$CACHE_FILE"
+          
+          # Sort and deduplicate cache (keep most recent date for each file)
+          sort -t'|' -k1,1 -k2,2r "$CACHE_FILE" | \
+            awk -F'|' '!seen[$1]++' > "${CACHE_FILE}.tmp"
+          mv "${CACHE_FILE}.tmp" "$CACHE_FILE"
+          
+          echo "✅ Updated cache with processed file: $TARGET_FILE"
+          ```
+          
+          ## Output Requirements
+          
+          Your workflow MUST follow this sequence:
+          
+          1. **Load cache** - Check which files have been processed
+          2. **Select file** - Choose one unprocessed or old file (>30 days)
+          3. **Analyze file** - Use Serena to deeply analyze the test file
+          4. **Create issue** - Generate detailed issue with specific improvements
+          5. **Update cache** - Record the file as processed with today's date
+          
+          ### Output Format
+          
+          **If no unprocessed files:**
+          ```
+          ✅ All [N] test files have been analyzed in the last 30 days!
+          Next analysis will begin after cache expires.
+          Cache location: /tmp/gh-aw/repo-memory/default/memory/testify-expert/
+          ```
+          
+          **If analysis completed:**
+          ```
+          🧪 Daily Testify Expert Analysis Complete
+          
+          Selected File: [FILE_PATH]
+          Test Functions: [COUNT]
+          Lines of Code: [LOC]
+          
+          Analysis Summary:
+          ✅ [Strengths count] strengths identified
+          🎯 [Improvements count] areas for improvement
+          📝 Issue created with detailed recommendations
+          
+          Issue: #[NUMBER] - Improve Test Quality: [FILE_PATH]
+          
+          Cache Updated: [FILE_PATH] marked as processed on [DATE]
+          Total Processed Files: [COUNT]
+          ```
+          
+          ## Important Guidelines
+          
+          - **One file per day**: Focus on providing high-quality, detailed analysis for a single file
+          - **Use Serena extensively**: Leverage the language server for semantic understanding
+          - **Be specific and actionable**: Provide code examples, not vague advice
+          - **Follow repository patterns**: Reference `specs/testing.md` and existing test patterns
+          - **Cache management**: Always update the cache after processing
+          - **30-day cycle**: Files become eligible for re-analysis after 30 days
+          - **Priority to uncovered code**: Prefer files with lower test coverage when selecting
+          
+          ## Testify Best Practices Reference
+          
+          ### Common Patterns from `specs/testing.md`
+          
+          **Use `require.*` for setup:**
+          ```go
+          config, err := LoadConfig()
+          require.NoError(t, err, "config loading should succeed")
+          require.NotNil(t, config, "config should not be nil")
+          ```
+          
+          **Use `assert.*` for validations:**
+          ```go
+          result := ProcessData(input)
+          assert.Equal(t, expected, result, "should process data correctly")
+          assert.True(t, result.IsValid(), "result should be valid")
+          ```
+          
+          **Table-driven tests:**
+          ```go
+          tests := []struct {
+              name      string
+              input     string
+              expected  string
+              shouldErr bool
+          }{
+              {"valid case", "input", "output", false},
+              {"error case", "", "", true},
+          }
+          
+          for _, tt := range tests {
+              t.Run(tt.name, func(t *testing.T) {
+                  // test implementation
+              })
+          }
+          ```
+          
+          ## Serena Configuration
+          
+          The Serena MCP server is configured for this workspace with:
+          - **Language**: Go
+          - **Project**: __GH_AW_GITHUB_WORKSPACE__
+          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
+          
+          Use Serena to:
+          - Understand test file structure and patterns
+          - Identify the source file being tested
+          - Detect missing test coverage
+          - Suggest testify assertion improvements
+          - Find table-driven test opportunities
+          - Analyze test quality and maintainability
+          
+          ## Example Analysis Flow
+          
+          1. **Cache Check**: "Found 15 processed files, 772 candidates remaining"
+          2. **File Selection**: "Selected: ./pkg/workflow/compiler_test.go (last processed: never)"
+          3. **Serena Analysis**: "Analyzing test structure... Found 12 test functions, source has 25 exported functions"
+          4. **Quality Assessment**: "Identified 3 strengths, 5 improvement areas"
+          5. **Issue Creation**: "Created issue #123: Improve Test Quality: ./pkg/workflow/compiler_test.go"
+          6. **Cache Update**: "Updated cache: ./pkg/workflow/compiler_test.go|2026-01-14"
+          
+          Begin your analysis now. Load the cache, select a test file, perform deep quality analysis, create an issue with specific improvements, and update the cache.
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -1085,6 +999,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
@@ -1093,7 +1008,8 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
               }
             });
       - name: Append XPIA security instructions to prompt
@@ -1106,7 +1022,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append cache memory instructions to prompt
+      - name: Append repo memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
@@ -1114,20 +1030,25 @@ jobs:
           
           ---
           
-          ## Cache Folder Available
+          ## Repo Memory Available
           
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Tracks processed test files to avoid duplicates
           
           - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
+          - **Git Branch Storage**: Files are stored in the `memory/testify-expert` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: memory/testify-expert/*.json, memory/testify-expert/*.txt
+          - **Max File Size**: 51200 bytes (0.05 MB) per file
+          - **Max File Count**: 100 files per commit
           
           Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -1144,7 +1065,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop, upload_asset
+          **Available tools**: create_issue, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1227,6 +1148,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1240,18 +1162,35 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool github
+        # --allow-tool safeoutputs
+        # --allow-tool shell(cat **/*_test.go)
+        # --allow-tool shell(cat)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(find . -name '*_test.go' -type f)
+        # --allow-tool shell(go test -v ./...)
+        # --allow-tool shell(grep -r 'func Test' . --include='*_test.go')
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc -l **/*_test.go)
+        # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
+        # --allow-tool write
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,bun.sh,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,files.pythonhosted.org,get.pnpm.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.anaconda.com,repo.continuum.io,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.8.2 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.8.2 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat **/*_test.go)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find . -name '\''*_test.go'\'' -type f)' --allow-tool 'shell(go test -v ./...)' --allow-tool 'shell(grep -r '\''func Test'\'' . --include='\''*_test.go'\'')' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc -l **/*_test.go)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1313,7 +1252,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,bun.sh,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,files.pythonhosted.org,get.pnpm.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.anaconda.com,repo.continuum.io,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1363,19 +1302,13 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      # Upload safe-outputs assets for upload_assets job
-      - name: Upload safe-outputs assets
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
           retention-days: 1
           if-no-files-found: ignore
       - name: Upload agent artifacts
@@ -1397,9 +1330,8 @@ jobs:
       - activation
       - agent
       - detection
+      - push_repo_memory
       - safe_outputs
-      - update_cache_memory
-      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1422,6 +1354,19 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: read
+          permission-discussions: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -1450,10 +1395,10 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_WORKFLOW_NAME: "Daily Testify Uber Super Expert"
+          GH_AW_TRACKER_ID: "daily-testify-uber-super-expert"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1464,10 +1409,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_WORKFLOW_NAME: "Daily Testify Uber Super Expert"
+          GH_AW_TRACKER_ID: "daily-testify-uber-super-expert"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1478,12 +1423,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_WORKFLOW_NAME: "Daily Testify Uber Super Expert"
+          GH_AW_TRACKER_ID: "daily-testify-uber-super-expert"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1497,17 +1442,30 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_WORKFLOW_NAME: "Daily Testify Uber Super Expert"
+          GH_AW_TRACKER_ID: "daily-testify-uber-super-expert"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
+      - name: Invalidate GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Revoking GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 
   detection:
     needs: agent
@@ -1550,8 +1508,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Weekly Issue Summary"
-          WORKFLOW_DESCRIPTION: "Creates weekly summary of issue activity including trends, charts, and insights every Monday"
+          WORKFLOW_NAME: "Daily Testify Uber Super Expert"
+          WORKFLOW_DESCRIPTION: "Daily expert that analyzes one test file and creates an issue with testify-based improvements"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1668,6 +1626,110 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+      - name: Check skip-if-match query
+        id: check_skip_if_match
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_SKIP_QUERY: "is:issue is:open in:title \"[testify-expert]\""
+          GH_AW_WORKFLOW_NAME: "Daily Testify Uber Super Expert"
+          GH_AW_SKIP_MAX_MATCHES: "1"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_skip_if_match.cjs');
+            await main();
+
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/testify-expert
+          MAX_FILE_SIZE: 51200
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "memory/testify-expert/*.json memory/testify-expert/*.txt"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
+            await main();
+
   safe_outputs:
     needs:
       - agent
@@ -1676,13 +1738,13 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
+      issues: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_TRACKER_ID: "weekly-issue-summary"
-      GH_AW_WORKFLOW_ID: "weekly-issue-summary"
-      GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
+      GH_AW_TRACKER_ID: "daily-testify-uber-super-expert"
+      GH_AW_WORKFLOW_ID: "daily-testify-uber-super-expert"
+      GH_AW_WORKFLOW_NAME: "Daily Testify Uber Super Expert"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1708,128 +1770,41 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: read
+          permission-issues: write
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"Audits\",\"close_older_discussions\":true,\"expires\":168,\"max\":1,\"title_prefix\":\"[Weekly Summary] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"testing\",\"code-quality\",\"automated-analysis\"],\"max\":1,\"title_prefix\":\"[testify-expert] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-
-  upload_assets:
-    needs:
-      - agent
-      - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
-      published_count: ${{ steps.upload_assets.outputs.published_count }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
+      - name: Invalidate GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
         env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
+          TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download assets
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-      - name: List downloaded asset files
-        continue-on-error: true
-        run: |
-          echo "Downloaded asset files:"
-          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Upload Assets to Orphaned Branch
-        id: upload_assets
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
-          GH_AW_ENGINE_ID: "copilot"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/upload_assets.cjs');
-            await main();
+          echo "Revoking GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 
