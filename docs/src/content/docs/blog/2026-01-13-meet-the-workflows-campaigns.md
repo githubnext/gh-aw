@@ -27,8 +27,7 @@ But here's the ultimate challenge: how do you coordinate *multiple* agents worki
 
 These agents manage structured improvement campaigns:
 
-- **[Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md?plain=1)** - Creates and coordinates multi-step campaigns  
-  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20campaign-generator%22&type=issues)
+- **[Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md?plain=1)** - Creates and coordinates multi-step campaigns
 - **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md?plain=1)** - Monitors and maintains workflow health  
   [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20workflow-health-manager%22&type=issues)
 

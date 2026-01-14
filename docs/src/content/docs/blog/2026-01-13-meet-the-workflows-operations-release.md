@@ -27,8 +27,7 @@ Now comes the moment of truth: actually shipping software to users. All the qual
 
 The agents that help us actually ship software:
 
-- **[Release](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/release.md?plain=1)** - Orchestrates builds, tests, and release note generation  
-  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20release%22&type=issues)
+- **[Release](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/release.md?plain=1)** - Orchestrates builds, tests, and release note generation
 - **[Daily Workflow Updater](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps actions and dependencies current (because dependency updates never stop)  
   [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22tracker-id%3A%20daily-workflow-updater%22&type=issues)
 
