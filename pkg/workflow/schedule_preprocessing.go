@@ -55,6 +55,11 @@ func (c *Compiler) normalizeScheduleString(scheduleStr string, itemIndex int) (p
 		seed := c.workflowIdentifier
 		if c.repositorySlug != "" {
 			seed = c.repositorySlug + "/" + c.workflowIdentifier
+		} else {
+			// Warn if repository slug is not available - scattering will not be org-aware
+			schedulePreprocessingLog.Printf("Warning: repository slug not available for fuzzy schedule scattering")
+			c.IncrementWarningCount()
+			c.addScheduleWarning("Fuzzy schedule scattering without repository context. Workflows with the same name in different repositories may collide. Ensure you are in a git repository with a configured remote.")
 		}
 		scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
 		if err != nil {

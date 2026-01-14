@@ -1178,3 +1178,59 @@ func TestFuzzyScheduleScatteringAcrossOrganization(t *testing.T) {
 		t.Errorf("Too many schedule collisions within same org: %d collisions among 3 repos", sameOrg)
 	}
 }
+
+// TestFuzzyScheduleScatteringWarningWithoutRepoSlug verifies that a warning is shown
+// when fuzzy schedule scattering occurs without repository slug
+func TestFuzzyScheduleScatteringWarningWithoutRepoSlug(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"schedule": []any{
+				map[string]any{
+					"cron": "daily",
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetWorkflowIdentifier("test-workflow.md")
+	// Explicitly NOT setting repository slug
+
+	// Get initial warning count
+	initialWarnings := compiler.GetWarningCount()
+
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify schedule was still scattered
+	onMap := frontmatter["on"].(map[string]any)
+	scheduleArray := onMap["schedule"].([]any)
+	firstSchedule := scheduleArray[0].(map[string]any)
+	actualCron := firstSchedule["cron"].(string)
+
+	if strings.HasPrefix(actualCron, "FUZZY:") {
+		t.Errorf("expected scattered schedule, got fuzzy: %s", actualCron)
+	}
+
+	// Verify warning was added
+	finalWarnings := compiler.GetWarningCount()
+	if finalWarnings <= initialWarnings {
+		t.Errorf("expected warning count to increase, got initial=%d, final=%d", initialWarnings, finalWarnings)
+	}
+
+	// Verify warning message was added
+	warnings := compiler.GetScheduleWarnings()
+	foundWarning := false
+	for _, warning := range warnings {
+		if strings.Contains(warning, "repository context") && strings.Contains(warning, "Fuzzy schedule scattering") {
+			foundWarning = true
+			break
+		}
+	}
+
+	if !foundWarning {
+		t.Errorf("expected warning about missing repository context, got warnings: %v", warnings)
+	}
+}
