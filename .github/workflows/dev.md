@@ -8,11 +8,6 @@ on:
         type: string
 name: Dev
 description: Test assign-to-agent safe output feature
-timeout-minutes: 5
-strict: false
-sandbox: false
-engine: copilot
-
 permissions:
   contents: read
   issues: read
@@ -21,17 +16,18 @@ permissions:
 # NOTE: Assigning agents requires:
 # 1. A fine-grained Personal Access Token (PAT) with write access for:
 #    - actions, contents, issues, pull-requests
-#    - Store as GH_AW_AGENT_TOKEN repository secret
+#    - Store as PLAYGROUND_AGENT_TOKEN repository secret
 # 2. The github-token configured below provides write access via the PAT
 # 3. Repository Settings > Actions > General > Workflow permissions:
 #    Must be set to "Read and write permissions"
 
-github-token: ${{ secrets.GH_AW_AGENT_TOKEN2 }}
-
 safe-outputs:
+  github-token: ${{ secrets.PLAYGROUND_AGENT_TOKEN }}
   assign-to-agent:
     max: 1
     name: copilot
+
+timeout-minutes: 5
 ---
 
 # Assign Agent Test Workflow
