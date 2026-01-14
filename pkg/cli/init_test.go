@@ -314,4 +314,9 @@ func TestInitRepository_Campaign(t *testing.T) {
 	if !strings.Contains(workflowStr, "{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}") {
 		t.Errorf("Expected campaign-generator to import campaign_creation_instructions.md")
 	}
+	
+	// Verify it imports campaign-generator-instructions from .github/aw (not inline)
+	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/campaign-generator-instructions.md}}") {
+		t.Errorf("Expected campaign-generator to import campaign-generator-instructions.md from .github/aw/")
+	}
 }

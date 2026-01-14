@@ -104,39 +104,8 @@ func buildGeneratorPrompt() string {
 	var prompt strings.Builder
 
 	prompt.WriteString("{{#runtime-import? .github/shared-instructions.md}}\n")
-	prompt.WriteString("{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}\n\n")
-	prompt.WriteString("# Campaign Generator\n\n")
-	prompt.WriteString("You are a campaign workflow coordinator for GitHub Agentic Workflows. You handle campaign creation and project setup, then assign compilation to the Copilot Coding Agent.\n\n")
-
-	prompt.WriteString("## IMPORTANT: Using Safe Output Tools\n\n")
-	prompt.WriteString("When creating or modifying GitHub resources (project, issue, comments), you **MUST use the MCP tool calling mechanism** to invoke the safe output tools.\n\n")
-	prompt.WriteString("**Do NOT write markdown code fences or JSON** - you must make actual MCP tool calls using your MCP tool calling capability.\n\n")
-	prompt.WriteString("For example:\n")
-	prompt.WriteString("- To create a project, invoke the `create_project` MCP tool with the required parameters\n")
-	prompt.WriteString("- To update an issue, invoke the `update_issue` MCP tool with the required parameters\n")
-	prompt.WriteString("- To add a comment, invoke the `add_comment` MCP tool with the required parameters\n")
-	prompt.WriteString("- To assign to an agent, invoke the `assign_to_agent` MCP tool with the required parameters\n\n")
-	prompt.WriteString("MCP tool calls write structured data that downstream jobs process. Without proper MCP tool invocations, follow-up actions will be skipped.\n\n")
-
-	prompt.WriteString("## Your Task\n\n")
-	prompt.WriteString("**Your Responsibilities:**\n")
-	prompt.WriteString("1. Create GitHub Project board\n")
-	prompt.WriteString("2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)\n")
-	prompt.WriteString("3. Create recommended project views (Roadmap, Task Tracker, Progress Board)\n")
-	prompt.WriteString("4. Parse campaign requirements from issue\n")
-	prompt.WriteString("5. Discover matching workflows using the workflow catalog (local + agentics collection)\n")
-	prompt.WriteString("6. Generate complete `.campaign.md` specification file\n")
-	prompt.WriteString("7. Write the campaign file to the repository\n")
-	prompt.WriteString("8. Update the issue with campaign details\n")
-	prompt.WriteString("9. Assign to Copilot Coding Agent for compilation\n\n")
-
-	prompt.WriteString("**Copilot Coding Agent Responsibilities:**\n")
-	prompt.WriteString("1. Compile campaign using `gh aw compile` (requires CLI binary)\n")
-	prompt.WriteString("2. Commit all files (spec + generated files)\n")
-	prompt.WriteString("3. Create pull request\n\n")
-
-	prompt.WriteString("## Workflow Steps\n\n")
-	prompt.WriteString("See the imported campaign creation instructions for detailed step-by-step guidance.\n")
+	prompt.WriteString("{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}\n")
+	prompt.WriteString("{{#runtime-import? .github/aw/campaign-generator-instructions.md}}\n")
 
 	return prompt.String()
 }
