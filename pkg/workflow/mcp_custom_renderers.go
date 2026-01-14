@@ -1,12 +1,12 @@
 package workflow
 
 import (
-"fmt"
-"sort"
-"strings"
+	"fmt"
+	"sort"
+	"strings"
 
-"github.com/githubnext/gh-aw/pkg/console"
-"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var mcpCustomLog = logger.New("workflow:mcp-custom")

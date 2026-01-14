@@ -924,16 +924,12 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "stdio",
-                "container": "node:lts-alpine",
-                "entrypoint": "node",
-                "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
-                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
+                "type": "local",
+                "command": "node",
+                "args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
+                "tools": ["*"],
                 "env": {
-                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
-                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",

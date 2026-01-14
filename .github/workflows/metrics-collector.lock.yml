@@ -208,9 +208,10 @@ jobs:
           {
             "mcpServers": {
               "agentic_workflows": {
-                "type": "stdio",
+                "type": "local",
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
+                "tools": ["*"],
                 "env": {
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
                 }
