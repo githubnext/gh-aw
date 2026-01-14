@@ -154,8 +154,7 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)
-	if config.TargetRepoSlug == "*" {
-		addCommentLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+	if validateTargetRepoSlug(config.TargetRepoSlug, addCommentLog) {
 		return nil // Invalid configuration, return nil to cause validation error
 	}
 

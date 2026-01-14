@@ -64,8 +64,7 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)
-	if config.TargetRepoSlug == "*" {
-		discussionLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+	if validateTargetRepoSlug(config.TargetRepoSlug, discussionLog) {
 		return nil // Invalid configuration, return nil to cause validation error
 	}
 

@@ -196,8 +196,7 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)
-	if config.TargetRepoSlug == "*" {
-		createPRLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+	if validateTargetRepoSlug(config.TargetRepoSlug, createPRLog) {
 		return nil // Invalid configuration, return nil to cause validation error
 	}
 
