@@ -446,7 +446,7 @@ jobs:
                 "url": "https://api.githubcopilot.com/mcp/",
                 "headers": {
                   "Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN",
-                  "X-MCP-Lockdown": "$([ "$GITHUB_MCP_LOCKDOWN" = "1" ] && echo true || echo false)",
+                  "X-MCP-Lockdown": "$([ \"$GITHUB_MCP_LOCKDOWN\" = \"1\" ] && echo true || echo false)",
                   "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "all"
                 }
@@ -473,7 +473,7 @@ jobs:
               }
             },
             "gateway": {
-              "port": $MCP_GATEWAY_PORT,
+              "port": "${MCP_GATEWAY_PORT}",
               "domain": "${MCP_GATEWAY_DOMAIN}",
               "apiKey": "${MCP_GATEWAY_API_KEY}"
             }

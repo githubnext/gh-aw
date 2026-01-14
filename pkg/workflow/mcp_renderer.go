@@ -669,7 +669,8 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	if options.LockdownFromStep {
 		// Security: Use environment variable instead of template expression to prevent template injection
 		// The GITHUB_MCP_LOCKDOWN env var contains "1" or "0", convert to "true" or "false" for header
-		headers["X-MCP-Lockdown"] = "$([ \"$GITHUB_MCP_LOCKDOWN\" = \"1\" ] && echo true || echo false)"
+		// Use double backslash (\\") for quotes so they survive bash here-document processing and remain as \" in JSON
+		headers["X-MCP-Lockdown"] = "$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)"
 	} else if options.Lockdown {
 		// Use explicit lockdown value from configuration
 		headers["X-MCP-Lockdown"] = "true"
@@ -779,8 +780,9 @@ func RenderJSONMCPConfig(
 		// Add gateway section (needed for gateway to process)
 		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
 		configBuilder.WriteString("            \"gateway\": {\n")
-		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
-		fmt.Fprintf(&configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
+		// Port as variable expression string - conforms to JSON schema pattern: ^\\$\\{[A-Z_][A-Z0-9_]*\\}$
+		// The shell expansion happens in the here-document, but for schema validation we need valid JSON
+		fmt.Fprintf(&configBuilder, "              \"port\": \"${MCP_GATEWAY_PORT}\",\n")
 		fmt.Fprintf(&configBuilder, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
 		fmt.Fprintf(&configBuilder, "              \"apiKey\": \"%s\"\n", options.GatewayConfig.APIKey)
 		configBuilder.WriteString("            }\n")
@@ -840,26 +842,67 @@ func prepareConfigForValidation(config string) string {
 	}
 	cleaned := strings.Join(cleanedLines, "\n")
 
-	// Substitute shell variables with sample values for validation
-	// $MCP_GATEWAY_PORT -> 8080 (example port)
-	// ${MCP_GATEWAY_DOMAIN} -> "localhost" (example domain)
-	// ${MCP_GATEWAY_API_KEY} -> "sample-api-key" (example key)
-	// $GITHUB_MCP_SERVER_TOKEN -> "sample-token" (example token)
-	// $GITHUB_MCP_LOCKDOWN -> "1" (example lockdown value)
-	// \${...} (escaped for Copilot) -> ${...} (unescaped for validation)
+	// First, handle ALL Copilot-style escaped variables: \${VARIABLE} -> ${VARIABLE}
+	// This converts invalid JSON escape sequences to valid variable expressions
+	// The backslash escape is needed for shell processing but not for JSON validation
+	// We need to handle ALL occurrences, not just specific variable names
+	cleaned = strings.ReplaceAll(cleaned, "\\${", "${")
 
-	cleaned = strings.ReplaceAll(cleaned, "$MCP_GATEWAY_PORT", "8080")
+	// Substitute shell variables with sample values for validation
+	// "${MCP_GATEWAY_PORT}" -> 8080 (as integer, per schema)
+	// "${MCP_GATEWAY_DOMAIN}" -> "localhost" (as string)
+	// "${MCP_GATEWAY_API_KEY}" -> "sample-api-key" (as string)
+	// "${GITHUB_MCP_SERVER_TOKEN}" -> "sample-token" (as string)
+	// "${GITHUB_PERSONAL_ACCESS_TOKEN}" -> "sample-token" (as string)
+	// "${GITHUB_TOKEN}" -> "sample-token" (as string)
+	// All other ${...} -> "sample-value" (generic fallback)
+	// "$GITHUB_MCP_LOCKDOWN" -> "1" (as string, for legacy format)
+	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_PORT}\"", "8080")
 	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_DOMAIN}\"", "\"localhost\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_API_KEY}\"", "\"sample-api-key\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_MCP_SERVER_TOKEN}\"", "\"sample-token\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_PERSONAL_ACCESS_TOKEN}\"", "\"sample-token\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_TOKEN}\"", "\"sample-token\"")
+	
+	// Generic replacement for any remaining ${...} patterns
+	// This handles safe-outputs variables and other dynamic env vars
+	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_MCP_LOG_DIR}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_SAFE_OUTPUTS}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_ASSETS_BRANCH}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_ASSETS_MAX_SIZE_KB}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GH_AW_ASSETS_ALLOWED_EXTS}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_REPOSITORY}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_SERVER_URL}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_SHA}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${GITHUB_WORKSPACE}\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"${DEFAULT_BRANCH}\"", "\"sample-value\"")
+	
+	// Legacy shell variable format (without braces) - used by non-Copilot engines
+	// These need to be replaced with sample values for validation
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_LOCKDOWN\"", "\"1\"")
-
-	// Handle Copilot-style escaped variables: \${VARIABLE} -> sample-value
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_PERSONAL_ACCESS_TOKEN}", "sample-token")
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_MCP_SERVER_TOKEN}", "sample-token")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_MCP_LOG_DIR\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_SAFE_OUTPUTS\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_SAFE_OUTPUTS_CONFIG_PATH\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_SAFE_OUTPUTS_TOOLS_PATH\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_ASSETS_BRANCH\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_ASSETS_MAX_SIZE_KB\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_ASSETS_ALLOWED_EXTS\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_REPOSITORY\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_SERVER_URL\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_SHA\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_WORKSPACE\"", "\"sample-value\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$DEFAULT_BRANCH\"", "\"sample-value\"")
+	
+	// Safe inputs port variable in URLs (not quoted, part of URL string)
+	cleaned = strings.ReplaceAll(cleaned, "$GH_AW_SAFE_INPUTS_PORT", "8081")
 
 	// Handle shell command substitutions: $([ "$VAR" = "1" ] && echo true || echo false) -> true
+	// Two formats: with escaped quotes (Copilot) and without (Claude/others)
 	cleaned = strings.ReplaceAll(cleaned, "\"$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)\"", "\"true\"")
+	cleaned = strings.ReplaceAll(cleaned, "\"$([ \"$GITHUB_MCP_LOCKDOWN\" = \"1\" ] && echo true || echo false)\"", "true")
 
 	return cleaned
 }

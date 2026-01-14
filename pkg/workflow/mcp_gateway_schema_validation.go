@@ -100,10 +100,16 @@ func ValidateMCPGatewayConfig(configJSON string) string {
 	mcpGatewaySchemaValidationLog.Print("Validating MCP gateway configuration against schema")
 
 	// Parse JSON configuration
-	var configData any
+	var configData map[string]any
 	if err := json.Unmarshal([]byte(configJSON), &configData); err != nil {
 		return fmt.Sprintf("Generated MCP gateway configuration is not valid JSON: %v", err)
 	}
+
+	// Filter out non-gateway-compliant servers before validation
+	// The MCP Gateway schema only supports containerized stdio servers and HTTP servers
+	// Servers using the "command" field (like agentic_workflows) are handled separately
+	// and should not be validated against the gateway schema
+	filteredConfig := filterGatewayCompliantServers(configData)
 
 	// Get compiled schema (cached after first call)
 	schema, err := getCompiledMCPGatewaySchema()
@@ -111,8 +117,8 @@ func ValidateMCPGatewayConfig(configJSON string) string {
 		return fmt.Sprintf("Failed to load MCP Gateway configuration schema: %v", err)
 	}
 
-	// Validate the configuration against the schema
-	if err := schema.Validate(configData); err != nil {
+	// Validate the filtered configuration against the schema
+	if err := schema.Validate(filteredConfig); err != nil {
 		// Format validation error with details
 		if ve, ok := err.(*jsonschema.ValidationError); ok {
 			var errMsg strings.Builder
@@ -125,6 +131,53 @@ func ValidateMCPGatewayConfig(configJSON string) string {
 
 	mcpGatewaySchemaValidationLog.Print("MCP gateway configuration is valid")
 	return ""
+}
+
+// filterGatewayCompliantServers filters the MCP configuration to only include servers
+// that conform to the MCP Gateway schema (containerized stdio or HTTP servers).
+// Servers using the "command" field are filtered out as they're handled separately.
+func filterGatewayCompliantServers(config map[string]any) map[string]any {
+	// Create a copy of the configuration
+	filtered := make(map[string]any)
+	for k, v := range config {
+		filtered[k] = v
+	}
+
+	// Get the mcpServers map
+	mcpServers, ok := config["mcpServers"].(map[string]any)
+	if !ok {
+		// If mcpServers is not present or not a map, return as-is
+		return filtered
+	}
+
+	// Filter servers to only include gateway-compliant ones
+	filteredServers := make(map[string]any)
+	for serverName, serverConfig := range mcpServers {
+		serverMap, ok := serverConfig.(map[string]any)
+		if !ok {
+			// If server config is not a map, skip it
+			continue
+		}
+
+		// Check if this server uses the "command" field (non-gateway format)
+		if _, hasCommand := serverMap["command"]; hasCommand {
+			mcpGatewaySchemaValidationLog.Printf("Skipping validation for server '%s' (uses 'command' field, not gateway-compliant)", serverName)
+			continue
+		}
+
+		// Include gateway-compliant servers (those with "container" or "url" fields)
+		if _, hasContainer := serverMap["container"]; hasContainer {
+			filteredServers[serverName] = serverConfig
+		} else if serverType, ok := serverMap["type"].(string); ok && serverType == "http" {
+			if _, hasURL := serverMap["url"]; hasURL {
+				filteredServers[serverName] = serverConfig
+			}
+		}
+	}
+
+	// Update the filtered configuration with only gateway-compliant servers
+	filtered["mcpServers"] = filteredServers
+	return filtered
 }
 
 // formatMCPGatewayValidationError formats a jsonschema validation error into a readable message
