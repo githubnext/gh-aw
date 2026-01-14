@@ -9,14 +9,14 @@ Campaigns are defined as Markdown files under `.github/workflows/` with a `.camp
 
 In GitHub Agentic Workflows, a campaign is not "a special kind of workflow." The `.campaign.md` file is a specification: a reviewable contract that wires together agentic workflows around a shared initiative.
 
-**Conceptual understanding:**
-- **Passive campaigns** (default): Enhanced [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) with campaign structure—automated project board management plus objectives, KPIs, and governance
-- **Active campaigns** (`execute-workflows: true`): True orchestration—actively executes workflows, creates missing ones, and drives progress autonomously
+**Two operational modes:**
+- **ProjectOps pattern** (default): A [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) pattern with campaign structure—automated project board management plus objectives, KPIs, and governance
+- **Campaign orchestration** (`execute-workflows: true`): True campaign mode—actively executes workflows, creates missing ones, and drives progress autonomously
 
 In a typical setup:
 
 - Worker workflows do the work. They run an agent and use safe-outputs (for example `create_pull_request`, `add_comment`, or `update_issues`) for write operations.
-- A generated orchestrator workflow keeps the campaign coherent over time. In passive mode, it discovers and tracks work (ProjectOps). In active mode, it also executes workflows and drives progress.
+- A generated orchestrator workflow keeps the campaign coherent over time. With the ProjectOps pattern, it discovers and tracks work. In orchestration mode, it also executes workflows and drives progress.
 - Repo-memory (optional) makes the campaign repeatable. It lets you store a cursor checkpoint and append-only metrics snapshots so each run can pick up where the last one left off.
 - GitHub Project dashboard serves as the canonical source of membership and progress tracking.
 
@@ -66,7 +66,7 @@ owners:
 - `objective`: a single sentence describing what “done” means.
 - `kpis`: the measures you use to report progress. Use `priority: primary` to mark exactly one KPI as the primary measure (not `primary: true`).
 - `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`).
-- `execute-workflows` (optional): Set to `true` to enable active workflow execution. When enabled, the orchestrator will run workflows directly, create missing workflows if needed, and use outputs to drive progress. Default: `false` (passive coordination mode, which is essentially ProjectOps with campaign tracking). This is the key distinction between passive campaigns (enhanced ProjectOps) and active campaigns (true orchestration).
+- `execute-workflows` (optional): Set to `true` to enable campaign orchestration. When enabled, the orchestrator will run workflows directly, create missing workflows if needed, and use outputs to drive progress. Default: `false` (ProjectOps pattern with campaign tracking). This is the key distinction between the ProjectOps pattern (tracking only) and campaign orchestration (autonomous execution).
 
 ## KPIs (recommended shape)
 

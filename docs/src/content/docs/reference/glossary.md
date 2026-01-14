@@ -265,63 +265,47 @@ AI-powered GitHub Projects board management that automates issue triage, routing
 - Multi-issue coordination with tracking labels
 - Works with both user-owned and organization-owned Projects v2
 
-**When to use:** Event-driven workflows (issue opened, PR created) that need to categorize and track work on project boards.
+**Common patterns:**
 
-See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for implementation details.
-
-### Passive Campaign
-
-A campaign operating in passive coordination mode (default), which is essentially **ProjectOps with campaign structure and KPI tracking**. The orchestrator discovers and tracks work created by independent workflows without actively executing them. Worker workflows run on their own schedules and create issues/PRs; the orchestrator tracks them on the project board and reports progress toward campaign objectives.
-
-**Key characteristics:**
-- Discovery-based coordination (doesn't execute workflows)
-- Project board synchronization and updates
-- Progress reporting with KPI tracking
-- Governance controls (rate limits, opt-out labels)
-- Repo-memory for cursor persistence and metrics
-
-**Conceptual positioning:** Passive campaigns add campaign structure (objectives, KPIs, governance) to ProjectOps patterns, making them suitable for tracked initiatives without active workflow execution.
-
-**When to use:** When you want campaign tracking and reporting but workflows should remain independently scheduled.
+1. **Event-driven triage** - Automatically categorize new issues/PRs and route to appropriate project boards
+2. **Campaign tracking pattern** - Use `.campaign.md` files (without `execute-workflows: true`) to add structure (objectives, KPIs, governance) to ProjectOps workflows. The orchestrator discovers and tracks work created by independent workflows, reporting progress toward campaign objectives. This provides campaign-style tracking without active workflow execution.
 
 ```yaml
-# Passive mode (default - no execute-workflows flag)
+# Campaign tracking pattern - ProjectOps with structure
 id: framework-upgrade
 project-url: "https://github.com/orgs/ORG/projects/1"
 tracker-label: "campaign:framework-upgrade"
+objective: "Upgrade all services to Framework vNext"
+kpis:
+  - name: "Services upgraded"
+    target: 50
 workflows: [framework-upgrade]  # Discovered, not executed
+# Note: No execute-workflows flag = ProjectOps pattern
 ```
 
-### Active Campaign
+**When to use:** Event-driven workflows (issue opened, PR created) that need to categorize and track work on project boards, or when you want campaign-style tracking without active workflow execution.
 
-A campaign with `execute-workflows: true` that actively runs workflows, creates missing ones, and drives progress toward objectives. The orchestrator takes control of workflow execution, making the campaign self-sufficient and actively managed rather than just tracking independent work.
+See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for implementation details.
 
-**Key characteristics:**
-- Workflow execution orchestration
-- Automated workflow creation and testing
-- Output-driven coordination between workflows
-- Full campaign lifecycle management
-- Active progress monitoring and intervention
+### Agentic campaign
 
-**Conceptual positioning:** Active campaigns represent true "campaign orchestration" where the campaign drives work execution, not just tracks it. This is the distinguishing feature that separates full campaigns from enhanced ProjectOps patterns.
+A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Agentic campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking.
 
-**When to use:** When the campaign should actively manage and execute workflows to drive progress, create missing components, and coordinate complex multi-workflow initiatives.
+**Two operational modes:**
+
+1. **ProjectOps pattern** (default, no `execute-workflows` flag) - Campaign tracking without workflow execution. The orchestrator discovers and tracks work created by independent workflows. This is a ProjectOps pattern with campaign structure (objectives, KPIs, governance).
+
+2. **Campaign orchestration** (`execute-workflows: true`) - True campaign mode that actively executes workflows, creates missing ones, and drives progress autonomously.
 
 ```yaml
-# Active mode - true campaign orchestration
+# Campaign orchestration mode
 id: framework-upgrade
-execute-workflows: true  # Key differentiator
+execute-workflows: true  # Enables true campaign orchestration
 project-url: "https://github.com/orgs/ORG/projects/1"
 workflows:
   - framework-scanner   # Will be created if missing
   - framework-upgrader  # Will be created if missing
 ```
-
-**Progression path:** Start with ProjectOps for simple tracking → Passive Campaign for structured initiatives → Active Campaign for autonomous execution.
-
-### Agentic campaign
-
-A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Agentic campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking. Campaigns can operate in either passive mode (ProjectOps-based tracking) or active mode (workflow execution orchestration).
 
 **Key characteristics:**
 
@@ -332,7 +316,6 @@ A finite, enterprise-scale initiative with explicit ownership, approval gates, a
 - Stateful execution using repo-memory for audit trails
 - Cross-team and cross-repository coordination
 - Executive dashboards and KPI reporting
-- Two modes: passive coordination or active execution
 
 **File naming:** Use `.campaign.md` extension (e.g., `<campaign-id>.campaign.md`)
 
