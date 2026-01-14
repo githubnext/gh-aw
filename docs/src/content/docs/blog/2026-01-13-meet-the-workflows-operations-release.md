@@ -26,9 +26,9 @@ Now comes the moment of truth: actually shipping software to users. All the qual
 The agents that help us actually ship software:
 
 - **[Release](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/release.md?plain=1)** - Orchestrates builds, tests, and release note generation  
-  [→ View releases](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+is%3Arelease&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20release%22&type=issues)
 - **[Daily Workflow Updater](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps actions and dependencies current (because dependency updates never stop)  
-  [→ View dependency updates](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bactions%5D%22+label%3Adependencies+is%3Aissue&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22tracker-id%3A%20daily-workflow-updater%22&type=issues)
 
 Shipping software is stressful enough without worrying about whether you formatted your release notes correctly. The Release workflow handles the entire orchestration - building, testing, generating coherent release notes from commits, and publishing. What's interesting here is the **reliability** requirement: these workflows can't afford to be creative or experimental. They need to be deterministic, well-tested, and boring (in a good way).
 

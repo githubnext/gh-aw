@@ -26,11 +26,11 @@ Now let's shift from *reacting* to activity to *maintaining* quality. While tria
 These are our diligent caretakers - the agents that spot problems before they become, well, bigger problems:
 
 - **[CI Doctor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/ci-doctor.md?plain=1)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)  
-  [→ View CI diagnoses](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5BCI+Failure+Doctor%5D%22+is%3Aissue&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20ci-doctor%22&type=issues)
 - **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/schema-consistency-checker.md?plain=1)** - Detects when schemas, code, and docs drift apart  
-  [→ View consistency reports](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5BSchema+Consistency%5D%22+is%3Aissue&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20schema-consistency-checker%22&type=issues)
 - **[Breaking Change Checker](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/breaking-change-checker.md?plain=1)** - Watches for changes that might break things for users  
-  [→ View breaking change alerts](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bbreaking-change%5D%22+label%3Abreaking-change+is%3Aissue&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22tracker-id%3A%20breaking-change-checker%22&type=issues)
 
 The CI Doctor was a revelation. Instead of drowning in CI failure notifications, we now get *timely*, *investigated* failures with actual diagnostic insights. The agent doesn't just tell us something broke - it analyzes logs, identifies patterns, searches for similar past issues, and even suggests fixes. We learned that agents excel at the tedious investigation work that humans find draining.
 

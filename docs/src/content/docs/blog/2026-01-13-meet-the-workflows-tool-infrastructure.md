@@ -26,11 +26,11 @@ But here's a question that kept us up at night: what if the *infrastructure itse
 These agents monitor and analyze the agentic infrastructure itself:
 
 - **[MCP Inspector](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/mcp-inspector.md?plain=1)** - Validates Model Context Protocol configurations  
-  [→ View MCP inspections](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+mcp+inspector+is%3Aissue&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20mcp-inspector%22&type=issues)
 - **[GitHub MCP Tools Report](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/github-mcp-tools-report.md?plain=1)** - Analyzes available MCP tools  
-  [→ View MCP tools reports](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+in%3Atitle+%22%5Bmcp-tools%5D%22+is%3Aissue&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20github-mcp-tools-report%22&type=issues)
 - **[Agent Performance Analyzer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/agent-performance-analyzer.md?plain=1)** - Meta-orchestrator for agent quality  
-  [→ View performance analysis](https://github.com/search?q=repo%3Agithubnext%2Fgh-aw+agent+performance+is%3Aissue&type=issues)
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20agent-performance-analyzer%22&type=issues)
 
 Infrastructure for AI agents is different from traditional infrastructure - you need to validate that tools are available, properly configured, and actually working. The MCP Inspector checks Model Context Protocol server configurations because a misconfigured MCP server means an agent can't access the tools it needs. The Agent Performance Analyzer is a meta-orchestrator that monitors all our other agents - looking for performance degradation, cost spikes, and quality issues. We learned that **layered observability** is crucial: you need monitoring at the infrastructure level (are servers up?), the tool level (can agents access what they need?), and the agent level (are they performing well?).
 
