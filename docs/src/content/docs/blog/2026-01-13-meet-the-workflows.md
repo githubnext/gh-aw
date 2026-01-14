@@ -27,9 +27,12 @@ Think of this as your guided tour through our agent "factory". We're showcasing 
 
 First up: the agents that help us stay sane when things get busy. These workflows keep us on top of the constant flow of activity:
 
-- **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-triage-agent.md?plain=1)** - Automatically labels and categorizes new issues the moment they're opened
-- **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/weekly-issue-summary.md?plain=1)** - Creates digestible summaries complete with charts and trends (because who has time to read everything?)
-- **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-repo-chronicle.md?plain=1)** - Narrates the day's activity like a storyteller - seriously, it's kind of delightful
+- **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-triage-agent.md?plain=1)** - Automatically labels and categorizes new issues the moment they're opened  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20issue-triage-agent%22&type=issues)
+- **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/weekly-issue-summary.md?plain=1)** - Creates digestible summaries complete with charts and trends (because who has time to read everything?)  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20weekly-issue-summary%22&type=issues)
+- **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-repo-chronicle.md?plain=1)** - Narrates the day's activity like a storyteller - seriously, it's kind of delightful  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22tracker-id%3A%20daily-repo-chronicle%22&type=issues)
 
 What surprised us most about this category? The **tone** matters way more than we expected. When the Daily Repo Chronicle started writing summaries in a narrative, almost journalistic style, people actually *wanted* to read them. We discovered that AI agents don't have to be robotic - they can have personality while still being informative. The Issue Triage Agent taught us that even simple automation (just adding labels!) dramatically reduces cognitive load when you're scanning through dozens of issues.
 

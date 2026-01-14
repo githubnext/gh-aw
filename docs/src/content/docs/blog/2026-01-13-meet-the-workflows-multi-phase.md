@@ -27,12 +27,18 @@ Most workflows we've seen so far run once and complete: analyze this PR, triage 
 
 These are some of our most ambitious agents - they tackle big projects over multiple days:
 
-- **[Daily Backlog Burner](https://github.com/githubnext/agentics/blob/main/workflows/daily-backlog-burner.md?plain=1)** - Systematically works through issues and PRs, one day at a time
-- **[Daily Perf Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-perf-improver.md?plain=1)** - Three-phase performance optimization (research, setup, implement)
-- **[Daily Test Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md?plain=1)** - Identifies coverage gaps and implements new tests incrementally
-- **[Daily QA](https://github.com/githubnext/agentics/blob/main/workflows/daily-qa.md?plain=1)** - Continuous quality assurance that never sleeps
-- **[Daily Accessibility Review](https://github.com/githubnext/agentics/blob/main/workflows/daily-accessibility-review.md?plain=1)** - WCAG compliance checking with Playwright
-- **[PR Fix](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md?plain=1)** - On-demand slash command to fix failing CI checks (super handy!)
+- **[Daily Backlog Burner](https://github.com/githubnext/agentics/blob/main/workflows/daily-backlog-burner.md?plain=1)** - Systematically works through issues and PRs, one day at a time  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20daily-backlog-burner%22&type=issues)
+- **[Daily Perf Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-perf-improver.md?plain=1)** - Three-phase performance optimization (research, setup, implement)  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20daily-perf-improver%22&type=issues)
+- **[Daily Test Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md?plain=1)** - Identifies coverage gaps and implements new tests incrementally  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20daily-test-improver%22&type=issues)
+- **[Daily QA](https://github.com/githubnext/agentics/blob/main/workflows/daily-qa.md?plain=1)** - Continuous quality assurance that never sleeps  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20daily-qa%22&type=issues)
+- **[Daily Accessibility Review](https://github.com/githubnext/agentics/blob/main/workflows/daily-accessibility-review.md?plain=1)** - WCAG compliance checking with Playwright  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20daily-accessibility-review%22&type=issues)
+- **[PR Fix](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md?plain=1)** - On-demand slash command to fix failing CI checks (super handy!)  
+  [→ View items](https://github.com/search?q=repo%3Agithubnext/gh-aw%20%22agentic-workflow%3A%20pr-fix%22&type=issues)
 
 This is where we got experimental with agent persistence and multi-day workflows. Traditional CI runs are ephemeral, but these workflows maintain state across days using repo-memory. The Daily Perf Improver runs in three phases - research (find bottlenecks), setup (create profiling infrastructure), implement (optimize). It's like having a performance engineer who works a little bit each day. The Daily Backlog Burner systematically tackles our issue backlog - one issue per day, methodically working through technical debt. We learned that **incremental progress beats heroic sprints** - these agents never get tired, never get distracted, and never need coffee breaks. The PR Fix workflow is our emergency responder - when CI fails, invoke `/pr-fix` and it investigates and attempts repairs.
 
