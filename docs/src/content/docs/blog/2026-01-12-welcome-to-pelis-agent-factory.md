@@ -105,16 +105,11 @@ The workflows in Peli's factory are fully remixable. You can copy them, adapt th
 
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
-- **[Peli's Workflows](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows)** - The main collection of workflows which we use in GitHub Agentic Workflows itself
+- **[Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)** - The 16-part tour of the workflows
 - **[The Agentics Collection](https://github.com/githubnext/agentics)** - Ready-to-install workflows
-- **[The Continuous AI Project](https://githubnext.com/projects/continuous-ai)** - The broader vision
 
 ## Credits
 
 **Peli's Agent Factory** is a research project by GitHub Next, Microsoft Research and collaborators, including Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Russell Horton, Jiaxiao Zhou.
 
 This is part of GitHub Next's exploration of [Continuous AI](https://githubnext.com/projects/continuous-ai) - making AI-enriched automation as routine as CI/CD.
-
----
-
-[Next Article: Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)
