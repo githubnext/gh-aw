@@ -91,6 +91,20 @@ func TestAgenticEngines(t *testing.T) {
 			t.Errorf("AgenticEngines[%d] = %q, want %q", i, AgenticEngines[i], engine)
 		}
 	}
+
+	// Verify that engine constants can be converted to strings for AgenticEngines
+	if string(ClaudeEngine) != "claude" {
+		t.Errorf("ClaudeEngine constant = %q, want %q", ClaudeEngine, "claude")
+	}
+	if string(CodexEngine) != "codex" {
+		t.Errorf("CodexEngine constant = %q, want %q", CodexEngine, "codex")
+	}
+	if string(CopilotEngine) != "copilot" {
+		t.Errorf("CopilotEngine constant = %q, want %q", CopilotEngine, "copilot")
+	}
+	if string(CustomEngine) != "custom" {
+		t.Errorf("CustomEngine constant = %q, want %q", CustomEngine, "custom")
+	}
 }
 
 func TestDefaultGitHubTools(t *testing.T) {
@@ -506,6 +520,51 @@ func TestSemanticTypeAliases(t *testing.T) {
 			t.Errorf("CLIExtensionPrefix = %q, want %q", cliPrefix, "gh aw")
 		}
 	})
+
+	// Test WorkflowID type
+	t.Run("WorkflowID type", func(t *testing.T) {
+		var testWorkflow WorkflowID = "ci-doctor"
+		if string(testWorkflow) != "ci-doctor" {
+			t.Errorf("WorkflowID conversion failed: got %q, want %q", testWorkflow, "ci-doctor")
+		}
+
+		// Test that WorkflowID can hold typical workflow identifiers
+		workflows := []WorkflowID{"ci-doctor", "deploy-prod", "test-workflow"}
+		for i, wf := range workflows {
+			if !wf.IsValid() {
+				t.Errorf("WorkflowID[%d] should be valid: %q", i, wf)
+			}
+		}
+	})
+
+	// Test EngineName type
+	t.Run("EngineName type", func(t *testing.T) {
+		var testEngine EngineName = "copilot"
+		if string(testEngine) != "copilot" {
+			t.Errorf("EngineName conversion failed: got %q, want %q", testEngine, "copilot")
+		}
+
+		// Test engine constants have the correct type
+		copilot := CopilotEngine
+		if string(copilot) != "copilot" {
+			t.Errorf("CopilotEngine = %q, want %q", copilot, "copilot")
+		}
+
+		claude := ClaudeEngine
+		if string(claude) != "claude" {
+			t.Errorf("ClaudeEngine = %q, want %q", claude, "claude")
+		}
+
+		codex := CodexEngine
+		if string(codex) != "codex" {
+			t.Errorf("CodexEngine = %q, want %q", codex, "codex")
+		}
+
+		custom := CustomEngine
+		if string(custom) != "custom" {
+			t.Errorf("CustomEngine = %q, want %q", custom, "custom")
+		}
+	})
 }
 
 func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
@@ -667,6 +726,36 @@ func TestHelperMethods(t *testing.T) {
 		emptyPrefix := CommandPrefix("")
 		if emptyPrefix.IsValid() {
 			t.Error("CommandPrefix.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("WorkflowID", func(t *testing.T) {
+		workflow := WorkflowID("ci-doctor")
+		if workflow.String() != "ci-doctor" {
+			t.Errorf("WorkflowID.String() = %q, want %q", workflow.String(), "ci-doctor")
+		}
+		if !workflow.IsValid() {
+			t.Error("WorkflowID.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyWorkflow := WorkflowID("")
+		if emptyWorkflow.IsValid() {
+			t.Error("WorkflowID.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("EngineName", func(t *testing.T) {
+		engine := EngineName("copilot")
+		if engine.String() != "copilot" {
+			t.Errorf("EngineName.String() = %q, want %q", engine.String(), "copilot")
+		}
+		if !engine.IsValid() {
+			t.Error("EngineName.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyEngine := EngineName("")
+		if emptyEngine.IsValid() {
+			t.Error("EngineName.IsValid() = true, want false for empty value")
 		}
 	})
 }

@@ -184,20 +184,21 @@ func TestRenderGitHubMCPDockerConfig_OutputStructure(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify the order of key elements (new format: type -> container -> args -> tools -> env)
-	typeIndex := strings.Index(output, `"type": "local"`)
+	// Verify the order of key elements (format: type -> container -> args -> env)
+	// Note: tools field is NOT included here - converter scripts add it back for Copilot
+	// Note: mounts field is optional and only appears if Mounts is specified
+	typeIndex := strings.Index(output, `"type": "stdio"`)
 	containerIndex := strings.Index(output, `"container": "ghcr.io/github/github-mcp-server:latest"`)
 	argsIndex := strings.Index(output, `"args": [`)
-	toolsIndex := strings.Index(output, `"tools": [`)
 	envIndex := strings.Index(output, `"env": {`)
 
-	if typeIndex == -1 || containerIndex == -1 || argsIndex == -1 || toolsIndex == -1 || envIndex == -1 {
+	if typeIndex == -1 || containerIndex == -1 || argsIndex == -1 || envIndex == -1 {
 		t.Fatalf("Missing required JSON structure elements in output:\n%s", output)
 	}
 
-	// Verify order: type -> container -> args -> tools -> env
-	if typeIndex >= containerIndex || containerIndex >= argsIndex || argsIndex >= toolsIndex || toolsIndex >= envIndex {
-		t.Errorf("JSON elements are not in expected order. Indices: type=%d, container=%d, args=%d, tools=%d, env=%d\nOutput:\n%s",
-			typeIndex, containerIndex, argsIndex, toolsIndex, envIndex, output)
+	// Verify order: type -> container -> args -> env
+	if typeIndex >= containerIndex || containerIndex >= argsIndex || argsIndex >= envIndex {
+		t.Errorf("JSON elements are not in expected order. Indices: type=%d, container=%d, args=%d, env=%d\nOutput:\n%s",
+			typeIndex, containerIndex, argsIndex, envIndex, output)
 	}
 }

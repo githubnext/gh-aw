@@ -136,7 +136,7 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
           cache: true
@@ -229,7 +229,7 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Downloading container images
+      - name: Download container images
         run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.56 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |

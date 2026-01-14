@@ -955,8 +955,25 @@ async function main() {
   if (!result.success) return;
 
   const updateProjectItems = result.items.filter(item => item.type === "update_project");
-  if (updateProjectItems.length === 0) return;
 
+  // Check if views are configured in frontmatter
+  const configuredViews = process.env.GH_AW_PROJECT_VIEWS;
+  let viewsToCreate = [];
+  if (configuredViews) {
+    try {
+      viewsToCreate = JSON.parse(configuredViews);
+      if (Array.isArray(viewsToCreate) && viewsToCreate.length > 0) {
+        core.info(`Found ${viewsToCreate.length} configured view(s) in frontmatter`);
+      }
+    } catch (parseError) {
+      core.warning(`Failed to parse GH_AW_PROJECT_VIEWS: ${getErrorMessage(parseError)}`);
+    }
+  }
+
+  // If no update_project items and no configured views, nothing to do
+  if (updateProjectItems.length === 0 && viewsToCreate.length === 0) return;
+
+  // Process update_project items from agent output
   for (let i = 0; i < updateProjectItems.length; i++) {
     const output = updateProjectItems[i];
     try {
@@ -966,6 +983,47 @@ async function main() {
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
       core.error(`Failed to process item ${i + 1}`);
       logGraphQLError(error, `Processing update_project item ${i + 1}`);
+    }
+  }
+
+  // Create views from frontmatter configuration if any
+  // Views are created after items are processed to ensure the project exists
+  if (viewsToCreate.length > 0) {
+    // Get project URL from the first update_project item or fail if none
+    const projectUrl = updateProjectItems.length > 0 ? updateProjectItems[0].project : null;
+
+    if (!projectUrl) {
+      core.warning("Cannot create configured views: no project URL found in update_project items. Views require at least one update_project operation to determine the target project.");
+      return;
+    }
+
+    core.info(`Creating ${viewsToCreate.length} configured view(s) on project: ${projectUrl}`);
+
+    for (let i = 0; i < viewsToCreate.length; i++) {
+      const viewConfig = viewsToCreate[i];
+      try {
+        // Create a synthetic output item for view creation
+        const viewOutput = {
+          type: "update_project",
+          project: projectUrl,
+          operation: "create_view",
+          view: {
+            name: viewConfig.name,
+            layout: viewConfig.layout,
+            filter: viewConfig.filter,
+            visible_fields: viewConfig.visible_fields,
+            description: viewConfig.description,
+          },
+        };
+
+        await updateProject(viewOutput);
+        core.info(`✓ Created view ${i + 1}/${viewsToCreate.length}: ${viewConfig.name} (${viewConfig.layout})`);
+      } catch (err) {
+        // prettier-ignore
+        const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+        core.error(`Failed to create configured view ${i + 1}: ${viewConfig.name}`);
+        logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
+      }
     }
   }
 }

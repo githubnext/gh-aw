@@ -360,7 +360,7 @@ Test workflow with custom container and version.`,
 
 			// Test 1: Check if docker predownload step contains the correct version
 			if tt.shouldContainInDocker {
-				dockerStep := strings.Contains(yamlStr, "Downloading container images")
+				dockerStep := strings.Contains(yamlStr, "Download container images")
 				assert.True(t, dockerStep, "Should have docker predownload step")
 
 				// Extract container name (handle both default and custom)

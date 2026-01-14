@@ -222,3 +222,53 @@ func TestArgsField(t *testing.T) {
 		}
 	})
 }
+
+// TestMountsFieldExtraction tests the extraction of mounts field from tool configurations
+func TestMountsFieldExtraction(t *testing.T) {
+	// Test GitHub tool mounts extraction
+	t.Run("GitHub mounts field extraction with []any", func(t *testing.T) {
+		githubTool := map[string]any{
+			"mounts": []any{"/data:/data:ro", "/tmp:/tmp:rw"},
+		}
+		result := getGitHubMounts(githubTool)
+		if len(result) != 2 {
+			t.Errorf("Expected 2 mounts, got %d", len(result))
+		}
+		if result[0] != "/data:/data:ro" || result[1] != "/tmp:/tmp:rw" {
+			t.Errorf("Expected [/data:/data:ro /tmp:/tmp:rw], got %v", result)
+		}
+	})
+
+	t.Run("GitHub mounts field extraction with []string", func(t *testing.T) {
+		githubToolString := map[string]any{
+			"mounts": []string{"/opt:/opt:ro"},
+		}
+		result := getGitHubMounts(githubToolString)
+		if len(result) != 1 {
+			t.Errorf("Expected 1 mount, got %d", len(result))
+		}
+		if result[0] != "/opt:/opt:ro" {
+			t.Errorf("Expected [/opt:/opt:ro], got %v", result)
+		}
+	})
+
+	t.Run("GitHub no mounts field - default behavior", func(t *testing.T) {
+		githubToolDefault := map[string]any{
+			"allowed": []any{"create_issue"},
+		}
+		result := getGitHubMounts(githubToolDefault)
+		if result != nil {
+			t.Errorf("Expected nil mounts, got %v", result)
+		}
+	})
+
+	t.Run("GitHub empty mounts array", func(t *testing.T) {
+		githubToolEmpty := map[string]any{
+			"mounts": []string{},
+		}
+		result := getGitHubMounts(githubToolEmpty)
+		if len(result) != 0 {
+			t.Errorf("Expected empty mounts array, got %v", result)
+		}
+	})
+}

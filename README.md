@@ -21,7 +21,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Share Feedback](#share-feedback)
-- [Labs](#labs)
+- [Agent Factory](#agent-factory)
 - [Related Projects](#related-projects)
 
 ## Quick Start
@@ -85,9 +85,9 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
 and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord).
 
-## Labs
+## Agent Factory
 
-See the [Labs](https://githubnext.github.io/gh-aw/labs/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
+See the [Agent Factory](https://githubnext.github.io/gh-aw/agent-factory/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
 
 ## Related Projects
 

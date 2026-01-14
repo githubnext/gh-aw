@@ -6,7 +6,8 @@ sidebar:
 ---
 
 > [!WARNING]
-> GitHub Agentic Workflows is a research demonstrator, and not for production use.
+> Using agentic workflows means giving AI agents the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
+> Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
 Security is foundational -- Agentic Workflows inherits GitHub Actions' sandboxing model, scoped permissions, and auditable execution. The attack surface of agentic automation can be subtle (prompt injection, tool invocation side‑effects, data exfiltration), so we bias toward explicit constraints over implicit trust: least‑privilege tokens, allow‑listed tools, and execution paths that always leave human‑visible artifacts (comments, PRs, logs) instead of silent mutation.
 

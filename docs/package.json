@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "prebuild": "npm run generate-labs && npm run build:slides",
+    "prebuild": "npm run generate-agent-factory && npm run build:slides",
     "fetch-playground-org-owned": "node ./scripts/fetch-playground-org-owned.mjs",
     "fetch-playground-local": "node ./scripts/fetch-playground-local.mjs",
     "fetch-playground-workflows": "node ./scripts/fetch-playground-workflows.mjs",
@@ -15,7 +15,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "validate-links": "astro build",
-    "generate-labs": "cd .. && node scripts/generate-labs.js",
+    "generate-agent-factory": "cd .. && node scripts/generate-agent-factory.js",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug"

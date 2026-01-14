@@ -161,6 +161,97 @@ The `update-project` safe output provides intelligent automation:
 - **Custom field support** - Set status, priority, effort, sprint, team, or any custom fields
 - **Tracking** - Can apply a consistent tracking label when adding new items
 - **Cross-repo support** - Works with organization-level projects spanning multiple repositories
+- **Automatic view creation** - Configure project views directly in workflow frontmatter
+
+## Creating Project Views
+
+Project views can be created automatically by declaring them in the `views` array. Views are created when the workflow runs, after processing update_project items from the agent.
+
+### View Configuration
+
+Views are configured in workflow frontmatter using the `views` property:
+
+```yaml wrap
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    views:
+      - name: "Sprint Board"
+        layout: board
+        filter: "is:issue is:open"
+      - name: "Task Tracker"  
+        layout: table
+        filter: "is:issue,is:pull_request"
+      - name: "Timeline"
+        layout: roadmap
+```
+
+**View properties:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | string | Yes | View name (e.g., "Sprint Board", "Task Tracker") |
+| `layout` | string | Yes | View layout: `table`, `board`, or `roadmap` |
+| `filter` | string | No | Filter query (e.g., `is:issue is:open`, `label:bug`) |
+
+**Layout types:**
+- **`table`** — List view with customizable columns for detailed tracking
+- **`board`** — Kanban-style cards grouped by status or custom field
+- **`roadmap`** — Timeline visualization with date-based swimlanes
+
+**Filter syntax examples:**
+- `is:issue is:open` — Open issues only
+- `is:pull_request` — Pull requests only  
+- `is:issue,is:pull_request` — Both issues and PRs
+- `label:bug` — Items with bug label
+- `assignee:@me` — Items assigned to viewer
+
+### View Creation Examples
+
+**Bug Triage Board:**
+```yaml wrap
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    views:
+      - name: "Triage Board"
+        layout: board
+        filter: "is:issue label:bug"
+      - name: "Bug List"
+        layout: table
+        filter: "is:issue label:bug is:open"
+```
+
+**Feature Planning:**
+```yaml wrap
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    views:
+      - name: "Feature Roadmap"
+        layout: roadmap
+        filter: "is:issue label:enhancement"
+      - name: "Feature Backlog"
+        layout: table
+        filter: "is:issue label:enhancement"
+```
+
+**Sprint Management:**
+```yaml wrap
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    views:
+      - name: "Current Sprint"
+        layout: board
+        filter: "is:issue,is:pull_request is:open"
+      - name: "Sprint Timeline"
+        layout: roadmap
+      - name: "All Items"
+        layout: table
+```
+
+Views are created automatically during workflow execution. The workflow must include at least one `update_project` operation to provide the target project URL.
 
 ## Cross-Repository Considerations
 

@@ -1,6 +1,13 @@
 ---
-# This shared component automatically imports jqschema.md as a dependency.
-# The compiler handles the transitive closure of imports, ensuring correct ordering.
+# This shared component depends on jqschema.md being imported first.
+#
+# NOTE: Due to BFS import ordering, transitive imports are not guaranteed to have their
+# steps executed before the parent import's steps. To ensure correct execution order,
+# import jqschema.md directly in your workflow BEFORE importing this file:
+#
+#   imports:
+#     - shared/jqschema.md  # Must come first
+#     - shared/copilot-session-data-fetch.md
 #
 imports:
   - shared/jqschema.md

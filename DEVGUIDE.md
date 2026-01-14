@@ -82,7 +82,7 @@ make build  # Includes sync-templates and sync-action-pins (~1.5s)
 ```bash
 make agent-finish  # Complete validation (~10-15s)
 ```
-**What it does**: Runs deps-dev, fmt, lint, build, test-all, fix, recompile, dependabot, generate-schema-docs, generate-labs, and security-scan.
+**What it does**: Runs deps-dev, fmt, lint, build, test-all, fix, recompile, dependabot, generate-schema-docs, generate-agent-factory, and security-scan.
 
 **When to use**: Before committing to ensure everything passes CI checks.
 

@@ -6,8 +6,7 @@ sidebar:
 ---
 
 > [!WARNING]
-> **GitHub Agentic Workflows** is a *research demonstrator* in early development and may change significantly.
-> Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
+> Using agentic workflows means giving AI agents the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
 ## Adding a Daily Status Workflow to Your Repo
@@ -56,7 +55,7 @@ This creates a pull request that adds `.github/workflows/daily-team-status.md` a
 
 ### Step 4 — Add an AI secret
 
-[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).
+[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the coding agent (the AI system that executes your instructions).
 
 To allow your workflows to use Copilot, you'll create a token and add it as a repository secret.
 

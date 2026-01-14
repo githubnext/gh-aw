@@ -26,6 +26,16 @@ safe-outputs:
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    views:
+      - name: "Campaign Roadmap"
+        layout: "roadmap"
+        filter: "is:issue,is:pull_request"
+      - name: "Task Tracker"
+        layout: "table"
+        filter: "is:issue,is:pull_request"
+      - name: "Progress Board"
+        layout: "board"
+        filter: "is:issue,is:pull_request"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
     run-started: "🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
@@ -109,7 +119,7 @@ Use the `create-project` safe output to create a new empty project:
 ```javascript
 create_project({
   title: "Campaign: <campaign-name>",
-  owner: "${{ github.owner }}",
+  owner: "${{ github.repository_owner }}",
   item_url: "${{ github.server_url }}/${{ github.repository }}/issues/${{ github.event.issue.number }}"
 })
 ```
@@ -118,7 +128,9 @@ create_project({
 
 ### Step 2.5: Create Project Fields and Views
 
-After creating the project, set up custom fields and views using the `update-project` safe output.
+After creating the project, set up custom fields using the `update-project` safe output.
+
+**Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created from the workflow's frontmatter configuration when the agent makes any `update_project` call. You don't need to create them manually.
 
 #### 2.5.1: Create Custom Fields
 
@@ -156,49 +168,6 @@ update_project({
       options: ["Small (1-3 days)", "Medium (1 week)", "Large (2+ weeks)"]
     }
   ]
-})
-```
-
-#### 2.5.2: Create Views
-
-Create three views for different tracking needs:
-
-1. **Roadmap View** (timeline visualization):
-```javascript
-update_project({
-  project: "<project-url-from-step-2>",
-  operation: "create_view",
-  view: {
-    name: "Campaign Roadmap",
-    layout: "roadmap",
-    filter: "is:issue,is:pull_request"
-  }
-})
-```
-
-2. **Task Table View** (detailed tracking):
-```javascript
-update_project({
-  project: "<project-url-from-step-2>",
-  operation: "create_view",
-  view: {
-    name: "Task Tracker",
-    layout: "table",
-    filter: "is:issue,is:pull_request"
-  }
-})
-```
-
-3. **Board View** (kanban-style progress):
-```javascript
-update_project({
-  project: "<project-url-from-step-2>",
-  operation: "create_view",
-  view: {
-    name: "Progress Board",
-    layout: "board",
-    filter: "is:issue,is:pull_request"
-  }
 })
 ```
 

@@ -23,11 +23,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/jqschema.md
 #     - shared/copilot-session-data-fetch.md
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
 #     - shared/reporting.md
-#     - shared/jqschema.md
 #     - shared/python-dataviz.md
 
 name: "Copilot Session Insights"
@@ -119,13 +119,13 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Setup jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch Copilot session data
         run: "# Create output directories\nmkdir -p /tmp/gh-aw/session-data\nmkdir -p /tmp/gh-aw/session-data/logs\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ]; then\n  echo \"✓ Found cached session data from ${TODAY}\"\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" /tmp/gh-aw/session-data/sessions-list.json\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" /tmp/gh-aw/session-data/sessions-schema.json\n  \n  # Restore cached log files if they exist\n  if [ -d \"$CACHE_DIR/session-logs-${TODAY}\" ]; then\n    echo \"✓ Found cached session logs from ${TODAY}\"\n    cp -r \"$CACHE_DIR/session-logs-${TODAY}\"/* /tmp/gh-aw/session-data/logs/ 2>/dev/null || true\n    echo \"Restored $(find /tmp/gh-aw/session-data/logs -type f | wc -l) session log files from cache\"\n  fi\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total sessions in cache: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nelse\n  echo \"⬇ Downloading fresh session data...\"\n  \n  # Calculate date 30 days ago\n  DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n  # Search for workflow runs from copilot/* branches\n  # This fetches GitHub Copilot agent task runs by searching for workflow runs on copilot/* branches\n  echo \"Fetching Copilot agent workflow runs from the last 30 days...\"\n  \n  # Get workflow runs from copilot/* branches\n  gh api \"repos/${{ github.repository }}/actions/runs\" \\\n    --paginate \\\n    --jq \".workflow_runs[] | select(.head_branch | startswith(\\\"copilot/\\\")) | select(.created_at >= \\\"${DATE_30_DAYS_AGO}\\\") | {id, name, head_branch, created_at, updated_at, status, conclusion, html_url}\" \\\n    | jq -s '.[0:50]' \\\n    > /tmp/gh-aw/session-data/sessions-list.json\n\n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > /tmp/gh-aw/session-data/sessions-schema.json\n\n  # Download logs for each workflow run (limit to first 50)\n  SESSION_COUNT=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\n  echo \"Downloading logs for $SESSION_COUNT sessions...\"\n  \n  jq -r '.[].id' /tmp/gh-aw/session-data/sessions-list.json | while read -r run_id; do\n    if [ -n \"$run_id\" ]; then\n      echo \"Downloading logs for run: $run_id\"\n      # Download workflow run logs using GitHub API\n      gh api \"repos/${{ github.repository }}/actions/runs/${run_id}/logs\" \\\n        > \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" 2>&1 || true\n      \n      # Extract the logs if download succeeded\n      if [ -f \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" ] && [ -s \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" ]; then\n        unzip -q \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" -d \"/tmp/gh-aw/session-data/logs/${run_id}/\" 2>/dev/null || true\n        rm \"/tmp/gh-aw/session-data/logs/${run_id}.zip\"\n      fi\n    fi\n  done\n  \n  LOG_COUNT=$(find /tmp/gh-aw/session-data/logs/ -type d -mindepth 1 | wc -l)\n  echo \"Session logs downloaded: $LOG_COUNT log directories\"\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/session-data/sessions-list.json \"$CACHE_DIR/copilot-sessions-${TODAY}.json\"\n  cp /tmp/gh-aw/session-data/sessions-schema.json \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  \n  # Cache the log files\n  mkdir -p \"$CACHE_DIR/session-logs-${TODAY}\"\n  cp -r /tmp/gh-aw/session-data/logs/* \"$CACHE_DIR/session-logs-${TODAY}/\" 2>/dev/null || true\n\n  echo \"✓ Session data saved to cache: copilot-sessions-${TODAY}.json\"\n  echo \"Total sessions found: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nfi\n\n# Always ensure data is available at expected locations for backward compatibility\necho \"Session data available at: /tmp/gh-aw/session-data/sessions-list.json\"\necho \"Schema available at: /tmp/gh-aw/session-data/sessions-schema.json\"\necho \"Logs available at: /tmp/gh-aw/session-data/logs/\"\n\n# Set outputs for downstream use\necho \"sessions_count=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\" >> \"$GITHUB_OUTPUT\""
-      - name: Set up jq utilities directory
-        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - name: Install Python scientific libraries
@@ -221,7 +221,7 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Downloading container images
+      - name: Download container images
         run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.56 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
@@ -546,6 +546,92 @@ jobs:
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          ## jqschema - JSON Schema Discovery
+          
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          
+          ### Purpose
+          
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
+          
+          ### Usage
+          
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
+          ```
+          
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
           
           
           # Session Analysis Chart Generation
@@ -889,92 +975,6 @@ jobs:
           - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
-          
-          ## jqschema - JSON Schema Discovery
-          
-          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
-          
-          ### Purpose
-          
-          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-          - Exploring API responses with large payloads
-          - Understanding the structure of unfamiliar data without verbose output
-          - Planning queries before fetching full data
-          
-          ### Usage
-          
-          ```bash
-          # Analyze a file
-          cat data.json | /tmp/gh-aw/jqschema.sh
-          
-          # Analyze command output
-          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-          
-          # Analyze GitHub search results
-          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-          ```
-          
-          ### How It Works
-          
-          The script transforms JSON data by:
-          1. Replacing object values with their type names ("string", "number", "boolean", "null")
-          2. Reducing arrays to their first element's structure (or empty array if empty)
-          3. Recursively processing nested structures
-          4. Outputting compact (minified) JSON
-          
-          ### Example
-          
-          **Input:**
-          ```json
-          {
-            "total_count": 1000,
-            "items": [
-              {"login": "user1", "id": 123, "verified": true},
-              {"login": "user2", "id": 456, "verified": false}
-            ]
-          }
-          ```
-          
-          **Output:**
-          ```json
-          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-          ```
-          
-          ### Best Practices
-          
-          **Use this script when:**
-          - You need to understand the structure of tool outputs before requesting full data
-          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-          - Exploring unfamiliar APIs or data structures
-          - Planning data extraction strategies
-          
-          **Example workflow for GitHub search tools:**
-          ```bash
-          # Step 1: Get schema with minimal data (fetch just 1 result)
-          # This helps understand the structure before requesting large datasets
-          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-          
-          # Output shows the schema:
-          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-          
-          # Step 2: Review schema to understand available fields
-          
-          # Step 3: Request full data with confidence about structure
-          # Now you know what fields are available and can query efficiently
-          ```
-          
-          **Using with GitHub MCP tools:**
-          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-          ```bash
-          # Save a minimal search result to a file
-          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-          
-          # Generate schema to understand structure
-          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-          
-          # Now you know which fields exist and can use them in your analysis
-          ```
           
           # Python Data Visualization Guide
           

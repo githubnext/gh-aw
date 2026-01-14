@@ -1671,6 +1671,20 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # Optional array of project views to create automatically. Each view must have a
+    # name and layout. Views are created during workflow execution after processing
+    # agent output items.
+    # (optional)
+    views:
+      - name: "Sprint Board"
+        layout: board  # table, board, or roadmap
+        filter: "is:issue is:open"  # optional filter query
+      - name: "Task Tracker"
+        layout: table
+        filter: "is:issue,is:pull_request"
+      - name: "Campaign Timeline"
+        layout: roadmap
+
   # Option 2: Enable project management with default configuration (max=10)
   update-project: null
 

@@ -882,7 +882,7 @@ header::after {
     display: inline-block;
     min-height: 44px;
     line-height: 1.6;
-    vertical-align: middle;
+    vertical-align: baseline;
   }
 }
 

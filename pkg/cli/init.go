@@ -3,10 +3,14 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var initLog = logger.New("cli:init")
@@ -129,6 +133,16 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign dispatcher agent"))
 		}
+
+		// Add campaign-generator workflow from gh-aw repository
+		initLog.Print("Adding campaign-generator workflow")
+		if err := addCampaignGeneratorWorkflow(verbose); err != nil {
+			initLog.Printf("Failed to add campaign-generator workflow: %v", err)
+			return fmt.Errorf("failed to add campaign-generator workflow: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added campaign-generator workflow"))
+		}
 	}
 
 	// Configure MCP if requested
@@ -232,4 +246,171 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil
+}
+
+// addCampaignGeneratorWorkflow generates and compiles the campaign-generator workflow
+func addCampaignGeneratorWorkflow(verbose bool) error {
+	initLog.Print("Generating campaign-generator workflow")
+
+	// Get the git root directory
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		initLog.Printf("Failed to find git root: %v", err)
+		return fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	// Determine the workflows directory
+	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		initLog.Printf("Failed to create workflows directory: %v", err)
+		return fmt.Errorf("failed to create workflows directory: %w", err)
+	}
+
+	// Build the campaign-generator workflow
+	data := campaign.BuildCampaignGenerator()
+	workflowPath := filepath.Join(workflowsDir, "campaign-generator.md")
+
+	// Render the workflow to markdown
+	content := renderCampaignGeneratorMarkdown(data)
+
+	// Write markdown file with restrictive permissions
+	if err := os.WriteFile(workflowPath, []byte(content), 0600); err != nil {
+		initLog.Printf("Failed to write campaign-generator.md: %v", err)
+		return fmt.Errorf("failed to write campaign-generator.md: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Created campaign-generator workflow: %s\n", workflowPath)
+	}
+
+	// Compile to lock file using the standard compiler
+	compiler := workflow.NewCompiler(verbose, "", GetVersion())
+	if err := CompileWorkflowWithValidation(compiler, workflowPath, verbose, false, false, false, false, false); err != nil {
+		initLog.Printf("Failed to compile campaign-generator: %v", err)
+		return fmt.Errorf("failed to compile campaign-generator: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Compiled campaign-generator workflow\n")
+	}
+
+	initLog.Print("Campaign-generator workflow generated successfully")
+	return nil
+}
+
+// renderCampaignGeneratorMarkdown converts WorkflowData to markdown format for campaign-generator
+func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
+	var b strings.Builder
+
+	b.WriteString("---\n")
+	if strings.TrimSpace(data.Name) != "" {
+		fmt.Fprintf(&b, "name: %q\n", data.Name)
+	}
+	if strings.TrimSpace(data.Description) != "" {
+		fmt.Fprintf(&b, "description: %q\n", data.Description)
+	}
+	if strings.TrimSpace(data.On) != "" {
+		b.WriteString(strings.TrimSuffix(data.On, "\n"))
+		b.WriteString("\n")
+	}
+	if strings.TrimSpace(data.Permissions) != "" {
+		b.WriteString(strings.TrimSuffix(data.Permissions, "\n"))
+		b.WriteString("\n")
+	}
+
+	// Engine configuration
+	engineID := "copilot"
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	}
+	fmt.Fprintf(&b, "engine: %s\n", engineID)
+
+	// Tools
+	if len(data.Tools) > 0 {
+		b.WriteString("tools:\n")
+		if gh, ok := data.Tools["github"].(map[string]any); ok {
+			b.WriteString("  github:\n")
+			if toolsets, ok := gh["toolsets"].([]any); ok {
+				b.WriteString("    toolsets: [")
+				for i, ts := range toolsets {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					fmt.Fprintf(&b, "%v", ts)
+				}
+				b.WriteString("]\n")
+			}
+		}
+	}
+
+	// Safe outputs
+	if data.SafeOutputs != nil {
+		b.WriteString("safe-outputs:\n")
+
+		if data.SafeOutputs.AddComments != nil {
+			b.WriteString("  add-comment:\n")
+			b.WriteString("    max: 10\n")
+		}
+
+		if data.SafeOutputs.UpdateIssues != nil {
+			b.WriteString("  update-issue:\n")
+		}
+
+		if data.SafeOutputs.AssignToAgent != nil {
+			b.WriteString("  assign-to-agent:\n")
+		}
+
+		if data.SafeOutputs.CreateProjects != nil {
+			b.WriteString("  create-project:\n")
+			b.WriteString("    max: 1\n")
+			if data.SafeOutputs.CreateProjects.GitHubToken != "" {
+				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.CreateProjects.GitHubToken)
+			}
+		}
+
+		if data.SafeOutputs.UpdateProjects != nil {
+			b.WriteString("  update-project:\n")
+			b.WriteString("    max: 10\n")
+			if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
+				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.UpdateProjects.GitHubToken)
+			}
+			if len(data.SafeOutputs.UpdateProjects.Views) > 0 {
+				b.WriteString("    views:\n")
+				for _, view := range data.SafeOutputs.UpdateProjects.Views {
+					fmt.Fprintf(&b, "      - name: \"%s\"\n", view.Name)
+					fmt.Fprintf(&b, "        layout: \"%s\"\n", view.Layout)
+					fmt.Fprintf(&b, "        filter: \"%s\"\n", view.Filter)
+				}
+			}
+		}
+
+		if data.SafeOutputs.Messages != nil {
+			b.WriteString("  messages:\n")
+			if data.SafeOutputs.Messages.Footer != "" {
+				fmt.Fprintf(&b, "    footer: \"%s\"\n", data.SafeOutputs.Messages.Footer)
+			}
+			if data.SafeOutputs.Messages.RunStarted != "" {
+				fmt.Fprintf(&b, "    run-started: \"%s\"\n", data.SafeOutputs.Messages.RunStarted)
+			}
+			if data.SafeOutputs.Messages.RunSuccess != "" {
+				fmt.Fprintf(&b, "    run-success: \"%s\"\n", data.SafeOutputs.Messages.RunSuccess)
+			}
+			if data.SafeOutputs.Messages.RunFailure != "" {
+				fmt.Fprintf(&b, "    run-failure: \"%s\"\n", data.SafeOutputs.Messages.RunFailure)
+			}
+		}
+	}
+
+	if strings.TrimSpace(data.TimeoutMinutes) != "" {
+		fmt.Fprintf(&b, "timeout-minutes: %s\n", data.TimeoutMinutes)
+	}
+
+	b.WriteString("---\n\n")
+
+	// Write the prompt/body
+	if strings.TrimSpace(data.MarkdownContent) != "" {
+		b.WriteString(data.MarkdownContent)
+	}
+
+	return b.String()
 }

@@ -559,14 +559,23 @@ Use appropriate type patterns to improve code clarity, maintainability, and type
 type LineLength int
 type Version string
 type FeatureFlag string
+type WorkflowID string
+type EngineName string
 
 const MaxExpressionLineLength LineLength = 120
 const DefaultCopilotVersion Version = "0.0.374"
 const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
+const CopilotEngine EngineName = "copilot"
 
 // All semantic types in pkg/constants provide String() and IsValid() methods
 if MaxExpressionLineLength.IsValid() {
     fmt.Println(MaxExpressionLineLength.String()) // "120"
+}
+
+// Type-safe engine selection
+engine := CopilotEngine
+if engine.IsValid() {
+    // Use engine with confidence
 }
 ```
 
@@ -586,6 +595,8 @@ if MaxExpressionLineLength.IsValid() {
 - `JobName` - GitHub Actions job identifiers (e.g., `AgentJobName`)
 - `StepID` - GitHub Actions step identifiers (e.g., `CheckMembershipStepID`)
 - `CommandPrefix` - CLI command prefixes (e.g., `CLIExtensionPrefix`)
+- `WorkflowID` - Workflow identifiers/basename without .md extension (user-provided workflow names)
+- `EngineName` - AI engine names (e.g., `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `CustomEngine`)
 
 **Dynamic Types** - Use `map[string]any` for truly dynamic data:
 ```go

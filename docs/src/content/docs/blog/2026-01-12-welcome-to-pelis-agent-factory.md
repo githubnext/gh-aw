@@ -64,30 +64,31 @@ Here's what we've built so far:
 - **A comprehensive collection of workflows** demonstrating diverse agent patterns
 - **12 core design patterns** consolidating all observed behaviors
 - **9 operational patterns** for GitHub-native agent orchestration
-- **128 workflows** in the `.github/workflows` directory of the [`gh-aw`](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) repository
+- **128 workflows** in the `.github/workflows` directory of the [`gh-aw`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows) repository
 - **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
 - **Dozens of MCP servers** integrated for specialized capabilities
 - **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
 
 Each workflow is written in natural language using Markdown, then compiled into secure GitHub Actions that run with carefully scoped permissions. Everything is observable, auditable, and remixable.
 
+## Our First Installment: Meet the Workflows
+
+In our first series of articles, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a 16-part tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
+
+Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
+
 ## What We're Learning
 
 Running this many agents in production is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Some key lessons emerging:
 
+- **Repository-level automation is incredibly powerful** - Agents embedded in the development workflow can have outsized impact
 - **Diversity beats perfection** - A collection of focused agents works better than one universal assistant
 - **Guardrails enable innovation** - Strict constraints actually make it easier to experiment safely
-- **Meta-agents are essential** - Agents that watch other agents become incredibly valuable
+- **Meta-agents are valuable** - Agents that watch other agents become incredibly valuable
 - **Personality matters** - Agents with distinct characters (like our Grumpy Reviewer or Poem Bot) are easier to trust
 - **Cost-quality tradeoffs are real** - Longer analyses aren't always better
 
 We'll dive deeper into these lessons in upcoming articles.
-
-## Our First Installment: Meet the Workflows
-
-In our first article, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
-
-Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
 
 ## Try It Yourself
 
@@ -103,19 +104,12 @@ The workflows in Peli's factory are fully remixable. You can copy them, adapt th
 
 ## Learn More
 
-- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - How to write and compile workflows
+- **[Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)** - The 16-part tour of the workflows
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
-- **[gh-aw Repository](https://github.com/githubnext/gh-aw)** - The implementation
-- **[Peli's Agent Factory Workflows](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)** - The main collection of workflows which we use in GitHub Agentic Workflows itself
-- **[The Agentics Collection](https://github.com/githubnext/agentics)** - Ready-to-install workflows
-- **[The Continuous AI Project](https://githubnext.com/projects/continuous-ai)** - The broader vision
 
 ## Credits
 
 **Peli's Agent Factory** is a research project by GitHub Next, Microsoft Research and collaborators, including Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Russell Horton, Jiaxiao Zhou.
 
 This is part of GitHub Next's exploration of [Continuous AI](https://githubnext.com/projects/continuous-ai) - making AI-enriched automation as routine as CI/CD.
-
----
-
-[Next Article: Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)

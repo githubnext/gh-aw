@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -36,6 +37,15 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 	// Always expose the effective token as GH_AW_PROJECT_GITHUB_TOKEN environment variable
 	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", effectiveToken))
+
+	// If views are configured in frontmatter, pass them to the JavaScript via environment variable
+	if data.SafeOutputs.UpdateProjects != nil && len(data.SafeOutputs.UpdateProjects.Views) > 0 {
+		viewsJSON, err := json.Marshal(data.SafeOutputs.UpdateProjects.Views)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal views configuration: %w", err)
+		}
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: '%s'\n", string(viewsJSON)))
+	}
 
 	jobCondition := BuildSafeOutputType("update_project")
 	permissions := NewPermissionsContentsReadProjectsWrite()

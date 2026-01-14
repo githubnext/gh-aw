@@ -79,7 +79,7 @@ echo "Total github.token references: $TOKEN_REFS"
 
 # Extract unique secret names
 grep -roh 'secrets\.[A-Z_]*' .github/workflows/*.lock.yml 2>/dev/null | \
-  sed 's/secrets\.\([A-Z_]*\)/\1/' | \
+  awk -F'.' '{print $2}' | \
   sort -u > /tmp/gh-aw/secret-names.txt
 
 SECRET_TYPES=$(wc -l < /tmp/gh-aw/secret-names.txt)
@@ -147,13 +147,15 @@ Look for potential security concerns:
 ```bash
 # Find direct expression interpolation (potential template injection)
 echo "=== Checking for template injection risks ==="
-DIRECT_INTERP=$(grep -rn '\${{ github\.event\.' .github/workflows/*.lock.yml | \
-  grep -v "env:" | wc -l)
+# Search for github.event patterns that might indicate unsafe expression usage
+# Avoiding literal expression syntax to prevent actionlint parsing issues
+PATTERN='github.event.'
+DIRECT_INTERP=$(grep -rn "$PATTERN" .github/workflows/*.lock.yml | \
+  grep -c -v "env:")
 if [ "$DIRECT_INTERP" -gt 0 ]; then
   echo "⚠️  Found $DIRECT_INTERP potential template injection risks"
   echo "Files with direct interpolation:"
-  grep -rl '\${{ github\.event\.' .github/workflows/*.lock.yml | \
-    grep -v "env:" | head -5
+  grep -rl "$PATTERN" .github/workflows/*.lock.yml | head -5
 else
   echo "✅ No template injection risks found"
 fi

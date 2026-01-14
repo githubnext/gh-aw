@@ -88,7 +88,7 @@ func LayoutTitleBox(title string, width int) string {
 }
 
 // LayoutInfoSection renders an info section with left border emphasis as a single string.
-// In TTY mode, uses Lipgloss styled section with left border.
+// In TTY mode, uses Lipgloss styled section with left border and padding.
 // In non-TTY mode, adds manual indentation.
 // This is a simpler alternative to RenderInfoSection that returns a string and takes label/value.
 //
@@ -100,7 +100,7 @@ func LayoutInfoSection(label, value string) string {
 	content := label + ": " + value
 
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss styled section with left border
+		// TTY mode: Use Lipgloss styled section with left border and padding
 		section := lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), false, false, false, true).
 			BorderForeground(styles.ColorInfo).
@@ -113,8 +113,8 @@ func LayoutInfoSection(label, value string) string {
 	return "  " + content
 }
 
-// LayoutEmphasisBox renders content in a thick-bordered box with custom color.
-// In TTY mode, uses Lipgloss styled box with thick border.
+// LayoutEmphasisBox renders content in a rounded-bordered box with custom color.
+// In TTY mode, uses Lipgloss styled box with rounded border for a polished appearance.
 // In non-TTY mode, renders content with surrounding marker lines.
 //
 // Example:
@@ -123,11 +123,11 @@ func LayoutInfoSection(label, value string) string {
 //	fmt.Fprintln(os.Stderr, warning)
 func LayoutEmphasisBox(content string, color lipgloss.AdaptiveColor) string {
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss styled box with thick border
+		// TTY mode: Use Lipgloss styled box with rounded border for a softer appearance
 		box := lipgloss.NewStyle().
 			Bold(true).
 			Foreground(color).
-			Border(styles.ThickBorder).
+			Border(styles.RoundedBorder).
 			BorderForeground(color).
 			Padding(0, 2).
 			Render(content)

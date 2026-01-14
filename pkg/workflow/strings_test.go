@@ -1,6 +1,10 @@
 package workflow
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestSortStrings(t *testing.T) {
 	tests := []struct {
@@ -48,16 +52,7 @@ func TestSortStrings(t *testing.T) {
 
 			SortStrings(result)
 
-			if len(result) != len(tt.expected) {
-				t.Errorf("SortStrings() length = %d, want %d", len(result), len(tt.expected))
-				return
-			}
-
-			for i := range result {
-				if result[i] != tt.expected[i] {
-					t.Errorf("SortStrings() at index %d = %q, want %q", i, result[i], tt.expected[i])
-				}
-			}
+			assert.Equal(t, tt.expected, result, "SortStrings should return correctly sorted slice")
 		})
 	}
 }
@@ -103,16 +98,7 @@ func TestSortPermissionScopes(t *testing.T) {
 
 			SortPermissionScopes(result)
 
-			if len(result) != len(tt.expected) {
-				t.Errorf("SortPermissionScopes() length = %d, want %d", len(result), len(tt.expected))
-				return
-			}
-
-			for i := range result {
-				if result[i] != tt.expected[i] {
-					t.Errorf("SortPermissionScopes() at index %d = %q, want %q", i, result[i], tt.expected[i])
-				}
-			}
+			assert.Equal(t, tt.expected, result, "SortPermissionScopes should return correctly sorted slice")
 		})
 	}
 }
@@ -198,9 +184,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeWorkflowName(tt.input)
-			if result != tt.expected {
-				t.Errorf("SanitizeWorkflowName(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "SanitizeWorkflowName should sanitize input correctly")
 		})
 	}
 }
@@ -256,9 +240,7 @@ func TestShortenCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ShortenCommand(tt.input)
-			if result != tt.expected {
-				t.Errorf("ShortenCommand(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "ShortenCommand should process input correctly")
 		})
 	}
 }
@@ -437,9 +419,7 @@ func TestSanitizeName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeName(tt.input, tt.opts)
-			if result != tt.expected {
-				t.Errorf("SanitizeName(%q, %+v) = %q, want %q", tt.input, tt.opts, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "SanitizeName should sanitize input according to options")
 		})
 	}
 }

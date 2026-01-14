@@ -75,7 +75,8 @@ test_config_not_found() {
   echo ""
   echo "Test 3: Config file not found"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local nonexistent_config="$tmpdir/nonexistent.json"
   
   if ! bash "$SCRIPT_PATH" "$nonexistent_config" "http://localhost:8080" "test-key" 2>/dev/null; then
@@ -92,7 +93,8 @@ test_invalid_json_config() {
   echo ""
   echo "Test 4: Invalid JSON configuration"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create invalid JSON
@@ -112,7 +114,8 @@ test_empty_servers() {
   echo ""
   echo "Test 5: Empty mcpServers object"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with empty mcpServers
@@ -142,7 +145,8 @@ test_null_servers() {
   echo ""
   echo "Test 6: Null mcpServers"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with null mcpServers
@@ -172,7 +176,8 @@ test_valid_http_server() {
   echo ""
   echo "Test 7: Valid configuration with HTTP server"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create valid config with HTTP server
@@ -210,7 +215,8 @@ test_server_without_url() {
   echo ""
   echo "Test 8: Server without URL (stdio server)"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with stdio server (no URL)
@@ -246,7 +252,8 @@ test_mixed_servers() {
   echo ""
   echo "Test 9: Multiple servers with mixed types"
   
-  local tmpdir=$(mktemp -d)
+  local tmpdir
+  tmpdir=$(mktemp -d)
   local config_file="$tmpdir/config.json"
   
   # Create config with multiple servers

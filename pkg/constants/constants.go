@@ -185,6 +185,46 @@ func (c CommandPrefix) IsValid() bool {
 	return len(c) > 0
 }
 
+// WorkflowID represents a workflow identifier (basename without .md extension).
+// This semantic type distinguishes workflow identifiers from arbitrary strings,
+// preventing mixing of workflow IDs with other string types like file paths.
+//
+// Example usage:
+//
+//	func GetWorkflow(id WorkflowID) (*Workflow, error) { ... }
+//	func CompileWorkflow(id WorkflowID) error { ... }
+type WorkflowID string
+
+// String returns the string representation of the workflow ID
+func (w WorkflowID) String() string {
+	return string(w)
+}
+
+// IsValid returns true if the workflow ID is non-empty
+func (w WorkflowID) IsValid() bool {
+	return len(w) > 0
+}
+
+// EngineName represents an AI engine name identifier (copilot, claude, codex, custom).
+// This semantic type distinguishes engine names from arbitrary strings,
+// making engine selection explicit and type-safe.
+//
+// Example usage:
+//
+//	const CopilotEngine EngineName = "copilot"
+//	func SetEngine(engine EngineName) error { ... }
+type EngineName string
+
+// String returns the string representation of the engine name
+func (e EngineName) String() string {
+	return string(e)
+}
+
+// IsValid returns true if the engine name is non-empty
+func (e EngineName) IsValid() bool {
+	return len(e) > 0
+}
+
 // MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline.
 const MaxExpressionLineLength LineLength = 120
 
@@ -391,6 +431,7 @@ var AllowedExpressions = []string{
 	"github.job",
 	"github.owner",
 	"github.repository",
+	"github.repository_owner",
 	"github.run_id",
 	"github.run_number",
 	"github.server_url",
@@ -442,7 +483,21 @@ const CommandPositionOkOutput = "command_position_ok"
 const MatchedCommandOutput = "matched_command"
 const ActivatedOutput = "activated"
 
-var AgenticEngines = []string{"claude", "codex", "copilot"}
+// Agentic engine name constants using EngineName type for type safety
+const (
+	// CopilotEngine is the GitHub Copilot engine identifier
+	CopilotEngine EngineName = "copilot"
+	// ClaudeEngine is the Anthropic Claude engine identifier
+	ClaudeEngine EngineName = "claude"
+	// CodexEngine is the OpenAI Codex engine identifier
+	CodexEngine EngineName = "codex"
+	// CustomEngine is the custom engine identifier
+	CustomEngine EngineName = "custom"
+)
+
+// AgenticEngines lists all supported agentic engine names
+// Note: This remains a string slice for backward compatibility with existing code
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine)}
 
 // DefaultReadOnlyGitHubTools defines the default read-only GitHub MCP tools.
 // This list is shared by both local (Docker) and remote (hosted) modes.
