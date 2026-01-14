@@ -256,17 +256,20 @@ func RenderTable(config TableConfig) string {
 		}
 		if row == table.HeaderRow {
 			// Add horizontal padding to header cells for better spacing
-			return styles.TableHeader.Copy().PaddingLeft(1).PaddingRight(1)
+			headerStyle := styles.TableHeader
+			return headerStyle.PaddingLeft(1).PaddingRight(1)
 		}
 		// If we have a total row and this is the last row
 		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
 			// Add horizontal padding to total row cells
-			return styles.TableTotal.Copy().PaddingLeft(1).PaddingRight(1)
+			totalStyle := styles.TableTotal
+			return totalStyle.PaddingLeft(1).PaddingRight(1)
 		}
 		// Zebra striping: alternate row colors
 		if row%2 == 0 {
 			// Add horizontal padding to even row cells
-			return styles.TableCell.Copy().PaddingLeft(1).PaddingRight(1)
+			cellStyle := styles.TableCell
+			return cellStyle.PaddingLeft(1).PaddingRight(1)
 		}
 		// Odd rows with subtle background and horizontal padding
 		return lipgloss.NewStyle().
