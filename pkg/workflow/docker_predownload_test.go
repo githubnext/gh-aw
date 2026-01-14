@@ -207,8 +207,8 @@ Test workflow - safe outputs MCP server without GitHub tool.`,
 				t.Fatalf("Failed to read lock file: %v", err)
 			}
 
-			// Check if the "Downloading container images" step exists
-			hasStep := strings.Contains(string(yaml), "Downloading container images")
+			// Check if the "Download container images" step exists
+			hasStep := strings.Contains(string(yaml), "Download container images")
 			if hasStep != tt.expectStep {
 				t.Errorf("Expected step existence: %v, got: %v", tt.expectStep, hasStep)
 			}
@@ -231,7 +231,7 @@ Test workflow - safe outputs MCP server without GitHub tool.`,
 }
 
 func TestDockerImagePredownloadOrdering(t *testing.T) {
-	// Test that the "Downloading container images" step comes before "Start MCP gateway"
+	// Test that the "Download container images" step comes before "Start MCP gateway"
 	frontmatter := `---
 on: issues
 engine: claude
@@ -266,11 +266,11 @@ Test workflow.`
 	yamlStr := string(yaml)
 
 	// Find the positions of both steps
-	downloadPos := strings.Index(yamlStr, "Downloading container images")
+	downloadPos := strings.Index(yamlStr, "Download container images")
 	setupPos := strings.Index(yamlStr, "Start MCP gateway")
 
 	if downloadPos == -1 {
-		t.Fatal("Expected 'Downloading container images' step not found")
+		t.Fatal("Expected 'Download container images' step not found")
 	}
 
 	if setupPos == -1 {
@@ -279,6 +279,6 @@ Test workflow.`
 
 	// Verify the download step comes before setup step
 	if downloadPos > setupPos {
-		t.Errorf("Expected 'Downloading container images' to come before 'Start MCP gateway', but found it after")
+		t.Errorf("Expected 'Download container images' to come before 'Start MCP gateway', but found it after")
 	}
 }
