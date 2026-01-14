@@ -59,14 +59,14 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Copilot-style config with tools and env",
+			name: "Copilot-style config (no tools or env - HTTP servers don't include these)",
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "default",
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
-				IncludeToolsField:  true,
+				IncludeToolsField:  true,  // This flag exists but tools field is added by converter script, not here
 				AllowedTools:       []string{"list_issues", "create_issue"},
-				IncludeEnvSection:  true,
+				IncludeEnvSection:  false, // env section is not valid for HTTP servers
 			},
 			expectedOutput: []string{
 				`"type": "http"`,
@@ -74,25 +74,22 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"headers": {`,
 				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 				`"X-MCP-Toolsets": "default"`,
-				`"tools": [`,
-				`"list_issues"`,
-				`"create_issue"`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
+				`"tools"`, // tools field is added by converter script, not by RenderGitHubMCPRemoteConfig
+				`"env"`,   // env section should NOT be present for HTTP servers
 			},
 		},
 		{
-			name: "Copilot-style config with wildcard tools",
+			name: "Copilot-style config with wildcard tools (no tools or env in output)",
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "all",
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
-				IncludeToolsField:  true,
-				AllowedTools:       nil, // Empty array should result in wildcard
-				IncludeEnvSection:  true,
+				IncludeToolsField:  true,  // This flag exists but tools field is added by converter script, not here
+				AllowedTools:       nil,   // Empty array should result in wildcard
+				IncludeEnvSection:  false, // env section is not valid for HTTP servers
 			},
 			expectedOutput: []string{
 				`"type": "http"`,
@@ -100,23 +97,22 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"headers": {`,
 				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 				`"X-MCP-Toolsets": "all"`,
-				`"tools": ["*"]`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
+				`"tools"`, // tools field is added by converter script, not by RenderGitHubMCPRemoteConfig
+				`"env"`,   // env section should NOT be present for HTTP servers
 			},
 		},
 		{
-			name: "Copilot-style config with read-only and specific tools",
+			name: "Copilot-style config with read-only and specific tools (no tools or env in output)",
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           true,
 				Toolsets:           "repos",
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
-				IncludeToolsField:  true,
+				IncludeToolsField:  true,  // This flag exists but tools field is added by converter script, not here
 				AllowedTools:       []string{"list_repositories", "get_repository"},
-				IncludeEnvSection:  true,
+				IncludeEnvSection:  false, // env section is not valid for HTTP servers
 			},
 			expectedOutput: []string{
 				`"type": "http"`,
@@ -125,13 +121,11 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 				`"X-MCP-Readonly": "true"`,
 				`"X-MCP-Toolsets": "repos"`,
-				`"tools": [`,
-				`"list_repositories"`,
-				`"get_repository"`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
-			notExpected: []string{},
+			notExpected: []string{
+				`"tools"`, // tools field is added by converter script, not by RenderGitHubMCPRemoteConfig
+				`"env"`,   // env section should NOT be present for HTTP servers
+			},
 		},
 		{
 			name: "No toolsets configured",
@@ -213,6 +207,11 @@ func TestRenderGitHubMCPRemoteConfigHeaderOrder(t *testing.T) {
 }
 
 func TestRenderGitHubMCPRemoteConfigToolsCommas(t *testing.T) {
+	// NOTE: This test is currently skipped because RenderGitHubMCPRemoteConfig does NOT render
+	// the tools field - it's added by the converter script (convert_gateway_config_copilot.sh).
+	// See the comment in RenderGitHubMCPRemoteConfig for details.
+	t.Skip("tools field is added by converter script, not by RenderGitHubMCPRemoteConfig")
+	
 	// Test that tools array is properly formatted with commas
 	var yaml strings.Builder
 	RenderGitHubMCPRemoteConfig(&yaml, GitHubMCPRemoteOptions{
@@ -221,7 +220,7 @@ func TestRenderGitHubMCPRemoteConfigToolsCommas(t *testing.T) {
 		AuthorizationValue: "Bearer token",
 		IncludeToolsField:  true,
 		AllowedTools:       []string{"tool1", "tool2", "tool3"},
-		IncludeEnvSection:  true,
+		IncludeEnvSection:  false, // env section is not valid for HTTP servers
 	})
 	output := yaml.String()
 

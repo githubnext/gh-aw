@@ -372,9 +372,6 @@ jobs:
                   "X-MCP-Lockdown": "$([ "$GITHUB_MCP_LOCKDOWN" = "1" ] && echo true || echo false)",
                   "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "repos,issues,discussions"
-                },
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
               "safeoutputs": {

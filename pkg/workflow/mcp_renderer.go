@@ -89,7 +89,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			AuthorizationValue: authValue,
 			IncludeToolsField:  r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
-			IncludeEnvSection:  r.options.IncludeCopilotFields,
+			IncludeEnvSection:  false, // env section is only for stdio-type servers, not HTTP remote servers
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
@@ -610,7 +610,9 @@ type GitHubMCPRemoteOptions struct {
 	IncludeToolsField bool
 	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
 	AllowedTools []string
-	// IncludeEnvSection indicates whether to include the env section (Copilot needs it, Claude doesn't)
+	// IncludeEnvSection is DEPRECATED and should always be false for remote HTTP servers.
+	// The env section is only valid for stdio-type servers (Docker containers), not HTTP servers.
+	// Including env in HTTP server configs violates the MCP Gateway schema.
 	IncludeEnvSection bool
 }
 
@@ -653,23 +655,15 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Write headers using helper
 	writeHeadersToYAML(yaml, headers, "                  ")
 
-	// Close headers section
-	if options.IncludeEnvSection {
-		yaml.WriteString("                },\n")
-	} else {
-		yaml.WriteString("                }\n")
-	}
+	// Close headers section - always close without trailing comma for remote mode
+	yaml.WriteString("                }\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
 	// config compatible with the schema which doesn't have the tools field.
 
-	// Add env section if needed (Copilot uses this, Claude doesn't)
-	if options.IncludeEnvSection {
-		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"\n")
-		yaml.WriteString("                }\n")
-	}
+	// Note: env section is NOT included for remote HTTP servers as it violates the MCP Gateway schema.
+	// The env section is only valid for stdio-type servers (Docker containers), not for HTTP servers.
 }
 
 // RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.
