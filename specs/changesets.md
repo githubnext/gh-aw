@@ -17,6 +17,8 @@ make release
 
 # Create draft release (requires DRAFT_RELEASE repository variable set to 'true')
 DRAFT=true make release
+# Or call changeset.js directly with --draft flag
+node scripts/changeset.js release --draft
 
 # Create specific release type
 node scripts/changeset.js release patch
@@ -26,6 +28,9 @@ node scripts/changeset.js release major
 # Skip confirmation prompt
 node scripts/changeset.js release --yes
 node scripts/changeset.js release patch -y
+
+# Combine flags
+node scripts/changeset.js release --draft --yes
 ```
 
 **Note:** Using `make release` is recommended as it automatically runs tests before creating the release, ensuring code quality.
@@ -46,7 +51,7 @@ This command:
 - Shows a preview of the CHANGELOG entry that would be added
 - Never modifies any files
 
-### `release [type] [--yes|-y]`
+### `release [type] [--yes|-y] [--draft|-d]`
 
 The `release` command creates an actual release by updating files.
 
@@ -57,7 +62,11 @@ node scripts/changeset.js release minor
 # Skip confirmation prompt
 node scripts/changeset.js release --yes
 node scripts/changeset.js release patch -y
-```text
+# Create draft release
+node scripts/changeset.js release --draft
+# Combine flags
+node scripts/changeset.js release patch --yes --draft
+```
 
 This command:
 - Checks prerequisites (clean tree, main branch)
@@ -72,6 +81,7 @@ This command:
 
 **Flags:**
 - `--yes` or `-y`: Skip confirmation prompt and proceed automatically
+- `--draft` or `-d`: Create draft release (requires DRAFT_RELEASE repository variable set to 'true')
 
 ## Changeset File Format
 
@@ -161,6 +171,8 @@ For maintenance releases with dependency updates or minor improvements that don'
 
 Draft releases allow you to create a release on GitHub without making it immediately public. This is useful for testing the release process or preparing release notes before publication.
 
+**Note:** The `install-gh-aw.sh` script automatically ignores draft releases because it uses the GitHub API `/releases/latest` endpoint, which excludes drafts by default.
+
 To create a draft release:
 
 1. **Set the DRAFT_RELEASE repository variable** (one-time setup):
@@ -168,9 +180,13 @@ To create a draft release:
    gh variable set DRAFT_RELEASE --body "true"
    ```
 
-2. **Create the release with the DRAFT flag:**
+2. **Create the release with the --draft flag:**
    ```bash
+   # Using make target
    DRAFT=true make release
+   
+   # Or call changeset.js directly
+   node scripts/changeset.js release --draft
    ```
 
 3. **The GitHub Actions workflow will**:
@@ -192,7 +208,10 @@ gh variable delete DRAFT_RELEASE
 gh variable set DRAFT_RELEASE --body "false"
 ```
 
-**Note:** The `DRAFT` environment variable in the Makefile command is just a convenience flag. The actual draft behavior is controlled by the `DRAFT_RELEASE` repository variable that the GitHub Actions workflow reads.
+**How it works:**
+- The `--draft` flag in `changeset.js` reminds you to set the DRAFT_RELEASE repository variable
+- The actual draft behavior is controlled by the `DRAFT_RELEASE` repository variable that the GitHub Actions workflow reads
+- Users installing via `install-gh-aw.sh` will never see draft releases (they're automatically excluded by the GitHub API)
 
 ## Features
 

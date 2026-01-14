@@ -644,9 +644,10 @@ pull-main:
 .PHONY: release
 release: pull-main build
 	@if [ "$(DRAFT)" = "true" ]; then \
-		echo "Creating draft release (set DRAFT_RELEASE repository variable to 'true')..."; \
+		node scripts/changeset.js release --draft; \
+	else \
+		node scripts/changeset.js release; \
 	fi
-	@node scripts/changeset.js release
 
 # Generate Software Bill of Materials (SBOM)
 .PHONY: sbom

@@ -530,8 +530,9 @@ function runVersion() {
  * Run the release command
  * @param {string} releaseType - Optional release type (patch, minor, major)
  * @param {boolean} skipConfirmation - If true, skip confirmation prompt
+ * @param {boolean} draft - If true, remind user to set DRAFT_RELEASE variable
  */
-async function runRelease(releaseType, skipConfirmation = false) {
+async function runRelease(releaseType, skipConfirmation = false, draft = false) {
   // Check git prerequisites (clean tree, main branch)
   checkGitPrerequisites();
 
@@ -567,6 +568,12 @@ async function runRelease(releaseType, skipConfirmation = false) {
   console.log(formatInfoMessage(`Bump type: ${bumpType}`));
   console.log(formatInfoMessage(`Next version: ${versionString}`));
   console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
+
+  if (draft) {
+    console.log("");
+    console.log(formatInfoMessage("Draft mode enabled: Set DRAFT_RELEASE repository variable to 'true' to create draft release"));
+    console.log(formatInfoMessage('Command: gh variable set DRAFT_RELEASE --body "true"'));
+  }
 
   // Show what will be included in the release
   if (changesets.length > 0) {
@@ -673,12 +680,13 @@ function showHelp() {
   console.log("");
   console.log("Usage:");
   console.log("  node scripts/changeset.js version      - Preview next version from changesets");
-  console.log("  node scripts/changeset.js release [type] [--yes] - Create release and update CHANGELOG");
+  console.log("  node scripts/changeset.js release [type] [--yes] [--draft] - Create release and update CHANGELOG");
   console.log("");
   console.log("Release types: patch, minor, major");
   console.log("");
   console.log("Flags:");
-  console.log("  --yes, -y    Skip confirmation prompt and proceed automatically");
+  console.log("  --yes, -y      Skip confirmation prompt and proceed automatically");
+  console.log("  --draft, -d    Create draft release (requires DRAFT_RELEASE repository variable)");
   console.log("");
   console.log("Examples:");
   console.log("  node scripts/changeset.js version");
@@ -688,6 +696,8 @@ function showHelp() {
   console.log("  node scripts/changeset.js release major");
   console.log("  node scripts/changeset.js release --yes");
   console.log("  node scripts/changeset.js release patch --yes");
+  console.log("  node scripts/changeset.js release --draft");
+  console.log("  node scripts/changeset.js release patch --yes --draft");
 }
 
 // Main entry point
@@ -710,17 +720,20 @@ async function main() {
         // Parse release type and flags
         let releaseType = null;
         let skipConfirmation = false;
+        let draft = false;
 
         for (let i = 1; i < args.length; i++) {
           const arg = args[i];
           if (arg === "--yes" || arg === "-y") {
             skipConfirmation = true;
+          } else if (arg === "--draft" || arg === "-d") {
+            draft = true;
           } else if (!releaseType && ["patch", "minor", "major"].includes(arg)) {
             releaseType = arg;
           }
         }
 
-        await runRelease(releaseType, skipConfirmation);
+        await runRelease(releaseType, skipConfirmation, draft);
         break;
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));
