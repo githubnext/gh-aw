@@ -1,27 +1,27 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Advanced Analytics & ML"
+title: "Meet the Workflows: Advanced Analytics & ML"
 description: "A curated tour of workflows that use ML to extract insights from agent behavior"
 authors:
-  - dsyme
+  - mnkiefer
   - peli
-date: 2026-01-13
+date: 2026-01-13T15:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/
-  label: "Multi-Phase Improver Workflows"
-next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-organization/
   label: "Organization & Cross-Repo Workflows"
+next:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/
+  label: "Campaigns & Project Coordination Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Time to get nerdy at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+Time to get into data ana analytics at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We just explored [multi-phase improver workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/) - our most ambitious agents that tackle big projects over multiple days, maintaining state and making incremental progress. These workflows proved that AI agents can handle complex, long-running initiatives when given proper architecture.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/), we explored organization and cross-repo workflows that operate at enterprise scale - analyzing dozens of repositories together to find patterns and outliers that single-repo analysis would miss. We learned that perspective matters: what looks normal in isolation might signal drift at scale.
 
-Now let's get nerdy. Beyond tracking basic metrics (run time, cost, success rate), we wanted deeper insights into *how* our agents actually behave and *how* developers interact with them. What patterns emerge from thousands of agent prompts? What makes some PR conversations more effective than others? How do usage patterns reveal improvement opportunities? This is where we brought out the big guns: machine learning, natural language processing, sentiment analysis, and clustering algorithms. Advanced analytics workflows don't just count things - they understand them, finding patterns and insights that direct observation would never reveal.
+Beyond tracking basic metrics (run time, cost, success rate), we wanted deeper insights into *how* our agents actually behave and *how* developers interact with them. What patterns emerge from thousands of agent prompts? What makes some PR conversations more effective than others? How do usage patterns reveal improvement opportunities? This is where we brought out the big guns: machine learning, natural language processing, sentiment analysis, and clustering algorithms. Advanced analytics workflows don't just count things - they understand them, finding patterns and insights that direct observation would never reveal.
 
-## 📊 Advanced Analytics & ML Workflows
+## Advanced Analytics & ML Workflows
 
 These agents use sophisticated analysis techniques to extract insights:
 
@@ -30,7 +30,11 @@ These agents use sophisticated analysis techniques to extract insights:
 - **[Prompt Clustering Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/prompt-clustering-analysis.md?plain=1)** - Clusters and categorizes agent prompts using ML
 - **[Copilot Agent Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-agent-analysis.md?plain=1)** - Deep analysis of agent behavior patterns
 
-We got nerdy with these workflows. The Prompt Clustering Analysis uses machine learning to categorize thousands of agent prompts, revealing patterns we never noticed ("oh, 40% of our prompts are about error handling"). The Copilot PR NLP Analysis does sentiment analysis and linguistic analysis on PR conversations - it found that PRs with questions in the title get faster review. The Session Insights workflow analyzes how developers interact with Copilot agents, identifying common patterns and failure modes. What we learned: **meta-analysis is powerful** - using AI to analyze AI systems reveals insights that direct observation misses.
+The Prompt Clustering Analysis uses machine learning to categorize thousands of agent prompts, revealing patterns we never noticed ("oh, 40% of our prompts are about error handling").
+
+The Copilot PR NLP Analysis does sentiment analysis and linguistic analysis on PR conversations - it found that PRs with questions in the title get faster review.
+
+The Session Insights workflow analyzes how developers interact with Copilot agents, identifying common patterns and failure modes. What we learned: **meta-analysis is powerful** - using AI to analyze AI systems reveals insights that direct observation misses.
 
 These workflows helped us understand not just what our agents do, but *how* they behave and how users interact with them.
 
@@ -39,12 +43,12 @@ These workflows helped us understand not just what our agents do, but *how* they
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Scaling Up: From Repo to Organization
+## Next Up: Campaigns & Project Coordination Workflows
 
-Single-repository insights are valuable, but the real patterns emerge when you analyze across an entire organization.
+We've reached the final stop: coordinating multiple agents toward shared, complex goals across extended timelines.
 
-Continue reading: [Organization & Cross-Repo Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/)
+Continue reading: [Campaigns & Project Coordination Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/)
 
 ---
 
-*This is part 12 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 15 of a 16-part series exploring the workflows in Peli's Agent Factory.*

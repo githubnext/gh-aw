@@ -1,13 +1,13 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Creative & Culture"
+title: "Meet the Workflows: Creative & Culture"
 description: "A curated tour of creative and culture workflows that bring joy to work"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T09:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/
-  label: "Operations & Release Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/
+  label: "Security & Compliance Workflows"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/
   label: "Interactive & ChatOps Workflows"
@@ -17,11 +17,11 @@ next:
 
 Let's explore the fun side of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-Okay, let's take a breath. We've covered some serious territory - triage systems, quality checks, security compliance, and [operations & release](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/) workflows. These workflows are critical infrastructure that keeps our agent factory running smoothly, from handling incoming issues to shipping software reliably.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/), we explored security and compliance workflows - the essential guardrails that manage vulnerability campaigns, validate network security, and prevent credential exposure. These workflows let us sleep soundly knowing our agents operate within safe boundaries.
 
-But here's the thing: work doesn't have to be all business. While we were building these serious, production-critical workflows, we also discovered something unexpected - AI agents can bring joy, build team culture, and create moments of delight. Not every workflow needs to solve a critical problem; some can simply make your day better. Let's explore the playful side of our agent factory, where we learned that personality and fun drive engagement just as powerfully as utility.
+But here's the thing: work doesn't have to be all business. While we've built serious, production-critical workflows for quality, releases, and security, we also discovered something unexpected - AI agents can bring joy, build team culture, and create moments of delight. Not every workflow needs to solve a critical problem; some can simply make your day better. Let's explore the playful side of our agent factory, where we learned that personality and fun drive engagement just as powerfully as utility.
 
-## 🎨 Creative & Culture Workflows
+## Creative & Culture Workflows
 
 Not everything needs to be serious! These agents remind us that work can be fun:
 
@@ -46,4 +46,4 @@ Continue reading: [Interactive & ChatOps Workflows →](/gh-aw/blog/2026-01-13-m
 
 ---
 
-*This is part 6 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 9 of a 16-part series exploring the workflows in Peli's Agent Factory.*

@@ -3,7 +3,7 @@ title: "Authoring New Workflows in Peli's Agent Factory"
 description: "A practical guide to creating effective agentic workflows"
 authors:
   - dsyme
-  - peli
+  - mnkiefer
 date: 2026-02-08
 draft: true
 prev:

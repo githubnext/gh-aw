@@ -1,25 +1,25 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Code Quality & Refactoring"
+title: "Meet the Workflows: Code Quality & Refactoring"
 description: "A curated tour of code quality workflows that make codebases cleaner"
 authors:
   - dsyme
-  - peli
-date: 2026-01-13
+  - mnkiefer
+date: 2026-01-13T02:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/
-  label: "Interactive & ChatOps Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows/
+  label: "Triage & Summarization Workflows"
 next:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/
-  label: "Testing & Validation Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-documentation/
+  label: "Documentation & Content Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome to the next chapter in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We've explored reactive workflows (triage and quality checks), observability workflows (metrics and analytics), scheduled workflows (releases and culture), and [on-demand workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/) (ChatOps and interactive agents). Each category serves a distinct purpose in our agent ecosystem.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows/), we explored how triage and summarization workflows help us stay on top of incoming activity - automatically labeling issues, creating digestible summaries, and narrating the day's events. These workflows taught us that tone matters and even simple automation dramatically reduces cognitive load.
 
-Now let's talk about the agents that work quietly in the background, continuously pushing your codebase toward better design. Code quality and refactoring workflows never take a day off - they analyze console output styling, spot semantic duplication, identify structural improvements, and find patterns humans miss because they can hold entire codebases in context. These workflows embody the principle that *good enough* can always become *better*, and that incremental improvements compound over time. Let's meet the perfectionist agents.
+Now let's turn to the agents that continuously improve code quality. Code quality and refactoring workflows work quietly in the background, never taking a day off - they analyze console output styling, spot semantic duplication, identify structural improvements, and find patterns humans miss because they can hold entire codebases in context. These workflows embody the principle that *good enough* can always become *better*, and that incremental improvements compound over time. Let's meet the perfectionist agents.
 
 ## Code Quality & Refactoring Workflows
 
@@ -38,12 +38,12 @@ These workflows continuously push our codebase toward better design.
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Next Up: Testing & Validation
+## Next Up: Documentation & Content Workflows
 
-Making code better is great, but we also need to ensure improvements don't break existing functionality. Trust, but verify.
+Beyond code quality, we need to keep documentation accurate and up-to-date as code evolves. How do we maintain docs that stay current?
 
-Continue reading: [Testing & Validation Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/)
+Continue reading: [Documentation & Content Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
 
 ---
 
-*This is part 8 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 2 of a 16-part series exploring the workflows in Peli's Agent Factory.*

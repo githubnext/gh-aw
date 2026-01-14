@@ -1,27 +1,27 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Organization & Cross-Repo"
+title: "Meet the Workflows: Organization & Cross-Repo"
 description: "A curated tour of workflows that operate at organization scale"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T14:00:00
 prev:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/
+  label: "Multi-Phase Improver Workflows"
+next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/
   label: "Advanced Analytics & ML Workflows"
-next:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-documentation/
-  label: "Documentation & Content Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Let's zoom out at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/), we explored advanced analytics workflows - using machine learning and NLP to understand agent behavior patterns, developer interactions, and conversation effectiveness. These sophisticated analyses helped us understand not just what agents do, but *how* they behave.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/), we explored multi-phase improver workflows - our most ambitious agents that tackle big projects over multiple days, maintaining state and making incremental progress. These workflows proved that AI agents can handle complex, long-running initiatives when given the right architecture.
 
-But all that sophisticated analysis has focused on a single repository. What happens when you zoom out to organization scale? What insights emerge when you analyze dozens or hundreds of repositories together? What looks perfectly normal in one repo might be a red flag across an organization. Organization and cross-repo workflows operate at enterprise scale, requiring careful permission management, thoughtful rate limiting, and different analytical lenses. Let's explore workflows that see the forest, not just the trees.
+But all that sophisticated functionality has focused on a single repository. What happens when you zoom out to organization scale? What insights emerge when you analyze dozens or hundreds of repositories together? What looks perfectly normal in one repo might be a red flag across an organization. Organization and cross-repo workflows operate at enterprise scale, requiring careful permission management, thoughtful rate limiting, and different analytical lenses. Let's explore workflows that see the forest, not just the trees.
 
-## 🏢 Organization & Cross-Repo Workflows
+## Organization & Cross-Repo Workflows
 
 These agents work at organization scale, across multiple repositories:
 
@@ -36,12 +36,12 @@ Scaling agents across an entire organization changes the game. The Org Health Re
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Next Up: Automating the Eternal Documentation Challenge
+## Next Up: Advanced Analytics & ML Workflows
 
-Code evolves fast. Documentation? Not so much. Can AI agents help solve this age-old problem?
+Cross-repo insights reveal patterns, but we wanted to go even deeper - using machine learning to understand agent behavior.
 
-Continue reading: [Documentation & Content Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
+Continue reading: [Advanced Analytics & ML Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/)
 
 ---
 
-*This is part 13 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 14 of a 16-part series exploring the workflows in Peli's Agent Factory.*

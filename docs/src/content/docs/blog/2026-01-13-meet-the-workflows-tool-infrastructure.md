@@ -1,10 +1,10 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Tool & Infrastructure"
+title: "Meet the Workflows: Tool & Infrastructure"
 description: "A curated tour of infrastructure workflows that monitor the agentic systems"
 authors:
   - dsyme
-  - peli
-date: 2026-01-13
+  - mnkiefer
+date: 2026-01-13T12:00:00
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/
   label: "Testing & Validation Workflows"
@@ -17,11 +17,11 @@ next:
 
 Welcome back to our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We've covered workflows that improve code quality and [validate that everything keeps working](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/). Testing and validation workflows run continuously, checking that our systems function correctly and catching regressions before they reach users.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/), we explored testing and validation workflows that continuously verify our systems function correctly - running smoke tests, checking documentation across devices, and catching regressions before users notice them. We learned that trust must be verified.
 
 But here's a question that kept us up at night: what if the *infrastructure itself* fails? What if MCP servers are misconfigured, tools become unavailable, or agents can't access the capabilities they need? Testing the *application* is one thing; monitoring the *platform* that runs AI agents is another beast entirely. Tool and infrastructure workflows provide meta-monitoring - they watch the watchers, validate configurations, and ensure the invisible plumbing stays functional. Welcome to the layer where we monitor agents monitoring agents monitoring code. Yes, it gets very meta.
 
-## 🧰 Tool & Infrastructure Workflows
+## Tool & Infrastructure Workflows
 
 These agents monitor and analyze the agentic infrastructure itself:
 
@@ -46,4 +46,4 @@ Continue reading: [Multi-Phase Improver Workflows →](/gh-aw/blog/2026-01-13-me
 
 ---
 
-*This is part 10 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 12 of a 16-part series exploring the workflows in Peli's Agent Factory.*

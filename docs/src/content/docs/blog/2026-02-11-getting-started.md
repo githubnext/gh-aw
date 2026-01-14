@@ -2,7 +2,7 @@
 title: "Getting Started with Agentic Workflows"
 description: "Begin your journey with agentic automation"
 authors:
-  - dsyme
+  - mnkiefer
   - peli
 date: 2026-02-11
 draft: true

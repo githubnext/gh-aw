@@ -1,27 +1,27 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Operations & Release"
+title: "Meet the Workflows: Operations & Release"
 description: "A curated tour of operations and release workflows that ship software"
 authors:
-  - dsyme
+  - mnkiefer
   - peli
-date: 2026-01-13
+date: 2026-01-13T07:00:00
 prev:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/
+  label: "Metrics & Analytics Workflows"
+next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/
   label: "Security & Compliance Workflows"
-next:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/
-  label: "Creative & Culture Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Welcome to another stop in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We've covered a lot of ground: workflows that triage incoming activity, maintain code quality, track metrics and performance, and enforce [security boundaries](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/). These foundational layers help us manage vulnerabilities, validate network access, and prevent credential exposure. We've built the infrastructure to run AI agents safely.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/), we explored metrics and analytics workflows - the agents that monitor other agents, turning raw activity data into actionable insights. We built our central nervous system for the agent ecosystem, learning that you can't optimize what you don't measure.
 
-Now comes the moment of truth: actually shipping software to users. All the quality checks, security scans, and metrics tracking culminate in one critical process - the release. Operations and release workflows handle the orchestration of building, testing, generating release notes, and publishing. These workflows can't afford to be experimental; they need to be rock-solid reliable, well-tested, and yes, even a bit boring. Let's explore how automation makes shipping predictable and stress-free.
+Now comes the moment of truth: actually shipping software to users. All the quality checks, metrics tracking, and iterative improvements culminate in one critical process - the release. Operations and release workflows handle the orchestration of building, testing, generating release notes, and publishing. These workflows can't afford to be experimental; they need to be rock-solid reliable, well-tested, and yes, even a bit boring. Let's explore how automation makes shipping predictable and stress-free.
 
-## 🚀 Operations & Release Workflows
+## Operations & Release Workflows
 
 The agents that help us actually ship software:
 
@@ -37,12 +37,12 @@ The Daily Workflow Updater taught us that maintenance is a perfect use case for 
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Next Up: Creative & Culture Workflows
+## Next Up: Security & Compliance Workflows
 
-After all this serious infrastructure talk, we discovered something delightful: agents don't have to be all business.
+After all this focus on shipping, we need to talk about the guardrails: how do we ensure these powerful agents operate safely?
 
-Continue reading: [Creative & Culture Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
+Continue reading: [Security & Compliance Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
 
 ---
 
-*This is part 5 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 7 of a 16-part series exploring the workflows in Peli's Agent Factory.*

@@ -1,13 +1,13 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Testing & Validation"
+title: "Meet the Workflows: Testing & Validation"
 description: "A curated tour of testing workflows that keep everything running smoothly"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T11:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/
-  label: "Code Quality & Refactoring Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/
+  label: "Interactive & ChatOps Workflows"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/
   label: "Tool & Infrastructure Workflows"
@@ -17,11 +17,11 @@ next:
 
 Let's continue our tour of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/), we explored code quality and refactoring workflows - agents that continuously push our codebase toward better design, finding patterns and improvements that humans often miss. These workflows never take a day off, quietly working to make our code cleaner and more maintainable.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/), we explored interactive and ChatOps workflows - agents that respond to slash commands and GitHub reactions, providing on-demand assistance with full context. We learned that context is king: the right agent at the right moment is far more valuable than scheduled runs.
 
 But making code *better* is only half the battle. We also need to ensure it keeps *working*. As we refactor, optimize, and evolve our codebase, how do we know we haven't broken something? How do we catch regressions before users do? That's where testing and validation workflows come in - the skeptical guardians that continuously verify our systems still function as expected. We learned the hard way that AI infrastructure needs constant health checks, because what worked yesterday might silently fail today. These workflows embody **trust but verify**.
 
-## 🔬 Testing & Validation Workflows
+## Testing & Validation Workflows
 
 These agents keep everything running smoothly through continuous testing:
 
@@ -46,4 +46,4 @@ Continue reading: [Tool & Infrastructure Workflows →](/gh-aw/blog/2026-01-13-m
 
 ---
 
-*This is part 9 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 11 of a 16-part series exploring the workflows in Peli's Agent Factory.*

@@ -72,6 +72,7 @@ export default defineConfig({
 			},
 			plugins: [
 				starlightBlog({
+					recentPostCount: 100,
 					authors: {
 						'gh-next': {
 							name: 'GitHub Next',
@@ -85,6 +86,10 @@ export default defineConfig({
 							name: 'Peli de Halleux',
 							url: 'https://www.microsoft.com/research/people/jhalleux/',
 						},
+						'mnkiefer': {
+							name: 'Mara Kiefer',
+							url: 'https://github.com/mnkiefer',
+						}
 					},
 				}),
 				starlightGitHubAlerts(),
@@ -199,10 +204,6 @@ export default defineConfig({
 				{
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
-				},
-				{
-					label: 'Peli\'s Agent Factory',
-					link: '/blog/2026-01-12-welcome-to-pelis-agent-factory/', 
 				},
 				{
 					label: 'Labs',

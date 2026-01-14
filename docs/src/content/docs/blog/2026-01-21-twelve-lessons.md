@@ -28,73 +28,73 @@ Here's what we've figured out so far.
 
 ## The 12 Key Lessons
 
-### ✨ Diversity Beats Perfection
+### Diversity Beats Perfection
 
 No single agent can do everything - and that's perfectly fine. A collection of focused agents, each doing one thing well, works way better than trying to build some mythical universal assistant.
 
 We learned this the hard way. Instead of spending months perfecting a "super agent," we started shipping specialized agents quickly. The zoo's diversity means when one pattern fails, others pick up the slack. This heterogeneous approach creates a system that's actually resilient and can adapt to surprises.
 
-### 📊 Guardrails Enable Innovation
+### Guardrails Enable Innovation
 
 Here's something counter-intuitive we discovered: strict constraints actually make it *easier* to experiment. Safe outputs, limited permissions, allowlisted tools - they don't slow us down. They give us the confidence to move fast because we know the blast radius of any failure.
 
 With clear boundaries in place, we can prototype new agents without worrying about breaking production. Safe outputs prevent agents from accidentally deleting code or closing critical issues. Network allowlists ensure agents can't leak data to unauthorized services. These guardrails give us permission to innovate boldly.
 
-### 🔄 Meta-Agents Are Essential
+### Meta-Agents Are Essential
 
 Agents that watch other agents? Sounds meta, but they've become some of our most valuable workflows. They catch issues early and help us understand what's happening across the entire ecosystem.
 
 Once we passed 50 workflows, tracking everything manually became impossible. Meta-agents like [Audit Workflows](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) and [Agent Performance Analyzer](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/agent-performance-analyzer.md) give us the observability layer we desperately needed. They spot patterns across runs, identify struggling agents, and surface systemic issues we'd never catch looking at individual workflows.
 
-### 🎭 Personality Matters
+### Personality Matters
 
 Turns out, agents with distinct personalities - like the meticulous auditor, the helpful janitor, the creative poet - are way easier for teams to understand and trust.
 
 We noticed generic names like "issue-handler" or "code-checker" created confusion. But when we gave agents personalities - like [Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) or [Poem Bot](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md) - their purpose became immediately clear. Team members actually started developing relationships with specific agents. It's kind of adorable.
 
-### ⚖️ Cost-Quality Tradeoffs Are Real
+### Cost-Quality Tradeoffs Are Real
 
 Longer, more thorough analyses cost more - but they're not always better. The [Portfolio Analyst](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md) helps us figure out which agents actually deliver value.
 
 We discovered that some of our "thorough" agents were doing redundant work or generating reports nobody read. The Portfolio Analyst tracks cost-per-insight across all agents, revealing that simple, focused agents often deliver better ROI than complex ones. This led us to consolidate overlapping agents and tune prompt lengths to balance thoroughness with cost. AI isn't free, folks!
 
-### 🔄 Multi-Phase Workflows Enable Ambitious Goals
+### Multi-Phase Workflows Enable Ambitious Goals
 
 Breaking complex improvements into 3-phase workflows (research → setup → implement) lets agents tackle projects that would be way too large for a single run. Each phase builds on the last, with human feedback between phases.
 
 Single-run agents hit walls fast - limited by token context and execution time. But multi-phase workflows like [Daily Test Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) and [Daily Perf Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-perf-improver.md) can tackle ambitious projects by spreading work across multiple days. The research phase explores the problem, the setup phase prepares infrastructure, and the implementation phase executes changes. Human checkpoints between phases keep everything aligned with team goals.
 
-### 💬 Slash Commands Create Natural User Interfaces
+### Slash Commands Create Natural User Interfaces
 
 ChatOps-style `/command` triggers make agents feel like actual team members. Users can invoke powerful capabilities with simple comments, and role-gating ensures only authorized folks can trigger sensitive operations.
 
 Instead of remembering complex webhook URLs or GitHub Actions syntax, team members just comment `/grumpy` on a PR for a critical review, or `/pr-fix` to fix failing tests. Role-gating prevents abuse while keeping the interface dead simple. This pattern works so well that most of our interactive agents use it now.
 
-### 🧪 Heartbeats Build Confidence
+### Heartbeats Build Confidence
 
 Frequent, lightweight validation tests (every 12 hours) catch regressions quickly. These "heartbeat" agents keep the infrastructure healthy without manual monitoring.
 
 Instead of waiting for production failures, we deploy multiple [smoke test workflows](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-copilot.md) that continuously validate core functionality. When a smoke test fails, we know immediately which component broke. This proactive monitoring prevents cascading failures and gives us confidence that the ecosystem is actually stable.
 
-### 🔧 MCP Inspection Is Essential
+### MCP Inspection Is Essential
 
 As workflows start using multiple MCP servers, having agents that can validate and report on tool availability becomes critical. The [MCP Inspector](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md) pattern prevents those cryptic "tool not available" failures.
 
 Early on, we'd see agents fail with vague errors like "connection refused." The MCP Inspector proactively checks all MCP server configurations, validates network access, and generates status reports. This visibility transformed debugging from hours of detective work into reading a dashboard.
 
-### 🎯 Dispatcher Patterns Scale Command Complexity
+### Dispatcher Patterns Scale Command Complexity
 
 Instead of one monolithic agent handling all requests, dispatcher agents could route to specialized sub-agents or commands. This made the system more maintainable and allowed for progressive feature addition.
 
 The [Workflow Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md) and [Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md) demonstrated this pattern well. Rather than cramming all generation logic into one massive prompt, they identified user intent and dispatched to specialized generation workflows. This kept individual agents focused and made the system easier to extend.
 
-### 📿 Task Queuing Is Everywhere
+### Task Queuing Is Everywhere
 
 The task queue pattern provided a simple way to queue and distribute work across multiple workflow runs. Breaking large projects into discrete tasks allowed incremental progress with clear state tracking, recording tasks as issues, discussions, or project cards.
 
 Whether managing a backlog of refactoring work, coordinating security fixes, or distributing test creation tasks, the task queue pattern appeared repeatedly. By representing work as GitHub primitives (issues, project cards), we got built-in state management, persistence, and audit trails without building custom infrastructure.
 
-### 🤖 ML Analysis Reveals Hidden Patterns
+### ML Analysis Reveals Hidden Patterns
 
 Applying clustering and NLP to agent interactions revealed usage patterns that weren't obvious from individual runs. This meta-analysis helped identify opportunities for consolidation and optimization.
 

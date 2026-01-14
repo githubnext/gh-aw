@@ -30,7 +30,7 @@ Let's share what we've figured out so you can build secure agent ecosystems from
 
 ## Core Security Principles
 
-### 🛡️ Least Privilege, Always
+### Least Privilege, Always
 
 **Start with read-only. Add write permissions only when absolutely necessary, and always through constrained safe outputs.**
 
@@ -40,7 +40,7 @@ Every workflow begins with `permissions: contents: read`. That's our default sta
 
 **Why this works**: If an agent can only read, the worst it can do is waste compute time. It can't delete code, close important issues, or push malicious changes.
 
-### 🚪 Safe Outputs as the Gateway
+### Safe Outputs as the Gateway
 
 **All effectful operations go through safe outputs with built-in limits.**
 
@@ -70,7 +70,7 @@ safe_outputs:
 
 **Why this works**: Safe outputs transform "can the agent do X?" into "under what constraints can the agent do X?" The agent has power but can't abuse it. Pretty clever, right?
 
-### 👥 Role-Gated Activation
+### Role-Gated Activation
 
 **Powerful agents (fixers, optimizers) require specific roles to invoke.**
 
@@ -114,7 +114,7 @@ After one month, the workflow automatically disables itself. If the experiment w
 
 **Why this works**: Explicit expiration forces intentional decisions. Every agent running in the factory is deliberately there, not just forgotten.
 
-### 🔍 Explicit Tool Lists
+### Explicit Tool Lists
 
 **Workflows declare exactly which tools they use. No ambient authority.**
 

@@ -1,13 +1,13 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Quality & Hygiene"
+title: "Meet the Workflows: Quality & Hygiene"
 description: "A curated tour of quality and hygiene workflows that maintain codebase health"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T05:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows/
-  label: "Triage & Summarization Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/
+  label: "Issue & PR Management Workflows"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/
   label: "Metrics & Analytics Workflows"
@@ -17,11 +17,11 @@ next:
 
 Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows/), we explored how triage and summarization workflows help us stay on top of incoming activity - automatically labeling issues, creating digestible summaries, and narrating the day's events in an engaging way. These workflows taught us that tone matters and that even simple automation dramatically reduces cognitive load.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/), we explored issue and PR management workflows - agents that enhance GitHub's collaboration features by removing tedious ceremony like linking related issues, merging main branches, and optimizing templates. These workflows make GitHub more pleasant to use by eliminating small papercuts that add up to significant friction.
 
-Now let's shift from *reacting* to activity to *maintaining* quality. While triage workflows help us handle what comes in, quality and hygiene workflows act as vigilant caretakers - spotting problems before they escalate and keeping our codebase healthy. These are the agents that investigate failed CI runs, detect schema drift, and catch breaking changes before users do.
+Now let's shift from collaboration ceremony to codebase maintenance. While issue workflows help us handle what comes in, quality and hygiene workflows act as vigilant caretakers - spotting problems before they escalate and keeping our codebase healthy. These are the agents that investigate failed CI runs, detect schema drift, and catch breaking changes before users do.
 
-## 🔍 Quality & Hygiene Workflows
+## Quality & Hygiene Workflows
 
 These are our diligent caretakers - the agents that spot problems before they become, well, bigger problems:
 
@@ -48,4 +48,4 @@ Continue reading: [Metrics & Analytics Workflows →](/gh-aw/blog/2026-01-13-mee
 
 ---
 
-*This is part 2 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 5 of a 16-part series exploring the workflows in Peli's Agent Factory.*

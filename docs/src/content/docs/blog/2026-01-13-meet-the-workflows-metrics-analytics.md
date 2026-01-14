@@ -1,27 +1,27 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Metrics & Analytics"
+title: "Meet the Workflows: Metrics & Analytics"
 description: "A curated tour of metrics and analytics workflows that turn data into insights"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T06:00:00
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/
   label: "Quality & Hygiene Workflows"
 next:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/
-  label: "Security & Compliance Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/
+  label: "Operations & Release Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Let's dive deeper into [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-So far in our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/), we've explored workflows that handle incoming activity ([triage and summarization](/gh-aw/blog/2026-01-13-meet-the-workflows/)) and maintain codebase health ([quality and hygiene](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)). These foundational workflows keep us organized, investigate failures, and catch drift before it becomes a problem.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/), we explored quality and hygiene workflows - the vigilant caretakers that investigate failed CI runs, detect schema drift, and catch breaking changes before users do. These workflows maintain codebase health by spotting problems before they escalate.
 
 But here's a question: when you're running dozens of AI agents, how do you know if they're actually working well? How do you spot performance issues, cost problems, or quality degradation? That's where metrics and analytics workflows come in - they're the agents that monitor other agents, turning raw activity data into actionable insights. This is where we got meta and built our central nervous system.
 
-## 📊 Metrics & Analytics Workflows
+## Metrics & Analytics Workflows
 
 Data nerds, rejoice! These agents turn raw repository activity into actual insights:
 
@@ -38,12 +38,12 @@ These workflows taught us that observability isn't optional when you're running 
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Up Next: Building Trust Boundaries
+## Next Up: Operations & Release Workflows
 
-Now that we can measure and optimize our agent ecosystem, we needed to ensure these powerful agents operate safely. Time to talk about security.
+Now that we can measure and optimize our agent ecosystem, let's talk about the moment of truth: actually shipping software to users.
 
-Continue reading: [Security & Compliance Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
+Continue reading: [Operations & Release Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/)
 
 ---
 
-*This is part 3 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 6 of a 16-part series exploring the workflows in Peli's Agent Factory.*

@@ -1,27 +1,27 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Security & Compliance"
+title: "Meet the Workflows: Security & Compliance"
 description: "A curated tour of security and compliance workflows that enforce safe boundaries"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T08:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/
-  label: "Metrics & Analytics Workflows"
-next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/
   label: "Operations & Release Workflows"
+next:
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/
+  label: "Creative & Culture Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Great to have you back at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-In our previous posts, we've seen how workflows handle triage, maintain quality, and track [metrics and analytics](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/). These workflows help us understand agent performance, identify cost optimization opportunities, and monitor the entire ecosystem. We learned that you can't optimize what you don't measure.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/), we explored operations and release workflows that handle the critical process of shipping software - building, testing, generating release notes, and publishing. These workflows need to be rock-solid reliable because they represent the moment when our work reaches users.
 
-But measurement alone isn't enough - we also need *boundaries*. When AI agents can access APIs, modify code, and interact with external services, security becomes paramount. How do we ensure agents only access authorized resources? How do we track vulnerabilities and enforce compliance deadlines? How do we prevent credential exposure? That's where security and compliance workflows become our essential guardrails - the watchful guardians that let us sleep soundly at night.
+But reliability alone isn't enough - we also need *security*. When AI agents can access APIs, modify code, and interact with external services, security becomes paramount. How do we ensure agents only access authorized resources? How do we track vulnerabilities and enforce compliance deadlines? How do we prevent credential exposure? That's where security and compliance workflows become our essential guardrails - the watchful guardians that let us sleep soundly at night.
 
-## 🔒 Security & Compliance Workflows
+## Security & Compliance Workflows
 
 These agents are our security guards, keeping watch and enforcing the rules:
 
@@ -38,12 +38,12 @@ The Firewall workflow validates that our agents can't access unauthorized resour
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Next Up: From Safety to Shipping
+## Next Up: Creative & Culture Workflows
 
-With guardrails in place, we could focus on the ultimate goal: getting software into users' hands reliably and repeatedly.
+After all this serious infrastructure talk, let's explore the fun side: agents that bring joy and build team culture.
 
-Continue reading: [Operations & Release Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/)
+Continue reading: [Creative & Culture Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
 
 ---
 
-*This is part 4 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 8 of a 16-part series exploring the workflows in Peli's Agent Factory.*

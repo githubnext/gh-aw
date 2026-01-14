@@ -1,13 +1,13 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Documentation & Content"
+title: "Meet the Workflows: Documentation & Content"
 description: "A curated tour of workflows that maintain high-quality documentation"
 authors:
-  - dsyme
+  - mnkiefer
   - peli
-date: 2026-01-13
+date: 2026-01-13T03:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-organization/
-  label: "Organization & Cross-Repo Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/
+  label: "Code Quality & Refactoring Workflows"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/
   label: "Issue & PR Management Workflows"
@@ -17,34 +17,43 @@ next:
 
 Welcome to the documentation corner of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We've scaled up from single repositories to [organization-wide insights](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/). Cross-repo workflows analyze dozens of repositories simultaneously, revealing patterns and outliers that single-repo analysis would miss. We learned that perspective matters - what looks normal in isolation might signal drift at scale.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/), we explored code quality and refactoring workflows - agents that continuously push our codebase toward better design, finding patterns and improvements that humans often miss. These workflows never take a day off, quietly working to make our code cleaner and more maintainable.
 
 Now let's address one of software development's eternal challenges: keeping documentation accurate and up-to-date. Code evolves rapidly; docs... not so much. Terminology drifts, API examples become outdated, slide decks grow stale, and blog posts reference deprecated features. The question isn't "can AI agents write good documentation?" but rather "can they maintain it as code changes?" Documentation and content workflows challenge conventional wisdom about AI-generated technical content. Spoiler: the answer involves human review, but it's way better than the alternative (no docs at all).
 
-## 📝 Documentation & Content Workflows
+## Documentation & Content Workflows
 
 These agents maintain high-quality documentation and content:
 
 - **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase
 - **[Technical Doc Writer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/technical-doc-writer.md?plain=1)** - Generates and updates technical documentation
 - **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks
+- **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices
 - **[Blog Auditor](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/blog-auditor.md?plain=1)** - Reviews blog content for quality and accuracy
 
-Documentation is where we challenged conventional wisdom. Can AI agents write *good* documentation? The Technical Doc Writer generates API docs from code, but more importantly, it *maintains* them - updating docs when code changes. The Glossary Maintainer caught terminology drift ("we're using three different terms for the same concept"). The Slide Deck Maintainer keeps our presentation materials current without manual updates. We learned that **AI-generated docs need human review**, but they're dramatically better than *no* docs (which is often the alternative). The Blog Auditor ensures our blog posts stay accurate as the codebase evolves - it flags outdated code examples and broken links. 
+Documentation is where we challenged conventional wisdom. Can AI agents write *good* documentation?
 
-These workflows don't replace technical writers; they multiply their effectiveness.
+The Technical Doc Writer generates API docs from code, but more importantly, it *maintains* them - updating docs when code changes. The Glossary Maintainer caught terminology drift ("we're using three different terms for the same concept").
+
+The Slide Deck Maintainer keeps our presentation materials current without manual updates.
+
+The Multi-device Docs Tester uses Playwright to verify our documentation site works across phones, tablets, and desktops - testing responsive layouts, accessibility, and interactive elements. It catches visual regressions and layout issues that only appear on specific screen sizes.
+
+The Blog Auditor ensures our blog posts stay accurate as the codebase evolves - it flags outdated code examples and broken links.
+
+AI-generated docs need human review, but they're dramatically better than *no* docs (which is often the alternative). Validation can be automated to a large extent, freeing writers to focus on content shaping, topic, clarity, tone, and accuracy.
 
 ## Learn More
 
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Next Up: Issue & PR Management
+## Next Up: Issue & PR Management Workflows
 
-Beyond writing code and docs, there's all that GitHub ceremony - issues, PRs, labels, merges. Lots of small papercuts.
+Beyond writing code and docs, we need to manage the flow of issues and pull requests. How do we keep collaboration smooth and efficient?
 
 Continue reading: [Issue & PR Management Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/)
 
 ---
 
-*This is part 14 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 3 of a 16-part series exploring the workflows in Peli's Agent Factory.*

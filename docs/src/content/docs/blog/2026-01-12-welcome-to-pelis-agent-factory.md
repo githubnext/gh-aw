@@ -4,6 +4,7 @@ description: "An exploration of automated agentic workflows at scale"
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-12
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows/
@@ -16,17 +17,15 @@ Hi there! 👋 Welcome to Peli's Agent Factory!
 
 Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress.
 
-Peli's Agent Factory is our exploration of what happens when you take the design philosophy of **let's create a new agentic workflow for that** as the answer to every opportunity that may present itself! What happens when you **max out on automated agentic workflows** - when you make and nurture dozens of specialized, automated AI agentic workflows in a real repository.
+Peli's Agent Factory is our exploration of what happens when you take the design philosophy of **"let's create a new automated agentic workflow for that"** as the answer to almost every opportunity that arises! What happens when you **max out on automated agentic workflows** - when you make and use dozens of specialized, automated AI agentic workflows and use them in real repositories.
 
-Software development is changing rapidly. Peli's Agent Factory is our exploration into what happens when you build and operate **a collection of specialized AI automated agentic workflows** within a real software repository, handling actual development tasks. This is our attempt to understand how automated agentic AI can make software teams more efficient, collaborative, and maybe even enjoyable.
+Software development is changing rapidly. This is our attempt to understand how automated agentic AI can make software teams more efficient, collaborative, and more enjoyable.
 
 Welcome to the factory. Let's explore together!
 
 ## What Is Peli's Agent Factory?
 
-Peli's factory is a collection of **automated agentic workflows** we use in practice. 
-
-Over the course of this research project, we built and operated **over 100 automated agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These were used mostly in the context of the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) project itself, but many have also been applied at scale to GitHub and Microsoft internal repositories, and some external repositories. These weren't hypothetical demos - they were working agents that:
+Peli's factory is a collection of [**automated agentic workflows**](https://https://githubnext.github.io/gh-aw) we use in practice. Over the course of this research project, we built and operated **over 100 automated agentic workflows** within the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection. These were used mostly in the context of the [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) project itself, but some have also been applied at scale in GitHub and Microsoft internal repositories, and some external repositories. These weren't hypothetical demos - they were working agents that:
 
 - Triage incoming issues
 - Diagnose CI failures
@@ -38,26 +37,28 @@ Over the course of this research project, we built and operated **over 100 autom
 - Validate infrastructure
 - Even write poetry to boost team morale
 
-Think of this as a team where as part of our work we're creating a lot of agentic workflows. Some are simple read-only analysts. Others proactively propose changes through pull requests. A few are meta-agents that monitor and improve the health of all the other workflows.
+Some workflows are "read-only analysts". Others proactively propose changes through pull requests. Some are meta-agents that monitor and improve the health of all the other workflows.
 
 We know we're taking things to an extreme here. Most repositories won't need dozens of agentic workflows. No one can read all these outputs (except, of course, another workflow). But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust and use.
 
-It's basically an agentic workflow cornucopia. And we're learning *so much* from it all, we'd like to share it with you.
+It's basically a candy shop chocolate factory of agentic workflows. And we're learning so much from it all, we'd like to share it with you.
 
 ## Why Build a Factory?
 
 When we started exploring agentic workflows, we faced a fundamental question: **What should repository-level automated agentic workflows actually do?**
 
-Rather than trying to build one "perfect" agent, we took a gardener's approach:
+Rather than trying to build one "perfect" agent, we took a broad, heterogeneous approach:
 
-1. **Embrace diversity** - Create many specialized workflows for different tasks
+1. **Embrace diversity** - Create many specialized workflows as we identified opportunities
 2. **Use them continuously** - Run them in real development workflows
-3. **Observe what thrives** - Find which patterns work and which fail
+3. **Observe what works** - Find which patterns work and which fail
 4. **Share the knowledge** - Catalog the structures that make agents safe and effective
 
 The factory becomes both an experiment and a reference collection - a living library of patterns that others can study, adapt, and remix.
 
-## The Factory at a Glance
+## Our First Installment: Meet the Workflows
+
+In our first series of articles, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a 16-part tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
 
 Here's what we've built so far:
 
@@ -71,21 +72,18 @@ Here's what we've built so far:
 
 Each workflow is written in natural language using Markdown, then compiled into secure GitHub Actions that run with carefully scoped permissions. Everything is observable, auditable, and remixable.
 
-## Our First Installment: Meet the Workflows
-
-In our first series of articles, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a 16-part tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
-
-Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
+Each article is bite-sized. Start with [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/) to get an overview, then dive into the ones that catch your eye.
 
 ## What We're Learning
 
-Running this many agents in production is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Some key lessons emerging:
+Running this many agents in production is... quite the experience. We've watched agents succeed spectacularly, fail in interesting ways, and surprise us constantly. Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
+
+To give a taste, some key lessons are emerging:
 
 - **Repository-level automation is incredibly powerful** - Agents embedded in the development workflow can have outsized impact
 - **Diversity beats perfection** - A collection of focused agents works better than one universal assistant
 - **Guardrails enable innovation** - Strict constraints actually make it easier to experiment safely
 - **Meta-agents are valuable** - Agents that watch other agents become incredibly valuable
-- **Personality matters** - Agents with distinct characters (like our Grumpy Reviewer or Poem Bot) are easier to trust
 - **Cost-quality tradeoffs are real** - Longer analyses aren't always better
 
 We'll dive deeper into these lessons in upcoming articles.

@@ -1,27 +1,27 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Multi-Phase Improvers"
+title: "Meet the Workflows: Multi-Phase Improvers"
 description: "A curated tour of multi-phase workflows that tackle long-running projects"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T13:00:00
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/
   label: "Tool & Infrastructure Workflows"
 next:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/
-  label: "Advanced Analytics & ML Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-organization/
+  label: "Organization & Cross-Repo Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
 Let's continue our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/), we explored the infrastructure layer - workflows that monitor MCP servers, validate tool configurations, and ensure the platform itself stays healthy. These meta-workflows provide visibility into the invisible plumbing that makes AI agents work.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/), we explored infrastructure workflows - the meta-monitoring layer that validates MCP servers, checks tool configurations, and ensures the platform itself stays healthy. These workflows watch the watchers, providing visibility into the invisible plumbing.
 
 Most workflows we've seen so far run once and complete: analyze this PR, triage that issue, test this deployment. They're ephemeral - they execute, produce results, and disappear. But what about projects that are too big to tackle in a single run? What about initiatives that require research, setup, and incremental implementation? Traditional CI/CD is built for stateless execution, but we discovered something powerful: workflows that maintain state across days, working a little bit each day like a persistent team member who never takes breaks. Welcome to our most ambitious experiment - multi-phase improvers that prove AI agents can handle complex, long-running projects.
 
-## 🚀 Multi-Phase Improver Workflows
+## Multi-Phase Improver Workflows
 
 These are some of our most ambitious agents - they tackle big projects over multiple days:
 
@@ -41,12 +41,12 @@ These workflows prove that AI agents can handle complex, long-running projects w
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Next Up: Analytics & ML Workflows
+## Next Up: Organization & Cross-Repo Workflows
 
-Basic metrics are useful, but we want to go deeper - to truly understand agent behavior patterns and developer interactions.
+Single-repository workflows are powerful, but what happens when you scale to an entire organization with dozens of repositories?
 
-Continue reading: [Advanced Analytics & ML Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/)
+Continue reading: [Organization & Cross-Repo Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/)
 
 ---
 
-*This is part 11 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 13 of a 16-part series exploring the workflows in Peli's Agent Factory.*

@@ -1,13 +1,13 @@
 ---
-title: "Meet the Workflows in Peli's Agent Factory: Campaigns & Project Coordination"
+title: "Meet the Workflows: Project Coordination"
 description: "A curated tour of workflows that coordinate multi-agent projects"
 authors:
   - dsyme
   - peli
-date: 2026-01-13
+date: 2026-01-13T16:00:00
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/
-  label: "Issue & PR Management Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/
+  label: "Advanced Analytics & ML Workflows"
 # next:
 #   link: /gh-aw/blog/2026-01-21-twelve-lessons/
 #   label: 12 Lessons
@@ -17,18 +17,23 @@ prev:
 
 Welcome to the final stop in our tour through the agents in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We've journeyed through 15 categories of workflows, from triage bots to documentation maintainers, from security guards to creative poets. In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/), we explored issue and PR management workflows that enhance GitHub's collaboration features by removing tedious ceremony. Each workflow handles its individual task admirably.
+We've journeyed through 15 categories of workflows - from triage bots to code quality improvers, from security guards to creative poets, culminating in [advanced analytics](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/) that use machine learning to understand agent behavior patterns. Each workflow handles its individual task admirably.
 
-But here's the ultimate challenge: how do you coordinate *multiple* agents working toward a shared goal? How do you break down a large initiative like "migrate all workflows to a new engine" into trackable sub-tasks that different agents can tackle? How do you monitor progress, alert on delays, and ensure the whole is greater than the sum of its parts? This final post explores campaign and project coordination workflows - the orchestration layer that proves AI agents can handle not just individual tasks, but entire structured projects requiring careful coordination and progress tracking.
+But here's the ultimate challenge: how do you coordinate *multiple* agents working toward a shared goal? How do you break down a large initiative like "migrate all workflows to a new engine" into trackable sub-tasks that different agents can tackle? How do you monitor progress, alert on delays, and ensure the whole is greater than the sum of its parts? This final post explores planning, task-decomposition and project coordination workflows - the orchestration layer that proves AI agents can handle not just individual tasks, but entire structured projects requiring careful coordination and progress tracking.
 
-## 🎯 Campaign & Project Coordination Workflows
+## Planning & Project Coordination Workflows
 
-These agents manage structured improvement campaigns:
+These agents coordinate multi-agent plans and projects:
 
-- **[Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md?plain=1)** - Creates and coordinates multi-step campaigns
+- **[Plan Command](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/plan.md?plain=1)** - Breaks down issues into actionable sub-tasks via `/plan` command
+- **[Discussion Task Miner](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/discussion-task-miner.md?plain=1)** - Extracts actionable tasks from discussion threads
 - **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-health-manager.md?plain=1)** - Monitors and maintains workflow health
 
-Campaigns are where we tackled the "how do you coordinate multiple agents on a big project?" question. The Campaign Generator creates structured improvement campaigns - breaking down large initiatives ("migrate all workflows to new engine") into trackable sub-tasks that different agents can tackle. The Workflow Health Manager acts as a project manager, monitoring progress across campaigns and alerting when things fall behind. We learned that **coordination is the hard part** - individual agents are great at focused tasks, but orchestrating multiple agents toward a shared goal requires careful architecture.
+The Plan Command provides on-demand task decomposition: developers can comment `/plan` on any issue to get an AI-generated breakdown into actionable sub-issues that agents can work on.
+
+The Workflow Health Manager acts as a project manager, monitoring progress across campaigns and alerting when things fall behind. The Discussion Task Miner takes a different approach - it continuously scans GitHub Discussions (where code quality observations often emerge) and extracts actionable improvement tasks, automatically creating issues so insights don't get lost in conversation threads.
+
+We learned that individual agents are great at focused tasks, but orchestrating multiple agents toward a shared goal requires careful architecture. Project coordination isn't just about breaking down work - it's about discovering work (Task Miner), planning work (Plan Command), and tracking work (Workflow Health Manager).
 
 These workflows implement patterns like epic issues, progress tracking, and deadline management. They prove that AI agents can handle not just individual tasks, but entire projects when given proper coordination infrastructure.
 

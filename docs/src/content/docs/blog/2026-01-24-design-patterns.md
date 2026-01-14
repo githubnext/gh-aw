@@ -2,7 +2,7 @@
 title: "12 Design Patterns from Peli's Agent Factory"
 description: "Fundamental behavioral patterns for successful agentic workflows"
 authors:
-  - dsyme
+  - mnkiefer
   - peli
 date: 2026-01-24
 draft: true
@@ -28,7 +28,7 @@ Think of these patterns as architectural blueprints for agents. Every workflow i
 
 Let's dive in!
 
-## Pattern 1: The Read-Only Analyst 🔬
+## Pattern 1: The Read-Only Analyst
 
 **Observe, analyze, and report - without changing anything**
 
@@ -59,7 +59,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 2: The ChatOps Responder 💬
+## Pattern 2: The ChatOps Responder
 
 **On-demand assistance via slash commands**
 
@@ -90,7 +90,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 3: The Continuous Janitor 🧹
+## Pattern 3: The Continuous Janitor
 
 **Automated cleanup and maintenance**
 
@@ -121,7 +121,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 4: The Quality Guardian 🛡️
+## Pattern 4: The Quality Guardian
 
 **Continuous validation and compliance enforcement**
 
@@ -153,7 +153,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 5: The Issue & PR Manager 🔗
+## Pattern 5: The Issue & PR Manager
 
 **Intelligent workflow automation for issues and pull requests**
 
@@ -184,7 +184,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 6: The Multi-Phase Improver 🔄
+## Pattern 6: The Multi-Phase Improver
 
 **Progressive work across multiple days with human checkpoints**
 
@@ -215,7 +215,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 7: The Code Intelligence Agent 🔍
+## Pattern 7: The Code Intelligence Agent
 
 **Semantic analysis and pattern detection**
 
@@ -247,7 +247,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 8: The Content & Documentation Agent 📝
+## Pattern 8: The Content & Documentation Agent
 
 **Maintain knowledge artifacts synchronized with code**
 
@@ -278,7 +278,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 9: The Meta-Agent Optimizer 🎯
+## Pattern 9: The Meta-Agent Optimizer
 
 **Monitor and optimize other agents**
 
@@ -309,7 +309,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 10: The Meta-Agent Orchestrator 🚦
+## Pattern 10: The Meta-Agent Orchestrator
 
 **Orchestrate multi-step workflows via state machines**
 
@@ -339,7 +339,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 11: The ML & Analytics Agent 🤖
+## Pattern 11: The ML & Analytics Agent
 
 **Advanced insights through machine learning and NLP**
 
@@ -369,7 +369,7 @@ Some key characteristics are:
 
 ---
 
-## Pattern 12: The Security & Moderation Agent 🔒
+## Pattern 12: The Security & Moderation Agent
 
 **Protect repositories from threats and enforce policies**
 
