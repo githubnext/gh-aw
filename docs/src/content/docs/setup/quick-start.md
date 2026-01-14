@@ -21,7 +21,7 @@ Install the [GitHub CLI](https://cli.github.com/), then install the GitHub Agent
 gh extension install githubnext/gh-aw
 ```
 
-> [!CAUTION]
+> [!TIP]
 > Working in GitHub Codespaces?
 >
 > If you're working in a GitHub Codespace, the extension installation *may* fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
