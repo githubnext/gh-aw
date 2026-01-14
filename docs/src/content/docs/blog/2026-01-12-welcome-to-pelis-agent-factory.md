@@ -5,6 +5,7 @@ authors:
   - dsyme
   - peli
 date: 2026-01-12
+featured: true
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows/
   label: Meet the Workflows
