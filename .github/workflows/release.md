@@ -5,6 +5,22 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release (patch, minor, or major)'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: true
 permissions:
   contents: read
   pull-requests: read
@@ -46,6 +62,33 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      
+      - name: Setup Node.js
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Create release from workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+          IS_DRAFT: ${{ github.event.inputs.draft }}
+        run: |
+          # Run changeset release script with specified type and --yes flag
+          node scripts/changeset.js release "$RELEASE_TYPE" --yes
+          
+          # Get the newly created tag
+          RELEASE_TAG=$(git describe --tags --abbrev=0)
+          echo "Created tag: $RELEASE_TAG"
+          
+          # Mark release as draft if requested
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "Marking release as draft..."
+            gh release edit "$RELEASE_TAG" --draft
+            echo "✓ Release marked as draft"
+          fi
           
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@v2
@@ -57,7 +100,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          # Get release tag from either tag push or workflow_dispatch
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RELEASE_TAG=$(git describe --tags --abbrev=0)
+          else
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          
           if [ -f "dist/checksums.txt" ]; then
             echo "Uploading checksums file to release: $RELEASE_TAG"
             gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
@@ -71,7 +120,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          # Get release tag from either tag push or workflow_dispatch
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RELEASE_TAG=$(git describe --tags --abbrev=0)
+          else
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
@@ -213,20 +268,15 @@ steps:
   - name: Setup environment and fetch release data
     env:
       RELEASE_ID: ${{ needs.release.outputs.release_id }}
+      RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
       mkdir -p /tmp/gh-aw/release-data
       
-      # Use the release ID from the release job
+      # Use the release ID and tag from the release job
       echo "Release ID from release job: $RELEASE_ID"
-      
-      # Get the release tag from the push event
-      if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
-        echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
-        exit 1
-      fi
-      RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+      echo "Release tag from release job: $RELEASE_TAG"
       echo "Processing release: $RELEASE_TAG"
       
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"

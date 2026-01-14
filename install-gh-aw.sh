@@ -218,15 +218,30 @@ if [ -z "$VERSION" ]; then
         # Use jq for JSON parsing
         VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
         RELEASE_NAME=$(echo "$LATEST_RELEASE" | jq -r '.name')
+        IS_DRAFT=$(echo "$LATEST_RELEASE" | jq -r '.draft')
+        IS_PRERELEASE=$(echo "$LATEST_RELEASE" | jq -r '.prerelease')
     else
         # Fallback to grep/sed
         VERSION=$(echo "$LATEST_RELEASE" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
         RELEASE_NAME=$(echo "$LATEST_RELEASE" | grep '"name"' | sed -E 's/.*"name": *"([^"]+)".*/\1/')
+        IS_DRAFT=$(echo "$LATEST_RELEASE" | grep '"draft"' | sed -E 's/.*"draft": *([^,}]+).*/\1/')
+        IS_PRERELEASE=$(echo "$LATEST_RELEASE" | grep '"prerelease"' | sed -E 's/.*"prerelease": *([^,}]+).*/\1/')
     fi
     
     if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
         print_error "Failed to parse latest release information"
         exit 1
+    fi
+    
+    # Verify this is not a draft or prerelease (API should filter these, but double-check)
+    if [ "$IS_DRAFT" = "true" ]; then
+        print_error "Latest release is a draft. Please specify a specific version."
+        exit 1
+    fi
+    
+    if [ "$IS_PRERELEASE" = "true" ]; then
+        print_warning "Latest release is a prerelease: $RELEASE_NAME ($VERSION)"
+        print_warning "Consider using a stable version instead."
     fi
     
     print_info "Latest release: $RELEASE_NAME ($VERSION)"
