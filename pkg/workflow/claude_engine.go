@@ -229,7 +229,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Use claude command directly (available in PATH from hostedtoolcache mount)
 		commandName = "claude"
 	}
-	
+
 	commandParts := []string{commandName}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
