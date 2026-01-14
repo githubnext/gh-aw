@@ -20,10 +20,10 @@ standardized servers. This command provides tools for inspecting and managing
 MCP server configurations in your agentic workflows.
 
 Available subcommands:
-  • list       - List workflows with MCP servers and their configurations
+  • list       - List MCP servers defined in agentic workflows
   • list-tools - List available tools for a specific MCP server
-  • inspect    - Inspect MCP server capabilities (tools, resources, roots)
-  • add        - Add MCP servers from the registry to workflows
+  • inspect    - Inspect MCP servers and list available tools, resources, and roots
+  • add        - Add an MCP tool to an agentic workflow
 
 Examples:
   gh aw mcp list                              # List all workflows with MCP servers
