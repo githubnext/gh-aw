@@ -49,10 +49,12 @@ echo ''
 echo '=== Testing Gateway Health ==='
 
 # Capture both response body and HTTP code in a single curl call
-# Use curl retry: 120 attempts with 1 second delay = 120s total
+# Use curl retry with configurable timeout (default: 240s)
+# Allow override via MCP_GATEWAY_HEALTH_TIMEOUT_SECONDS environment variable
+HEALTH_TIMEOUT_SECONDS="${MCP_GATEWAY_HEALTH_TIMEOUT_SECONDS:-240}"
 echo "Calling health endpoint: ${gateway_url}/health"
-echo "Retrying up to 120 times with 1s delay (120s total timeout)"
-response=$(curl -s --retry 120 --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "${gateway_url}/health")
+echo "Retrying up to ${HEALTH_TIMEOUT_SECONDS} times with 1s delay (${HEALTH_TIMEOUT_SECONDS}s total timeout)"
+response=$(curl -s --retry "${HEALTH_TIMEOUT_SECONDS}" --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "${gateway_url}/health")
 http_code=$(echo "$response" | tail -n 1)
 health_response=$(echo "$response" | head -n -1)
 

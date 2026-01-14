@@ -132,6 +132,7 @@ echo ""
 # Wait for gateway to be ready using /health endpoint
 # Note: Gateway may take 40-50 seconds when starting multiple MCP servers
 # (e.g., serena alone takes ~22 seconds to start)
+# Allow override via MCP_GATEWAY_HEALTH_TIMEOUT_SECONDS environment variable
 echo "Waiting for gateway to be ready..."
 # Use localhost for health check since:
 # 1. This script runs on the host (not in a container)
@@ -139,14 +140,15 @@ echo "Waiting for gateway to be ready..."
 # Note: MCP_GATEWAY_DOMAIN may be set to host.docker.internal for use by containers,
 # but the health check should always use localhost since we're running on the host.
 HEALTH_CHECK_HOST="localhost"
+HEALTH_TIMEOUT_SECONDS="${MCP_GATEWAY_HEALTH_TIMEOUT_SECONDS:-240}"
 echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
 echo "(Note: MCP_GATEWAY_DOMAIN is '${MCP_GATEWAY_DOMAIN}' for container access)"
-echo "Retrying up to 120 times with 1s delay (120s total timeout)"
+echo "Retrying up to ${HEALTH_TIMEOUT_SECONDS} times with 1s delay (${HEALTH_TIMEOUT_SECONDS}s total timeout)"
 
 # Check health endpoint using localhost (since we're running on the host)
 # Per MCP Gateway Specification v1.3.0, /health must return HTTP 200 with JSON body containing specVersion and gatewayVersion
-# Use curl retry: 120 attempts with 1 second delay = 120s total
-RESPONSE=$(curl -s --retry 120 --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
+# Use curl retry with configurable timeout (default: 240s)
+RESPONSE=$(curl -s --retry "${HEALTH_TIMEOUT_SECONDS}" --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
 HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
 HEALTH_RESPONSE=$(echo "$RESPONSE" | head -n -1)
 
