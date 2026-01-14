@@ -15,9 +15,9 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's dive deeper into Peli's Agent Factory!
+Let's dive deeper into [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-So far in our journey through Peli's Agent Factory, we've explored workflows that handle incoming activity ([triage and summarization](/gh-aw/blog/2026-01-13-meet-the-workflows/)) and maintain codebase health ([quality and hygiene](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)). These foundational workflows keep us organized, investigate failures, and catch drift before it becomes a problem.
+So far in our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/), we've explored workflows that handle incoming activity ([triage and summarization](/gh-aw/blog/2026-01-13-meet-the-workflows/)) and maintain codebase health ([quality and hygiene](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)). These foundational workflows keep us organized, investigate failures, and catch drift before it becomes a problem.
 
 But here's a question: when you're running dozens of AI agents, how do you know if they're actually working well? How do you spot performance issues, cost problems, or quality degradation? That's where metrics and analytics workflows come in - they're the agents that monitor other agents, turning raw activity data into actionable insights. This is where we got meta and built our central nervous system.
 

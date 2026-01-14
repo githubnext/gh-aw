@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome back to our journey through Peli's Agent Factory!
+Welcome back to our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 We've covered workflows that improve code quality and [validate that everything keeps working](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/). Testing and validation workflows run continuously, checking that our systems function correctly and catching regressions before they reach users.
 

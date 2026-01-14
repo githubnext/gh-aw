@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's keep exploring Peli's Agent Factory!
+Let's keep exploring [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 So far, we've explored workflows that run automatically on schedules or triggers - from triage and quality checks to security enforcement and [creative culture](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/) builders. These scheduled and event-driven workflows handle the continuous, ambient work that keeps our repositories healthy and our teams engaged.
 

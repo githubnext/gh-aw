@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to another stop in Peli's Agent Factory!
+Welcome to another stop in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 We've covered a lot of ground: workflows that triage incoming activity, maintain code quality, track metrics and performance, and enforce [security boundaries](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/). These foundational layers help us manage vulnerabilities, validate network access, and prevent credential exposure. We've built the infrastructure to run AI agents safely.
 

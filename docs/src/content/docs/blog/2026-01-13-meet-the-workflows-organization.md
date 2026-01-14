@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's zoom out at Peli's Agent Factory!
+Let's zoom out at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/), we explored advanced analytics workflows - using machine learning and NLP to understand agent behavior patterns, developer interactions, and conversation effectiveness. These sophisticated analyses helped us understand not just what agents do, but *how* they behave.
 

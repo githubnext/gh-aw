@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the documentation corner of Peli's Agent Factory!
+Welcome to the documentation corner of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 We've scaled up from single repositories to [organization-wide insights](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/). Cross-repo workflows analyze dozens of repositories simultaneously, revealing patterns and outliers that single-repo analysis would miss. We learned that perspective matters - what looks normal in isolation might signal drift at scale.
 

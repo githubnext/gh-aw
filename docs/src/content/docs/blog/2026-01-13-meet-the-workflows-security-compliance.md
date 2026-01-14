@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Great to have you back at Peli's Agent Factory!
+Great to have you back at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 In our previous posts, we've seen how workflows handle triage, maintain quality, and track [metrics and analytics](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/). These workflows help us understand agent performance, identify cost optimization opportunities, and monitor the entire ecosystem. We learned that you can't optimize what you don't measure.
 

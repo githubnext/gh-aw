@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the next chapter in Peli's Agent Factory!
+Welcome to the next chapter in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 We've explored reactive workflows (triage and quality checks), observability workflows (metrics and analytics), scheduled workflows (releases and culture), and [on-demand workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/) (ChatOps and interactive agents). Each category serves a distinct purpose in our agent ecosystem.
 

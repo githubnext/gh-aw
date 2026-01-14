@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's continue our journey through Peli's Agent Factory!
+Let's continue our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/), we explored the infrastructure layer - workflows that monitor MCP servers, validate tool configurations, and ensure the platform itself stays healthy. These meta-workflows provide visibility into the invisible plumbing that makes AI agents work.
 

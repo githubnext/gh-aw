@@ -15,7 +15,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's explore the fun side of Peli's Agent Factory!
+Let's explore the fun side of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 Okay, let's take a breath. We've covered some serious territory - triage systems, quality checks, security compliance, and [operations & release](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/) workflows. These workflows are critical infrastructure that keeps our agent factory running smoothly, from handling incoming issues to shipping software reliably.
 

@@ -15,7 +15,7 @@ prev:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the final stop in our tour through the agents in Peli's Agent Factory!
+Welcome to the final stop in our tour through the agents in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 We've journeyed through 15 categories of workflows, from triage bots to documentation maintainers, from security guards to creative poets. In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/), we explored issue and PR management workflows that enhance GitHub's collaboration features by removing tedious ceremony. Each workflow handles its individual task admirably.
 
