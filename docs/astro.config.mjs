@@ -72,7 +72,7 @@ export default defineConfig({
 			},
 			plugins: [
 				starlightBlog({
-					recentPostCount: 100,
+					recentPostCount: 12,
 					authors: {
 						'gh-next': {
 							name: 'GitHub Next',

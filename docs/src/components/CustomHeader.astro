@@ -4,7 +4,6 @@ import Default from '@astrojs/starlight/components/SocialIcons.astro';
 const base = import.meta.env.BASE_URL;
 
 // Filter out RSS link from social links
-const filteredLinks = Astro.props.socialLinks?.filter(link => !link.href.includes('/rss.xml')) || [];
 ---
 
 <div class="custom-header-links">
@@ -15,7 +14,7 @@ const filteredLinks = Astro.props.socialLinks?.filter(link => !link.href.include
 	<a href={`${base}blog/`} class="header-link">Blog</a>
 	<a href={`${base}labs/`} class="header-link">Labs</a>
 </div>
-<Default {...Astro.props} socialLinks={filteredLinks} />
+<Default {...Astro.props} />
 
 <style>
 	.custom-header-links {
