@@ -24,8 +24,8 @@
 name: "Code Scanning Fixer"
 "on":
   schedule:
-  - cron: "31 19 * * 1"
-    # Friendly format: weekly (scattered)
+  - cron: "*/30 * * * *"
+    # Friendly format: every 30m
   # skip-if-match: is:pr is:open in:title "[code-scanning-fix]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 
@@ -647,7 +647,7 @@ jobs:
           
           ## Important Notes
           
-          - **Weekly Schedule**: This workflow runs once per week as specified
+          - **Every 30 Minutes**: This workflow runs every 30 minutes to quickly address security alerts
           - **One Alert at a Time**: Process only one alert per run to minimize risk
           - **Safe Operation**: All changes go through pull request review before merging
           - **Never Execute Untrusted Code**: Use read-only analysis tools

@@ -2,7 +2,7 @@
 name: Code Scanning Fixer
 description: Automatically fixes high severity code scanning alerts by creating pull requests with remediation
 on:
-  schedule: weekly
+  schedule: every 30m
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[code-scanning-fix]"'
 permissions:
@@ -183,7 +183,7 @@ If any step fails:
 
 ## Important Notes
 
-- **Weekly Schedule**: This workflow runs once per week as specified
+- **Every 30 Minutes**: This workflow runs every 30 minutes to quickly address security alerts
 - **One Alert at a Time**: Process only one alert per run to minimize risk
 - **Safe Operation**: All changes go through pull request review before merging
 - **Never Execute Untrusted Code**: Use read-only analysis tools
