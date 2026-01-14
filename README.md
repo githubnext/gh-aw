@@ -26,7 +26,50 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 
 ## Quick Start
 
-Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://githubnext.github.io/gh-aw/setup/quick-start/) to install the extension, add a sample workflow, and see it in action.
+Get your first agentic workflow running in minutes:
+
+### Prerequisites
+
+Before you begin, ensure you have:
+- ✅ **GitHub CLI** (`gh`) version 2.0.0 or higher ([install here](https://cli.github.com))
+- ✅ **GitHub account** with access to a repository
+- ✅ **GitHub Actions** enabled in your repository
+- ✅ **Git** installed on your machine
+
+**Verify your setup:**
+```bash
+gh --version      # Should show version 2.0.0 or higher
+gh auth status    # Should show "Logged in to github.com"
+git --version     # Should show git version 2.x or higher
+```
+
+### Installation
+
+Install the GitHub Agentic Workflows extension:
+
+```bash
+gh extension install githubnext/gh-aw
+```
+
+**Verify installation:**
+```bash
+gh aw --version
+```
+
+> [!TIP]
+> **Installation Issues?** If the extension installation fails (common in Codespaces), use the standalone installer:
+> ```bash
+> curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+> ```
+
+### Get Started
+
+Follow the comprehensive [Quick Start Guide](https://githubnext.github.io/gh-aw/setup/quick-start/) for detailed step-by-step instructions including:
+- Repository initialization
+- Adding your first workflow
+- Setting up authentication tokens
+- Running and monitoring workflows
+- Troubleshooting common issues
 
 ## Overview
 

@@ -7,6 +7,32 @@ sidebar:
 
 This reference documents frequently encountered issues when working with GitHub Agentic Workflows, organized by workflow stage and component.
 
+## Quick Diagnostic Guide
+
+Use this flowchart to quickly identify and resolve common issues:
+
+```mermaid
+graph TD
+    A[Issue?] --> B{Installation or<br/>Command Not Found?}
+    B -->|Yes| C[Check Installation<br/>gh extension list]
+    B -->|No| D{Compilation<br/>Failing?}
+    C --> E[Reinstall or use<br/>standalone installer]
+    D -->|Yes| F[Run gh aw compile --verbose<br/>Check YAML syntax]
+    D -->|No| G{Workflow Not<br/>Running?}
+    G -->|Yes| H[Check GitHub Actions tab<br/>Verify secrets exist]
+    G -->|No| I{Workflow<br/>Failing?}
+    H --> J[Enable workflow manually<br/>Check org policies]
+    I -->|Yes| K[View logs:<br/>gh aw logs workflow-name]
+    K --> L[Check error type below]
+    
+    style A fill:#e1f5fe
+    style B fill:#fff3e0
+    style D fill:#fff3e0
+    style G fill:#fff3e0
+    style I fill:#fff3e0
+    style K fill:#f3e5f5
+```
+
 ## Installation Issues
 
 ### Extension Installation Fails
@@ -18,6 +44,24 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 ```
 
 After installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
+
+**Diagnostic commands:**
+```bash wrap
+# Check if extension is installed
+gh extension list | grep gh-aw
+
+# Verify GitHub CLI version (requires 2.0.0+)
+gh --version
+
+# Check authentication status
+gh auth status
+```
+
+**Expected output after successful installation:**
+```text
+$ gh aw --version
+gh-aw version 0.x.x
+```
 
 ### Extension Not Found After Installation
 
@@ -93,9 +137,63 @@ After updating the policy:
 
 If `gh aw compile` fails, check YAML frontmatter syntax (proper indentation with spaces, colons with spaces after them), verify required fields like `on:` are present, and ensure field types match the schema. Use `gh aw compile --verbose` for detailed error messages.
 
+**Example issue and solution:**
+
+**Problem:**
+```yaml
+# ❌ Incorrect - missing space after colon
+on:push
+permissions:
+  contents:read
+```
+
+**Solution:**
+```yaml
+# ✅ Correct - proper spacing
+on: push
+permissions:
+  contents: read
+```
+
+**Diagnostic steps:**
+```bash wrap
+# Compile with verbose output to see detailed errors
+gh aw compile --verbose
+
+# Validate YAML syntax
+cat .github/workflows/my-workflow.md | grep -A 20 "^---$"
+
+# Check for common syntax issues
+grep -n ":[^ ]" .github/workflows/my-workflow.md
+```
+
+**Common compilation errors:**
+- **"frontmatter not properly closed"**: Missing closing `---` delimiter
+- **"failed to parse frontmatter"**: Invalid YAML syntax (check indentation)
+- **"unknown property"**: Typo in field name (see suggestions in error message)
+- **"must be an integer"**: Wrong type (e.g., `"10"` instead of `10`)
+
 ### Lock File Not Generated
 
 If `.lock.yml` isn't created, fix compilation errors first (`gh aw compile 2>&1 | grep -i error`) and verify write permissions on `.github/workflows/`.
+
+**Diagnostic commands:**
+```bash wrap
+# Check for compilation errors
+gh aw compile 2>&1 | grep -i error
+
+# Verify directory permissions
+ls -la .github/workflows/
+
+# Check if .md file exists
+ls -la .github/workflows/*.md
+```
+
+**Expected output after successful compilation:**
+```text
+$ gh aw compile my-workflow
+✓ Compiled my-workflow.md → my-workflow.lock.yml
+```
 
 ### Orphaned Lock Files
 
@@ -183,6 +281,44 @@ safe-outputs:
   add-comment:
 ```
 
+**Example scenario:**
+
+**Problem:** Workflow tries to create an issue but fails with permission error.
+
+**Error in logs:**
+```text
+Error: Resource not accessible by integration
+```
+
+**Solution 1 - Use safe-outputs (recommended):**
+```yaml wrap
+permissions:
+  contents: read  # Read-only by default
+safe-outputs:
+  create-issue:
+    title-prefix: "[bot] "
+    labels: [automation]
+```
+
+**Solution 2 - Grant write permissions:**
+```yaml wrap
+permissions:
+  contents: read
+  issues: write  # Explicitly grant write access
+```
+
+**Diagnostic commands:**
+```bash wrap
+# Check workflow permissions in lock file
+grep -A 10 "permissions:" .github/workflows/my-workflow.lock.yml
+
+# View workflow run to see permission errors
+gh aw logs my-workflow
+
+# Verify safe-outputs configuration
+gh aw mcp inspect my-workflow
+```
+
 ### Safe Outputs Not Creating Issues
 
 Disable staged mode to create issues (not just preview):
@@ -193,6 +329,34 @@ safe-outputs:
   create-issue:
     title-prefix: "[bot] "
     labels: [automation]
+```
+
+**Example scenario:**
+
+**Problem:** Workflow completes successfully but no issue is created.
+
+**Cause:** Safe-outputs are in staged mode by default, which means they only preview without actually creating issues.
+
+**Check if staged mode is enabled:**
+```bash wrap
+# Look for "staged: true" in workflow configuration
+cat .github/workflows/my-workflow.md | grep -A 5 "safe-outputs"
+```
+
+**Expected behavior:**
+- **Staged mode (default)**: Preview issue in logs, no actual issue created
+- **Non-staged mode**: Issue actually created in repository
+
+**Solution:**
+```yaml wrap
+# Before (staged mode - default)
+safe-outputs:
+  create-issue:
+
+# After (non-staged mode - creates real issues)
+safe-outputs:
+  staged: false
+  create-issue:
 ```
 
 ### Token Permission Errors
@@ -370,6 +534,185 @@ tools:
 ## Debugging Strategies
 
 Enable verbose compilation (`gh aw compile --verbose`), set `ACTIONS_STEP_DEBUG = true` for debug logging, inspect generated lock files (`cat .github/workflows/my-workflow.lock.yml`), check MCP configuration (`gh aw mcp inspect my-workflow`), and review logs (`gh aw logs my-workflow` or `gh aw audit RUN_ID`).
+
+### Step-by-Step Debugging Process
+
+```mermaid
+graph TD
+    A[Workflow Issue] --> B[1. Check Compilation]
+    B --> C[gh aw compile --verbose]
+    C --> D{Compiles OK?}
+    D -->|No| E[Fix YAML/syntax errors]
+    D -->|Yes| F[2. Check Workflow Status]
+    F --> G[gh aw status]
+    G --> H{Workflow Running?}
+    H -->|No| I[Check GitHub Actions tab<br/>Enable workflow]
+    H -->|Yes| J[3. Check Logs]
+    J --> K[gh aw logs workflow-name]
+    K --> L[Identify error type]
+    L --> M[4. Deep Dive]
+    M --> N[gh aw audit RUN_ID]
+    
+    style A fill:#ffcdd2
+    style D fill:#fff3e0
+    style H fill:#fff3e0
+    style K fill:#e1f5fe
+```
+
+**1. Compile and validate:**
+```bash wrap
+# Basic compilation
+gh aw compile my-workflow
+
+# Verbose compilation with detailed error messages
+gh aw compile my-workflow --verbose
+
+# Compile all workflows and show what changed
+gh aw compile
+```
+
+**2. Check workflow status:**
+```bash wrap
+# View all workflows
+gh aw status
+
+# Check specific workflow
+gh aw status my-workflow
+
+# Watch for updates (useful for scheduled workflows)
+gh aw status --watch
+```
+
+**3. Examine workflow logs:**
+```bash wrap
+# Get logs for most recent run
+gh aw logs my-workflow
+
+# Get logs for specific run ID
+gh aw logs my-workflow --run-id 123456
+
+# Show only failed jobs
+gh aw logs my-workflow --failed
+```
+
+**4. Deep diagnostic analysis:**
+```bash wrap
+# Audit specific workflow run
+gh aw audit 123456
+
+# Inspect MCP server configuration
+gh aw mcp inspect my-workflow
+
+# Check network configuration
+cat .github/workflows/my-workflow.lock.yml | grep -A 20 "network"
+```
+
+### Common Debugging Scenarios
+
+#### Scenario 1: Workflow Triggers But Fails Immediately
+
+**Symptoms:**
+- Workflow shows as "failed" in Actions tab within seconds
+- Error mentions authentication or secrets
+
+**Debug steps:**
+```bash wrap
+# 1. Check if secret is set
+gh secret list
+
+# 2. View workflow run
+gh aw logs my-workflow
+
+# 3. Look for authentication errors
+gh aw logs my-workflow | grep -i "auth\|token\|secret"
+```
+
+**Common causes:**
+- `COPILOT_GITHUB_TOKEN` secret not set or expired
+- Secret has insufficient permissions (needs "Copilot Requests: Read")
+- Token expired (check expiration date)
+
+#### Scenario 2: Workflow Runs But Produces No Output
+
+**Symptoms:**
+- Workflow completes successfully
+- No issues, PRs, or comments created
+- Safe-outputs seem to do nothing
+
+**Debug steps:**
+```bash wrap
+# 1. Check if safe-outputs are in staged mode
+cat .github/workflows/my-workflow.md | grep -A 10 "safe-outputs"
+
+# 2. Look for preview output in logs
+gh aw logs my-workflow | grep -i "preview\|staged"
+
+# 3. Verify repository features are enabled
+# (Issues must be enabled for create-issue to work)
+```
+
+**Common causes:**
+- Safe-outputs in staged mode (set `staged: false`)
+- Repository features disabled (enable Issues, Discussions, etc.)
+- Insufficient permissions (check `permissions:` section)
+
+#### Scenario 3: Tool or MCP Server Not Found
+
+**Symptoms:**
+- Error mentions missing tools or MCP server connection failure
+- "Tool not found" in logs
+
+**Debug steps:**
+```bash wrap
+# 1. Inspect MCP configuration
+gh aw mcp inspect my-workflow
+
+# 2. Check available tools
+gh aw mcp list
+
+# 3. Verify tool configuration in workflow
+cat .github/workflows/my-workflow.md | grep -A 10 "tools:"
+```
+
+**Common causes:**
+- Toolset not enabled (add to `toolsets:` array)
+- MCP server not configured properly
+- Network access blocked (add domains to `network.allowed`)
+
+### Enable Debug Logging in GitHub Actions
+
+Add debug logging to see detailed execution steps:
+
+**In GitHub repository settings:**
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Add repository variable: `ACTIONS_STEP_DEBUG = true`
+3. Re-run workflow to see debug output
+
+**Expected result:**
+- Detailed step-by-step execution logs
+- Environment variable values
+- Internal command outputs
+
+### Inspect Generated Lock Files
+
+The `.lock.yml` file contains the actual workflow that GitHub Actions runs:
+
+```bash wrap
+# View entire lock file
+cat .github/workflows/my-workflow.lock.yml
+
+# Check specific sections
+cat .github/workflows/my-workflow.lock.yml | grep -A 20 "permissions:"
+cat .github/workflows/my-workflow.lock.yml | grep -A 20 "env:"
+
+# Find action versions and pinned SHAs
+cat .github/workflows/my-workflow.lock.yml | grep "uses:"
+```
+
+> [!CAUTION]
+> Never edit `.lock.yml` files directly
+>
+> Lock files are auto-generated. Always edit the `.md` source file and recompile with `gh aw compile`.
 
 ## Operational Runbooks
 
