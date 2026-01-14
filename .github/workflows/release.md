@@ -87,7 +87,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -148,7 +148,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Docker Buildx
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry

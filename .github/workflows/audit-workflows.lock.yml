@@ -117,7 +117,7 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
           cache: true
@@ -132,7 +132,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Start MCP server
         run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Robust health check with TCP connection test\necho \"Waiting for MCP server to start (PID: $MCP_PID)...\"\nfor i in {1..15}; do\n  # Check if process is still running\n  if ! kill -0 $MCP_PID 2>/dev/null; then\n    echo \"Error: MCP server process died unexpectedly\"\n    exit 1\n  fi\n  \n  # Try to connect to the server port\n  if timeout 1 bash -c \"echo > /dev/tcp/localhost/8765\" 2>/dev/null; then\n    echo \"MCP server is accepting connections on port 8765\"\n    echo \"MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  \n  echo \"Waiting for server to accept connections... (attempt $i/15)\"\n  sleep 1\ndone\n\necho \"Error: MCP server failed to accept connections after 15 seconds\"\nexit 1\n"
-      - name: Set up jq utilities directory
+      - name: Setup jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - name: Setup Python environment
         run: |
@@ -234,7 +234,7 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Downloading container images
+      - name: Download container images
         run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.56 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |

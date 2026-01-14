@@ -77,7 +77,7 @@ steps:
     with:
       go-version-file: go.mod
       cache: true
-  - name: Set up Node.js
+  - name: Setup Node.js
     uses: actions/setup-node@v6
     with:
       node-version: "24"

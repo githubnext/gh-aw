@@ -180,7 +180,7 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Downloading container images
+      - name: Download container images
         run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.56 node:lts-alpine
       - name: Install gh-aw extension
         env:
