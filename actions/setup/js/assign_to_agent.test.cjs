@@ -471,7 +471,7 @@ describe("assign_to_agent", () => {
     // Explicitly reset mocks to ensure clean state
     vi.clearAllMocks();
     mockGithub.graphql.mockReset();
-    
+
     setAgentOutput({
       items: [
         {
@@ -485,17 +485,12 @@ describe("assign_to_agent", () => {
 
     // Clear module cache for all dependencies AND re-read the script file
     // This ensures we have the latest code when eval executes
-    const modulesToClear = [
-      "./assign_agent_helpers.cjs",
-      "./load_agent_output.cjs",
-      "./staged_preview.cjs",
-      "./error_helpers.cjs",
-    ];
+    const modulesToClear = ["./assign_agent_helpers.cjs", "./load_agent_output.cjs", "./staged_preview.cjs", "./error_helpers.cjs"];
     for (const mod of modulesToClear) {
       const modPath = require.resolve(mod);
       delete require.cache[modPath];
     }
-    
+
     // Re-read the script file to ensure we have the latest version
     const scriptPath = path.join(process.cwd(), "assign_to_agent.cjs");
     const freshScript = fs.readFileSync(scriptPath, "utf8");
