@@ -2118,12 +2118,12 @@
                     },
                     "ssl-bump": {
                       "type": "boolean",
-                      "description": "Enable SSL Bump for HTTPS content inspection (allows URL path filtering for HTTPS). When enabled, AWF can filter HTTPS traffic by URL patterns instead of just domain names. Default: false",
+                      "description": "AWF-only feature: Enable SSL Bump for HTTPS content inspection. When enabled, AWF can filter HTTPS traffic by URL patterns instead of just domain names. This feature is specific to AWF and does not apply to Sandbox Runtime (SRT). Default: false",
                       "default": false
                     },
                     "allow-urls": {
                       "type": "array",
-                      "description": "URL patterns to allow for HTTPS traffic (requires ssl-bump: true). Supports wildcards for flexible path matching. Must include https:// scheme.",
+                      "description": "AWF-only feature: URL patterns to allow for HTTPS traffic (requires ssl-bump: true). Supports wildcards for flexible path matching. Must include https:// scheme. This feature is specific to AWF and does not apply to Sandbox Runtime (SRT).",
                       "items": {
                         "type": "string",
                         "pattern": "^https://.*",
