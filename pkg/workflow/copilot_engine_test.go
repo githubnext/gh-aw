@@ -1422,15 +1422,15 @@ func TestCopilotEngineParseLogMetrics_WithToolSizes(t *testing.T) {
 }
 
 func TestCopilotEngineSkipInstallationWithCommand(t *testing.T) {
-engine := NewCopilotEngine()
+	engine := NewCopilotEngine()
 
-// Test with custom command - should skip installation
-workflowData := &WorkflowData{
-EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-copilot"},
-}
-steps := engine.GetInstallationSteps(workflowData)
+	// Test with custom command - should skip installation
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-copilot"},
+	}
+	steps := engine.GetInstallationSteps(workflowData)
 
-if len(steps) != 0 {
-t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
-}
+	if len(steps) != 0 {
+		t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
+	}
 }

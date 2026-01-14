@@ -18,7 +18,7 @@ type EngineConfig struct {
 	MaxTurns    string
 	Concurrency string // Agent job-level concurrency configuration (YAML format)
 	UserAgent   string
-	Command     string            // Custom executable path (when set, skip installation steps)
+	Command     string // Custom executable path (when set, skip installation steps)
 	Env         map[string]string
 	Steps       []map[string]any
 	Config      string
