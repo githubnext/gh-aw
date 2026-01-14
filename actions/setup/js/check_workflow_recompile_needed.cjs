@@ -127,7 +127,9 @@ async function main() {
   const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
 
   // Read the issue template from the prompts directory
-  const templatePath = "/opt/gh-aw/prompts/workflow_recompile_issue.md";
+  // Allow override via environment variable for testing
+  const promptsDir = process.env.GH_AW_PROMPTS_DIR || "/opt/gh-aw/prompts";
+  const templatePath = `${promptsDir}/workflow_recompile_issue.md`;
   let issueTemplate;
   try {
     issueTemplate = fs.readFileSync(templatePath, "utf8");
