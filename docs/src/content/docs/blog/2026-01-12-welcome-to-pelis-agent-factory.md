@@ -62,7 +62,7 @@ Here's what we've built so far:
 - **A comprehensive collection of workflows** demonstrating diverse agent patterns
 - **12 core design patterns** consolidating all observed behaviors
 - **9 operational patterns** for GitHub-native agent orchestration
-- **128 workflows** in the `.github/workflows` directory of the [`gh-aw`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows) repository
+- **128 workflows** in the `.github/workflows` directory of the [`gh-aw`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows) repository
 - **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
 - **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
 
@@ -72,9 +72,7 @@ Each workflow is written in natural language using Markdown, then compiled into 
 
 In our first series, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a 16-part tour of the most interesting agents in the factory. You'll see how they operate, what problems they solve, and the unique personalities we've given them.
 
-Each article is bite-sized. Start with [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/) to get an overview, then dive into the ones that catch your eye.
-
-If you'd like to skip ahead, here's the full list of articles in the series:
+Each article is bite-sized. Start with [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/) to get an overview, then dive into the ones that catch your eye. If you'd like to skip ahead, here's the full list of articles in the series:
 
 1. [Triage & Summarization Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)
 2. [Code Quality & Refactoring Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/)
@@ -116,8 +114,6 @@ Want to start with automated agentic workflows on GitHub? See our [Quick Start](
 - **[Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)** - The 16-part tour of the workflows
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
-
-## Credits
 
 **Peli's Agent Factory** is a research project by GitHub Next, Microsoft Research and collaborators, including Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Russell Horton, Jiaxiao Zhou.
 
