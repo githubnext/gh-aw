@@ -27,7 +27,7 @@ function delay(ms) {
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @returns {Promise<Array<{id: string, number: number, title: string, url: string, body: string, createdAt: string}>>} Matching issues
+ * @returns {Promise<{issues: Array<{id: string, number: number, title: string, url: string, body: string, createdAt: string}>, stats: {pageCount: number, totalScanned: number}}>}
  */
 async function searchIssuesWithExpiration(github, owner, repo) {
   const issues = [];
@@ -35,8 +35,6 @@ async function searchIssuesWithExpiration(github, owner, repo) {
   let cursor = null;
   let pageCount = 0;
   let totalScanned = 0;
-
-  const { getErrorMessage } = require("./error_helpers.cjs");
 
   core.info(`Starting GraphQL search for open issues in ${owner}/${repo}`);
 
