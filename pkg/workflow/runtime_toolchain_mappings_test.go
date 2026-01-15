@@ -116,7 +116,7 @@ func TestCollectToolchainMappings(t *testing.T) {
 			if tt.hasGoCacheMount {
 				found := false
 				for _, mount := range allMounts {
-					if mount == "/home/runner/.cache/go-build:/home/runner/.cache/go-build:rw" {
+					if mount == "$GOCACHE:$GOCACHE:rw" {
 						found = true
 						break
 					}
@@ -127,7 +127,7 @@ func TestCollectToolchainMappings(t *testing.T) {
 			if tt.hasNodeCacheMount {
 				found := false
 				for _, mount := range allMounts {
-					if mount == "/home/runner/.npm:/home/runner/.npm:rw" {
+					if mount == "$HOME/.npm:$HOME/.npm:rw" {
 						found = true
 						break
 					}
@@ -138,7 +138,7 @@ func TestCollectToolchainMappings(t *testing.T) {
 			if tt.hasPythonCacheMount {
 				found := false
 				for _, mount := range allMounts {
-					if mount == "/home/runner/.cache/pip:/home/runner/.cache/pip:rw" {
+					if mount == "$HOME/.cache/pip:$HOME/.cache/pip:rw" {
 						found = true
 						break
 					}

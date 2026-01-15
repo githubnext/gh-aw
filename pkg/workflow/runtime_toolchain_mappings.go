@@ -99,58 +99,61 @@ func CollectToolchainMappings(requirements []RuntimeRequirement) *ToolchainMappi
 		var mounts []string
 
 		// Collect runtime-specific environment variables and mounts
+		// Use shell variable expansion syntax so values are resolved at runtime by the action
 		switch runtimeID {
 		case "go":
 			// Go requires GOPATH, GOCACHE, and GOMODCACHE to be accessible
-			envVars["GOPATH"] = "/home/runner/go"
-			envVars["GOCACHE"] = "/home/runner/.cache/go-build"
-			envVars["GOMODCACHE"] = "/home/runner/go/pkg/mod"
+			// These are set by actions/setup-go and resolved at runtime
+			envVars["GOPATH"] = "$GOPATH"
+			envVars["GOCACHE"] = "$GOCACHE"
+			envVars["GOMODCACHE"] = "$GOMODCACHE"
 
-			// Mount Go directories
-			mounts = append(mounts, "/home/runner/go:/home/runner/go:rw")
-			mounts = append(mounts, "/home/runner/.cache/go-build:/home/runner/.cache/go-build:rw")
+			// Mount Go directories using shell expansion
+			mounts = append(mounts, "$GOPATH:$GOPATH:rw")
+			mounts = append(mounts, "$GOCACHE:$GOCACHE:rw")
 
 		case "node":
 			// Node.js requires npm cache and node_modules
-			envVars["NPM_CONFIG_CACHE"] = "/home/runner/.npm"
+			// Use $HOME for runtime resolution
+			envVars["NPM_CONFIG_CACHE"] = "$HOME/.npm"
 
 			// Mount npm cache
-			mounts = append(mounts, "/home/runner/.npm:/home/runner/.npm:rw")
+			mounts = append(mounts, "$HOME/.npm:$HOME/.npm:rw")
 
 		case "python":
 			// Python requires pip cache
-			envVars["PIP_CACHE_DIR"] = "/home/runner/.cache/pip"
+			envVars["PIP_CACHE_DIR"] = "$HOME/.cache/pip"
 
 			// Mount pip cache
-			mounts = append(mounts, "/home/runner/.cache/pip:/home/runner/.cache/pip:rw")
+			mounts = append(mounts, "$HOME/.cache/pip:$HOME/.cache/pip:rw")
 
 		case "uv":
 			// uv uses its own cache directory
-			envVars["UV_CACHE_DIR"] = "/home/runner/.cache/uv"
+			envVars["UV_CACHE_DIR"] = "$HOME/.cache/uv"
 
 			// Mount uv cache
-			mounts = append(mounts, "/home/runner/.cache/uv:/home/runner/.cache/uv:rw")
+			mounts = append(mounts, "$HOME/.cache/uv:$HOME/.cache/uv:rw")
 
 		case "ruby":
 			// Ruby requires gem home
-			envVars["GEM_HOME"] = "/home/runner/.gem"
+			envVars["GEM_HOME"] = "$HOME/.gem"
 
 			// Mount gem directory
-			mounts = append(mounts, "/home/runner/.gem:/home/runner/.gem:rw")
+			mounts = append(mounts, "$HOME/.gem:$HOME/.gem:rw")
 
 		case "java":
 			// Java/Maven requires M2 repository
-			envVars["MAVEN_OPTS"] = "-Dmaven.repo.local=/home/runner/.m2/repository"
+			envVars["MAVEN_OPTS"] = "-Dmaven.repo.local=$HOME/.m2/repository"
 
 			// Mount Maven repository
-			mounts = append(mounts, "/home/runner/.m2:/home/runner/.m2:rw")
+			mounts = append(mounts, "$HOME/.m2:$HOME/.m2:rw")
 
 		case "dotnet":
 			// .NET requires NuGet packages directory
-			envVars["NUGET_PACKAGES"] = "/home/runner/.nuget/packages"
+			envVars["NUGET_PACKAGES"] = "$HOME/.nuget/packages"
 
 			// Mount NuGet packages
-			mounts = append(mounts, "/home/runner/.nuget:/home/runner/.nuget:rw")
+			mounts = append(mounts, "$HOME/.nuget:$HOME/.nuget:rw")
 
 			// Other runtimes can be added here as needed
 		}
