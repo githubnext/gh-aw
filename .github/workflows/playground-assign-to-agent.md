@@ -1,4 +1,5 @@
 ---
+name: "Playground: assign-to-agent"
 on: 
   workflow_dispatch:
     inputs:
