@@ -295,6 +295,8 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		"GITHUB_SERVER_URL",
 		"GITHUB_SHA",
 		"GITHUB_WORKSPACE",
+		"GITHUB_REF_NAME",
+		"GITHUB_HEAD_REF",
 		"DEFAULT_BRANCH",
 	}
 
