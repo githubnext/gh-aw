@@ -434,6 +434,38 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		return fmt.Sprintf("%d %d * * %d", minute, hour, weekday), nil
 	}
 
+	// For FUZZY:BI_WEEKLY * * *, we scatter across 2 weeks (14 days)
+	if strings.HasPrefix(fuzzyCron, "FUZZY:BI_WEEKLY") {
+		// Use a stable hash of the workflow identifier to get a deterministic day and time
+		// Total possibilities: 14 days * 1440 minutes = 20160 minutes in 2 weeks
+		hash := stableHash(workflowIdentifier, 20160)
+
+		// Extract time within a day (scatter across 2 weeks)
+		minutesInDay := hash % 1440 // Which minute of that day (0-1439)
+		hour := minutesInDay / 60
+		minute := minutesInDay % 60
+
+		// Convert to cron: We use day-of-month pattern with 14-day interval
+		// Schedule every 14 days at the scattered time
+		return fmt.Sprintf("%d %d */%d * *", minute, hour, 14), nil
+	}
+
+	// For FUZZY:TRI_WEEKLY * * *, we scatter across 3 weeks (21 days)
+	if strings.HasPrefix(fuzzyCron, "FUZZY:TRI_WEEKLY") {
+		// Use a stable hash of the workflow identifier to get a deterministic day and time
+		// Total possibilities: 21 days * 1440 minutes = 30240 minutes in 3 weeks
+		hash := stableHash(workflowIdentifier, 30240)
+
+		// Extract time within a day (scatter across 3 weeks)
+		minutesInDay := hash % 1440 // Which minute of that day (0-1439)
+		hour := minutesInDay / 60
+		minute := minutesInDay % 60
+
+		// Convert to cron: We use day-of-month pattern with 21-day interval
+		// Schedule every 21 days at the scattered time
+		return fmt.Sprintf("%d %d */%d * *", minute, hour, 21), nil
+	}
+
 	return "", fmt.Errorf("unsupported fuzzy schedule type: %s", fuzzyCron)
 }
 
@@ -779,6 +811,22 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			return fmt.Sprintf("FUZZY:WEEKLY:%s * * *", weekday), nil
 		}
 
+	case "bi-weekly":
+		// bi-weekly -> FUZZY:BI_WEEKLY (fuzzy schedule, scattered across 2 weeks)
+		if len(p.tokens) == 1 {
+			// Just "bi-weekly" with no additional parameters - scatter across 2 weeks
+			return "FUZZY:BI_WEEKLY * * *", nil
+		}
+		return "", fmt.Errorf("bi-weekly schedule does not support additional parameters, use 'bi-weekly' alone for fuzzy schedule")
+
+	case "tri-weekly":
+		// tri-weekly -> FUZZY:TRI_WEEKLY (fuzzy schedule, scattered across 3 weeks)
+		if len(p.tokens) == 1 {
+			// Just "tri-weekly" with no additional parameters - scatter across 3 weeks
+			return "FUZZY:TRI_WEEKLY * * *", nil
+		}
+		return "", fmt.Errorf("tri-weekly schedule does not support additional parameters, use 'tri-weekly' alone for fuzzy schedule")
+
 	case "monthly":
 		// monthly on <day> -> rejected (use cron directly)
 		// monthly on <day> at HH:MM -> rejected (use cron directly)
@@ -801,7 +849,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		return "", fmt.Errorf("'monthly on <day>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 0 %s * *' for the %sth at midnight)", day, day)
 
 	default:
-		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'weekly', or 'monthly'", baseType)
+		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'weekly', 'bi-weekly', 'tri-weekly', or 'monthly'", baseType)
 	}
 
 	// Build cron expression: MIN HOUR DOM MONTH DOW
