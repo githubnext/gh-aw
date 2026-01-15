@@ -29,7 +29,6 @@ name: "Repository Quality Improvement Agent"
 "on":
   schedule:
   - cron: "0 13 * * 1-5"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions:
