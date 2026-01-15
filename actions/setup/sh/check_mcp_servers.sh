@@ -96,7 +96,8 @@ while IFS= read -r SERVER_NAME; do
   # The gateway may output 0.0.0.0 as the bind address, but this script
   # runs on the host (not in a container), so we need to use localhost
   # Note: This is similar to how the health check uses localhost on line 161
-  SERVER_URL=$(echo "$SERVER_URL" | sed 's|http://0\.0\.0\.0:|http://localhost:|g')
+  # Supports both HTTP and HTTPS protocols for future-proofing
+  SERVER_URL=$(echo "$SERVER_URL" | sed 's|\(https\?://\)0\.0\.0\.0:|\1localhost:|g')
   
   # Extract authentication headers from gateway configuration
   AUTH_HEADER=""
