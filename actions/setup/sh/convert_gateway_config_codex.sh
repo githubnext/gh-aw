@@ -61,7 +61,15 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 # Note: URLs must use the correct domain (host.docker.internal) for container access
 
 # Build the correct URL prefix using the configured domain and port
-URL_PREFIX="http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
+# For host.docker.internal, resolve to the gateway IP to avoid DNS resolution issues in Rust
+if [ "$MCP_GATEWAY_DOMAIN" = "host.docker.internal" ]; then
+  # AWF network gateway IP is always 172.30.0.1
+  RESOLVED_DOMAIN="172.30.0.1"
+  echo "Resolving host.docker.internal to gateway IP: $RESOLVED_DOMAIN"
+else
+  RESOLVED_DOMAIN="$MCP_GATEWAY_DOMAIN"
+fi
+URL_PREFIX="http://${RESOLVED_DOMAIN}:${MCP_GATEWAY_PORT}"
 
 # Create the TOML configuration
 cat > /tmp/gh-aw/mcp-config/config.toml << 'TOML_EOF'
