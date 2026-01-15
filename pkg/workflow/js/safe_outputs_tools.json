@@ -933,13 +933,11 @@
     "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "title"
-      ],
+      "required": [],
       "properties": {
         "title": {
           "type": "string",
-          "description": "Title for the new project. Should be descriptive and unique within the owner's projects."
+          "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated as 'Campaign: <issue-title>' or 'Campaign #<issue-number>' based on the issue context."
         },
         "owner": {
           "type": "string",

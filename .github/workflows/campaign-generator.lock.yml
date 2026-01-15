@@ -465,13 +465,11 @@ jobs:
                     "type": "string"
                   },
                   "title": {
-                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects.",
+                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated as 'Campaign: \u003cissue-title\u003e' or 'Campaign #\u003cissue-number\u003e' based on the issue context.",
                     "type": "string"
                   }
                 },
-                "required": [
-                  "title"
-                ],
+                "required": [],
                 "type": "object"
               },
               "name": "create_project"
