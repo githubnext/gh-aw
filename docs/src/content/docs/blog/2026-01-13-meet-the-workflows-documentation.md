@@ -2,8 +2,9 @@
 title: "Meet the Workflows: Documentation & Content"
 description: "A curated tour of workflows that maintain high-quality documentation"
 authors:
-  - mnkiefer
+  - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T03:00:00
 sidebar:
   label: "Documentation & Content"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the documentation corner of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+Step right up, step right up, and enter the *documentation chamber* of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Pure imagination meets technical accuracy in this most delightful corner of our establishment!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/), we explored code quality and refactoring workflows - agents that continuously push our codebase toward better design, finding patterns and improvements that humans often miss. These workflows never take a day off, quietly working to make our code cleaner and more maintainable.
 
@@ -27,10 +28,15 @@ Now let's address one of software development's eternal challenges: keeping docu
 
 These agents maintain high-quality documentation and content:
 
-- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
-- **[Technical Doc Writer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/technical-doc-writer.md?plain=1)** - Generates and updates technical documentation  
-- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
-- **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices
+- **[Daily Documentation Updater](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-doc-updater.md?plain=1)** - Reviews and updates documentation to ensure accuracy and completeness  
+- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
+- **[Technical Doc Writer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/technical-doc-writer.md?plain=1)** - Generates and updates technical documentation  
+- **[Documentation Unbloat](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/unbloat-docs.md?plain=1)** - Reviews and simplifies documentation by reducing verbosity  
+- **[Documentation Noob Tester](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/docs-noob-tester.md?plain=1)** - Tests documentation as a new user would, identifying confusing steps  
+- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
+- **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices  
+- **[Blog Auditor](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/blog-auditor.md?plain=1)** - Verifies blog posts are accessible and contain expected content  
+- **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/schema-consistency-checker.md?plain=1)** - Detects inconsistencies between JSON schema, code, and documentation  
   
 Documentation is where we challenged conventional wisdom. Can AI agents write *good* documentation?
 

@@ -23,6 +23,7 @@ safe-outputs:
   create-project:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    title-prefix: "Campaign"
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
@@ -152,7 +153,7 @@ update_project({
     {
       name: "Status",
       data_type: "SINGLE_SELECT",
-      options: ["Todo", "In Progress", "Blocked", "Done", "Closed"]
+      options: ["Todo", "In Progress", "Review required", "Blocked", "Done", "Closed"]
     },
     {
       name: "Start Date",

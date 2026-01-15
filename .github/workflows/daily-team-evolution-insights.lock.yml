@@ -147,7 +147,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.6
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.7
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -345,7 +345,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.1.6",
+              agent_version: "2.1.7",
               workflow_name: "Daily Team Evolution Insights",
               experimental: true,
               supports_tools_allowlist: true,
@@ -363,7 +363,7 @@ jobs:
               allowed_domains: ["*"],
               firewall_enabled: false,
               awf_version: "",
-              awmg_version: "v0.0.56",
+              awmg_version: "v0.0.59",
               steps: {
                 firewall: ""
               },
@@ -611,11 +611,6 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
               }
             });
-      - name: Append XPIA security instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/opt/gh-aw/prompts/xpia_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1102,7 +1097,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.6
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.7
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

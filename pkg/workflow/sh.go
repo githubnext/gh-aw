@@ -14,7 +14,6 @@ var shLog = logger.New("workflow:sh")
 const (
 	promptsDir           = "/opt/gh-aw/prompts"
 	prContextPromptFile  = "pr_context_prompt.md"
-	xpiaPromptFile       = "xpia_prompt.md"
 	tempFolderPromptFile = "temp_folder_prompt.md"
 	playwrightPromptFile = "playwright_prompt.md"
 )

@@ -14,7 +14,7 @@ This checklist is designed to validate LLM outputs before executing project writ
 
 ## B) Field Validity Checks
 
-- [ ] `fields.status` ∈ {`Todo`, `In Progress`, `Done`}
+- [ ] `fields.status` ∈ {`Todo`, `In Progress`, `Review required`, `Blocked`, `Done`}
 - [ ] `fields.campaign_id` is present on first-add/backfill and equals `{{.CampaignID}}`
 - [ ] `fields.worker_workflow` is present on first-add/backfill and is either a known workflow ID or `"unknown"`
 - [ ] `fields.repository` matches `owner/repo`

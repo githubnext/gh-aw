@@ -292,7 +292,6 @@ type WorkflowData struct {
 	Bots                    []string             // allow list of bot identifiers that can trigger workflow
 	CacheMemoryConfig       *CacheMemoryConfig   // parsed cache-memory configuration
 	RepoMemoryConfig        *RepoMemoryConfig    // parsed repo-memory configuration
-	SafetyPrompt            bool                 // whether to include XPIA safety prompt (default true)
 	Runtimes                map[string]any       // runtime version overrides from frontmatter
 	ToolsTimeout            int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
 	GitHubToken             string               // top-level github-token expression from frontmatter

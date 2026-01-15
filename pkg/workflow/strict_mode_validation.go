@@ -144,6 +144,37 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 	return nil
 }
 
+// validateStrictTools validates tools configuration in strict mode
+func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
+	// Check tools section
+	toolsValue, exists := frontmatter["tools"]
+	if !exists {
+		return nil
+	}
+
+	toolsMap, ok := toolsValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	// Check if serena is configured with local mode
+	serenaValue, hasSerena := toolsMap["serena"]
+	if hasSerena {
+		// Check if serena is a map (detailed configuration)
+		if serenaConfig, ok := serenaValue.(map[string]any); ok {
+			// Check if mode is set to "local"
+			if mode, hasMode := serenaConfig["mode"]; hasMode {
+				if modeStr, ok := mode.(string); ok && modeStr == "local" {
+					strictModeValidationLog.Printf("Serena local mode validation failed")
+					return fmt.Errorf("strict mode: serena tool with 'mode: local' is not allowed for security reasons. Local mode runs the MCP server directly on the host without containerization, bypassing security isolation. Use 'mode: docker' (default) instead, which runs Serena in a container. See: https://githubnext.github.io/gh-aw/reference/tools/#serena")
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // validateStrictDeprecatedFields refuses deprecated fields in strict mode
 func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) error {
 	// Get the list of deprecated fields from the schema
@@ -183,7 +214,8 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 //  1. validateStrictPermissions() - Refuses write permissions on sensitive scopes
 //  2. validateStrictNetwork() - Requires explicit network configuration
 //  3. validateStrictMCPNetwork() - Requires network config on custom MCP servers
-//  4. validateStrictDeprecatedFields() - Refuses deprecated fields
+//  4. validateStrictTools() - Validates tools configuration (e.g., serena local mode)
+//  5. validateStrictDeprecatedFields() - Refuses deprecated fields
 //
 // Note: Strict mode also affects zizmor security scanner behavior (see pkg/cli/zizmor.go)
 // When zizmor is enabled with --zizmor flag, strict mode will treat any security
@@ -211,7 +243,12 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 		return err
 	}
 
-	// 4. Refuse deprecated fields
+	// 4. Validate tools configuration
+	if err := c.validateStrictTools(frontmatter); err != nil {
+		return err
+	}
+
+	// 5. Refuse deprecated fields
 	if err := c.validateStrictDeprecatedFields(frontmatter); err != nil {
 		return err
 	}

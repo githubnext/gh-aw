@@ -321,16 +321,35 @@ Specialized token for `assign-to-agent:` safe outputs that assign GitHub Copilot
 - `assign-to-agent:` safe outputs
 - Programmatic agent assignment operations
 
-**Required permissions**:
-
-- Actions: Write
-- Contents: Write
-- Issues: Write
-- Pull requests: Write
-
 **Setup**:
 
-1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with the above permissions
+The required token type and permissions depend on whether you own the repository or an organization owns it:
+
+**For User-owned Repositories**:
+
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Resource owner**: Your user account
+   - **Repository access**: "Public repositories" or select specific repos
+   - **Repository permissions**:
+     - Actions: Write
+     - Contents: Write
+     - Issues: Write
+     - Pull requests: Write
+
+**For Organization-owned Repositories**:
+
+When an organization owns the repository, you need a fine-grained PAT with the resource owner set to the organization:
+
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Resource owner**: The organization that owns the repository
+   - **Repository access**: Select the specific repositories that will use the workflow
+   - **Repository permissions**:
+     - Actions: Write
+     - Contents: Write
+     - Issues: Write
+     - Pull requests: Write
+   - **Important**: You must set the resource owner to the organization during token creation
+
 2. Add to repository secrets:
 
 ```bash wrap
@@ -338,6 +357,14 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 ```
 
 **Token precedence**: per-output → global safe-outputs → workflow-level → `GH_AW_AGENT_TOKEN` (no further fallback - must be explicitly configured)
+
+> [!NOTE]
+> Resource owner requirements
+> The token's resource owner must match the repository ownership:
+> - **User-owned repositories**: Use a token where the resource owner is your user account
+> - **Organization-owned repositories**: Use a token where the resource owner is the organization
+>
+> This ensures the token has the appropriate permissions to assign agents to issues and pull requests in the repository.
 
 ## `GITHUB_MCP_SERVER_TOKEN` (Auto-configured)
 

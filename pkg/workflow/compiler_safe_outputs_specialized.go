@@ -121,6 +121,11 @@ func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_TARGET_OWNER: %q\n", cfg.TargetOwner))
 	}
 
+	// Add title-prefix default if configured
+	if cfg.TitlePrefix != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATE_PROJECT_TITLE_PREFIX: %q\n", cfg.TitlePrefix))
+	}
+
 	// Get the effective token using the Projects-specific precedence chain
 	// This includes fallback to GH_AW_PROJECT_GITHUB_TOKEN if no custom token is configured
 	// Note: Projects v2 requires a PAT or GitHub App - the default GITHUB_TOKEN cannot work

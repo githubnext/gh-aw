@@ -183,24 +183,21 @@ Generated files:
 ## Best Practices
 
 1. **Start simple** - One clear goal per campaign
-2. **Use passive mode first** - Monitor before enabling active execution
-3. **Reuse workflows** - Check existing before creating new
-4. **Minimal permissions** - Grant only what's needed
-5. **Escalate when unsure** - Create issues for human review
+2. **Reuse workflows** - Check existing before creating new
+3. **Minimal permissions** - Grant only what's needed
+4. **Escalate when unsure** - Create issues for human review
 
 ### DO:
 - ✅ Use unique kebab-case campaign IDs
 - ✅ Scan existing workflows before suggesting new
 - ✅ Apply least privilege for safe outputs
-- ✅ Start with passive mode
 - ✅ Follow operation order for project-based campaigns
 
 ### DON'T:
 - ❌ Create duplicate campaign IDs
 - ❌ Skip workflow discovery
 - ❌ Grant unnecessary permissions
-- ❌ Enable execute-workflows for first campaign
 
 ---
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-01-15

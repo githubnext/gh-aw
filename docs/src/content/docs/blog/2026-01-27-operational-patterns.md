@@ -4,6 +4,7 @@ description: "Strategic patterns for operating agents in the GitHub ecosystem"
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-27
 draft: true
 prev:
@@ -20,7 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome back to our ongoing series about Peli's Agent Factory! In the [previous article](/gh-aw/blog/2026-01-24-design-patterns/), we explored the fundamental design patterns that define what agents do. Now let's shift from architecture to operations.
+*Marvelous timing!* You've returned to our ongoing series about Peli's Agent Factory! Having explored the [secret recipes](/gh-aw/blog/2026-01-24-design-patterns/) that define what agents do, we now venture into the *operational theater* - where theory meets practice!
 
 So you've learned what agents *do* (design patterns), but how do they actually *operate* in GitHub's ecosystem? That's where operational patterns come in.
 

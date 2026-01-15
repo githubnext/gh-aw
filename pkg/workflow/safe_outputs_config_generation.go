@@ -245,6 +245,10 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateProjects.TargetOwner != "" {
 				config["target_owner"] = data.SafeOutputs.CreateProjects.TargetOwner
 			}
+			// Add title-prefix if specified
+			if data.SafeOutputs.CreateProjects.TitlePrefix != "" {
+				config["title_prefix"] = data.SafeOutputs.CreateProjects.TitlePrefix
+			}
 			safeOutputsConfig["create_project"] = config
 		}
 		if data.SafeOutputs.UpdateRelease != nil {

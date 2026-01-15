@@ -142,7 +142,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.381 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.382 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -329,7 +329,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.381",
+              agent_version: "0.0.382",
               workflow_name: "Dev",
               experimental: false,
               supports_tools_allowlist: true,
@@ -347,7 +347,7 @@ jobs:
               allowed_domains: ["*"],
               firewall_enabled: false,
               awf_version: "",
-              awmg_version: "v0.0.56",
+              awmg_version: "v0.0.59",
               steps: {
                 firewall: ""
               },
@@ -387,11 +387,6 @@ jobs:
           5. The poem should be relevant, creative, and engaging
           
           PROMPT_EOF
-      - name: Append XPIA security instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/opt/gh-aw/prompts/xpia_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -838,7 +833,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.381 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.382 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh

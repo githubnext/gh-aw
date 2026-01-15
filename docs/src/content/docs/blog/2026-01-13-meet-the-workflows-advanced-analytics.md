@@ -2,8 +2,9 @@
 title: "Meet the Workflows: Advanced Analytics & ML"
 description: "A curated tour of workflows that use ML to extract insights from agent behavior"
 authors:
-  - mnkiefer
+  - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T15:00:00
 sidebar:
   label: "Advanced Analytics & ML"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Time to get into data ana analytics at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Ooh!* Time to plunge into the *data wonderland* at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Where numbers dance and patterns sing!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/), we explored organization and cross-repo workflows that operate at enterprise scale - analyzing dozens of repositories together to find patterns and outliers that single-repo analysis would miss. We learned that perspective matters: what looks normal in isolation might signal drift at scale.
 
@@ -27,10 +28,10 @@ Beyond tracking basic metrics (run time, cost, success rate), we wanted deeper i
 
 These agents use sophisticated analysis techniques to extract insights:
 
-- **[Copilot Session Insights](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-session-insights.md?plain=1)** - Analyzes Copilot agent usage patterns and metrics  
-- **[Copilot PR NLP Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-pr-nlp-analysis.md?plain=1)** - Natural language processing on PR conversations  
-- **[Prompt Clustering Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/prompt-clustering-analysis.md?plain=1)** - Clusters and categorizes agent prompts using ML  
-- **[Copilot Agent Analysis](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/copilot-agent-analysis.md?plain=1)** - Deep analysis of agent behavior patterns  
+- **[Copilot Session Insights](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/copilot-session-insights.md?plain=1)** - Analyzes Copilot agent usage patterns and metrics  
+- **[Copilot PR NLP Analysis](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/copilot-pr-nlp-analysis.md?plain=1)** - Natural language processing on PR conversations  
+- **[Prompt Clustering Analysis](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/prompt-clustering-analysis.md?plain=1)** - Clusters and categorizes agent prompts using ML  
+- **[Copilot Agent Analysis](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/copilot-agent-analysis.md?plain=1)** - Deep analysis of agent behavior patterns  
 
 The Prompt Clustering Analysis uses machine learning to categorize thousands of agent prompts, revealing patterns we never noticed ("oh, 40% of our prompts are about error handling").
 

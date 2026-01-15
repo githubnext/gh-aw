@@ -1092,3 +1092,125 @@ func TestHasMCPConfigComprehensive(t *testing.T) {
 		})
 	}
 }
+
+// TestRenderSerenaMCPConfigLocalMode tests Serena in local mode with HTTP transport
+func TestRenderSerenaMCPConfigLocalMode(t *testing.T) {
+	tests := []struct {
+		name                 string
+		serenaTool           any
+		isLast               bool
+		includeCopilotFields bool
+		inlineArgs           bool
+		expectedContent      []string
+		unexpectedContent    []string
+	}{
+		{
+			name: "Serena local mode - Copilot format",
+			serenaTool: map[string]any{
+				"mode": "local",
+				"languages": map[string]any{
+					"go": map[string]any{},
+				},
+			},
+			isLast:               false,
+			includeCopilotFields: true,
+			inlineArgs:           false,
+			expectedContent: []string{
+				`"serena": {`,
+				`"type": "http"`,
+				`"url": "http://localhost:$GH_AW_SERENA_PORT"`,
+			},
+			unexpectedContent: []string{
+				`"container"`,
+				`"entrypoint"`,
+				`"Authorization"`,
+			},
+		},
+		{
+			name: "Serena local mode - Claude format",
+			serenaTool: map[string]any{
+				"mode": "local",
+				"languages": map[string]any{
+					"typescript": map[string]any{},
+				},
+			},
+			isLast:               true,
+			includeCopilotFields: false,
+			inlineArgs:           false,
+			expectedContent: []string{
+				`"serena": {`,
+				`"url": "http://localhost:$GH_AW_SERENA_PORT"`,
+			},
+			unexpectedContent: []string{
+				`"container"`,
+				`"type"`,
+				`"Authorization"`,
+			},
+		},
+		{
+			name: "Serena docker mode - should use container",
+			serenaTool: map[string]any{
+				"mode": "docker",
+				"languages": map[string]any{
+					"go": map[string]any{},
+				},
+			},
+			isLast:               false,
+			includeCopilotFields: true,
+			inlineArgs:           false,
+			expectedContent: []string{
+				`"serena": {`,
+				`"type": "stdio"`,
+				`"container": "ghcr.io/oraios/serena:latest"`,
+			},
+			unexpectedContent: []string{
+				`"url"`,
+				`"http"`,
+			},
+		},
+		{
+			name: "Serena no mode specified - defaults to docker",
+			serenaTool: map[string]any{
+				"languages": map[string]any{
+					"python": map[string]any{},
+				},
+			},
+			isLast:               false,
+			includeCopilotFields: true,
+			inlineArgs:           false,
+			expectedContent: []string{
+				`"serena": {`,
+				`"type": "stdio"`,
+				`"container": "ghcr.io/oraios/serena:latest"`,
+			},
+			unexpectedContent: []string{
+				`"url"`,
+				`"http"`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output strings.Builder
+
+			renderSerenaMCPConfigWithOptions(&output, tt.serenaTool, tt.isLast, tt.includeCopilotFields, tt.inlineArgs)
+
+			result := output.String()
+
+			// Check expected content
+			for _, expected := range tt.expectedContent {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected output to contain %q\nGot:\n%s", expected, result)
+				}
+			}
+
+			// Check unexpected content
+			for _, unexpected := range tt.unexpectedContent {
+				if strings.Contains(result, unexpected) {
+					t.Errorf("Expected output NOT to contain %q\nGot:\n%s", unexpected, result)
+				}
+			}
+		})
+	}
+}

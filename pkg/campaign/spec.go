@@ -96,12 +96,6 @@ type CampaignSpec struct {
 	// campaign (for example: number of approvals and required roles).
 	ApprovalPolicy *CampaignApprovalPolicy `yaml:"approval-policy,omitempty" json:"approval-policy,omitempty"`
 
-	// ExecuteWorkflows enables the campaign to actively run the workflows
-	// listed in the Workflows field. When true, the orchestrator will
-	// execute workflows sequentially and can create new workflows if needed.
-	// Default: false (passive discovery only).
-	ExecuteWorkflows bool `yaml:"execute-workflows,omitempty" json:"execute_workflows,omitempty"`
-
 	// Engine specifies the AI engine to use for the campaign orchestrator.
 	// Valid values: copilot, claude, codex, custom.
 	// Default: copilot (when not specified).

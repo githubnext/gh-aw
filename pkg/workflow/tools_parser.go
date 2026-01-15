@@ -108,9 +108,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["repo-memory"]; exists {
 		tools.RepoMemory = parseRepoMemoryTool(val)
 	}
-	if val, exists := toolsMap["safety-prompt"]; exists {
-		tools.SafetyPrompt = parseSafetyPromptTool(val)
-	}
 	if val, exists := toolsMap["timeout"]; exists {
 		tools.Timeout = parseTimeoutTool(val)
 	}
@@ -327,6 +324,11 @@ func parseSerenaTool(val any) *SerenaToolConfig {
 			config.Version = version
 		}
 
+		// Parse mode field
+		if mode, ok := configMap["mode"].(string); ok {
+			config.Mode = mode
+		}
+
 		if args, ok := configMap["args"].([]any); ok {
 			config.Args = make([]string, 0, len(args))
 			for _, item := range args {
@@ -414,16 +416,6 @@ func parseCacheMemoryTool(val any) *CacheMemoryToolConfig {
 func parseRepoMemoryTool(val any) *RepoMemoryToolConfig {
 	// repo-memory can be boolean, object, or array - store raw value
 	return &RepoMemoryToolConfig{Raw: val}
-}
-
-// parseSafetyPromptTool converts raw safety-prompt tool configuration
-func parseSafetyPromptTool(val any) *bool {
-	if boolVal, ok := val.(bool); ok {
-		return &boolVal
-	}
-	// Default to true if not specified or invalid type
-	defaultVal := true
-	return &defaultVal
 }
 
 // parseTimeoutTool converts raw timeout tool configuration

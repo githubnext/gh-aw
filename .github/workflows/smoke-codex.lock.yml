@@ -185,7 +185,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.80.0
+        run: npm install -g --silent @openai/codex@0.81.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.9.1)"
@@ -792,7 +792,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.80.0",
+              agent_version: "0.81.0",
               workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
@@ -900,11 +900,6 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
               }
             });
-      - name: Append XPIA security instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/opt/gh-aw/prompts/xpia_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1402,7 +1397,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.80.0
+        run: npm install -g --silent @openai/codex@0.81.0
       - name: Run Codex
         run: |
           set -o pipefail
