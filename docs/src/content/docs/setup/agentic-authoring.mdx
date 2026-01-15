@@ -82,6 +82,41 @@ To use the agentic-chat instructions:
 
 The assistant uses a neutral, technical tone and focuses on what needs to be done rather than how to implement it, making it ideal for creating specifications that AI coding agents can execute.
 
+## Security Checklist
+
+Before submitting your workflow, review these security requirements:
+
+### Essential Security Controls
+
+- [ ] **Permissions**: Use minimal read-only permissions; use `safe-outputs` for write operations
+- [ ] **Triggers**: Fork PRs blocked by default (check `forks:` configuration)
+- [ ] **Actions**: All actions pinned to commit SHAs with version comments
+- [ ] **Scripts**: External scripts downloaded from pinned SHAs with checksum verification
+- [ ] **Expressions**: No untrusted input in `${{ }}` expressions (use environment variables)
+- [ ] **Context**: Use sanitized context (`needs.activation.outputs.text`) instead of raw event data
+- [ ] **Network**: Network access configured (use `network: defaults` or explicit allowlist)
+- [ ] **Timeouts**: Workflow timeout configured (`timeout-minutes`)
+
+### Recommended Controls
+
+- [ ] **Strict mode**: Consider enabling `strict: true` for production workflows
+- [ ] **Expiration**: Add `stop-after` for time-limited workflows
+- [ ] **Roles**: Review user role restrictions (defaults to `admin`, `maintainer`, `write`)
+- [ ] **Secrets**: Tokens stored in GitHub Secrets (never hardcoded)
+- [ ] **Documentation**: Security choices documented in workflow or comments
+
+### Testing
+
+- [ ] **Compile**: Workflow compiles without errors (`gh aw compile`)
+- [ ] **Validate**: No security warnings from static analysis
+- [ ] **Test**: Workflow tested in safe environment before production
+
+### Resources
+
+- [Security Best Practices Guide](/gh-aw/guides/security/)
+- [GitHub Actions Security Best Practices](https://github.com/githubnext/gh-aw/blob/main/specs/github-actions-security-best-practices.md)
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
+
 ## After compiling
 
 Commit the generated files ([`.lock.yml`](/gh-aw/reference/glossary/#workflow-lock-file-lockyml), the compiled GitHub Actions workflow file) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.

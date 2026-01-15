@@ -442,6 +442,90 @@ network:
 network: {}
 ```
 
+## Quick Security Reference
+
+Common security patterns for workflow development:
+
+### Secure Script Installation
+
+When downloading and executing external scripts or binaries:
+
+```yaml wrap
+# ✅ SECURE: Download-verify-execute pattern
+- name: Install tool
+  run: |
+    set -euo pipefail
+    
+    # Download from pinned commit SHA
+    SCRIPT_URL="https://raw.githubusercontent.com/org/repo/<COMMIT_SHA>/install.sh"
+    curl -fsSL "$SCRIPT_URL" -o /tmp/install.sh
+    
+    # Verify checksum
+    EXPECTED_SHA256="abc123..."
+    ACTUAL_SHA256=$(sha256sum /tmp/install.sh | awk '{print $1}')
+    
+    if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+      echo "ERROR: Checksum verification failed!"
+      exit 1
+    fi
+    
+    # Execute after verification
+    chmod +x /tmp/install.sh
+    /tmp/install.sh
+```
+
+**Key principles:**
+- Always pin to commit SHAs (never branches or tags)
+- Verify checksums before execution (SHA-256 minimum)
+- Never pipe to bash (`curl | bash`)
+- Use strict error handling
+
+See [GitHub Actions Security Best Practices](https://github.com/githubnext/gh-aw/blob/main/specs/github-actions-security-best-practices.md#secure-script-installation) for complete examples and troubleshooting.
+
+### Template Injection Prevention
+
+Never use untrusted input directly in expressions:
+
+```yaml wrap
+# ❌ VULNERABLE
+run: echo "${{ github.event.issue.title }}"
+
+# ✅ SECURE: Use environment variables
+env:
+  ISSUE_TITLE: ${{ github.event.issue.title }}
+run: echo "$ISSUE_TITLE"
+
+# ✅ SECURE: Use sanitized context (gh-aw)
+run: echo "${{ needs.activation.outputs.text }}"
+```
+
+### Action Pinning
+
+Pin all actions to immutable SHA commits:
+
+```yaml wrap
+# ❌ VULNERABLE: Tags can be changed
+- uses: actions/checkout@v4
+
+# ✅ SECURE: Pin to SHA with version comment
+- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+```
+
+### Minimal Permissions
+
+Start with read-only permissions:
+
+```yaml wrap
+permissions:
+  contents: read
+  actions: read
+
+# Use safe-outputs for write operations
+safe-outputs:
+  create-issue:
+  add-comment:
+```
+
 ## See also
 
 - [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Comprehensive threat detection configuration and examples
