@@ -169,7 +169,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 
 	// With section for github-token
 	// Use the standard safe outputs token for all operations
-	// Project-specific handlers (create_project, update_project) will use custom tokens from their handler config
+	// Project-specific handlers (create_project) will use custom tokens from their handler config
 	steps = append(steps, "        with:\n")
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
 

@@ -6,6 +6,8 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 // Module-level variable to hold the Octokit instance (either custom or global github)
+// This is initialized once in main() and used by all handler invocations
+// Safe because handlers are initialized once and called sequentially
 let octokitInstance;
 
 /**
