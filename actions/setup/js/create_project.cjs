@@ -161,11 +161,15 @@ async function main(config = {}) {
   // Extract configuration
   const defaultTargetOwner = config.target_owner || "";
   const maxCount = config.max || 1;
+  const titlePrefix = config.title_prefix || "Campaign";
 
   if (defaultTargetOwner) {
     core.info(`Default target owner: ${defaultTargetOwner}`);
   }
   core.info(`Max count: ${maxCount}`);
+  if (config.title_prefix) {
+    core.info(`Title prefix: ${titlePrefix}`);
+  }
 
   // Track state
   let processedCount = 0;
@@ -198,12 +202,12 @@ async function main(config = {}) {
         const issueNumber = context.payload?.issue?.number;
 
         if (issueTitle) {
-          // Use the issue title directly as the campaign name (no prefix extraction needed)
-          title = `Campaign: ${issueTitle}`;
+          // Use the issue title with the configured prefix
+          title = `${titlePrefix}: ${issueTitle}`;
           core.info(`Generated campaign title from issue: "${title}"`);
         } else if (issueNumber) {
           // Fallback to issue number if no title is available
-          title = `Campaign #${issueNumber}`;
+          title = `${titlePrefix} #${issueNumber}`;
           core.info(`Generated campaign title from issue number: "${title}"`);
         } else {
           throw new Error("Missing required field 'title' in create_project call and unable to generate from context");

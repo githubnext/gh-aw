@@ -3897,6 +3897,10 @@
                 "target-owner": {
                   "type": "string",
                   "description": "Optional default target owner (organization or user login, e.g., 'myorg' or 'username') for the new project. If specified, the agent can omit the owner field in the tool call and this default will be used. The agent can still override by providing an owner in the tool call."
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for auto-generated project titles (default: 'Campaign'). When the agent doesn't provide a title, the project title is auto-generated as '<title-prefix>: <issue-title>' or '<title-prefix> #<issue-number>' based on the issue context."
                 }
               },
               "additionalProperties": false

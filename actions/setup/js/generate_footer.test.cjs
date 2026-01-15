@@ -1,4 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -34,8 +37,27 @@ global.context = mockContext;
 describe("generate_footer.cjs", () => {
   let generateFooter;
   let generateXMLMarker;
+  let testPromptsDir;
+  let originalEnv;
 
   beforeEach(async () => {
+    // Save original environment
+    originalEnv = process.env.GH_AW_PROMPTS_DIR;
+
+    // Set up test prompts directory
+    testPromptsDir = path.join(os.tmpdir(), "gh-aw-test-footer", "prompts");
+    if (!fs.existsSync(testPromptsDir)) {
+      fs.mkdirSync(testPromptsDir, { recursive: true });
+    }
+
+    // Create the workflow install note template
+    const templatePath = path.join(testPromptsDir, "workflow_install_note.md");
+    const templateContent = "To add this workflow in your repository, run `gh aw add {workflow_source}`. See [usage guide](https://githubnext.github.io/gh-aw/guides/packaging-imports/).";
+    fs.writeFileSync(templatePath, templateContent, "utf8");
+
+    // Set environment to use test directory
+    process.env.GH_AW_PROMPTS_DIR = testPromptsDir;
+
     // Reset mocks
     vi.clearAllMocks();
     // Clear env vars
@@ -48,6 +70,20 @@ describe("generate_footer.cjs", () => {
     const module = await import("./generate_footer.cjs");
     generateFooter = module.generateFooter;
     generateXMLMarker = module.generateXMLMarker;
+  });
+
+  afterEach(() => {
+    // Restore original environment
+    if (originalEnv !== undefined) {
+      process.env.GH_AW_PROMPTS_DIR = originalEnv;
+    } else {
+      delete process.env.GH_AW_PROMPTS_DIR;
+    }
+
+    // Clean up test directory
+    if (testPromptsDir && fs.existsSync(testPromptsDir)) {
+      fs.rmSync(testPromptsDir, { recursive: true, force: true });
+    }
   });
 
   describe("generateFooter", () => {
@@ -95,7 +131,7 @@ describe("generate_footer.cjs", () => {
       const result = generateFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "owner/repo/workflow.md@main", "https://github.com/owner/repo/blob/main/workflow.md", undefined, undefined, undefined);
 
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
-      expect(result).toContain("See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/)");
+      expect(result).toContain("See [usage guide](https://githubnext.github.io/gh-aw/guides/packaging-imports/)");
     });
 
     it("should not include installation instructions when source is empty", () => {
