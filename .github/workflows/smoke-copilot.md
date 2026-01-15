@@ -28,7 +28,9 @@ tools:
   playwright:
     allowed_domains:
       - github.com
-  serena: ["go"]
+  serena:
+    languages:
+      go: {}
   web-fetch:
 sandbox:
   mcp:

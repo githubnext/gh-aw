@@ -269,9 +269,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
 	}
 
-	// Add XPIA security prompt as separate step if enabled (before other prompts)
-	c.generateXPIAPromptStep(yaml, data)
-
 	// Add temporary folder usage instructions
 	c.generateTempFolderPromptStep(yaml)
 

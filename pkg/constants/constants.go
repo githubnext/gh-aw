@@ -234,6 +234,10 @@ const ExpressionBreakThreshold LineLength = 100
 // DefaultMCPRegistryURL is the default MCP registry URL.
 const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 
+// GitHubCopilotMCPDomain is the domain for the hosted GitHub MCP server.
+// Used when github tool is configured with mode: remote.
+const GitHubCopilotMCPDomain = "api.githubcopilot.com"
+
 // DefaultCampaignTemplateProjectURL is the default source project URL for copying campaign templates.
 // This points to the githubnext "[TEMPLATE: Agentic Campaign]" project (Project 74).
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
@@ -270,7 +274,7 @@ const (
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.81.0"
+const DefaultCodexVersion Version = "0.85.0"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "0.15.13"
@@ -279,16 +283,16 @@ const DefaultOpenCodeVersion Version = "0.15.13"
 const DefaultGitHubMCPServerVersion Version = "v0.28.1"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.9.0"
+const DefaultFirewallVersion Version = "v0.9.1"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.59"
+const DefaultMCPGatewayVersion Version = "v0.0.60"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
 
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
-const DefaultSandboxRuntimeVersion Version = "0.0.26"
+const DefaultSandboxRuntimeVersion Version = "0.0.28"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.55"

@@ -110,6 +110,11 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 	}
 
+	// Check if serena is in local mode and add its environment variables
+	if workflowData != nil && isSerenaInLocalMode(workflowData.ParsedTools) {
+		envVars["GH_AW_SERENA_PORT"] = "${{ steps.serena-config.outputs.serena_port }}"
+	}
+
 	// Check for agentic-workflows GITHUB_TOKEN
 	if hasAgenticWorkflows {
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
@@ -436,6 +441,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Call the bundled shell script to start the server
 		yaml.WriteString("          bash /opt/gh-aw/actions/start_safe_inputs_server.sh\n")
 		yaml.WriteString("          \n")
+	}
+
+	// Generate Serena MCP server startup steps if in local mode
+	if isSerenaInLocalMode(workflowData.ParsedTools) {
+		generateSerenaLocalModeSteps(yaml)
 	}
 
 	// Skip gateway setup if sandbox is disabled
@@ -1107,4 +1117,35 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
 	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
+}
+
+// isSerenaInLocalMode checks if Serena tool is configured with local mode
+func isSerenaInLocalMode(tools *ToolsConfig) bool {
+	if tools == nil || tools.Serena == nil {
+		return false
+	}
+	return tools.Serena.Mode == "local"
+}
+
+// generateSerenaLocalModeSteps generates steps to start Serena MCP server locally using uvx
+func generateSerenaLocalModeSteps(yaml *strings.Builder) {
+	// Step 1: Choose port for Serena HTTP server
+	yaml.WriteString("      - name: Generate Serena MCP Server Config\n")
+	yaml.WriteString("        id: serena-config\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          PORT=4000\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Set output for next steps\n")
+	yaml.WriteString("          echo \"serena_port=${PORT}\" >> \"$GITHUB_OUTPUT\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          echo \"Serena MCP server will run on port ${PORT}\"\n")
+	yaml.WriteString("          \n")
+
+	// Step 2: Start the Serena HTTP server in the background using uvx
+	yaml.WriteString("      - name: Start Serena MCP HTTP Server\n")
+	yaml.WriteString("        id: serena-start\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_SERENA_PORT: ${{ steps.serena-config.outputs.serena_port }}\n")
+	yaml.WriteString("          GITHUB_WORKSPACE: ${{ github.workspace }}\n")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/start_serena_server.sh\n")
 }

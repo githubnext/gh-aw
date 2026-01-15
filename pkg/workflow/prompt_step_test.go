@@ -138,39 +138,4 @@ func TestPromptStepRefactoringConsistency(t *testing.T) {
 			t.Error("Expected cat command for temp folder prompt file not found")
 		}
 	})
-
-	t.Run("xpia generates expected structure with safety enabled", func(t *testing.T) {
-		var yaml strings.Builder
-		compiler := &Compiler{}
-		data := &WorkflowData{
-			SafetyPrompt: true,
-		}
-		compiler.generateXPIAPromptStep(&yaml, data)
-
-		result := yaml.String()
-
-		// Verify key elements are present
-		if !strings.Contains(result, "Append XPIA security instructions to prompt") {
-			t.Error("Expected step name for XPIA not found")
-		}
-		if !strings.Contains(result, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-			t.Error("Expected GH_AW_PROMPT env variable not found")
-		}
-	})
-
-	t.Run("xpia skips generation with safety disabled", func(t *testing.T) {
-		var yaml strings.Builder
-		compiler := &Compiler{}
-		data := &WorkflowData{
-			SafetyPrompt: false,
-		}
-		compiler.generateXPIAPromptStep(&yaml, data)
-
-		result := yaml.String()
-
-		// Should be empty when safety is disabled
-		if result != "" {
-			t.Errorf("Expected no output when SafetyPrompt is false, got: %s", result)
-		}
-	})
 }

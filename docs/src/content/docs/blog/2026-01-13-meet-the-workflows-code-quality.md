@@ -45,18 +45,18 @@ The Go-specific workflows demonstrate how deep these agents can go. **Go Pattern
 
 Perhaps most intriguingly, these agents excel at cleaning up *AI-generated code*. As developers write more code with AI, this is over-more important. These workflows trail **behind** the development team, refactoring their output to match project standards, simplifying overly verbose AI suggestions, and ensuring the AI-human collaboration produces not just working code, but *beautiful* code. The **Code Simplifier** analyzes recently modified code (whether written by humans or AI) and creates pull requests with improvements, while the **Repository Quality Improver** takes a holistic view - identifying structural improvements and documentation gaps that emerge from rapid development.
 
-This is the future of AI-enriched software engineering: developers at the frontier pushing forward, AI assistants helping them write code faster, and autonomous cleanup agents ensuring that speed doesn't sacrifice quality. The repository stays clean, patterns stay consistent, and technical debt gets addressed proactively rather than accumulating into crisis. These workflows never get bored, never skip the boring parts.
-
-## Learn More
-
-- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
-- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
+This is the future of AI-enriched software engineering: developers at the frontier pushing forward, AI assistants helping them write code faster, and autonomous cleanup agents ensuring that speed doesn't sacrifice quality. The repository stays clean, patterns stay consistent, and technical debt gets addressed proactively rather than accumulating into crisis.
 
 ## Next Up: Documentation & Content Workflows
 
 Beyond code quality, we need to keep documentation accurate and up-to-date as code evolves. How do we maintain docs that stay current?
 
 Continue reading: [Documentation & Content Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
+
+## Learn More
+
+- **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
+- **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
 ---
 

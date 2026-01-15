@@ -10,7 +10,7 @@ sidebar:
   label: "Metrics & Analytics"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/
-  label: "Quality & Hygiene Workflows"
+  label: "Fault Investigation Workflows"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/
   label: "Operations & Release Workflows"
