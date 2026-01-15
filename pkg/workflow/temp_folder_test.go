@@ -60,4 +60,3 @@ This is a test workflow to verify temp folder instructions are included.
 
 	t.Logf("Successfully verified temporary folder instructions are included in generated workflow")
 }
-
