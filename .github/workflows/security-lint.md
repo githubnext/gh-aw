@@ -9,8 +9,6 @@ on:
     branches: [main]
 permissions:
   contents: read
-  pull-requests: write
-  security-events: write
 engine: copilot
 network:
   allowed:
@@ -22,7 +20,7 @@ sandbox:
 tools:
   bash:
   github:
-    toolsets: [repos, pull_requests]
+    toolsets: [repos]
 timeout-minutes: 10
 strict: true
 ---
