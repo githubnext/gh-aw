@@ -603,7 +603,7 @@ func TestAudit2(t *testing.T) { ... }
 
 ```go
 // ✅ CORRECT
-Short: "Investigate an agentic workflow run and generate a detailed report"
+Short: "Analyze an agentic workflow run and generate a detailed report"
 Short: "Show status of agentic workflow files"
 Short: "Compile Markdown workflows to GitHub Actions YAML"
 
