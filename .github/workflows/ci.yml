@@ -308,6 +308,7 @@ jobs:
       - name: Check for uncommitted lock file changes
         run: |
           # Check if there are any uncommitted changes to .lock.yml files
+          # Note: All workflow lock files are in .github/workflows/ directory
           if ! git diff --exit-code .github/workflows/*.lock.yml > /dev/null 2>&1; then
             echo "❌ Lock files are out of date!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -321,6 +322,7 @@ jobs:
             echo "<details><summary>Changed lock files</summary>" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
+            # Limit to 100 lines to keep step summary readable while showing enough context
             git diff .github/workflows/*.lock.yml | head -100 >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
