@@ -7,9 +7,10 @@ This document outlines security best practices for GitHub Actions workflows base
 1. [Template Injection Prevention](#template-injection-prevention)
 2. [Shell Script Best Practices](#shell-script-best-practices)
 3. [Supply Chain Security](#supply-chain-security)
-4. [Workflow Structure and Permissions](#workflow-structure-and-permissions)
-5. [Static Analysis Integration](#static-analysis-integration)
-6. [Additional Security Controls](#additional-security-controls)
+4. [Secure Script Installation](#secure-script-installation)
+5. [Workflow Structure and Permissions](#workflow-structure-and-permissions)
+6. [Static Analysis Integration](#static-analysis-integration)
+7. [Additional Security Controls](#additional-security-controls)
 
 ---
 
@@ -546,6 +547,308 @@ grep -r "uses:" .github/workflows/*.yml | grep -v "@[0-9a-f]\{40\}" | grep -v "^
 
 ---
 
+## Secure Script Installation
+
+When workflows need to download and execute external scripts or binaries, follow the secure download-verify-execute pattern to prevent supply chain attacks and ensure integrity.
+
+### The Download-Verify-Execute Pattern
+
+The secure pattern for installing external scripts and binaries involves three steps:
+
+1. **Download** from a pinned, immutable source (commit SHA, not tag or branch)
+2. **Verify** integrity using cryptographic checksums (SHA-256 or SHA-512)
+3. **Execute** only after successful verification
+
+This pattern protects against:
+- Man-in-the-middle attacks during download
+- Compromised download servers
+- Tampered scripts or binaries
+- Tag/branch manipulation attacks
+
+### ❌ Insecure Pattern: Unverified Script Download
+
+```yaml
+# VULNERABLE: No verification, mutable tag reference
+steps:
+  - name: Install tool
+    run: |
+      curl -fsSL https://raw.githubusercontent.com/org/repo/main/install.sh | bash
+      # Problems:
+      # - 'main' branch can be changed
+      # - No integrity verification
+      # - Piping directly to bash (can't inspect)
+      # - Silent failures with pipe
+```
+
+**Why it's vulnerable**:
+- Branch references (`main`, `master`) can be force-pushed with malicious code
+- No verification means tampered content executes without detection
+- Direct pipe to bash prevents inspection and verification
+- If download fails, pipe may execute partial/corrupted script
+
+### ❌ Insecure Pattern: Tag-Based Download
+
+```yaml
+# VULNERABLE: Tags are mutable
+steps:
+  - name: Install tool
+    run: |
+      wget https://github.com/org/repo/releases/download/v1.0.0/tool.tar.gz
+      tar -xzf tool.tar.gz
+      # Problems:
+      # - Tags can be deleted and recreated
+      # - No checksum verification
+```
+
+**Why it's vulnerable**:
+- Tags can be deleted and recreated pointing to different commits
+- Release assets can be replaced with malicious versions
+- No integrity verification means tampered binaries execute silently
+
+### ✅ Secure Pattern: Download-Verify-Execute
+
+```yaml
+# SECURE: Pinned commit SHA with checksum verification
+steps:
+  - name: Install binary securely
+    run: |
+      set -euo pipefail  # Exit on error, undefined vars, pipe failures
+      
+      # 1. DOWNLOAD from immutable commit SHA
+      SCRIPT_URL="https://raw.githubusercontent.com/org/repo/<COMMIT_SHA>/install.sh"
+      SCRIPT_FILE="/tmp/install.sh"
+      
+      echo "Downloading from pinned commit..."
+      curl -fsSL "$SCRIPT_URL" -o "$SCRIPT_FILE"
+      
+      # 2. VERIFY integrity with SHA-256 checksum
+      EXPECTED_SHA256="abc123def456..."  # Get from trusted source
+      ACTUAL_SHA256=$(sha256sum "$SCRIPT_FILE" | awk '{print $1}')
+      
+      echo "Expected SHA-256: $EXPECTED_SHA256"
+      echo "Actual SHA-256:   $ACTUAL_SHA256"
+      
+      if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+        echo "ERROR: Checksum verification failed!"
+        echo "The downloaded file does not match the expected checksum."
+        rm -f "$SCRIPT_FILE"
+        exit 1
+      fi
+      
+      echo "Checksum verified successfully"
+      
+      # 3. EXECUTE after verification
+      chmod +x "$SCRIPT_FILE"
+      "$SCRIPT_FILE"
+      
+      # Cleanup
+      rm -f "$SCRIPT_FILE"
+```
+
+**Why it's secure**:
+- Commit SHA is immutable and cannot be changed
+- Checksum verification detects any tampering or corruption
+- Script is downloaded, inspected, then executed (not piped)
+- Strict error handling prevents partial execution
+- Failed verification stops execution and removes downloaded file
+
+### ✅ Secure Pattern: Binary with Signature Verification
+
+For binaries with GPG signatures:
+
+```yaml
+# SECURE: Download, verify signature, verify checksum, execute
+steps:
+  - name: Install binary with signature verification
+    run: |
+      set -euo pipefail
+      
+      # Download binary and signature from pinned commit
+      BINARY_URL="https://github.com/org/repo/releases/download/<TAG>/<COMMIT_SHA>/tool"
+      SIG_URL="https://github.com/org/repo/releases/download/<TAG>/<COMMIT_SHA>/tool.sig"
+      
+      curl -fsSL "$BINARY_URL" -o /tmp/tool
+      curl -fsSL "$SIG_URL" -o /tmp/tool.sig
+      
+      # Import and verify GPG key (pin the key fingerprint)
+      GPG_KEY_FINGERPRINT="ABCD1234..."
+      gpg --keyserver keyserver.ubuntu.com --recv-keys "$GPG_KEY_FINGERPRINT"
+      
+      # Verify GPG signature
+      if ! gpg --verify /tmp/tool.sig /tmp/tool; then
+        echo "ERROR: GPG signature verification failed!"
+        rm -f /tmp/tool /tmp/tool.sig
+        exit 1
+      fi
+      
+      # Verify checksum as additional layer
+      EXPECTED_SHA256="def789..."
+      ACTUAL_SHA256=$(sha256sum /tmp/tool | awk '{print $1}')
+      
+      if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+        echo "ERROR: Checksum verification failed!"
+        rm -f /tmp/tool /tmp/tool.sig
+        exit 1
+      fi
+      
+      echo "Signature and checksum verified"
+      chmod +x /tmp/tool
+      /tmp/tool --version
+```
+
+**Why it's secure**:
+- GPG signature proves authenticity (signed by trusted key)
+- Checksum verification adds defense-in-depth
+- Pinned key fingerprint prevents key substitution
+- Multiple verification layers (signature + checksum)
+
+### Generating and Finding Checksums
+
+#### Method 1: Generate from Local File
+
+```bash
+# After downloading the file locally and verifying it manually:
+sha256sum install.sh
+# Output: abc123def456...  install.sh
+
+# For multiple files:
+sha256sum *.sh > checksums.txt
+```
+
+#### Method 2: From Release Assets
+
+```bash
+# Many projects publish checksums with releases
+# Download the checksum file:
+curl -fsSL https://github.com/org/repo/releases/download/v1.0.0/checksums.txt
+
+# Verify it contains the expected file and checksum
+grep "install.sh" checksums.txt
+```
+
+#### Method 3: GitHub API
+
+```bash
+# Get file content and compute SHA locally
+curl -fsSL "https://raw.githubusercontent.com/org/repo/<COMMIT_SHA>/install.sh" | sha256sum
+```
+
+#### Method 4: Upstream Documentation
+
+Check the project's release notes, security documentation, or SECURITY.md for published checksums. Many security-conscious projects publish checksums in:
+- Release notes on GitHub
+- Official download pages
+- Security/verification documentation
+- Detached signature files
+
+### Updating Checksums
+
+When updating to a new version:
+
+1. **Get new commit SHA**:
+   ```bash
+   git ls-remote https://github.com/org/repo v2.0.0
+   # Output: <NEW_COMMIT_SHA>  refs/tags/v2.0.0
+   ```
+
+2. **Download new version and compute checksum**:
+   ```bash
+   curl -fsSL "https://raw.githubusercontent.com/org/repo/<NEW_COMMIT_SHA>/install.sh" -o install.sh
+   sha256sum install.sh
+   # Output: <NEW_SHA256>  install.sh
+   ```
+
+3. **Update workflow**:
+   ```yaml
+   SCRIPT_URL="https://raw.githubusercontent.com/org/repo/<NEW_COMMIT_SHA>/install.sh"
+   EXPECTED_SHA256="<NEW_SHA256>"
+   ```
+
+4. **Document the change**:
+   ```yaml
+   # Updated from v1.0.0 to v2.0.0 on 2025-01-15
+   # Commit: <NEW_COMMIT_SHA>
+   # Checksum verified: <NEW_SHA256>
+   ```
+
+### Troubleshooting Checksum Verification
+
+#### Checksum Mismatch
+
+If verification fails, DO NOT execute the script. Investigate:
+
+1. **Check download integrity**:
+   ```bash
+   # Re-download and compare
+   curl -fsSL "$SCRIPT_URL" -o /tmp/script1.sh
+   curl -fsSL "$SCRIPT_URL" -o /tmp/script2.sh
+   sha256sum /tmp/script1.sh /tmp/script2.sh
+   # Both should have identical checksums
+   ```
+
+2. **Verify expected checksum**:
+   - Confirm checksum is from a trusted source
+   - Check if script version/commit was updated
+   - Verify no typos in checksum string
+
+3. **Check for line ending issues**:
+   ```bash
+   # Unix (LF) vs Windows (CRLF) line endings affect checksums
+   dos2unix install.sh  # Convert if needed
+   sha256sum install.sh
+   ```
+
+4. **Inspect the downloaded file**:
+   ```bash
+   # Look for unexpected content
+   head -n 20 "$SCRIPT_FILE"
+   file "$SCRIPT_FILE"
+   ```
+
+**Never skip checksum verification** - a mismatch indicates:
+- Corrupted download (network issue)
+- Compromised content (security incident)
+- Wrong version/source (configuration error)
+- Line ending differences (file format issue)
+
+### GitHub Actions Cache Considerations
+
+If caching downloads, include checksum in cache key:
+
+```yaml
+# SECURE: Cache key includes checksum
+- name: Cache tool
+  uses: actions/cache@sha
+  with:
+    path: /tmp/tool
+    key: tool-${{ env.EXPECTED_SHA256 }}
+
+- name: Download if cache miss
+  if: steps.cache.outputs.cache-hit != 'true'
+  run: |
+    # Download-verify-execute pattern here
+```
+
+This ensures cached content matches expected checksum and prevents cache poisoning.
+
+### Best Practices Summary
+
+- ✅ Always pin to commit SHAs, never branches or mutable tags
+- ✅ Verify checksums (SHA-256 minimum, SHA-512 preferred)
+- ✅ Use GPG signatures when available for additional verification
+- ✅ Download, verify, then execute (never pipe to bash)
+- ✅ Use strict error handling (`set -euo pipefail`)
+- ✅ Store checksums in version control or CI/CD secrets
+- ✅ Document checksum sources and update procedures
+- ✅ Include cache keys that incorporate checksums
+- ✅ Remove downloaded files after execution
+- ❌ Never skip verification due to "trusted" source
+- ❌ Never use `curl | bash` pattern
+- ❌ Never download from mutable references (branches, latest tags)
+- ❌ Never execute before verification completes
+
+---
+
 ## Workflow Structure and Permissions
 
 ### Minimal Permissions Principle
@@ -964,6 +1267,16 @@ Use this checklist when creating or reviewing GitHub Actions workflows:
 - [ ] Actions from verified creators or reviewed
 - [ ] Dependencies scanned for vulnerabilities
 - [ ] Regular update process in place
+
+### Secure Script Installation
+- [ ] Scripts/binaries downloaded from pinned commit SHAs
+- [ ] Checksums verified before execution (SHA-256 or SHA-512)
+- [ ] GPG signatures verified when available
+- [ ] No piping to bash (`curl | bash`)
+- [ ] Strict error handling enabled (`set -euo pipefail`)
+- [ ] Downloaded files removed after execution
+- [ ] Checksum sources documented
+- [ ] Update procedures documented
 
 ### Permissions
 - [ ] Minimal permissions specified
