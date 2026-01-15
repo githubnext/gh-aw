@@ -866,11 +866,6 @@ jobs:
                 GH_AW_NEEDS_CHECK_CI_STATUS_OUTPUTS_CI_STATUS: process.env.GH_AW_NEEDS_CHECK_CI_STATUS_OUTPUTS_CI_STATUS
               }
             });
-      - name: Append XPIA security instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/opt/gh-aw/prompts/xpia_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
