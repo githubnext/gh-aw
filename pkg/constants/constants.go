@@ -257,16 +257,23 @@ const (
 	EnvVarModelAgentClaude = "GH_AW_MODEL_AGENT_CLAUDE"
 	// EnvVarModelAgentCodex configures the default Codex model for agent execution
 	EnvVarModelAgentCodex = "GH_AW_MODEL_AGENT_CODEX"
+	// EnvVarModelAgentOpenCode configures the default OpenCode model for agent execution
+	EnvVarModelAgentOpenCode = "GH_AW_MODEL_AGENT_OPENCODE"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
 	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
 	// EnvVarModelDetectionClaude configures the default Claude model for detection
 	EnvVarModelDetectionClaude = "GH_AW_MODEL_DETECTION_CLAUDE"
 	// EnvVarModelDetectionCodex configures the default Codex model for detection
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
+	// EnvVarModelDetectionOpenCode configures the default OpenCode model for detection
+	EnvVarModelDetectionOpenCode = "GH_AW_MODEL_DETECTION_OPENCODE"
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.81.0"
+
+// DefaultOpenCodeVersion is the default version of the OpenCode CLI
+const DefaultOpenCodeVersion Version = "0.15.13"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.28.1"

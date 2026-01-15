@@ -5921,8 +5921,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["claude", "codex", "copilot", "custom"],
-          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
+          "enum": ["claude", "codex", "copilot", "custom", "opencode"],
+          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), 'opencode' (OpenCode), or 'custom' (user-defined steps)"
         },
         {
           "type": "object",
@@ -5930,8 +5930,8 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": ["claude", "codex", "custom", "copilot"],
-              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
+              "enum": ["claude", "codex", "custom", "copilot", "opencode"],
+              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), 'opencode' (OpenCode), or 'custom' (user-defined GitHub Actions steps)"
             },
             "version": {
               "type": ["string", "number"],

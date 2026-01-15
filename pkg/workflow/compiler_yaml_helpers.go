@@ -44,6 +44,8 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 		return string(constants.DefaultClaudeCodeVersion)
 	case "codex":
 		return string(constants.DefaultCodexVersion)
+	case "opencode":
+		return string(constants.DefaultOpenCodeVersion)
 	default:
 		// Custom or unknown engines don't have a default version
 		compilerYamlHelpersLog.Printf("No default version for custom engine: %s", engineID)
