@@ -248,10 +248,50 @@ After making changes to a documentation file, take screenshots of the rendered p
 
 #### Build and Start Documentation Server
 
-1. Go to the `docs` directory (this was already done in the build steps)
-2. Start the documentation development server using `npm run dev`
-3. Wait for the server to fully start (it should be accessible on `http://localhost:4321/gh-aw/`)
-4. Verify the server is running by making a curl request to test accessibility
+**IMPORTANT**: The documentation server must run as a background process and be verified before taking screenshots.
+
+1. Go to the `docs` directory:
+   ```bash
+   cd docs
+   ```
+
+2. Start the development server in the background:
+   ```bash
+   npm run dev > /tmp/docs-server.log 2>&1 &
+   DEV_SERVER_PID=$!
+   echo "Started dev server with PID: $DEV_SERVER_PID"
+   ```
+
+3. Wait for the server to start (usually takes 5-10 seconds):
+   ```bash
+   sleep 10
+   ```
+
+4. Verify the server is running by checking if the process is still alive and the port is responding:
+   ```bash
+   if ps -p $DEV_SERVER_PID > /dev/null; then
+     echo "Dev server process is running (PID: $DEV_SERVER_PID)"
+   else
+     echo "ERROR: Dev server process died!"
+     cat /tmp/docs-server.log
+     exit 1
+   fi
+   
+   # Test if the server responds to HTTP requests
+   curl -f -s -o /dev/null http://localhost:4321/gh-aw/ && echo "Server is responding!" || {
+     echo "ERROR: Server not responding on http://localhost:4321/gh-aw/"
+     echo "Server logs:"
+     cat /tmp/docs-server.log
+     exit 1
+   }
+   ```
+
+5. Return to the repository root directory:
+   ```bash
+   cd ..
+   ```
+
+**Important**: Keep track of the server PID so you can stop it later if needed using `kill $DEV_SERVER_PID`
 
 #### Take Screenshots with Playwright
 
@@ -272,10 +312,12 @@ For the modified documentation file(s):
 ls -lh /tmp/gh-aw/mcp-logs/playwright/
 ```
 
-**If no screenshot files are found:**
+**If no screenshot files are found or server startup failed:**
+- **DO NOT fail the workflow** - screenshots are optional
 - Report this in the PR description under an "Issues" section
 - Include the error message or reason why screenshots couldn't be captured
-- Do not proceed with upload-asset if no files exist
+- Proceed with creating the PR without screenshots
+- Skip the upload-asset step if no files exist
 
 #### Upload Screenshots
 
@@ -300,8 +342,10 @@ If you encounter any blocked domains:
 After improving ONE file:
 1. Verify your changes preserve all essential information
 2. Update cache memory with the cleaned file
-3. Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
-4. Upload the screenshots and collect the URLs
+3. **OPTIONAL**: Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
+   - Only if the dev server started successfully
+   - If server startup fails, skip screenshots and proceed with the PR
+4. **OPTIONAL**: Upload the screenshots and collect the URLs (only if screenshots were taken)
 5. Create a pull request with your improvements
    - **IMPORTANT**: When calling the create_pull_request tool, do NOT pass a "branch" parameter - let it auto-detect the current branch you created
    - Or if you must specify the branch, use the exact branch name you created earlier (NOT "main")
@@ -310,8 +354,9 @@ After improving ONE file:
    - What types of bloat you removed
    - Estimated word count or line reduction
    - Summary of changes made
-   - **Screenshot URLs**: Links to the uploaded screenshots showing the modified documentation pages
+   - **Screenshot URLs (if available)**: Links to the uploaded screenshots showing the modified documentation pages
    - **Blocked Domains (if any)**: List any CSS/font/resource domains that were blocked during screenshot capture
+   - **Issues (if any)**: Report if screenshots couldn't be taken due to server startup failures
 
 ## Example Improvements
 
@@ -353,7 +398,7 @@ A successful run:
 - ✅ Preserves all essential information
 - ✅ Creates a clear, reviewable pull request
 - ✅ Explains the improvements made
-- ✅ Includes HD screenshots (1920x1080) of the modified documentation page(s) in the Astro Starlight website
-- ✅ Reports any blocked domains for CSS/fonts (if encountered)
+- ✅ **OPTIONAL**: Includes HD screenshots (1920x1080) of the modified documentation page(s) in the Astro Starlight website (if dev server starts successfully)
+- ✅ **OPTIONAL**: Reports any blocked domains for CSS/fonts (if screenshots were attempted)
 
 Begin by scanning the docs directory and selecting the best candidate for improvement!
