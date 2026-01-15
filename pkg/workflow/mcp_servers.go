@@ -386,6 +386,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        id: safe-inputs-config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Generate a secure random API key (360 bits of entropy, 40+ chars)\n")
+		yaml.WriteString("          API_KEY=\"\"\n")
 		yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
 		yaml.WriteString("          PORT=3000\n")
 		yaml.WriteString("          \n")
@@ -490,16 +491,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 
 		apiKey := gatewayConfig.APIKey
-		if apiKey == "" {
-			// Generate random API key at runtime
-			apiKey = "$(openssl rand -base64 45 | tr -d '/+=')"
-		}
 
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 		yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
 		yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
-		yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+		
+		// Generate API key with proper error handling (avoid SC2155)
+		if apiKey == "" {
+			// Declare variable first, then assign to avoid masking return values
+			yaml.WriteString("          MCP_GATEWAY_API_KEY=\"\"\n")
+			yaml.WriteString("          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
+			yaml.WriteString("          export MCP_GATEWAY_API_KEY\n")
+		} else {
+			yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + apiKey + "\"\n")
+		}
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Register API key as secret to mask it from logs\n")
 		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
