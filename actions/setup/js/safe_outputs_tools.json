@@ -704,7 +704,7 @@
   },
   {
     "name": "create_project_status_update",
-    "description": "Create a status update on a GitHub Projects v2 board. Status updates provide stakeholder communication and historical record of project progress with a timeline. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
+    "description": "Create a status update on a GitHub Projects v2 board to communicate project progress. Use this when you need to provide stakeholder updates with status indicators, timeline information, and progress summaries. Status updates create a historical record of project progress tracked over time. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
     "inputSchema": {
       "type": "object",
       "required": ["project", "body"],
@@ -778,11 +778,11 @@
         },
         "fix_description": {
           "type": "string",
-          "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it."
+          "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it. Example: 'Sanitize user input to prevent SQL injection by using parameterized queries instead of string concatenation.'"
         },
         "fix_code": {
           "type": "string",
-          "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability."
+          "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability. Example for SQL injection fix: 'query = db.prepare(\"SELECT * FROM users WHERE id = ?\").bind(userId)'"
         }
       },
       "additionalProperties": false
