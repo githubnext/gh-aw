@@ -26,6 +26,21 @@ name: "Release"
   push:
     tags:
     - v*.*.*
+  workflow_dispatch:
+    inputs:
+      draft:
+        default: true
+        description: Create as draft release
+        required: false
+        type: boolean
+      release_type:
+        description: Release type (patch, minor, or major)
+        options:
+        - patch
+        - minor
+        - major
+        required: true
+        type: choice
 
 permissions:
   actions: read
@@ -73,6 +88,7 @@ jobs:
   agent:
     needs:
       - activation
+      - config
       - docker-image
       - generate-sbom
       - release
@@ -116,8 +132,9 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
         name: Setup environment and fetch release data
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID from the release job\necho \"Release ID from release job: $RELEASE_ID\"\n\n# Get the release tag from the push event\nif [[ ! \"$GITHUB_REF\" == refs/tags/* ]]; then\n  echo \"Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF\"\n  exit 1\nfi\nRELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"\necho \"Processing release: $RELEASE_TAG\"\n\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\""
+        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\""
 
       - name: Configure Git credentials
         env:
@@ -178,7 +195,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.59 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.60 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -377,7 +394,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.59'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.60'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -452,7 +469,7 @@ jobs:
               allowed_domains: ["defaults","node","githubnext.github.io"],
               firewall_enabled: true,
               awf_version: "v0.9.1",
-              awmg_version: "v0.0.59",
+              awmg_version: "v0.0.60",
               steps: {
                 firewall: "squid"
               },
@@ -988,6 +1005,68 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
+  config:
+    needs: activation
+    runs-on: ubuntu-latest
+    outputs:
+      draft_mode: ${{ steps.compute_config.outputs.draft_mode }}
+      release_tag: ${{ steps.compute_config.outputs.release_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compute release configuration
+        id: compute_config
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # For workflow_dispatch, compute next version based on release type
+            RELEASE_TYPE="${{ inputs.release_type }}"
+            DRAFT_MODE="${{ inputs.draft }}"
+
+            echo "Computing next version for release type: $RELEASE_TYPE"
+
+            # Get the latest release tag
+            LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"')
+            echo "Latest release tag: $LATEST_TAG"
+
+            # Parse version components (strip 'v' prefix)
+            VERSION="${LATEST_TAG#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+            # Increment based on release type
+            case "$RELEASE_TYPE" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+
+            RELEASE_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Computed release tag: $RELEASE_TAG"
+          else
+            # For tag push events, use the tag from GITHUB_REF
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+            DRAFT_MODE="false"
+            echo "Using tag from push event: $RELEASE_TAG"
+          fi
+
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "draft_mode=$DRAFT_MODE" >> "$GITHUB_OUTPUT"
+          echo "✓ Release tag: $RELEASE_TAG"
+          echo "✓ Draft mode: $DRAFT_MODE"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -1298,7 +1377,9 @@ jobs:
             await main();
 
   release:
-    needs: activation
+    needs:
+      - activation
+      - config
     runs-on: ubuntu-latest
     permissions:
       attestations: write
@@ -1315,14 +1396,34 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Create or update tag for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Creating tag: $RELEASE_TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$RELEASE_TAG"
+          git push origin "$RELEASE_TAG"
+          echo "✓ Tag created: $RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@6f13f31f798a93a6b08d3be0727120e9af35851f # 6f13f31f798a93a6b08d3be0727120e9af35851f
         with:
           build_script_override: scripts/build-release.sh
           go_version_file: go.mod
+      - name: Set release to draft mode
+        if: needs.config.outputs.draft_mode == 'true'
+        run: |
+          echo "Setting release to draft mode: $RELEASE_TAG"
+          # Edit the release to set it as draft
+          gh release edit "$RELEASE_TAG" --draft
+          echo "✓ Release set to draft mode"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Upload checksums file
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           if [ -f "dist/checksums.txt" ]; then
             echo "Uploading checksums file to release: $RELEASE_TAG"
             gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
@@ -1332,10 +1433,10 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Get release ID
         id: get_release
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
@@ -1344,6 +1445,7 @@ jobs:
           echo "✓ Release Tag: $RELEASE_TAG"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 
   safe_outputs:
     needs:

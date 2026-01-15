@@ -270,7 +270,7 @@ const (
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.81.0"
+const DefaultCodexVersion Version = "0.85.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.28.1"
@@ -279,13 +279,13 @@ const DefaultGitHubMCPServerVersion Version = "v0.28.1"
 const DefaultFirewallVersion Version = "v0.9.1"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.59"
+const DefaultMCPGatewayVersion Version = "v0.0.60"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
 
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
-const DefaultSandboxRuntimeVersion Version = "0.0.26"
+const DefaultSandboxRuntimeVersion Version = "0.0.28"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.55"

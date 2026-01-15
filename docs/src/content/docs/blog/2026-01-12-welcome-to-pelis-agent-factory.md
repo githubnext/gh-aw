@@ -14,7 +14,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-*Good morning, starshine!* 🎩✨ Welcome, welcome, WELCOME to Peli's Agent Factory!
+Welcome, welcome, WELCOME to Peli's Agent Factory!
 
 Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress.
 
@@ -22,7 +22,7 @@ Peli's Agent Factory is our exploration of what happens when you take the design
 
 Software development is changing rapidly. This is our attempt to understand how automated agentic AI can make software teams more efficient, collaborative, and more enjoyable.
 
-So *strike that, reverse it!* Welcome to the factory - a place of pure imagination where AI agents work their magic. Come with me, and you'll be in a world of pure automation! Let's explore together!
+Let's explore together!
 
 ## What Is Peli's Agent Factory?
 
@@ -66,7 +66,7 @@ Here's what we've built so far:
 - **17 curated workflows** in the installable [`agentics`](https://github.com/githubnext/agentics) collection
 - **Multiple trigger types**: schedules, slash commands, reactions, workflow events, issue labels
 
-Each workflow is written in natural language using Markdown, then compiled into secure GitHub Actions that run with carefully scoped permissions. Everything is observable, auditable, and remixable.
+Each workflow is written in natural language using Markdown, then converted into secure GitHub Actions that run with carefully scoped permissions with guardrails. Everything is observable, auditable, and remixable.
 
 ## Meet the Workflows
 
@@ -78,11 +78,11 @@ Each article is bite-sized. Start with [Meet the Workflows](/gh-aw/blog/2026-01-
 2. [Code Quality & Refactoring Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/)
 3. [Documentation & Content Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
 4. [Issue & PR Management Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/)
-5. [Quality & Hygiene Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)
+5. [Fault Investigation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)
 6. [Metrics & Analytics Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)
 7. [Operations & Release Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/)
-8. [Security & Compliance Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
-9. [Creative & Culture Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
+8. [Security-related Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
+9. [Teamwork & Culture Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
 10. [Interactive & ChatOps Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/)
 11. [Testing & Validation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/)
 12. [Tool & Infrastructure Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/)
