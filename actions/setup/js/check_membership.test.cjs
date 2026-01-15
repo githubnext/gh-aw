@@ -221,7 +221,10 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "read");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("error_message", "Access denied: User 'testuser' is not authorized. Required permissions: admin, write");
+      expect(mockCore.setOutput).toHaveBeenCalledWith(
+        "error_message",
+        "Access denied: User 'testuser' is not authorized. Required permissions: admin, write. To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [admin, write, read]"
+      );
     });
 
     it("should authorize user with write permission when write is in allowed list", async () => {
