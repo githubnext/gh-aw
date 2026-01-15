@@ -578,7 +578,7 @@ jobs:
             const awInfo = {
               engine_id: "opencode",
               engine_name: "OpenCode",
-              model: process.env. || "",
+              model: process.env.GH_AW_MODEL_AGENT_OPENCODE || "",
               version: "",
               agent_version: "0.15.13",
               workflow_name: "Smoke OpenCode",

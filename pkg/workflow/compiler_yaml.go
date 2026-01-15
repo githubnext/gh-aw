@@ -387,6 +387,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			modelEnvVar = constants.EnvVarModelAgentClaude
 		case "codex":
 			modelEnvVar = constants.EnvVarModelAgentCodex
+		case "opencode":
+			modelEnvVar = constants.EnvVarModelAgentOpenCode
 		}
 
 		// Generate JavaScript to resolve model from environment variable at runtime
