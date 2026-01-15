@@ -615,7 +615,7 @@ steps:
       set -euo pipefail  # Exit on error, undefined vars, pipe failures
       
       # 1. DOWNLOAD from immutable commit SHA
-      SCRIPT_URL="https://raw.githubusercontent.com/org/repo/<COMMIT_SHA>/install.sh"
+      SCRIPT_URL="https://raw.githubusercontent.com/org/repo/a1b2c3d4e5f6.../install.sh"
       SCRIPT_FILE="/tmp/install.sh"
       
       echo "Downloading from pinned commit..."
@@ -663,9 +663,10 @@ steps:
     run: |
       set -euo pipefail
       
-      # Download binary and signature from pinned commit
-      BINARY_URL="https://github.com/org/repo/releases/download/<TAG>/<COMMIT_SHA>/tool"
-      SIG_URL="https://github.com/org/repo/releases/download/<TAG>/<COMMIT_SHA>/tool.sig"
+      # Download binary and signature from release assets
+      # Use commit SHA that the tag points to for verification
+      BINARY_URL="https://github.com/org/repo/releases/download/v1.0.0/tool"
+      SIG_URL="https://github.com/org/repo/releases/download/v1.0.0/tool.sig"
       
       curl -fsSL "$BINARY_URL" -o /tmp/tool
       curl -fsSL "$SIG_URL" -o /tmp/tool.sig
@@ -747,7 +748,7 @@ When updating to a new version:
 
 1. **Get new commit SHA**:
    ```bash
-   git ls-remote https://github.com/org/repo v2.0.0
+   git ls-remote https://github.com/org/repo refs/tags/v2.0.0
    # Output: <NEW_COMMIT_SHA>  refs/tags/v2.0.0
    ```
 
