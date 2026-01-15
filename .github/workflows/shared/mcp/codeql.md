@@ -1,30 +1,4 @@
 ---
-# CodeQL MCP Server
-# MCP server that wraps the CodeQL query server for semantic code analysis
-#
-# Documentation: https://github.com/JordyZomer/codeql-mcp
-#
-# Prerequisites:
-#   - CodeQL CLI must be installed
-#   - CodeQL database must be created for the target repository
-#
-# Available tools:
-#   - register_database: Register a CodeQL database given a path
-#   - evaluate_query: Run a CodeQL query on a given database
-#   - quick_evaluate: Quick-evaluate a class or predicate in a CodeQL query
-#   - decode_bqrs: Decode CodeQL results to CSV or JSON format
-#   - find_class_position: Find position of a class for quick evaluation
-#   - find_predicate_position: Find position of a predicate for quick evaluation
-#
-# Setup Requirements:
-#   1. CodeQL CLI installed in the workflow environment
-#   2. CodeQL database created for the repository
-#   3. Python dependencies: fastmcp, httpx
-#
-# Usage:
-#   imports:
-#     - shared/mcp/codeql.md
-
 mcp-servers:
   codeql:
     type: http
@@ -107,6 +81,13 @@ steps:
       echo "Error: CodeQL MCP server failed to accept connections after 60 seconds"
       exit 1
 ---
+
+<!--
+
+# CodeQL MCP Server
+# MCP server that wraps the CodeQL query server for semantic code analysis
+
+Documentation: https://github.com/JordyZomer/codeql-mcp
 
 ## CodeQL MCP Server
 
@@ -211,3 +192,27 @@ Replace `<language>` with your repository's primary language (e.g., `javascript`
 - **CodeQL MCP Server**: https://github.com/JordyZomer/codeql-mcp
 - **Query Writing Guide**: https://codeql.github.com/docs/writing-codeql-queries/
 - **Security Queries**: https://github.com/github/codeql
+
+## Prerequisites
+
+- CodeQL CLI must be installed
+- CodeQL database must be created for the target repository
+- Python dependencies: fastmcp, httpx
+
+## Available Tools
+
+- register_database: Register a CodeQL database given a path
+- evaluate_query: Run a CodeQL query on a given database
+- quick_evaluate: Quick-evaluate a class or predicate in a CodeQL query
+- decode_bqrs: Decode CodeQL results to CSV or JSON format
+- find_class_position: Find position of a class for quick evaluation
+- find_predicate_position: Find position of a predicate for quick evaluation
+
+## Usage
+
+```yaml
+imports:
+  - shared/mcp/codeql.md
+```
+
+-->
