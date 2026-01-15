@@ -1,13 +1,13 @@
 // Package cli provides workflow file processing functions for compilation.
 //
-// This file contains functions that process individual workflow files and
-// campaign specs, handling both regular workflows and campaign orchestrators.
+// This file contains functions that process individual workflow files,
+// handling regular workflows.
 //
 // # Organization Rationale
 //
 // These workflow processing functions are grouped here because they:
 //   - Handle per-file processing logic
-//   - Process both regular workflows and campaign specs
+//   - Process workflow files
 //   - Have a clear domain focus (workflow file processing)
 //   - Keep the main orchestrator focused on batch operations
 //
@@ -15,7 +15,6 @@
 //
 // Workflow Processing:
 //   - processWorkflowFile() - Process a single workflow markdown file
-//   - processCampaignSpec() - Process a campaign spec file
 //   - collectLockFilesForLinting() - Collect lock files for batch linting
 //
 // These functions abstract per-file processing, allowing the main compile
@@ -28,7 +27,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/stringutil"
@@ -90,12 +88,7 @@ func compileWorkflowFile(
 	compileWorkflowProcessorLog.Printf("Parsing workflow file: %s", resolvedFile)
 
 	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
-	relPath, err := getRepositoryRelativePath(resolvedFile)
-	if err != nil {
-		compileWorkflowProcessorLog.Printf("Warning: failed to get repository-relative path for %s: %v", resolvedFile, err)
-		// Fallback to basename if we can't get relative path
-		relPath = filepath.Base(resolvedFile)
-	}
+	relPath := ToGitRootRelativePath(resolvedFile)
 	compiler.SetWorkflowIdentifier(relPath)
 
 	// Set repository slug for this specific file (may differ from CWD's repo)
@@ -157,94 +150,4 @@ func compileWorkflowFile(
 	result.success = true
 	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
 	return result
-}
-
-// ProcessCampaignSpecOptions holds the options for processCampaignSpec
-type ProcessCampaignSpecOptions struct {
-	Compiler     *workflow.Compiler
-	ResolvedFile string
-	Verbose      bool
-	JSONOutput   bool
-	NoEmit       bool
-	Zizmor       bool
-	Poutine      bool
-	Actionlint   bool
-	Strict       bool
-	Validate     bool
-}
-
-// processCampaignSpec processes a campaign spec file
-// Returns the validation result and success status
-func processCampaignSpec(opts ProcessCampaignSpecOptions) (ValidationResult, bool) {
-	compileWorkflowProcessorLog.Printf("Processing campaign spec file: %s", opts.ResolvedFile)
-
-	result := ValidationResult{
-		Workflow: filepath.Base(opts.ResolvedFile),
-		Valid:    true,
-		Errors:   []ValidationError{},
-		Warnings: []ValidationError{},
-	}
-
-	// Validate the campaign spec file and referenced workflows
-	spec, problems, vErr := campaign.ValidateSpecFromFile(opts.ResolvedFile)
-	if vErr != nil {
-		errMsg := fmt.Sprintf("failed to validate campaign spec %s: %v", opts.ResolvedFile, vErr)
-		if !opts.JSONOutput {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		}
-		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{
-			Type:    "campaign_validation_error",
-			Message: vErr.Error(),
-		})
-		return result, false
-	}
-
-	// Also ensure that workflows referenced by the campaign spec exist
-	workflowsDir := filepath.Dir(opts.ResolvedFile)
-	workflowProblems := campaign.ValidateWorkflowsExist(spec, workflowsDir)
-	problems = append(problems, workflowProblems...)
-
-	if len(problems) > 0 {
-		for _, p := range problems {
-			if !opts.JSONOutput {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
-			}
-			result.Valid = false
-			result.Errors = append(result.Errors, ValidationError{
-				Type:    "campaign_validation_error",
-				Message: p,
-			})
-		}
-		return result, false
-	}
-
-	if opts.Verbose && !opts.JSONOutput {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(opts.ResolvedFile))))
-	}
-
-	// Generate and compile the campaign orchestrator
-	if _, genErr := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
-		Compiler:             opts.Compiler,
-		Spec:                 spec,
-		CampaignSpecPath:     opts.ResolvedFile,
-		Verbose:              opts.Verbose && !opts.JSONOutput,
-		NoEmit:               opts.NoEmit,
-		RunZizmorPerFile:     opts.Zizmor && !opts.NoEmit,
-		RunPoutinePerFile:    opts.Poutine && !opts.NoEmit,
-		RunActionlintPerFile: opts.Actionlint && !opts.NoEmit,
-		Strict:               opts.Strict,
-		ValidateActionSHAs:   opts.Validate && !opts.NoEmit,
-	}); genErr != nil {
-		errMsg := fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(opts.ResolvedFile), genErr)
-		if !opts.JSONOutput {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		}
-		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
-		return result, false
-	}
-
-	compileWorkflowProcessorLog.Printf("Successfully processed campaign spec: %s", opts.ResolvedFile)
-	return result, true
 }

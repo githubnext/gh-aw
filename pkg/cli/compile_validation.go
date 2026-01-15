@@ -42,12 +42,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, strict, validateActionSHAs)
 
 	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
-	relPath, err := getRepositoryRelativePath(filePath)
-	if err != nil {
-		compileValidationLog.Printf("Warning: failed to get repository-relative path for %s: %v", filePath, err)
-		// Fallback to basename if we can't get relative path
-		relPath = filepath.Base(filePath)
-	}
+	relPath := ToGitRootRelativePath(filePath)
 	compiler.SetWorkflowIdentifier(relPath)
 
 	// Set repository slug for this specific file (may differ from CWD's repo)
