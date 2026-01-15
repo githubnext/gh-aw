@@ -18,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Ah! Right this way to *another extraordinary chamber* in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+Ah! Right this way to *another extraordinary chamber* in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! The very chamber where our AI agents enhance the magical moment of *shipping software*!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/), we explored metrics and analytics workflows - the agents that monitor other agents, turning raw activity data into actionable insights. We built our central nervous system for the agent ecosystem, learning that you can't optimize what you don't measure.
 

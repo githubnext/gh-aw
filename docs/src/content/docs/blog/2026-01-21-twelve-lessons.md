@@ -31,13 +31,11 @@ Here's what we've figured out so far.
 
 ### Diversity Beats Perfection
 
-No single agent can do everything - and that's perfectly fine. A collection of focused agents, each doing one thing well, works way better than trying to build some mythical universal assistant.
-
-We learned this the hard way. Instead of spending months perfecting a "super agent," we started shipping specialized agents quickly. The zoo's diversity means when one pattern fails, others pick up the slack. This heterogeneous approach creates a system that's actually resilient and can adapt to surprises.
+No single agent can do everything - and that's perfectly fine. A collection of focused agents, each doing one thing well, works better than trying to build a single universal assistant. Instead of spending months perfecting a "super agent," we started shipping specialized agents quickly.
 
 ### Guardrails Enable Innovation
 
-Here's something counter-intuitive we discovered: strict constraints actually make it *easier* to experiment. Safe outputs, limited permissions, allowlisted tools - they don't slow us down. They give us the confidence to move fast because we know the blast radius of any failure.
+Something counter-intuitive we discovered is that strict constraints make it *easier* to experiment. [Safe outputs](https://githubnext.github.io/gh-aw/reference/safe-outputs/), limited permissions, allowlisted tools - they don't slow us down. They give us the confidence to move fast because we know the blast radius of any failure.
 
 With clear boundaries in place, we can prototype new agents without worrying about breaking production. Safe outputs prevent agents from accidentally deleting code or closing critical issues. Network allowlists ensure agents can't leak data to unauthorized services. These guardrails give us permission to innovate boldly.
 
