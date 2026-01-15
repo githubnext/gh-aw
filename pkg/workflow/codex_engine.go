@@ -464,7 +464,6 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 		Playwright:       toolsConfig.Playwright,
 		AgenticWorkflows: toolsConfig.AgenticWorkflows,
 		CacheMemory:      toolsConfig.CacheMemory,
-		SafetyPrompt:     toolsConfig.SafetyPrompt,
 		Timeout:          toolsConfig.Timeout,
 		StartupTimeout:   toolsConfig.StartupTimeout,
 		Custom:           make(map[string]MCPServerConfig),

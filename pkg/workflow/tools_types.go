@@ -72,7 +72,6 @@ type ToolsConfig struct {
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
 	RepoMemory       *RepoMemoryToolConfig       `yaml:"repo-memory,omitempty"`
-	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
 

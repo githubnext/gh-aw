@@ -185,7 +185,7 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 | `/tmp/gh-aw/workflow-logs` | Workflow logs | Aggregated workflow logs |
 | `/tmp/gh-aw/test-results.json` | Test results | JSON test results output |
 | `/tmp/gh-aw/super-linter.log` | Super Linter log | Linting output log |
-| `/tmp/gh-aw/prompts/` | Prompt templates | Template prompts (xpia_prompt.md, temp_folder_prompt.md) |
+| `/tmp/gh-aw/prompts/` | Prompt templates | Template prompts (temp_folder_prompt.md, playwright_prompt.md) |
 | `/tmp/gh-aw/scripts` | Runtime scripts | Temporary scripts directory |
 | `/tmp/gh-aw/actions/` | Runtime action files | Copied from actions/setup/ at runtime (*.cjs, *.sh) |
 
