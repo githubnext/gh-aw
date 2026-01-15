@@ -27,9 +27,9 @@ But making code *better* is only half the battle. We also need to ensure it keep
 
 These agents keep everything running smoothly through continuous testing:
 
-- **[Smoke Tests](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/smoke-codex-firewall.md?plain=1)** - Validate that engines and firewall are working (running every 12 hours!)
-- **[Daily Multi-Device Docs Tester](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation across devices (mobile matters!)
-- **[CI Coach](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/ci-coach.md?plain=1)** - Provides friendly guidance on CI/CD improvements
+- **[Smoke Tests](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/smoke-codex-firewall.md?plain=1)** - Validate that engines and firewall are working (running every 12 hours!)
+- **[Daily Multi-Device Docs Tester](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation across devices (mobile matters!)
+- **[CI Coach](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-coach.md?plain=1)** - Provides friendly guidance on CI/CD improvements
 
 We learned the hard way that AI infrastructure needs constant health checks. The Smoke Tests run every 12 hours to validate that our core systems (engines, firewall, MCP servers) are actually working. It's caught outages before users noticed them. The Multi-Device Docs Tester uses Playwright to test our documentation on different screen sizes - it found mobile rendering issues we never would have caught manually. The CI Coach analyzes our CI/CD pipeline and suggests optimizations ("you're running tests sequentially when they could be parallel").
 
