@@ -4,6 +4,7 @@ description: "A curated tour of creative and culture workflows that bring joy to
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T09:00:00
 sidebar:
   label: "Creative & Culture"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's explore the fun side of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Oh, my dear friends!* Let's explore the *playful workshop* - the most fun corner of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Where joy and whimsy reign supreme!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/), we explored security and compliance workflows - the essential guardrails that manage vulnerability campaigns, validate network security, and prevent credential exposure. These workflows let us sleep soundly knowing our agents operate within safe boundaries.
 

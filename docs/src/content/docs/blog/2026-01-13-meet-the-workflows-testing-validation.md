@@ -4,6 +4,7 @@ description: "A curated tour of testing workflows that keep everything running s
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T11:00:00
 sidebar:
   label: "Testing & Validation"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's continue our tour of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Right this way!* Let's continue our grand tour of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Into the *verification chamber* where nothing escapes scrutiny!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/), we explored interactive and ChatOps workflows - agents that respond to slash commands and GitHub reactions, providing on-demand assistance with full context. We learned that context is king: the right agent at the right moment is far more valuable than scheduled runs.
 

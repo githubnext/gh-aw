@@ -2,8 +2,9 @@
 title: "Getting Started with Agentic Workflows"
 description: "Begin your journey with agentic automation"
 authors:
-  - mnkiefer
+  - dsyme
   - peli
+  - mnkiefer
 date: 2026-02-11
 draft: true
 prev:
@@ -17,7 +18,7 @@ prev:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the final article in our Peli's Agent Factory series! We've covered [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), [lessons](/gh-aw/blog/2026-01-21-twelve-lessons/), [patterns](/gh-aw/blog/2026-01-24-design-patterns/), [operations](/gh-aw/blog/2026-01-27-operational-patterns/), [imports](/gh-aw/blog/2026-01-30-imports-and-sharing/), [security](/gh-aw/blog/2026-02-02-security-lessons/), [architecture](/gh-aw/blog/2026-02-05-how-workflows-work/), and [authoring](/gh-aw/blog/2026-02-08-authoring-workflows/). Now let's put it all together with a practical getting started guide.
+*Ladies and gentlemen, boys and girls!* We've reached the *grand conclusion* of our Peli's Agent Factory series! You've toured the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), discovered [lessons](/gh-aw/blog/2026-01-21-twelve-lessons/), learned the [patterns](/gh-aw/blog/2026-01-24-design-patterns/), mastered [operations](/gh-aw/blog/2026-01-27-operational-patterns/), explored [imports](/gh-aw/blog/2026-01-30-imports-and-sharing/), secured the [vault](/gh-aw/blog/2026-02-02-security-lessons/), glimpsed the [magnificent machinery](/gh-aw/blog/2026-02-05-how-workflows-work/), and practiced [authoring](/gh-aw/blog/2026-02-08-authoring-workflows/). Now for the *golden ticket* - your practical getting started guide!
 
 Ready to build your own agent ecosystem? Let's get you up and running!
 

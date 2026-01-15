@@ -4,6 +4,7 @@ description: "A curated tour of security and compliance workflows that enforce s
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T08:00:00
 sidebar:
   label: "Security & Compliance"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Great to have you back at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Splendid!* How great to have you back at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Now, let me show you the *guardian chamber* - where the watchful protectors stand vigil!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/), we explored operations and release workflows that handle the critical process of shipping software - building, testing, generating release notes, and publishing. These workflows need to be rock-solid reliable because they represent the moment when our work reaches users.
 

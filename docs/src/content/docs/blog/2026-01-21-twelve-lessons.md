@@ -4,6 +4,7 @@ description: "Key insights about what works, what doesn't, and how to design eff
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-21
 draft: true
 prev:
@@ -18,7 +19,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome back to Peli's Agent Factory!
+*How delightful to see you again* at Peli's Agent Factory! Come, come - let me show you what we've discovered in the *lesson chamber*!
 
 In our [previous article](/gh-aw/blog/2026-01-13-meet-the-workflows/), we introduced you to the workflows themselves. Now let's talk about what we've learned.
 

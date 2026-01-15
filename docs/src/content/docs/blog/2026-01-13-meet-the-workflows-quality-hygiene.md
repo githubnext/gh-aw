@@ -4,6 +4,7 @@ description: "A curated tour of quality and hygiene workflows that maintain code
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T05:00:00
 sidebar:
   label: "Quality & Hygiene"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Ah, splendid!* Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Come, let me show you the chamber where everything is polished, everything improved, and all sparkles!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/), we explored issue and PR management workflows - agents that enhance GitHub's collaboration features by removing tedious ceremony like linking related issues, merging main branches, and optimizing templates. These workflows make GitHub more pleasant to use by eliminating small papercuts that add up to significant friction.
 

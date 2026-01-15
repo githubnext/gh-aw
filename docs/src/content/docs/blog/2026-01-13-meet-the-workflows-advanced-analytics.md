@@ -2,8 +2,9 @@
 title: "Meet the Workflows: Advanced Analytics & ML"
 description: "A curated tour of workflows that use ML to extract insights from agent behavior"
 authors:
-  - mnkiefer
+  - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T15:00:00
 sidebar:
   label: "Advanced Analytics & ML"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Time to get into data ana analytics at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Ooh!* Time to plunge into the *data wonderland* at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Where numbers dance and patterns sing!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/), we explored organization and cross-repo workflows that operate at enterprise scale - analyzing dozens of repositories together to find patterns and outliers that single-repo analysis would miss. We learned that perspective matters: what looks normal in isolation might signal drift at scale.
 

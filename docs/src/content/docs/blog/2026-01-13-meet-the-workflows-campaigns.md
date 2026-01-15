@@ -4,6 +4,7 @@ description: "A curated tour of workflows that coordinate multi-agent projects"
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T16:00:00
 sidebar:
   label: "Campaigns & Projects"
@@ -17,7 +18,7 @@ prev:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the final stop in our tour through the agents in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+My dear friends, we've arrived at the *grand finale* - the most spectacular room of all in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 We've journeyed through 15 categories of workflows - from triage bots to code quality improvers, from security guards to creative poets, culminating in [advanced analytics](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/) that use machine learning to understand agent behavior patterns. Each workflow handles its individual task admirably.
 

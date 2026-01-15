@@ -4,6 +4,7 @@ description: "A curated tour of interactive workflows that respond to commands"
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T10:00:00
 sidebar:
   label: "Interactive & ChatOps"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's keep exploring [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Onwards, onwards!* Let's keep exploring the wonders of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! To the *command center* where instant magic happens!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/), we explored creative and culture workflows - agents that bring joy, build team culture, and create moments of delight. We discovered that AI agents don't have to be all business; they can have personality while making work more enjoyable.
 

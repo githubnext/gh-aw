@@ -3,6 +3,7 @@ title: "Authoring New Workflows in Peli's Agent Factory"
 description: "A practical guide to creating effective agentic workflows"
 authors:
   - dsyme
+  - peli
   - mnkiefer
 date: 2026-02-08
 draft: true
@@ -20,7 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to our practical guide in the Peli's Agent Factory series! Now that you understand [how workflows operate under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to roll up your sleeves and start creating your own.
+*Excellent!* You've arrived at the *invention room* - our practical guide in the Peli's Agent Factory series! Now that you've glimpsed [the magnificent machinery under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to don your inventor's cap and start creating your own confections!
 
 Ready to build your own agentic workflows? Awesome! Let's make it happen.
 

@@ -2,8 +2,9 @@
 title: "How Agentic Workflows Work"
 description: "The technical foundation: from natural language to secure execution"
 authors:
-  - mnkiefer
+  - dsyme
   - peli
+  - mnkiefer
 date: 2026-02-05
 draft: true
 prev:
@@ -20,7 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to another deep dive into Peli's Agent Factory! Having covered [security lessons](/gh-aw/blog/2026-02-02-security-lessons/) in our previous article, we're now ready to peek under the hood and understand the technical foundation of how agentic workflows actually work.
+*Aha!* Time for a deep plunge into the *bubbly depths* of Peli's Agent Factory! Having explored the [security vault](/gh-aw/blog/2026-02-02-security-lessons/), we shall now peek behind the curtain and discover the *magnificent machinery* - the technical foundation that makes it all work!
 
 Ever wonder what actually happens when you write an agentic workflow? Let's take a journey from a simple Markdown file all the way to secure, auditable execution in GitHub Actions.
 
