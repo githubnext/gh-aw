@@ -481,7 +481,9 @@ jobs:
                   "--project",
                   "${{ github.workspace }}"
                 ],
-                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
+                "mounts": [
+                  "${{ github.workspace }}:${{ github.workspace }}:rw"
+                ]
               }
             },
             "gateway": {
