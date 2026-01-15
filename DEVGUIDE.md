@@ -143,6 +143,52 @@ make security-scan  # Run gosec, govulncheck, and trivy
 ```
 **When to use**: Before releases or when checking for vulnerabilities.
 
+#### Run security linting on workflows
+```bash
+make security-lint  # Run zizmor and actionlint on workflows
+```
+**What it does**: Scans GitHub Actions workflow files for security vulnerabilities and best practices violations using zizmor and actionlint.
+
+**When to use**: 
+- Before committing workflow changes
+- When reviewing workflow security
+- As part of pre-commit hooks
+
+**Setup (optional but recommended)**:
+```bash
+# Install pre-commit framework
+pip install pre-commit
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run hooks manually on all files
+pre-commit run --all-files
+```
+
+**Required tools**:
+- **zizmor**: Security scanner for GitHub Actions
+  ```bash
+  # Install on Linux
+  curl -sSfL https://github.com/woodruffw/zizmor/releases/latest/download/zizmor-x86_64-unknown-linux-musl -o /usr/local/bin/zizmor
+  chmod +x /usr/local/bin/zizmor
+  
+  # Install on macOS
+  brew install zizmor
+  ```
+  
+- **actionlint**: Workflow linter (optional - gh-aw provides fallback)
+  ```bash
+  # Install on Linux/macOS
+  bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+  sudo mv ./actionlint /usr/local/bin/actionlint
+  
+  # Or with Homebrew on macOS
+  brew install actionlint
+  ```
+
+**Note**: If tools aren't installed, `make security-lint` will show installation instructions and use fallbacks where possible.
+
 #### Run performance benchmarks
 ```bash
 make bench               # Run all benchmarks (~30s)

@@ -1,0 +1,34 @@
+# Pre-commit hooks for gh-aw
+# Install pre-commit: pip install pre-commit
+# Setup hooks: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      # Security scanning with zizmor
+      - id: zizmor
+        name: zizmor security scan
+        entry: zizmor
+        language: system
+        files: \.github/workflows/.*\.(lock\.yml|md)$
+        pass_filenames: true
+        description: Scan GitHub Actions workflows for security vulnerabilities
+        
+      # Workflow linting with actionlint
+      - id: actionlint
+        name: actionlint workflow linting
+        entry: actionlint
+        language: system
+        files: \.github/workflows/.*\.lock\.yml$
+        pass_filenames: true
+        description: Lint GitHub Actions workflow files for best practices and errors
+        
+      # Shell script validation with shellcheck
+      - id: shellcheck
+        name: shellcheck shell script validation
+        entry: shellcheck
+        language: system
+        files: \.(sh|bash)$
+        types: [file, shell]
+        description: Validate shell scripts for common issues and best practices

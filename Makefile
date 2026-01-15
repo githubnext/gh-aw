@@ -425,6 +425,32 @@ actionlint: build
 	@echo "Validating workflows with actionlint..."
 	./$(BINARY_NAME) compile --actionlint
 
+# Run security linting on workflows (zizmor + actionlint)
+.PHONY: security-lint
+security-lint: build recompile  ## Run security linting on workflows
+	@echo "Running security linting on workflows..."
+	@echo ""
+	@echo "=== Running Zizmor Security Scan ==="
+	@if command -v zizmor >/dev/null 2>&1; then \
+		zizmor .github/workflows/*.lock.yml; \
+	else \
+		echo "⚠️  Zizmor not installed. Install with:"; \
+		echo "    curl -sSfL https://github.com/woodruffw/zizmor/releases/latest/download/zizmor-x86_64-unknown-linux-musl -o /usr/local/bin/zizmor"; \
+		echo "    chmod +x /usr/local/bin/zizmor"; \
+		echo ""; \
+		echo "Skipping zizmor scan..."; \
+	fi
+	@echo ""
+	@echo "=== Running Actionlint ==="
+	@if command -v actionlint >/dev/null 2>&1; then \
+		actionlint .github/workflows/*.lock.yml; \
+	else \
+		echo "⚠️  Actionlint not installed. Using gh-aw compile --actionlint instead..."; \
+		./$(BINARY_NAME) compile --actionlint; \
+	fi
+	@echo ""
+	@echo "✓ Security linting complete"
+
 # Format code
 .PHONY: fmt
 fmt: fmt-go fmt-cjs fmt-json
@@ -718,6 +744,7 @@ help:
 	@echo "  security-gosec   - Run gosec Go security scanner"
 	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
 	@echo "  security-trivy   - Run trivy filesystem scanner"
+	@echo "  security-lint    - Run security linting on workflows (zizmor + actionlint)"
 	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"
 	@echo "  install          - Install binary locally"
