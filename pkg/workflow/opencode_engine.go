@@ -165,15 +165,15 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	}
 
 	// Build the command string with proper argument formatting
-	var commandName string
+	var commandParts []string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		commandName = workflowData.EngineConfig.Command
-		opencodeLog.Printf("Using custom command: %s", commandName)
+		opencodeLog.Printf("Using custom command: %s", workflowData.EngineConfig.Command)
+		commandParts = []string{workflowData.EngineConfig.Command}
 	} else {
-		commandName = "opencode run"
+		// Split "opencode run" into separate parts to avoid shell quoting issues
+		commandParts = []string{"opencode", "run"}
 	}
 
-	commandParts := []string{commandName}
 	commandParts = append(commandParts, promptCommand)
 	commandParts = append(commandParts, opencodeArgs...)
 
