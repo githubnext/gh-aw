@@ -2,7 +2,7 @@
 description: Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
 on:
   schedule:
-    - cron: weekly
+    - cron: daily
 permissions:
   contents: read
   issues: read
