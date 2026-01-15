@@ -2,6 +2,9 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWorkflowStep_IsUsesStep(t *testing.T) {
@@ -29,9 +32,8 @@ func TestWorkflowStep_IsUsesStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.step.IsUsesStep(); got != tt.want {
-				t.Errorf("WorkflowStep.IsUsesStep() = %v, want %v", got, tt.want)
-			}
+			got := tt.step.IsUsesStep()
+			assert.Equal(t, tt.want, got, "IsUsesStep should return correct value for %s", tt.name)
 		})
 	}
 }
@@ -61,9 +63,8 @@ func TestWorkflowStep_IsRunStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.step.IsRunStep(); got != tt.want {
-				t.Errorf("WorkflowStep.IsRunStep() = %v, want %v", got, tt.want)
-			}
+			got := tt.step.IsRunStep()
+			assert.Equal(t, tt.want, got, "IsRunStep should return correct value for %s", tt.name)
 		})
 	}
 }
@@ -156,18 +157,13 @@ func TestWorkflowStep_ToMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.step.ToMap()
-			if len(got) != len(tt.want) {
-				t.Errorf("WorkflowStep.ToMap() map length = %d, want %d", len(got), len(tt.want))
-			}
+			assert.Len(t, got, len(tt.want), "ToMap should return map with correct length for %s", tt.name)
 			for key, wantVal := range tt.want {
 				gotVal, ok := got[key]
-				if !ok {
-					t.Errorf("WorkflowStep.ToMap() missing key %q", key)
-					continue
-				}
-				// Compare values - for maps, do a deep comparison
-				if !compareStepValues(gotVal, wantVal) {
-					t.Errorf("WorkflowStep.ToMap()[%q] = %v, want %v", key, gotVal, wantVal)
+				assert.True(t, ok, "ToMap should include key %q for %s", key, tt.name)
+				if ok {
+					// Compare values - for maps, do a deep comparison
+					assert.True(t, compareStepValues(gotVal, wantVal), "ToMap[%q] should equal expected value for %s", key, tt.name)
 				}
 			}
 		})
@@ -270,16 +266,12 @@ func TestMapToStep(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := MapToStep(tt.stepMap)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("MapToStep() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if tt.wantErr {
+				require.Error(t, err, "MapToStep should return error for %s", tt.name)
 				return
 			}
-			if !compareSteps(got, tt.want) {
-				t.Errorf("MapToStep() = %+v, want %+v", got, tt.want)
-			}
+			require.NoError(t, err, "MapToStep should succeed for %s", tt.name)
+			assert.True(t, compareSteps(got, tt.want), "MapToStep should return correct step for %s", tt.name)
 		})
 	}
 }
@@ -302,25 +294,19 @@ func TestWorkflowStep_Clone(t *testing.T) {
 	clone := original.Clone()
 
 	// Verify clone is equal to original
-	if !compareSteps(clone, original) {
-		t.Errorf("Clone() created unequal step")
-	}
+	assert.True(t, compareSteps(clone, original), "Clone should create equal step")
 
 	// Verify clone is independent (modifying clone doesn't affect original)
 	clone.Name = "Modified"
-	if original.Name == "Modified" {
-		t.Errorf("Clone() is not independent - modifying clone affected original")
-	}
+	assert.NotEqual(t, "Modified", original.Name, "Clone should be independent - modifying clone Name should not affect original")
 
 	clone.With["new-key"] = "new-value"
-	if _, exists := original.With["new-key"]; exists {
-		t.Errorf("Clone() did not deep copy With map")
-	}
+	_, exists := original.With["new-key"]
+	assert.False(t, exists, "Clone should deep copy With map - modifying clone should not affect original")
 
 	clone.Env["NEW_VAR"] = "new-val"
-	if _, exists := original.Env["NEW_VAR"]; exists {
-		t.Errorf("Clone() did not deep copy Env map")
-	}
+	_, exists = original.Env["NEW_VAR"]
+	assert.False(t, exists, "Clone should deep copy Env map - modifying clone should not affect original")
 }
 
 func TestWorkflowStep_ToYAML(t *testing.T) {
@@ -358,13 +344,12 @@ func TestWorkflowStep_ToYAML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.step.ToYAML()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("WorkflowStep.ToYAML() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err, "ToYAML should return error for %s", tt.name)
 				return
 			}
-			if !tt.wantErr && got == "" {
-				t.Errorf("WorkflowStep.ToYAML() returned empty string")
-			}
+			require.NoError(t, err, "ToYAML should succeed for %s", tt.name)
+			assert.NotEmpty(t, got, "ToYAML should return non-empty string for %s", tt.name)
 		})
 	}
 }
@@ -381,21 +366,17 @@ func TestMapToStep_RoundTrip(t *testing.T) {
 	}
 
 	step, err := MapToStep(originalMap)
-	if err != nil {
-		t.Fatalf("MapToStep() failed: %v", err)
-	}
+	require.NoError(t, err, "MapToStep should succeed for round-trip test")
 
 	resultMap := step.ToMap()
 
 	// Compare maps
-	if len(resultMap) != len(originalMap) {
-		t.Errorf("Round trip changed map size: got %d, want %d", len(resultMap), len(originalMap))
-	}
+	assert.Len(t, resultMap, len(originalMap), "Round trip should preserve map size")
 
 	for key, originalVal := range originalMap {
 		resultVal, ok := resultMap[key]
+		assert.True(t, ok, "Round trip should preserve key %q", key)
 		if !ok {
-			t.Errorf("Round trip lost key %q", key)
 			continue
 		}
 		// Special handling for env field which converts from map[string]any to map[string]string
@@ -403,22 +384,16 @@ func TestMapToStep_RoundTrip(t *testing.T) {
 			origEnv, origOK := originalVal.(map[string]any)
 			resultEnv, resultOK := resultVal.(map[string]string)
 			if origOK && resultOK {
-				if len(origEnv) != len(resultEnv) {
-					t.Errorf("Round trip changed env map size: got %d, want %d", len(resultEnv), len(origEnv))
-				}
+				assert.Len(t, resultEnv, len(origEnv), "Round trip should preserve env map size")
 				for k, v := range origEnv {
 					if vStr, ok := v.(string); ok {
-						if resultEnv[k] != vStr {
-							t.Errorf("Round trip changed env[%q]: got %q, want %q", k, resultEnv[k], vStr)
-						}
+						assert.Equal(t, vStr, resultEnv[k], "Round trip should preserve env[%q]", k)
 					}
 				}
 				continue
 			}
 		}
-		if !compareStepValues(resultVal, originalVal) {
-			t.Errorf("Round trip changed value for key %q: got %v, want %v", key, resultVal, originalVal)
-		}
+		assert.True(t, compareStepValues(resultVal, originalVal), "Round trip should preserve value for key %q", key)
 	}
 }
 
@@ -564,21 +539,14 @@ func TestSliceToSteps(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := SliceToSteps(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SliceToSteps() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if tt.wantErr {
+				require.Error(t, err, "SliceToSteps should return error for %s", tt.name)
 				return
 			}
-			if len(got) != len(tt.want) {
-				t.Errorf("SliceToSteps() returned %d steps, want %d", len(got), len(tt.want))
-				return
-			}
+			require.NoError(t, err, "SliceToSteps should succeed for %s", tt.name)
+			assert.Len(t, got, len(tt.want), "SliceToSteps should return correct number of steps for %s", tt.name)
 			for i := range got {
-				if !compareSteps(got[i], tt.want[i]) {
-					t.Errorf("SliceToSteps() step %d = %+v, want %+v", i, got[i], tt.want[i])
-				}
+				assert.True(t, compareSteps(got[i], tt.want[i]), "SliceToSteps step %d should match expected for %s", i, tt.name)
 			}
 		})
 	}
@@ -647,32 +615,24 @@ func TestStepsToSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := StepsToSlice(tt.input)
-			if len(got) != len(tt.want) {
-				t.Errorf("StepsToSlice() returned %d items, want %d", len(got), len(tt.want))
-				return
-			}
+			assert.Len(t, got, len(tt.want), "StepsToSlice should return correct number of items for %s", tt.name)
 			for i := range got {
 				gotMap, ok := got[i].(map[string]any)
+				assert.True(t, ok, "StepsToSlice item %d should be a map for %s", i, tt.name)
 				if !ok {
-					t.Errorf("StepsToSlice() item %d is not a map, got %T", i, got[i])
 					continue
 				}
 				wantMap, ok := tt.want[i].(map[string]any)
+				assert.True(t, ok, "Test data item %d should be a map for %s", i, tt.name)
 				if !ok {
-					t.Errorf("Test data item %d is not a map, got %T", i, tt.want[i])
 					continue
 				}
-				if len(gotMap) != len(wantMap) {
-					t.Errorf("StepsToSlice() item %d has %d fields, want %d", i, len(gotMap), len(wantMap))
-				}
+				assert.Len(t, gotMap, len(wantMap), "StepsToSlice item %d should have correct number of fields for %s", i, tt.name)
 				for key, wantVal := range wantMap {
 					gotVal, exists := gotMap[key]
-					if !exists {
-						t.Errorf("StepsToSlice() item %d missing key %q", i, key)
-						continue
-					}
-					if !compareStepValues(gotVal, wantVal) {
-						t.Errorf("StepsToSlice() item %d key %q = %v, want %v", i, key, gotVal, wantVal)
+					assert.True(t, exists, "StepsToSlice item %d should include key %q for %s", i, key, tt.name)
+					if exists {
+						assert.True(t, compareStepValues(gotVal, wantVal), "StepsToSlice item %d key %q should match expected value for %s", i, key, tt.name)
 					}
 				}
 			}
@@ -697,17 +657,13 @@ func TestSliceToSteps_RoundTrip(t *testing.T) {
 
 	// Convert to typed steps
 	steps, err := SliceToSteps(originalSlice)
-	if err != nil {
-		t.Fatalf("SliceToSteps() failed: %v", err)
-	}
+	require.NoError(t, err, "SliceToSteps should succeed for round-trip test")
 
 	// Convert back to slice
 	resultSlice := StepsToSlice(steps)
 
 	// Compare
-	if len(resultSlice) != len(originalSlice) {
-		t.Errorf("Round trip changed slice size: got %d, want %d", len(resultSlice), len(originalSlice))
-	}
+	assert.Len(t, resultSlice, len(originalSlice), "Round trip should preserve slice size")
 
 	for i := range originalSlice {
 		origMap, _ := originalSlice[i].(map[string]any)
@@ -716,8 +672,8 @@ func TestSliceToSteps_RoundTrip(t *testing.T) {
 		// Check all keys from original exist in result
 		for key, origVal := range origMap {
 			resultVal, exists := resultMap[key]
+			assert.True(t, exists, "Round trip should preserve key %q in step %d", key, i)
 			if !exists {
-				t.Errorf("Round trip lost key %q in step %d", key, i)
 				continue
 			}
 			// Special handling for env field which converts map[string]any to map[string]string
@@ -726,14 +682,221 @@ func TestSliceToSteps_RoundTrip(t *testing.T) {
 				resultEnv, _ := resultVal.(map[string]string)
 				for k, v := range origEnv {
 					if vStr, ok := v.(string); ok {
-						if resultEnv[k] != vStr {
-							t.Errorf("Round trip changed env[%q] in step %d: got %q, want %q", k, i, resultEnv[k], vStr)
-						}
+						assert.Equal(t, vStr, resultEnv[k], "Round trip should preserve env[%q] in step %d", k, i)
 					}
 				}
-			} else if !compareStepValues(resultVal, origVal) {
-				t.Errorf("Round trip changed value for key %q in step %d: got %v, want %v", key, i, resultVal, origVal)
+			} else {
+				assert.True(t, compareStepValues(resultVal, origVal), "Round trip should preserve value for key %q in step %d", key, i)
 			}
 		}
+	}
+}
+
+func TestMapToStep_InvalidTypes(t *testing.T) {
+	tests := []struct {
+		name        string
+		stepMap     map[string]any
+		shouldParse bool
+		description string
+	}{
+		{
+			name: "timeout-minutes as string",
+			stepMap: map[string]any{
+				"name":            "Test",
+				"run":             "echo test",
+				"timeout-minutes": "not-a-number",
+			},
+			shouldParse: true, // Currently ignores invalid types
+			description: "should handle non-integer timeout-minutes gracefully",
+		},
+		{
+			name: "continue-on-error as string expression",
+			stepMap: map[string]any{
+				"name":              "Test",
+				"run":               "echo test",
+				"continue-on-error": "${{ github.event_name == 'push' }}",
+			},
+			shouldParse: true, // Should preserve string expressions
+			description: "should preserve string expressions for continue-on-error",
+		},
+		{
+			name: "env with non-string values",
+			stepMap: map[string]any{
+				"name": "Test",
+				"run":  "echo test",
+				"env": map[string]any{
+					"STRING_VAR": "value",
+					"INT_VAR":    42,
+					"BOOL_VAR":   true,
+				},
+			},
+			shouldParse: true, // Should handle type conversion
+			description: "should handle non-string env values",
+		},
+		{
+			name: "with as non-map",
+			stepMap: map[string]any{
+				"name": "Test",
+				"uses": "actions/checkout@v4",
+				"with": "not-a-map",
+			},
+			shouldParse: true, // Currently ignores invalid types
+			description: "should ignore invalid with field type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			step, err := MapToStep(tt.stepMap)
+			if tt.shouldParse {
+				require.NoError(t, err, "MapToStep should handle %s", tt.description)
+				require.NotNil(t, step, "MapToStep should return non-nil step for %s", tt.description)
+			} else {
+				require.Error(t, err, "MapToStep should return error for %s", tt.description)
+			}
+		})
+	}
+}
+
+func TestClone_DeepNestedMaps(t *testing.T) {
+	original := &WorkflowStep{
+		Name: "Test",
+		Uses: "some/action@v1",
+		With: map[string]any{
+			"level1": map[string]any{
+				"level2": map[string]any{
+					"level3": "value",
+				},
+			},
+			"simple": "value",
+		},
+	}
+
+	clone := original.Clone()
+
+	// Verify original values are preserved in clone
+	require.NotNil(t, clone.With, "Clone should preserve With map")
+	level1, ok := clone.With["level1"].(map[string]any)
+	require.True(t, ok, "Clone should preserve nested map structure")
+	level2, ok := level1["level2"].(map[string]any)
+	require.True(t, ok, "Clone should preserve deeply nested map structure")
+	assert.Equal(t, "value", level2["level3"], "Clone should preserve deeply nested value")
+
+	// Modify deeply nested value in clone
+	level2["level3"] = "modified"
+
+	// Verify original is unchanged (deep copy validation)
+	origLevel1, ok := original.With["level1"].(map[string]any)
+	require.True(t, ok, "Original should still have nested map")
+	origLevel2, ok := origLevel1["level2"].(map[string]any)
+	require.True(t, ok, "Original should still have deeply nested map")
+	// Note: Current implementation does shallow copy, so this test documents existing behavior
+	// In a true deep copy, this would be "value" instead of "modified"
+	assert.Equal(t, "modified", origLevel2["level3"], "Current Clone implementation does shallow copy of nested maps")
+}
+
+func TestToYAML_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name        string
+		step        *WorkflowStep
+		wantErr     bool
+		description string
+	}{
+		{
+			name: "step with complex nested maps",
+			step: &WorkflowStep{
+				Name: "Complex step",
+				Uses: "some/action@v1",
+				With: map[string]any{
+					"nested": map[string]any{
+						"deep": map[string]any{
+							"value": "test",
+						},
+					},
+				},
+			},
+			wantErr:     false,
+			description: "should handle complex nested structures",
+		},
+		{
+			name: "step with special characters",
+			step: &WorkflowStep{
+				Name: "Test: Special chars!",
+				Run:  "echo 'hello' && echo \"world\"",
+			},
+			wantErr:     false,
+			description: "should handle special characters in strings",
+		},
+		{
+			name: "step with multiline run",
+			step: &WorkflowStep{
+				Name: "Multiline",
+				Run:  "line1\nline2\nline3",
+			},
+			wantErr:     false,
+			description: "should handle multiline strings",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			yaml, err := tt.step.ToYAML()
+			if tt.wantErr {
+				require.Error(t, err, "ToYAML should return error for %s", tt.description)
+			} else {
+				require.NoError(t, err, "ToYAML should succeed for %s", tt.description)
+				assert.NotEmpty(t, yaml, "ToYAML should return non-empty YAML for %s", tt.description)
+			}
+		})
+	}
+}
+
+func TestSliceToSteps_MixedValidInvalid(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       []any
+		wantErr     bool
+		description string
+	}{
+		{
+			name: "invalid step type in middle",
+			input: []any{
+				map[string]any{"name": "Step 1", "run": "echo 1"},
+				"not a map",
+				map[string]any{"name": "Step 3", "run": "echo 3"},
+			},
+			wantErr:     true,
+			description: "should fail on first invalid step type",
+		},
+		{
+			name: "all valid steps",
+			input: []any{
+				map[string]any{"name": "Step 1", "run": "echo 1"},
+				map[string]any{"name": "Step 2", "uses": "actions/checkout@v4"},
+				map[string]any{"name": "Step 3", "run": "echo 3"},
+			},
+			wantErr:     false,
+			description: "should succeed with all valid steps",
+		},
+		{
+			name: "empty map as step",
+			input: []any{
+				map[string]any{},
+			},
+			wantErr:     false,
+			description: "should handle empty step map",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps, err := SliceToSteps(tt.input)
+			if tt.wantErr {
+				require.Error(t, err, "SliceToSteps should return error for %s", tt.description)
+			} else {
+				require.NoError(t, err, "SliceToSteps should succeed for %s", tt.description)
+				assert.Len(t, steps, len(tt.input), "SliceToSteps should return correct number of steps for %s", tt.description)
+			}
+		})
 	}
 }
