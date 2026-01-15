@@ -164,12 +164,16 @@ Events that cause a workflow to run. Defined in the `on:` section of frontmatter
 
 ### Cron Schedule
 
-A time-based trigger format using standard cron syntax with five fields: minute, hour, day of month, month, and day of week.
+A time-based trigger format. Use short syntax like `daily` or `weekly on monday` (recommended) or standard cron expressions for fixed times.
+
+```yaml
+on: weekly on monday  # Recommended: automatically scattered time
+```
 
 ```yaml
 on:
   schedule:
-    - cron: "0 9 * * 1"  # Every Monday at 9 AM UTC
+    - cron: "0 9 * * 1"  # Alternative: fixed time (Monday 9 AM UTC)
 ```
 
 ### workflow_dispatch
