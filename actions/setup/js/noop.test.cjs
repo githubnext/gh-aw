@@ -72,7 +72,7 @@ describe("noop", () => {
         expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: This is the only noop"));
     }),
     it("should handle missing agent output file", async () => {
-      ((process.env.GH_AW_AGENT_OUTPUT = "/tmp/nonexistent.json"), await eval(`(async () => { ${noopScript}; await main(); })()`), expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file")));
+      ((process.env.GH_AW_AGENT_OUTPUT = "/tmp/nonexistent.json"), await eval(`(async () => { ${noopScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file")));
     }),
     it("should generate proper step summary format", async () => {
       (setAgentOutput({
