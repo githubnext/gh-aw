@@ -486,7 +486,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 			expectedStepsContaining: []string{
 				"GH_AW_WORKFLOW_ID",
 			},
-			expectedStepNames: []string{"process_safe_outputs"},
+			expectedStepNames: []string{"process_content_operations"},
 		},
 		{
 			name: "multiple_safe_outputs_consolidated",
@@ -517,7 +517,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 				"SHARED_VAR",
 			},
 			expectedStepNames: []string{
-				"process_safe_outputs", // Consolidated step for all safe outputs
+				"process_content_operations", // Consolidated step for all safe outputs
 			},
 		},
 	}

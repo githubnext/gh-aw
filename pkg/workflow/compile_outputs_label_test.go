@@ -176,7 +176,7 @@ This workflow tests the safe_outputs job generation.
 	}
 
 	// Verify output variables for the unified handler
-	if !strings.Contains(lockContent, "process_safe_outputs_processed_count:") {
+	if !strings.Contains(lockContent, "process_content_operations_processed_count:") {
 		t.Error("Expected processed_count output to be available")
 	}
 
@@ -649,7 +649,7 @@ This workflow tests the safe_outputs job generation with default max.
 	if !strings.Contains(lockContent, "safe_outputs:") {
 		t.Error("Expected 'safe_outputs' job to be in generated workflow")
 	}
-	// Verify handler config is present (process_safe_outputs handles all outputs)
+	// Verify handler config is present (process_content_operations handles all outputs)
 	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
 		t.Error("Expected handler config to be in generated workflow")
 	}

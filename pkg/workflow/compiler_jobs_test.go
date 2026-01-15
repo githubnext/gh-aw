@@ -351,8 +351,8 @@ Test content`
 
 	// Check that the handler manager step is created (since create-issue, add-comment, and add-labels are now handled by the handler manager)
 	expectedSteps := []string{
-		"name: Process Safe Outputs",
-		"id: process_safe_outputs",
+		"name: Process Content Operations",
+		"id: process_content_operations",
 	}
 	for _, step := range expectedSteps {
 		if !strings.Contains(yamlStr, step) {

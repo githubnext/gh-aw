@@ -61,8 +61,8 @@ Create a pull request with reviewers.
 	if !strings.Contains(compiledContent, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
-	if !strings.Contains(compiledContent, "id: process_safe_outputs") {
-		t.Error("Expected handler manager (process_safe_outputs) step in compiled workflow")
+	if !strings.Contains(compiledContent, "id: process_content_operations") {
+		t.Error("Expected handler manager (process_content_operations) step in compiled workflow")
 	}
 
 	// Verify actions/github-script is used
@@ -127,8 +127,8 @@ Create a pull request with a single reviewer.
 	if !strings.Contains(compiledContent, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
-	if !strings.Contains(compiledContent, "id: process_safe_outputs") {
-		t.Error("Expected handler manager (process_safe_outputs) step in compiled workflow")
+	if !strings.Contains(compiledContent, "id: process_content_operations") {
+		t.Error("Expected handler manager (process_content_operations) step in compiled workflow")
 	}
 
 	// Verify reviewer is mentioned somewhere in the workflow

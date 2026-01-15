@@ -392,11 +392,11 @@ func TestJobOutputs(t *testing.T) {
 	require.NotNil(t, job)
 
 	// Handler manager outputs
-	assert.Contains(t, job.Outputs, "process_safe_outputs_temporary_id_map")
-	assert.Contains(t, job.Outputs, "process_safe_outputs_processed_count")
+	assert.Contains(t, job.Outputs, "process_content_operations_temporary_id_map")
+	assert.Contains(t, job.Outputs, "process_content_operations_processed_count")
 
 	// Check output format
-	assert.Contains(t, job.Outputs["process_safe_outputs_temporary_id_map"], "steps.process_safe_outputs.outputs")
+	assert.Contains(t, job.Outputs["process_content_operations_temporary_id_map"], "steps.process_content_operations.outputs")
 }
 
 // TestJobDependencies tests that job dependencies are correctly set

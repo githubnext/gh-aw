@@ -373,8 +373,8 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			// In consolidated mode with handler manager, check for process_safe_outputs step
-			expectedStep: "id: process_safe_outputs",
+			// In consolidated mode with handler manager, check for process_content_operations step
+			expectedStep: "id: process_content_operations",
 			stepType:     "step",
 		},
 		{
@@ -406,8 +406,8 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			// In consolidated mode with handler manager, check for process_safe_outputs step
-			expectedStep: "id: process_safe_outputs",
+			// In consolidated mode with handler manager, check for process_content_operations step
+			expectedStep: "id: process_content_operations",
 			stepType:     "step",
 		},
 	}

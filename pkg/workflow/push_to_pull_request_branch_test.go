@@ -60,8 +60,8 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Verify that push_to_pull_request_branch is now handled by handler manager
-	if !strings.Contains(lockContentStr, "id: process_safe_outputs") {
-		t.Errorf("Generated workflow should contain process_safe_outputs step (handler manager)")
+	if !strings.Contains(lockContentStr, "id: process_content_operations") {
+		t.Errorf("Generated workflow should contain process_content_operations step (handler manager)")
 	}
 
 	// Verify that push_to_pull_request_branch config is in handler manager config
@@ -290,8 +290,8 @@ This workflow has minimal push-to-pull-request-branch configuration.
 	}
 
 	// Verify push_to_pull_request_branch is handled by handler manager
-	if !strings.Contains(lockContentStr, "id: process_safe_outputs") {
-		t.Errorf("Generated workflow should contain process_safe_outputs step (handler manager)")
+	if !strings.Contains(lockContentStr, "id: process_content_operations") {
+		t.Errorf("Generated workflow should contain process_content_operations step (handler manager)")
 	}
 
 	// Verify that push_to_pull_request_branch config is in handler manager config
@@ -741,8 +741,8 @@ since it's not supported by actions/github-script.
 	}
 
 	// Verify that push_to_pull_request_branch is handled by handler manager
-	if !strings.Contains(lockContentStr, "id: process_safe_outputs") {
-		t.Errorf("Generated workflow should contain process_safe_outputs step (handler manager)")
+	if !strings.Contains(lockContentStr, "id: process_content_operations") {
+		t.Errorf("Generated workflow should contain process_content_operations step (handler manager)")
 	}
 
 	// Verify that working-directory is NOT present (not supported by actions/github-script)
@@ -878,8 +878,8 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 	}
 
 	// Verify that the push step is handled by handler manager
-	if !strings.Contains(lockContentStr, "- name: Process Safe Outputs") {
-		t.Errorf("Expected 'Process Safe Outputs' step (handler manager) in safe_outputs job")
+	if !strings.Contains(lockContentStr, "- name: Process Content Operations") {
+		t.Errorf("Expected 'Process Content Operations' step (handler manager) in safe_outputs job")
 	}
 
 	// Verify that the condition checks for push_to_pull_request_branch output type

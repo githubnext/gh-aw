@@ -62,8 +62,8 @@ This is a test workflow that should create an issue and assign it to multiple us
 	}
 
 	// Verify that handler manager step is present (create_issue is now handled by handler manager)
-	if !strings.Contains(compiledStr, "id: process_safe_outputs") {
-		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	if !strings.Contains(compiledStr, "id: process_content_operations") {
+		t.Error("Expected process_content_operations step in compiled workflow (create-issue is now handled by handler manager)")
 	}
 	// Verify handler config contains create_issue
 	if !strings.Contains(compiledStr, "create_issue") {
@@ -195,8 +195,8 @@ Create an issue and assign to copilot.
 	if !strings.Contains(compiledStr, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
-	if !strings.Contains(compiledStr, "id: process_safe_outputs") {
-		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	if !strings.Contains(compiledStr, "id: process_content_operations") {
+		t.Error("Expected process_content_operations step in compiled workflow (create-issue is now handled by handler manager)")
 	}
 	// Verify handler config contains create_issue
 	if !strings.Contains(compiledStr, "create_issue") {
@@ -257,8 +257,8 @@ Create an issue with a single assignee.
 	if !strings.Contains(compiledStr, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
-	if !strings.Contains(compiledStr, "id: process_safe_outputs") {
-		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	if !strings.Contains(compiledStr, "id: process_content_operations") {
+		t.Error("Expected process_content_operations step in compiled workflow (create-issue is now handled by handler manager)")
 	}
 	// Verify handler config contains create_issue
 	if !strings.Contains(compiledStr, "create_issue") {

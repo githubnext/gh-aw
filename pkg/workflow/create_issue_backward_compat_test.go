@@ -64,8 +64,8 @@ This workflow uses the old format without assignees and should continue to work.
 	}
 
 	// Verify that Create Issue step is present via handler manager (consolidated mode uses handler manager)
-	if !strings.Contains(compiledStr, "name: Process Safe Outputs") && !strings.Contains(compiledStr, "id: process_safe_outputs") {
-		t.Error("Expected Process Safe Outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	if !strings.Contains(compiledStr, "name: Process Content Operations") && !strings.Contains(compiledStr, "id: process_content_operations") {
+		t.Error("Expected Process Content Operations step in compiled workflow (create-issue is now handled by handler manager)")
 	}
 
 	// Verify handler config contains create_issue
@@ -81,9 +81,9 @@ This workflow uses the old format without assignees and should continue to work.
 		t.Error("Did not expect assignee steps in legacy workflow")
 	}
 
-	// Verify that outputs are still set correctly - handler manager uses process_safe_outputs step
-	if !strings.Contains(compiledStr, "process_safe_outputs") {
-		t.Error("Expected process_safe_outputs step outputs in compiled workflow")
+	// Verify that outputs are still set correctly - handler manager uses process_content_operations step
+	if !strings.Contains(compiledStr, "process_content_operations") {
+		t.Error("Expected process_content_operations step outputs in compiled workflow")
 	}
 }
 

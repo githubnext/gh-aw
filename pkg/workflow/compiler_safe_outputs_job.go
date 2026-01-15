@@ -189,11 +189,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
 		handlerManagerSteps := c.buildHandlerManagerStep(data)
 		steps = append(steps, handlerManagerSteps...)
-		safeOutputStepNames = append(safeOutputStepNames, "process_safe_outputs")
+		safeOutputStepNames = append(safeOutputStepNames, "process_content_operations")
 
 		// Add outputs from handler manager
-		outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
-		outputs["process_safe_outputs_processed_count"] = "${{ steps.process_safe_outputs.outputs.processed_count }}"
+		outputs["process_content_operations_temporary_id_map"] = "${{ steps.process_content_operations.outputs.temporary_id_map }}"
+		outputs["process_content_operations_processed_count"] = "${{ steps.process_content_operations.outputs.processed_count }}"
 
 		// Merge permissions for all handler-managed types
 		if data.SafeOutputs.CreateIssues != nil {
@@ -301,21 +301,21 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Note: Add Reviewer is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AddReviewer != nil {
-		outputs["add_reviewer_reviewers_added"] = "${{ steps.process_safe_outputs.outputs.reviewers_added }}"
+		outputs["add_reviewer_reviewers_added"] = "${{ steps.process_content_operations.outputs.reviewers_added }}"
 		permissions.Merge(NewPermissionsContentsReadPRWrite())
 	}
 
 	// Note: Assign Milestone is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignMilestone != nil {
-		outputs["assign_milestone_milestone_assigned"] = "${{ steps.process_safe_outputs.outputs.milestone_assigned }}"
+		outputs["assign_milestone_milestone_assigned"] = "${{ steps.process_content_operations.outputs.milestone_assigned }}"
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
 	// Note: Assign To User is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignToUser != nil {
-		outputs["assign_to_user_assigned"] = "${{ steps.process_safe_outputs.outputs.assigned }}"
+		outputs["assign_to_user_assigned"] = "${{ steps.process_content_operations.outputs.assigned }}"
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 

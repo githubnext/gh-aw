@@ -572,11 +572,11 @@ Test that issue is unlocked in safe_outputs job before processing safe outputs.
 
 	// Verify the unlock step appears BEFORE the safe output processing steps
 	unlockPos := strings.Index(safeOutputsJobSection, "Unlock issue for safe output operations")
-	processPos := strings.Index(safeOutputsJobSection, "Process Safe Outputs")
+	processPos := strings.Index(safeOutputsJobSection, "Process Content Operations")
 	if unlockPos == -1 || processPos == -1 {
 		t.Error("Both unlock and process steps should exist in safe_outputs job")
 	} else if unlockPos > processPos {
-		t.Error("Unlock step should appear BEFORE Process Safe Outputs step")
+		t.Error("Unlock step should appear BEFORE Process Content Operations step")
 	}
 
 	// Verify unlock step in conclusion job still exists

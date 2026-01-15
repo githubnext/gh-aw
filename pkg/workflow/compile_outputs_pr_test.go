@@ -160,9 +160,9 @@ This workflow tests the create_pull_request job generation.
 		t.Error("Expected 'Checkout repository' step in create_pull_request job")
 	}
 
-	// Verify handler manager step (Process Safe Outputs) exists
-	if !strings.Contains(lockContentStr, "Process Safe Outputs") {
-		t.Error("Expected 'Process Safe Outputs' (handler manager) step in safe_outputs job")
+	// Verify handler manager step (Process Content Operations) exists
+	if !strings.Contains(lockContentStr, "Process Content Operations") {
+		t.Error("Expected 'Process Content Operations' (handler manager) step in safe_outputs job")
 	}
 
 	if !strings.Contains(lockContentStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
@@ -254,9 +254,9 @@ This workflow tests the create_pull_request job generation with draft: false.
 		t.Error("Expected create_pull_request to be configured in handler manager")
 	}
 
-	// Verify the handler manager step (Process Safe Outputs) is present
-	if !strings.Contains(lockContentStr, "Process Safe Outputs") || !strings.Contains(lockContentStr, "process_safe_outputs") {
-		t.Error("Expected 'Process Safe Outputs' handler manager step in safe_outputs job")
+	// Verify the handler manager step (Process Content Operations) is present
+	if !strings.Contains(lockContentStr, "Process Content Operations") || !strings.Contains(lockContentStr, "process_content_operations") {
+		t.Error("Expected 'Process Content Operations' handler manager step in safe_outputs job")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContentStr)
@@ -329,9 +329,9 @@ This workflow tests the create_pull_request job generation with draft: true.
 		t.Error("Expected create_pull_request to be configured in handler manager")
 	}
 
-	// Verify the handler manager step (Process Safe Outputs) is present
-	if !strings.Contains(lockContentStr, "Process Safe Outputs") || !strings.Contains(lockContentStr, "process_safe_outputs") {
-		t.Error("Expected 'Process Safe Outputs' handler manager step in safe_outputs job")
+	// Verify the handler manager step (Process Content Operations) is present
+	if !strings.Contains(lockContentStr, "Process Content Operations") || !strings.Contains(lockContentStr, "process_content_operations") {
+		t.Error("Expected 'Process Content Operations' handler manager step in safe_outputs job")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContentStr)
@@ -514,8 +514,8 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 	}
 
 	// Verify that the handler manager step exists (processes create_pull_request)
-	if !strings.Contains(lockContentStr, "- name: Process Safe Outputs") {
-		t.Errorf("Expected 'Process Safe Outputs' (handler manager) step in safe_outputs job")
+	if !strings.Contains(lockContentStr, "- name: Process Content Operations") {
+		t.Errorf("Expected 'Process Content Operations' (handler manager) step in safe_outputs job")
 	}
 
 	// Verify that the condition checks for create_pull_request output type

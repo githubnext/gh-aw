@@ -307,8 +307,8 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				CreateIssues: &CreateIssuesConfig{},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
-				"id: process_safe_outputs",
+				"name: Process Content Operations",
+				"id: process_content_operations",
 				"uses: actions/github-script@",
 				"GH_AW_AGENT_OUTPUT",
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
@@ -332,7 +332,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
+				"name: Process Content Operations",
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 			},
 		},
@@ -345,7 +345,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
+				"name: Process Content Operations",
 				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 			},
 		},
@@ -357,7 +357,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
+				"name: Process Content Operations",
 				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 			},
 		},
@@ -412,7 +412,7 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	patchPos := strings.Index(stepsContent, "name: Download patch artifact")
 	checkoutPos := strings.Index(stepsContent, "name: Checkout repository")
 	gitConfigPos := strings.Index(stepsContent, "name: Configure Git credentials")
-	handlerPos := strings.Index(stepsContent, "name: Process Safe Outputs")
+	handlerPos := strings.Index(stepsContent, "name: Process Content Operations")
 
 	// Verify order
 	if setupPos != -1 && downloadPos != -1 {

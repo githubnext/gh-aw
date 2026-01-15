@@ -366,8 +366,8 @@ Test workflow with release mode.
 	}
 
 	// Verify handler manager step is present (create_issue is now handled by handler manager)
-	if !strings.Contains(lockStr, "id: process_safe_outputs") {
-		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	if !strings.Contains(lockStr, "id: process_content_operations") {
+		t.Error("Expected process_content_operations step in compiled workflow (create-issue is now handled by handler manager)")
 	}
 	// Verify handler config contains create_issue
 	if !strings.Contains(lockStr, "create_issue") {
@@ -444,8 +444,8 @@ Test
 	}
 
 	// Verify handler manager step is present (create_issue is now handled by handler manager)
-	if !strings.Contains(lockStr, "id: process_safe_outputs") {
-		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	if !strings.Contains(lockStr, "id: process_content_operations") {
+		t.Error("Expected process_content_operations step in compiled workflow (create-issue is now handled by handler manager)")
 	}
 	// Verify handler config contains create_issue
 	if !strings.Contains(lockStr, "create_issue") {

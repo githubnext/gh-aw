@@ -143,15 +143,17 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 
 // buildHandlerManagerStep builds a single step that uses the safe output handler manager
 // to dispatch messages to appropriate handlers. This replaces multiple individual steps
-// with a single dispatcher step that processes all safe output types.
+// with a single dispatcher step that processes handler-managed safe output types.
+// Note: This does NOT process all safe outputs - some like update_project and assign_to_agent
+// have dedicated steps due to dependency ordering requirements.
 func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	consolidatedSafeOutputsStepsLog.Print("Building handler manager step")
 
 	var steps []string
 
 	// Step name and metadata
-	steps = append(steps, "      - name: Process Safe Outputs\n")
-	steps = append(steps, "        id: process_safe_outputs\n")
+	steps = append(steps, "      - name: Process Content Operations\n")
+	steps = append(steps, "        id: process_content_operations\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 	// Environment variables
