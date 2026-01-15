@@ -7,19 +7,15 @@ on:
         required: true
         type: string
 name: Dev
-description: Read an issue and post a poem about it
+description: Read an issue and post a poem about it using OpenCode
 timeout-minutes: 5
 strict: false
 sandbox: false
-engine: copilot
+engine: opencode
 
 permissions:
   contents: read
   issues: read
-
-network:
-  allowed:
-    - "*"
 
 tools:
   github:
