@@ -289,7 +289,21 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Setup Node.js
+`)
+
+		// Add checkout step only in dev mode (for local action paths)
+		if actionMode == ActionModeDev {
+			yaml.WriteString(`      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+`)
+		}
+
+		yaml.WriteString(`      - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: '22'
