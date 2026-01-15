@@ -23,11 +23,24 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 
 	// Use the official installer script from the Copilot CLI repository
 	// Download to a file first for better security than piping directly to bash
+	// Include retry logic to handle transient network errors (e.g., 504 Gateway Timeout)
 	stepLines := []string{
 		fmt.Sprintf("      - name: %s", stepName),
 		"        run: |",
-		"          # Download official Copilot CLI installer script",
-		"          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh",
+		"          # Download official Copilot CLI installer script with retry logic",
+		"          for i in {1..5}; do",
+		"            if curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh; then",
+		"              echo \"Successfully downloaded Copilot CLI installer\"",
+		"              break",
+		"            else",
+		"              if [ $i -eq 5 ]; then",
+		"                echo \"Failed to download Copilot CLI installer after 5 attempts\"",
+		"                exit 1",
+		"              fi",
+		"              echo \"Download failed, retrying in 2 seconds... (attempt $i/5)\"",
+		"              sleep 2",
+		"            fi",
+		"          done",
 		"          ",
 		"          # Execute the installer with the specified version",
 		"          # Pass VERSION directly to sudo to ensure it's available to the installer script",

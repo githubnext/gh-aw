@@ -260,8 +260,20 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          # Download official Copilot CLI installer script with retry logic
+          for i in {1..5}; do
+            if curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh; then
+              echo "Successfully downloaded Copilot CLI installer"
+              break
+            else
+              if [ $i -eq 5 ]; then
+                echo "Failed to download Copilot CLI installer after 5 attempts"
+                exit 1
+              fi
+              echo "Download failed, retrying in 2 seconds... (attempt $i/5)"
+              sleep 2
+            fi
+          done
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
@@ -275,7 +287,20 @@ jobs:
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.9.1)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.1 bash
+          # Download and install AWF with retry logic for transient network errors
+          for i in {1..5}; do
+            if curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.1 bash; then
+              echo "Successfully installed awf"
+              break
+            else
+              if [ $i -eq 5 ]; then
+                echo "Failed to install awf after 5 attempts"
+                exit 1
+              fi
+              echo "Installation failed, retrying in 2 seconds... (attempt $i/5)"
+              sleep 2
+            fi
+          done
           which awf
           awf --version
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -1897,8 +1922,20 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          # Download official Copilot CLI installer script with retry logic
+          for i in {1..5}; do
+            if curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh; then
+              echo "Successfully downloaded Copilot CLI installer"
+              break
+            else
+              if [ $i -eq 5 ]; then
+                echo "Failed to download Copilot CLI installer after 5 attempts"
+                exit 1
+              fi
+              echo "Download failed, retrying in 2 seconds... (attempt $i/5)"
+              sleep 2
+            fi
+          done
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
