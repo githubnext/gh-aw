@@ -93,11 +93,25 @@ async function main() {
     // Validate that we have either issue_number or pull_number
     if (!issueNumber && !pullNumber) {
       core.error("Missing both issue_number and pull_number in assign_to_agent item");
+      results.push({
+        issue_number: issueNumber,
+        pull_number: pullNumber,
+        agent: agentName,
+        success: false,
+        error: "Missing both issue_number and pull_number",
+      });
       continue;
     }
 
     if (issueNumber && pullNumber) {
       core.error("Cannot specify both issue_number and pull_number in the same assign_to_agent item");
+      results.push({
+        issue_number: issueNumber,
+        pull_number: pullNumber,
+        agent: agentName,
+        success: false,
+        error: "Cannot specify both issue_number and pull_number",
+      });
       continue;
     }
 
@@ -106,6 +120,13 @@ async function main() {
 
     if (isNaN(number) || number <= 0) {
       core.error(`Invalid ${type} number: ${number}`);
+      results.push({
+        issue_number: issueNumber,
+        pull_number: pullNumber,
+        agent: agentName,
+        success: false,
+        error: `Invalid ${type} number: ${number}`,
+      });
       continue;
     }
 
