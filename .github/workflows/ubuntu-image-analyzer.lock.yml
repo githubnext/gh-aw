@@ -157,7 +157,32 @@ jobs:
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.9.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.0 bash
+          
+          # Download installer script pinned to specific commit
+          INSTALL_SCRIPT_URL="https://raw.githubusercontent.com/githubnext/gh-aw-firewall/35ea79f7f4b140445ab76ab1709e5736fb823a14/install.sh"
+          EXPECTED_SHA256="f0d84718d98e05548b829c7a983d343ec755dec442f5a056147871b29350227b"
+          INSTALL_SCRIPT="/tmp/awf-install.sh"
+          
+          # Download script
+          echo "Downloading installer from pinned commit..."
+          curl -sSfL "$INSTALL_SCRIPT_URL" -o "$INSTALL_SCRIPT"
+          
+          # Verify checksum
+          echo "Verifying installer checksum..."
+          ACTUAL_SHA256=$(sha256sum "$INSTALL_SCRIPT" | awk '{print $1}')
+          if [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
+            echo "ERROR: Checksum verification failed!"
+            echo "Expected: $EXPECTED_SHA256"
+            echo "Actual:   $ACTUAL_SHA256"
+            exit 1
+          fi
+          echo "Checksum verified successfully"
+          
+          # Execute verified script
+          sudo AWF_VERSION=v0.9.0 bash "$INSTALL_SCRIPT"
+          rm -f "$INSTALL_SCRIPT"
+          
+          # Verify installation
           which awf
           awf --version
       - name: Determine automatic lockdown mode for GitHub MCP server

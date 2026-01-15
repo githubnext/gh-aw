@@ -160,11 +160,41 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		version = string(constants.DefaultFirewallVersion)
 	}
 
+	// Pin install script to specific commit SHA for reproducibility
+	commitSHA := constants.DefaultFirewallInstallerCommit
+	checksum := constants.DefaultFirewallInstallerChecksum
+	installerURL := fmt.Sprintf("https://raw.githubusercontent.com/githubnext/gh-aw-firewall/%s/install.sh", commitSHA)
+
 	stepLines := []string{
 		"      - name: Install awf binary",
 		"        run: |",
 		fmt.Sprintf("          echo \"Installing awf via installer script (requested version: %s)\"", version),
-		fmt.Sprintf("          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=%s bash", version),
+		"          ",
+		"          # Download installer script pinned to specific commit",
+		fmt.Sprintf("          INSTALL_SCRIPT_URL=\"%s\"", installerURL),
+		fmt.Sprintf("          EXPECTED_SHA256=\"%s\"", checksum),
+		"          INSTALL_SCRIPT=\"/tmp/awf-install.sh\"",
+		"          ",
+		"          # Download script",
+		"          echo \"Downloading installer from pinned commit...\"",
+		"          curl -sSfL \"$INSTALL_SCRIPT_URL\" -o \"$INSTALL_SCRIPT\"",
+		"          ",
+		"          # Verify checksum",
+		"          echo \"Verifying installer checksum...\"",
+		"          ACTUAL_SHA256=$(sha256sum \"$INSTALL_SCRIPT\" | awk '{print $1}')",
+		"          if [ \"$ACTUAL_SHA256\" != \"$EXPECTED_SHA256\" ]; then",
+		"            echo \"ERROR: Checksum verification failed!\"",
+		"            echo \"Expected: $EXPECTED_SHA256\"",
+		"            echo \"Actual:   $ACTUAL_SHA256\"",
+		"            exit 1",
+		"          fi",
+		"          echo \"Checksum verified successfully\"",
+		"          ",
+		"          # Execute verified script",
+		fmt.Sprintf("          sudo AWF_VERSION=%s bash \"$INSTALL_SCRIPT\"", version),
+		"          rm -f \"$INSTALL_SCRIPT\"",
+		"          ",
+		"          # Verify installation",
 		"          which awf",
 		"          awf --version",
 	}

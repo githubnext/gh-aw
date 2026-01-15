@@ -14,14 +14,36 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		stepStr := strings.Join(step, "\n")
 
 		expectedVersion := string(constants.DefaultFirewallVersion)
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + expectedVersion + " bash"
+		expectedCommit := constants.DefaultFirewallInstallerCommit
+		expectedChecksum := constants.DefaultFirewallInstallerChecksum
 
-		if !strings.Contains(stepStr, expectedInstaller) {
-			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
-		}
-
+		// Verify version is logged
 		if !strings.Contains(stepStr, expectedVersion) {
 			t.Errorf("Expected to log requested version %s in installation step, but it was not found", expectedVersion)
+		}
+
+		// Verify commit SHA is used (pinned install.sh)
+		if !strings.Contains(stepStr, expectedCommit) {
+			t.Errorf("Expected installer to use pinned commit %s", expectedCommit)
+		}
+
+		// Verify checksum verification is included
+		if !strings.Contains(stepStr, expectedChecksum) {
+			t.Errorf("Expected installer to verify checksum %s", expectedChecksum)
+		}
+
+		// Verify secure download-verify-execute pattern
+		if !strings.Contains(stepStr, "sha256sum") {
+			t.Error("Expected installer to verify checksum using sha256sum")
+		}
+
+		if !strings.Contains(stepStr, "Checksum verification failed") {
+			t.Error("Expected installer to include checksum verification error handling")
+		}
+
+		// Verify AWF_VERSION is passed to installer
+		if !strings.Contains(stepStr, "AWF_VERSION="+expectedVersion) {
+			t.Errorf("Expected installer to pass AWF_VERSION=%s", expectedVersion)
 		}
 	})
 
@@ -30,14 +52,27 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		step := generateAWFInstallationStep(customVersion, nil)
 		stepStr := strings.Join(step, "\n")
 
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + customVersion + " bash"
+		expectedCommit := constants.DefaultFirewallInstallerCommit
+		expectedChecksum := constants.DefaultFirewallInstallerChecksum
 
+		// Verify custom version is logged
 		if !strings.Contains(stepStr, customVersion) {
 			t.Errorf("Expected to log custom version %s in installation step", customVersion)
 		}
 
-		if !strings.Contains(stepStr, expectedInstaller) {
-			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
+		// Verify commit SHA is used (pinned install.sh)
+		if !strings.Contains(stepStr, expectedCommit) {
+			t.Errorf("Expected installer to use pinned commit %s", expectedCommit)
+		}
+
+		// Verify checksum verification is included
+		if !strings.Contains(stepStr, expectedChecksum) {
+			t.Errorf("Expected installer to verify checksum %s", expectedChecksum)
+		}
+
+		// Verify AWF_VERSION is passed to installer
+		if !strings.Contains(stepStr, "AWF_VERSION="+customVersion) {
+			t.Errorf("Expected installer to pass AWF_VERSION=%s", customVersion)
 		}
 	})
 }
@@ -80,8 +115,16 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		if !strings.Contains(awfStepStr, string(constants.DefaultFirewallVersion)) {
 			t.Errorf("AWF installation step should reference default version %s", string(constants.DefaultFirewallVersion))
 		}
-		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
-			t.Error("AWF installation should use the installer script")
+
+		// Verify it uses pinned commit SHA (secure pattern)
+		expectedCommit := constants.DefaultFirewallInstallerCommit
+		if !strings.Contains(awfStepStr, expectedCommit) {
+			t.Errorf("AWF installation should use pinned commit %s", expectedCommit)
+		}
+
+		// Verify checksum verification is included
+		if !strings.Contains(awfStepStr, "sha256sum") {
+			t.Error("AWF installation should verify checksum")
 		}
 	})
 
@@ -124,8 +167,15 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Errorf("AWF installation step should use custom version %s", customVersion)
 		}
 
-		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
-			t.Error("AWF installation should use the installer script")
+		// Verify it uses pinned commit SHA (secure pattern)
+		expectedCommit := constants.DefaultFirewallInstallerCommit
+		if !strings.Contains(awfStepStr, expectedCommit) {
+			t.Errorf("AWF installation should use pinned commit %s", expectedCommit)
+		}
+
+		// Verify checksum verification is included
+		if !strings.Contains(awfStepStr, "sha256sum") {
+			t.Error("AWF installation should verify checksum")
 		}
 	})
 

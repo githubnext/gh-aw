@@ -274,6 +274,14 @@ const DefaultGitHubMCPServerVersion Version = "v0.28.1"
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.9.0"
 
+// DefaultFirewallInstallerCommit is the pinned commit SHA for the AWF install.sh script
+// This provides reproducibility and prevents branch poisoning attacks
+const DefaultFirewallInstallerCommit = "35ea79f7f4b140445ab76ab1709e5736fb823a14"
+
+// DefaultFirewallInstallerChecksum is the SHA256 checksum of the pinned install.sh script
+// This provides integrity verification and prevents man-in-the-middle attacks
+const DefaultFirewallInstallerChecksum = "f0d84718d98e05548b829c7a983d343ec755dec442f5a056147871b29350227b"
+
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
 const DefaultMCPGatewayVersion Version = "v0.0.56"
 
