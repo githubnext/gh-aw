@@ -51,7 +51,8 @@
         { "$ref": "#/$defs/NoOpOutput" },
         { "$ref": "#/$defs/LinkSubIssueOutput" },
         { "$ref": "#/$defs/HideCommentOutput" },
-        { "$ref": "#/$defs/DispatchWorkflowOutput" }
+        { "$ref": "#/$defs/DispatchWorkflowOutput" },
+        { "$ref": "#/$defs/AutofixCodeScanningAlertOutput" }
       ]
     },
     "CreateIssueOutput": {
@@ -677,6 +678,35 @@
         }
       },
       "required": ["type", "workflow_name"],
+      "additionalProperties": false
+    },
+    "AutofixCodeScanningAlertOutput": {
+      "title": "Add Code Scanning Autofix Output",
+      "description": "Output for creating an autofix for a code scanning alert using the GitHub REST API",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "autofix_code_scanning_alert"
+        },
+        "alert_number": {
+          "oneOf": [
+            { "type": "number", "minimum": 1 },
+            { "type": "string", "pattern": "^[1-9][0-9]*$" }
+          ],
+          "description": "The security alert number to create an autofix for"
+        },
+        "fix_description": {
+          "type": "string",
+          "description": "Description of the fix being applied",
+          "minLength": 1
+        },
+        "fix_code": {
+          "type": "string",
+          "description": "The code changes to apply as the autofix",
+          "minLength": 1
+        }
+      },
+      "required": ["type", "alert_number", "fix_description", "fix_code"],
       "additionalProperties": false
     }
   }
