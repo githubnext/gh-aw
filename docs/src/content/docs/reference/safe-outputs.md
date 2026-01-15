@@ -49,7 +49,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Add Labels**](#add-labels-add-labels) (`add-labels`) — Add labels to issues or PRs (max: 3)
 - [**Add Reviewer**](#add-reviewer-add-reviewer) (`add-reviewer`) — Add reviewers to pull requests (max: 3)
 - [**Assign Milestone**](#assign-milestone-assign-milestone) (`assign-milestone`) — Assign issues to milestones (max: 1)
-- [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) — Assign Copilot agents to issues (max: 1)
+- [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) — Assign Copilot agents to issues or PRs (max: 1)
 - [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) — Assign users to issues (max: 1)
 
 ### Projects, Releases & Assets
@@ -746,13 +746,15 @@ Creates Copilot agent sessions. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Assigns Copilot coding agent to issues. Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as `GH_AW_AGENT_TOKEN`, or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
+Assigns Copilot coding agent to issues or pull requests. Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as `GH_AW_AGENT_TOKEN`, or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
+
+The agent must provide either `issue_number` or `pull_number` in the output to specify which item to assign.
 
 ```yaml wrap
 safe-outputs:
   assign-to-agent:
-    name: "copilot"
-    target-repo: "owner/repo" # cross-repository
+    name: "copilot"            # default agent (optional)
+    target-repo: "owner/repo"  # cross-repository
 ```
 
 ### Assign to User (`assign-to-user:`)
