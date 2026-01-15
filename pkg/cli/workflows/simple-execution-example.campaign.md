@@ -1,7 +1,7 @@
 ---
 id: simple-upgrade-example
 name: "Simple Framework Upgrade Campaign"
-description: "Example showing how campaigns can execute workflows to upgrade services"
+description: "Example showing how campaigns execute workflows to upgrade services"
 version: v1
 state: active
 
@@ -23,9 +23,6 @@ workflows:
   - framework-scanner
   - framework-upgrader
 
-# Enable active workflow execution
-execute-workflows: true
-
 # Governance
 governance:
   max-project-updates-per-run: 20
@@ -36,11 +33,11 @@ owners:
 
 # Simple Framework Upgrade Campaign
 
-This campaign demonstrates the simplified workflow execution feature.
+This campaign demonstrates workflow execution in campaigns.
 
 ## How It Works
 
-When `execute-workflows: true` is set, the campaign orchestrator will:
+The campaign orchestrator will:
 
 1. **Execute each workflow in sequence** - Run `framework-scanner` then `framework-upgrader`
 
@@ -89,24 +86,22 @@ Execute framework-upgrader (using scanner outputs)
     ↓
 Wait for completion
     ↓
-Phase 1-4: Normal campaign operations
+Phase 1-4: Campaign operations
     ↓
 Discovery → Planning → Updates → Reporting
 ```
 
 ## Benefits
 
-- **Simple configuration**: Just set `execute-workflows: true`
+- **Simple configuration**: Just list workflows to execute
 - **Self-sufficient**: Creates missing workflows automatically
 - **Sequential execution**: Workflows run one at a time
-- **Backward compatible**: Existing campaigns work unchanged
 
 ## Usage
 
-1. Set `execute-workflows: true` in your campaign spec
-2. List workflows in the `workflows:` field
-3. Define the campaign objective clearly
-4. Compile: `gh aw compile`
-5. Run the campaign
+1. List workflows in the `workflows:` field
+2. Define the campaign objective clearly
+3. Compile: `gh aw compile`
+4. Run the campaign
 
 The orchestrator will handle workflow creation and execution automatically!
