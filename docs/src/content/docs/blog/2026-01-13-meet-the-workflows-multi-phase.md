@@ -30,7 +30,6 @@ These are some of our most ambitious agents - they tackle big projects over mult
 
 - **[Daily Backlog Burner](https://github.com/githubnext/agentics/blob/main/workflows/daily-backlog-burner.md?plain=1)** - Systematically works through issues and PRs, one day at a time
 - **[Daily Perf Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-perf-improver.md?plain=1)** - Three-phase performance optimization (research, setup, implement)
-- **[Daily Test Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md?plain=1)** - Identifies coverage gaps and implements new tests incrementally
 - **[Daily QA](https://github.com/githubnext/agentics/blob/main/workflows/daily-qa.md?plain=1)** - Continuous quality assurance that never sleeps
 - **[Daily Accessibility Review](https://github.com/githubnext/agentics/blob/main/workflows/daily-accessibility-review.md?plain=1)** - WCAG compliance checking with Playwright
 - **[PR Fix](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md?plain=1)** - On-demand slash command to fix failing CI checks (super handy!)
