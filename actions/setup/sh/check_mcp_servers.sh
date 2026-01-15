@@ -84,13 +84,20 @@ while IFS= read -r SERVER_NAME; do
   fi
   
   # Extract server URL (should be HTTP URL pointing to gateway)
-  SERVER_URL=$(echo "$SERVER_CONFIG" | jq -r '.url // empty' 2>/dev/null)
+  # Note: Gateway may output URLs with 0.0.0.0 (bind address), so we construct
+  # the correct URL using the gateway URL parameter and the server name
+  SERVER_URL_FROM_CONFIG=$(echo "$SERVER_CONFIG" | jq -r '.url // empty' 2>/dev/null)
   
-  if [ -z "$SERVER_URL" ] || [ "$SERVER_URL" = "null" ]; then
+  if [ -z "$SERVER_URL_FROM_CONFIG" ] || [ "$SERVER_URL_FROM_CONFIG" = "null" ]; then
     echo "⚠ $SERVER_NAME: skipped (not HTTP)"
     SERVERS_SKIPPED=$((SERVERS_SKIPPED + 1))
     continue
   fi
+  
+  # Construct correct URL using the gateway URL parameter (which uses localhost)
+  # Replace any host:port prefix with the gateway URL
+  # Example: http://0.0.0.0:8080/mcp/github -> http://localhost:8080/mcp/github
+  SERVER_URL="${GATEWAY_URL}/mcp/${SERVER_NAME}"
   
   # Extract authentication headers from gateway configuration
   AUTH_HEADER=""
