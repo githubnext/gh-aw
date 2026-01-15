@@ -98,13 +98,20 @@ func CollectToolchainMappings(requirements []RuntimeRequirement) *ToolchainMappi
 		// Use shell variable expansion syntax so values are resolved at runtime by the action
 		switch runtimeID {
 		case "go":
-			// Go requires GOPATH, GOCACHE, and GOMODCACHE to be accessible
-			// These are set by actions/setup-go and resolved at runtime
+			// Go toolchain requires access to three key directories:
+			// - GOPATH: workspace for Go code ($HOME/go by default)
+			// - GOCACHE: build cache ($HOME/.cache/go-build by default)
+			// - GOMODCACHE: module cache ($GOPATH/pkg/mod by default)
+			//
+			// These variables are determined by running `go env` commands after
+			// actions/setup-go installs Go. The actual paths are resolved at runtime.
+			// See: https://github.com/actions/setup-go/blob/main/src/package-managers.ts
 			envVars["GOPATH"] = "$GOPATH"
 			envVars["GOCACHE"] = "$GOCACHE"
 			envVars["GOMODCACHE"] = "$GOMODCACHE"
 
 			// Mount Go directories using shell expansion
+			// These mounts allow the container to access the Go workspace and caches
 			mounts = append(mounts, "$GOPATH:$GOPATH:rw")
 			mounts = append(mounts, "$GOCACHE:$GOCACHE:rw")
 
