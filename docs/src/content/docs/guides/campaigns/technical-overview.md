@@ -64,6 +64,7 @@ This allows campaigns to resume where they left off and track progress over time
 ## Next steps
 
 - [Getting started](/gh-aw/guides/campaigns/getting-started/) – create a campaign quickly
+- [Campaign flow](/gh-aw/guides/campaigns/flow/) – understand the complete lifecycle and execution flow
 - [Campaign specs](/gh-aw/guides/campaigns/specs/) – spec fields and configuration
 - [Project management](/gh-aw/guides/campaigns/project-management/) – project board setup
 - [CLI commands](/gh-aw/guides/campaigns/cli-commands/) – CLI reference
