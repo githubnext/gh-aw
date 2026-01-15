@@ -5,6 +5,9 @@ description: Command reference for managing agentic campaigns with gh aw
 
 The GitHub Agentic Workflows CLI provides commands for inspecting, validating, and managing agentic campaigns.
 
+> [!TIP]
+> For the fastest campaign setup, use the [automated creation flow](/gh-aw/guides/campaigns/getting-started/#automated-campaign-creation) by applying the `create-agentic-campaign` label to an issue.
+
 ## Campaign commands
 
 From the root of the repo:
@@ -91,7 +94,8 @@ gh aw campaign validate --no-strict
 
 **Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details and compiles it to a corresponding `.campaign.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob.
 
-During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers review the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
+> [!NOTE]
+> During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers review the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
 
 See the [compile command documentation](/gh-aw/setup/cli/#compile) for details.
 

@@ -7,6 +7,9 @@ Agentic campaigns are goal-driven initiatives that coordinate AI agents to achie
 
 They provide a simple layer for managing work: define objectives with measurable KPIs, track progress on GitHub Projects, and execute workflows to drive work forward.
 
+> [!TIP]
+> **Quick start:** Use the [automated campaign creation flow](/gh-aw/guides/campaigns/getting-started/#automated-campaign-creation) to create a complete campaign in 2-3 minutes.
+
 ## When to use a campaign
 
 Use a campaign when you need to coordinate work toward a specific goal with measurable progress tracking.
@@ -34,6 +37,9 @@ The orchestrator workflow runs on a schedule (default: daily) and executes phase
 - Execute workflows sequentially
 - Collect outputs from workflow runs
 
+> [!NOTE]
+> This phase only runs when workflows are configured in the campaign spec.
+
 **Phase 1: Discovery**
 - Find work items (issues, PRs) created by workers
 - Use tracker labels or workflow run queries
@@ -60,6 +66,9 @@ Campaigns can write durable state to repo-memory (a git branch):
 - **Metrics snapshots**: `memory/campaigns/<id>/metrics/<date>.json` - Append-only progress tracking
 
 This allows campaigns to resume where they left off and track progress over time.
+
+> [!TIP]
+> Repo-memory enables incremental discovery and historical metrics tracking for retrospectives and trend analysis.
 
 ## Next steps
 
