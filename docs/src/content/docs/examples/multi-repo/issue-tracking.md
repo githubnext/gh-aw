@@ -190,9 +190,7 @@ Create weekly summary of tracked issues:
 
 ```aw wrap
 ---
-on:
-  schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
+on: weekly on monday
 permissions:
   contents: read
 tools:

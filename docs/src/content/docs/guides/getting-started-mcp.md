@@ -276,9 +276,7 @@ Review PR #${{ github.event.pull_request.number }}, check workflow runs, analyze
 
 ```aw wrap
 ---
-on:
-  schedule:
-    - cron: "0 0 * * 0"
+on: weekly on sunday
 permissions:
   contents: read
   security-events: read

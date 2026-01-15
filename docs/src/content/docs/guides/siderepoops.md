@@ -141,9 +141,7 @@ Run scheduled checks on your main repository:
 
 ```aw wrap
 ---
-on:
-  schedule:
-    - cron: "0 9 * * 1"  # Weekly Monday 9am UTC
+on: weekly on monday
 
 engine: copilot
 
@@ -258,9 +256,7 @@ Run triage workflows on main repository issues:
 
 ```aw wrap
 ---
-on:
-  schedule:
-    - cron: "0 */6 * * *"  # Every 6 hours
+on: every 6h
 
 safe-outputs:
   github-token: ${{ secrets.MAIN_REPO_PAT }}
@@ -286,9 +282,7 @@ Monitor main repository for quality issues:
 
 ```aw wrap
 ---
-on:
-  schedule:
-    - cron: "0 2 * * 1"  # Weekly Monday 2am UTC
+on: weekly on monday
 
 safe-outputs:
   github-token: ${{ secrets.MAIN_REPO_PAT }}

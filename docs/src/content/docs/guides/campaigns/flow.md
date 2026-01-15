@@ -26,7 +26,7 @@ Campaigns progress through distinct lifecycle states that determine their behavi
 
 A campaign begins execution when its orchestrator workflow runs for the first time. The orchestrator is triggered by:
 
-1. **Scheduled execution**: Daily at 6 PM UTC by default (`cron: "0 18 * * *"`)
+1. **Scheduled execution**: Daily at 6 PM UTC by default (`on: daily`)
 2. **Manual trigger**: Via `workflow_dispatch` from GitHub Actions UI
 3. **Programmatic trigger**: Via GitHub API or `gh workflow run` command
 
@@ -622,9 +622,7 @@ A critical aspect of campaigns is understanding how they interact with workflows
 # .github/workflows/daily-dependency-check.md
 ---
 name: Daily Dependency Check
-on:
-  schedule:
-    - cron: "0 10 * * *"  # Runs daily at 10 AM
+on: daily  # Runs once per day at automatically scattered time
   workflow_dispatch:
 ---
 ```
@@ -672,8 +670,7 @@ Modify the worker workflow to remove/comment out the original trigger:
 ---
 name: Daily Dependency Check
 on:
-  # schedule:
-  #   - cron: "0 10 * * *"  # DISABLED - controlled by campaign
+  # schedule: daily  # DISABLED - controlled by campaign
   workflow_dispatch:  # REQUIRED - allows campaign to trigger workflow
 ---
 ```
