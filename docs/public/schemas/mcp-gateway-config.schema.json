@@ -210,14 +210,9 @@
             {
               "type": "string",
               "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
-            },
-            {
-              "type": "string",
-              "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
-              "description": "IPv4 address for direct gateway access"
             }
           ],
-          "description": "Gateway domain for constructing URLs. Use 'localhost' for local development, 'host.docker.internal' when the gateway runs in a container and needs to access the host, or an IPv4 address for direct network access. Can also be a variable expression like '${MCP_GATEWAY_DOMAIN}'."
+          "description": "Gateway domain for constructing URLs. Use 'localhost' for local development or 'host.docker.internal' when the gateway runs in a container and needs to access the host. Can also be a variable expression like '${MCP_GATEWAY_DOMAIN}'."
         },
         "startupTimeout": {
           "type": "integer",
