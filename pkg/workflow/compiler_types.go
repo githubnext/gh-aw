@@ -292,7 +292,6 @@ type WorkflowData struct {
 	Bots                    []string             // allow list of bot identifiers that can trigger workflow
 	CacheMemoryConfig       *CacheMemoryConfig   // parsed cache-memory configuration
 	RepoMemoryConfig        *RepoMemoryConfig    // parsed repo-memory configuration
-	SafetyPrompt            bool                 // whether to include XPIA safety prompt (default true)
 	Runtimes                map[string]any       // runtime version overrides from frontmatter
 	ToolsTimeout            int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
 	GitHubToken             string               // top-level github-token expression from frontmatter
@@ -325,6 +324,7 @@ type SafeOutputsConfig struct {
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comments,omitempty"`
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
+	AutofixCodeScanningAlert        *AutofixCodeScanningAlertConfig        `yaml:"autofix-code-scanning-alert,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	AddReviewer                     *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`
 	AssignMilestone                 *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`

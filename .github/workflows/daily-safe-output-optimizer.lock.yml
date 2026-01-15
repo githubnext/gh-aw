@@ -19,12 +19,20 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Systematically extract actionable code quality improvement tasks from AI-generated discussions. Success: continuous identification of high-value refactoring, testing, and maintainability improvements.
+# Analyzes gateway logs for errored safe output tool calls and creates issues to improve tool descriptions
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/gh-aw.md
+#     - shared/jqschema.md
+#     - shared/reporting.md
 
-name: "Campaign: Discussion Task Mining for Code Quality"
+name: "Daily Safe Output Tool Optimizer"
 "on":
   schedule:
-  - cron: "0 18 * * *"
+  - cron: "0 4 * * *"
+    # Friendly format: daily (scattered)
+  # skip-if-match: is:issue is:open in:title "[safeoutputs]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 
 permissions:
@@ -32,16 +40,16 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  security-events: read
 
 concurrency:
-  cancel-in-progress: false
-  group: campaign-discussion-task-mining-orchestrator-${{ github.ref }}
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Campaign: Discussion Task Mining for Code Quality"
+run-name: "Daily Safe Output Tool Optimizer"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -62,7 +70,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "discussion-task-mining.campaign.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-safe-output-optimizer.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -78,7 +86,6 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
-      security-events: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
@@ -112,37 +119,39 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Create workspace directory
-        run: mkdir -p ./.gh-aw
-      - env:
-          GH_AW_CAMPAIGN_ID: discussion-task-mining
-          GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/discussion-task-mining/cursor.json
-          GH_AW_MAX_DISCOVERY_ITEMS: "100"
-          GH_AW_MAX_DISCOVERY_PAGES: "10"
-          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/TBD
-          GH_AW_TRACKER_LABEL: campaign:discussion-task-mining
-          GH_AW_WORKFLOWS: discussion-task-miner
-        id: discovery
-        name: Run campaign discovery precomputation
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      - name: Setup Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |-
+          cache: true
+          go-version-file: go.mod
+      - name: Install dependencies
+        run: make deps-dev
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Install binary as 'gh-aw'
+        run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, skipping installation...\"\nelse\n  # Check if a different extension provides the 'aw' command\n  # gh extension list format: NAME  COMMAND  VERSION\n  EXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\n  if [ -n \"$EXISTING_EXTENSION\" ]; then\n    echo \"Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION\"\n    echo \"Removing conflicting extension...\"\n    gh extension remove \"$EXISTING_EXTENSION\" || true\n  fi\n  \n  # Install the extension\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\n\n# Verify installation\ngh aw --version\n"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Start MCP server
+        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Robust health check with TCP connection test\necho \"Waiting for MCP server to start (PID: $MCP_PID)...\"\nfor i in {1..15}; do\n  # Check if process is still running\n  if ! kill -0 $MCP_PID 2>/dev/null; then\n    echo \"Error: MCP server process died unexpectedly\"\n    exit 1\n  fi\n  \n  # Try to connect to the server port\n  if timeout 1 bash -c \"echo > /dev/tcp/localhost/8765\" 2>/dev/null; then\n    echo \"MCP server is accepting connections on port 8765\"\n    echo \"MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  \n  echo \"Waiting for server to accept connections... (attempt $i/15)\"\n  sleep 1\ndone\n\necho \"Error: MCP server failed to accept connections after 15 seconds\"\nexit 1\n"
+      - name: Setup jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Download logs from last 24 hours
+        run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
 
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/campaign_discovery.cjs');
-            await main();
-
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (campaigns)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/campaigns
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
-          CREATE_ORPHAN: true
-        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
+      - name: Restore cache-memory file share data
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -179,12 +188,12 @@ jobs:
           package-manager-cache: false
       - name: Install awf binary
         run: |
-          echo "Installing awf via installer script (requested version: v0.9.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.0 bash
+          echo "Installing awf via installer script (requested version: v0.9.1)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.1 bash
           which awf
           awf --version
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.6
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.7
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -196,19 +205,19 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.56 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.59 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":3},"create_issue":{"max":1},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":10}}
+          {"create_issue":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[safeoutputs] \". Labels [bug safe-outputs tool-improvement automated-analysis] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -246,71 +255,6 @@ jobs:
                 "type": "object"
               },
               "name": "create_issue"
-            },
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 3 comment(s) can be added.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation.",
-                    "type": "string"
-                  },
-                  "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion).",
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "add_comment"
-            },
-            {
-              "description": "Create a status update on a GitHub Projects v2 board. Status updates provide stakeholder communication and historical record of project progress with a timeline. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Status update body in markdown format describing progress, findings, trends, and next steps. Should provide stakeholders with clear understanding of project state.",
-                    "type": "string"
-                  },
-                  "project": {
-                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
-                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
-                    "type": "string"
-                  },
-                  "start_date": {
-                    "description": "Optional project start date in YYYY-MM-DD format (e.g., '2026-01-06').",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    "type": "string"
-                  },
-                  "status": {
-                    "description": "Status indicator for the project. Defaults to ON_TRACK. Values: ON_TRACK (progressing well), AT_RISK (has issues/blockers), OFF_TRACK (significantly behind), COMPLETE (finished), INACTIVE (paused/cancelled).",
-                    "enum": [
-                      "ON_TRACK",
-                      "AT_RISK",
-                      "OFF_TRACK",
-                      "COMPLETE",
-                      "INACTIVE"
-                    ],
-                    "type": "string"
-                  },
-                  "target_date": {
-                    "description": "Optional project target/end date in YYYY-MM-DD format (e.g., '2026-12-31').",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "project",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_project_status_update"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -355,104 +299,6 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Unified GitHub Projects v2 operations. Default behavior updates project items (add issue/PR/draft_issue and/or update custom fields). Also supports creating project views (table/board/roadmap) when operation=create_view.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "campaign_id": {
-                    "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
-                    "type": "string"
-                  },
-                  "content_number": {
-                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
-                    "type": "number"
-                  },
-                  "content_type": {
-                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
-                    "enum": [
-                      "issue",
-                      "pull_request",
-                      "draft_issue"
-                    ],
-                    "type": "string"
-                  },
-                  "create_if_missing": {
-                    "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
-                    "type": "boolean"
-                  },
-                  "draft_body": {
-                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
-                    "type": "string"
-                  },
-                  "draft_title": {
-                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
-                    "type": "string"
-                  },
-                  "fields": {
-                    "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
-                    "type": "object"
-                  },
-                  "operation": {
-                    "description": "Optional operation selector. Default: update_item. Use create_view to create a project view (table/board/roadmap).",
-                    "enum": [
-                      "update_item",
-                      "create_view"
-                    ],
-                    "type": "string"
-                  },
-                  "project": {
-                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
-                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
-                    "type": "string"
-                  },
-                  "view": {
-                    "additionalProperties": false,
-                    "description": "View configuration. Required when operation is create_view.",
-                    "properties": {
-                      "description": {
-                        "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored.",
-                        "type": "string"
-                      },
-                      "filter": {
-                        "description": "Optional filter query for the view (e.g., 'is:issue is:open').",
-                        "type": "string"
-                      },
-                      "layout": {
-                        "description": "The layout of the view.",
-                        "enum": [
-                          "table",
-                          "board",
-                          "roadmap"
-                        ],
-                        "type": "string"
-                      },
-                      "name": {
-                        "description": "The name of the view (e.g., 'Sprint Board').",
-                        "type": "string"
-                      },
-                      "visible_fields": {
-                        "description": "Optional field IDs that should be visible in the view (table/board only). Not applicable to roadmap.",
-                        "items": {
-                          "type": "number"
-                        },
-                        "type": "array"
-                      }
-                    },
-                    "required": [
-                      "name",
-                      "layout"
-                    ],
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "project"
-                ],
-                "type": "object"
-              },
-              "name": "update_project"
-            },
-            {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -486,20 +332,6 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "add_comment": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "item_number": {
-                  "issueOrPRNumber": true
-                }
-              }
-            },
             "create_issue": {
               "defaultMax": 1,
               "fields": {
@@ -530,45 +362,6 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 128
-                }
-              }
-            },
-            "create_project_status_update": {
-              "defaultMax": 10,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65536
-                },
-                "project": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 512,
-                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
-                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
-                },
-                "start_date": {
-                  "type": "string",
-                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                  "patternError": "must be in YYYY-MM-DD format"
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "INACTIVE",
-                    "ON_TRACK",
-                    "AT_RISK",
-                    "OFF_TRACK",
-                    "COMPLETE"
-                  ]
-                },
-                "target_date": {
-                  "type": "string",
-                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                  "patternError": "must be in YYYY-MM-DD format"
                 }
               }
             },
@@ -604,43 +397,6 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "update_project": {
-              "defaultMax": 10,
-              "fields": {
-                "campaign_id": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "content_number": {
-                  "optionalPositiveInteger": true
-                },
-                "content_type": {
-                  "type": "string",
-                  "enum": [
-                    "issue",
-                    "pull_request"
-                  ]
-                },
-                "fields": {
-                  "type": "object"
-                },
-                "issue": {
-                  "optionalPositiveInteger": true
-                },
-                "project": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 512,
-                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
-                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
-                },
-                "pull_request": {
-                  "optionalPositiveInteger": true
-                }
-              }
             }
           }
           EOF
@@ -657,23 +413,29 @@ jobs:
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
-          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          MCP_GATEWAY_API_KEY=""
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          export MCP_GATEWAY_API_KEY
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="claude"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.56'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.59'
           
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
+              "gh-aw": {
+                "type": "http",
+                "url": "http://host.docker.internal:8765"
+              },
               "github": {
                 "container": "ghcr.io/github/github-mcp-server:v0.28.1",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions,code_security"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               },
               "safeoutputs": {
@@ -716,8 +478,8 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.1.6",
-              workflow_name: "Campaign: Discussion Task Mining for Code Quality",
+              agent_version: "2.1.7",
+              workflow_name: "Daily Safe Output Tool Optimizer",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -733,8 +495,8 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              awf_version: "v0.9.0",
-              awmg_version: "v0.0.56",
+              awf_version: "v0.9.1",
+              awmg_version: "v0.0.59",
               steps: {
                 firewall: "squid"
               },
@@ -759,557 +521,532 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           
           
+          ## jqschema - JSON Schema Discovery
           
-          # Campaign Orchestrator
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
           
-          This workflow orchestrates the 'Campaign: Discussion Task Mining for Code Quality' campaign.
+          ### Purpose
           
-          - Objective: Continuously mine AI-generated discussions for actionable code quality improvement tasks, converting insights into trackable issues that agents can implement
-          - KPIs:
-            - Tasks identified per week (primary): baseline 0 → target 15 over 7 days count
-            - Task conversion rate (issues created/tasks identified) (supporting): baseline 60 → target 80 over 7 days percent
-            - Task completion rate (closed/created issues) (supporting): baseline 50 → target 75 over 30 days percent
-          - Associated workflows: discussion-task-miner
-          - Memory paths: memory/campaigns/discussion-task-mining/**, memory/discussion-task-miner/**
-          - Metrics glob: `memory/campaigns/discussion-task-mining/metrics/*.json`
-          - Cursor glob: `memory/campaigns/discussion-task-mining/cursor.json`
-          - Project URL: https://github.com/orgs/githubnext/projects/TBD
-          - Governance: max comments per run: 3
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
           
-          ---
-          # ORCHESTRATOR INSTRUCTIONS
-          ---
-          # Orchestrator Instructions
+          ### Usage
           
-          This orchestrator coordinates a single campaign by discovering worker outputs, making deterministic decisions,
-          and synchronizing campaign state into a GitHub Project board.
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
           
-          **Scope:** orchestration only (discovery, planning, pacing, reporting).  
-          **Write authority:** all project write semantics are governed by **Project Update Instructions** and MUST be followed.
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
           
-          ---
-          
-          ## Traffic and Rate Limits (Required)
-          
-          - Minimize API calls; avoid full rescans when possible.
-          - Prefer incremental discovery with deterministic ordering (e.g., by `updatedAt`, tie-break by ID).
-          - Enforce strict pagination budgets; if a query requires many pages, stop early and continue next run.
-          - Use a durable cursor/checkpoint so the next run continues without rescanning.
-          - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
-          
-          
-          **Cursor file (repo-memory)**: `memory/campaigns/discussion-task-mining/cursor.json`  
-          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/discussion-task-mining/cursor.json`  
-          - If it exists: read first and continue from its boundary.  
-          - If it does not exist: create it by end of run.  
-          - Always write the updated cursor back to the same path.
-          
-          
-          
-          **Metrics snapshots (repo-memory)**: `memory/campaigns/discussion-task-mining/metrics/*.json`  
-          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/discussion-task-mining/metrics/*.json`  
-          - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
-          - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
-          - Each snapshot MUST include ALL required fields (even if zero):
-            - `campaign_id` (string): The campaign identifier
-            - `date` (string): UTC date in YYYY-MM-DD format
-            - `tasks_total` (number): Total number of tasks (>= 0, even if 0)
-            - `tasks_completed` (number): Completed task count (>= 0, even if 0)
-          - Optional fields (include only if available): `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`, `estimated_completion`
-          - Example minimum valid snapshot:
-            ```json
-            {
-              "campaign_id": "discussion-task-mining",
-              "date": "2025-12-22",
-              "tasks_total": 0,
-              "tasks_completed": 0
-            }
-            ```
-          
-          
-          
-          
-          
-          
-          **Write budget**: max project comments per run: 3
-          
-          
-          ---
-          
-          ## Core Principles
-          
-          1. Workers are immutable and campaign-agnostic
-          2. The GitHub Project board is the authoritative campaign state
-          3. Correlation is explicit (tracker-id)
-          4. Reads and writes are separate steps (never interleave)
-          5. Idempotent operation is mandatory (safe to re-run)
-          6. Only predefined project fields may be updated
-          7. **Project Update Instructions take precedence for all project writes**
-          
-          ---
-          
-          ## Execution Steps (Required Order)
-          
-          ### Step 0 — Epic Issue Initialization [FIRST RUN ONLY]
-          
-          **Campaign Epic Issue Requirements:**
-          - Each project board MUST have exactly ONE Epic issue representing the campaign
-          - The Epic serves as the parent for all campaign work issues
-          - The Epic is narrative-only and tracks overall campaign progress
-          
-          **On every run, before other steps:**
-          
-          1) **Check for existing Epic issue** by searching the repository for:
-             - An open issue with label `epic` or `type:epic`
-             - Body text containing: `campaign_id: discussion-task-mining`
-          
-          2) **If no Epic issue exists**, create it using `create-issue`:
-             ```yaml
-             create-issue:
-               title: "Campaign: Discussion Task Mining for Code Quality"
-               body: |
-                 ## Campaign Overview
-                 
-                 **Objective**: Continuously mine AI-generated discussions for actionable code quality improvement tasks, converting insights into trackable issues that agents can implement
-                 
-                 This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
-                 
-                 **Campaign Details:**
-                 - Campaign ID: `discussion-task-mining`
-                 - Project Board: https://github.com/orgs/githubnext/projects/TBD
-                 - Worker Workflows: `discussion-task-miner`
-                 
-                 ---
-                 `campaign_id: discussion-task-mining`
-               labels:
-                 - epic
-                 - type:epic
-             ```
-          
-          3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
-             ```yaml
-             update-project:
-               project: "https://github.com/orgs/githubnext/projects/TBD"
-               campaign_id: "discussion-task-mining"
-               content_type: "issue"
-               content_number: <EPIC_ISSUE_NUMBER>
-               fields:
-                 status: "In Progress"
-                 campaign_id: "discussion-task-mining"
-                 worker_workflow: "unknown"
-                 repository: "<OWNER/REPO>"
-                 priority: "High"
-                 size: "Large"
-                 start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
-                 end_date: "<TODAY_YYYY-MM-DD>"
-             ```
-          
-          4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
-          
-          **Note:** This step typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
-          
-          ---
-          
-          ### Step 1 — Read State (Discovery) [NO WRITES]
-          
-          **IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
-          
-          1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
-             - This manifest contains all discovered worker outputs with normalized metadata
-             - Schema version: v1
-             - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
-          
-          2) Read current GitHub Project board state (items + required fields).
-          
-          3) Parse discovered items from the manifest:
-             - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
-             - Closed items have: closed_at (for issues) or merged_at (for PRs)
-             - Items are pre-sorted by updated_at for deterministic processing
-          
-          4) Check the manifest summary for work counts:
-             - `needs_add_count`: Number of items that need to be added to the project
-             - `needs_update_count`: Number of items that need status updates
-             - If both are 0, you may skip to reporting step
-          
-          5) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
-          
-          ### Step 2 — Make Decisions (Planning) [NO WRITES]
-          
-          5) Determine desired `status` strictly from explicit GitHub state:
-          - Open → `Todo` (or `In Progress` only if explicitly indicated elsewhere)
-          - Closed (issue/discussion) → `Done`
-          - Merged (PR) → `Done`
-          
-          **Why use explicit GitHub state?** - GitHub is the source of truth for work status. Inferring status from other signals (labels, comments) would be unreliable and could cause incorrect tracking.
-          
-          6) Calculate required date fields for each item (per Project Update Instructions):
-          - `start_date`: format `created_at` as `YYYY-MM-DD`
-          - `end_date`:
-            - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
-            - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
-          
-          **Why use today for open items?** - GitHub Projects requires end_date for roadmap views. Using today's date shows the item is actively tracked and updates automatically each run until completion.
-          
-          7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
-          
-          **Why no comparison for idempotency?** - The safe-output system handles deduplication. Comparing would add complexity and potential race conditions. Trust the infrastructure.
-          
-          8) Apply write budget:
-          - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
-            (e.g., oldest `updated_at` first; tie-break by ID/number).
-          - Defer remaining items to next run via cursor.
-          
-          **Why use deterministic order?** - Ensures predictable behavior and prevents starvation. Oldest items are processed first, ensuring fair treatment of all work items. The cursor saves progress for next run.
-          
-          ### Step 3 — Write State (Execution) [WRITES ONLY]
-          
-          9) For each selected item, send an `update-project` request.
-          - Do NOT interleave reads.
-          - Do NOT pre-check whether the item is on the board.
-          - **All write semantics MUST follow Project Update Instructions**, including:
-            - first add → full required fields (status, campaign_id, worker_workflow, repo, priority, size, start_date, end_date)
-            - existing item → status-only update unless explicit backfill is required
-          
-          10) Record per-item outcome: success/failure + error details.
-          
-          ### Step 4 — Report & Status Update
-          
-          11) **REQUIRED: Create a project status update summarizing this run**
-          
-          Every campaign run MUST create a status update using `create-project-status-update` safe output. This is the primary communication mechanism for conveying campaign progress to stakeholders.
-          
-          **Required Sections:**
-          
-          - **Most Important Findings**: Highlight the 2-3 most critical discoveries, insights, or blockers from this run
-          - **What Was Learned**: Document key learnings, patterns observed, or insights gained during this run
-          - **KPI Trends**: Report progress on EACH campaign KPI (Tasks identified per week, Task conversion rate (issues created/tasks identified), Task completion rate (closed/created issues)) with baseline → current → target format, including direction and velocity
-          - **Campaign Summary**: Tasks completed, in progress, blocked, and overall completion percentage
-          - **Next Steps**: Clear action items and priorities for the next run
-          
-          **Configuration:**
-          - Set appropriate status: ON_TRACK, AT_RISK, OFF_TRACK, or COMPLETE
-          - Use today's date for start_date and target_date (or appropriate future date for target)
-          - Body must be comprehensive yet concise (target: 200-400 words)
-          
-          
-          **Campaign KPIs to Report:**
-          
-          - **Tasks identified per week** (primary): baseline 0 count → target 15 count over 7 days (increase)
-          
-          - **Task conversion rate (issues created/tasks identified)** (supporting): baseline 60 percent → target 80 percent over 7 days (increase)
-          
-          - **Task completion rate (closed/created issues)** (supporting): baseline 50 percent → target 75 percent over 30 days (increase)
-          
-          
-          
-          Example status update:
-          ```yaml
-          create-project-status-update:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
-            status: "ON_TRACK"
-            start_date: "2026-01-06"
-            target_date: "2026-01-31"
-            body: |
-              ## Campaign Run Summary
-          
-              **Discovered:** 25 items (15 issues, 10 PRs)
-              **Processed:** 10 items added to project, 5 updated
-              **Completion:** 60% (30/50 total tasks)
-          
-              ## Most Important Findings
-          
-              1. **Critical accessibility gaps identified**: 3 high-severity accessibility issues discovered in mobile navigation, requiring immediate attention
-              2. **Documentation coverage acceleration**: Achieved 5% improvement in one week (best velocity so far)
-              3. **Worker efficiency improving**: daily-doc-updater now processing 40% more items per run
-          
-              ## What Was Learned
-          
-              - Multi-device testing reveals issues that desktop-only testing misses - should be prioritized
-              - Documentation updates tied to code changes have higher accuracy and completeness
-              - Users report fewer issues when examples include error handling patterns
-          
-              ## KPI Trends
-          
-              **Documentation Coverage** (Primary KPI):
-              - Baseline: 85% → Current: 88% → Target: 95%
-              - Direction: ↑ Increasing (+3% this week, +1% velocity/week)
-              - Status: ON TRACK - At current velocity, will reach 95% in 7 weeks
-          
-              **Accessibility Score** (Supporting KPI):
-              - Baseline: 90% → Current: 91% → Target: 98%
-              - Direction: ↑ Increasing (+1% this month)
-              - Status: AT RISK - Slower progress than expected, may need dedicated focus
-          
-              **User-Reported Issues** (Supporting KPI):
-              - Baseline: 15/month → Current: 12/month → Target: 5/month
-              - Direction: ↓ Decreasing (-3 this month, -20% velocity)
-              - Status: ON TRACK - Trending toward target
-          
-              ## Next Steps
-          
-              1. Address 3 critical accessibility issues identified this run (high priority)
-              2. Continue processing remaining 15 discovered items
-              3. Focus on accessibility improvements to accelerate supporting KPI
-              4. Maintain current documentation coverage velocity
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
           ```
           
-          12) Report:
-          - counts discovered (by type)
-          - counts processed this run (by action: add/status_update/backfill/noop/failed)
-          - counts deferred due to budgets
-          - failures (with reasons)
-          - completion state (work items only)
-          - cursor advanced / remaining backlog estimate
+          ### How It Works
           
-          ---
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
           
-          ## Authority
+          ### Example
           
-          If any instruction in this file conflicts with **Project Update Instructions**, the Project Update Instructions win for all project writes.
-          ---
-          # PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)
-          ---
-          # Project Update Instructions (Authoritative Write Contract)
-          
-          ## Project Board Integration
-          
-          This file defines the ONLY allowed rules for writing to the GitHub Project board.
-          If any other instructions conflict with this file, THIS FILE TAKES PRECEDENCE for all project writes.
-          
-          ---
-          
-          ## 0) Hard Requirements (Do Not Deviate)
-          
-          - Writes MUST use only the `update-project` safe-output.
-          - All writes MUST target exactly:
-            - **Project URL**: `https://github.com/orgs/githubnext/projects/TBD`
-          - Every item MUST include:
-            - `campaign_id: "discussion-task-mining"`
-          
-          ## Campaign ID
-          
-          All campaign tracking MUST key off `campaign_id: "discussion-task-mining"`.
-          
-          ---
-          
-          ## 1) Required Project Fields (Must Already Exist)
-          
-          | Field | Type | Allowed / Notes |
-          |---|---|---|
-          | `status` | single-select | `Todo` / `In Progress` / `Done` |
-          | `campaign_id` | text | Must equal `discussion-task-mining` |
-          | `worker_workflow` | text | workflow ID or `"unknown"` |
-          | `repository` | text | `owner/repo` |
-          | `priority` | single-select | `High` / `Medium` / `Low` |
-          | `size` | single-select | `Small` / `Medium` / `Large` |
-          | `start_date` | date | `YYYY-MM-DD` |
-          | `end_date` | date | `YYYY-MM-DD` |
-          
-          Field names are case-sensitive.
-          
-          ---
-          
-          ## 2) Content Identification (Mandatory)
-          
-          Use **content number** (integer), never the URL as an identifier.
-          
-          - Issue URL: `.../issues/123` → `content_type: "issue"`, `content_number: 123`
-          - PR URL: `.../pull/456` → `content_type: "pull_request"`, `content_number: 456`
-          
-          ---
-          
-          ## 3) Deterministic Field Rules (No Inference)
-          
-          These rules apply to any time you write fields:
-          
-          - `campaign_id`: always `discussion-task-mining`
-          - `worker_workflow`: workflow ID if known, else `"unknown"`
-          - `repository`: extract `owner/repo` from the issue/PR URL
-          - `priority`: default `Medium` unless explicitly known
-          - `size`: default `Medium` unless explicitly known
-          - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
-          - `end_date`:
-            - if closed/merged → `closed_at` / `merged_at` formatted `YYYY-MM-DD`
-            - if open → **today’s date** formatted `YYYY-MM-DD` (**required for roadmap view; do not leave blank**)
-          
-          For open items, `end_date` is a UI-required placeholder and does NOT represent actual completion.
-          
-          ---
-          
-          ## 4) Read-Write Separation (Prevents Read/Write Mixing)
-          
-          1. **READ STEP (no writes)** — validate existence and gather metadata
-          2. **WRITE STEP (writes only)** — execute `update-project`
-          
-          Never interleave reads and writes.
-          
-          ---
-          
-          ## 5) Adding an Issue or PR (First Write)
-          
-          ### Adding New Issues
-          
-          When first adding an item to the project, you MUST write ALL required fields.
-          
-          ```yaml
-          update-project:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
-            campaign_id: "discussion-task-mining"
-            content_type: "issue"              # or "pull_request"
-            content_number: 123
-            fields:
-              status: "Todo"                   # "Done" if already closed/merged
-              campaign_id: "discussion-task-mining"
-              worker_workflow: "unknown"
-              repository: "owner/repo"
-              priority: "Medium"
-              size: "Medium"
-              start_date: "2025-12-15"
-              end_date: "2026-01-03"
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
           ```
           
-          ---
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
           
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
+          ## Report Structure
+          
+          1. **Overview**: 1-2 paragraphs summarizing key findings
+          2. **Details**: Use `<details><summary><b>Full Report</b></summary>` for expanded content
+          
+          ## Workflow Run References
+          
+          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
+          - Include up to 3 most relevant run URLs at end under `**References:**`
+          - Do NOT add footer attribution (system adds automatically)
+          
+          # Safe Output Tool Optimizer
+          
+          You are the Safe Output Tool Optimizer - an expert system that analyzes gateway logs to identify errors in safe output tool usage and creates actionable issues to improve tool descriptions.
+          
+          ## Mission
+          
+          Daily analyze all agentic workflow runs from the last 24 hours to identify cases where agents:
+          - Used a wrong field in safe output tools
+          - Had missing required fields
+          - Provided data with incorrect schema
+          
+          Create issues to improve tool descriptions when the workflow prompt is correct but agents still make mistakes.
+          
+          ## Current Context
+          
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Analysis Date**: $(date +%Y-%m-%d)
+          
+          ## Analysis Process
+          
+          ### Phase 0: Setup
+          
+          - DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
+          - Do not attempt to download the `gh aw` extension or build it. If the MCP fails, give up.
+          - Run the `status` tool of `gh-aw` MCP server to verify configuration.
+          
+          ### Phase 1: Collect Workflow Logs with Safe Output Errors
+          
+          The gh-aw binary has been built and configured as an MCP server. Use the MCP tools directly.
+          
+          1. **Download Logs with Safe Output Filter**:
+             Use the `logs` tool from the gh-aw MCP server:
+             - Workflow name: (leave empty to get all workflows)
+             - Count: Set high enough for 24 hours of activity (e.g., 100)
+             - Start date: "-1d" (last 24 hours)
+             - Safe output filter: Leave empty to get all runs, we'll analyze them
+             
+             The logs will be downloaded to `/tmp/gh-aw/aw-mcp/logs` automatically.
+          
+          2. **Verify Log Collection**:
+             - Check that logs were downloaded successfully in `/tmp/gh-aw/aw-mcp/logs`
+             - Note how many workflow runs were found
+             - Look for `summary.json` with aggregated data
+          
+          ### Phase 2: Parse Logs for Safe Output Tool Errors
+          
+          Analyze the downloaded logs to identify safe output tool call errors. Focus on errors that indicate:
+          
+          #### 2.1 Error Types to Identify
+          
+          1. **Wrong Field Errors**: Agent uses a field name that doesn't exist in the tool schema
+             - Example: Using `description` instead of `body` in `create_issue`
+             - Example: Using `message` instead of `body` in `add_comment`
+          
+          2. **Missing Required Field Errors**: Agent omits a required field
+             - Example: Missing `title` in `create_issue`
+             - Example: Missing `body` in `create_discussion`
+          
+          3. **Incorrect Schema Errors**: Agent provides data in wrong format
+             - Example: Providing string instead of array for `labels`
+             - Example: Providing object instead of string for `body`
+             - Example: Using wrong type for `parent` field
+          
+          #### 2.2 Where to Find Errors
+          
+          Examine these locations in each run folder under `/tmp/gh-aw/aw-mcp/logs/`:
+          
+          1. **safe_output.jsonl**: Agent's final safe output calls
+             - Parse each line as JSON
+             - Check for malformed tool calls
+             - Look for unexpected field names
+          
+          2. **agent-stdio.log**: Agent execution logs
+             - Search for error messages mentioning safe outputs
+             - Look for validation failures
+             - Find schema mismatch errors
+          
+          3. **workflow-logs/**: Job logs from GitHub Actions
+             - Check safe output job logs (create_issue.txt, create_discussion.txt, etc.)
+             - Look for validation errors from the MCP server
+             - Find error messages about invalid fields or missing data
+          
+          4. **aw_info.json**: Workflow metadata
+             - Get workflow name and configuration
+             - Identify which safe outputs are configured
+          
+          #### 2.3 Extract Error Context
+          
+          For each error found, collect:
+          - **Workflow name**: Which workflow made the error
+          - **Run ID**: GitHub Actions run ID (from folder name or aw_info.json)
+          - **Tool name**: Which safe output tool was called (create_issue, add_comment, etc.)
+          - **Error type**: Wrong field / Missing field / Incorrect schema
+          - **Error details**: Exact field name, what was provided, what was expected
+          - **Agent output**: The actual safe output JSON that caused the error
+          - **Workflow prompt excerpt**: Relevant part of the workflow prompt
+          
+          ### Phase 3: Investigate Root Cause
+          
+          For each error, determine if it's:
+          
+          #### A. Workflow Prompt Issue
+          
+          The workflow's prompt is unclear, incorrect, or misleading about how to use the tool.
+          
+          **Indicators:**
+          - Prompt explicitly tells agent to use wrong field name
+          - Prompt shows example with incorrect schema
+          - Prompt contradicts tool documentation
+          - Multiple different workflows have similar errors → likely tool description issue
+          - Same workflow has repeated error → likely prompt issue
+          
+          **Action if workflow prompt is the issue:**
+          - Create an issue titled: `[safeoutputs] Fix incorrect safe output usage in [workflow-name] prompt`
+          - Label: `bug`, `workflow-issue`, `safe-outputs`
+          - Body should include:
+            - Which workflow has the issue
+            - What the prompt says
+            - What the correct usage should be
+            - Example of the error
+            - Suggested prompt correction
+          
+          #### B. Tool Description Issue
+          
+          The workflow prompt is correct, but the agent still makes mistakes due to unclear or ambiguous tool description.
+          
+          **Indicators:**
+          - Workflow prompt doesn't mention the tool at all (agent uses general knowledge)
+          - Workflow prompt correctly describes the tool, but agent still makes error
+          - Multiple workflows have the same error pattern with same tool
+          - Tool description is ambiguous or uses unclear terminology
+          - Tool description doesn't clearly specify required vs optional fields
+          
+          **Action if tool description is the issue:**
+          - Collect this error for Phase 4 (aggregate multiple errors)
+          - Don't create individual issues yet
+          
+          ### Phase 4: Aggregate Tool Description Issues
+          
+          Group errors by:
+          - **Tool name** (create_issue, add_comment, etc.)
+          - **Error pattern** (same field confusion, same missing field, etc.)
+          
+          Count occurrences of each error pattern. This helps identify:
+          - Most problematic tool descriptions
+          - Most common agent mistakes
+          - Patterns across workflows
+          
+          ### Phase 5: Store Analysis in Cache Memory
+          
+          Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowledge:
+          
+          1. **Create Investigation Index**:
+             - Save today's findings to `/tmp/gh-aw/cache-memory/safe-output-optimizer/<date>.json`
+             - Structure:
+               ```json
+               {
+                 "date": "2024-01-15",
+                 "runs_analyzed": 50,
+                 "errors_found": 12,
+                 "workflow_prompt_issues": 2,
+                 "tool_description_issues": 10,
+                 "errors_by_tool": {
+                   "create_issue": 5,
+                   "add_comment": 3,
+                   "create_discussion": 2
+                 }
+               }
+               ```
+          
+          2. **Update Pattern Database**:
+             - Store detected error patterns in `/tmp/gh-aw/cache-memory/safe-output-optimizer/error-patterns.json`
+             - Track which tools have most errors
+             - Record common field confusions
+          
+          3. **Read Historical Context**:
+             - Check if similar errors were found in previous days
+             - Compare with previous audits
+             - Identify if this is a new issue or recurring problem
+          
+          ### Phase 6: Create Issue for Tool Description Improvements
+          
+          **ONLY create an issue if:**
+          - You found at least one tool description error (not workflow prompt error)
+          - No existing open issue matches the same tool improvement (skip-if-match handles this)
+          
+          **Issue Structure:**
+          
+          ```markdown
+          # Improve [Tool Name] Description to Prevent Agent Errors
+          
+          ## Summary
+          
+          Analysis of the last 24 hours of workflow runs identified **[N] errors** where agents incorrectly used the `[tool_name]` safe output tool. The workflow prompts appear correct, indicating the tool description needs improvement.
+          
+          ## Error Analysis
+          
+          ### Error Pattern 1: [Description]
+          
+          **Occurrences**: [N] times across [M] workflows
+          
+          **What agents did wrong**:
+          - Used field `[wrong_field]` instead of `[correct_field]`
+          - OR: Omitted required field `[field_name]`
+          - OR: Provided [wrong_type] instead of [correct_type] for `[field_name]`
+          
+          **Example from workflow `[workflow-name]`** (Run [§12345](URL)):
+          ```json
+          {
+            "tool": "[tool_name]",
+            "[wrong_field]": "value"
+          }
+          ```
+          
+          **Expected**:
+          ```json
+          {
+            "tool": "[tool_name]",
+            "[correct_field]": "value"
+          }
+          ```
+          
+          **Why this happened**:
+          [Analysis of what's unclear in the tool description]
+          
+          ### Error Pattern 2: [Description]
+          
+          [Repeat structure above for additional patterns]
+          
+          ## Current Tool Description
+          
+          <details>
+          <summary><b>Current description from safe_outputs_tools.json</b></summary>
+          
+          ```json
+          [Include relevant excerpt from pkg/workflow/js/safe_outputs_tools.json]
+          ```
+          
+          </details>
+          
+          ## Root Cause Analysis
+          
+          The tool description issues:
+          1. [Specific problem 1 - e.g., "Field description is ambiguous"]
+          2. [Specific problem 2 - e.g., "Required fields not clearly marked"]
+          3. [Specific problem 3 - e.g., "Similar field names cause confusion"]
+          
+          ## Recommended Improvements
+          
+          ### Update Tool Description
+          
+          Modify the description in `pkg/workflow/js/safe_outputs_tools.json`:
+          
+          1. **Clarify field `[field_name]`**:
+             - Current: "[current description]"
+             - Suggested: "[improved description]"
+             - Why: [Explanation]
+          
+          2. **Add example for common use case**:
+             ```json
+             [Show example that would have prevented the errors]
+             ```
+          
+          3. **Emphasize required fields**:
+             - Make it clearer that `[field_name]` is required
+             - Add note about what happens if omitted
+          
+          ### Update Field Descriptions
+          
+          For inputSchema properties:
+          - **`[field_1]`**: [Current description] → [Improved description]
+          - **`[field_2]`**: [Current description] → [Improved description]
+          
+          ## Affected Workflows
+          
+          The following workflows had errors with this tool:
+          
+          - `[workflow-1]` - [N] errors
+          - `[workflow-2]` - [N] errors
+          - `[workflow-3]` - [N] errors
+          
+          ## Testing Plan
+          
+          After updating the tool description:
+          
+          1. Recompile all affected workflows with `make recompile`
+          2. Test with the workflows that had most errors
+          3. Monitor logs for 2-3 days to verify error rate decreases
+          4. Check if agents correctly use the updated descriptions
+          
+          ## Implementation Checklist
+          
+          - [ ] Update tool description in `pkg/workflow/js/safe_outputs_tools.json`
+          - [ ] Update field descriptions in inputSchema
+          - [ ] Add clarifying examples or notes
+          - [ ] Run `make build` to rebuild binary
+          - [ ] Run `make recompile` to update all workflows
+          - [ ] Run `make test` to ensure no regressions
+          - [ ] Deploy and monitor error rates
+          
+          ## References
+          
+          - Tool schema: `pkg/workflow/js/safe_outputs_tools.json`
+          - MCP server loader: `actions/setup/js/safe_outputs_tools_loader.cjs`
+          - Validator: `actions/setup/js/safe_output_validator.cjs`
+          
+          **Run IDs with errors**: [§12345](URL1), [§12346](URL2), [§12347](URL3)
+          ```
+          
+          ## Important Guidelines
+          
+          ### Focus and Scope
+          
+          - **IN SCOPE**: Errors in safe output tool usage (wrong fields, missing fields, incorrect schema)
+          - **OUT OF SCOPE**: 
+            - Safe output job execution failures (API errors, rate limits, etc.)
+            - Agent reasoning errors unrelated to tool schema
+            - Workflow trigger or permission issues
+          - **Key distinction**: We're fixing tool *descriptions*, not tool *implementations*
+          
+          ### Analysis Quality
+          
+          - **Be thorough**: Examine all downloaded logs systematically
+          - **Be specific**: Provide exact field names, workflow names, run IDs
+          - **Be evidence-based**: Show actual error examples, not assumptions
+          - **Be actionable**: Recommend specific description improvements
+          
+          ### Issue Creation Rules
+          
+          - **Skip if no tool description issues found**: Don't create issue for workflow prompt issues only
+          - **One issue per run**: The `max: 1` configuration ensures only one issue created
+          - **Include multiple patterns**: If multiple error patterns exist, include all in one issue
+          - **Priority ranking**: If multiple tools have issues, focus on the one with most errors
+          
+          ### Security and Safety
+          
+          - **Sanitize file paths**: Validate paths before reading files
+          - **Validate JSON**: Don't trust JSON from logs without parsing safely
+          - **No code execution**: Don't execute any code from logs
+          - **Check permissions**: Verify file access before reading
+          
+          ### Cache Memory Structure
+          
+          Organize persistent data in `/tmp/gh-aw/cache-memory/safe-output-optimizer/`:
+          
+          ```
+          /tmp/gh-aw/cache-memory/safe-output-optimizer/
+          ├── index.json                  # Master index of all audits
+          ├── 2024-01-15.json            # Daily audit summaries
+          ├── error-patterns.json        # Error pattern database by tool
+          └── historical-trends.json     # Trend analysis over time
+          ```
+          
+          ## Output Requirements
+          
+          Your output must:
+          - ✅ Analyze all safe output errors from last 24 hours
+          - ✅ Distinguish workflow prompt issues from tool description issues
+          - ✅ Create issue ONLY if tool description issues found (not for prompt issues)
+          - ✅ Aggregate multiple error patterns into single comprehensive issue
+          - ✅ Provide specific, actionable improvements to tool descriptions
+          - ✅ Include evidence (run IDs, error examples, affected workflows)
+          - ✅ Update cache memory with findings for trend analysis
+          
+          ## Success Criteria
+          
+          A successful run:
+          - ✅ Downloads and analyzes all logs from last 24 hours
+          - ✅ Identifies and classifies safe output tool errors
+          - ✅ Distinguishes between prompt issues and tool description issues
+          - ✅ Creates comprehensive issue with specific improvement recommendations
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+              }
+            });
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          ## 6) Updating an Existing Item (Minimal Writes)
+          - ✅ Includes evidence and examples from actual workflow runs
+          - ✅ Updates cache memory for historical tracking
+          - ✅ Skips issue creation if no tool description issues found
           
-          ### Updating Existing Items
-          
-          Preferred behavior is minimal, idempotent writes:
-          
-          - If item exists and `status` is unchanged → **No-op**
-          - If item exists and `status` differs → **Update `status` only**
-          - If any required field is missing/empty/invalid → **One-time full backfill** (repair only)
-          
-          ### Status-only Update (Default)
-          
-          ```yaml
-          update-project:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
-            campaign_id: "discussion-task-mining"
-            content_type: "issue"              # or "pull_request"
-            content_number: 123
-            fields:
-              status: "Done"
-          ```
-          
-          ### Full Backfill (Repair Only)
-          
-          ```yaml
-          update-project:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
-            campaign_id: "discussion-task-mining"
-            content_type: "issue"              # or "pull_request"
-            content_number: 123
-            fields:
-              status: "Done"
-              campaign_id: "discussion-task-mining"
-              worker_workflow: "WORKFLOW_ID"
-              repository: "owner/repo"
-              priority: "Medium"
-              size: "Medium"
-              start_date: "2025-12-15"
-              end_date: "2026-01-02"
-          ```
-          
-          ---
-          
-          ## 7) Idempotency Rules
-          
-          - Matching status already set → **No-op**
-          - Different status → **Status-only update**
-          - Invalid/deleted/inaccessible URL → **Record failure and continue**
-          
-          ## Write Operation Rules
-          
-          All writes MUST conform to this file and use `update-project` only.
-          
-          ---
-          
-          ## 8) Logging + Failure Handling (Mandatory)
-          
-          For every attempted item, record:
-          
-          - `content_type`, `content_number`, `repository`
-          - action taken: `noop | add | status_update | backfill | failed`
-          - error details if failed
-          
-          Failures must not stop processing remaining items.
-          
-          ---
-          
-          ## 9) Worker Workflow Policy
-          
-          - Workers are campaign-agnostic.
-          - Orchestrator populates `worker_workflow`.
-          - If `worker_workflow` cannot be determined, it MUST remain `"unknown"` unless explicitly reclassified by the orchestrator.
-          
-          ---
-          
-          ## 10) Parent / Sub-Issue Rules (Campaign Hierarchy)
-          
-          - Each project board MUST have exactly **one Epic issue** representing the campaign.
-          - The Epic issue MUST:
-            - Be added to the project board
-            - Use the same `campaign_id`
-            - Use `worker_workflow: "unknown"`
-          
-          - All campaign work issues (non-epic) MUST be created as **sub-issues of the Epic**.
-          - Issues MUST NOT be re-parented based on worker assignment.
-          
-          - Pull requests cannot be sub-issues:
-            - PRs MUST reference their related issue via standard GitHub linking (e.g. “Closes #123”).
-          
-          - Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
-          
-          - The Epic issue is narrative only.
-          - The project board is the sole authoritative source of campaign state.
-          ---
-          # CLOSING INSTRUCTIONS (HIGHEST PRIORITY)
-          ---
-          # Closing Instructions (Highest Priority)
-          
-          Execute all four steps in strict order:
-          
-          1. Read State (no writes)
-          2. Make Decisions (no writes)
-          3. Write State (update-project only)
-          4. Report
-          
-          The following rules are mandatory and override inferred behavior:
-          
-          - The GitHub Project board is the single source of truth.
-          - All project writes MUST comply with `project_update_instructions.md`.
-          - State reads and state writes MUST NOT be interleaved.
-          - Do NOT infer missing data or invent values.
-          - Do NOT reorganize hierarchy.
-          - Do NOT overwrite fields except as explicitly allowed.
-          - Workers are immutable and campaign-agnostic.
-          
-          If any instruction conflicts, the Project Update Instructions take precedence for all writes.
+          Begin your analysis now. Download logs, identify safe output tool errors, classify root causes, and create an issue if tool description improvements are needed.
           
           PROMPT_EOF
-      - name: Append XPIA security instructions to prompt
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/opt/gh-aw/prompts/xpia_prompt.md" >> "$GH_AW_PROMPT"
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+              }
+            });
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append repo memory instructions to prompt
+      - name: Append cache-memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
@@ -1317,24 +1054,22 @@ jobs:
           
           ---
           
-          ## Repo Memory Locations Available
+          ## Cache Folder Available
           
-          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
           
-          - **campaigns**: `/tmp/gh-aw/repo-memory/campaigns/` (branch: `memory/campaigns`)
-          
-          - **Read/Write Access**: You can freely read from and write to any files in these folders
-          - **Git Branch Storage**: Each memory is stored in its own git branch
-          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
-          - **Merge Strategy**: In case of conflicts, your changes (current version) win
-          - **Persistence**: Files persist across workflow runs via git branch storage
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
           
           Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/history/` - organized history files
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
           
-          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1349,7 +1084,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, create_issue, create_project_status_update, missing_tool, noop, update_project
+          **Available tools**: create_issue, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1431,6 +1166,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1444,21 +1180,38 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash
+        # - Bash(/tmp/gh-aw/jqschema.sh)
+        # - Bash(cat)
+        # - Bash(date)
+        # - Bash(echo)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(jq *)
+        # - Bash(ls)
+        # - Bash(pwd)
+        # - Bash(sort)
+        # - Bash(tail)
+        # - Bash(uniq)
+        # - Bash(wc)
+        # - Bash(yq)
         # - BashOutput
         # - Edit
+        # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - KillBash
         # - LS
         # - MultiEdit
+        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookEdit
         # - NotebookRead
         # - Read
+        # - Read(/tmp/gh-aw/cache-memory/*)
         # - Task
         # - TodoWrite
         # - Write
+        # - Write(/tmp/gh-aw/cache-memory/*)
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1511,16 +1264,16 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           set -o pipefail
-          sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.0 \
-            -- /bin/bash -c 'NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' \
+          sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,localhost,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
+            -- /bin/bash -c 'NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools '\''Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users'\'' --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BASH_DEFAULT_TIMEOUT_MS: 60000
-          BASH_MAX_TIMEOUT_MS: 60000
+          BASH_DEFAULT_TIMEOUT_MS: 300000
+          BASH_MAX_TIMEOUT_MS: 300000
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DISABLE_BUG_COMMAND: 1
           DISABLE_ERROR_REPORTING: 1
@@ -1529,9 +1282,10 @@ jobs:
           GH_AW_MODEL_AGENT_CLAUDE: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_TOOL_TIMEOUT: 300
           GITHUB_WORKSPACE: ${{ github.workspace }}
           MCP_TIMEOUT: 120000
-          MCP_TOOL_TIMEOUT: 60000
+          MCP_TOOL_TIMEOUT: 300000
       - name: Stop MCP gateway
         if: always()
         continue-on-error: true
@@ -1610,15 +1364,12 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
-      # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (campaigns)
-        if: always()
+      - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
         with:
-          name: repo-memory-campaigns
-          path: /tmp/gh-aw/repo-memory/campaigns
-          retention-days: 1
-          if-no-files-found: ignore
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1638,8 +1389,8 @@ jobs:
       - activation
       - agent
       - detection
-      - push_repo_memory
       - safe_outputs
+      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1690,7 +1441,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
+          GH_AW_WORKFLOW_NAME: "Daily Safe Output Tool Optimizer"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1703,7 +1454,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
+          GH_AW_WORKFLOW_NAME: "Daily Safe Output Tool Optimizer"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1716,7 +1467,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
+          GH_AW_WORKFLOW_NAME: "Daily Safe Output Tool Optimizer"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
@@ -1734,7 +1485,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
+          GH_AW_WORKFLOW_NAME: "Daily Safe Output Tool Optimizer"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1786,8 +1537,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
-          WORKFLOW_DESCRIPTION: "Systematically extract actionable code quality improvement tasks from AI-generated discussions. Success: continuous identification of high-value refactoring, testing, and maintainability improvements."
+          WORKFLOW_NAME: "Daily Safe Output Tool Optimizer"
+          WORKFLOW_DESCRIPTION: "Analyzes gateway logs for errored safe output tool calls and creates issues to improve tool descriptions"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1852,7 +1603,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.6
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.7
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -1877,7 +1628,7 @@ jobs:
         run: |
           set -o pipefail
                     # Execute Claude Code CLI with prompt from file
-                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BASH_DEFAULT_TIMEOUT_MS: 60000
@@ -1908,14 +1659,12 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  push_repo_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
+  pre_activation:
+    runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1927,47 +1676,30 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (campaigns)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: repo-memory-campaigns
-          path: /tmp/gh-aw/repo-memory/campaigns
-      - name: Push repo-memory changes (campaigns)
-        if: always()
+      - name: Check team membership for workflow
+        id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
-          MEMORY_ID: campaigns
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/campaigns
-          MAX_FILE_SIZE: 10240
-          MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "discussion-task-mining/** memory/discussion-task-miner/**"
-          GH_AW_CAMPAIGN_ID: discussion-task-mining
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+      - name: Check skip-if-match query
+        id: check_skip_if_match
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_SKIP_QUERY: "is:issue is:open in:title \"[safeoutputs]\""
+          GH_AW_WORKFLOW_NAME: "Daily Safe Output Tool Optimizer"
+          GH_AW_SKIP_MAX_MATCHES: "1"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_skip_if_match.cjs');
             await main();
 
   safe_outputs:
@@ -1978,14 +1710,12 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
       issues: write
-      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_WORKFLOW_ID: "discussion-task-mining.campaign.g"
-      GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
+      GH_AW_WORKFLOW_ID: "daily-safe-output-optimizer"
+      GH_AW_WORKFLOW_NAME: "Daily Safe Output Tool Optimizer"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -2011,25 +1741,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Update Project
-        id: update_project
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/update_project.cjs');
-            await main();
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3},\"create_issue\":{\"max\":1},\"create_project_status_update\":{\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"bug\",\"safe-outputs\",\"tool-improvement\",\"automated-analysis\"],\"max\":1,\"title_prefix\":\"[safeoutputs] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2037,4 +1754,35 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
+
+  update_cache_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Download cache-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache-memory to cache (default)
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
 

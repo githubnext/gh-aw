@@ -1307,11 +1307,6 @@ tools:
   cache-memory: []
     # Array items: object
 
-  # Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the
-  # prompt. Defaults to true (enabled). Set to false to disable security warnings.
-  # (optional)
-  safety-prompt: true
-
   # Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP
   # servers if supported by the engine. Default varies by engine (Claude: 60s,
   # Codex: 120s).

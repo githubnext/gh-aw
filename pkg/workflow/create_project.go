@@ -9,6 +9,7 @@ type CreateProjectsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	GitHubToken          string `yaml:"github-token,omitempty"`
 	TargetOwner          string `yaml:"target-owner,omitempty"` // Default target owner (org/user) for the new project
+	TitlePrefix          string `yaml:"title-prefix,omitempty"` // Default prefix for auto-generated project titles
 }
 
 // parseCreateProjectsConfig handles create-project configuration
@@ -37,10 +38,18 @@ func (c *Compiler) parseCreateProjectsConfig(outputMap map[string]any) *CreatePr
 					createProjectLog.Printf("Default target owner configured: %s", targetOwnerStr)
 				}
 			}
+
+			// Parse title-prefix if specified
+			if titlePrefix, exists := configMap["title-prefix"]; exists {
+				if titlePrefixStr, ok := titlePrefix.(string); ok {
+					createProjectsConfig.TitlePrefix = titlePrefixStr
+					createProjectLog.Printf("Title prefix configured: %s", titlePrefixStr)
+				}
+			}
 		}
 
-		createProjectLog.Printf("Parsed create-project config: max=%d, hasCustomToken=%v, hasTargetOwner=%v",
-			createProjectsConfig.Max, createProjectsConfig.GitHubToken != "", createProjectsConfig.TargetOwner != "")
+		createProjectLog.Printf("Parsed create-project config: max=%d, hasCustomToken=%v, hasTargetOwner=%v, hasTitlePrefix=%v",
+			createProjectsConfig.Max, createProjectsConfig.GitHubToken != "", createProjectsConfig.TargetOwner != "", createProjectsConfig.TitlePrefix != "")
 		return createProjectsConfig
 	}
 	createProjectLog.Print("No create-project configuration found")

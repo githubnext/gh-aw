@@ -4,6 +4,7 @@ description: "A curated tour of interactive workflows that respond to commands"
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T10:00:00
 sidebar:
   label: "Interactive & ChatOps"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's keep exploring [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Onwards, onwards!* Let's keep exploring the wonders of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! To the *command center* where instant magic happens!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/), we explored creative and culture workflows - agents that bring joy, build team culture, and create moments of delight. We discovered that AI agents don't have to be all business; they can have personality while making work more enjoyable.
 
@@ -27,9 +28,9 @@ But sometimes you need help *right now*, at the exact moment you're stuck on a p
 
 These agents respond to commands, providing on-demand assistance whenever you need it:
 
-- **[Q](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
-- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with, well, personality
-- **[Workflow Generator](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
+- **[Q](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
+- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with, well, personality
+- **[Workflow Generator](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
 
 Interactive workflows changed how we think about agent invocation. Instead of everything running on a schedule, these respond to slash commands and reactions - `/q` summons the workflow optimizer, a 🚀 reaction triggers analysis. Q (yes, named after the James Bond quartermaster) became our go-to troubleshooter - it investigates workflow performance issues and opens PRs with optimizations.
 

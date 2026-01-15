@@ -2,8 +2,9 @@
 title: "12 Design Patterns from Peli's Agent Factory"
 description: "Fundamental behavioral patterns for successful agentic workflows"
 authors:
-  - mnkiefer
+  - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-24
 draft: true
 prev:
@@ -20,7 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to our third article in the Peli's Agent Factory series! Having shared the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/) and the [lessons we've learned](/gh-aw/blog/2026-01-21-twelve-lessons/), we're now diving into the fundamental design patterns that emerged from running our collection of automated agentic workflows in practice.
+*My dear friends!* What a scrumptious third helping in the Peli's Agent Factory series! You've sampled the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/) and savored the [lessons we've learned](/gh-aw/blog/2026-01-21-twelve-lessons/) - now prepare yourselves for the *secret recipes* - the fundamental design patterns that emerged from running our collection!
 
 After building our collection of agents in Peli's Agent Factory, we started noticing patterns. Not the kind we planned upfront - these emerged organically from solving real problems. Now we've identified 12 fundamental design patterns that capture what successful agentic workflows actually do.
 

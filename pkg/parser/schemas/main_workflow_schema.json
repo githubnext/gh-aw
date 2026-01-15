@@ -2954,10 +2954,6 @@
             ]
           ]
         },
-        "safety-prompt": {
-          "type": "boolean",
-          "description": "Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the prompt. Defaults to true (enabled). Set to false to disable security warnings."
-        },
         "timeout": {
           "type": "integer",
           "minimum": 1,
@@ -2992,6 +2988,12 @@
                   "type": ["string", "number"],
                   "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
                   "examples": ["latest", "0.1.0", 1.0]
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Serena execution mode: 'docker' (default, runs in container) or 'local' (runs locally with uvx and HTTP transport)",
+                  "enum": ["docker", "local"],
+                  "default": "docker"
                 },
                 "args": {
                   "type": "array",
@@ -3540,7 +3542,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -3897,6 +3899,10 @@
                 "target-owner": {
                   "type": "string",
                   "description": "Optional default target owner (organization or user login, e.g., 'myorg' or 'username') for the new project. If specified, the agent can omit the owner field in the tool call and this default will be used. The agent can still override by providing an owner in the tool call."
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for auto-generated project titles (default: 'Campaign'). When the agent doesn't provide a title, the project title is auto-generated as '<title-prefix>: <issue-title>' or '<title-prefix> #<issue-number>' based on the issue context."
                 }
               },
               "additionalProperties": false
@@ -4559,6 +4565,31 @@
             }
           ],
           "description": "Enable AI agents to create GitHub Advanced Security code scanning alerts for detected vulnerabilities or security issues."
+        },
+        "autofix-code-scanning-alert": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating autofixes for code scanning alerts",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of autofixes to create (default: 10)",
+                  "minimum": 1
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable code scanning autofix creation with default configuration (max: 10)"
+            }
+          ],
+          "description": "Enable AI agents to create autofixes for code scanning alerts using the GitHub REST API."
         },
         "add-labels": {
           "oneOf": [

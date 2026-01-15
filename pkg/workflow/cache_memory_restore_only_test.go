@@ -32,7 +32,7 @@ tools:
 ---`,
 			expectedInLock: []string{
 				"# Cache memory file share configuration from frontmatter processed below",
-				"- name: Restore cache memory file share data",
+				"- name: Restore cache-memory file share data",
 				"actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
@@ -62,10 +62,10 @@ tools:
 ---`,
 			expectedInLock: []string{
 				"# Cache memory file share configuration from frontmatter processed below",
-				"- name: Cache memory file share data (default)",
+				"- name: Cache cache-memory file share data (default)",
 				"actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-default-${{ github.run_id }}",
-				"- name: Restore cache memory file share data (readonly)",
+				"- name: Restore cache-memory file share data (readonly)",
 				"actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-readonly-${{ github.run_id }}",
 			},
@@ -100,11 +100,11 @@ tools:
       restore-only: true
 ---`,
 			expectedInLock: []string{
-				"- name: Cache memory file share data (writeable)",
+				"- name: Cache cache-memory file share data (writeable)",
 				"actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
-				"- name: Restore cache memory file share data (readonly1)",
+				"- name: Restore cache-memory file share data (readonly1)",
 				"actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
-				"- name: Restore cache memory file share data (readonly2)",
+				"- name: Restore cache-memory file share data (readonly2)",
 			},
 			notExpectedInLock: []string{
 				// Should NOT upload artifacts when detection is disabled

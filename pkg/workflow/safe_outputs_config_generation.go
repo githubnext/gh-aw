@@ -86,6 +86,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				0, // default: unlimited
 			)
 		}
+		if data.SafeOutputs.AutofixCodeScanningAlert != nil {
+			safeOutputsConfig["autofix_code_scanning_alert"] = generateMaxConfig(
+				data.SafeOutputs.AutofixCodeScanningAlert.Max,
+				10, // default max
+			)
+		}
 		if data.SafeOutputs.AddLabels != nil {
 			safeOutputsConfig["add_labels"] = generateMaxWithAllowedConfig(
 				data.SafeOutputs.AddLabels.Max,
@@ -238,6 +244,10 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			// Add target-owner if specified
 			if data.SafeOutputs.CreateProjects.TargetOwner != "" {
 				config["target_owner"] = data.SafeOutputs.CreateProjects.TargetOwner
+			}
+			// Add title-prefix if specified
+			if data.SafeOutputs.CreateProjects.TitlePrefix != "" {
+				config["title_prefix"] = data.SafeOutputs.CreateProjects.TitlePrefix
 			}
 			safeOutputsConfig["create_project"] = config
 		}
@@ -521,6 +531,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	}
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		enabledTools["create_code_scanning_alert"] = true
+	}
+	if data.SafeOutputs.AutofixCodeScanningAlert != nil {
+		enabledTools["autofix_code_scanning_alert"] = true
 	}
 	if data.SafeOutputs.AddLabels != nil {
 		enabledTools["add_labels"] = true

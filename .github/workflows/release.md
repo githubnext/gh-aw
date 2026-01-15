@@ -42,13 +42,13 @@ jobs:
       release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
           
       - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@v2
+        uses: cli/gh-extension-precompile@6f13f31f798a93a6b08d3be0727120e9af35851f # v2.1.0
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
@@ -85,10 +85,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4469467cea6daeb81c49688e3f738b3ea61cc4e1 # v6.0.0
         with:
           go-version-file: go.mod
           cache: false  # Disabled for release security - prevent cache poisoning attacks
@@ -97,14 +97,14 @@ jobs:
         run: go mod download
 
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@v0.20.10
+        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
         with:
           artifact-name: sbom.spdx.json
           output-file: sbom.spdx.json
           format: spdx-json
 
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@v0.20.10
+        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
         with:
           artifact-name: sbom.cdx.json
           output-file: sbom.cdx.json
@@ -120,7 +120,7 @@ jobs:
           echo "✓ No secrets detected in SBOM files"
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a0745ede1831f8ca951aaab692e8d836c2 # v6.0.0
         with:
           name: sbom-artifacts
           path: |
@@ -146,13 +146,13 @@ jobs:
       attestations: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750ceccfa2109d028e60fbdcf2e87b3ce84a2 # v3.12.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd11039ae84fdace9dfebfd0ed0a3282deb0 # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -171,7 +171,7 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@c299e40ca79d9ee606ef6f4365af95e9a7ca7f9f # v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -183,7 +183,7 @@ jobs:
 
       - name: Build and push Docker image (amd64)
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@8c6338f942d2d9576ac98c87becb29da981ca7e8 # v6
         with:
           context: .
           platforms: linux/amd64
@@ -196,7 +196,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@v0.20.10
+        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
         with:
           image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
           artifact-name: docker-sbom.spdx.json
@@ -204,7 +204,7 @@ jobs:
           format: spdx-json
 
       - name: Attest Docker image
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f985e7ebc42bf28d5f01b12f7a9a44b30bb # v2.4.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}

@@ -18,7 +18,7 @@ func (c *Compiler) generateRepoMemoryPromptStep(yaml *strings.Builder, config *R
 
 	repoMemoryPromptLog.Printf("Generating repo memory prompt step: memory_count=%d", len(config.Memories))
 	appendPromptStepWithHeredoc(yaml,
-		"Append repo memory instructions to prompt",
+		"Append repo-memory instructions to prompt",
 		func(y *strings.Builder) {
 			generateRepoMemoryPromptSection(y, config)
 		})

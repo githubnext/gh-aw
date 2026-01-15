@@ -497,6 +497,18 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["missing_data"] = handlerConfig
 	}
 
+	if data.SafeOutputs.AutofixCodeScanningAlert != nil {
+		cfg := data.SafeOutputs.AutofixCodeScanningAlert
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["autofix_code_scanning_alert"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)

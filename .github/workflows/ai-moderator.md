@@ -23,6 +23,10 @@ tools:
     read-only: true
     toolsets: [default]
 if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.should_skip != 'true')
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam, ai-inspected]

@@ -142,7 +142,7 @@ jobs:
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache memory file share data
+      - name: Restore cache-memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
@@ -185,11 +185,11 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.80.0
+        run: npm install -g --silent @openai/codex@0.81.0
       - name: Install awf binary
         run: |
-          echo "Installing awf via installer script (requested version: v0.9.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.0 bash
+          echo "Installing awf via installer script (requested version: v0.9.1)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.1 bash
           which awf
           awf --version
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -571,6 +571,7 @@ jobs:
         id: safe-inputs-config
         run: |
           # Generate a secure random API key (360 bits of entropy, 40+ chars)
+          API_KEY=""
           API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
           PORT=3000
           
@@ -616,7 +617,9 @@ jobs:
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
-          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          MCP_GATEWAY_API_KEY=""
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          export MCP_GATEWAY_API_KEY
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
@@ -789,7 +792,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.80.0",
+              agent_version: "0.81.0",
               workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
@@ -806,7 +809,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["api.github.com","defaults","github","playwright"],
               firewall_enabled: true,
-              awf_version: "v0.9.0",
+              awf_version: "v0.9.1",
               awmg_version: "latest",
               steps: {
                 firewall: "squid"
@@ -897,11 +900,6 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
               }
             });
-      - name: Append XPIA security instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/opt/gh-aw/prompts/xpia_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -912,7 +910,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/playwright_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append cache memory instructions to prompt
+      - name: Append cache-memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
@@ -1049,7 +1047,7 @@ jobs:
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p "$CODEX_HOME/logs"
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,api.github.com,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,mcp.tavily.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.0 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,api.github.com,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.githubassets.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,mcp.tavily.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
             -- NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && codex ${GH_AW_MODEL_AGENT_CODEX:+-c model="$GH_AW_MODEL_AGENT_CODEX" }exec --full-auto --skip-git-repo-check "$INSTRUCTION" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -1399,7 +1397,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.80.0
+        run: npm install -g --silent @openai/codex@0.81.0
       - name: Run Codex
         run: |
           set -o pipefail

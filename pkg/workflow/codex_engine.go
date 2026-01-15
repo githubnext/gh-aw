@@ -174,7 +174,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// PATH will be set to find codex in hostedtoolcache when firewall is enabled
 		commandName = "codex"
 	}
-	
+
 	codexCommand := fmt.Sprintf("%s %sexec%s%s%s\"$INSTRUCTION\"",
 		commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam)
 
@@ -308,15 +308,7 @@ mkdir -p "$CODEX_HOME/logs"
 		}
 	} else {
 		// Build the command without AWF wrapping
-		// Determine which command to use
-		var commandName string
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-			commandName = workflowData.EngineConfig.Command
-			codexEngineLog.Printf("Using custom command: %s", commandName)
-		} else {
-			commandName = "codex"
-		}
-		
+		// Reuse commandName already determined above
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			command = fmt.Sprintf(`set -o pipefail
@@ -472,7 +464,6 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 		Playwright:       toolsConfig.Playwright,
 		AgenticWorkflows: toolsConfig.AgenticWorkflows,
 		CacheMemory:      toolsConfig.CacheMemory,
-		SafetyPrompt:     toolsConfig.SafetyPrompt,
 		Timeout:          toolsConfig.Timeout,
 		StartupTimeout:   toolsConfig.StartupTimeout,
 		Custom:           make(map[string]MCPServerConfig),

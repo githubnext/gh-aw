@@ -373,18 +373,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
-	// Extract safety-prompt setting from merged tools (defaults to true)
-	safetyPrompt := c.extractSafetyPromptSetting(tools)
-
 	// Extract timeout setting from merged tools (defaults to 0 which means use engine defaults)
 	toolsTimeout := c.extractToolsTimeout(tools)
 
 	// Extract startup-timeout setting from merged tools (defaults to 0 which means use engine defaults)
 	toolsStartupTimeout := c.extractToolsStartupTimeout(tools)
 
-	// Remove meta fields (safety-prompt, timeout, startup-timeout) from merged tools map
+	// Remove meta fields (timeout, startup-timeout) from merged tools map
 	// These are configuration fields, not actual tools
-	delete(tools, "safety-prompt")
 	delete(tools, "timeout")
 	delete(tools, "startup-timeout")
 
@@ -509,7 +505,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		NetworkPermissions:  networkPermissions,
 		SandboxConfig:       sandboxConfig,
 		NeedsTextOutput:     needsTextOutput,
-		SafetyPrompt:        safetyPrompt,
 		ToolsTimeout:        toolsTimeout,
 		ToolsStartupTimeout: toolsStartupTimeout,
 		TrialMode:           c.trialMode,

@@ -388,9 +388,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 
 		var actionName string
 		if useRestoreOnly {
-			actionName = "Restore cache memory file share data"
+			actionName = "Restore cache-memory file share data"
 		} else {
-			actionName = "Cache memory file share data"
+			actionName = "Cache cache-memory file share data"
 		}
 
 		if useBackwardCompatiblePaths {

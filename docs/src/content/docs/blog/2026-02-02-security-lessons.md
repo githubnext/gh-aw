@@ -4,6 +4,7 @@ description: "Designing safe environments where agents can't accidentally cause 
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-02-02
 draft: true
 prev:
@@ -20,7 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to our latest article in the Peli's Agent Factory series! After exploring [imports and sharing](/gh-aw/blog/2026-01-30-imports-and-sharing/) in our previous article, it's time to tackle one of the most critical aspects of running automated agentic workflows: security.
+Gather 'round, gather 'round for *the next delicious treat* in the Peli's Agent Factory series! Having just sampled the wonders of [imports and sharing](/gh-aw/blog/2026-01-30-imports-and-sharing/), we now venture into the *vault* - the most critical chamber of all - where we discuss security!
 
 Security in agentic workflows isn't just about locking things down - it's about designing environments where agentic workflows can do their jobs safely, even if they make mistakes. Our collection of workflows in practice has taught us a ton about what works (and what doesn't).
 

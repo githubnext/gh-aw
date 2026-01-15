@@ -76,7 +76,7 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 	promptsLog.Printf("Generating cache memory prompt step with %d caches", len(config.Caches))
 
 	appendPromptStepWithHeredoc(yaml,
-		"Append cache memory instructions to prompt",
+		"Append cache-memory instructions to prompt",
 		func(y *strings.Builder) {
 			generateCacheMemoryPromptSection(y, config)
 		})
@@ -165,18 +165,6 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 	}
 
 	return false
-}
-
-// ============================================================================
-// Security Prompts - XPIA
-// ============================================================================
-
-// generateXPIAPromptStep generates a separate step for XPIA security warnings
-func (c *Compiler) generateXPIAPromptStep(yaml *strings.Builder, data *WorkflowData) {
-	generateStaticPromptStepFromFile(yaml,
-		"Append XPIA security instructions to prompt",
-		xpiaPromptFile,
-		data.SafetyPrompt)
 }
 
 // ============================================================================

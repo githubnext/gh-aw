@@ -3,6 +3,7 @@ title: "Authoring New Workflows in Peli's Agent Factory"
 description: "A practical guide to creating effective agentic workflows"
 authors:
   - dsyme
+  - peli
   - mnkiefer
 date: 2026-02-08
 draft: true
@@ -20,7 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to our practical guide in the Peli's Agent Factory series! Now that you understand [how workflows operate under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to roll up your sleeves and start creating your own.
+*Excellent!* You've arrived at the *invention room* - our practical guide in the Peli's Agent Factory series! Now that you've glimpsed [the magnificent machinery under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to don your inventor's cap and start creating your own confections!
 
 Ready to build your own agentic workflows? Awesome! Let's make it happen.
 
@@ -539,21 +540,21 @@ Browse the factory for inspiration:
 
 **Simple Examples:**
 
-- [`poem-bot`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/poem-bot.md) - ChatOps personality
-- [`daily-repo-chronicle`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-repo-chronicle.md) - Daily summary
-- [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-triage-agent.md) - Event-driven
+- [`poem-bot`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/poem-bot.md) - ChatOps personality
+- [`daily-repo-chronicle`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md) - Daily summary
+- [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md) - Event-driven
 
 **Intermediate Examples:**
 
-- [`ci-doctor`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/ci-doctor.md) - Diagnostic analysis
-- [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/glossary-maintainer.md) - Content sync
-- [`terminal-stylist`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/terminal-stylist.md) - Code analysis
+- [`ci-doctor`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-doctor.md) - Diagnostic analysis
+- [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/glossary-maintainer.md) - Content sync
+- [`terminal-stylist`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/terminal-stylist.md) - Code analysis
 
 **Advanced Examples:**
 
 - [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) - Multi-phase
-- [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/agent-performance-analyzer.md) - Meta-agent
-- [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/workflow-health-manager.md) - Orchestration
+- [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/agent-performance-analyzer.md) - Meta-agent
+- [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-health-manager.md) - Orchestration
 
 ### Documentation
 
