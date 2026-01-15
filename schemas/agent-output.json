@@ -581,22 +581,33 @@
     },
     "AssignToAgentOutput": {
       "title": "Assign to Agent Output",
-      "description": "Output for assigning a GitHub Copilot agent to an issue or project item",
+      "description": "Output for assigning a GitHub Copilot agent to an issue or pull request",
       "type": "object",
+      "oneOf": [
+        {
+          "required": ["type", "issue_number"]
+        },
+        {
+          "required": ["type", "pull_number"]
+        }
+      ],
       "properties": {
         "type": {
           "const": "assign_to_agent"
         },
         "issue_number": {
           "oneOf": [{ "type": "number" }, { "type": "string" }],
-          "description": "Issue number to assign agent to"
+          "description": "Issue number to assign agent to. Either issue_number or pull_number must be provided, but not both."
+        },
+        "pull_number": {
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
+          "description": "Pull request number to assign agent to. Either issue_number or pull_number must be provided, but not both."
         },
         "agent": {
           "type": "string",
           "description": "Agent name or slug (defaults to 'copilot' if not provided)"
         }
       },
-      "required": ["type", "issue_number"],
       "additionalProperties": false
     },
     "NoOpOutput": {
