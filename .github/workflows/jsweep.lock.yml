@@ -434,9 +434,9 @@ jobs:
                 "entrypoint": "serena",
                 "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
                 "env": {
-                  "NPM_CONFIG_CACHE": "/home/runner/.npm"
+                  "NPM_CONFIG_CACHE": "$HOME/.npm"
                 },
-                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw", "/home/runner/.npm:/home/runner/.npm:rw"]
+                "mounts": ["$HOME/.npm:$HOME/.npm:rw", "${{ github.workspace }}:${{ github.workspace }}:rw"]
               }
             },
             "gateway": {

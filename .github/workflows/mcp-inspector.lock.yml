@@ -732,11 +732,11 @@ jobs:
                 "entrypoint": "serena",
                 "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
                 "env": {
-                  "NPM_CONFIG_CACHE": "/home/runner/.npm",
-                  "PIP_CACHE_DIR": "/home/runner/.cache/pip",
-                  "UV_CACHE_DIR": "/home/runner/.cache/uv"
+                  "NPM_CONFIG_CACHE": "$HOME/.npm",
+                  "PIP_CACHE_DIR": "$HOME/.cache/pip",
+                  "UV_CACHE_DIR": "$HOME/.cache/uv"
                 },
-                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw", "/home/runner/.cache/pip:/home/runner/.cache/pip:rw", "/home/runner/.cache/uv:/home/runner/.cache/uv:rw", "/home/runner/.npm:/home/runner/.npm:rw"]
+                "mounts": ["$HOME/.cache/pip:$HOME/.cache/pip:rw", "$HOME/.cache/uv:$HOME/.cache/uv:rw", "$HOME/.npm:$HOME/.npm:rw", "${{ github.workspace }}:${{ github.workspace }}:rw"]
               },
               "tavily": {
                 "type": "http",

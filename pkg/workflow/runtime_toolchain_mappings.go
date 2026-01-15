@@ -1,9 +1,5 @@
 package workflow
 
-import (
-	"sort"
-)
-
 // RuntimeToolchainMapping represents environment variables and mounts that need to be
 // passed to the agent container (e.g., Serena MCP server) so that the toolchain works properly.
 // These mappings are collected from runtime setup actions like actions/setup-go, actions/setup-node, etc.
@@ -81,7 +77,7 @@ func (tm *ToolchainMappings) GetAllMounts() []string {
 	for mount := range mountSet {
 		mounts = append(mounts, mount)
 	}
-	sort.Strings(mounts)
+	SortStrings(mounts)
 
 	return mounts
 }
@@ -185,7 +181,7 @@ func MergeMountsWithDedup(existingMounts []string, newMounts []string) []string 
 	for mount := range mountSet {
 		result = append(result, mount)
 	}
-	sort.Strings(result)
+	SortStrings(result)
 
 	return result
 }
