@@ -381,12 +381,12 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	// MCP Gateway spec fields for containerized stdio servers
 	// We use an Alpine image with gh CLI and mount the gh extensions directory
 	yaml.WriteString("                \"container\": \"alpine:3.21\",\n")
-	
+
 	// Install gh CLI and execute the gh-aw extension's mcp-server command
 	// The gh extensions directory is mounted from the runner's home directory
 	yaml.WriteString("                \"entrypoint\": \"/bin/sh\",\n")
 	yaml.WriteString("                \"entrypointArgs\": [\"-c\", \"apk add --no-cache github-cli bash && exec /root/.local/share/gh/extensions/gh-aw/gh-aw mcp-server\"],\n")
-	
+
 	// Mount the gh extensions directory to access the installed gh-aw extension
 	// The runner home directory is typically /home/runner
 	yaml.WriteString("                \"mounts\": [\"/home/runner/.local/share/gh/extensions:/root/.local/share/gh/extensions:ro\"],\n")

@@ -451,8 +451,10 @@ jobs:
             "mcpServers": {
               "agentic_workflows": {
                 "type": "stdio",
-                "command": "gh",
-                "args": ["aw", "mcp-server"],
+                "container": "alpine:3.21",
+                "entrypoint": "/bin/sh",
+                "entrypointArgs": ["-c", "apk add --no-cache github-cli bash && exec /root/.local/share/gh/extensions/gh-aw/gh-aw mcp-server"],
+                "mounts": ["/home/runner/.local/share/gh/extensions:/root/.local/share/gh/extensions:ro"],
                 "env": {
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
                 }
