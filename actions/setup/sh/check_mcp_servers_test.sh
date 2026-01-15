@@ -329,6 +329,45 @@ test_validation_functions_exist() {
   fi
 }
 
+# Test 11: URL rewriting from 0.0.0.0 to localhost
+test_url_rewriting() {
+  echo ""
+  echo "Test 11: URL rewriting from 0.0.0.0 to localhost"
+  
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local config_file="$tmpdir/config.json"
+  
+  # Create config with 0.0.0.0 URLs (as gateway outputs)
+  cat > "$config_file" <<'EOF'
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://0.0.0.0:8080/mcp/github",
+      "headers": {
+        "Authorization": "Bearer test-token"
+      }
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+  
+  # Check if script contains URL rewriting logic
+  if grep -q "0\\.0\\.0\\.0.*localhost" "$SCRIPT_PATH"; then
+    print_result "Script contains 0.0.0.0 to localhost conversion" "PASS"
+  else
+    print_result "Script should convert 0.0.0.0 to localhost for host-based checks" "FAIL"
+  fi
+  
+  rm -rf "$tmpdir"
+}
+
 # Run all tests
 echo "=== Testing check_mcp_servers.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -343,6 +382,7 @@ test_valid_http_server
 test_server_without_url
 test_mixed_servers
 test_validation_functions_exist
+test_url_rewriting
 
 # Print summary
 echo ""
