@@ -80,7 +80,7 @@ jq -r --arg urlPrefix "$URL_PREFIX" --arg apiKey "$MCP_GATEWAY_API_KEY" '
   .mcpServers | to_entries[] |
   "[mcp_servers.\(.key)]\n" +
   "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
-  "http_headers = { Authorization = \"" + $apiKey + "\" }\n"
+  "http_headers = { Authorization = " + ($apiKey | @json) + " }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
