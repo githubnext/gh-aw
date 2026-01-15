@@ -74,7 +74,7 @@ engine:
     - name: Run OpenCode
       id: opencode
       run: |
-        opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --print-logs
+        opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --print-logs --log-level DEBUG --format json
       env:
         GH_AW_AGENT_MODEL: ${{ env.GH_AW_AGENT_MODEL }}
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
@@ -126,7 +126,10 @@ OpenCode automatically integrates with MCP servers configured in your workflow:
 - The workflow will install opencode-ai npm package using version from `GH_AW_AGENT_VERSION` env var
 - `jq` is installed for JSON transformation between MCP config formats
 - The prompt file is read directly in the Run OpenCode step using command substitution
-- OpenCode is executed in non-interactive mode with logs printed to stderr
+- OpenCode is executed with enhanced logging:
+  - `--print-logs`: All logs printed to stderr for real-time visibility
+  - `--log-level DEBUG`: Maximum log verbosity for troubleshooting
+  - `--format json`: Structured JSON output for programmatic parsing
 - Output is captured in the agent log file
 
 **Environment Variables:**
