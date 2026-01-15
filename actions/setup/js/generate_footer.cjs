@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const fs = require("fs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 
 /**
@@ -80,7 +81,12 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL,
   }
 
   if (workflowSource && workflowSourceURL) {
-    footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/guides/packaging-imports/).`;
+    // Load workflow install note template
+    const promptsDir = process.env.GH_AW_PROMPTS_DIR || "/opt/gh-aw/prompts";
+    const installNoteTemplatePath = `${promptsDir}/workflow_install_note.md`;
+    const installNoteTemplate = fs.readFileSync(installNoteTemplatePath, "utf8");
+    const installNote = installNoteTemplate.replace("{workflow_source}", workflowSource);
+    footer += `\n>\n> ${installNote}`;
   }
 
   // Add missing tools and data sections if available
