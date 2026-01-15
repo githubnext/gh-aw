@@ -5,6 +5,21 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type (patch, minor, or major)'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: true
 permissions:
   contents: read
   pull-requests: read
@@ -29,8 +44,70 @@ tools:
 safe-outputs:
   update-release:
 jobs:
-  release:
+  config:
     needs: ["activation"]
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.compute_config.outputs.release_tag }}
+      draft_mode: ${{ steps.compute_config.outputs.draft_mode }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Compute release configuration
+        id: compute_config
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # For workflow_dispatch, compute next version based on release type
+            RELEASE_TYPE="${{ inputs.release_type }}"
+            DRAFT_MODE="${{ inputs.draft }}"
+            
+            echo "Computing next version for release type: $RELEASE_TYPE"
+            
+            # Get the latest release tag
+            LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"')
+            echo "Latest release tag: $LATEST_TAG"
+            
+            # Parse version components (strip 'v' prefix)
+            VERSION="${LATEST_TAG#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            
+            # Increment based on release type
+            case "$RELEASE_TYPE" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            
+            RELEASE_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Computed release tag: $RELEASE_TAG"
+          else
+            # For tag push events, use the tag from GITHUB_REF
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+            DRAFT_MODE="false"
+            echo "Using tag from push event: $RELEASE_TAG"
+          fi
+          
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "draft_mode=$DRAFT_MODE" >> "$GITHUB_OUTPUT"
+          echo "✓ Release tag: $RELEASE_TAG"
+          echo "✓ Draft mode: $DRAFT_MODE"
+  release:
+    needs: ["activation", "config"]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -39,7 +116,7 @@ jobs:
       attestations: write
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
-      release_tag: ${{ steps.get_release.outputs.release_tag }}
+      release_tag: ${{ needs.config.outputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -47,17 +124,40 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           
+      - name: Create or update tag for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          echo "Creating tag: $RELEASE_TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$RELEASE_TAG"
+          git push origin "$RELEASE_TAG"
+          echo "✓ Tag created: $RELEASE_TAG"
+          
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@6f13f31f798a93a6b08d3be0727120e9af35851f # v2.1.0
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
 
+      - name: Set release to draft mode
+        if: needs.config.outputs.draft_mode == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          echo "Setting release to draft mode: $RELEASE_TAG"
+          # Edit the release to set it as draft
+          gh release edit "$RELEASE_TAG" --draft
+          echo "✓ Release set to draft mode"
+
       - name: Upload checksums file
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           if [ -f "dist/checksums.txt" ]; then
             echo "Uploading checksums file to release: $RELEASE_TAG"
             gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
@@ -70,12 +170,11 @@ jobs:
         id: get_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
           echo "✓ Release Tag: $RELEASE_TAG"
   generate-sbom:
@@ -213,22 +312,17 @@ steps:
   - name: Setup environment and fetch release data
     env:
       RELEASE_ID: ${{ needs.release.outputs.release_id }}
+      RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
       mkdir -p /tmp/gh-aw/release-data
       
-      # Use the release ID from the release job
+      # Use the release ID and tag from the release job
       echo "Release ID from release job: $RELEASE_ID"
+      echo "Release tag from release job: $RELEASE_TAG"
       
-      # Get the release tag from the push event
-      if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
-        echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
-        exit 1
-      fi
-      RELEASE_TAG="${GITHUB_REF#refs/tags/}"
       echo "Processing release: $RELEASE_TAG"
-      
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
       
       # Get the current release information
