@@ -22,12 +22,12 @@ func getWorkflowsDir() string {
 }
 
 // NewCommand creates the `gh aw campaign` command that surfaces
-// first-class campaign definitions from YAML files.
+// campaign definitions from YAML files.
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "campaign [filter]",
-		Short: "Inspect first-class campaign definitions from .github/workflows/*.campaign.md",
-		Long: `List and inspect first-class campaign definitions declared in YAML files.
+		Short: "Manage campaign definitions in .github/workflows/*.campaign.md",
+		Long: `List and inspect campaign definitions declared in YAML files.
 
 Campaigns are defined using Markdown files with YAML frontmatter under the local repository:
 
