@@ -104,8 +104,8 @@ This is a test workflow with cache-memory enabled.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify cache memory prompt step is created
-	if !strings.Contains(lockStr, "- name: Append cache memory instructions to prompt") {
-		t.Error("Expected 'Append cache memory instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Append cache-memory instructions to prompt") {
+		t.Error("Expected 'Append cache-memory instructions to prompt' step in generated workflow")
 	}
 
 	// Test 2: Verify the instruction text contains cache folder information
@@ -168,8 +168,8 @@ This is a test workflow without cache-memory.
 	lockStr := string(lockContent)
 
 	// Test: Verify cache memory prompt step is NOT created
-	if strings.Contains(lockStr, "- name: Append cache memory instructions to prompt") {
-		t.Error("Did not expect 'Append cache memory instructions to prompt' step in workflow without cache-memory")
+	if strings.Contains(lockStr, "- name: Append cache-memory instructions to prompt") {
+		t.Error("Did not expect 'Append cache-memory instructions to prompt' step in workflow without cache-memory")
 	}
 
 	if strings.Contains(lockStr, "Cache Folder Available") {
@@ -225,8 +225,8 @@ This is a test workflow with multiple cache-memory entries.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify cache memory prompt step is created
-	if !strings.Contains(lockStr, "- name: Append cache memory instructions to prompt") {
-		t.Error("Expected 'Append cache memory instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Append cache-memory instructions to prompt") {
+		t.Error("Expected 'Append cache-memory instructions to prompt' step in generated workflow")
 	}
 
 	// Test 2: Verify plural form is used for multiple caches
