@@ -174,12 +174,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_issue":{"max":6},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 5 issue(s) can be created. Title will be prefixed with \"[cli-consistency] \". Labels [automation cli documentation] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 6 issue(s) can be created. Title will be prefixed with \"[cli-consistency] \". Labels [automation cli documentation] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -601,9 +601,36 @@ jobs:
           
           ## Step 4: Report Findings
           
-          **CRITICAL**: If you find ANY issues, you MUST create issues using safe-outputs.create-issue.
+          **CRITICAL**: If you find ANY issues, you MUST create a parent tracking issue and sub-issues using safe-outputs.create-issue.
           
-          For each finding, create a separate issue with:
+          ### Creating Issues with Parent-Child Structure
+          
+          When issues are found:
+          
+          1. **First**: Create a **parent tracking issue** that summarizes all findings
+             - **Title**: "CLI Consistency Issues - [Date]"
+             - **Body**: Include a high-level summary of issues found, total count, and breakdown by severity
+             - **temporary_id**: Generate a unique temporary ID (format: `aw_` followed by 12 hex characters, e.g., `aw_abc123def456`)
+          
+          2. **Then**: Create **sub-issues** (maximum 5) for each specific finding
+             - Use the **parent** field with the temporary_id from the parent issue to link each sub-issue
+             - Each sub-issue should focus on one specific problem
+          
+          ### Parent Issue Format
+          
+          ```json
+          {
+            "type": "create_issue",
+            "temporary_id": "aw_abc123def456",
+            "title": "CLI Consistency Issues - January 15, 2026",
+            "body": "## Summary\n\nFound 5 CLI consistency issues during automated inspection.\n\n### Breakdown by Severity\n- High: 1\n- Medium: 2\n- Low: 2\n\n### Issues\nSee linked sub-issues for details on each finding."
+          }
+          ```
+          
+          ### Sub-Issue Format
+          
+          For each finding, create a sub-issue with:
+          - **parent**: The temporary_id from the parent issue (e.g., `"aw_abc123def456"`)
           - **Title**: Brief description of the issue (e.g., "Typo in compile command help", "Missing example in logs command")
           - **Body**: Include:
             - The command/subcommand affected
@@ -612,28 +639,22 @@ jobs:
             - Suggested fix if applicable
             - Priority level: `high` (breaks functionality), `medium` (confusing/misleading), `low` (minor inconsistency)
           
-          ### Example Issue Format
+          ### Example Sub-Issue Format
           
-          ```markdown
-          ## Issue Description
-          
-          **Command**: `gh aw compile`
-          **Type**: Typo in help text
-          **Priority**: Low
-          
-          ### Current Output (from running ./gh-aw compile --help)
-          ```
-          Compile markdown to YAML workflows
+          ```json
+          {
+            "type": "create_issue",
+            "parent": "aw_abc123def456",
+            "title": "Typo in compile command help",
+            "body": "## Issue Description\n\n**Command**: `gh aw compile`\n**Type**: Typo in help text\n**Priority**: Low\n\n### Current Output (from running ./gh-aw compile --help)\n```\nCompile markdown to YAML workflows\n```\n\n### Issue\nThe word \"markdown\" should be capitalized consistently with other commands.\n\n### Suggested Fix\n```\nCompile Markdown workflows to GitHub Actions YAML\n```"
+          }
           ```
           
-          ### Issue
-          The word "markdown" should be capitalized consistently with other commands.
-          
-          ### Suggested Fix
-          ```
-          Compile Markdown workflows to GitHub Actions YAML
-          ```
-          ```
+          **Important Notes**:
+          - Maximum 5 sub-issues can be created (prioritize the most important findings)
+          - Always create the parent issue first with a temporary_id
+          - Link all sub-issues to the parent using the temporary_id
+          - If more than 5 issues are found, create sub-issues for the 5 most critical ones
           
           ## Step 5: Summary
           
@@ -642,8 +663,9 @@ jobs:
           - Total issues found
           - Breakdown by severity (high/medium/low)
           - Any patterns noticed in the issues
+          - Confirmation that parent tracking issue and sub-issues were created
           
-          **If no issues are found**, state that clearly but DO NOT create an issue. Only create issues when actual problems are identified.
+          **If no issues are found**, state that clearly but DO NOT create any issues. Only create issues (parent + sub-issues) when actual problems are identified.
           
           ## Security Note
           
@@ -1244,7 +1266,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"automation\",\"cli\",\"documentation\"],\"max\":5,\"title_prefix\":\"[cli-consistency] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"automation\",\"cli\",\"documentation\"],\"max\":6,\"title_prefix\":\"[cli-consistency] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
