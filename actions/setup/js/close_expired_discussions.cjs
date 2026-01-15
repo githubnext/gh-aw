@@ -115,7 +115,13 @@ async function searchDiscussionsWithExpiration(github, owner, repo) {
   }
 
   core.info(`Search complete: Scanned ${totalScanned} discussions across ${pageCount} pages, found ${discussions.length} with expiration markers`);
-  return discussions;
+  return {
+    discussions,
+    stats: {
+      pageCount,
+      totalScanned,
+    },
+  };
 }
 
 /**
@@ -206,10 +212,17 @@ async function main() {
   core.info(`Searching for expired discussions in ${owner}/${repo}`);
 
   // Search for discussions with expiration markers
-  const discussionsWithExpiration = await searchDiscussionsWithExpiration(github, owner, repo);
+  const { discussions: discussionsWithExpiration, stats: searchStats } = await searchDiscussionsWithExpiration(github, owner, repo);
 
   if (discussionsWithExpiration.length === 0) {
     core.info("No discussions with expiration markers found");
+
+    // Write summary even when no discussions found
+    let summaryContent = `## Expired Discussions Cleanup\n\n`;
+    summaryContent += `**Scanned**: ${searchStats.totalScanned} discussions across ${searchStats.pageCount} page(s)\n\n`;
+    summaryContent += `**Result**: No discussions with expiration markers found\n`;
+    await core.summary.addRaw(summaryContent).write();
+
     return;
   }
 
@@ -266,6 +279,15 @@ async function main() {
 
   if (expiredDiscussions.length === 0) {
     core.info("No expired discussions found");
+
+    // Write summary when no expired discussions
+    let summaryContent = `## Expired Discussions Cleanup\n\n`;
+    summaryContent += `**Scanned**: ${searchStats.totalScanned} discussions across ${searchStats.pageCount} page(s)\n\n`;
+    summaryContent += `**With expiration markers**: ${discussionsWithExpiration.length} discussion(s)\n\n`;
+    summaryContent += `**Expired**: 0 discussions\n\n`;
+    summaryContent += `**Not yet expired**: ${notExpiredDiscussions.length} discussion(s)\n`;
+    await core.summary.addRaw(summaryContent).write();
+
     return;
   }
 
@@ -283,6 +305,7 @@ async function main() {
 
   let closedCount = 0;
   const closedDiscussions = [];
+  const failedDiscussions = [];
 
   for (let i = 0; i < discussionsToClose.length; i++) {
     const discussion = discussionsToClose[i];
@@ -313,6 +336,12 @@ async function main() {
     } catch (error) {
       core.error(`✗ Failed to close discussion #${discussion.number}: ${getErrorMessage(error)}`);
       core.error(`  Error details: ${JSON.stringify(error, null, 2)}`);
+      failedDiscussions.push({
+        number: discussion.number,
+        url: discussion.url,
+        title: discussion.title,
+        error: getErrorMessage(error),
+      });
       // Continue with other discussions even if one fails
     }
 
@@ -323,15 +352,61 @@ async function main() {
     }
   }
 
-  // Write summary
+  // Write comprehensive summary
+  let summaryContent = `## Expired Discussions Cleanup\n\n`;
+  summaryContent += `**Scan Summary**\n`;
+  summaryContent += `- Scanned: ${searchStats.totalScanned} discussions across ${searchStats.pageCount} page(s)\n`;
+  summaryContent += `- With expiration markers: ${discussionsWithExpiration.length} discussion(s)\n`;
+  summaryContent += `- Expired: ${expiredDiscussions.length} discussion(s)\n`;
+  summaryContent += `- Not yet expired: ${notExpiredDiscussions.length} discussion(s)\n\n`;
+
+  summaryContent += `**Closing Summary**\n`;
+  summaryContent += `- Successfully closed: ${closedCount} discussion(s)\n`;
+  if (failedDiscussions.length > 0) {
+    summaryContent += `- Failed to close: ${failedDiscussions.length} discussion(s)\n`;
+  }
+  if (expiredDiscussions.length > MAX_UPDATES_PER_RUN) {
+    summaryContent += `- Remaining for next run: ${expiredDiscussions.length - MAX_UPDATES_PER_RUN} discussion(s)\n`;
+  }
+  summaryContent += `\n`;
+
   if (closedCount > 0) {
-    let summaryContent = `## Closed Expired Discussions\n\n`;
-    summaryContent += `Closed **${closedCount}** expired discussion(s):\n\n`;
+    summaryContent += `### Successfully Closed Discussions\n\n`;
     for (const closed of closedDiscussions) {
       summaryContent += `- Discussion #${closed.number}: [${closed.title}](${closed.url})\n`;
     }
-    await core.summary.addRaw(summaryContent).write();
+    summaryContent += `\n`;
   }
+
+  if (failedDiscussions.length > 0) {
+    summaryContent += `### Failed to Close\n\n`;
+    for (const failed of failedDiscussions) {
+      summaryContent += `- Discussion #${failed.number}: [${failed.title}](${failed.url}) - Error: ${failed.error}\n`;
+    }
+    summaryContent += `\n`;
+  }
+
+  if (notExpiredDiscussions.length > 0 && notExpiredDiscussions.length <= 10) {
+    summaryContent += `### Not Yet Expired\n\n`;
+    for (const notExpired of notExpiredDiscussions) {
+      const timeDiff = notExpired.expirationDate.getTime() - now.getTime();
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60)) % 24;
+      summaryContent += `- Discussion #${notExpired.number}: [${notExpired.title}](${notExpired.url}) - Expires in ${days}d ${hours}h\n`;
+    }
+  } else if (notExpiredDiscussions.length > 10) {
+    summaryContent += `### Not Yet Expired\n\n`;
+    summaryContent += `${notExpiredDiscussions.length} discussion(s) not yet expired (showing first 10):\n\n`;
+    for (let i = 0; i < 10; i++) {
+      const notExpired = notExpiredDiscussions[i];
+      const timeDiff = notExpired.expirationDate.getTime() - now.getTime();
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60)) % 24;
+      summaryContent += `- Discussion #${notExpired.number}: [${notExpired.title}](${notExpired.url}) - Expires in ${days}d ${hours}h\n`;
+    }
+  }
+
+  await core.summary.addRaw(summaryContent).write();
 
   core.info(`Successfully closed ${closedCount} expired discussion(s)`);
 }

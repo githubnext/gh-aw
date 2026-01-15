@@ -115,7 +115,13 @@ async function searchIssuesWithExpiration(github, owner, repo) {
   }
 
   core.info(`Search complete: Scanned ${totalScanned} issues across ${pageCount} pages, found ${issues.length} with expiration markers`);
-  return issues;
+  return {
+    issues,
+    stats: {
+      pageCount,
+      totalScanned,
+    },
+  };
 }
 
 /**
@@ -199,10 +205,17 @@ async function main() {
   core.info(`Searching for expired issues in ${owner}/${repo}`);
 
   // Search for issues with expiration markers
-  const issuesWithExpiration = await searchIssuesWithExpiration(github, owner, repo);
+  const { issues: issuesWithExpiration, stats: searchStats } = await searchIssuesWithExpiration(github, owner, repo);
 
   if (issuesWithExpiration.length === 0) {
     core.info("No issues with expiration markers found");
+
+    // Write summary even when no issues found
+    let summaryContent = `## Expired Issues Cleanup\n\n`;
+    summaryContent += `**Scanned**: ${searchStats.totalScanned} issues across ${searchStats.pageCount} page(s)\n\n`;
+    summaryContent += `**Result**: No issues with expiration markers found\n`;
+    await core.summary.addRaw(summaryContent).write();
+
     return;
   }
 
@@ -259,6 +272,15 @@ async function main() {
 
   if (expiredIssues.length === 0) {
     core.info("No expired issues found");
+
+    // Write summary when no expired issues
+    let summaryContent = `## Expired Issues Cleanup\n\n`;
+    summaryContent += `**Scanned**: ${searchStats.totalScanned} issues across ${searchStats.pageCount} page(s)\n\n`;
+    summaryContent += `**With expiration markers**: ${issuesWithExpiration.length} issue(s)\n\n`;
+    summaryContent += `**Expired**: 0 issues\n\n`;
+    summaryContent += `**Not yet expired**: ${notExpiredIssues.length} issue(s)\n`;
+    await core.summary.addRaw(summaryContent).write();
+
     return;
   }
 
@@ -276,6 +298,7 @@ async function main() {
 
   let closedCount = 0;
   const closedIssues = [];
+  const failedIssues = [];
 
   for (let i = 0; i < issuesToClose.length; i++) {
     const issue = issuesToClose[i];
@@ -306,6 +329,12 @@ async function main() {
     } catch (error) {
       core.error(`✗ Failed to close issue #${issue.number}: ${getErrorMessage(error)}`);
       core.error(`  Error details: ${JSON.stringify(error, null, 2)}`);
+      failedIssues.push({
+        number: issue.number,
+        url: issue.url,
+        title: issue.title,
+        error: getErrorMessage(error),
+      });
       // Continue with other issues even if one fails
     }
 
@@ -316,15 +345,61 @@ async function main() {
     }
   }
 
-  // Write summary
+  // Write comprehensive summary
+  let summaryContent = `## Expired Issues Cleanup\n\n`;
+  summaryContent += `**Scan Summary**\n`;
+  summaryContent += `- Scanned: ${searchStats.totalScanned} issues across ${searchStats.pageCount} page(s)\n`;
+  summaryContent += `- With expiration markers: ${issuesWithExpiration.length} issue(s)\n`;
+  summaryContent += `- Expired: ${expiredIssues.length} issue(s)\n`;
+  summaryContent += `- Not yet expired: ${notExpiredIssues.length} issue(s)\n\n`;
+
+  summaryContent += `**Closing Summary**\n`;
+  summaryContent += `- Successfully closed: ${closedCount} issue(s)\n`;
+  if (failedIssues.length > 0) {
+    summaryContent += `- Failed to close: ${failedIssues.length} issue(s)\n`;
+  }
+  if (expiredIssues.length > MAX_UPDATES_PER_RUN) {
+    summaryContent += `- Remaining for next run: ${expiredIssues.length - MAX_UPDATES_PER_RUN} issue(s)\n`;
+  }
+  summaryContent += `\n`;
+
   if (closedCount > 0) {
-    let summaryContent = `## Closed Expired Issues\n\n`;
-    summaryContent += `Closed **${closedCount}** expired issue(s):\n\n`;
+    summaryContent += `### Successfully Closed Issues\n\n`;
     for (const closed of closedIssues) {
       summaryContent += `- Issue #${closed.number}: [${closed.title}](${closed.url})\n`;
     }
-    await core.summary.addRaw(summaryContent).write();
+    summaryContent += `\n`;
   }
+
+  if (failedIssues.length > 0) {
+    summaryContent += `### Failed to Close\n\n`;
+    for (const failed of failedIssues) {
+      summaryContent += `- Issue #${failed.number}: [${failed.title}](${failed.url}) - Error: ${failed.error}\n`;
+    }
+    summaryContent += `\n`;
+  }
+
+  if (notExpiredIssues.length > 0 && notExpiredIssues.length <= 10) {
+    summaryContent += `### Not Yet Expired\n\n`;
+    for (const notExpired of notExpiredIssues) {
+      const timeDiff = notExpired.expirationDate.getTime() - now.getTime();
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60)) % 24;
+      summaryContent += `- Issue #${notExpired.number}: [${notExpired.title}](${notExpired.url}) - Expires in ${days}d ${hours}h\n`;
+    }
+  } else if (notExpiredIssues.length > 10) {
+    summaryContent += `### Not Yet Expired\n\n`;
+    summaryContent += `${notExpiredIssues.length} issue(s) not yet expired (showing first 10):\n\n`;
+    for (let i = 0; i < 10; i++) {
+      const notExpired = notExpiredIssues[i];
+      const timeDiff = notExpired.expirationDate.getTime() - now.getTime();
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60)) % 24;
+      summaryContent += `- Issue #${notExpired.number}: [${notExpired.title}](${notExpired.url}) - Expires in ${days}d ${hours}h\n`;
+    }
+  }
+
+  await core.summary.addRaw(summaryContent).write();
 
   core.info(`Successfully closed ${closedCount} expired issue(s)`);
 }
