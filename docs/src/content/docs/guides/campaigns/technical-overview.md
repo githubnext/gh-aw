@@ -8,7 +8,7 @@ Agentic campaigns are goal-driven initiatives that coordinate AI agents to achie
 They provide a simple layer for managing work: define objectives with measurable KPIs, track progress on GitHub Projects, and execute workflows to drive work forward.
 
 > [!TIP]
-> **Quick start:** Use the [automated campaign creation flow](/gh-aw/guides/campaigns/getting-started/#automated-campaign-creation) to create a complete campaign in 2-3 minutes.
+> **Quick start:** Use the [automated campaign creation flow](/gh-aw/guides/campaigns/getting-started/) to create a complete campaign in 2-3 minutes.
 
 ## When to use a campaign
 
