@@ -26,7 +26,7 @@ Now let's shift from collaboration ceremony to codebase maintenance. While issue
 
 ## Quality & Hygiene Workflows
 
-These are our diligent caretakers - the agents that spot problems before they become, well, bigger problems:
+These are our diligent caretakers - the agents that spot problems before they become bigger problems:
 
 - **[CI Doctor](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-doctor.md?plain=1)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)  
 - **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/schema-consistency-checker.md?plain=1)** - Detects when schemas, code, and docs drift apart  
