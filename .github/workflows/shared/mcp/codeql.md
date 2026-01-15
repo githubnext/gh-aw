@@ -29,6 +29,50 @@ steps:
       
       echo "CodeQL CLI installed successfully"
 
+  - name: Restore CodeQL database from cache
+    id: cache-codeql-db
+    uses: actions/cache@v4
+    with:
+      path: /tmp/codeql-db
+      key: codeql-db-${{ github.repository }}-${{ github.sha }}
+      restore-keys: |
+        codeql-db-${{ github.repository }}-
+
+  - name: Create CodeQL database
+    if: steps.cache-codeql-db.outputs.cache-hit != 'true'
+    run: |
+      set -e
+      echo "Creating CodeQL database..."
+      
+      # Detect primary language from repository
+      # Default to 'go' if detection fails
+      LANGUAGE="go"
+      
+      # Try to detect language from common files
+      if [ -f "go.mod" ]; then
+        LANGUAGE="go"
+      elif [ -f "package.json" ]; then
+        LANGUAGE="javascript"
+      elif [ -f "requirements.txt" ] || [ -f "setup.py" ]; then
+        LANGUAGE="python"
+      elif [ -f "pom.xml" ] || [ -f "build.gradle" ]; then
+        LANGUAGE="java"
+      elif [ -f "Gemfile" ]; then
+        LANGUAGE="ruby"
+      elif [ -f "*.csproj" ]; then
+        LANGUAGE="csharp"
+      fi
+      
+      echo "Detected language: $LANGUAGE"
+      
+      # Create database for the repository
+      codeql database create /tmp/codeql-db \
+        --language=$LANGUAGE \
+        --source-root=${{ github.workspace }} \
+        --overwrite
+      
+      echo "CodeQL database created successfully at /tmp/codeql-db"
+
   - name: Install Python dependencies for CodeQL MCP server
     run: |
       set -e
@@ -162,7 +206,16 @@ Analyze the repository for security vulnerabilities using CodeQL.
 
 ### Creating a CodeQL Database
 
-Before using the CodeQL MCP server, you need to create a database for your repository:
+The shared MCP configuration automatically handles CodeQL database creation with caching:
+
+1. **Automatic Language Detection**: Detects the repository's primary language (Go, JavaScript, Python, Java, Ruby, C#)
+2. **Database Creation**: Creates a CodeQL database at `/tmp/codeql-db` if not in cache
+3. **Caching**: Uses GitHub Actions cache to persist the database across workflow runs
+4. **Cache Key**: Uses `codeql-db-{repository}-{sha}` with fallback to previous commits
+
+The database is automatically created as part of the workflow setup, so you can immediately start using the MCP server tools to query it.
+
+**Manual Database Creation** (if needed):
 
 ```yaml
 steps:
