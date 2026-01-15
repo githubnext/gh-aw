@@ -30,7 +30,7 @@
   "$defs": {
     "status": {
       "type": "string",
-      "enum": ["Todo", "In Progress", "Done"]
+      "enum": ["Todo", "In Progress", "Review required", "Blocked", "Done"]
     },
     "isoDate": {
       "type": "string",

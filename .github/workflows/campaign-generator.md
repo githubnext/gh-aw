@@ -152,7 +152,7 @@ update_project({
     {
       name: "Status",
       data_type: "SINGLE_SELECT",
-      options: ["Todo", "In Progress", "Blocked", "Done", "Closed"]
+      options: ["Todo", "In Progress", "Review required", "Blocked", "Done", "Closed"]
     },
     {
       name: "Start Date",
