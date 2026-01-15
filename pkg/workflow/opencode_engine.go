@@ -148,6 +148,12 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	// Add print-logs flag for enhanced debugging output
 	opencodeArgs = append(opencodeArgs, "--print-logs")
 
+	// Add log-level DEBUG for maximum log verbosity
+	opencodeArgs = append(opencodeArgs, "--log-level", "DEBUG")
+
+	// Add format json for structured JSON output
+	opencodeArgs = append(opencodeArgs, "--format", "json")
+
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		opencodeArgs = append(opencodeArgs, workflowData.EngineConfig.Args...)
