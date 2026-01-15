@@ -9,8 +9,8 @@ Agentic workflows support four simple templating/substitution mechanisms:
 
 * GitHub Actions expressions in frontmatter or markdown
 * Conditional Templating blocks in markdown
-* [Imports](/gh-aw/reference/imports/) in frontmatter or markdown (compile-time)
 * Runtime imports in markdown (runtime file/URL inclusion)
+* [Compile-time imports](/gh-aw/reference/imports/) in frontmatter or markdown (processed during compilation)
 
 ## GitHub Actions Expressions
 
@@ -82,13 +82,38 @@ The template system supports only basic conditionals—no nesting, `else` clause
 
 ## Runtime Imports
 
-Runtime imports allow you to include content from files and URLs directly within your workflow prompts **at runtime** during GitHub Actions execution. This differs from [frontmatter imports](/gh-aw/reference/imports/) which are processed at compile-time.
+Runtime imports allow you to include content from files and URLs directly within your workflow prompts **at runtime** during GitHub Actions execution. This differs from [compile-time imports](/gh-aw/reference/imports/) which are processed during compilation and merge frontmatter configurations.
+
+**Key Differences:**
+
+| Feature | Runtime Imports | Compile-time Imports |
+|---------|----------------|---------------------|
+| **When processed** | During workflow execution | During `gh aw compile` |
+| **Syntax** | `{{#runtime-import}}`, `@./path` | `imports:` field, `{{#import}}` |
+| **Purpose** | Include prompt content from files/URLs | Merge workflow configurations |
+| **Frontmatter merging** | No | Yes (tools, MCP servers, etc.) |
+| **Path restrictions** | `.github` folder only (files) | No restrictions |
+| **Recompilation needed** | No - changes take effect immediately | Yes - must recompile after changes |
+
+**When to use runtime imports:**
+- Agent prompts that need frequent updates
+- Content that changes independently from workflow configuration
+- Including external documentation or guidelines
+- Separation of workflow structure from prompt content
+
+**When to use compile-time imports:**
+- Reusable configuration components (tools, MCP servers, etc.)
+- Frontmatter merging requirements
+- Remote repository imports with versioning
+- Shared workflow components
 
 **Security Note:** File imports are **restricted to the `.github` folder** in your repository. This ensures workflow configurations cannot access arbitrary files in your codebase.
 
+### Syntax Options
+
 Runtime imports support two syntaxes:
-- **Macro syntax:** `{{#runtime-import filepath}}`
-- **Inline syntax:** `@./path` or `@../path` (convenient shorthand)
+- **Macro syntax:** `{{#runtime-import filepath}}` and `{{#runtime-import? filepath}}` (optional)
+- **Inline syntax:** `@./path` or `@../path` (convenient shorthand, no optional variant)
 
 Both syntaxes support:
 - Line range extraction (e.g., `:10-20` for lines 10-20)
@@ -387,4 +412,4 @@ Failed to fetch URL https://example.com/file.txt: HTTP 404
 - [Markdown](/gh-aw/reference/markdown/) - Writing effective agentic markdown
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration
-- [Imports](/gh-aw/reference/imports/) - Compile-time imports in frontmatter
+- [Compile-time Imports](/gh-aw/reference/imports/) - Imports processed during compilation with frontmatter merging

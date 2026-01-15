@@ -1,15 +1,21 @@
 ---
 title: Imports
-description: Learn how to modularize and reuse workflow components across multiple workflows using the imports field in frontmatter for better organization and maintainability.
+description: Learn how to modularize and reuse workflow components across multiple workflows using compile-time imports in frontmatter and markdown for better organization and maintainability.
 sidebar:
   order: 325
 ---
 
-Using imports in frontmatter or markdown allows you to modularize and reuse workflow components across multiple workflows.
+Compile-time imports in frontmatter or markdown allow you to modularize and reuse workflow components across multiple workflows. Imports are processed during compilation and merged into the final workflow configuration.
+
+For runtime content inclusion (files/URLs loaded during workflow execution), see [Runtime Imports in Templating](/gh-aw/reference/templating/#runtime-imports).
 
 ## Syntax
 
-Imports can be specified either in frontmatter or in markdown. In frontmatter the `imports:` field is used:
+Compile-time imports can be specified either in frontmatter or in markdown:
+
+### Frontmatter Imports
+
+Use the `imports:` field to declare compile-time imports:
 
 ```aw wrap
 ---
@@ -25,11 +31,14 @@ imports:
 Workflow instructions here...
 ```
 
-In markdown, use the special `{{#import ...}}` directive:
+### Markdown Import Macros
+
+Use the `{{#import}}` and `{{#import?}}` macros for compile-time imports in markdown:
 
 ```aw wrap
 ---
-...
+on: issues
+engine: copilot
 ---
 
 # Your Workflow
@@ -37,33 +46,10 @@ In markdown, use the special `{{#import ...}}` directive:
 Workflow instructions here...
 
 {{#import shared/common-tools.md}}
+{{#import? optional-config.md}}
 ```
 
-### Runtime Import with @ Syntax
-
-The `@` syntax provides runtime imports that are inlined during compilation but can be edited independently without recompilation. This is useful for agent prompts that need frequent updates:
-
-```aw wrap
----
-on: issues
-  types: [opened]
-engine: copilot
----
-
-@./agentics/issue-triage.md
-```
-
-The referenced file (`.github/agentics/issue-triage.md`) contains the agent prompt and is inlined during compilation. Changes to this file take effect immediately on the next workflow run without requiring recompilation. The file must exist or the workflow will fail - there is no optional variant.
-
-**When to use `@` syntax**:
-- Agent prompts that need frequent updates
-- Content that changes independently from workflow configuration
-- Separation of workflow structure from prompt content
-
-**When to use `{{#import}}` macro**:
-- Reusable configuration components (tools, MCP servers, etc.)
-- Optional imports with `{{#import?}}` fallback
-- Complex frontmatter merging requirements
+Both syntaxes process imports during compilation, merging frontmatter configurations and including markdown content into the final workflow.
 
 ## Shared Workflow Components
 
@@ -71,7 +57,7 @@ Workflows without an `on` field are shared workflow components. These files are 
 
 ## Path Formats
 
-Import paths support local files (`shared/file.md`, `../file.md`), remote repositories (`owner/repo/file.md@v1.0.0`), and section references (`file.md#SectionName`). Optional imports use `{{#import? file.md}}` syntax in markdown. Runtime imports use `@path/to/file.md` syntax for content that updates without recompilation.
+Import paths support local files (`shared/file.md`, `../file.md`), remote repositories (`owner/repo/file.md@v1.0.0`), and section references (`file.md#SectionName`). Optional imports use `{{#import? file.md}}` syntax in markdown.
 
 Paths are resolved relative to the importing file, with support for nested imports and circular import protection.
 
