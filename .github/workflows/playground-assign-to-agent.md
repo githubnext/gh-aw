@@ -7,7 +7,6 @@ on:
         description: 'Issue URL to assign agent to (e.g., https://github.com/owner/repo/issues/123)'
         required: true
         type: string
-name: Playground Assign to Agent
 description: Test assign-to-agent safe output feature
 permissions:
   contents: read
