@@ -304,6 +304,7 @@ type WorkflowData struct {
 	SecretMasking           *SecretMaskingConfig // secret masking configuration
 	CompilerSkipValidation  *bool                // compiler's skipValidation flag (passed from compiler to engines for MCP gateway schema validation)
 	CompilerWarningCallback func()               // callback to increment compiler warning count (passed from compiler to engines for MCP gateway schema validation warnings)
+	ToolchainMappings       *ToolchainMappings   // runtime toolchain environment variables and mounts to pass to agent containers
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types

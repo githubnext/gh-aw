@@ -51,7 +51,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			renderer.RenderPlaywrightMCP(yaml, playwrightTool)
 		case "serena":
 			serenaTool := expandedTools["serena"]
-			renderer.RenderSerenaMCP(yaml, serenaTool)
+			renderer.RenderSerenaMCP(yaml, serenaTool, workflowData)
 		case "agentic-workflows":
 			renderer.RenderAgenticWorkflowsMCP(yaml)
 		case "safe-outputs":
@@ -130,9 +130,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				renderer := createJSONRenderer(isLast)
 				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
 			},
-			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
+			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createJSONRenderer(isLast)
-				renderer.RenderSerenaMCP(yaml, serenaTool)
+				renderer.RenderSerenaMCP(yaml, serenaTool, workflowData)
 			},
 			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				// Cache-memory is not used as MCP server

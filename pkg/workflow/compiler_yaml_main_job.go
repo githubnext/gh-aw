@@ -53,6 +53,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Collect toolchain mappings for detected runtimes
+	// These mappings will be used to configure agent containers (e.g., Serena MCP server)
+	// with the necessary environment variables and mounts for toolchains to work
+	data.ToolchainMappings = CollectToolchainMappings(runtimeRequirements)
+	compilerYamlLog.Printf("Collected toolchain mappings: %d runtimes, %d env vars, %d mounts",
+		len(data.ToolchainMappings.Mappings),
+		len(data.ToolchainMappings.GetAllEnvVars()),
+		len(data.ToolchainMappings.GetAllMounts()))
+
 	// Generate runtime setup steps (after filtering out user-customized ones)
 	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
 	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))

@@ -176,22 +176,22 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 }
 
 // RenderSerenaMCP generates Serena MCP server configuration
-func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serenaTool any) {
+func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serenaTool any, workflowData *WorkflowData) {
 	mcpRendererLog.Printf("Rendering Serena MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
 
 	if r.options.Format == "toml" {
-		r.renderSerenaTOML(yaml, serenaTool)
+		r.renderSerenaTOML(yaml, serenaTool, workflowData)
 		return
 	}
 
 	// JSON format
-	renderSerenaMCPConfigWithOptions(yaml, serenaTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+	renderSerenaMCPConfigWithOptions(yaml, serenaTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, workflowData)
 }
 
 // renderSerenaTOML generates Serena MCP configuration in TOML format
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses Docker container format as specified by Serena: ghcr.io/oraios/serena:latest
-func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any) {
+func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any, workflowData *WorkflowData) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	yaml.WriteString("          \n")
@@ -221,8 +221,49 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
 
-	// Add volume mount for workspace access
-	yaml.WriteString("          mounts = [\"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
+	// Collect environment variables from toolchain mappings
+	var envVars map[string]string
+	if workflowData != nil && workflowData.ToolchainMappings != nil {
+		envVars = workflowData.ToolchainMappings.GetAllEnvVars()
+	}
+
+	// Add environment variables if any
+	if len(envVars) > 0 {
+		// Sort env var names for deterministic output
+		var envNames []string
+		for name := range envVars {
+			envNames = append(envNames, name)
+		}
+		sort.Strings(envNames)
+
+		for _, name := range envNames {
+			value := envVars[name]
+			fmt.Fprintf(yaml, "          env.%s = \"%s\"\n", name, value)
+		}
+	}
+
+	// Collect mounts: base mount + toolchain mounts
+	baseMounts := []string{
+		"${{ github.workspace }}:${{ github.workspace }}:rw",
+	}
+
+	var allMounts []string
+	if workflowData != nil && workflowData.ToolchainMappings != nil {
+		toolchainMounts := workflowData.ToolchainMappings.GetAllMounts()
+		allMounts = MergeMountsWithDedup(baseMounts, toolchainMounts)
+	} else {
+		allMounts = baseMounts
+	}
+
+	// Add volume mounts
+	yaml.WriteString("          mounts = [")
+	for i, mount := range allMounts {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		fmt.Fprintf(yaml, "\"%s\"", mount)
+	}
+	yaml.WriteString("]\n")
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration
@@ -471,7 +512,7 @@ func HandleCustomMCPToolInSwitch(
 type MCPToolRenderers struct {
 	RenderGitHub           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData)
 	RenderPlaywright       func(yaml *strings.Builder, playwrightTool any, isLast bool)
-	RenderSerena           func(yaml *strings.Builder, serenaTool any, isLast bool)
+	RenderSerena           func(yaml *strings.Builder, serenaTool any, isLast bool, workflowData *WorkflowData)
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
 	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool)
@@ -754,7 +795,7 @@ func RenderJSONMCPConfig(
 			options.Renderers.RenderPlaywright(&configBuilder, playwrightTool, isLast)
 		case "serena":
 			serenaTool := tools["serena"]
-			options.Renderers.RenderSerena(&configBuilder, serenaTool, isLast)
+			options.Renderers.RenderSerena(&configBuilder, serenaTool, isLast, workflowData)
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":

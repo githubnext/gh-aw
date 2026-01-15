@@ -148,7 +148,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses Docker container format as specified by Serena: ghcr.io/oraios/serena:latest
-func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool, workflowData *WorkflowData) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	yaml.WriteString("              \"serena\": {\n")
@@ -193,8 +193,68 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 		yaml.WriteString("                ],\n")
 	}
 
-	// Add volume mount for workspace access
-	yaml.WriteString("                \"mounts\": [\"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
+	// Collect environment variables from toolchain mappings
+	var envVars map[string]string
+	if workflowData != nil && workflowData.ToolchainMappings != nil {
+		envVars = workflowData.ToolchainMappings.GetAllEnvVars()
+	}
+
+	// Add environment variables if any
+	if len(envVars) > 0 {
+		yaml.WriteString("                \"env\": {\n")
+
+		// Sort env var names for deterministic output
+		var envNames []string
+		for name := range envVars {
+			envNames = append(envNames, name)
+		}
+		sort.Strings(envNames)
+
+		for i, name := range envNames {
+			value := envVars[name]
+			if i < len(envNames)-1 {
+				fmt.Fprintf(yaml, "                  \"%s\": \"%s\",\n", name, value)
+			} else {
+				fmt.Fprintf(yaml, "                  \"%s\": \"%s\"\n", name, value)
+			}
+		}
+		yaml.WriteString("                },\n")
+	}
+
+	// Collect mounts: base mount + toolchain mounts
+	baseMounts := []string{
+		"${{ github.workspace }}:${{ github.workspace }}:rw",
+	}
+
+	var allMounts []string
+	if workflowData != nil && workflowData.ToolchainMappings != nil {
+		toolchainMounts := workflowData.ToolchainMappings.GetAllMounts()
+		allMounts = MergeMountsWithDedup(baseMounts, toolchainMounts)
+	} else {
+		allMounts = baseMounts
+	}
+
+	// Add volume mounts
+	if inlineArgs {
+		yaml.WriteString("                \"mounts\": [")
+		for i, mount := range allMounts {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			fmt.Fprintf(yaml, "\"%s\"", mount)
+		}
+		yaml.WriteString("]\n")
+	} else {
+		yaml.WriteString("                \"mounts\": [\n")
+		for i, mount := range allMounts {
+			if i < len(allMounts)-1 {
+				fmt.Fprintf(yaml, "                  \"%s\",\n", mount)
+			} else {
+				fmt.Fprintf(yaml, "                  \"%s\"\n", mount)
+			}
+		}
+		yaml.WriteString("                ]\n")
+	}
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.

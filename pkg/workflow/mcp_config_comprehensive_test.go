@@ -651,7 +651,7 @@ func TestRenderSerenaMCPConfigWithOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderSerenaMCPConfigWithOptions(&output, tt.serenaTool, tt.isLast, tt.includeCopilotFields, tt.inlineArgs)
+			renderSerenaMCPConfigWithOptions(&output, tt.serenaTool, tt.isLast, tt.includeCopilotFields, tt.inlineArgs, nil)
 
 			result := output.String()
 

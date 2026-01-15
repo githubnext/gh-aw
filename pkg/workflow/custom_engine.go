@@ -194,9 +194,9 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer := createRenderer(isLast)
 				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
 			},
-			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
+			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)
-				renderer.RenderSerenaMCP(yaml, serenaTool)
+				renderer.RenderSerenaMCP(yaml, serenaTool, workflowData)
 			},
 			RenderCacheMemory: e.renderCacheMemoryMCPConfig,
 			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
