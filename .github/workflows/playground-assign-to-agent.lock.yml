@@ -25,8 +25,8 @@ name: "Playground: assign-to-agent"
 "on":
   workflow_dispatch:
     inputs:
-      issue_url:
-        description: Issue URL to assign agent to (e.g., https://github.com/owner/repo/issues/123)
+      item_url:
+        description: Issue or PR URL to assign agent to (e.g., https://github.com/owner/repo/issues/123 or https://github.com/owner/repo/pull/456)
         required: true
         type: string
 
@@ -462,31 +462,33 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
+          GH_AW_GITHUB_EVENT_INPUTS_ITEM_URL: ${{ github.event.inputs.item_url }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Assign Agent Test Workflow
           
-          Test the `assign-to-agent` safe output feature by assigning the Copilot agent to an issue.
+          Test the `assign-to-agent` safe output feature by assigning the Copilot agent to an issue or pull request.
           
           ## Task
           
-          You have been provided with an issue URL: __GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL__
+          You have been provided with a GitHub URL: __GH_AW_GITHUB_EVENT_INPUTS_ITEM_URL__
           
-          1. Parse the issue URL to extract the owner, repo, and issue number
-          2. Validate that the URL is an issue URL (not a pull request URL)
-          3. Use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent to the issue
-          4. Pass the numeric issue_number (extracted from the URL) to the `assign_to_agent` tool
+          1. Parse the URL to extract the owner, repo, and number
+          2. Determine if the URL is an issue URL (contains `/issues/`) or a pull request URL (contains `/pull/`)
+          3. Use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent
+          4. Pass the appropriate parameter to the tool:
+             - For issues: pass `issue_number` (the numeric ID extracted from the URL)
+             - For pull requests: pass `pull_number` (the numeric ID extracted from the URL)
           
-          **Important**: Do not use GitHub tools directly for assignment. Only use the `assign_to_agent` safe output tool.
+          **Important**: Do not use GitHub tools directly for assignment. Only use the `assign_to_agent` safe output tool with the correct parameter based on the URL type.
           
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
+          GH_AW_GITHUB_EVENT_INPUTS_ITEM_URL: ${{ github.event.inputs.item_url }}
         with:
           script: |
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
@@ -495,7 +497,7 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: process.env.GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL
+                GH_AW_GITHUB_EVENT_INPUTS_ITEM_URL: process.env.GH_AW_GITHUB_EVENT_INPUTS_ITEM_URL
               }
             });
       - name: Append XPIA security instructions to prompt
@@ -603,7 +605,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
+          GH_AW_GITHUB_EVENT_INPUTS_ITEM_URL: ${{ github.event.inputs.item_url }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
