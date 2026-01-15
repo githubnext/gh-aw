@@ -209,30 +209,34 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 		unexpectedContent    []string
 	}{
 		{
-			name:                 "Copilot with type/tools and escaped env vars",
+			name:                 "Copilot with type field and containerized format",
 			isLast:               false,
 			includeCopilotFields: true,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
-				`"type": "local"`,
-				`"command": "gh"`,
-				`"args": ["aw", "mcp-server"]`,
-				`"tools": ["*"]`,
+				`"type": "stdio"`,
+				`"container": "alpine:3.21"`,
+				`"entrypoint": "/bin/sh"`,
+				`"entrypointArgs": ["-c", "apk add --no-cache github-cli bash && exec /root/.local/share/gh/extensions/gh-aw/gh-aw mcp-server"]`,
+				`"mounts": ["/home/runner/.local/share/gh/extensions:/root/.local/share/gh/extensions:ro"]`,
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
 				`${{ secrets.`,
+				`"command"`,
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with shell env vars",
+			name:                 "Claude/Custom containerized format without type field",
 			isLast:               true,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
-				`"command": "gh"`,
-				`"args": ["aw", "mcp-server"]`,
+				`"container": "alpine:3.21"`,
+				`"entrypoint": "/bin/sh"`,
+				`"entrypointArgs": ["-c", "apk add --no-cache github-cli bash && exec /root/.local/share/gh/extensions/gh-aw/gh-aw mcp-server"]`,
+				`"mounts": ["/home/runner/.local/share/gh/extensions:/root/.local/share/gh/extensions:ro"]`,
 				// Security fix: Now uses shell variable instead of GitHub secret expression
 				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
 				`              }`,
@@ -243,6 +247,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`\\${`,
 				// Verify GitHub expressions are NOT in the output (security fix)
 				`${{ secrets.`,
+				`"command"`,
 			},
 		},
 	}

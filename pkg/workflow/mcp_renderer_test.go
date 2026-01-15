@@ -271,18 +271,26 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify Copilot-specific fields
-	if !strings.Contains(output, `"type": "local"`) {
-		t.Error("Expected 'type': 'local' field for Copilot")
-	}
-	if !strings.Contains(output, `"tools": ["*"]`) {
-		t.Error("Expected 'tools' field for Copilot")
+	// Verify Copilot-specific fields for containerized format
+	if !strings.Contains(output, `"type": "stdio"`) {
+		t.Errorf("Expected 'type': 'stdio' field for containerized Copilot server\nGot: %s", output)
 	}
 	if !strings.Contains(output, `"agentic_workflows": {`) {
 		t.Error("Expected agentic_workflows server ID")
 	}
-	if !strings.Contains(output, `"command": "gh"`) {
-		t.Error("Expected gh command")
+	// Verify containerized format (not command-based)
+	if !strings.Contains(output, `"container": "alpine:3.21"`) {
+		t.Errorf("Expected container field with Alpine image\nGot: %s", output)
+	}
+	if !strings.Contains(output, `"entrypoint": "/bin/sh"`) {
+		t.Errorf("Expected entrypoint field\nGot: %s", output)
+	}
+	if !strings.Contains(output, `"entrypointArgs": ["-c"`) {
+		t.Errorf("Expected entrypointArgs field\nGot: %s", output)
+	}
+	// Verify the old command format is NOT present
+	if strings.Contains(output, `"command": "gh"`) {
+		t.Error("Should not contain deprecated 'command' field")
 	}
 }
 
@@ -299,12 +307,20 @@ func TestRenderAgenticWorkflowsMCP_JSON_Claude(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify Claude format (no Copilot-specific fields)
+	// Verify Claude format (no Copilot-specific fields but still containerized)
 	if strings.Contains(output, `"type"`) {
 		t.Error("Should not contain 'type' field for Claude")
 	}
 	if strings.Contains(output, `"tools"`) {
 		t.Error("Should not contain 'tools' field for Claude")
+	}
+	// Verify containerized format is present
+	if !strings.Contains(output, `"container": "alpine:3.21"`) {
+		t.Errorf("Expected container field with Alpine image\nGot: %s", output)
+	}
+	// Verify deprecated command format is not present
+	if strings.Contains(output, `"command": "gh"`) {
+		t.Error("Should not contain deprecated 'command' field")
 	}
 }
 

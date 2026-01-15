@@ -363,20 +363,61 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 }
 
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses an Alpine image with gh CLI installed and mounts the gh-aw extension directory from the host.
 func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
 	envVars := []string{
 		"GITHUB_TOKEN",
 	}
 
-	renderBuiltinMCPServerBlock(BuiltinMCPServerOptions{
-		Yaml:                 yaml,
-		ServerID:             "agentic_workflows",
-		Command:              "gh",
-		Args:                 []string{"aw", "mcp-server"},
-		EnvVars:              envVars,
-		IsLast:               isLast,
-		IncludeCopilotFields: includeCopilotFields,
-	})
+	// Use Alpine with gh CLI pre-installed. The gh-aw extension is accessed via volume mount from host.
+	yaml.WriteString("              \"agentic_workflows\": {\n")
+
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	// MCP Gateway spec fields for containerized stdio servers
+	// We use an Alpine image with gh CLI and mount the gh extensions directory
+	yaml.WriteString("                \"container\": \"alpine:3.21\",\n")
+	
+	// Install gh CLI and execute the gh-aw extension's mcp-server command
+	// The gh extensions directory is mounted from the runner's home directory
+	yaml.WriteString("                \"entrypoint\": \"/bin/sh\",\n")
+	yaml.WriteString("                \"entrypointArgs\": [\"-c\", \"apk add --no-cache github-cli bash && exec /root/.local/share/gh/extensions/gh-aw/gh-aw mcp-server\"],\n")
+	
+	// Mount the gh extensions directory to access the installed gh-aw extension
+	// The runner home directory is typically /home/runner
+	yaml.WriteString("                \"mounts\": [\"/home/runner/.local/share/gh/extensions:/root/.local/share/gh/extensions:ro\"],\n")
+
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
+
+	// Write environment variables
+	yaml.WriteString("                \"env\": {\n")
+	for i, envVar := range envVars {
+		isLastEnvVar := i == len(envVars)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+		}
+	}
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex
