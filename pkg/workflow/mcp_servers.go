@@ -113,7 +113,6 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	// Check if serena is in local mode and add its environment variables
 	if workflowData != nil && isSerenaInLocalMode(workflowData.ParsedTools) {
 		envVars["GH_AW_SERENA_PORT"] = "${{ steps.serena-config.outputs.serena_port }}"
-		envVars["GH_AW_SERENA_API_KEY"] = "${{ steps.serena-config.outputs.serena_api_key }}"
 	}
 
 	// Check for agentic-workflows GITHUB_TOKEN
@@ -1130,23 +1129,14 @@ func isSerenaInLocalMode(tools *ToolsConfig) bool {
 
 // generateSerenaLocalModeSteps generates steps to start Serena MCP server locally using uvx
 func generateSerenaLocalModeSteps(yaml *strings.Builder) {
-	// Step 1: Generate API key and choose port for Serena HTTP server
+	// Step 1: Choose port for Serena HTTP server
 	yaml.WriteString("      - name: Generate Serena MCP Server Config\n")
 	yaml.WriteString("        id: serena-config\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Generate a secure random API key (360 bits of entropy, 40+ chars)\n")
-	yaml.WriteString("          API_KEY=\"\"\n")
-	yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
 	yaml.WriteString("          PORT=4000\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          # Register API key as secret to mask it from logs\n")
-	yaml.WriteString("          echo \"::add-mask::${API_KEY}\"\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Set outputs for next steps\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            echo \"serena_api_key=${API_KEY}\"\n")
-	yaml.WriteString("            echo \"serena_port=${PORT}\"\n")
-	yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
+	yaml.WriteString("          # Set output for next steps\n")
+	yaml.WriteString("          echo \"serena_port=${PORT}\" >> \"$GITHUB_OUTPUT\"\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          echo \"Serena MCP server will run on port ${PORT}\"\n")
 	yaml.WriteString("          \n")
@@ -1156,40 +1146,6 @@ func generateSerenaLocalModeSteps(yaml *strings.Builder) {
 	yaml.WriteString("        id: serena-start\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SERENA_PORT: ${{ steps.serena-config.outputs.serena_port }}\n")
-	yaml.WriteString("          GH_AW_SERENA_API_KEY: ${{ steps.serena-config.outputs.serena_api_key }}\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Start Serena MCP server using uvx in the background\n")
-	yaml.WriteString("          mkdir -p /tmp/gh-aw/serena/logs\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Export environment variables for Serena\n")
-	yaml.WriteString("          export GH_AW_SERENA_PORT\n")
-	yaml.WriteString("          export GH_AW_SERENA_API_KEY\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Start Serena with uvx in background\n")
-	yaml.WriteString("          nohup uvx --from git+https://github.com/oraios/serena serena start-mcp-server \\\n")
-	yaml.WriteString("            --transport http \\\n")
-	yaml.WriteString("            --port \"${GH_AW_SERENA_PORT}\" \\\n")
-	yaml.WriteString("            --api-key \"${GH_AW_SERENA_API_KEY}\" \\\n")
-	yaml.WriteString("            --context copilot \\\n")
-	yaml.WriteString("            --project \"${{ github.workspace }}\" \\\n")
-	yaml.WriteString("            > /tmp/gh-aw/serena/logs/server.log 2>&1 &\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          echo \"Serena MCP server started on port ${GH_AW_SERENA_PORT}\"\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Wait for server to be ready\n")
-	yaml.WriteString("          for i in {1..30}; do\n")
-	yaml.WriteString("            if curl -s -o /dev/null -w '%{http_code}' \\\n")
-	yaml.WriteString("              -H \"Authorization: ${GH_AW_SERENA_API_KEY}\" \\\n")
-	yaml.WriteString("              \"http://localhost:${GH_AW_SERENA_PORT}/health\" | grep -q \"200\"; then\n")
-	yaml.WriteString("              echo \"Serena MCP server is ready\"\n")
-	yaml.WriteString("              break\n")
-	yaml.WriteString("            fi\n")
-	yaml.WriteString("            if [ $i -eq 30 ]; then\n")
-	yaml.WriteString("              echo \"ERROR: Serena MCP server failed to start after 30 seconds\"\n")
-	yaml.WriteString("              cat /tmp/gh-aw/serena/logs/server.log\n")
-	yaml.WriteString("              exit 1\n")
-	yaml.WriteString("            fi\n")
-	yaml.WriteString("            echo \"Waiting for Serena MCP server... ($i/30)\"\n")
-	yaml.WriteString("            sleep 1\n")
-	yaml.WriteString("          done\n")
+	yaml.WriteString("          GITHUB_WORKSPACE: ${{ github.workspace }}\n")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/start_serena_server.sh\n")
 }

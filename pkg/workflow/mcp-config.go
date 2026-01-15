@@ -169,10 +169,7 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 			yaml.WriteString("                \"type\": \"http\",\n")
 		}
 
-		yaml.WriteString("                \"url\": \"http://localhost:$GH_AW_SERENA_PORT\",\n")
-		yaml.WriteString("                \"headers\": {\n")
-		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SERENA_API_KEY\"\n")
-		yaml.WriteString("                }\n")
+		yaml.WriteString("                \"url\": \"http://localhost:$GH_AW_SERENA_PORT\"\n")
 	} else {
 		// Docker mode: use stdio transport (default behavior)
 		// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)

@@ -485,19 +485,10 @@ jobs:
       - name: Generate Serena MCP Server Config
         id: serena-config
         run: |
-          # Generate a secure random API key (360 bits of entropy, 40+ chars)
-          API_KEY=""
-          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
           PORT=4000
           
-          # Register API key as secret to mask it from logs
-          echo "::add-mask::${API_KEY}"
-          
-          # Set outputs for next steps
-          {
-            echo "serena_api_key=${API_KEY}"
-            echo "serena_port=${PORT}"
-          } >> "$GITHUB_OUTPUT"
+          # Set output for next steps
+          echo "serena_port=${PORT}" >> "$GITHUB_OUTPUT"
           
           echo "Serena MCP server will run on port ${PORT}"
           
@@ -505,47 +496,12 @@ jobs:
         id: serena-start
         env:
           GH_AW_SERENA_PORT: ${{ steps.serena-config.outputs.serena_port }}
-          GH_AW_SERENA_API_KEY: ${{ steps.serena-config.outputs.serena_api_key }}
-        run: |
-          # Start Serena MCP server using uvx in the background
-          mkdir -p /tmp/gh-aw/serena/logs
-          
-          # Export environment variables for Serena
-          export GH_AW_SERENA_PORT
-          export GH_AW_SERENA_API_KEY
-          
-          # Start Serena with uvx in background
-          nohup uvx --from git+https://github.com/oraios/serena serena start-mcp-server \
-            --transport http \
-            --port "${GH_AW_SERENA_PORT}" \
-            --api-key "${GH_AW_SERENA_API_KEY}" \
-            --context copilot \
-            --project "${{ github.workspace }}" \
-            > /tmp/gh-aw/serena/logs/server.log 2>&1 &
-          
-          echo "Serena MCP server started on port ${GH_AW_SERENA_PORT}"
-          
-          # Wait for server to be ready
-          for i in {1..30}; do
-            if curl -s -o /dev/null -w '%{http_code}' \
-              -H "Authorization: ${GH_AW_SERENA_API_KEY}" \
-              "http://localhost:${GH_AW_SERENA_PORT}/health" | grep -q "200"; then
-              echo "Serena MCP server is ready"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "ERROR: Serena MCP server failed to start after 30 seconds"
-              cat /tmp/gh-aw/serena/logs/server.log
-              exit 1
-            fi
-            echo "Waiting for Serena MCP server... ($i/30)"
-            sleep 1
-          done
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: bash /opt/gh-aw/actions/start_serena_server.sh
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SERENA_API_KEY: ${{ steps.serena-config.outputs.serena_api_key }}
           GH_AW_SERENA_PORT: ${{ steps.serena-config.outputs.serena_port }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -609,10 +565,7 @@ jobs:
               },
               "serena": {
                 "type": "http",
-                "url": "http://localhost:$GH_AW_SERENA_PORT",
-                "headers": {
-                  "Authorization": "$GH_AW_SERENA_API_KEY"
-                }
+                "url": "http://localhost:$GH_AW_SERENA_PORT"
               }
             },
             "gateway": {
