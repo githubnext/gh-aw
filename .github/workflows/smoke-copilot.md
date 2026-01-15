@@ -29,7 +29,6 @@ tools:
     allowed_domains:
       - github.com
   serena:
-    mode: local
     languages:
       go: {}
   web-fetch:

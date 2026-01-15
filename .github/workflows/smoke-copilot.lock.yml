@@ -132,16 +132,6 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version: '1.25'
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Cache memory file share configuration from frontmatter processed below
@@ -482,27 +472,10 @@ jobs:
             }
           }
           EOF
-      - name: Generate Serena MCP Server Config
-        id: serena-config
-        run: |
-          PORT=4000
-          
-          # Set output for next steps
-          echo "serena_port=${PORT}" >> "$GITHUB_OUTPUT"
-          
-          echo "Serena MCP server will run on port ${PORT}"
-          
-      - name: Start Serena MCP HTTP Server
-        id: serena-start
-        env:
-          GH_AW_SERENA_PORT: ${{ steps.serena-config.outputs.serena_port }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: bash /opt/gh-aw/actions/start_serena_server.sh
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SERENA_PORT: ${{ steps.serena-config.outputs.serena_port }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
@@ -564,8 +537,12 @@ jobs:
                 }
               },
               "serena": {
-                "type": "http",
-                "url": "http://localhost:$GH_AW_SERENA_PORT"
+                "type": "stdio",
+                "container": "ghcr.io/oraios/serena:latest",
+                "args": ["--network", "host"],
+                "entrypoint": "serena",
+                "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
               }
             },
             "gateway": {
