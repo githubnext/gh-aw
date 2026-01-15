@@ -20,19 +20,35 @@ next:
 
 *Right this way!* Let's continue our grand tour of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Into the *verification chamber* where nothing escapes scrutiny!
 
-In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/), we explored interactive and ChatOps workflows - agents that respond to slash commands and GitHub reactions, providing on-demand assistance with full context. We learned that context is king: the right agent at the right moment is far more valuable than scheduled runs.
+In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/), we explored ChatOps workflows - agents that respond to slash commands and GitHub reactions, providing on-demand assistance with full context.
 
-But making code *better* is only half the battle. We also need to ensure it keeps *working*. As we refactor, optimize, and evolve our codebase, how do we know we haven't broken something? How do we catch regressions before users do? That's where testing and validation workflows come in - the skeptical guardians that continuously verify our systems still function as expected. We learned the hard way that AI infrastructure needs constant health checks, because what worked yesterday might silently fail today. These workflows embody **trust but verify**.
+But making code *better* is only half the battle. We also need to ensure it keeps *working*. As we refactor, optimize, and evolve our codebase, how do we know we haven't broken something? How do we catch regressions before users do? That's where testing and validation workflows come in - the skeptical guardians that continuously verify our systems still function as expected. We learned that AI infrastructure needs constant health checks, because what worked yesterday might silently fail today. These workflows embody **trust but verify**.
 
 ## Testing & Validation Workflows
 
 These agents keep everything running smoothly through continuous testing:
 
-- **[Smoke Tests](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/smoke-codex-firewall.md?plain=1)** - Validate that engines and firewall are working (running every 12 hours!)
-- **[Daily Multi-Device Docs Tester](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation across devices (mobile matters!)
-- **[CI Coach](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-coach.md?plain=1)** - Provides friendly guidance on CI/CD improvements
+### Code Quality & Test Validation
 
-We learned the hard way that AI infrastructure needs constant health checks. The Smoke Tests run every 12 hours to validate that our core systems (engines, firewall, MCP servers) are actually working. It's caught outages before users noticed them. The Multi-Device Docs Tester uses Playwright to test our documentation on different screen sizes - it found mobile rendering issues we never would have caught manually. The CI Coach analyzes our CI/CD pipeline and suggests optimizations ("you're running tests sequentially when they could be parallel").
+- **[Daily Testify Uber Super Expert](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-testify-uber-super-expert.md?plain=1)** - Analyzes test files daily and suggests testify-based improvements
+- **[Daily Test Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md?plain=1)** - Identifies coverage gaps and implements new tests incrementally
+- **[Daily Compiler Quality Check](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-compiler-quality.md?plain=1)** - Analyzes compiler code to ensure it meets quality standards
+
+### User Experience & Integration Testing
+
+- **[Daily Multi-Device Docs Tester](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation across devices with Playwright (mobile matters!)
+- **[CLI Consistency Checker](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/cli-consistency-checker.md?plain=1)** - Inspects the CLI for inconsistencies, typos, and documentation gaps
+
+### CI/CD Optimization
+
+- **[CI Coach](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-coach.md?plain=1)** - Analyzes CI pipelines and suggests optimizations
+- **[Workflow Health Manager](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-health-manager.md?plain=1)** - Meta-orchestrator monitoring health of all agentic workflows
+
+The Daily Testify Expert and Daily Test Improver work together to continuously improve our test suite - one analyzes existing tests for quality improvements, the other identifies coverage gaps and implements new tests. The Compiler Quality Check and Breaking Change Checker maintain code quality and API stability.
+
+The Multi-Device Docs Tester uses Playwright to test our documentation on different screen sizes - it found mobile rendering issues we never would have caught manually. The CLI Consistency Checker helps maintain developer experience by catching UX inconsistencies.
+
+The CI Coach suggests pipeline optimizations to keep builds fast, while the Workflow Health Manager watches all these watchers, ensuring the testing infrastructure itself stays healthy.
 
 These workflows embody the principle: **trust but verify**. Just because it worked yesterday doesn't mean it works today.
 

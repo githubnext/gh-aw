@@ -14,7 +14,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-*Good morning, starshine!* 🎩✨ Welcome, welcome, WELCOME to Peli's Agent Factory!
+*Good morning, starshine!* Welcome, welcome, WELCOME to Peli's Agent Factory!
 
 Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress.
 
@@ -82,7 +82,7 @@ Each article is bite-sized. Start with [Meet the Workflows](/gh-aw/blog/2026-01-
 6. [Metrics & Analytics Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)
 7. [Operations & Release Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/)
 8. [Security & Compliance Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
-9. [Creative & Culture Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
+9. [Teamwork & Culture Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
 10. [Interactive & ChatOps Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/)
 11. [Testing & Validation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/)
 12. [Tool & Infrastructure Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/)
