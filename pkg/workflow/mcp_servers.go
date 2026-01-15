@@ -496,7 +496,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 		yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
 		yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
-		
+
 		// Generate API key with proper error handling (avoid SC2155)
 		if apiKey == "" {
 			// Declare variable first, then assign to avoid masking return values
