@@ -30,6 +30,8 @@ GitHub Agentic Workflows supports human-friendly schedule expressions that are a
 | **Weekly** | `weekly` | Scattered day/time | Fuzzy |
 | | `weekly on monday` | Monday, scattered time | Fuzzy |
 | | `weekly on friday around 5pm` | Friday 4pm-6pm | Fuzzy |
+| **Bi-weekly** | `bi-weekly` | Scattered across 2 weeks | Fuzzy |
+| **Tri-weekly** | `tri-weekly` | Scattered across 3 weeks | Fuzzy |
 | **Intervals** | `every 10 minutes` | Every 10 minutes | Fixed |
 | | `every 2 days` | Every 2 days | Fixed |
 | **Cron** | `0 9 * * 1` | Standard cron | Fixed |
@@ -197,6 +199,48 @@ on:
 ```
 
 Scatters Friday 4pm-6pm
+
+### Bi-weekly Schedules
+
+Run once every two weeks at scattered day and time:
+
+```yaml
+on:
+  schedule: bi-weekly
+```
+
+**Output**: Scattered across 2 weeks like `43 5 */14 * *` (every 14 days at scattered time)
+
+**Use cases**:
+- Bi-weekly reports
+- Fortnightly maintenance
+- Regular check-ins on a two-week cadence
+
+**How it works**:
+- Uses fuzzy scattering across 14 days (2 weeks)
+- Each workflow gets a deterministic time that repeats every 14 days
+- Time is scattered across the full 2-week period to distribute load
+
+### Tri-weekly Schedules
+
+Run once every three weeks at scattered day and time:
+
+```yaml
+on:
+  schedule: tri-weekly
+```
+
+**Output**: Scattered across 3 weeks like `18 14 */21 * *` (every 21 days at scattered time)
+
+**Use cases**:
+- Three-week cycle reports
+- Periodic maintenance on 21-day intervals
+- Regular reviews on a three-week cadence
+
+**How it works**:
+- Uses fuzzy scattering across 21 days (3 weeks)
+- Each workflow gets a deterministic time that repeats every 21 days
+- Time is scattered across the full 3-week period to distribute load
 
 ## UTC Offset Support
 
@@ -503,6 +547,8 @@ This shorthand adds `workflow_dispatch` for manual triggering alongside the sche
 on: daily
 on: hourly
 on: weekly on monday
+on: bi-weekly
+on: tri-weekly
 on: every 2h
 ```
 

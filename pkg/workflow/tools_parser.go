@@ -327,6 +327,11 @@ func parseSerenaTool(val any) *SerenaToolConfig {
 			config.Version = version
 		}
 
+		// Parse mode field
+		if mode, ok := configMap["mode"].(string); ok {
+			config.Mode = mode
+		}
+
 		if args, ok := configMap["args"].([]any); ok {
 			config.Args = make([]string, 0, len(args))
 			for _, item := range args {

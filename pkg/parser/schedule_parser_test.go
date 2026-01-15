@@ -599,6 +599,34 @@ func TestParseSchedule(t *testing.T) {
 			errorSubstring: "'monthly on <day>' syntax is not supported",
 		},
 
+		// Bi-weekly schedules (fuzzy)
+		{
+			name:         "bi-weekly fuzzy",
+			input:        "bi-weekly",
+			expectedCron: "FUZZY:BI_WEEKLY * * *",
+			expectedOrig: "bi-weekly",
+		},
+		{
+			name:           "bi-weekly with parameters",
+			input:          "bi-weekly on monday",
+			shouldError:    true,
+			errorSubstring: "bi-weekly schedule does not support additional parameters",
+		},
+
+		// Tri-weekly schedules (fuzzy)
+		{
+			name:         "tri-weekly fuzzy",
+			input:        "tri-weekly",
+			expectedCron: "FUZZY:TRI_WEEKLY * * *",
+			expectedOrig: "tri-weekly",
+		},
+		{
+			name:           "tri-weekly with parameters",
+			input:          "tri-weekly on friday",
+			shouldError:    true,
+			errorSubstring: "tri-weekly schedule does not support additional parameters",
+		},
+
 		// Interval schedules
 		{
 			name:         "every 10 minutes",
@@ -1843,5 +1871,161 @@ func TestScatterScheduleWeeklyAroundDeterministic(t *testing.T) {
 	// Different workflows should produce different results (with high probability)
 	if results[0] == results[1] && results[1] == results[2] {
 		t.Errorf("ScatterSchedule produced identical results for all workflows: %s", results[0])
+	}
+}
+
+func TestScatterScheduleBiWeekly(t *testing.T) {
+	tests := []struct {
+		name               string
+		fuzzyCron          string
+		workflowIdentifier string
+		expectError        bool
+		errorMsg           string
+	}{
+		{
+			name:               "bi-weekly fuzzy",
+			fuzzyCron:          "FUZZY:BI_WEEKLY * * *",
+			workflowIdentifier: "test-workflow",
+			expectError:        false,
+		},
+		{
+			name:               "bi-weekly with different workflow",
+			fuzzyCron:          "FUZZY:BI_WEEKLY * * *",
+			workflowIdentifier: "another-workflow",
+			expectError:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ScatterSchedule(tt.fuzzyCron, tt.workflowIdentifier)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorMsg)
+				} else if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("expected error containing '%s', got: %s", tt.errorMsg, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %s", err)
+				return
+			}
+
+			// Verify it's a valid cron expression
+			fields := strings.Fields(result)
+			if len(fields) != 5 {
+				t.Errorf("expected 5 fields in cron, got %d: %s", len(fields), result)
+			}
+
+			// Verify it uses 14-day interval pattern (bi-weekly = every 14 days)
+			if fields[2] != "*/14" {
+				t.Errorf("expected day-of-month pattern '*/14' for bi-weekly, got: %s", fields[2])
+			}
+		})
+	}
+}
+
+func TestScatterScheduleBiWeeklyDeterministic(t *testing.T) {
+	// Test that scattering is deterministic - same input produces same output
+	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
+
+	results := make([]string, len(workflows))
+	for i, wf := range workflows {
+		result, err := ScatterSchedule("FUZZY:BI_WEEKLY * * *", wf)
+		if err != nil {
+			t.Fatalf("ScatterSchedule failed for workflow %s: %s", wf, err)
+		}
+		results[i] = result
+	}
+
+	// First and last results should be identical (same workflow)
+	if results[0] != results[3] {
+		t.Errorf("ScatterSchedule not deterministic: workflow-a produced %s and %s", results[0], results[3])
+	}
+
+	// Different workflows should produce different results (with high probability)
+	if results[0] == results[1] && results[1] == results[2] {
+		t.Logf("Warning: All different workflows got the same schedule (unlikely but possible): %s", results[0])
+	}
+}
+
+func TestScatterScheduleTriWeekly(t *testing.T) {
+	tests := []struct {
+		name               string
+		fuzzyCron          string
+		workflowIdentifier string
+		expectError        bool
+		errorMsg           string
+	}{
+		{
+			name:               "tri-weekly fuzzy",
+			fuzzyCron:          "FUZZY:TRI_WEEKLY * * *",
+			workflowIdentifier: "test-workflow",
+			expectError:        false,
+		},
+		{
+			name:               "tri-weekly with different workflow",
+			fuzzyCron:          "FUZZY:TRI_WEEKLY * * *",
+			workflowIdentifier: "another-workflow",
+			expectError:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ScatterSchedule(tt.fuzzyCron, tt.workflowIdentifier)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorMsg)
+				} else if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("expected error containing '%s', got: %s", tt.errorMsg, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %s", err)
+				return
+			}
+
+			// Verify it's a valid cron expression
+			fields := strings.Fields(result)
+			if len(fields) != 5 {
+				t.Errorf("expected 5 fields in cron, got %d: %s", len(fields), result)
+			}
+
+			// Verify it uses 21-day interval pattern (tri-weekly = every 21 days)
+			if fields[2] != "*/21" {
+				t.Errorf("expected day-of-month pattern '*/21' for tri-weekly, got: %s", fields[2])
+			}
+		})
+	}
+}
+
+func TestScatterScheduleTriWeeklyDeterministic(t *testing.T) {
+	// Test that scattering is deterministic - same input produces same output
+	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
+
+	results := make([]string, len(workflows))
+	for i, wf := range workflows {
+		result, err := ScatterSchedule("FUZZY:TRI_WEEKLY * * *", wf)
+		if err != nil {
+			t.Fatalf("ScatterSchedule failed for workflow %s: %s", wf, err)
+		}
+		results[i] = result
+	}
+
+	// First and last results should be identical (same workflow)
+	if results[0] != results[3] {
+		t.Errorf("ScatterSchedule not deterministic: workflow-a produced %s and %s", results[0], results[3])
+	}
+
+	// Different workflows should produce different results (with high probability)
+	if results[0] == results[1] && results[1] == results[2] {
+		t.Logf("Warning: All different workflows got the same schedule (unlikely but possible): %s", results[0])
 	}
 }
