@@ -59,14 +59,14 @@ describe("load_agent_output.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
     });
 
-    it("should return success: false and log error when file cannot be read", () => {
+    it("should return success: false and log info when file cannot be read", () => {
       process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.json";
 
       const result = loadAgentOutputModule.loadAgentOutput();
 
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/Error reading agent output file/);
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file"));
     });
 
     it("should return success: false when file content is empty", () => {
