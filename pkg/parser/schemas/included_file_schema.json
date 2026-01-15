@@ -512,6 +512,12 @@
                   "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
                   "examples": ["latest", "0.1.0", 1.0]
                 },
+                "mode": {
+                  "type": "string",
+                  "description": "Serena execution mode: 'docker' (default, runs in container) or 'local' (runs locally with uvx and HTTP transport)",
+                  "enum": ["docker", "local"],
+                  "default": "docker"
+                },
                 "args": {
                   "type": "array",
                   "description": "Optional additional arguments to append to the generated MCP server command",

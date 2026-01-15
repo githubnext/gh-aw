@@ -189,40 +189,61 @@ func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serena
 }
 
 // renderSerenaTOML generates Serena MCP configuration in TOML format
-// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
-// Uses Docker container format as specified by Serena: ghcr.io/oraios/serena:latest
+// Supports two modes:
+// - "docker" (default): Uses Docker container with stdio transport
+// - "local": Uses local uvx with HTTP transport
 func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
+	// Determine the mode
+	mode := "docker" // default
+	if toolMap, ok := serenaTool.(map[string]any); ok {
+		if modeStr, ok := toolMap["mode"].(string); ok {
+			mode = modeStr
+		}
+	}
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.serena]\n")
-	yaml.WriteString("          container = \"ghcr.io/oraios/serena:latest\"\n")
 
-	// Docker runtime args (--network host for network access)
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"--network\",\n")
-	yaml.WriteString("            \"host\",\n")
-	yaml.WriteString("          ]\n")
+	if mode == "local" {
+		// Local mode: use HTTP transport
+		yaml.WriteString("          type = \"http\"\n")
+		yaml.WriteString("          url = \"http://localhost:$GH_AW_SERENA_PORT\"\n")
+		yaml.WriteString("          headers = { Authorization = \"$GH_AW_SERENA_API_KEY\" }\n")
+	} else {
+		// Docker mode: use stdio transport (default)
+		yaml.WriteString("          container = \"ghcr.io/oraios/serena:latest\"\n")
 
-	// Serena entrypoint
-	yaml.WriteString("          entrypoint = \"serena\"\n")
+		// Docker runtime args (--network host for network access)
+		yaml.WriteString("          args = [\n")
+		yaml.WriteString("            \"--network\",\n")
+		yaml.WriteString("            \"host\",\n")
+		yaml.WriteString("          ]\n")
 
-	// Entrypoint args for Serena MCP server
-	yaml.WriteString("          entrypointArgs = [\n")
-	yaml.WriteString("            \"start-mcp-server\",\n")
-	yaml.WriteString("            \"--context\",\n")
-	yaml.WriteString("            \"codex\",\n")
-	yaml.WriteString("            \"--project\",\n")
-	yaml.WriteString("            \"${{ github.workspace }}\"")
+		// Serena entrypoint
+		yaml.WriteString("          entrypoint = \"serena\"\n")
 
-	// Append custom args if present
-	writeArgsToYAML(yaml, customArgs, "            ")
+		// Entrypoint args for Serena MCP server
+		yaml.WriteString("          entrypointArgs = [\n")
+		yaml.WriteString("            \"start-mcp-server\",\n")
+		yaml.WriteString("            \"--context\",\n")
+		yaml.WriteString("            \"codex\",\n")
+		yaml.WriteString("            \"--project\",\n")
+		yaml.WriteString("            \"${{ github.workspace }}\"")
 
-	yaml.WriteString("\n")
-	yaml.WriteString("          ]\n")
+		// Append custom args if present
+		for _, arg := range customArgs {
+			yaml.WriteString(",\n")
+			fmt.Fprintf(yaml, "            \"%s\"", arg)
+		}
 
-	// Add volume mount for workspace access
-	yaml.WriteString("          mounts = [\"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
+		yaml.WriteString("\n")
+		yaml.WriteString("          ]\n")
+
+		// Add volume mount for workspace access
+		yaml.WriteString("          mounts = [\"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
+	}
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration

@@ -131,6 +131,16 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 
 	// Note: Serena and other built-in MCP servers now run in containers and do not
 	// require runtime detection. Language services are provided inside the containers.
+	// EXCEPTION: Serena in local mode uses uvx and requires uv runtime
+
+	// Check if Serena is in local mode - if so, add uvx runtime
+	if tools.Serena != nil && tools.Serena.Mode == "local" {
+		runtimeSetupLog.Print("Serena configured in local mode, adding uvx runtime requirement")
+		uvRuntime := findRuntimeByID("uv")
+		if uvRuntime != nil {
+			updateRequiredRuntime(uvRuntime, "", requirements)
+		}
+	}
 
 	// Scan custom MCP tools for runtime commands
 	// Skip containerized MCP servers as they don't need host runtime setup
