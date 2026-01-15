@@ -304,6 +304,34 @@ jobs:
         run: make recompile
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Check for uncommitted lock file changes
+        run: |
+          # Check if there are any uncommitted changes to .lock.yml files
+          if ! git diff --exit-code .github/workflows/*.lock.yml > /dev/null 2>&1; then
+            echo "❌ Lock files are out of date!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The compiled workflow lock files (.lock.yml) are not up to date with the source files (.md)." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**To fix this:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Run \`make recompile\` locally or ask the Copilot agent to run it" >> $GITHUB_STEP_SUMMARY
+            echo "2. Commit the updated .lock.yml files" >> $GITHUB_STEP_SUMMARY
+            echo "3. Push the changes" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Changed lock files</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
+            git diff .github/workflows/*.lock.yml | head -100 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "❌ ERROR: Lock files are out of date"
+            echo ""
+            echo "Run 'make recompile' to update the lock files, then commit them."
+            exit 1
+          fi
+          echo "✅ All lock files are up to date" >> $GITHUB_STEP_SUMMARY
   js:
     runs-on: ubuntu-latest
     permissions:
