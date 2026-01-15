@@ -126,24 +126,6 @@ func buildSourceURL(source string) string {
 	return fmt.Sprintf("${{ github.server_url }}/%s/%s/tree/%s/%s", owner, repo, refPart, filePath)
 }
 
-// extractSafetyPromptSetting extracts the safety-prompt setting from tools
-// Returns true by default (safety prompt is enabled by default)
-func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
-	if tools == nil {
-		return true // Default is enabled
-	}
-
-	// Check if safety-prompt is explicitly set in tools
-	if safetyPromptValue, exists := tools["safety-prompt"]; exists {
-		if boolValue, ok := safetyPromptValue.(bool); ok {
-			return boolValue
-		}
-	}
-
-	// Default to true (enabled)
-	return true
-}
-
 // safeUintToInt safely converts uint to int, returning 0 if overflow would occur
 func safeUintToInt(u uint) int {
 	if u > math.MaxInt {

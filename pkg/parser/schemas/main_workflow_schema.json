@@ -2954,10 +2954,6 @@
             ]
           ]
         },
-        "safety-prompt": {
-          "type": "boolean",
-          "description": "Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the prompt. Defaults to true (enabled). Set to false to disable security warnings."
-        },
         "timeout": {
           "type": "integer",
           "minimum": 1,
@@ -2992,6 +2988,12 @@
                   "type": ["string", "number"],
                   "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
                   "examples": ["latest", "0.1.0", 1.0]
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Serena execution mode: 'docker' (default, runs in container) or 'local' (runs locally with uvx and HTTP transport)",
+                  "enum": ["docker", "local"],
+                  "default": "docker"
                 },
                 "args": {
                   "type": "array",
@@ -3897,6 +3899,10 @@
                 "target-owner": {
                   "type": "string",
                   "description": "Optional default target owner (organization or user login, e.g., 'myorg' or 'username') for the new project. If specified, the agent can omit the owner field in the tool call and this default will be used. The agent can still override by providing an owner in the tool call."
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for auto-generated project titles (default: 'Campaign'). When the agent doesn't provide a title, the project title is auto-generated as '<title-prefix>: <issue-title>' or '<title-prefix> #<issue-number>' based on the issue context."
                 }
               },
               "additionalProperties": false

@@ -26,6 +26,21 @@ name: "Release"
   push:
     tags:
     - v*.*.*
+  workflow_dispatch:
+    inputs:
+      draft:
+        default: true
+        description: Create as draft release
+        required: false
+        type: boolean
+      release_type:
+        description: Release type (patch, minor, or major)
+        options:
+        - patch
+        - minor
+        - major
+        required: true
+        type: choice
 
 permissions:
   actions: read
@@ -73,6 +88,7 @@ jobs:
   agent:
     needs:
       - activation
+      - config
       - docker-image
       - generate-sbom
       - release
@@ -116,8 +132,9 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
         name: Setup environment and fetch release data
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID from the release job\necho \"Release ID from release job: $RELEASE_ID\"\n\n# Get the release tag from the push event\nif [[ ! \"$GITHUB_REF\" == refs/tags/* ]]; then\n  echo \"Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF\"\n  exit 1\nfi\nRELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"\necho \"Processing release: $RELEASE_TAG\"\n\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\""
+        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\""
 
       - name: Configure Git credentials
         env:
@@ -153,7 +170,8 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.381 && sudo bash /tmp/copilot-install.sh
+          # Pass VERSION directly to sudo to ensure it's available to the installer script
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -162,8 +180,8 @@ jobs:
           copilot --version
       - name: Install awf binary
         run: |
-          echo "Installing awf via installer script (requested version: v0.8.2)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.8.2 bash
+          echo "Installing awf via installer script (requested version: v0.9.1)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.1 bash
           which awf
           awf --version
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -176,8 +194,8 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Downloading container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.56 node:lts-alpine
+      - name: Download container images
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.59 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -369,12 +387,14 @@ jobs:
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
-          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          MCP_GATEWAY_API_KEY=""
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          export MCP_GATEWAY_API_KEY
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.56'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.59'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -431,7 +451,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.381",
+              agent_version: "0.0.382",
               workflow_name: "Release",
               experimental: false,
               supports_tools_allowlist: true,
@@ -448,8 +468,8 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["defaults","node","githubnext.github.io"],
               firewall_enabled: true,
-              awf_version: "v0.8.2",
-              awmg_version: "v0.0.56",
+              awf_version: "v0.9.1",
+              awmg_version: "v0.0.59",
               steps: {
                 firewall: "squid"
               },
@@ -625,11 +645,6 @@ jobs:
                 GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID: process.env.GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID
               }
             });
-      - name: Append XPIA security instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat "/opt/gh-aw/prompts/xpia_prompt.md" >> "$GH_AW_PROMPT"
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -748,7 +763,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,githubnext.github.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.8.2 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,githubnext.github.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -990,6 +1005,68 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
+  config:
+    needs: activation
+    runs-on: ubuntu-latest
+    outputs:
+      draft_mode: ${{ steps.compute_config.outputs.draft_mode }}
+      release_tag: ${{ steps.compute_config.outputs.release_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compute release configuration
+        id: compute_config
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # For workflow_dispatch, compute next version based on release type
+            RELEASE_TYPE="${{ inputs.release_type }}"
+            DRAFT_MODE="${{ inputs.draft }}"
+
+            echo "Computing next version for release type: $RELEASE_TYPE"
+
+            # Get the latest release tag
+            LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"')
+            echo "Latest release tag: $LATEST_TAG"
+
+            # Parse version components (strip 'v' prefix)
+            VERSION="${LATEST_TAG#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+            # Increment based on release type
+            case "$RELEASE_TYPE" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+
+            RELEASE_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Computed release tag: $RELEASE_TAG"
+          else
+            # For tag push events, use the tag from GITHUB_REF
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+            DRAFT_MODE="false"
+            echo "Using tag from push event: $RELEASE_TAG"
+          fi
+
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "draft_mode=$DRAFT_MODE" >> "$GITHUB_OUTPUT"
+          echo "✓ Release tag: $RELEASE_TAG"
+          echo "✓ Draft mode: $DRAFT_MODE"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -1094,7 +1171,8 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.381 && sudo bash /tmp/copilot-install.sh
+          # Pass VERSION directly to sudo to ensure it's available to the installer script
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1299,7 +1377,9 @@ jobs:
             await main();
 
   release:
-    needs: activation
+    needs:
+      - activation
+      - config
     runs-on: ubuntu-latest
     permissions:
       attestations: write
@@ -1316,14 +1396,34 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Create or update tag for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Creating tag: $RELEASE_TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$RELEASE_TAG"
+          git push origin "$RELEASE_TAG"
+          echo "✓ Tag created: $RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@6f13f31f798a93a6b08d3be0727120e9af35851f # 6f13f31f798a93a6b08d3be0727120e9af35851f
         with:
           build_script_override: scripts/build-release.sh
           go_version_file: go.mod
+      - name: Set release to draft mode
+        if: needs.config.outputs.draft_mode == 'true'
+        run: |
+          echo "Setting release to draft mode: $RELEASE_TAG"
+          # Edit the release to set it as draft
+          gh release edit "$RELEASE_TAG" --draft
+          echo "✓ Release set to draft mode"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Upload checksums file
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           if [ -f "dist/checksums.txt" ]; then
             echo "Uploading checksums file to release: $RELEASE_TAG"
             gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
@@ -1333,10 +1433,10 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Get release ID
         id: get_release
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
@@ -1345,6 +1445,7 @@ jobs:
           echo "✓ Release Tag: $RELEASE_TAG"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 
   safe_outputs:
     needs:

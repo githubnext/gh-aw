@@ -131,6 +131,19 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 
 	// Note: Serena and other built-in MCP servers now run in containers and do not
 	// require runtime detection. Language services are provided inside the containers.
+	// EXCEPTION: Serena in local mode uses uvx and requires uv runtime + language runtimes
+
+	// Check if Serena is in local mode - if so, add uvx runtime and language runtimes
+	if tools.Serena != nil && tools.Serena.Mode == "local" {
+		runtimeSetupLog.Print("Serena configured in local mode, adding uvx runtime requirement")
+		uvRuntime := findRuntimeByID("uv")
+		if uvRuntime != nil {
+			updateRequiredRuntime(uvRuntime, "", requirements)
+		}
+
+		// Add language runtimes based on configured languages
+		detectSerenaLanguageRuntimes(tools.Serena, requirements)
+	}
 
 	// Scan custom MCP tools for runtime commands
 	// Skip containerized MCP servers as they don't need host runtime setup
@@ -188,5 +201,73 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 	// Compare versions and keep the higher one
 	if compareVersions(newVersion, existing.Version) > 0 {
 		existing.Version = newVersion
+	}
+}
+
+// detectSerenaLanguageRuntimes detects and adds runtime requirements for Serena language services
+// when running in local mode. Maps Serena language names to runtime IDs.
+func detectSerenaLanguageRuntimes(serenaConfig *SerenaToolConfig, requirements map[string]*RuntimeRequirement) {
+	if serenaConfig == nil {
+		return
+	}
+
+	// Map of Serena language names to runtime IDs
+	languageToRuntime := map[string]string{
+		"go":         "go",
+		"typescript": "node",
+		"javascript": "node",
+		"python":     "python",
+		"java":       "java",
+		"rust":       "rust", // rust is not in knownRuntimes yet, but including for completeness
+		"csharp":     "dotnet",
+	}
+
+	// Check ShortSyntax first (array format like ["go", "typescript"])
+	if len(serenaConfig.ShortSyntax) > 0 {
+		for _, langName := range serenaConfig.ShortSyntax {
+			if runtimeID, ok := languageToRuntime[langName]; ok {
+				runtime := findRuntimeByID(runtimeID)
+				if runtime != nil {
+					runtimeSetupLog.Printf("Serena local mode: adding runtime for language '%s' -> '%s'", langName, runtimeID)
+					updateRequiredRuntime(runtime, "", requirements)
+				} else {
+					runtimeSetupLog.Printf("Serena local mode: runtime '%s' not found for language '%s'", runtimeID, langName)
+				}
+			}
+		}
+		return
+	}
+
+	// Check Languages map (detailed configuration)
+	if serenaConfig.Languages != nil {
+		for langName, langConfig := range serenaConfig.Languages {
+			if runtimeID, ok := languageToRuntime[langName]; ok {
+				runtime := findRuntimeByID(runtimeID)
+				if runtime != nil {
+					// Use version from language config if specified
+					version := ""
+					if langConfig != nil && langConfig.Version != "" {
+						version = langConfig.Version
+					}
+
+					runtimeSetupLog.Printf("Serena local mode: adding runtime for language '%s' -> '%s' (version: %s)", langName, runtimeID, version)
+
+					// For Go, check if go-mod-file is specified
+					if runtimeID == "go" && langConfig != nil && langConfig.GoModFile != "" {
+						// Create a requirement with GoModFile set
+						req := &RuntimeRequirement{
+							Runtime:   runtime,
+							Version:   version,
+							GoModFile: langConfig.GoModFile,
+						}
+						requirements[runtimeID] = req
+					} else {
+						updateRequiredRuntime(runtime, version, requirements)
+					}
+				} else {
+					runtimeSetupLog.Printf("Serena local mode: runtime '%s' not found for language '%s'", runtimeID, langName)
+				}
+			}
+		}
 	}
 }
