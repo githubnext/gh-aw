@@ -416,6 +416,8 @@ jobs:
                   "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
                   "GITHUB_SHA": "$GITHUB_SHA",
                   "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
+                  "GITHUB_REF_NAME": "$GITHUB_REF_NAME",
+                  "GITHUB_HEAD_REF": "$GITHUB_HEAD_REF",
                   "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
                 }
               }
