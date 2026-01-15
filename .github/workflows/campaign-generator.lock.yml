@@ -19,40 +19,46 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Generates a comprehensive report of available MCP server tools and their capabilities for GitHub integration
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/reporting.md
+# Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
 
-name: "GitHub MCP Remote Server Tools Report Generator"
+name: "Campaign Generator"
 "on":
-  schedule:
-  - cron: "50 12 * * 0"
-    # Friendly format: weekly on sunday around 12:00 (scattered)
-  workflow_dispatch:
+  issues:
+    # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
+    # names: # Label filtering applied via job conditions
+    # - create-agentic-campaign # Label filtering applied via job conditions
+    types:
+    - labeled
+  workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
-  discussions: read
   issues: read
   pull-requests: read
-  security-events: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "GitHub MCP Remote Server Tools Report Generator"
+run-name: "Campaign Generator"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: >
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
+      (github.event.label.name == 'create-agentic-campaign')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     outputs:
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_repo: ${{ steps.react.outputs.comment-repo }}
+      comment_url: ${{ steps.react.outputs.comment-url }}
+      issue_locked: ${{ steps.lock-issue.outputs.locked }}
+      reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -67,26 +73,46 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "github-mcp-tools-report.lock.yml"
+          GH_AW_WORKFLOW_FILE: "campaign-generator.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Add eyes reaction to the triggering item
+        id: react
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_REACTION: "eyes"
+          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_LOCK_FOR_AGENT: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/add_reaction_and_edit_comment.cjs');
+            await main();
+      - name: Lock issue for agent workflow
+        id: lock-issue
+        if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/lock-issue.cjs');
+            await main();
 
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-      discussions: read
       issues: read
       pull-requests: read
-      security-events: read
-    concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -118,17 +144,6 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache-memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -182,75 +197,110 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/githubnext/gh-aw-mcpg:v0.0.60 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.60 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"create_pull_request":{},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":10},"assign_to_agent":{},"create_project":{"max":1,"title_prefix":"Campaign"},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"audits\".",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 10 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
+                    "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation.",
                     "type": "string"
                   },
-                  "category": {
-                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
-                    "type": "string"
+                  "item_number": {
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion).",
+                    "type": "number"
                   }
                 },
                 "required": [
-                  "title",
                   "body"
                 ],
                 "type": "object"
               },
-              "name": "create_discussion"
+              "name": "add_comment"
             },
             {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Reviewers [copilot] will be assigned.",
+              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
+              "inputSchema": {
+                "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "required": [
+                      "issue_number"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "pull_number"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "agent": {
+                    "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
+                    "type": "string"
+                  },
+                  "issue_number": {
+                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "pull_number": {
+                    "description": "Pull request number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "type": "object"
+              },
+              "name": "assign_to_agent"
+            },
+            {
+              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 1 issue(s) can be updated.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
+                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
                     "type": "string"
                   },
-                  "branch": {
-                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
-                    "type": "string"
+                  "issue_number": {
+                    "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
                   },
-                  "labels": {
-                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
+                  "status": {
+                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
+                    "enum": [
+                      "open",
+                      "closed"
+                    ],
+                    "type": "string"
                   },
                   "title": {
-                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
+                    "description": "New issue title to replace the existing title.",
                     "type": "string"
                   }
                 },
-                "required": [
-                  "title",
-                  "body"
-                ],
                 "type": "object"
               },
-              "name": "create_pull_request"
+              "name": "update_issue"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -295,6 +345,136 @@ jobs:
               "name": "noop"
             },
             {
+              "description": "Unified GitHub Projects v2 operations. Default behavior updates project items (add issue/PR/draft_issue and/or update custom fields). Also supports creating project views (table/board/roadmap) when operation=create_view.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "campaign_id": {
+                    "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
+                    "type": "string"
+                  },
+                  "content_number": {
+                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
+                    "type": "number"
+                  },
+                  "content_type": {
+                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
+                    "enum": [
+                      "issue",
+                      "pull_request",
+                      "draft_issue"
+                    ],
+                    "type": "string"
+                  },
+                  "create_if_missing": {
+                    "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
+                    "type": "boolean"
+                  },
+                  "draft_body": {
+                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "draft_title": {
+                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
+                    "type": "object"
+                  },
+                  "operation": {
+                    "description": "Optional operation selector. Default: update_item. Use create_view to create a project view (table/board/roadmap).",
+                    "enum": [
+                      "update_item",
+                      "create_view"
+                    ],
+                    "type": "string"
+                  },
+                  "project": {
+                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  },
+                  "view": {
+                    "additionalProperties": false,
+                    "description": "View configuration. Required when operation is create_view.",
+                    "properties": {
+                      "description": {
+                        "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored.",
+                        "type": "string"
+                      },
+                      "filter": {
+                        "description": "Optional filter query for the view (e.g., 'is:issue is:open').",
+                        "type": "string"
+                      },
+                      "layout": {
+                        "description": "The layout of the view.",
+                        "enum": [
+                          "table",
+                          "board",
+                          "roadmap"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "The name of the view (e.g., 'Sprint Board').",
+                        "type": "string"
+                      },
+                      "visible_fields": {
+                        "description": "Optional field IDs that should be visible in the view (table/board only). Not applicable to roadmap.",
+                        "items": {
+                          "type": "number"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "layout"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "project"
+                ],
+                "type": "object"
+              },
+              "name": "update_project"
+            },
+            {
+              "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "item_url": {
+                    "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123').",
+                    "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+$",
+                    "type": "string"
+                  },
+                  "owner": {
+                    "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter.",
+                    "type": "string"
+                  },
+                  "owner_type": {
+                    "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'.",
+                    "enum": [
+                      "org",
+                      "user"
+                    ],
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated using the title-prefix configuration (default: 'Campaign') as '\u003ctitle-prefix\u003e: \u003cissue-title\u003e' or '\u003ctitle-prefix\u003e #\u003cissue-number\u003e' based on the issue context.",
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "name": "create_project"
+            },
+            {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -328,7 +508,7 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_discussion": {
+            "add_comment": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -337,49 +517,52 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
-                "category": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
+                "item_number": {
+                  "issueOrPRNumber": true
                 }
               }
             },
-            "create_pull_request": {
+            "assign_to_agent": {
               "defaultMax": 1,
               "fields": {
-                "body": {
-                  "required": true,
+                "agent": {
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 65000
+                  "maxLength": 128
                 },
-                "branch": {
+                "issue_number": {
                   "required": true,
+                  "positiveInteger": true
+                }
+              }
+            },
+            "create_project": {
+              "defaultMax": 1,
+              "fields": {
+                "item_url": {
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 256
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+",
+                  "patternError": "must be a full GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)"
                 },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
+                "owner": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "owner_type": {
+                  "type": "string",
+                  "enum": [
+                    "org",
+                    "user"
+                  ]
                 },
                 "title": {
                   "required": true,
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 128
+                  "maxLength": 256
                 }
               }
             },
@@ -415,6 +598,69 @@ jobs:
                   "maxLength": 65000
                 }
               }
+            },
+            "update_issue": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "issue_number": {
+                  "issueOrPRNumber": true
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              },
+              "customValidation": "requiresOneOf:status,title,body"
+            },
+            "update_project": {
+              "defaultMax": 10,
+              "fields": {
+                "campaign_id": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "content_number": {
+                  "optionalPositiveInteger": true
+                },
+                "content_type": {
+                  "type": "string",
+                  "enum": [
+                    "issue",
+                    "pull_request"
+                  ]
+                },
+                "fields": {
+                  "type": "object"
+                },
+                "issue": {
+                  "optionalPositiveInteger": true
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                },
+                "pull_request": {
+                  "optionalPositiveInteger": true
+                }
+              }
             }
           }
           EOF
@@ -444,13 +690,12 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN",
-                  "X-MCP-Lockdown": "$([ "$GITHUB_MCP_LOCKDOWN" = "1" ] && echo true || echo false)",
-                  "X-MCP-Readonly": "true",
-                  "X-MCP-Toolsets": "all"
+                "container": "ghcr.io/github/github-mcp-server:v0.28.1",
+                "env": {
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               },
               "safeoutputs": {
@@ -494,7 +739,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.1.7",
-              workflow_name: "GitHub MCP Remote Server Tools Report Generator",
+              workflow_name: "Campaign Generator",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -536,394 +781,360 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          ## Report Structure
+          {{#runtime-import? .github/shared-instructions.md}}
+          {{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
           
-          1. **Overview**: 1-2 paragraphs summarizing key findings
-          2. **Details**: Use `<details><summary><b>Full Report</b></summary>` for expanded content
+          # Campaign Generator
           
-          ## Workflow Run References
+          You are a campaign workflow coordinator for GitHub Agentic Workflows. You handle campaign creation and project setup, then assign compilation to the Copilot Coding Agent.
           
-          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
-          - Include up to 3 most relevant run URLs at end under `**References:**`
-          - Do NOT add footer attribution (system adds automatically)
+          ## IMPORTANT: Using Safe Output Tools
           
-          # GitHub MCP Remote Server Tools Report Generator
+          When creating or modifying GitHub resources (project, issue, comments), you **MUST use the MCP tool calling mechanism** to invoke the safe output tools. 
           
-          You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.
+          **Do NOT write markdown code fences or JSON** - you must make actual MCP tool calls using your MCP tool calling capability.
           
-          ## Mission
+          For example:
+          - To create a project, invoke the `create_project` MCP tool with the required parameters
+          - To update an issue, invoke the `update_issue` MCP tool with the required parameters
+          - To add a comment, invoke the `add_comment` MCP tool with the required parameters
+          - To assign to an agent, invoke the `assign_to_agent` MCP tool with the required parameters
           
-          Generate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.
+          MCP tool calls write structured data that downstream jobs process. Without proper MCP tool invocations, follow-up actions will be skipped.
           
-          ## Current Context
+          ## Your Task
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Report Date**: Today's date
-          - **MCP Server**: GitHub MCP Remote (mode: remote, toolsets: all)
+          **Your Responsibilities:**
+          1. Create GitHub Project board
+          2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)
+          3. Create recommended project views (Roadmap, Task Tracker, Progress Board)
+          4. Parse campaign requirements from issue
+          5. Discover matching workflows using the workflow catalog (local + agentics collection)
+          6. Generate complete `.campaign.md` specification file
+          7. Write the campaign file to the repository
+          8. Update the issue with campaign details
+          9. Assign to Copilot Coding Agent for compilation
           
-          ## Report Generation Process
+          **Copilot Coding Agent Responsibilities:**
+          1. Compile campaign using `gh aw compile` (requires CLI binary)
+          2. Commit all files (spec + generated files)
+          3. Create pull request
           
-          ### Phase 1: Tool Discovery and Comparison
+          ## Workflow Steps
           
-          1. **Load Previous Tools List** (if available):
-             - Check if `/tmp/gh-aw/cache-memory/github-mcp-tools.json` exists from the previous run
-             - If it exists, read and parse the previous tools list
-             - This will be used for comparison to detect changes
+          ### Step 1: Parse Campaign Requirements
           
-          2. **Systematically Explore All Toolsets**:
-             - You have access to the GitHub MCP server in remote mode with all toolsets enabled
-             - **IMPORTANT**: Systematically explore EACH of the following toolsets individually:
-               - `context` - GitHub Actions context and environment
-               - `repos` - Repository operations
-               - `issues` - Issue management
-               - `pull_requests` - Pull request operations
-               - `actions` - GitHub Actions workflows
-               - `code_security` - Code scanning alerts
-               - `dependabot` - Dependabot alerts
-               - `discussions` - GitHub Discussions
-               - `experiments` - Experimental features
-               - `gists` - Gist operations
-               - `labels` - Label management
-               - `notifications` - Notification management
-               - `orgs` - Organization operations
-               - `projects` - GitHub Projects
-               - `secret_protection` - Secret scanning
-               - `security_advisories` - Security advisories
-               - `stargazers` - Repository stars
-               - `users` - User information
-             - For EACH toolset, identify all tools that belong to it
-             - Create a comprehensive mapping of tools to their respective toolsets
-             - Note: The tools available to you ARE the tools from the GitHub MCP remote server
+          Extract requirements from the issue body #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
+          - Campaign goal/description
+          - Timeline and scope
+          - Suggested workflows (if any)
+          - Ownership information
+          - Risk indicators
           
-          3. **Detect Inconsistencies Across Toolsets**:
-             - Check for duplicate tools across different toolsets
-             - Identify tools that might belong to multiple toolsets
-             - Note any tools that don't clearly fit into any specific toolset
-             - Flag any naming inconsistencies or patterns that deviate from expected conventions
-             - Validate that all discovered tools are properly categorized
+          **Issue format example:**
+          ```markdown
+          ### Campaign Goal
+          <User's description of what the campaign should accomplish>
           
-          4. **Load Current JSON Mapping from Repository**:
-             - Read the file `pkg/workflow/data/github_toolsets_permissions.json` from the repository
-             - This file contains the current toolset->tools mapping used by the compiler
-             - Parse the JSON to extract the expected tools for each toolset
-             - This will be used to detect discrepancies between the compiler's understanding and the actual MCP server
+          ### Scope
+          <Timeline, repositories, teams involved>
           
-          5. **Compare MCP Server Tools with JSON Mapping**:
-             - For EACH toolset, compare the tools you discovered from the MCP server with the tools listed in the JSON mapping
-             - Identify **missing tools**: Tools in the JSON mapping but not found in the MCP server
-             - Identify **extra tools**: Tools found in the MCP server but not in the JSON mapping
-             - Identify **moved tools**: Tools that appear in different toolsets between JSON and MCP
-             - This comparison is CRITICAL for maintaining accuracy
+          ### Workflows Needed
+          <User's workflow suggestions, if any>
           
-          6. **Compare with Previous Tools** (if previous data exists):
-             - Identify **new tools** that were added since the last run
-             - Identify **removed tools** that existed before but are now missing
-             - Identify tools that remain **unchanged**
-             - Identify tools that **moved between toolsets**
-             - Calculate statistics on the changes
+          ### Risk Level
+          <Low/Medium/High with reasoning>
           
-          ### Phase 2: Update JSON Mapping (if needed)
+          ### Ownership
+          <Owner and sponsor information>
+          ```
           
-          **CRITICAL**: If you discovered any discrepancies between the MCP server tools and the JSON mapping in Phase 1, you MUST update the JSON file.
+          ### Step 2: Create GitHub Project Board
           
-          1. **Determine if Update is Needed**:
-             - If there are missing tools, extra tools, or moved tools identified in Phase 1 step 5
-             - If the JSON mapping is accurate, skip to Phase 3
+          Use the `create-project` safe output to create a new empty project:
           
-          2. **Update the JSON File**:
-             - Edit `pkg/workflow/data/github_toolsets_permissions.json`
-             - For each toolset with discrepancies:
-               - **Add missing tools**: Add tools found in MCP server but not in JSON
-               - **Remove extra tools**: Remove tools in JSON but not found in MCP server
-               - **Move tools**: Update tool placement to match MCP server organization
-             - Preserve the JSON structure and formatting
-             - Ensure all toolsets remain in alphabetical order
-             - Ensure all tools within each toolset remain in alphabetical order
+          ```javascript
+          create_project({
+            title: "Campaign: <campaign-name>",
+            owner: "__GH_AW_GITHUB_REPOSITORY_OWNER__",
+            item_url: "__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/issues/__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"
+          })
+          ```
           
-          3. **Create Pull Request with Changes**:
-             - **CRITICAL**: If you updated the JSON file, you MUST create a pull request with your changes:
-               1. Create a local branch with a descriptive name (e.g., `update-github-mcp-tools-mapping`)
-               2. Add and commit the updated `pkg/workflow/data/github_toolsets_permissions.json` file
-               3. **Use the create-pull-request tool from safe-outputs** to create the PR with:
-                  - A clear title describing the changes (e.g., "Update GitHub MCP toolsets mapping with latest tools")
-                  - A detailed body explaining what was added, removed, or moved between toolsets
-                  - The configured title prefix `[mcp-tools]`, labels, and reviewers will be applied automatically
-             - **IMPORTANT**: After creating the PR, continue with the documentation update in Phase 3
+          **Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
           
-          ### Phase 3: Tool Documentation
+          ### Step 2.5: Create Project Fields and Views
           
-          For each discovered tool, document:
+          After creating the project, set up custom fields using the `update-project` safe output.
           
-          1. **Tool Name**: The exact function name
-          2. **Toolset**: Which toolset category it belongs to (context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users)
-          3. **Purpose**: What the tool does (1-2 sentence description)
-          4. **Parameters**: Key parameters it accepts (if you can determine them)
-          5. **Example Use Case**: A brief example of when you would use this tool
+          **Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created from the workflow's frontmatter configuration when the agent makes any `update_project` call. You don't need to create them manually.
           
-          ### Phase 4: Generate Comprehensive Report
+          #### 2.5.1: Create Custom Fields
           
-          Create a detailed markdown report with the following structure:
+          ```javascript
+          update_project({
+            project: "<project-url-from-step-2>",
+            operation: "create_fields",
+            field_definitions: [
+              {
+                name: "Worker/Workflow",
+                data_type: "SINGLE_SELECT",
+                options: ["<workflow-id-1>", "<workflow-id-2>"]
+              },
+              {
+                name: "Priority",
+                data_type: "SINGLE_SELECT",
+                options: ["High", "Medium", "Low"]
+              },
+              {
+                name: "Status",
+                data_type: "SINGLE_SELECT",
+                options: ["Todo", "In Progress", "Review required", "Blocked", "Done", "Closed"]
+              },
+              {
+                name: "Start Date",
+                data_type: "DATE"
+              },
+              {
+                name: "End Date",
+                data_type: "DATE"
+              },
+              {
+                name: "Effort",
+                data_type: "SINGLE_SELECT",
+                options: ["Small (1-3 days)", "Medium (1 week)", "Large (2+ weeks)"]
+              }
+            ]
+          })
+          ```
+          
+          ### Step 3: Discover Workflows Dynamically
+          
+          Perform comprehensive workflow discovery by scanning the filesystem:
+          
+          1. **Scan for agentic workflows**:
+             ```bash
+             ls .github/workflows/*.md
+             ```
+             
+             For each agentic workflow file (`.md`):
+             - Parse the YAML frontmatter to extract `description`, `on`, and `safe-outputs`
+             - Match description to campaign keywords
+             - Categorize by purpose (security, quality, docs, CI/CD, etc.)
+          
+          2. **Scan for regular workflows**:
+             ```bash
+             ls .github/workflows/*.yml | grep -v ".lock.yml"
+             ```
+             
+             For each regular workflow file:
+             - Read the workflow name and trigger configuration
+             - Scan jobs to understand functionality
+             - Assess if it could benefit from AI enhancement
+          
+          3. **Include external workflow collections**:
+             
+             Reference reusable workflows from the Agentics Collection (https://github.com/githubnext/agentics):
+             - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
+             - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
+             - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
+          
+          4. **Categorize discovered workflows**:
+             - **Existing agentic workflows**: Found by scanning `.md` files
+             - **Regular workflows to enhance**: Found by scanning `.yml` files
+             - **External workflows**: From agentics collection
+             - **New workflows**: Suggested workflows not found
+          
+          ### Step 4: Generate Campaign Specification File
+          
+          Using the **Campaign Creation Instructions** (imported above), create a complete `.campaign.md` file:
+          
+          **File path:** `.github/workflows/<campaign-id>.campaign.md`  
+          **Campaign ID:** Convert name to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025")  
+          **Before creating:** Check if the file exists. If it does, append `-v2` or timestamp.
+          
+          **File structure:**
+          ```yaml
+          ---
+          id: <campaign-id>
+          name: <Campaign Name>
+          description: <One-sentence description>
+          project-url: <Project URL from Step 2>
+          workflows:
+            - <workflow-id-1>
+            - <workflow-id-2>
+          memory-paths:
+            - memory/campaigns/<campaign-id>-*/**
+          owners:
+            - @<username>
+          executive-sponsors:  # if applicable
+            - @<sponsor>
+          risk-level: <low|medium|high>
+          state: planned
+          tags:
+            - <category>
+            - <technology>
+          tracker-label: campaign:<campaign-id>
+          allowed-safe-outputs:
+            - create-issue
+            - add-comment
+            - create-pull-request
+          approval-policy:  # if high/medium risk
+            required-approvals: <number>
+            required-reviewers:
+              - <team>
+          ---
+          
+          # <Campaign Name>
+          
+          <Clear description of campaign purpose and goals>
+          
+          ## Goals
+          
+          - <Goal 1>
+          - <Goal 2>
+          - <Goal 3>
+          
+          ## Workflows
+          
+          ### <workflow-id-1>
+          <What this workflow does>
+          
+          ### <workflow-id-2>
+          <What this workflow does>
+          
+          ## Agent Behavior
+          
+          Agents in this campaign should:
+          - <Guideline 1>
+          - <Guideline 2>
+          - <Guideline 3>
+          
+          ## Timeline
+          
+          - **Start**: <Date or "TBD">
+          - **Target completion**: <Date or "Ongoing">
+          - **Current state**: Planned
+          
+          ## Success Metrics
+          
+          - <Measurable outcome 1>
+          - <Measurable outcome 2>
+          - <Measurable outcome 3>
+          ```
+          
+          **Create the file** in the repository at the specified path.
+          
+          ### Step 5: Update Issue with Campaign Details
+          
+          Use the `update-issue` safe output to update issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
+          
+          **Update the title** (if needed):
+          ```
+          <campaign-name>
+          ```
+          
+          **Update the body** with campaign information and instructions for the Copilot Coding Agent:
+          ```markdown
+          > **Original Request**
+          >
+          > <Quote the user's original campaign goal>
+          
+          ---
+          
+          ## 🎯 Campaign Details
+          
+          **Campaign ID:** `<campaign-id>`  
+          **Campaign Name:** <Campaign Name>  
+          **Project Board:** [View Project](<project-url>)  
+          **Risk Level:** <Low/Medium/High>  
+          **State:** Planned
+          
+          ## 📋 Workflows
+          
+          ### Existing Workflows (Ready to Use)
+          - `<workflow-id-1>`: <Description>
+          - `<workflow-id-2>`: <Description>
+          
+          ### New Workflows (Need to Create)
+          - `<new-workflow-id-1>`: <Description>
+          - `<new-workflow-id-2>`: <Description>
+          
+          ## 🎯 Goals
+          
+          - <Goal 1>
+          - <Goal 2>
+          - <Goal 3>
+          
+          ## ⏱️ Timeline
+          
+          - **Start Date:** <Date or TBD>
+          - **Target Completion:** <Date or Ongoing>
+          
+          ---
+          
+          ## 🤖 Instructions for Copilot Coding Agent
+          
+          The campaign specification file has been created at `.github/workflows/<campaign-id>.campaign.md`.
+          
+          **Your task:** Run `gh aw compile <campaign-id>` to compile the campaign
+          ```
+          
+          ### Step 6: Post Progress Comment
+          
+          Use `add-comment` to inform the user:
           
           ```markdown
-          # GitHub MCP Remote Server Tools Report
+          ✅ **Campaign Specification Created!**
           
-          **Generated**: [DATE]
-          **MCP Mode**: Remote
-          **Toolsets**: All
-          **Previous Report**: [DATE or "None" if first run]
+          I've generated the campaign specification and configured the project board, then assigned the Copilot Coding Agent to compile it.
           
-          ## Executive Summary
+          📊 **Project Board:** [View Project](<project-url>)
+            - ✅ Custom fields: Worker/Workflow, Priority, Status, Start Date, End Date, Effort
+            - ✅ Campaign Roadmap view (timeline)
+            - ✅ Task Tracker view (table)
+            - ✅ Progress Board view (kanban)
           
-          - **Total Tools Discovered**: [NUMBER]
-          - **Toolset Categories**: [NUMBER]
-          - **Report Date**: [DATE]
-          - **Changes Since Last Report**: [If previous data exists, show changes summary]
-            - **New Tools**: [NUMBER]
-            - **Removed Tools**: [NUMBER]
-            - **Unchanged Tools**: [NUMBER]
+          📁 **File Created:**
+          - `.github/workflows/<campaign-id>.campaign.md`
           
-          ## Inconsistency Detection
-          
-          ### Toolset Integrity Checks
-          
-          Report any inconsistencies discovered during the systematic exploration:
-          
-          - **Duplicate Tools**: List any tools that appear in multiple toolsets
-          - **Miscategorized Tools**: Tools that might belong to a different toolset based on their functionality
-          - **Naming Inconsistencies**: Tools that don't follow expected naming patterns
-          - **Orphaned Tools**: Tools that don't clearly fit into any specific toolset
-          - **Missing Expected Tools**: Common operations that might be missing from certain toolsets
-          
-          [If no inconsistencies found: "✅ All tools are properly categorized with no detected inconsistencies."]
-          
-          ## JSON Mapping Comparison
-          
-          ### Discrepancies Between MCP Server and JSON Mapping
-          
-          Report on the comparison between the MCP server tools and the `pkg/workflow/data/github_toolsets_permissions.json` file:
-          
-          **Summary**:
-          - **Total Discrepancies**: [NUMBER]
-          - **Missing Tools** (in JSON but not in MCP): [NUMBER]
-          - **Extra Tools** (in MCP but not in JSON): [NUMBER]
-          - **Moved Tools** (different toolset): [NUMBER]
-          
-          [If discrepancies found, create detailed tables below. If no discrepancies, show: "✅ JSON mapping is accurate and matches the MCP server."]
-          
-          ### Missing Tools (in JSON but not in MCP)
-          
-          | Toolset | Tool Name | Status |
-          |---------|-----------|--------|
-          | [toolset] | [tool] | Not found in MCP server |
-          
-          ### Extra Tools (in MCP but not in JSON)
-          
-          | Toolset | Tool Name | Action Taken |
-          |---------|-----------|--------------|
-          | [toolset] | [tool] | Added to JSON mapping |
-          
-          ### Moved Tools
-          
-          | Tool Name | JSON Toolset | MCP Toolset | Action Taken |
-          |-----------|--------------|-------------|--------------|
-          | [tool] | [old] | [new] | Updated in JSON mapping |
-          
-          **Action**: [If discrepancies were found and fixed, state: "Created pull request with updated JSON mapping." Otherwise: "No updates needed."]
-          
-          ## Changes Since Last Report
-          
-          [Only include this section if previous data exists]
-          
-          ### New Tools Added ✨
-          
-          List any tools that were added since the last report, organized by toolsets:
-          
-          | Toolset | Tool Name | Purpose |
-          |---------|-----------|---------|
-          | [toolset] | [tool] | [description] |
-          
-          ### Removed Tools 🗑️
-          
-          List any tools that were removed since the last report:
-          
-          | Toolset | Tool Name | Purpose (from previous report) |
-          |---------|-----------|--------------------------------|
-          | [toolset] | [tool] | [description] |
-          
-          ### Tools Moved Between Toolsets 🔄
-          
-          List any tools that changed their toolset categorization:
-          
-          | Tool Name | Previous Toolset | Current Toolset | Notes |
-          |-----------|------------------|-----------------|-------|
-          | [tool] | [old toolset] | [new toolset] | [reason] |
-          
-          [If no changes: "No tools were added, removed, or moved since the last report."]
-          
-          ## Tools by Toolset
-          
-          Organize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.
-          
-          **Example format for each toolsets:**
-          
-          ### [Toolset Name] Toolset
-          Brief description of the toolset.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          **All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users
-          
-          ## Recommended Default Toolsets
-          
-          Based on the analysis of available tools and their usage patterns, the following toolsets are recommended as defaults when no toolset is specified:
-          
-          **Recommended Defaults**: [List recommended toolsets here, e.g., `context`, `repos`, `issues`, `pull_requests`, `users`]
-          
-          **Rationale**:
-          - [Explain why each toolset should be included in defaults]
-          - [Consider frequency of use, fundamental functionality, minimal security exposure]
-          - [Note any changes from current defaults and why]
-          
-          **Specialized Toolsets** (enable explicitly when needed):
-          - List toolsets that should not be in defaults and when to use them
-          
-          ## Toolset Configuration Reference
-          
-          When configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:
-          
-          ```yaml
-          tools:
-            github:
-              mode: "remote"  # or "local"
-              toolsets: [all]  # or specific toolsets like [repos, issues, pull_requests]
+          📝 **Next Steps:**
+          1. Copilot Coding Agent will compile the campaign using `gh aw compile`
+          2. The agent will create a pull request with compiled files
           ```
           
-          **Available toolset options**:
-          - `context` - GitHub Actions context and environment
-          - `repos` - Repository operations
-          - `issues` - Issue management
-          - `pull_requests` - Pull request operations
-          - `actions` - GitHub Actions workflows
-          - `code_security` - Code scanning alerts
-          - `dependabot` - Dependabot alerts
-          - `discussions` - GitHub Discussions
-          - `experiments` - Experimental features
-          - `gists` - Gist operations
-          - `labels` - Label management
-          - `notifications` - Notification management
-          - `orgs` - Organization operations
-          - `projects` - GitHub Projects
-          - `secret_protection` - Secret scanning
-          - `security_advisories` - Security advisories
-          - `stargazers` - Repository stars
-          - `users` - User information
-          - `all` - Enable all toolsets
+          ### Step 7: Assign to Copilot Coding Agent
           
-          ## Notes and Observations
+          Use the `assign-to-agent` safe output to assign a Copilot Coding Agent session to compile the campaign and create a PR.
           
-          [Include any interesting findings, patterns, or recommendations discovered during the tool enumeration]
+          The agent will:
+          1. Read the instructions in the issue body
+          2. Compile the campaign using `gh aw compile <campaign-id>`
+          3. Create a PR with the compiled files
           
-          ## Methodology
+          ## Important Notes
           
-          - **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server
-          - **MCP Configuration**: Remote mode with all toolsets enabled
-          - **Categorization**: Based on GitHub API domains and functionality
-          - **Documentation**: Derived from tool names, descriptions, and usage patterns
-          ```
+          ### Why Assign to Copilot Coding Agent?
+          - `gh aw compile` requires the gh-aw CLI binary
+          - CLI is only available in Copilot Coding Agent sessions (via actions/setup)
+          - GitHub Actions runners (where this workflow runs) don't have gh-aw CLI
           
-          ## Important Guidelines
-          
-          ### Accuracy
-          - **Be Thorough**: Discover and document ALL available tools
-          - **Be Precise**: Use exact tool names and accurate descriptions
-          - **Be Organized**: Group tools logically by toolset
-          - **Be Helpful**: Provide clear, actionable documentation
-          
-          ### Report Quality
-          - **Clear Structure**: Use tables and sections for readability
-          - **Complete Coverage**: Don't miss any tools or toolsets
-          - **Useful Reference**: Make the report helpful for developers
-          
-          ### Tool Discovery
-          - **Systematic Approach**: Methodically enumerate tools for EACH toolset individually
-          - **Complete Coverage**: Explore all 18 toolsets without skipping any
-          - **Categorization**: Accurately assign tools to toolsets based on functionality
-          - **Description**: Provide clear, concise purpose statements
-          - **Parameters**: Document key parameters when identifiable
-          - **Inconsistency Detection**: Actively look for duplicates, miscategorization, and naming issues
-          
-          ## Success Criteria
-          
-          A successful report:
-          - ✅ Loads previous tools list from cache if available
-          - ✅ Loads current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`
-          - ✅ Systematically explores EACH of the 19 individual toolsets (including `search`)
-          - ✅ Documents all tools available in the GitHub MCP remote server
-          - ✅ Detects and reports any inconsistencies across toolsets (duplicates, miscategorization, naming issues)
-          - ✅ **Compares MCP server tools with JSON mapping** and identifies discrepancies
-          - ✅ **Updates JSON mapping file** if discrepancies are found
-          - ✅ **Creates pull request** with updated JSON mapping if changes were made
-          - ✅ Compares with previous run and identifies changes (new/removed/moved tools)
-          - ✅ Saves current tools list to cache for next run
-          - ✅ **Creates/updates `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation
-          - ✅ **Identifies and documents recommended default toolsets** with rationale
-          - ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.md)
-          - ✅ Organizes tools by their appropriate toolset categories
-          - ✅ Provides clear descriptions and usage information
-          - ✅ Is formatted as a well-structured markdown document
-          - ✅ Is published as a GitHub discussion in the "audits" category for easy access and reference
-          - ✅ Includes change tracking and diff information when previous data exists
-          - ✅ Validates toolset integrity and reports any detected issues
-          
-          ## Output Requirements
-          
-          Your output MUST:
-          1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists
-          2. **Load the current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`**
-          3. Systematically explore EACH of the 19 toolsets individually to discover all current tools (including `search`)
-          4. Detect and document any inconsistencies:
-             - Duplicate tools across toolsets
-             - Miscategorized tools
-             - Naming inconsistencies
-             - Orphaned tools
-          5. **Compare MCP server tools with JSON mapping** and identify:
-             - Missing tools (in JSON but not in MCP)
-             - Extra tools (in MCP but not in JSON)
-             - Moved tools (different toolset placement)
-          6. **Update the JSON mapping file** if discrepancies are found:
-             - Edit `pkg/workflow/data/github_toolsets_permissions.json`
-             - Add missing tools, remove extra entries, fix moved tools
-             - Preserve JSON structure and alphabetical ordering
-             - **Create a pull request using the create-pull-request tool from safe-outputs** with your changes (branch, commit, then call the tool)
-          7. Compare current tools with previous tools (if available) and identify:
-             - New tools added
-             - Removed tools
-             - Tools that moved between toolsets
-          8. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run
-             - Use a structured JSON format with tool names, toolsets, and descriptions
-             - Include timestamp and metadata
-          9. **Update `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation:
-             - Document all available tools organized by toolset
-             - Include tool descriptions, parameters, and usage examples
-             - Provide configuration reference for remote vs local mode
-             - Include header authentication details (Bearer token)
-             - Document X-MCP-Readonly header for read-only mode
-             - **Include recommended default toolsets** based on analysis:
-               - Identify the most commonly needed toolsets for typical workflows
-               - Consider toolsets that provide core functionality (context, repos, issues, pull_requests, users)
-               - Document the rationale for these defaults
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
@@ -932,119 +1143,10 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
-              }
-            });
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-               - Note which toolsets are specialized and should be enabled explicitly
-             - Include best practices for toolset selection
-             - Format the documentation according to the repository's documentation standards
-          10. **Update default toolsets documentation** in:
-             - `.github/aw/github-agentic-workflows.md` (search for "Default toolsets")
-             - Use the recommended default toolsets identified in step 9
-             - Ensure consistency across all documentation files
-          11. Create a GitHub discussion with the complete tools report
-          12. Use the report template structure provided above
-          13. Include the JSON mapping comparison section with detailed findings
-          14. Include the inconsistency detection section with findings
-          15. Include the changes summary section if previous data exists
-          16. Include ALL discovered tools organized by toolset
-          17. Provide accurate tool names, descriptions, and parameters
-          18. Be formatted for readability with proper markdown tables
-          
-          **Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):
-          ```json
-          {
-            "timestamp": "2024-01-15T06:00:00Z",
-            "total_tools": 42,
-            "toolsets": {
-              "repos": [
-                {"name": "get_repository", "purpose": "Get repository details"},
-                {"name": "list_commits", "purpose": "List repository commits"}
-              ],
-              "issues": [
-                {"name": "issue_read", "purpose": "Read issue details and comments"},
-                {"name": "list_issues", "purpose": "List repository issues"}
-              ]
-            }
-          }
-          ```
-          
-          Begin your tool discovery now. Follow these steps:
-          
-          1. **Load previous data**: Check for `/tmp/gh-aw/cache-memory/github-mcp-tools.json` and load it if it exists
-          2. **Load JSON mapping**: Read `pkg/workflow/data/github_toolsets_permissions.json` to get the current expected tool mappings
-          3. **Systematically explore each toolset**: For EACH of the 19 toolsets, identify all tools that belong to it:
-             - context
-             - repos
-             - issues
-             - pull_requests
-             - actions
-             - code_security
-             - dependabot
-             - discussions
-             - experiments
-             - gists
-             - labels
-             - notifications
-             - orgs
-             - projects
-             - secret_protection
-             - security_advisories
-             - stargazers
-             - users
-             - search
-          4. **Compare with JSON mapping**: For each toolset, compare MCP server tools with JSON mapping to identify discrepancies
-          5. **Update JSON mapping if needed**: If discrepancies are found:
-             - Edit `pkg/workflow/data/github_toolsets_permissions.json` to fix them
-             - Create a branch and commit your changes
-             - **Use the create-pull-request tool from safe-outputs** to create a PR with your updates
-          6. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools
-          7. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)
-          8. **Analyze and recommend default toolsets**: 
-             - Analyze which toolsets provide the most fundamental functionality
-             - Consider which tools are most commonly needed across different workflow types
-             - Evaluate the current defaults: `context`, `repos`, `issues`, `pull_requests`, `users`
-             - Determine if these defaults should be updated based on actual tool availability and usage patterns
-             - Document your rationale for the recommended defaults
-          9. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
-             - Overview of GitHub MCP server (remote vs local mode)
-             - Complete list of available tools organized by toolset
-             - Tool descriptions, parameters, and return values
-             - Configuration examples for both modes
-             - Authentication details (Bearer token, X-MCP-Readonly header)
-             - **Recommended default toolsets section** with:
-               - List of recommended defaults
-               - Rationale for each toolset included in defaults
-               - Explanation of when to enable other toolsets
-             - Best practices for toolset selection
-          7. **Update documentation references**: Update the default toolsets list in:
-             - `.github/aw/github-agentic-workflows.md` (search for "Default toolsets")
-          8. **Document**: Categorize tools appropriately and create comprehensive documentation
-          9. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
-          10. **Generate report**: Create the final markdown report including change tracking and inconsistency detection
-          11. **Publish**: Create a GitHub discussion with the complete tools report
-          
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_REPOSITORY_OWNER: process.env.GH_AW_GITHUB_REPOSITORY_OWNER,
+                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
               }
             });
       - name: Append temporary folder instructions to prompt
@@ -1052,31 +1154,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append cache-memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1090,7 +1167,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, create_pull_request, missing_tool, noop
+          **Available tools**: add_comment, assign_to_agent, create_project, missing_tool, noop, update_issue, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1172,7 +1249,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1189,22 +1269,18 @@ jobs:
         # - Bash
         # - BashOutput
         # - Edit
-        # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - KillBash
         # - LS
         # - MultiEdit
-        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookEdit
         # - NotebookRead
         # - Read
-        # - Read(/tmp/gh-aw/cache-memory/*)
         # - Task
         # - TodoWrite
         # - Write
-        # - Write(/tmp/gh-aw/cache-memory/*)
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1257,11 +1333,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 15
+        timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
-            -- /bin/bash -c 'NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools '\''Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users'\'' --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' \
+          sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
+            -- /bin/bash -c 'NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1356,12 +1432,6 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1374,7 +1444,6 @@ jobs:
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
-            /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
   conclusion:
@@ -1383,7 +1452,6 @@ jobs:
       - agent
       - detection
       - safe_outputs
-      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1434,7 +1502,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign Generator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1447,7 +1515,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign Generator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1460,9 +1528,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1478,9 +1547,10 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1488,14 +1558,22 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
+      - name: Unlock issue after agent workflow
+        id: unlock-issue
+        if: (always()) && (((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
+            await main();
 
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -1530,8 +1608,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
-          WORKFLOW_DESCRIPTION: "Generates a comprehensive report of available MCP server tools and their capabilities for GitHub integration"
+          WORKFLOW_NAME: "Campaign Generator"
+          WORKFLOW_DESCRIPTION: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1652,6 +1730,38 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
+  pre_activation:
+    if: >
+      (github.event_name != 'issues') || ((github.event.action != 'labeled') || (github.event.label.name == 'create-agentic-campaign'))
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+
   safe_outputs:
     needs:
       - activation
@@ -1660,16 +1770,18 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
       discussions: write
       issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_WORKFLOW_ID: "github-mcp-tools-report"
-      GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+      GH_AW_WORKFLOW_ID: "campaign-generator"
+      GH_AW_WORKFLOW_NAME: "Campaign Generator"
     outputs:
+      assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
@@ -1694,37 +1806,36 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+      - name: Unlock issue for safe output operations
+        id: unlock-issue-for-safe-outputs
+        if: ((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true')
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
-          name: agent-artifacts
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          token: ${{ github.token }}
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Configure Git credentials
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
+            await main();
+      - name: Update Project
+        id: update_project
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_PROJECT_VIEWS: '[{"name":"Campaign Roadmap","layout":"roadmap","filter":"is:issue,is:pull_request"},{"name":"Task Tracker","layout":"table","filter":"is:issue,is:pull_request"},{"name":"Progress Board","layout":"board","filter":"is:issue,is:pull_request"}]'
+        with:
+          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/update_project.cjs');
+            await main();
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":168,\"max\":1},\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"max\":1,\"max_patch_size\":1024},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"create_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1},\"missing_data\":{},\"missing_tool\":{},\"update_issue\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1732,35 +1843,17 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Assign To Agent
+        id: assign_to_agent
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
+          github-token: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/assign_to_agent.cjs');
+            await main();
 

@@ -258,6 +258,7 @@ func TestCodexDefaultDomains(t *testing.T) {
 	// Verify that expected Codex domains are present
 	expectedDomains := []string{
 		"api.openai.com",
+		"host.docker.internal",
 		"openai.com",
 	}
 
@@ -283,8 +284,8 @@ func TestGetCodexAllowedDomains(t *testing.T) {
 	t.Run("nil network permissions returns only defaults", func(t *testing.T) {
 		result := GetCodexAllowedDomains(nil)
 		// Should contain default Codex domains, sorted
-		if result != "api.openai.com,openai.com" {
-			t.Errorf("Expected 'api.openai.com,openai.com', got %q", result)
+		if result != "api.openai.com,host.docker.internal,openai.com" {
+			t.Errorf("Expected 'api.openai.com,host.docker.internal,openai.com', got %q", result)
 		}
 	})
 
@@ -294,8 +295,8 @@ func TestGetCodexAllowedDomains(t *testing.T) {
 		}
 		result := GetCodexAllowedDomains(network)
 		// Should contain both default Codex domains and user-specified domain
-		if result != "api.openai.com,example.com,openai.com" {
-			t.Errorf("Expected 'api.openai.com,example.com,openai.com', got %q", result)
+		if result != "api.openai.com,example.com,host.docker.internal,openai.com" {
+			t.Errorf("Expected 'api.openai.com,example.com,host.docker.internal,openai.com', got %q", result)
 		}
 	})
 
@@ -305,8 +306,8 @@ func TestGetCodexAllowedDomains(t *testing.T) {
 		}
 		result := GetCodexAllowedDomains(network)
 		// api.openai.com should not appear twice
-		if result != "api.openai.com,example.com,openai.com" {
-			t.Errorf("Expected 'api.openai.com,example.com,openai.com', got %q", result)
+		if result != "api.openai.com,example.com,host.docker.internal,openai.com" {
+			t.Errorf("Expected 'api.openai.com,example.com,host.docker.internal,openai.com', got %q", result)
 		}
 	})
 
@@ -316,8 +317,8 @@ func TestGetCodexAllowedDomains(t *testing.T) {
 		}
 		result := GetCodexAllowedDomains(network)
 		// Empty allowed list should still return Codex defaults
-		if result != "api.openai.com,openai.com" {
-			t.Errorf("Expected 'api.openai.com,openai.com', got %q", result)
+		if result != "api.openai.com,host.docker.internal,openai.com" {
+			t.Errorf("Expected 'api.openai.com,host.docker.internal,openai.com', got %q", result)
 		}
 	})
 }
