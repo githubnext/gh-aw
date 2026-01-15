@@ -149,6 +149,54 @@ The agent follows these principles:
 
 See [Code Organization Patterns](specs/code-organization.md) for details.
 
+#### Workflow Lock Files
+
+Agentic workflows in `.github/workflows/` are defined in Markdown (`.md`) files and **compiled** into GitHub Actions YAML (`.lock.yml`) files. The lock files contain the actual workflow definitions that GitHub Actions executes.
+
+**Important**: Lock files must always be kept in sync with their source Markdown files.
+
+**When to Recompile**:
+
+Recompile lock files whenever you modify:
+- Workflow Markdown files (`.github/workflows/*.md`)
+- Workflow compilation logic (`pkg/workflow/`)
+- Default MCP server versions (`pkg/constants/constants.go`)
+- GitHub Actions JavaScript files (`actions/setup/js/*.cjs`)
+- Shell scripts used by workflows (`actions/setup/sh/*.sh`)
+
+**How to Recompile**:
+
+```bash
+# Recompile all workflows
+make recompile
+
+# Or ask the GitHub Copilot Agent
+# "Please run make recompile to update the workflow lock files"
+```
+
+**CI Protection**:
+
+The CI workflow automatically:
+1. Runs `make recompile` after building the code
+2. Checks if any lock files were changed
+3. **Fails the build** if lock files are out of sync
+4. Provides clear instructions on how to fix the issue
+
+If CI fails with "Lock files are out of date":
+1. Run `make recompile` (or ask the agent to run it)
+2. Commit the updated `.lock.yml` files
+3. Push the changes
+
+**Why This Matters**:
+
+Outdated lock files can cause workflow failures due to:
+- Version mismatches between MCP servers and the gateway
+- Missing or changed configuration options
+- Incompatible Docker images
+- Security vulnerabilities in old versions
+
+Always ensure lock files are up to date before merging a PR.
+
 #### Validation Patterns
 
 The agent places validation logic appropriately:
