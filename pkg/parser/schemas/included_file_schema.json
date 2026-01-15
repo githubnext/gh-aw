@@ -709,10 +709,6 @@
             }
           ]
         },
-        "safety-prompt": {
-          "type": "boolean",
-          "description": "Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the prompt. Defaults to true (enabled). Set to false to disable security warnings."
-        },
         "timeout": {
           "type": "integer",
           "minimum": 1,

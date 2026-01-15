@@ -72,7 +72,6 @@ type ToolsConfig struct {
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
 	RepoMemory       *RepoMemoryToolConfig       `yaml:"repo-memory,omitempty"`
-	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
 
@@ -202,9 +201,6 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	}
 	if t.RepoMemory != nil {
 		result["repo-memory"] = t.RepoMemory.Raw
-	}
-	if t.SafetyPrompt != nil {
-		result["safety-prompt"] = *t.SafetyPrompt
 	}
 	if t.Timeout != nil {
 		result["timeout"] = *t.Timeout
@@ -350,8 +346,6 @@ func (t *Tools) HasTool(name string) bool {
 		return t.CacheMemory != nil
 	case "repo-memory":
 		return t.RepoMemory != nil
-	case "safety-prompt":
-		return t.SafetyPrompt != nil
 	case "timeout":
 		return t.Timeout != nil
 	case "startup-timeout":
@@ -399,9 +393,6 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.RepoMemory != nil {
 		names = append(names, "repo-memory")
-	}
-	if t.SafetyPrompt != nil {
-		names = append(names, "safety-prompt")
 	}
 	if t.Timeout != nil {
 		names = append(names, "timeout")

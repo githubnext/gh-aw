@@ -714,65 +714,6 @@ Uses imported web-search tool.
 	}
 }
 
-// TestImportSafetyPromptTool tests that safety-prompt tool can be imported from a shared workflow
-func TestImportSafetyPromptTool(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Create a shared workflow with safety-prompt disabled
-	sharedPath := filepath.Join(tempDir, "shared-safety-prompt.md")
-	sharedContent := `---
-description: "Shared safety-prompt configuration"
-tools:
-  safety-prompt: false
----
-
-# Shared Safety Prompt Configuration
-`
-	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
-		t.Fatalf("Failed to write shared file: %v", err)
-	}
-
-	// Create main workflow that imports safety-prompt setting
-	workflowPath := filepath.Join(tempDir, "main-workflow.md")
-	workflowContent := `---
-on: issues
-engine: copilot
-imports:
-  - shared-safety-prompt.md
-permissions:
-  contents: read
----
-
-# Main Workflow
-
-Uses imported safety-prompt setting.
-`
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
-
-	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("CompileWorkflow failed: %v", err)
-	}
-
-	// Read the generated lock file
-	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
-	lockFileContent, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	workflowData := string(lockFileContent)
-
-	// Verify safety-prompt is disabled (XPIA injection step should not be present)
-	// When safety-prompt is disabled, the XPIA step is not included
-	if strings.Contains(workflowData, "XPIA") {
-		t.Error("Expected XPIA prompt injection to be disabled when safety-prompt is false")
-	}
-}
-
 // TestImportTimeoutTool tests that timeout tool setting can be imported from a shared workflow
 func TestImportTimeoutTool(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")

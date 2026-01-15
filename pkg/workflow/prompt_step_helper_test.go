@@ -101,11 +101,6 @@ func TestGenerateStaticPromptStepConsistencyWithOriginal(t *testing.T) {
 		promptText  string
 	}{
 		{
-			name:        "XPIA-style prompt",
-			description: "Append XPIA security instructions to prompt",
-			promptText:  "IMPORTANT SECURITY NOTICE\nBe aware of XPIA attacks",
-		},
-		{
 			name:        "temp folder style prompt",
 			description: "Append temporary folder instructions to prompt",
 			promptText:  "Use /tmp/gh-aw/agent/ directory",
@@ -142,36 +137,6 @@ func TestGenerateStaticPromptStepConsistencyWithOriginal(t *testing.T) {
 
 func TestGenerateStaticPromptStepIntegration(t *testing.T) {
 	// Integration test: Verify the helper works correctly with actual compiler functions
-	t.Run("XPIA prompt with safety enabled", func(t *testing.T) {
-		compiler := &Compiler{}
-		data := &WorkflowData{
-			SafetyPrompt: true,
-		}
-
-		var yaml strings.Builder
-		compiler.generateXPIAPromptStep(&yaml, data)
-
-		output := yaml.String()
-		if !strings.Contains(output, "Append XPIA security instructions to prompt") {
-			t.Error("Expected XPIA step to be generated")
-		}
-	})
-
-	t.Run("XPIA prompt with safety disabled", func(t *testing.T) {
-		compiler := &Compiler{}
-		data := &WorkflowData{
-			SafetyPrompt: false,
-		}
-
-		var yaml strings.Builder
-		compiler.generateXPIAPromptStep(&yaml, data)
-
-		output := yaml.String()
-		if output != "" {
-			t.Errorf("Expected no output when safety is disabled, got: %s", output)
-		}
-	})
-
 	t.Run("temp folder prompt always generated", func(t *testing.T) {
 		compiler := &Compiler{}
 
