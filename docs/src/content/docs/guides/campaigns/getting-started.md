@@ -15,16 +15,14 @@ Before creating your first campaign, keep these core principles in mind:
 - **Standardized outputs**: Use consistent patterns for issues, PRs, and comments
 - **Escalate when uncertain**: Create issues requesting human review for risky decisions
 
-## Quick start (3 steps)
+## Quick start (manual setup)
 
-1. Create a campaign specification file `.github/workflows/<id>.campaign.md` in a PR.
-2. Run `gh aw compile`.
-3. Run the generated orchestrator workflow from the Actions tab.
+1. Create a campaign specification file `.github/workflows/<id>.campaign.md` in a PR
+2. Run `gh aw compile`
+3. Run the generated orchestrator workflow from the Actions tab
 
-The campaign generator automatically creates:
-- GitHub Project board with custom fields (Worker/Workflow, Priority, Status, Start/End Date, Effort)
-- Three views (Campaign Roadmap, Task Tracker, Progress Board)
-- Campaign orchestrator workflow
+> [!NOTE]
+> The campaign generator automatically creates the GitHub Project board with custom fields (Worker/Workflow, Priority, Status, Start/End Date, Effort) and three views (Campaign Roadmap, Task Tracker, Progress Board).
 
 ## 1) Create the campaign spec
 
@@ -90,19 +88,19 @@ Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the da
 
 Apply the tracker label (for example `campaign:framework-upgrade`) to issues/PRs you want tracked. The orchestrator will pick them up on the next run.
 
-**Important: Campaign item protection**
-
-Items with campaign labels (`campaign:*`) are automatically protected from other automated workflows:
-
-- **Automatic exclusion**: Workflows like `issue-monster` skip issues with campaign labels
-- **Controlled by orchestrator**: Only the campaign orchestrator manages campaign items
-- **Manual opt-out**: Use labels like `no-bot` or `no-campaign` to exclude items from all automation
-
-This ensures your campaign items remain under the control of the campaign orchestrator and aren't interfered with by other workflows.
+> [!IMPORTANT]
+> **Campaign item protection:** Items with campaign labels (`campaign:*`) are automatically protected from other automated workflows. This ensures only the campaign orchestrator manages campaign items, preventing conflicts with workflows like `issue-monster`.
 
 ## Optional: repo-memory for durable state
 
-Enable repo-memory for campaigns using this layout: `memory/campaigns/<campaign-id>/cursor.json` and `memory/campaigns/<campaign-id>/metrics/<date>.json`. Campaign writes must include a cursor and at least one metrics snapshot.
+Enable repo-memory for campaigns using this layout:
+- `memory/campaigns/<campaign-id>/cursor.json`  
+- `memory/campaigns/<campaign-id>/metrics/<date>.json`
+
+Campaign writes must include a cursor and at least one metrics snapshot.
+
+> [!TIP]
+> Repo-memory enables incremental discovery (campaigns resume where they left off) and historical metrics tracking for retrospectives.
 
 ## Automated campaign creation
 
@@ -114,21 +112,29 @@ The campaign creation process uses an optimized two-phase architecture:
 
 **Phase 1 - Campaign Generator Workflow** (~30 seconds):
 1. Automatically triggered when you apply the `create-agentic-campaign` label to an issue
-2. Creates a GitHub Project board for your campaign
+2. Creates a GitHub Project board for your campaign with custom fields and views
 3. Discovers relevant workflows from the local repository and the [agentics collection](https://github.com/githubnext/agentics)
 4. Generates the complete campaign specification (`.github/workflows/<id>.campaign.md`)
 5. Writes the campaign file to the repository
 6. Updates the issue with campaign details and project board link
+
+> [!NOTE]
+> The campaign generator discovers workflows dynamically by scanning `.github/workflows/*.md` files (agentic workflows) and `.github/workflows/*.yml` files (regular GitHub Actions), plus 17 reusable workflows from the agentics collection.
 
 **Phase 2 - Compilation** (~1-2 minutes):
 1. Automatically assigns a Copilot Coding Agent to compile the campaign
 2. Runs `gh aw compile <campaign-id>` to generate the orchestrator
 3. Creates a pull request with all campaign files:
    - `.github/workflows/<id>.campaign.md` (specification)
-   - `.github/workflows/<id>.campaign.g.md` (debug artifact, not tracked in git)
    - `.github/workflows/<id>.campaign.lock.yml` (compiled workflow)
 
+> [!NOTE]
+> A `.campaign.g.md` file is generated locally as a debug artifact, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
+
 **Why two phases?** The `gh aw compile` command requires the gh-aw CLI binary, which is only available in Copilot Coding Agent sessions. GitHub Actions runners cannot compile campaigns directly.
+
+> [!TIP]
+> This two-phase architecture is 60% faster than the previous single-phase flow (2-3 minutes vs. 5-10 minutes).
 
 ### Creating a Campaign
 

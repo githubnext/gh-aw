@@ -18,6 +18,9 @@ In a typical setup:
 
 **Note:** The `.campaign.g.md` file is a local debug artifact generated during compilation to help developers review the orchestrator structure. It is not committed to git (it's in `.gitignore`). Only the source `.campaign.md` and the compiled `.campaign.lock.yml` are version controlled.
 
+> [!TIP]
+> Worker workflows remain campaign-agnostic and don't need modification. The orchestrator handles all campaign coordination.
+
 ## Minimal spec
 
 ```yaml
@@ -63,6 +66,9 @@ owners:
 - `kpis`: the measures you use to report progress. Use `priority: primary` to mark exactly one KPI as the primary measure (not `primary: true`).
 - `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`). When workflows are configured, the orchestrator will execute them sequentially and can create missing workflows if needed.
 
+> [!IMPORTANT]
+> Use `priority: primary` (not `primary: true`) to mark your primary KPI.
+
 ## KPIs (recommended shape)
 
 Keep KPIs small and crisp:
@@ -104,6 +110,9 @@ governance:
   max-project-updates-per-run: 50
   max-comments-per-run: 10
 ```
+
+> [!TIP]
+> Start conservative with low limits (e.g., `max-project-updates-per-run: 10`) for your first campaign, then increase as you gain confidence.
 
 ### Governance fields
 

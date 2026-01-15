@@ -8,7 +8,7 @@ import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
 ## Overview
 
-Agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction/overview/) toward a single goal.
+Agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction/overview/) toward a single goal. A campaign provides structure for managing initiatives—defining objectives with measurable KPIs, tracking progress on GitHub Projects, and optionally executing workflows to drive work forward.
 
 ## Why use campaigns?
 
@@ -27,21 +27,23 @@ Agentic campaigns coordinate one or more [agentic workflows](/gh-aw/introduction
   </FeatureCard>
 </FeatureGrid>
 
-## Workflow
+## Quick Start
 
-1. **Define** - Write a `.campaign.md` spec with objectives and workflows
-2. **Compile** - Generate the orchestrator with `gh aw compile`
-3. **Execute** - Orchestrator coordinates work (passive tracking or active execution)
-4. **Track** - GitHub Project board shows real-time progress
+1. **Create** an issue with the `create-agentic-campaign` label (automated creation)
+2. **Or manually define** a `.campaign.md` spec with objectives and workflows
+3. **Compile** with `gh aw compile` to generate the orchestrator
+4. **Run** the orchestrator workflow from the Actions tab
+5. **Track** progress on the auto-generated GitHub Project board
 
-When compiled, this generates an orchestrator that discovers work, tracks progress on the GitHub Project board, and optionally executes workflows to drive progress.
+> [!TIP]
+> The automated campaign creation flow is the fastest way to get started—it creates the project board, discovers relevant workflows, and generates a complete campaign spec in 2-3 minutes.
 
 ## Campaign modes
 
 Campaigns operate in two distinct modes:
 
 ### ProjectOps Pattern (default)
-**What it is:** A [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) pattern with campaign structure
+**What it is:** A [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) pattern where the orchestrator discovers and tracks work created by independent workflows
 
 The orchestrator discovers and tracks work created by independent workflows. This is ProjectOps—automated project board management—with added campaign structure (objectives, KPIs, governance, metrics persistence).
 
@@ -55,7 +57,7 @@ The orchestrator discovers and tracks work created by independent workflows. Thi
 **When to use:** When workflows should remain independently scheduled but you want campaign-level tracking and reporting.
 
 ### Campaign Orchestration (`execute-workflows: true`)
-**What it is:** True campaign mode with autonomous workflow management
+**What it is:** True campaign mode where the orchestrator actively runs workflows and drives progress
 
 The orchestrator actively runs workflows, creates missing ones, and drives progress toward objectives. This is true campaign orchestration where the campaign manages and executes work autonomously.
 
@@ -79,8 +81,8 @@ The orchestrator updates your project board and (in orchestration mode) delegate
 
 ## Example campaign
 
-A campaign is defined by a **Campaign Spec** `.campaign.md`.
-Here is an example of such a file for a simple framework upgrade campaign:
+A campaign is defined by a **Campaign Spec** `.campaign.md` file.
+Here is an example for a framework upgrade campaign:
 
 ```yaml
 ---
@@ -107,13 +109,15 @@ governance:
   max-project-updates-per-run: 20
 ---
 ```
+
 With `execute-workflows: true`, the orchestrator will:
-- Run `framework-scanner` (create it if doesn't exist)
+- Run `framework-scanner` (creates it if it doesn't exist)
 - Test newly created agentic workflows before use
 - Execute `framework-upgrader` using scanner outputs
 - Track all progress on the GitHub Project board
 
-**Note:** Without `execute-workflows: true`, this would be a **ProjectOps pattern** where workflows run independently and the orchestrator only tracks their outputs on the project board.
+> [!NOTE]
+> Without `execute-workflows: true`, this would be a **ProjectOps pattern** where workflows run independently and the orchestrator only tracks their outputs on the project board.
 
 ## Common use cases
 
