@@ -97,8 +97,8 @@ while IFS= read -r SERVER_NAME; do
   fi
   
   # Construct correct URL using the gateway URL parameter (which uses localhost)
-  # Replace any host:port prefix with the gateway URL
-  # Example: http://0.0.0.0:8080/mcp/github -> http://localhost:8080/mcp/github
+  # Build server URL: <gateway-url>/mcp/<server-name>
+  # Example: http://localhost:8080 + /mcp/github = http://localhost:8080/mcp/github
   SERVER_URL="${GATEWAY_URL}/mcp/${SERVER_NAME}"
   
   # Extract authentication headers from gateway configuration
