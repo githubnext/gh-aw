@@ -509,6 +509,40 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["autofix_code_scanning_alert"] = handlerConfig
 	}
 
+	if data.SafeOutputs.AssignToAgent != nil {
+		cfg := data.SafeOutputs.AssignToAgent
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.DefaultAgent != "" {
+			handlerConfig["name"] = cfg.DefaultAgent
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["assign_to_agent"] = handlerConfig
+	}
+
+	if data.SafeOutputs.UpdateProjects != nil {
+		cfg := data.SafeOutputs.UpdateProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		// Add views configuration if present
+		if len(cfg.Views) > 0 {
+			handlerConfig["views"] = cfg.Views
+		}
+		config["update_project"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)

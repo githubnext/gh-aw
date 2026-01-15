@@ -129,19 +129,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// - Unified error handling
 	// - Max count enforcement across all safe output types
 
-	// 1. Update Project step (runs first if needed)
-	if data.SafeOutputs.UpdateProjects != nil {
-		stepConfig := c.buildUpdateProjectStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		// Update project requires organization-projects permission (via GitHub App token)
-		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
-		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-	}
-
-	// 2. Copy Project step
+	// 1. Copy Project step (still standalone because it's a complex operation)
 	if data.SafeOutputs.CopyProjects != nil {
 		stepConfig := c.buildCopyProjectStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
@@ -177,12 +165,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreateProjectStatusUpdates != nil ||
 		data.SafeOutputs.CreateProjects != nil ||
 		data.SafeOutputs.MissingTool != nil ||
-		data.SafeOutputs.MissingData != nil
+		data.SafeOutputs.MissingData != nil ||
+		data.SafeOutputs.UpdateProjects != nil ||
+		data.SafeOutputs.AssignToAgent != nil
 
-	// 3. Handler Manager step (processes create_project, update_issue, add_comment, etc.)
-	// This runs AFTER project copy operations but BEFORE agent assignment, allowing
-	// create_project to create projects and update_issue to reference project resources
-	// before the agent is assigned.
+	// 2. Handler Manager step (processes create_project, update_issue, add_comment, assign_to_agent, update_project, etc.)
+	// This runs AFTER project copy operations, allowing create_project to create projects
+	// and update_issue to reference project resources before the agent is assigned.
 	// Critical for workflows like campaign-generator that create projects and update issue
 	// with project details before assigning to agent for compilation.
 	if hasHandlerManagerTypes {
@@ -253,21 +242,15 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.CreateProjects != nil {
 			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 		}
+		if data.SafeOutputs.UpdateProjects != nil {
+			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		}
+		if data.SafeOutputs.AssignToAgent != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		}
 	}
 
-	// 4. Assign To Agent step (runs after handler manager / update_issue)
-	if data.SafeOutputs.AssignToAgent != nil {
-		stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-
-	// 5. Create Agent Session step
+	// 3. Create Agent Session step (still standalone)
 	if data.SafeOutputs.CreateAgentSessions != nil {
 		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
