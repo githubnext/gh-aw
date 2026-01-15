@@ -39,7 +39,7 @@ safe-outputs:
 Test workflow with cache-memory and threat detection enabled.`,
 			expectedInLock: []string{
 				// In agent job, should use actions/cache/restore instead of actions/cache
-				"- name: Restore cache memory file share data",
+				"- name: Restore cache-memory file share data",
 				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
 				// Should upload artifact with if: always()
@@ -58,7 +58,7 @@ Test workflow with cache-memory and threat detection enabled.`,
 			},
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache in agent job
-				"- name: Cache memory file share data\n      uses: actions/cache@",
+				"- name: Cache cache-memory file share data\n      uses: actions/cache@",
 			},
 		},
 		{
@@ -80,7 +80,7 @@ tools:
 Test workflow with cache-memory but no threat detection.`,
 			expectedInLock: []string{
 				// Without threat detection, should use regular actions/cache
-				"- name: Cache memory file share data",
+				"- name: Cache cache-memory file share data",
 				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
 			},
@@ -119,10 +119,10 @@ safe-outputs:
 Test workflow with multiple cache-memory and threat detection enabled.`,
 			expectedInLock: []string{
 				// Both caches should use restore
-				"- name: Restore cache memory file share data (default)",
+				"- name: Restore cache-memory file share data (default)",
 				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-default-${{ github.run_id }}",
-				"- name: Restore cache memory file share data (session)",
+				"- name: Restore cache-memory file share data (session)",
 				"key: memory-session-${{ github.run_id }}",
 				// Should upload both artifacts with if: always()
 				"- name: Upload cache-memory data as artifact (default)",
@@ -139,7 +139,7 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 			},
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache
-				"- name: Cache memory file share data (default)",
+				"- name: Cache cache-memory file share data (default)",
 			},
 		},
 		{
@@ -167,7 +167,7 @@ safe-outputs:
 Test workflow with restore-only cache-memory and threat detection enabled.`,
 			expectedInLock: []string{
 				// Should use restore for restore-only cache (no ID suffix for single default cache)
-				"- name: Restore cache memory file share data",
+				"- name: Restore cache-memory file share data",
 				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 			},
 			notExpectedInLock: []string{
