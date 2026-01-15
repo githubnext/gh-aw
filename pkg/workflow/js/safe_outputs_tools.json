@@ -314,7 +314,7 @@
   },
   {
     "name": "create_project_status_update",
-    "description": "Create a status update on a GitHub Projects v2 board. Status updates provide stakeholder communication and historical record of project progress with a timeline. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
+    "description": "Create a status update on a GitHub Projects v2 board. Use this for stakeholder communication and to maintain a historical record of project progress with a timeline. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -974,11 +974,11 @@
         },
         "fix_description": {
           "type": "string",
-          "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it."
+          "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it (e.g., 'Replaces direct user input concatenation with parameterized query to prevent SQL injection')."
         },
         "fix_code": {
           "type": "string",
-          "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability."
+          "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability (e.g., 'const query = db.prepare(\"SELECT * FROM users WHERE id = ?\").bind(userId);')."
         }
       },
       "additionalProperties": false
