@@ -63,6 +63,12 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 # Build the correct URL prefix using the configured domain and port
 URL_PREFIX="http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 
+# Validate MCP_GATEWAY_API_KEY is set (required for authentication)
+if [ -z "$MCP_GATEWAY_API_KEY" ]; then
+  echo "ERROR: MCP_GATEWAY_API_KEY environment variable is required"
+  exit 1
+fi
+
 # Create the TOML configuration
 cat > /tmp/gh-aw/mcp-config/config.toml << 'TOML_EOF'
 [history]
@@ -70,11 +76,11 @@ persistence = "none"
 
 TOML_EOF
 
-jq -r --arg urlPrefix "$URL_PREFIX" '
+jq -r --arg urlPrefix "$URL_PREFIX" --arg apiKey "$MCP_GATEWAY_API_KEY" '
   .mcpServers | to_entries[] |
   "[mcp_servers.\(.key)]\n" +
   "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
-  "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
+  "http_headers = { Authorization = \"" + $apiKey + "\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"

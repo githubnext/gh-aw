@@ -31,14 +31,14 @@ cat > "$TEST_DIR/gateway-output.json" << 'EOF'
       "type": "http",
       "url": "http://localhost:8080/mcp/github",
       "headers": {
-        "Authorization": "test-api-key-abc123"
+        "Authorization": null
       }
     },
     "playwright": {
       "type": "http",
       "url": "http://localhost:8080/mcp/playwright",
       "headers": {
-        "Authorization": "test-api-key-xyz789"
+        "Authorization": null
       }
     }
   }
@@ -46,6 +46,7 @@ cat > "$TEST_DIR/gateway-output.json" << 'EOF'
 EOF
 
 export MCP_GATEWAY_OUTPUT="$TEST_DIR/gateway-output.json"
+export MCP_GATEWAY_API_KEY="test-api-key-from-env"
 bash "$SCRIPT_PATH" > /dev/null 2>&1
 
 # Check that config.toml was created
@@ -55,14 +56,14 @@ if [ ! -f /tmp/gh-aw/mcp-config/config.toml ]; then
 fi
 
 # Check for correct TOML format with http_headers inline table
-if ! grep -q 'http_headers = { Authorization = "test-api-key-abc123" }' /tmp/gh-aw/mcp-config/config.toml; then
-  echo "✗ FAIL: Missing or incorrect http_headers for github"
+if ! grep -q 'http_headers = { Authorization = "test-api-key-from-env" }' /tmp/gh-aw/mcp-config/config.toml; then
+  echo "✗ FAIL: Missing or incorrect http_headers for github (expected MCP_GATEWAY_API_KEY value)"
   cat /tmp/gh-aw/mcp-config/config.toml
   exit 1
 fi
 
-if ! grep -q 'http_headers = { Authorization = "test-api-key-xyz789" }' /tmp/gh-aw/mcp-config/config.toml; then
-  echo "✗ FAIL: Missing or incorrect http_headers for playwright"
+if ! grep -q 'http_headers = { Authorization = "test-api-key-from-env" }' /tmp/gh-aw/mcp-config/config.toml; then
+  echo "✗ FAIL: Missing or incorrect http_headers for playwright (expected MCP_GATEWAY_API_KEY value)"
   cat /tmp/gh-aw/mcp-config/config.toml
   exit 1
 fi
@@ -156,6 +157,18 @@ else
   echo "✓ PASS: Script correctly fails when MCP_GATEWAY_PORT is not set"
 fi
 export MCP_GATEWAY_PORT="80"
+echo ""
+
+# Test 7: Error handling - missing MCP_GATEWAY_API_KEY
+echo "Test 7: Error handling for missing MCP_GATEWAY_API_KEY"
+export MCP_GATEWAY_OUTPUT="$TEST_DIR/gateway-output.json"
+unset MCP_GATEWAY_API_KEY
+if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
+  echo "✗ FAIL: Script should fail when MCP_GATEWAY_API_KEY is not set"
+  exit 1
+else
+  echo "✓ PASS: Script correctly fails when MCP_GATEWAY_API_KEY is not set"
+fi
 echo ""
 
 echo "=== All tests passed ==="
