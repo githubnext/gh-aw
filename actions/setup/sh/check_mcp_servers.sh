@@ -83,14 +83,10 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
   
-  # Extract server URL (should be HTTP URL pointing to gateway)
-  SERVER_URL=$(echo "$SERVER_CONFIG" | jq -r '.url // empty' 2>/dev/null)
-  
-  if [ -z "$SERVER_URL" ] || [ "$SERVER_URL" = "null" ]; then
-    echo "⚠ $SERVER_NAME: skipped (not HTTP)"
-    SERVERS_SKIPPED=$((SERVERS_SKIPPED + 1))
-    continue
-  fi
+  # Construct server URL from GATEWAY_URL and server name
+  # Instead of using the URL from config (which may be 0.0.0.0), construct it from the gateway URL
+  # Pattern: http://gateway-url/mcp/server-name
+  SERVER_URL="${GATEWAY_URL}/mcp/${SERVER_NAME}"
   
   # Extract authentication headers from gateway configuration
   AUTH_HEADER=""
