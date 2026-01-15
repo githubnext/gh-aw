@@ -546,7 +546,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              awf_version: "v0.9.0",
+              awf_version: "v0.9.1",
               awmg_version: "v0.0.59",
               steps: {
                 firewall: "squid"
