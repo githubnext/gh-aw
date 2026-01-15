@@ -179,9 +179,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 
 	opencodeCommand := shellJoinArgs(commandParts)
 
-	// Prepend PATH setup to find opencode in hostedtoolcache
-	pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
-	opencodeCommand = fmt.Sprintf(`%s && %s`, pathSetup, opencodeCommand)
+	// Note: No PATH setup needed - actions/setup-node automatically adds npm global bin to PATH
 
 	// Add conditional model flag if not explicitly configured
 	isDetectionJob := workflowData.SafeOutputs == nil
