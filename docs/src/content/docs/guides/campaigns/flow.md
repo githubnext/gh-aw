@@ -591,6 +591,23 @@ Campaign repo-memory (cursor, metrics snapshots) is preserved when a campaign en
 
 ## Pre-existing Workflows & Trigger Behavior
 
+### Critical Requirement: Trigger Management
+
+**When a campaign executes a workflow** (workflow is listed in campaign's `workflows` field), the workflow's original triggers (cron schedules, push events, pull_request events) **must be disabled**. 
+
+The campaign orchestrator controls execution timing via `workflow_dispatch`, and keeping other triggers active would cause:
+- Duplicate executions (original trigger + campaign trigger)
+- Resource waste and potential conflicts
+- Loss of campaign control over execution timing
+
+**Required workflow trigger configuration**:
+```yaml
+on:
+  workflow_dispatch:  # ONLY this trigger for campaign-executed workflows
+```
+
+**Alternative approach**: If a workflow should keep its original triggers, **do not add it to the campaign's `workflows` list**. Instead, let it run independently and have the campaign discover its outputs via tracker labels.
+
 ### Campaign Impact on Existing Workflows
 
 A critical aspect of campaigns is understanding how they interact with workflows that have existing triggers (cron jobs, push events, etc.).
@@ -623,18 +640,9 @@ workflows:
 ---
 ```
 
-### Behavior: Dual Execution
+### Required: Disable Original Triggers
 
-**Both triggers remain active**:
-
-1. **Scheduled execution**: Continues running daily at 10 AM (original trigger)
-2. **Campaign execution**: Also triggered by campaign orchestrator during Phase 0
-
-**Result**: The workflow may run **multiple times per day**:
-- Once from its own schedule (10 AM)
-- Once from campaign orchestrator execution (6 PM by default)
-
-### Why This Happens
+**IMPORTANT**: When a campaign picks up an existing workflow for execution, **you must disable the workflow's original triggers** (cron schedules, push events, etc.). The campaign orchestrator will control when the workflow runs.
 
 Campaign orchestrators execute workflows programmatically using `workflow_dispatch`:
 
@@ -647,13 +655,15 @@ Campaign orchestrators execute workflows programmatically using `workflow_dispat
     ref: "main"
 ```
 
-**This trigger is additive** - it does NOT disable or replace existing triggers.
+**Why disable original triggers?**
+- Prevents duplicate executions (campaign + original schedule)
+- Ensures campaign has full control over execution timing
+- Avoids resource waste and potential conflicts
+- Maintains clear ownership of workflow execution
 
-### Managing Duplicate Executions
+#### How to Disable Original Triggers
 
-#### Option 1: Disable Original Schedule
-
-If the campaign should control all executions, modify the worker workflow:
+Modify the worker workflow to remove/comment out the original trigger:
 
 ```yaml
 # .github/workflows/daily-dependency-check.md
@@ -661,47 +671,34 @@ If the campaign should control all executions, modify the worker workflow:
 name: Daily Dependency Check
 on:
   # schedule:
-  #   - cron: "0 10 * * *"  # Disabled - controlled by campaign
-  workflow_dispatch:  # Keep this for campaign execution
+  #   - cron: "0 10 * * *"  # DISABLED - controlled by campaign
+  workflow_dispatch:  # REQUIRED - allows campaign to trigger workflow
 ---
 ```
 
-**Effect**: Workflow only runs when triggered by campaign orchestrator.
+**Result**: Workflow only runs when triggered by campaign orchestrator.
 
-#### Option 2: Keep Both (Intentional Redundancy)
+#### Alternative: Keep Workflow Independent
 
-If multiple executions are acceptable (e.g., for continuous monitoring):
-
-```yaml
-# .github/workflows/daily-dependency-check.md
----
-name: Daily Dependency Check
-on:
-  schedule:
-    - cron: "0 10 * * *"  # Runs independently
-  workflow_dispatch:       # Also triggered by campaign
----
-
-# Workflow should be idempotent and handle duplicate runs gracefully
-```
-
-**Effect**: Workflow runs 2+ times per day, but produces same results (idempotent).
-
-#### Option 3: Remove from Campaign
-
-If the workflow should only run on its own schedule, remove it from the campaign:
+If the workflow should continue running on its own schedule (not controlled by campaign), **do not add it to the campaign's `workflows` list**. Instead, let it run independently and have the campaign discover its outputs via tracker labels:
 
 ```yaml
 # .github/workflows/security-audit.campaign.md
 ---
 id: security-audit
+tracker-label: "campaign:security-audit"
 workflows:
-  # daily-dependency-check removed - runs independently
-  - vulnerability-scanner
+  - vulnerability-scanner  # Only workflows the campaign should execute
 ---
 ```
 
-**Effect**: Campaign does not execute this workflow; it runs only on its own schedule.
+**How it works**:
+- `daily-dependency-check` keeps its cron schedule and runs independently
+- It creates issues/PRs with the tracker label `campaign:security-audit`
+- Campaign orchestrator discovers these items via the tracker label
+- Campaign tracks progress without executing the workflow
+
+**Effect**: Campaign does not execute this workflow; it runs independently but campaign tracks its outputs.
 
 ### Push/PR Triggers
 
@@ -719,25 +716,41 @@ on:
 ---
 ```
 
-**When picked up by campaign**:
+**IMPORTANT**: If you want the campaign to execute this workflow, you **must remove the push/PR triggers**:
+
+```yaml
+# .github/workflows/code-quality-check.md
+---
+name: Code Quality Check
+on:
+  # push:                    # DISABLED - controlled by campaign
+  #   branches: [main]
+  # pull_request:            # DISABLED - controlled by campaign
+  workflow_dispatch:         # REQUIRED for campaign execution
+---
+```
+
+**However**, push/PR triggers are usually **inappropriate for campaigns** because:
+- Code quality checks should respond to code changes (push/PR events)
+- Campaign schedules (e.g., daily) don't align with code change events
+- The workflow's purpose (event-driven validation) conflicts with campaign control
+
+**Recommended approach**: Do NOT add event-driven workflows to campaign's `workflows` list. Instead:
+- Let them run independently on their original triggers
+- Have the campaign discover their outputs via tracker labels
 
 ```yaml
 # .github/workflows/quality-initiative.campaign.md
 ---
+id: quality-initiative
+tracker-label: "campaign:quality-initiative"
 workflows:
-  - code-quality-check
+  # code-quality-check NOT listed - runs independently on push/PR
+  - quality-reporter  # Only campaign-controlled workflows here
 ---
 ```
 
-**Behavior**:
-- **Push/PR triggers**: Continue working normally for code changes
-- **Campaign trigger**: Also executes on campaign schedule (via `workflow_dispatch`)
-
-**Recommendation**: This is usually **not desired** - code quality checks should respond to code changes, not campaign schedules.
-
-**Solution**: Do NOT include event-driven workflows in campaign `workflows` list. Instead:
-- Let them run independently on their triggers
-- Campaign discovers their outputs via tracker labels
+**Result**: Event-driven workflows continue responding to code changes, while campaign tracks their outputs.
 
 ### Campaign Item Protection
 
@@ -779,12 +792,12 @@ if (issueLabels.some(label => label.startsWith('campaign:'))) {
 
 | Scenario | Behavior | Recommendation |
 |----------|----------|----------------|
-| **Worker with cron in campaign** | Runs on both schedule and campaign trigger | Disable cron or remove from campaign |
-| **Worker with push trigger in campaign** | Runs on push AND campaign trigger | Remove from campaign (not suitable) |
-| **Worker with workflow_dispatch only** | Runs only when campaign triggers | Ideal for campaign workers |
-| **Non-campaign workflow with cron** | Runs independently, unaffected | Ensure it respects campaign labels |
+| **Worker with cron in campaign** | Workflow added to campaign's `workflows` list | **REQUIRED: Disable cron**, keep only `workflow_dispatch` |
+| **Worker with push trigger in campaign** | Workflow added to campaign's `workflows` list | **REQUIRED: Remove push trigger**, or remove from campaign |
+| **Worker with workflow_dispatch only** | Runs only when campaign triggers | ✅ Ideal for campaign workers |
+| **Independent workflow with cron** | NOT in campaign's `workflows` list | Keep cron, campaign discovers outputs via tracker labels |
 
-**Best practice**: Campaign worker workflows should use `workflow_dispatch` only, letting the campaign orchestrator control execution timing.
+**Key requirement**: If a workflow is in the campaign's `workflows` list, it must have ONLY `workflow_dispatch` trigger. All other triggers (cron, push, pull_request) must be disabled to prevent duplicate executions.
 
 ## Summary: Complete Campaign Flow
 
@@ -832,11 +845,11 @@ if (issueLabels.some(label => label.startsWith('campaign:'))) {
 
 ### Pre-existing Workflows
 
-- **Cron jobs**: Continue running + campaign trigger (dual execution)
-- **Push/PR triggers**: Continue + campaign trigger (not recommended for campaigns)
-- **workflow_dispatch only**: Ideal for campaign workers
+- **REQUIRED**: Workflows in campaign's `workflows` list must have ONLY `workflow_dispatch` trigger
+- **Original triggers must be disabled**: Cron, push, and PR triggers must be removed/commented out
+- **Alternative**: Keep workflows independent with their triggers, let campaign discover outputs via tracker labels
 - **Protection**: Campaign labels prevent interference from other workflows
-- **Recommendation**: Disable conflicting triggers or remove from campaign
+- **Key rule**: Campaign-executed workflows = `workflow_dispatch` only; Independent workflows = keep their triggers
 
 ## Further Reading
 
