@@ -14,7 +14,7 @@ permissions:
   contents: read
   pull-requests: read
   security-events: read
-engine: claude
+engine: copilot
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
