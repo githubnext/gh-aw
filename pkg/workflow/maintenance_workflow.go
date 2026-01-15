@@ -128,7 +128,7 @@ permissions: {}
 
 jobs:
   close-expired-discussions:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       discussions: write
     steps:
@@ -173,7 +173,7 @@ jobs:
 	// Add close-expired-issues job
 	yaml.WriteString(`
   close-expired-issues:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       issues: write
     steps:
@@ -217,7 +217,7 @@ jobs:
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       issues: write
@@ -262,7 +262,7 @@ jobs:
             await main();
 
   zizmor-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     needs: compile-workflows
     permissions:
       contents: read
@@ -285,7 +285,7 @@ jobs:
           echo "✓ Zizmor security scan completed"
 
   secret-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     steps:
