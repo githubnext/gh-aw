@@ -101,6 +101,15 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		}
 	}
 
+	// Add step to create Copilot CLI directories
+	// The agent might install and run Copilot CLI during execution (e.g., CLI version checking workflows)
+	// Copilot CLI requires write access to ~/.copilot/pkg for package extraction
+	copilotDirStep := GitHubActionStep([]string{
+		"      - name: Create Copilot CLI directories",
+		"        run: bash /opt/gh-aw/actions/create_copilot_dirs.sh",
+	})
+	steps = append(steps, copilotDirStep)
+
 	return steps
 }
 

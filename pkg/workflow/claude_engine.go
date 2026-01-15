@@ -120,6 +120,15 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		}
 	}
 
+	// Add step to create Copilot CLI directories
+	// The agent might install and run Copilot CLI during execution (e.g., CLI version checking workflows)
+	// Copilot CLI requires write access to ~/.copilot/pkg for package extraction
+	copilotDirStep := GitHubActionStep([]string{
+		"      - name: Create Copilot CLI directories",
+		"        run: bash /opt/gh-aw/actions/create_copilot_dirs.sh",
+	})
+	steps = append(steps, copilotDirStep)
+
 	// Add Claude CLI installation step after sandbox installation
 	if len(npmSteps) > 1 {
 		steps = append(steps, npmSteps[1:]...) // Install Claude CLI and subsequent steps

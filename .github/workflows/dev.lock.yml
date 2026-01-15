@@ -149,6 +149,8 @@ jobs:
           
           # Verify installation
           copilot --version
+      - name: Create Copilot CLI directories
+        run: bash /opt/gh-aw/actions/create_copilot_dirs.sh
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -845,6 +847,8 @@ jobs:
           
           # Verify installation
           copilot --version
+      - name: Create Copilot CLI directories
+        run: bash /opt/gh-aw/actions/create_copilot_dirs.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

@@ -146,6 +146,8 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Create Copilot CLI directories
+        run: bash /opt/gh-aw/actions/create_copilot_dirs.sh
       - name: Install Claude Code CLI
         run: npm install -g --silent @anthropic-ai/claude-code@2.1.6
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -1101,6 +1103,8 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Create Copilot CLI directories
+        run: bash /opt/gh-aw/actions/create_copilot_dirs.sh
       - name: Install Claude Code CLI
         run: npm install -g --silent @anthropic-ai/claude-code@2.1.6
       - name: Execute Claude Code CLI

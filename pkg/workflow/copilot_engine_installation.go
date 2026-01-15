@@ -136,6 +136,15 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		}
 	}
 
+	// Add step to create Copilot CLI directories
+	// Copilot CLI requires write access to ~/.copilot/pkg for package extraction
+	// This is especially important when Copilot CLI is globally installed
+	copilotDirStep := GitHubActionStep([]string{
+		"      - name: Create Copilot CLI directories",
+		"        run: bash /opt/gh-aw/actions/create_copilot_dirs.sh",
+	})
+	steps = append(steps, copilotDirStep)
+
 	// Add Copilot CLI installation step after sandbox installation
 	if len(npmSteps) > 1 {
 		steps = append(steps, npmSteps[1:]...) // Install Copilot CLI and subsequent steps
