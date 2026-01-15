@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 tracker-id: daily-choice-test
 engine:
   id: claude
