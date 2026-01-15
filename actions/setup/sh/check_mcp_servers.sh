@@ -83,10 +83,13 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
   
-  # Extract server URL (should be HTTP URL pointing to gateway)
-  SERVER_URL=$(echo "$SERVER_CONFIG" | jq -r '.url // empty' 2>/dev/null)
+  # Construct server URL using GATEWAY_URL and server name
+  # The gateway config may contain 0.0.0.0 which is not valid for connections
+  # Instead, use the GATEWAY_URL parameter (localhost) and append the MCP path
+  SERVER_URL="${GATEWAY_URL}/mcp/${SERVER_NAME}"
   
-  if [ -z "$SERVER_URL" ] || [ "$SERVER_URL" = "null" ]; then
+  # Verify this is an HTTP server by checking if .url field exists in config
+  if ! echo "$SERVER_CONFIG" | jq -e '.url' >/dev/null 2>&1; then
     echo "⚠ $SERVER_NAME: skipped (not HTTP)"
     SERVERS_SKIPPED=$((SERVERS_SKIPPED + 1))
     continue
