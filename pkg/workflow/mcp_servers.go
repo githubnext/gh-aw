@@ -602,6 +602,16 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 		yaml.WriteString("          \n")
 
+		// Ensure host.docker.internal resolves to localhost for gateway with --network host
+		// This fixes DNS resolution issues on Linux systems (GitHub Actions runners)
+		// where host.docker.internal may not be configured. When using --network host,
+		// the container runs in the host's network namespace and should use localhost.
+		yaml.WriteString("          # Ensure host.docker.internal resolves to localhost (fixes DNS on Linux)\n")
+		yaml.WriteString("          if ! grep -q \"host.docker.internal\" /etc/hosts 2>/dev/null; then\n")
+		yaml.WriteString("            echo \"127.0.0.1 host.docker.internal\" | sudo tee -a /etc/hosts > /dev/null\n")
+		yaml.WriteString("          fi\n")
+		yaml.WriteString("          \n")
+
 		// Render MCP config - this will pipe directly to the gateway script
 		// Pass the compiler's skipValidation flag through workflowData for schema validation
 		if workflowData.CompilerSkipValidation == nil {
