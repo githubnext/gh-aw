@@ -148,31 +148,32 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		modelEnvVar = constants.EnvVarModelAgentCopilot
 	}
 
+	// Determine which command to use (once for both sandbox and non-sandbox modes)
+	var commandName string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+		copilotExecLog.Printf("Using custom command: %s", commandName)
+	} else if sandboxEnabled {
+		// For SRT: use locally installed package without -y flag to avoid internet fetch
+		// For AWF: use the installed binary directly
+		if isSRTEnabled(workflowData) {
+			// Use node explicitly to invoke copilot CLI to ensure env vars propagate correctly through sandbox
+			// The .bin/copilot shell wrapper doesn't properly pass environment variables through bubblewrap
+			// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
+			commandName = "node ./node_modules/.bin/copilot"
+		} else {
+			// AWF - use the copilot binary installed by the installer script
+			// The binary is mounted into the AWF container from /usr/local/bin/copilot
+			commandName = "/usr/local/bin/copilot"
+		}
+	} else {
+		// Non-sandbox mode: use standard copilot command
+		commandName = "copilot"
+	}
+
 	if sandboxEnabled {
 		// Build base command
-		var baseCommand string
-
-		// Check if custom command is specified
-		var commandName string
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-			commandName = workflowData.EngineConfig.Command
-			copilotExecLog.Printf("Using custom command: %s", commandName)
-		} else {
-			// For SRT: use locally installed package without -y flag to avoid internet fetch
-			// For AWF: use the installed binary directly
-			if isSRTEnabled(workflowData) {
-				// Use node explicitly to invoke copilot CLI to ensure env vars propagate correctly through sandbox
-				// The .bin/copilot shell wrapper doesn't properly pass environment variables through bubblewrap
-				// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
-				commandName = "node ./node_modules/.bin/copilot"
-			} else {
-				// AWF - use the copilot binary installed by the installer script
-				// The binary is mounted into the AWF container from /usr/local/bin/copilot
-				commandName = "/usr/local/bin/copilot"
-			}
-		}
-
-		baseCommand = fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
+		baseCommand := fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
 
 		// Add conditional model flag if needed
 		if needsModelFlag {
@@ -181,15 +182,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			copilotCommand = baseCommand
 		}
 	} else {
-		// When sandbox is disabled, determine command to use
-		var commandName string
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-			commandName = workflowData.EngineConfig.Command
-			copilotExecLog.Printf("Using custom command: %s", commandName)
-		} else {
-			commandName = "copilot"
-		}
-
 		baseCommand := fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
 
 		// Add conditional model flag if needed

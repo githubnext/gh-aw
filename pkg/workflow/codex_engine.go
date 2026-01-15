@@ -308,15 +308,7 @@ mkdir -p "$CODEX_HOME/logs"
 		}
 	} else {
 		// Build the command without AWF wrapping
-		// Determine which command to use
-		var commandName string
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-			commandName = workflowData.EngineConfig.Command
-			codexEngineLog.Printf("Using custom command: %s", commandName)
-		} else {
-			commandName = "codex"
-		}
-
+		// Reuse commandName already determined above
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			command = fmt.Sprintf(`set -o pipefail
