@@ -56,7 +56,9 @@ function loadAgentOutput() {
     outputContent = fs.readFileSync(agentOutputFile, "utf8");
   } catch (error) {
     const errorMessage = `Error reading agent output file: ${getErrorMessage(error)}`;
-    core.error(errorMessage);
+    // Use info instead of error for missing files - this is a normal scenario
+    // when the agent fails before producing any safe-outputs
+    core.info(errorMessage);
     return { success: false, error: errorMessage };
   }
 
