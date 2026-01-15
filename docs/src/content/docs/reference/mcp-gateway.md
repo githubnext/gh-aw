@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.7.0  
+**Version**: 1.8.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -52,7 +52,7 @@ The MCP Gateway serves as a protocol translation layer between MCP clients expec
 - **Authentication**: Token-based access control
 - **Health Monitoring**: Service availability endpoints
 
-The gateway requires that stdio-based MCP servers MUST be containerized. Direct command execution (stdio+command without containerization) is NOT supported because it cannot provide the necessary isolation and portability guarantees.
+The gateway requires that stdio-based MCP servers MUST be containerized by default. Direct command execution (stdio+command without containerization) is NOT supported by default because it cannot provide the necessary isolation and portability guarantees. However, servers MAY opt out of containerization by setting the `skipContainerization` flag when security and isolation requirements are already satisfied by other means.
 
 ### 1.2 Scope
 
@@ -149,14 +149,28 @@ The gateway MUST translate all upstream transports to HTTP for client communicat
 
 #### 3.2.1 Containerization Requirement
 
-Stdio-based MCP servers MUST be containerized. The gateway SHALL NOT support direct command execution without containerization (stdio+command) because:
+Stdio-based MCP servers MUST be containerized by default. The gateway SHALL NOT support direct command execution without containerization (stdio+command) by default because:
 
 1. Containerization provides necessary process isolation and security boundaries
 2. Containers enable reproducible environments across different deployment contexts
 3. Container images provide versioning and dependency management
 4. Containerization ensures portability and consistent behavior
 
-Direct command execution of stdio servers (e.g., `command: "node server.js"` without a container) is explicitly NOT SUPPORTED by this specification.
+**Containerization Opt-Out**:
+
+MCP servers MAY opt out of containerization by setting the `skipContainerization` field to `true` in their server configuration. When a server opts out:
+
+1. The server MUST provide the `command` field instead of the `container` field
+2. The gateway SHALL execute the command directly without container isolation
+3. Security and isolation responsibilities transfer to the deployment environment
+4. The server implementation MUST document security requirements and isolation guarantees
+
+Implementations that skip containerization SHOULD only be used in trusted environments where:
+- Process isolation is provided by other means (e.g., virtual machines, sandboxed execution environments)
+- Security boundaries are enforced at the infrastructure level
+- Command execution is restricted to known, verified executables
+
+Direct command execution of stdio servers (e.g., `command: "node server.js"`) without setting `skipContainerization: true` is explicitly NOT SUPPORTED by this specification.
 
 ### 3.3 Operational Model
 
@@ -218,7 +232,9 @@ Each server configuration MUST support:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `container` | string | Conditional* | Container image for the MCP server (required for stdio servers) |
+| `container` | string | Conditional* | Container image for the MCP server (required for stdio servers unless `skipContainerization` is true) |
+| `command` | string | Conditional*** | Command to execute for stdio servers (only when `skipContainerization` is true) |
+| `skipContainerization` | boolean | No | Skip containerization for stdio servers (default: false). When true, server runs via direct command execution. See Section 3.2.1 for security considerations. |
 | `entrypoint` | string | No | Optional entrypoint override for container (equivalent to `docker run --entrypoint`) |
 | `entrypointArgs` | array[string] | No | Arguments passed to container entrypoint (container only) |
 | `mounts` | array[string] | No | Volume mounts for containerized stdio servers (format: "host:container:mode" where mode is "ro" (read-only) or "rw" (read-write)). Applies to stdio servers only. See Section 4.1.5 for details. |
@@ -228,10 +244,11 @@ Each server configuration MUST support:
 | `tools` | array[string] | No | Tool filter for the MCP server. Use `["*"]` to allow all tools (default), or specify a list of tool names to allow. This field is passed through to agent configurations and applies to both stdio and http servers. |
 | `headers` | object | No | HTTP headers to include in requests (HTTP servers only). Commonly used for authentication to external HTTP servers. Values may contain variable expressions. |
 
-*Required for stdio servers (containerized execution)  
-**Required for HTTP servers
+*Required for stdio servers with containerized execution (default behavior)  
+**Required for HTTP servers  
+***Required for stdio servers when `skipContainerization` is true
 
-**Note**: The `command` field is NOT supported. Stdio servers MUST use the `container` field to specify a containerized MCP server. Direct command execution is not supported by this specification.
+**Note**: By default, stdio servers MUST use the `container` field to specify a containerized MCP server. The `command` field is only supported when `skipContainerization` is explicitly set to `true`. See Section 3.2.1 for containerization opt-out requirements and security considerations.
 
 #### 4.1.3 Gateway Configuration Fields
 
@@ -725,7 +742,7 @@ This allows clients to dynamically discover gateway endpoints and authentication
 
 ### 6.1 Container Isolation
 
-For stdio servers, the gateway MUST:
+For stdio servers with containerized execution (default behavior), the gateway MUST:
 
 1. Launch each server in a separate container
 2. Maintain isolated stdin/stdout/stderr streams
@@ -733,7 +750,7 @@ For stdio servers, the gateway MUST:
 4. Terminate containers on gateway shutdown (via `/close` endpoint or process termination)
 5. Apply volume mounts as configured in the server's `mounts` field (Section 4.1.5)
 
-All stdio-based MCP servers MUST be containerized to ensure:
+All stdio-based MCP servers MUST be containerized by default to ensure:
 
 - **Process Isolation**: Each container provides a separate process namespace
 - **Resource Isolation**: Containers enforce CPU, memory, and filesystem boundaries
@@ -741,11 +758,38 @@ All stdio-based MCP servers MUST be containerized to ensure:
 - **Security Boundaries**: Container runtimes enforce security policies and capabilities
 - **Filesystem Isolation**: Container filesystems are isolated, with controlled access to host paths via volume mounts
 
-The gateway SHALL NOT support non-containerized process execution for stdio servers.
+**Non-Containerized Execution (Opt-Out)**:
+
+When a stdio server sets `skipContainerization: true`, the gateway SHALL:
+
+1. Execute the server command directly without container isolation
+2. Maintain isolated stdin/stdout/stderr streams for the process
+3. Run the server process in the gateway's execution environment
+4. Terminate the process on gateway shutdown
+
+Servers that skip containerization:
+
+- MUST NOT use container-specific fields (`container`, `entrypoint`, `entrypointArgs`, `mounts`)
+- MUST provide the `command` field with the executable command
+- MAY use the `env` field to specify environment variables for the process
+- SHALL NOT have container-level isolation guarantees (process namespace, resource limits, network isolation)
+- MUST document their own security and isolation requirements
+- SHOULD only be deployed in trusted environments with appropriate security controls
+
+**Security Considerations for Non-Containerized Execution**:
+
+Implementations that skip containerization transfer security responsibilities to the deployment environment:
+
+1. **Process Isolation**: The host system MUST provide adequate process isolation (e.g., through virtual machines, sandboxed execution, or other mechanisms)
+2. **Resource Controls**: The deployment environment SHOULD enforce resource limits to prevent resource exhaustion
+3. **Network Security**: Network access controls MUST be enforced at the infrastructure level
+4. **Command Validation**: Only trusted, verified executables SHOULD be allowed
+5. **Privilege Management**: Processes SHOULD run with minimal required privileges
+6. **Audit Logging**: Command execution SHOULD be logged for security monitoring
 
 **Volume Mount Isolation**:
 
-When volume mounts are configured (Section 4.1.5):
+When volume mounts are configured (Section 4.1.5) for containerized servers:
 
 - The gateway MUST mount the specified host paths into the container at the configured container paths
 - The gateway MUST enforce the specified access mode (read-only "ro" or read-write "rw")
@@ -977,6 +1021,13 @@ A conforming implementation MUST pass the following test categories:
 - **T-CFG-016**: Reject invalid mount mode (not "ro" or "rw")
 - **T-CFG-017**: Multiple mounts for single stdio server
 - **T-CFG-018**: Reject mounts for HTTP servers (stdio only)
+- **T-CFG-019**: Valid stdio server with skipContainerization: true and command field
+- **T-CFG-020**: Reject stdio server with skipContainerization: true but missing command field
+- **T-CFG-021**: Reject stdio server with both container and skipContainerization: true
+- **T-CFG-022**: Reject stdio server with skipContainerization: true and container-specific fields (mounts, entrypoint)
+- **T-CFG-016**: Reject invalid mount mode (not "ro" or "rw")
+- **T-CFG-017**: Multiple mounts for single stdio server
+- **T-CFG-018**: Reject mounts for HTTP servers (stdio only)
 
 #### 10.1.2 Protocol Translation Tests
 
@@ -997,6 +1048,11 @@ A conforming implementation MUST pass the following test categories:
 - **T-ISO-004**: Cross-container communication prevention
 - **T-ISO-005**: Container failure isolation
 - **T-ISO-006**: Volume mount isolation (mounts do not affect other containers)
+- **T-ISO-007**: Volume mount access mode enforcement (ro vs rw)
+- **T-ISO-008**: Volume mount path independence between containers
+- **T-ISO-009**: Non-containerized server process isolation verification
+- **T-ISO-010**: Non-containerized server stdin/stdout/stderr isolation
+- **T-ISO-011**: Non-containerized server termination on gateway shutdown
 - **T-ISO-007**: Volume mount access mode enforcement (ro vs rw)
 - **T-ISO-008**: Volume mount path independence between containers
 
@@ -1181,6 +1237,40 @@ Implementations SHOULD provide:
 }
 ```
 
+#### A.5 Non-Containerized Stdio Server (Opt-Out)
+
+**Security Warning**: This configuration skips containerization and should only be used in trusted environments with appropriate security controls.
+
+```json
+{
+  "mcpServers": {
+    "local-script": {
+      "type": "stdio",
+      "command": "node /opt/trusted-servers/my-mcp-server.js",
+      "skipContainerization": true,
+      "env": {
+        "NODE_ENV": "production",
+        "API_KEY": "${MY_API_KEY}"
+      }
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "gateway-secret-token"
+  }
+}
+```
+
+**Requirements for Non-Containerized Execution**:
+
+1. The command must be a trusted, verified executable
+2. The deployment environment must provide adequate process isolation
+3. Resource limits should be enforced at the infrastructure level
+4. Network access controls must be enforced externally
+5. The process should run with minimal required privileges
+6. Command execution should be logged for security monitoring
+
 ### Appendix B: Gateway Lifecycle Examples
 
 #### B.1 Closing the Gateway
@@ -1303,6 +1393,36 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.8.0 (Draft)
+
+- **Added**: Containerization opt-out capability for stdio servers (Section 3.2.1, 4.1.2, 6.1)
+  - New optional `skipContainerization` boolean field (default: false)
+  - When set to true, servers can use direct command execution via the `command` field
+  - Requires explicit opt-in to disable containerization
+  - Transfers security and isolation responsibilities to deployment environment
+- **Added**: `command` field support for non-containerized stdio servers (Section 4.1.2)
+  - Only available when `skipContainerization` is true
+  - Mutually exclusive with container-specific fields (`container`, `entrypoint`, `entrypointArgs`, `mounts`)
+- **Updated**: Introduction to clarify opt-out capability (Section 1.1)
+  - Servers MAY opt out of containerization when security requirements are met by other means
+- **Updated**: Server configuration requirements (Section 4.1.2)
+  - Documented `skipContainerization` field with default value and security warnings
+  - Documented `command` field as conditional on `skipContainerization: true`
+  - Updated field requirement notes to reflect conditional requirements
+- **Updated**: Server isolation documentation (Section 6.1)
+  - Added "Non-Containerized Execution (Opt-Out)" subsection
+  - Documented gateway behavior for non-containerized servers
+  - Listed restrictions for non-containerized servers (no container-specific fields)
+  - Added comprehensive security considerations for non-containerized execution
+- **Added**: Compliance tests for containerization opt-out
+  - T-CFG-019: Valid stdio server with skipContainerization: true and command field
+  - T-CFG-020: Reject stdio server with skipContainerization: true but missing command field
+  - T-CFG-021: Reject stdio server with both container and skipContainerization: true
+  - T-CFG-022: Reject stdio server with skipContainerization: true and container-specific fields
+  - T-ISO-009: Non-containerized server process isolation verification
+  - T-ISO-010: Non-containerized server stdin/stdout/stderr isolation
+  - T-ISO-011: Non-containerized server termination on gateway shutdown
 
 ### Version 1.7.0 (Draft)
 

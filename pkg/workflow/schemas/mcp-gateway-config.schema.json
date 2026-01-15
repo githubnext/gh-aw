@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://docs.github.com/gh-aw/schemas/mcp-gateway-config.schema.json",
   "title": "MCP Gateway Configuration",
-  "description": "Configuration schema for the Model Context Protocol (MCP) Gateway as defined in the MCP Gateway Specification v1.0.0. The gateway provides transparent HTTP access to multiple MCP servers with protocol translation, server isolation, and authentication capabilities.",
+  "description": "Configuration schema for the Model Context Protocol (MCP) Gateway as defined in the MCP Gateway Specification v1.8.0. The gateway provides transparent HTTP access to multiple MCP servers with protocol translation, server isolation, and authentication capabilities. Supports both containerized (default) and non-containerized (opt-out) stdio servers.",
   "type": "object",
   "properties": {
     "mcpServers": {
@@ -34,7 +34,19 @@
     },
     "stdioServerConfig": {
       "type": "object",
-      "description": "Configuration for a containerized stdio-based MCP server. The gateway communicates with the server via standard input/output streams. Per MCP Gateway Specification section 3.2.1, all stdio servers MUST be containerized - direct command execution is not supported.",
+      "description": "Configuration for a stdio-based MCP server. The gateway communicates with the server via standard input/output streams. Per MCP Gateway Specification v1.8.0 section 3.2.1, stdio servers MUST be containerized by default. Servers MAY opt out of containerization by setting 'skipContainerization: true' and providing a 'command' field.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/containerizedStdioConfig"
+        },
+        {
+          "$ref": "#/definitions/nonContainerizedStdioConfig"
+        }
+      ]
+    },
+    "containerizedStdioConfig": {
+      "type": "object",
+      "description": "Configuration for a containerized stdio-based MCP server (default behavior).",
       "properties": {
         "type": {
           "type": "string",
@@ -47,6 +59,12 @@
           "description": "Container image for the MCP server (e.g., 'ghcr.io/example/mcp-server:latest'). This field is required for stdio servers per MCP Gateway Specification section 4.1.2.",
           "minLength": 1,
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./_-]*(:([a-zA-Z0-9._-]+|latest))?$"
+        },
+        "skipContainerization": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must be false or omitted for containerized execution.",
+          "default": false
         },
         "entrypoint": {
           "type": "string",
@@ -96,6 +114,46 @@
         }
       },
       "required": ["container"],
+      "additionalProperties": false
+    },
+    "nonContainerizedStdioConfig": {
+      "type": "object",
+      "description": "Configuration for a non-containerized stdio-based MCP server (opt-out). Security Warning: This configuration skips containerization and should only be used in trusted environments with appropriate security controls. Per MCP Gateway Specification v1.8.0 section 3.2.1.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["stdio"],
+          "description": "Transport type for the MCP server. For non-containerized servers, use 'stdio'.",
+          "default": "stdio"
+        },
+        "skipContainerization": {
+          "type": "boolean",
+          "const": true,
+          "description": "Must be true to opt out of containerization. When true, the server runs via direct command execution without container isolation. This transfers security and isolation responsibilities to the deployment environment."
+        },
+        "command": {
+          "type": "string",
+          "description": "Command to execute for the stdio server. Required when skipContainerization is true. Must be a trusted, verified executable in a secure deployment environment.",
+          "minLength": 1
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the server process. Values may contain variable expressions using '${VARIABLE_NAME}' syntax, which will be resolved from the process environment.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool filter for the MCP server. Use ['*'] to allow all tools, or specify a list of tool names to allow. This field is passed through to agent configurations.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        }
+      },
+      "required": ["skipContainerization", "command"],
       "additionalProperties": false
     },
     "httpServerConfig": {
@@ -240,6 +298,24 @@
           "url": "https://api.example.com/mcp",
           "headers": {
             "Authorization": "Bearer ${API_TOKEN}"
+          }
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "apiKey": "gateway-secret-token"
+      }
+    },
+    {
+      "mcpServers": {
+        "local-script": {
+          "type": "stdio",
+          "command": "node /opt/trusted-servers/my-mcp-server.js",
+          "skipContainerization": true,
+          "env": {
+            "NODE_ENV": "production",
+            "API_KEY": "${MY_API_KEY}"
           }
         }
       },
