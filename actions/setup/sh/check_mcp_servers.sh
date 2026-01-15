@@ -83,6 +83,17 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
   
+  # Check if server is HTTP-based (has type "http" or has a URL field)
+  # Skip stdio servers that haven't been converted to HTTP by the gateway
+  SERVER_TYPE=$(echo "$SERVER_CONFIG" | jq -r '.type // empty' 2>/dev/null)
+  SERVER_URL_FROM_CONFIG=$(echo "$SERVER_CONFIG" | jq -r '.url // empty' 2>/dev/null)
+  
+  if [ "$SERVER_TYPE" != "http" ] && [ -z "$SERVER_URL_FROM_CONFIG" ]; then
+    echo "⚠ $SERVER_NAME: skipped (not HTTP)"
+    SERVERS_SKIPPED=$((SERVERS_SKIPPED + 1))
+    continue
+  fi
+  
   # Construct server URL from GATEWAY_URL and server name
   # Instead of using the URL from config (which may be 0.0.0.0), construct it from the gateway URL
   # Pattern: http://gateway-url/mcp/server-name
