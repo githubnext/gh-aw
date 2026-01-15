@@ -129,6 +129,26 @@ else
 fi
 echo ""
 
+# Wait a few seconds for gateway to initialize before checking health
+# This helps catch early failures before curl retries start
+echo "Waiting for gateway to initialize..."
+sleep 5
+echo "Checking if gateway process is still alive after initialization..."
+if ! ps -p $GATEWAY_PID > /dev/null 2>&1; then
+  echo "ERROR: Gateway process (PID: $GATEWAY_PID) exited during initialization"
+  WAIT_STATUS=$(wait $GATEWAY_PID 2>/dev/null; echo $?)
+  echo "Gateway exit status: $WAIT_STATUS"
+  echo ""
+  echo "Gateway stdout (errors are written here per MCP Gateway Specification):"
+  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  echo ""
+  echo "Gateway stderr logs (debug output):"
+  cat /tmp/gh-aw/mcp-logs/stderr.log || echo "No stderr logs available"
+  exit 1
+fi
+echo "Gateway process is still running (PID: $GATEWAY_PID)"
+echo ""
+
 # Wait for gateway to be ready using /health endpoint
 # Note: Gateway may take 40-50 seconds when starting multiple MCP servers
 # (e.g., serena alone takes ~22 seconds to start)
