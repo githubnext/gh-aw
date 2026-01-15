@@ -17,16 +17,8 @@ Campaigns progress through distinct lifecycle states that determine their behavi
 | **completed** | Campaign objectives achieved | Orchestrator stops executing, final status report generated |
 | **archived** | Campaign is historical reference only | Workflows are retained but not executed |
 
-**State transitions:**
-```
-planned → active → paused → active → completed → archived
-         ↓                    ↓
-         └──────→ completed ←─┘
-```
-
-The `state` field in the campaign spec (`.campaign.md`) controls the lifecycle stage, but **note**: The current implementation does not automatically disable orchestrator execution based on state. Users must:
-- Disable the workflow in GitHub Actions UI for `paused` campaigns
-- Delete or disable the `.campaign.lock.yml` workflow file for `completed` or `archived` campaigns
+> [!CAUTION]
+> The current implementation does not automatically disable orchestrator execution based on state. Users must manually disable the workflow in GitHub Actions UI for `paused` campaigns, or delete/disable the `.campaign.lock.yml` workflow file for `completed` or `archived` campaigns.
 
 ## Campaign Startup
 
@@ -37,6 +29,9 @@ A campaign begins execution when its orchestrator workflow runs for the first ti
 1. **Scheduled execution**: Daily at 6 PM UTC by default (`cron: "0 18 * * *"`)
 2. **Manual trigger**: Via `workflow_dispatch` from GitHub Actions UI
 3. **Programmatic trigger**: Via GitHub API or `gh workflow run` command
+
+> [!TIP]
+> For testing, use manual triggers to run the orchestrator immediately without waiting for the scheduled time.
 
 ### Orchestrator Workflow Structure
 
@@ -63,6 +58,9 @@ The generated orchestrator (`.campaign.lock.yml`) consists of two main component
 - Enforces discovery budgets (max items, max pages) 
 - Produces deterministic manifest at `./.gh-aw/campaign.discovery.json`
 - Maintains pagination cursor in repo-memory for incremental discovery
+
+> [!NOTE]
+> The discovery precomputation runs **before** the AI agent, ensuring deterministic and budget-controlled discovery.
 
 **Output**: Discovery manifest with normalized item metadata:
 
@@ -140,6 +138,9 @@ The AI agent follows a strict execution sequence:
 14. Report counts discovered, processed, deferred, failed
 15. Report KPI trends and campaign progress
 16. Document next steps
+
+> [!IMPORTANT]
+> Status reporting is **required** for every orchestrator run to maintain campaign visibility and stakeholder communication.
 
 ### First Run Behavior
 
@@ -600,11 +601,12 @@ The campaign orchestrator controls execution timing via `workflow_dispatch`, and
 - Resource waste and potential conflicts
 - Loss of campaign control over execution timing
 
-**Required workflow trigger configuration**:
-```yaml
-on:
-  workflow_dispatch:  # ONLY this trigger for campaign-executed workflows
-```
+> [!CAUTION]
+> **Required workflow trigger configuration:**
+> ```yaml
+> on:
+>   workflow_dispatch:  # ONLY this trigger for campaign-executed workflows
+> ```
 
 **Alternative approach**: If a workflow should keep its original triggers, **do not add it to the campaign's `workflows` list**. Instead, let it run independently and have the campaign discover its outputs via tracker labels.
 
