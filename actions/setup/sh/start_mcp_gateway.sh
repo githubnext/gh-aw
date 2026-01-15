@@ -312,6 +312,10 @@ echo ""
 # Check MCP server functionality
 echo "Checking MCP server functionality..."
 if [ -f /opt/gh-aw/actions/check_mcp_servers.sh ]; then
+  # Wait for MCP servers to fully initialize after gateway is ready
+  # Gateway may report healthy while servers are still starting up
+  echo "Waiting 10 seconds for MCP servers to complete initialization..."
+  sleep 10
   echo "Running MCP server checks..."
   # Store check diagnostic logs in /tmp/gh-aw/mcp-logs/start-gateway.log for artifact upload
   # Use tee to output to both stdout and the log file
