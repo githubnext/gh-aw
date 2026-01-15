@@ -937,7 +937,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated as 'Campaign: <issue-title>' or 'Campaign #<issue-number>' based on the issue context."
+          "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated using the title-prefix configuration (default: 'Campaign') as '<title-prefix>: <issue-title>' or '<title-prefix> #<issue-number>' based on the issue context."
         },
         "owner": {
           "type": "string",
