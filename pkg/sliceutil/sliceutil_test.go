@@ -1,6 +1,10 @@
 package sliceutil
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestContains(t *testing.T) {
 	tests := []struct {
@@ -50,9 +54,8 @@ func TestContains(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Contains(tt.slice, tt.item)
-			if result != tt.expected {
-				t.Errorf("Contains(%v, %q) = %v; want %v", tt.slice, tt.item, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result,
+				"Contains should return correct value for slice %v and item %q", tt.slice, tt.item)
 		})
 	}
 }
@@ -117,9 +120,8 @@ func TestContainsAny(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ContainsAny(tt.s, tt.substrings...)
-			if result != tt.expected {
-				t.Errorf("ContainsAny(%q, %v) = %v; want %v", tt.s, tt.substrings, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result,
+				"ContainsAny should return correct value for string %q and substrings %v", tt.s, tt.substrings)
 		})
 	}
 }
@@ -184,9 +186,8 @@ func TestContainsIgnoreCase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ContainsIgnoreCase(tt.s, tt.substr)
-			if result != tt.expected {
-				t.Errorf("ContainsIgnoreCase(%q, %q) = %v; want %v", tt.s, tt.substr, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result,
+				"ContainsIgnoreCase should return correct value for string %q and substring %q", tt.s, tt.substr)
 		})
 	}
 }
@@ -224,59 +225,40 @@ func TestContains_LargeSlice(t *testing.T) {
 	}
 
 	// Item at beginning
-	if !Contains(largeSlice, "a") {
-		t.Error("Expected to find 'a' at beginning of large slice")
-	}
+	assert.True(t, Contains(largeSlice, "a"), "should find 'a' at beginning of large slice")
 
 	// Item at end
-	if !Contains(largeSlice, string(rune('a'+999%26))) {
-		t.Error("Expected to find item at end of large slice")
-	}
+	assert.True(t, Contains(largeSlice, string(rune('a'+999%26))), "should find item at end of large slice")
 
 	// Item not in slice
-	if Contains(largeSlice, "not-present") {
-		t.Error("Expected not to find non-existent item in large slice")
-	}
+	assert.False(t, Contains(largeSlice, "not-present"), "should not find non-existent item in large slice")
 }
 
 func TestContains_SingleElement(t *testing.T) {
 	slice := []string{"single"}
 
-	if !Contains(slice, "single") {
-		t.Error("Expected to find item in single-element slice")
-	}
-
-	if Contains(slice, "other") {
-		t.Error("Expected not to find different item in single-element slice")
-	}
+	assert.True(t, Contains(slice, "single"), "should find item in single-element slice")
+	assert.False(t, Contains(slice, "other"), "should not find different item in single-element slice")
 }
 
 func TestContainsAny_MultipleMatches(t *testing.T) {
 	s := "The quick brown fox jumps over the lazy dog"
 
 	// Multiple substrings that match
-	if !ContainsAny(s, "quick", "lazy") {
-		t.Error("Expected to find at least one matching substring")
-	}
+	assert.True(t, ContainsAny(s, "quick", "lazy"), "should find at least one matching substring")
 
 	// First one matches
-	if !ContainsAny(s, "quick", "missing", "absent") {
-		t.Error("Expected to find first matching substring")
-	}
+	assert.True(t, ContainsAny(s, "quick", "missing", "absent"), "should find first matching substring")
 
 	// Last one matches
-	if !ContainsAny(s, "missing", "absent", "dog") {
-		t.Error("Expected to find last matching substring")
-	}
+	assert.True(t, ContainsAny(s, "missing", "absent", "dog"), "should find last matching substring")
 }
 
 func TestContainsAny_NilSubstrings(t *testing.T) {
 	s := "test string"
 
 	// Nil substrings should return false
-	if ContainsAny(s, nil...) {
-		t.Error("Expected false for nil substrings")
-	}
+	assert.False(t, ContainsAny(s, nil...), "should return false for nil substrings")
 }
 
 func TestContainsIgnoreCase_Unicode(t *testing.T) {
@@ -315,9 +297,8 @@ func TestContainsIgnoreCase_Unicode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ContainsIgnoreCase(tt.s, tt.substr)
-			if result != tt.expected {
-				t.Errorf("ContainsIgnoreCase(%q, %q) = %v; want %v", tt.s, tt.substr, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result,
+				"ContainsIgnoreCase should return correct value for string %q and substring %q", tt.s, tt.substr)
 		})
 	}
 }
@@ -326,26 +307,16 @@ func TestContainsIgnoreCase_PartialMatch(t *testing.T) {
 	s := "GitHub Actions Workflow"
 
 	// Should find partial matches
-	if !ContainsIgnoreCase(s, "hub") {
-		t.Error("Expected to find partial match 'hub' in 'GitHub'")
-	}
-
-	if !ContainsIgnoreCase(s, "WORK") {
-		t.Error("Expected to find partial match 'WORK' in 'Workflow'")
-	}
-
-	if !ContainsIgnoreCase(s, "actions workflow") {
-		t.Error("Expected to find multi-word partial match")
-	}
+	assert.True(t, ContainsIgnoreCase(s, "hub"), "should find partial match 'hub' in 'GitHub'")
+	assert.True(t, ContainsIgnoreCase(s, "WORK"), "should find partial match 'WORK' in 'Workflow'")
+	assert.True(t, ContainsIgnoreCase(s, "actions workflow"), "should find multi-word partial match")
 }
 
 func TestContains_Duplicates(t *testing.T) {
 	// Slice with duplicate values
 	slice := []string{"apple", "banana", "apple", "cherry", "apple"}
 
-	if !Contains(slice, "apple") {
-		t.Error("Expected to find 'apple' in slice with duplicates")
-	}
+	assert.True(t, Contains(slice, "apple"), "should find 'apple' in slice with duplicates")
 
 	// Should still return true on first match
 	count := 0
@@ -354,9 +325,7 @@ func TestContains_Duplicates(t *testing.T) {
 			count++
 		}
 	}
-	if count != 3 {
-		t.Errorf("Expected 3 occurrences of 'apple', got %d", count)
-	}
+	assert.Equal(t, 3, count, "should count all occurrences of duplicate item")
 }
 
 func TestContainsAny_OrderMatters(t *testing.T) {
@@ -367,11 +336,7 @@ func TestContainsAny_OrderMatters(t *testing.T) {
 	result1 := ContainsAny(s, "string", "words")
 	result2 := ContainsAny(s, "words", "string")
 
-	if result1 != result2 {
-		t.Error("Expected same result regardless of substring order")
-	}
-
-	if !result1 || !result2 {
-		t.Error("Expected both to find matches")
-	}
+	assert.Equal(t, result1, result2, "should return same result regardless of substring order")
+	assert.True(t, result1, "should find matches in first ordering")
+	assert.True(t, result2, "should find matches in second ordering")
 }
