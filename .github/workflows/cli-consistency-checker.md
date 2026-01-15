@@ -21,7 +21,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[cli-consistency] "
     labels: [automation, cli, documentation]
-    max: 5
+    max: 6  # 1 parent + 5 sub-issues
 timeout-minutes: 20
 ---
 
@@ -139,9 +139,36 @@ After running all commands, look for these types of problems:
 
 ## Step 4: Report Findings
 
-**CRITICAL**: If you find ANY issues, you MUST create issues using safe-outputs.create-issue.
+**CRITICAL**: If you find ANY issues, you MUST create a parent tracking issue and sub-issues using safe-outputs.create-issue.
 
-For each finding, create a separate issue with:
+### Creating Issues with Parent-Child Structure
+
+When issues are found:
+
+1. **First**: Create a **parent tracking issue** that summarizes all findings
+   - **Title**: "CLI Consistency Issues - [Date]"
+   - **Body**: Include a high-level summary of issues found, total count, and breakdown by severity
+   - **temporary_id**: Generate a unique temporary ID (format: `aw_` followed by 12 hex characters, e.g., `aw_abc123def456`)
+
+2. **Then**: Create **sub-issues** (maximum 5) for each specific finding
+   - Use the **parent** field with the temporary_id from the parent issue to link each sub-issue
+   - Each sub-issue should focus on one specific problem
+
+### Parent Issue Format
+
+```json
+{
+  "type": "create_issue",
+  "temporary_id": "aw_abc123def456",
+  "title": "CLI Consistency Issues - January 15, 2026",
+  "body": "## Summary\n\nFound 5 CLI consistency issues during automated inspection.\n\n### Breakdown by Severity\n- High: 1\n- Medium: 2\n- Low: 2\n\n### Issues\nSee linked sub-issues for details on each finding."
+}
+```
+
+### Sub-Issue Format
+
+For each finding, create a sub-issue with:
+- **parent**: The temporary_id from the parent issue (e.g., `"aw_abc123def456"`)
 - **Title**: Brief description of the issue (e.g., "Typo in compile command help", "Missing example in logs command")
 - **Body**: Include:
   - The command/subcommand affected
@@ -150,28 +177,22 @@ For each finding, create a separate issue with:
   - Suggested fix if applicable
   - Priority level: `high` (breaks functionality), `medium` (confusing/misleading), `low` (minor inconsistency)
 
-### Example Issue Format
+### Example Sub-Issue Format
 
-```markdown
-## Issue Description
-
-**Command**: `gh aw compile`
-**Type**: Typo in help text
-**Priority**: Low
-
-### Current Output (from running ./gh-aw compile --help)
-```
-Compile markdown to YAML workflows
+```json
+{
+  "type": "create_issue",
+  "parent": "aw_abc123def456",
+  "title": "Typo in compile command help",
+  "body": "## Issue Description\n\n**Command**: `gh aw compile`\n**Type**: Typo in help text\n**Priority**: Low\n\n### Current Output (from running ./gh-aw compile --help)\n```\nCompile markdown to YAML workflows\n```\n\n### Issue\nThe word \"markdown\" should be capitalized consistently with other commands.\n\n### Suggested Fix\n```\nCompile Markdown workflows to GitHub Actions YAML\n```"
+}
 ```
 
-### Issue
-The word "markdown" should be capitalized consistently with other commands.
-
-### Suggested Fix
-```
-Compile Markdown workflows to GitHub Actions YAML
-```
-```
+**Important Notes**:
+- Maximum 5 sub-issues can be created (prioritize the most important findings)
+- Always create the parent issue first with a temporary_id
+- Link all sub-issues to the parent using the temporary_id
+- If more than 5 issues are found, create sub-issues for the 5 most critical ones
 
 ## Step 5: Summary
 
@@ -180,8 +201,9 @@ At the end, provide a brief summary:
 - Total issues found
 - Breakdown by severity (high/medium/low)
 - Any patterns noticed in the issues
+- Confirmation that parent tracking issue and sub-issues were created
 
-**If no issues are found**, state that clearly but DO NOT create an issue. Only create issues when actual problems are identified.
+**If no issues are found**, state that clearly but DO NOT create any issues. Only create issues (parent + sub-issues) when actual problems are identified.
 
 ## Security Note
 
