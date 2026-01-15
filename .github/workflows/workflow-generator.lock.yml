@@ -208,7 +208,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot.",
+              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\")",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
