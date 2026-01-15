@@ -92,6 +92,11 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
   
+  # Replace 0.0.0.0 with localhost for connection
+  # The gateway uses --network host, so localhost works for health checks and server pings
+  # 0.0.0.0 is a bind address, not a valid address for client connections
+  SERVER_URL=$(echo "$SERVER_URL" | sed 's|http://0\.0\.0\.0:|http://localhost:|')
+  
   # Extract authentication headers from gateway configuration
   AUTH_HEADER=""
   if echo "$SERVER_CONFIG" | jq -e '.headers.Authorization' >/dev/null 2>&1; then

@@ -244,6 +244,12 @@ if [ -z "$MCP_GATEWAY_API_KEY" ]; then
   exit 1
 fi
 
+# Export MCP_GATEWAY_* variables for use by converter scripts
+# These variables are required by converters to rewrite URLs with the correct domain
+export MCP_GATEWAY_DOMAIN
+export MCP_GATEWAY_PORT
+export MCP_GATEWAY_API_KEY
+
 # Determine which agent-specific converter to use based on engine type
 # Check for engine-specific indicators and call appropriate converter
 if [ -n "$GH_AW_ENGINE" ]; then
