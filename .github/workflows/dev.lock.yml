@@ -564,7 +564,7 @@ jobs:
         run: |
           set -o pipefail
                     # Execute OpenCode CLI with prompt from file
-                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && 'opencode run' "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" --print-logs${GH_AW_MODEL_AGENT_OPENCODE:+ --model "$GH_AW_MODEL_AGENT_OPENCODE"} 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && opencode run "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" --print-logs${GH_AW_MODEL_AGENT_OPENCODE:+ --model "$GH_AW_MODEL_AGENT_OPENCODE"} 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
@@ -870,7 +870,7 @@ jobs:
         run: |
           set -o pipefail
                     # Execute OpenCode CLI with prompt from file
-                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && 'opencode run' "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" --print-logs${GH_AW_MODEL_DETECTION_OPENCODE:+ --model "$GH_AW_MODEL_DETECTION_OPENCODE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && opencode run "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" --print-logs${GH_AW_MODEL_DETECTION_OPENCODE:+ --model "$GH_AW_MODEL_DETECTION_OPENCODE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GH_AW_MODEL_DETECTION_OPENCODE: ${{ vars.GH_AW_MODEL_DETECTION_OPENCODE || '' }}
