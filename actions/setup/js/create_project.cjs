@@ -1,8 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getOctokit } = require("@actions/github");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+
+// Module-level variable to hold the Octokit instance (either custom or global github)
+let octokitInstance;
 
 /**
  * Log detailed GraphQL error information
@@ -47,7 +51,7 @@ function logGraphQLError(error, operation) {
  */
 async function getOwnerId(ownerType, ownerLogin) {
   if (ownerType === "org") {
-    const result = await github.graphql(
+    const result = await octokitInstance.graphql(
       `query($login: String!) {
         organization(login: $login) {
           id
@@ -57,7 +61,7 @@ async function getOwnerId(ownerType, ownerLogin) {
     );
     return result.organization.id;
   } else {
-    const result = await github.graphql(
+    const result = await octokitInstance.graphql(
       `query($login: String!) {
         user(login: $login) {
           id
@@ -78,7 +82,7 @@ async function getOwnerId(ownerType, ownerLogin) {
 async function createProjectV2(ownerId, title) {
   core.info(`Creating project with title: "${title}"`);
 
-  const result = await github.graphql(
+  const result = await octokitInstance.graphql(
     `mutation($ownerId: ID!, $title: String!) {
       createProjectV2(input: { ownerId: $ownerId, title: $title }) {
         projectV2 {
@@ -113,7 +117,7 @@ async function createProjectV2(ownerId, title) {
 async function addItemToProject(projectId, contentId) {
   core.info(`Adding item to project...`);
 
-  const result = await github.graphql(
+  const result = await octokitInstance.graphql(
     `mutation($projectId: ID!, $contentId: ID!) {
       addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
         item {
@@ -138,7 +142,7 @@ async function addItemToProject(projectId, contentId) {
  * @returns {Promise<string>} Issue node ID
  */
 async function getIssueNodeId(owner, repo, issueNumber) {
-  const result = await github.graphql(
+  const result = await octokitInstance.graphql(
     `query($owner: String!, $repo: String!, $issueNumber: Int!) {
       repository(owner: $owner, name: $repo) {
         issue(number: $issueNumber) {
@@ -162,6 +166,16 @@ async function main(config = {}) {
   const defaultTargetOwner = config.target_owner || "";
   const maxCount = config.max || 1;
   const titlePrefix = config.title_prefix || "Campaign";
+  const customToken = config["github-token"] || "";
+
+  // Initialize Octokit instance with custom token if provided, otherwise use global github
+  if (customToken) {
+    core.info("Using custom GitHub token for create_project operations");
+    octokitInstance = getOctokit(customToken);
+  } else {
+    core.info("Using default GitHub token for create_project operations");
+    octokitInstance = github;
+  }
 
   if (defaultTargetOwner) {
     core.info(`Default target owner: ${defaultTargetOwner}`);

@@ -168,28 +168,10 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
 
 	// With section for github-token
-	// If create_project or create_project_status_update is enabled with a custom token, use Projects token
-	// Otherwise use the standard safe outputs token
+	// Use the standard safe outputs token for all operations
+	// Project-specific handlers (create_project, update_project) will use custom tokens from their handler config
 	steps = append(steps, "        with:\n")
-
-	// Check if we need a Projects token (for create_project or create_project_status_update)
-	var projectToken string
-	if data.SafeOutputs.CreateProjects != nil && data.SafeOutputs.CreateProjects.GitHubToken != "" {
-		projectToken = data.SafeOutputs.CreateProjects.GitHubToken
-		consolidatedSafeOutputsStepsLog.Print("Using Projects token for handler manager (create_project enabled with custom token)")
-	} else if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken != "" {
-		projectToken = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
-		consolidatedSafeOutputsStepsLog.Print("Using Projects token for handler manager (create_project_status_update enabled with custom token)")
-	}
-
-	if projectToken != "" {
-		// Use the project-specific token for the github-script step
-		// This ensures github.graphql() calls have Projects access
-		effectiveToken := getEffectiveProjectGitHubToken(projectToken, data.GitHubToken)
-		steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-	} else {
-		c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
-	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
 
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
