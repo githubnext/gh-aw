@@ -95,7 +95,7 @@ describe("generate_footer.cjs", () => {
       const result = generateFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "owner/repo/workflow.md@main", "https://github.com/owner/repo/blob/main/workflow.md", undefined, undefined, undefined);
 
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
-      expect(result).toContain("See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/)");
+      expect(result).toContain("See [usage guide](https://githubnext.github.io/gh-aw/guides/packaging-imports/)");
     });
 
     it("should not include installation instructions when source is empty", () => {

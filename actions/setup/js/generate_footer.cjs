@@ -80,7 +80,7 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL,
   }
 
   if (workflowSource && workflowSourceURL) {
-    footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+    footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/guides/packaging-imports/).`;
   }
 
   // Add missing tools and data sections if available
