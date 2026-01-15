@@ -18,7 +18,7 @@ prev:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-*Ladies and gentlemen, boys and girls!* We've reached the *grand conclusion* of our Peli's Agent Factory series! You've toured the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), discovered [lessons](/gh-aw/blog/2026-01-21-twelve-lessons/), learned the [patterns](/gh-aw/blog/2026-01-24-design-patterns/), mastered [operations](/gh-aw/blog/2026-01-27-operational-patterns/), explored [imports](/gh-aw/blog/2026-01-30-imports-and-sharing/), secured the [vault](/gh-aw/blog/2026-02-02-security-lessons/), glimpsed the [magnificent machinery](/gh-aw/blog/2026-02-05-how-workflows-work/), and practiced [authoring](/gh-aw/blog/2026-02-08-authoring-workflows/). Now for the *golden ticket* - your practical getting started guide!
+We've reached the *grand conclusion* of our Peli's Agent Factory series! You've toured the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), discovered [lessons](/gh-aw/blog/2026-01-21-twelve-lessons/), learned the [patterns](/gh-aw/blog/2026-01-24-design-patterns/), mastered [operations](/gh-aw/blog/2026-01-27-operational-patterns/), explored [imports](/gh-aw/blog/2026-01-30-imports-and-sharing/), secured the [vault](/gh-aw/blog/2026-02-02-security-lessons/), glimpsed the [magnificent machinery](/gh-aw/blog/2026-02-05-how-workflows-work/), and practiced [authoring](/gh-aw/blog/2026-02-08-authoring-workflows/). Now for the *golden ticket* - your practical getting started guide!
 
 Ready to build your own agent ecosystem? Let's get you up and running!
 

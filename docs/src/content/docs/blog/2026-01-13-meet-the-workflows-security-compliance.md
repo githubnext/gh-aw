@@ -1,5 +1,5 @@
 ---
-title: "Meet the Workflows: Security & Compliance"
+title: "Meet the Workflows: Security-related"
 description: "A curated tour of security and compliance workflows that enforce safe boundaries"
 authors:
   - dsyme
@@ -7,7 +7,7 @@ authors:
   - mnkiefer
 date: 2026-01-13T08:00:00
 sidebar:
-  label: "Security & Compliance"
+  label: "Security-related"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/
   label: "Operations & Release Workflows"
@@ -24,7 +24,7 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-rele
 
 But reliability alone isn't enough - we also need *security*. When AI agents can access APIs, modify code, and interact with external services, security becomes paramount. How do we ensure agents only access authorized resources? How do we track vulnerabilities and enforce compliance deadlines? How do we prevent credential exposure? That's where security and compliance workflows become our essential guardrails - the watchful guardians that let us sleep soundly at night.
 
-## Security & Compliance Workflows
+## Security-related Workflows
 
 These agents are our security guards, keeping watch and enforcing the rules:
 
@@ -42,9 +42,7 @@ The Daily Secrets Analysis scans for exposed credentials in commits and discussi
 
 The Daily Malicious Code Scan goes deeper, reviewing recent code changes for suspicious patterns that might indicate security threats or compromised agentic behavior.
 
-The Static Analysis Report runs a comprehensive security audit daily using industry-standard tools (zizmor, poutine, actionlint) to catch workflow vulnerabilities.
-
-We learned that AI agents need guardrails just like humans need seat belts. These workflows prove that automation and security aren't at odds - when done right, automated security is more consistent than manual reviews, and it never gets tired or distracted.
+The Static Analysis Report runs a comprehensive security audit daily using industry-standard tools (zizmor, poutine, actionlint) to catch workflow vulnerabilities. This is particularly interesting because it shows how traditional security tools can be integrated into an AI agent workflow.
 
 ## Learn More
 
@@ -53,7 +51,7 @@ We learned that AI agents need guardrails just like humans need seat belts. Thes
 
 ## Next Up: Teamwork & Culture Workflows
 
-After all this serious infrastructure talk, let's explore the fun side: agents that bring joy and build team culture.
+After all this serious talk, let's explore the fun side: agents that bring joy and build team culture.
 
 Continue reading: [Teamwork & Culture Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
 
