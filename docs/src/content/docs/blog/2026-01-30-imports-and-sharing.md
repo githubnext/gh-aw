@@ -3,6 +3,7 @@ title: "Imports & Sharing: Peli's Secret Weapon"
 description: "How modular, reusable components enabled scaling our agent collection"
 authors:
   - dsyme
+  - peli
   - mnkiefer
 date: 2026-01-30
 draft: true
@@ -20,7 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to another installment in our Peli's Agent Factory series, where we're exploring how GitHub Next built and operates our collection of automated agentic workflows for use in our own repositories. So far, we've covered [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), [lessons learned](/gh-aw/blog/2026-01-21-twelve-lessons/), [design patterns](/gh-aw/blog/2026-01-24-design-patterns/), and [operational patterns](/gh-aw/blog/2026-01-27-operational-patterns/). Today, let's talk about the secret weapon that made scaling possible: imports.
+*Come with me, and you'll see* another installment in our Peli's Agent Factory series! We've already toured the [workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), learned our [lessons](/gh-aw/blog/2026-01-21-twelve-lessons/), discovered the [secret recipes](/gh-aw/blog/2026-01-24-design-patterns/), and explored [operational patterns](/gh-aw/blog/2026-01-27-operational-patterns/). Today, I shall reveal the *everlasting gobstopper* - the secret weapon that made scaling possible: imports!
 
 Here's the truth: tending dozens of agents would be completely unsustainable without reuse. One of the most powerful features that let us scale Peli's Agent Factory is the **imports system** - a mechanism for sharing and reusing workflow components across the entire factory.
 

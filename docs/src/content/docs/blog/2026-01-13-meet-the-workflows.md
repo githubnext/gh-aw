@@ -18,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Hi there! 👋 Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/).
+*Wonderful to see you again!* 🎩 So glad you've returned to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 We're the GitHub Next team, and we've been on quite a journey. Over the past months, we've built and operated a collection of automated agentic workflows. These aren't just demos or proof-of-concepts - these are real agents doing actual work in our [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection.
 
@@ -26,9 +26,13 @@ Think of this as your guided tour through our agent factory. We're showcasing th
 
 ## Starting Simple: Automated Issue Triage
 
-To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage. This represents the "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful.
+To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage.
 
-Our **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/issue-triage-agent.md?plain=1)** automatically labels and categorizes new issues the moment they're opened. Let's take a look at the full workflow:
+Issue triage now represents the "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter examples in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
+
+The purpose of automated issue triage is straightforward: when a new issue is opened, the agent analyzes its content, does research in the codebase and other issues, responds with a comment, and applies appropriate labels based on predefined categories. This helps maintainers quickly understand the nature of incoming issues without manual review.
+
+Our **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)** focuses on labels: it automatically labels and categorizes new issues the moment they're opened. Let's take a look at the full workflow:
 
 ```markdown
 ---
@@ -70,9 +74,9 @@ In the frontmatter, we define permissions, tools, and safe outputs. This ensures
 
 To continue the tour, let's look briefly at two automated summarization workflows that help us stay on top of repository activity. These agents digest large amounts of information and present it in a concise, readable format.
 
-First, the **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/weekly-issue-summary.md?plain=1)** creates digestible summaries complete with charts and trends (because who has time to read everything?)
+First, the **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/weekly-issue-summary.md?plain=1)** creates digestible summaries complete with charts and trends (because who has time to read everything?)
 
-Next, the **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-repo-chronicle.md?plain=1)** marrates the day's activity like a storyteller - seriously, it's kind of delightful.
+Next, the **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md?plain=1)** marrates the day's activity like a storyteller - seriously, it's kind of delightful.
 
 ## Learnings
 

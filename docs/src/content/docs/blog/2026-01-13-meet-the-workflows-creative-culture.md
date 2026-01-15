@@ -4,6 +4,7 @@ description: "A curated tour of creative and culture workflows that bring joy to
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T09:00:00
 sidebar:
   label: "Creative & Culture"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's explore the fun side of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Oh, my dear friends!* Let's explore the *playful workshop* - the most fun corner of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Where joy and whimsy reign supreme!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/), we explored security and compliance workflows - the essential guardrails that manage vulnerability campaigns, validate network security, and prevent credential exposure. These workflows let us sleep soundly knowing our agents operate within safe boundaries.
 
@@ -27,9 +28,9 @@ But here's the thing: work doesn't have to be all business. While we've built se
 
 Not everything needs to be serious! These agents remind us that work can be fun:
 
-- **[Poem Bot](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/poem-bot.md?plain=1)** - Responds to `/poem-bot` commands with creative verses (yes, really)  
-- **[Daily Team Status](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-team-status.md?plain=1)** - Shares team mood and status updates  
-- **[Daily News](https://github.com/githubnext/gh-aw/tree/532a0412680638e5e93b6e8c5ea9b8074fe6be22/.github/workflows/daily-news.md?plain=1)** - Curates relevant news for the team
+- **[Poem Bot](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/poem-bot.md?plain=1)** - Responds to `/poem-bot` commands with creative verses (yes, really)  
+- **[Daily Team Status](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-team-status.md?plain=1)** - Shares team mood and status updates  
+- **[Daily News](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-news.md?plain=1)** - Curates relevant news for the team
 
 Okay, hear us out: the Poem Bot started as a joke. Someone said "wouldn't it be funny if we had an agent that writes poems about our code?" and then we actually built it. And you know what? People *love* it. It became a team tradition to invoke `/poem-bot` after particularly gnarly PR merges. We learned that AI agents don't have to be all business - they can build culture and create moments of joy.
 
