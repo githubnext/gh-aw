@@ -20,18 +20,19 @@ func init() {
 }
 
 // All getter functions return empty strings since embedded scripts were removed
+// These are kept for backward compatibility with tests
 
 func getAddCommentScript() string              { return "" }
 func getAddLabelsScript() string               { return "" }
-func getAssignToAgentScript() string           { return "" }
+func getAssignToAgentScript() string           { return "" } //nolint:unused // Used by tests
 func getCreateCodeScanningAlertScript() string { return "" }
 func getCreateDiscussionScript() string        { return "" }
 func getCreateIssueScript() string             { return "" }
 func getCreatePRReviewCommentScript() string   { return "" }
 func getNoOpScript() string                    { return "" }
 func getNotifyCommentErrorScript() string      { return "" }
-func getUpdateProjectScript() string           { return "" }
-func getCopyProjectScript() string             { return "" }
+func getUpdateProjectScript() string           { return "" } //nolint:unused // Used by tests
+func getCopyProjectScript() string             { return "" } //nolint:unused // Used by tests
 func getCreateProjectScript() string           { return "" }
 func getUploadAssetsScript() string            { return "" }
 

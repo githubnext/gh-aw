@@ -509,6 +509,63 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["autofix_code_scanning_alert"] = handlerConfig
 	}
 
+	if data.SafeOutputs.UpdateProjects != nil {
+		cfg := data.SafeOutputs.UpdateProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if len(cfg.Views) > 0 {
+			handlerConfig["views"] = cfg.Views
+		}
+		config["update_project"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CopyProjects != nil {
+		cfg := data.SafeOutputs.CopyProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if cfg.SourceProject != "" {
+			handlerConfig["source_project"] = cfg.SourceProject
+		}
+		if cfg.TargetOwner != "" {
+			handlerConfig["target_owner"] = cfg.TargetOwner
+		}
+		config["copy_project"] = handlerConfig
+	}
+
+	if data.SafeOutputs.AssignToAgent != nil {
+		cfg := data.SafeOutputs.AssignToAgent
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["assign_to_agent"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CreateAgentSessions != nil {
+		cfg := data.SafeOutputs.CreateAgentSessions
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["create_agent_session"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)

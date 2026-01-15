@@ -6,6 +6,8 @@ import (
 )
 
 // buildAssignToAgentStepConfig builds the configuration for assigning to an agent
+//
+//nolint:unused // Kept for testing purposes
 func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AssignToAgent
 
@@ -31,7 +33,9 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	}
 }
 
-// buildCreateAgentTaskStepConfig builds the configuration for creating an agent session
+// buildCreateAgentSessionStepConfig builds the configuration for creating an agent session
+//
+//nolint:unused // Kept for testing purposes
 func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateAgentSessions
 
@@ -52,6 +56,8 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 }
 
 // buildUpdateProjectStepConfig builds the configuration for updating a project
+//
+//nolint:unused // Kept for testing purposes
 func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.UpdateProjects
 
@@ -80,6 +86,8 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 }
 
 // buildCopyProjectStepConfig builds the configuration for copying a project
+//
+//nolint:unused // Kept for testing purposes
 func (c *Compiler) buildCopyProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CopyProjects
 

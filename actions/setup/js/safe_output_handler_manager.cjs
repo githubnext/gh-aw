@@ -49,6 +49,10 @@ const HANDLER_MAP = {
   missing_tool: "./missing_tool.cjs",
   create_missing_data_issue: "./create_missing_data_issue.cjs",
   missing_data: "./missing_data.cjs",
+  update_project: "./update_project.cjs",
+  copy_project: "./copy_project.cjs",
+  assign_to_agent: "./assign_to_agent.cjs",
+  create_agent_session: "./create_agent_session.cjs",
   noop: "./noop_handler.cjs",
 };
 
@@ -56,7 +60,7 @@ const HANDLER_MAP = {
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  */
-const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "update_project", "upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
 
 /**
  * Load configuration for safe outputs
