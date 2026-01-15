@@ -76,6 +76,9 @@ persistence = "none"
 
 TOML_EOF
 
+# Convert gateway JSON output to Codex TOML format
+# Use jq --arg to pass API key safely (prevents shell injection)
+# Use @json filter to escape special characters in the API key (quotes, backslashes, etc.)
 jq -r --arg urlPrefix "$URL_PREFIX" --arg apiKey "$MCP_GATEWAY_API_KEY" '
   .mcpServers | to_entries[] |
   "[mcp_servers.\(.key)]\n" +
