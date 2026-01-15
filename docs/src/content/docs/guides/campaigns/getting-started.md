@@ -10,8 +10,6 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 Before creating your first campaign, keep these core principles in mind:
 
 - **Start small**: One clear goal per campaign (e.g., "Upgrade Node.js to v20")
-- **Start with ProjectOps pattern**: Use default mode (no `execute-workflows` flag) first to observe behavior and build trust
-- **Understand the progression**: ProjectOps pattern (tracking only) → Campaign orchestration (autonomous execution)
 - **Reuse workflows**: Search existing workflows before creating new ones
 - **Minimal permissions**: Grant only necessary permissions (issues/draft PRs, not merges)
 - **Standardized outputs**: Use consistent patterns for issues, PRs, and comments
@@ -32,10 +30,6 @@ The campaign generator automatically creates:
 
 Create `.github/workflows/<id>.campaign.md` with frontmatter like:
 
-**For your first campaign** (ProjectOps pattern - recommended):
-
-This uses the **ProjectOps pattern** with campaign structure. The orchestrator tracks work created by independent workflows on a project board and reports progress toward objectives. See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for more on this pattern.
-
 ```yaml
 id: framework-upgrade
 version: "v1"
@@ -55,58 +49,17 @@ kpis:
     time-window-days: 30
 
 workflows:
-  - framework-upgrade  # Use an existing workflow (runs independently)
-
-# Governance (conservative defaults for first campaign)
-governance:
-  max-new-items-per-run: 5
-  max-project-updates-per-run: 5
-  max-comments-per-run: 3
-```
-
-**Note:** The campaign generator will automatically create a GitHub Project board with the project URL if not provided. You can also specify an existing project URL using `project-url: "https://github.com/orgs/ORG/projects/1"`.
-
-**For experienced users** (campaign orchestration - advanced):
-
-This enables **campaign orchestration** mode. The campaign actively executes workflows, creates missing ones, and drives progress autonomously.
-
-```yaml
-id: framework-upgrade
-version: "v1"
-name: "Framework Upgrade"
-
-project-url: "https://github.com/orgs/ORG/projects/1"
-tracker-label: "campaign:framework-upgrade"
-
-objective: "Upgrade all services to Framework vNext with zero downtime."
-kpis:
-  - id: services_upgraded
-    name: "Services upgraded"
-    priority: primary
-    direction: "increase"
-    baseline: 0
-    target: 50
-    time-window-days: 30
-
-workflows:
   - framework-scanner
   - framework-upgrader
 
-# Enable campaign orchestration (ADVANCED - only after ProjectOps pattern experience)
-execute-workflows: true
-
-# Governance (still start conservative even in orchestration mode)
+# Governance (start conservative for first campaign)
 governance:
   max-new-items-per-run: 10
   max-project-updates-per-run: 10
   max-comments-per-run: 5
 ```
 
-**Key differences:**
-- **ProjectOps pattern** (default): Discovers and tracks work created by existing workflows (safer, simpler)
-- **Campaign orchestration** (`execute-workflows: true`): Executes workflows, creates missing ones (powerful but complex)
-
-**Recommendation:** Start with the ProjectOps pattern to understand campaign tracking. This gives you project board updates and tracking with campaign structure (objectives, KPIs, governance) before moving to autonomous execution.
+**Note:** The campaign generator will automatically create a GitHub Project board with the project URL if not provided. You can also specify an existing project URL using `project-url: "https://github.com/orgs/ORG/projects/1"`.
 
 ## 2) Compile
 
@@ -146,52 +99,6 @@ Items with campaign labels (`campaign:*`) are automatically protected from other
 - **Manual opt-out**: Use labels like `no-bot` or `no-campaign` to exclude items from all automation
 
 This ensures your campaign items remain under the control of the campaign orchestrator and aren't interfered with by other workflows.
-
-## Migrating from ProjectOps pattern to campaign orchestration
-
-Once you've successfully run campaigns with the ProjectOps pattern for 1-2 weeks and understand how it works, you can enable campaign orchestration:
-
-**Prerequisites before enabling orchestration:**
-1. ✅ You've run at least 2-3 campaign runs successfully with the ProjectOps pattern
-2. ✅ You understand how the orchestrator coordinates work
-3. ✅ You've reviewed the project board and it's tracking items correctly
-4. ✅ You have clear governance rules and conservative limits set
-
-**Migration steps:**
-
-1. **Update your campaign spec** to add `execute-workflows: true`:
-   ```yaml
-   execute-workflows: true  # Enable campaign orchestration
-   
-   governance:
-     max-new-items-per-run: 10  # Start conservative
-     max-project-updates-per-run: 10
-     max-comments-per-run: 5
-   ```
-
-2. **Recompile** the campaign: `gh aw compile <campaign-id>`
-
-3. **Test with a manual run** before scheduling:
-   - Trigger the workflow manually from GitHub Actions
-   - Watch the run logs carefully
-   - Verify it behaves as expected
-
-4. **Monitor closely** for the first few runs:
-   - Check that workflows execute correctly
-   - Review any new workflows it creates
-   - Ensure governance limits are appropriate
-
-5. **Adjust governance** based on observed behavior:
-   - Increase limits if runs are too conservative
-   - Decrease limits if runs are too aggressive
-   - Add opt-out labels if needed
-
-**Rollback if needed:**
-- Remove `execute-workflows: true` from spec
-- Recompile: `gh aw compile <campaign-id>`
-- Campaign reverts to ProjectOps pattern
-- Recompile: `gh aw compile <campaign-id>`
-- Campaign reverts to passive mode
 
 ## Optional: repo-memory for durable state
 

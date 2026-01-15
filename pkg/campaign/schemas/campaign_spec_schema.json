@@ -204,11 +204,6 @@
       },
       "additionalProperties": false
     },
-    "execute-workflows": {
-      "type": "boolean",
-      "description": "Enable active workflow execution. When true, the orchestrator will run the workflows listed in the workflows field sequentially and can create new workflows if needed. Default: false (passive discovery only).",
-      "default": false
-    },
     "governance": {
       "type": "object",
       "description": "Lightweight pacing and opt-out policies for campaign coordinator workflows (launcher/orchestrator)",

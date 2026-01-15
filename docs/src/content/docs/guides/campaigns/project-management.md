@@ -20,7 +20,7 @@ The following custom fields are created and configured:
 |-------|------|--------|---------|
 | **Worker/Workflow** | Single select | Workflow names (e.g., "migration-worker") | Track which agentic workflow owns each item; enables swimlane grouping |
 | **Priority** | Single select | High, Medium, Low | Filter and sort items by urgency |
-| **Status** | Single select | Todo, In Progress, Blocked, Done, Closed | Track work state (default in templates) |
+| **Status** | Single select | Todo, In Progress, Review required, Blocked, Done, Closed | Track work state (default in templates) |
 | **Start Date** | Date | Auto-populated from `createdAt` | Timeline visualization (required for Roadmap) |
 | **End Date** | Date | Auto-populated from `closedAt` | Timeline visualization (required for Roadmap) |
 | **Effort** | Single select | Small (1-3 days), Medium (1 week), Large (2+ weeks) | Capacity planning |
