@@ -352,5 +352,49 @@ else
     exit 1
 fi
 
+# Test 11: Verify draft release detection
+echo ""
+echo "Test 11: Verify draft release detection"
+
+# Check that IS_DRAFT variable is extracted from release data
+if grep -q 'IS_DRAFT=' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script extracts IS_DRAFT from release data"
+else
+    echo "  ✗ FAIL: Script does not extract IS_DRAFT variable"
+    exit 1
+fi
+
+# Check that script validates draft status with jq
+if grep -q 'jq -r.*\.draft' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script parses draft status with jq"
+else
+    echo "  ✗ FAIL: Script does not parse draft status with jq"
+    exit 1
+fi
+
+# Check that script validates draft status with grep/sed fallback
+if grep -q '"draft".*sed.*true\|false' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script parses draft status with grep/sed fallback"
+else
+    echo "  ✗ FAIL: Script does not parse draft status with grep/sed"
+    exit 1
+fi
+
+# Check for draft validation logic
+if grep -q 'if \[ "\$IS_DRAFT" = "true" \]; then' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script checks if release is draft"
+else
+    echo "  ✗ FAIL: Script does not check if release is draft"
+    exit 1
+fi
+
+# Check for draft error message
+if grep -q "marked as draft.*Cannot install draft releases" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script provides error message for draft releases"
+else
+    echo "  ✗ FAIL: Script does not provide error message for draft releases"
+    exit 1
+fi
+
 echo ""
 echo "=== All tests passed ==="

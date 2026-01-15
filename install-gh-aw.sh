@@ -3,7 +3,8 @@
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
 # Usage: ./install-gh-aw.sh [version]
-# If no version is specified, it will fetch and use the latest release
+# If no version is specified, it will fetch and use the latest non-draft release
+# Draft releases are automatically ignored for safety
 # Note: Checksum validation is currently skipped by default (will be enabled in future releases)
 # Example: ./install-gh-aw.sh v1.0.0
 
@@ -218,14 +219,23 @@ if [ -z "$VERSION" ]; then
         # Use jq for JSON parsing
         VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
         RELEASE_NAME=$(echo "$LATEST_RELEASE" | jq -r '.name')
+        IS_DRAFT=$(echo "$LATEST_RELEASE" | jq -r '.draft')
     else
         # Fallback to grep/sed
         VERSION=$(echo "$LATEST_RELEASE" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
         RELEASE_NAME=$(echo "$LATEST_RELEASE" | grep '"name"' | sed -E 's/.*"name": *"([^"]+)".*/\1/')
+        IS_DRAFT=$(echo "$LATEST_RELEASE" | grep '"draft"' | sed -E 's/.*"draft": *(true|false).*/\1/')
     fi
     
     if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
         print_error "Failed to parse latest release information"
+        exit 1
+    fi
+    
+    # Check if the release is a draft (should not happen with /releases/latest, but defensive check)
+    if [ "$IS_DRAFT" = "true" ]; then
+        print_error "Latest release is marked as draft. Cannot install draft releases."
+        print_info "Please contact the repository maintainers or specify a specific non-draft version."
         exit 1
     fi
     
