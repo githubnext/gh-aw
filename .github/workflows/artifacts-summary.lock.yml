@@ -145,7 +145,8 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.382 && sudo bash /tmp/copilot-install.sh
+          # Pass VERSION directly to sudo to ensure it's available to the installer script
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1060,7 +1061,8 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.382 && sudo bash /tmp/copilot-install.sh
+          # Pass VERSION directly to sudo to ensure it's available to the installer script
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
