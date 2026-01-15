@@ -13,6 +13,9 @@ When you create a new campaign using the campaign generator, the following are c
 - Empty GitHub Project (user or organization level)
 - Three default views: Campaign Roadmap, Task Tracker, Progress Board
 
+> [!NOTE]
+> **No manual setup is required.** The campaign generator handles all project creation, field configuration, and view setup automatically.
+
 ### Custom Fields
 The following custom fields are created and configured:
 
@@ -20,10 +23,13 @@ The following custom fields are created and configured:
 |-------|------|--------|---------|
 | **Worker/Workflow** | Single select | Workflow names (e.g., "migration-worker") | Track which agentic workflow owns each item; enables swimlane grouping |
 | **Priority** | Single select | High, Medium, Low | Filter and sort items by urgency |
-| **Status** | Single select | Todo, In Progress, Blocked, Done, Closed | Track work state (default in templates) |
+| **Status** | Single select | Todo, In Progress, Review required, Blocked, Done, Closed | Track work state (default in templates) |
 | **Start Date** | Date | Auto-populated from `createdAt` | Timeline visualization (required for Roadmap) |
 | **End Date** | Date | Auto-populated from `closedAt` | Timeline visualization (required for Roadmap) |
 | **Effort** | Single select | Small (1-3 days), Medium (1 week), Large (2+ weeks) | Capacity planning |
+
+> [!TIP]
+> The **Worker/Workflow** field enables powerful swimlane grouping in Roadmap views, showing workload distribution across different agentic workflows.
 
 ### Project Views
 Three views are automatically created:
@@ -49,7 +55,10 @@ Orchestrator workflows can then populate these fields using the `fields:` parame
 
 **Optional fields** you might want to add:
 - **Team** (Single select): Frontend, Backend, DevOps, Documentation
-- **Repo** (Single select): Repository names for cross-repo tracking (Note: Do not use "Repository" - it conflicts with GitHub's built-in REPOSITORY type)
+- **Repo** (Single select): Repository names for cross-repo tracking
+
+> [!WARNING]
+> Do not use "Repository" as a field name—it conflicts with GitHub's built-in REPOSITORY type. Use "Repo" instead.
 
 ## Cross-Repository Campaigns
 

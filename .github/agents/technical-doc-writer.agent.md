@@ -85,6 +85,152 @@ Use GitHub alert syntax sparingly:
 - Anticipate pitfalls and explain fixes empathetically.
 - Use alerts only when necessary.
 
+## Build and Validation Workflow
+
+**ALWAYS** follow this workflow before completing your work or returning to the user:
+
+### 1. Build the Documentation
+
+Run the build command from the repository root:
+```bash
+make build-docs
+```
+
+This command will:
+- Install dependencies if needed (via `deps-docs`)
+- Run prebuild scripts (generate agent factory, build slides)
+- Build the Astro documentation
+- Validate internal links
+- Generate search indexes
+
+### 2. Review Build Output
+
+Check the build output for:
+- **Errors**: Build failures, compilation errors
+- **Warnings**: Link validation issues, deprecated features
+- **Success messages**: Verify pages are built correctly
+
+### 3. Fix Build Issues
+
+If the build fails or has warnings, fix these common issues:
+
+**Link validation errors:**
+- Fix broken internal links (use `/gh-aw/path/to/page/` format for Astro)
+- Update relative links to use correct paths
+- Ensure linked pages exist
+
+**Frontmatter issues:**
+- Ensure all `.md` files have required `title` and `description`
+- Fix YAML syntax errors in frontmatter
+- Verify frontmatter fields are valid
+
+**Markdown syntax errors:**
+- Fix malformed code blocks (ensure proper language tags)
+- Check for unclosed tags or brackets
+- Verify proper heading hierarchy
+
+**Missing assets:**
+- Check that referenced images exist in `docs/src/assets/` or `docs/public/`
+- Fix broken image paths
+- Verify asset file names match references
+
+**Astro/Starlight configuration:**
+- Verify sidebar configuration in `astro.config.mjs`
+- Check component imports and paths
+- Ensure content collections are properly defined
+
+### 4. Rebuild and Verify
+
+After fixing issues, rebuild to verify:
+```bash
+make build-docs
+```
+
+Check that:
+- Build completes successfully without errors
+- `docs/dist` directory is created and populated
+- All pages are generated correctly
+- Link validation passes
+
+### 5. Only Return When Build Succeeds
+
+**Do not return to the user until:**
+- ✅ `make build-docs` completes successfully without errors
+- ✅ All warnings are addressed or documented
+- ✅ Built documentation in `docs/dist` is verified
+- ✅ Links and navigation validate correctly
+
+## Available Build Commands
+
+Use these commands from the repository root:
+
+```bash
+# Install documentation dependencies (Node.js 20+ required)
+make deps-docs
+
+# Build the documentation (recommended before completing work)
+make build-docs
+
+# Start development server for live preview at http://localhost:4321
+make dev-docs
+
+# Preview built documentation with production server
+make preview-docs
+
+# Clean documentation artifacts (dist, node_modules, .astro)
+make clean-docs
+```
+
+## Build Troubleshooting Guide
+
+### Common Build Errors and Solutions
+
+**Error: "Link validation failed"**
+```
+Solution: Check for broken internal links and fix paths
+```
+
+**Error: "Missing frontmatter field"**
+```
+Solution: Add required title and description to .md files
+```
+
+**Error: "Invalid markdown syntax"**
+```
+Solution: Check code blocks, headings, and frontmatter YAML
+```
+
+**Error: "Module not found" or "Cannot find file"**
+```
+Solution: Verify file paths and imports are correct
+```
+
+**Error: "Starlight plugin error"**
+```
+Solution: Check astro.config.mjs for configuration issues
+```
+
+### Debugging Process
+
+1. **Read error messages carefully** - they usually indicate the exact issue
+2. **Check the failing file** - look at the file mentioned in the error
+3. **Fix the issue** - apply the appropriate solution
+4. **Rebuild** - run `make build-docs` again to verify
+5. **Repeat if needed** - continue until build succeeds
+
+### Development Server for Testing
+
+Use the development server to preview changes in real-time:
+```bash
+make dev-docs
+```
+
+This starts Astro dev server at http://localhost:4321 with:
+- Hot module reloading
+- Fast refresh for instant updates
+- Live error reporting
+- Interactive debugging
+
 ## Example Document Skeleton
 ```md
 ---

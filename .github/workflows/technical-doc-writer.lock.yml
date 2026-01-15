@@ -26,7 +26,7 @@
 #     - ../../skills/documentation/SKILL.md
 #     - ../agents/technical-doc-writer.agent.md
 
-name: "Technical Doc Writer"
+name: "Rebuild the documentation after making changes"
 "on":
   workflow_dispatch:
     inputs:
@@ -44,7 +44,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Technical Doc Writer"
+run-name: "Rebuild the documentation after making changes"
 
 jobs:
   activation:
@@ -136,7 +136,7 @@ jobs:
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache memory file share data
+      - name: Restore cache-memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
@@ -178,7 +178,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.381 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.382 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -187,8 +187,8 @@ jobs:
           copilot --version
       - name: Install awf binary
         run: |
-          echo "Installing awf via installer script (requested version: v0.8.2)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.8.2 bash
+          echo "Installing awf via installer script (requested version: v0.9.0)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.0 bash
           which awf
           awf --version
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -202,7 +202,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.56 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.59 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -463,12 +463,14 @@ jobs:
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
-          export MCP_GATEWAY_API_KEY="$(openssl rand -base64 45 | tr -d '/+=')"
+          MCP_GATEWAY_API_KEY=""
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          export MCP_GATEWAY_API_KEY
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.56'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.59'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -525,8 +527,8 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.381",
-              workflow_name: "Technical Doc Writer",
+              agent_version: "0.0.382",
+              workflow_name: "Rebuild the documentation after making changes",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -542,8 +544,8 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["defaults","github"],
               firewall_enabled: true,
-              awf_version: "v0.8.2",
-              awmg_version: "v0.0.56",
+              awf_version: "v0.9.0",
+              awmg_version: "v0.0.59",
               steps: {
                 firewall: "squid"
               },
@@ -890,6 +892,152 @@ jobs:
           - Anticipate pitfalls and explain fixes empathetically.
           - Use alerts only when necessary.
           
+          ## Build and Validation Workflow
+          
+          **ALWAYS** follow this workflow before completing your work or returning to the user:
+          
+          ### 1. Build the Documentation
+          
+          Run the build command from the repository root:
+          ```bash
+          make build-docs
+          ```
+          
+          This command will:
+          - Install dependencies if needed (via `deps-docs`)
+          - Run prebuild scripts (generate agent factory, build slides)
+          - Build the Astro documentation
+          - Validate internal links
+          - Generate search indexes
+          
+          ### 2. Review Build Output
+          
+          Check the build output for:
+          - **Errors**: Build failures, compilation errors
+          - **Warnings**: Link validation issues, deprecated features
+          - **Success messages**: Verify pages are built correctly
+          
+          ### 3. Fix Build Issues
+          
+          If the build fails or has warnings, fix these common issues:
+          
+          **Link validation errors:**
+          - Fix broken internal links (use `/gh-aw/path/to/page/` format for Astro)
+          - Update relative links to use correct paths
+          - Ensure linked pages exist
+          
+          **Frontmatter issues:**
+          - Ensure all `.md` files have required `title` and `description`
+          - Fix YAML syntax errors in frontmatter
+          - Verify frontmatter fields are valid
+          
+          **Markdown syntax errors:**
+          - Fix malformed code blocks (ensure proper language tags)
+          - Check for unclosed tags or brackets
+          - Verify proper heading hierarchy
+          
+          **Missing assets:**
+          - Check that referenced images exist in `docs/src/assets/` or `docs/public/`
+          - Fix broken image paths
+          - Verify asset file names match references
+          
+          **Astro/Starlight configuration:**
+          - Verify sidebar configuration in `astro.config.mjs`
+          - Check component imports and paths
+          - Ensure content collections are properly defined
+          
+          ### 4. Rebuild and Verify
+          
+          After fixing issues, rebuild to verify:
+          ```bash
+          make build-docs
+          ```
+          
+          Check that:
+          - Build completes successfully without errors
+          - `docs/dist` directory is created and populated
+          - All pages are generated correctly
+          - Link validation passes
+          
+          ### 5. Only Return When Build Succeeds
+          
+          **Do not return to the user until:**
+          - ✅ `make build-docs` completes successfully without errors
+          - ✅ All warnings are addressed or documented
+          - ✅ Built documentation in `docs/dist` is verified
+          - ✅ Links and navigation validate correctly
+          
+          ## Available Build Commands
+          
+          Use these commands from the repository root:
+          
+          ```bash
+          # Install documentation dependencies (Node.js 20+ required)
+          make deps-docs
+          
+          # Build the documentation (recommended before completing work)
+          make build-docs
+          
+          # Start development server for live preview at http://localhost:4321
+          make dev-docs
+          
+          # Preview built documentation with production server
+          make preview-docs
+          
+          # Clean documentation artifacts (dist, node_modules, .astro)
+          make clean-docs
+          ```
+          
+          ## Build Troubleshooting Guide
+          
+          ### Common Build Errors and Solutions
+          
+          **Error: "Link validation failed"**
+          ```
+          Solution: Check for broken internal links and fix paths
+          ```
+          
+          **Error: "Missing frontmatter field"**
+          ```
+          Solution: Add required title and description to .md files
+          ```
+          
+          **Error: "Invalid markdown syntax"**
+          ```
+          Solution: Check code blocks, headings, and frontmatter YAML
+          ```
+          
+          **Error: "Module not found" or "Cannot find file"**
+          ```
+          Solution: Verify file paths and imports are correct
+          ```
+          
+          **Error: "Starlight plugin error"**
+          ```
+          Solution: Check astro.config.mjs for configuration issues
+          ```
+          
+          ### Debugging Process
+          
+          1. **Read error messages carefully** - they usually indicate the exact issue
+          2. **Check the failing file** - look at the file mentioned in the error
+          3. **Fix the issue** - apply the appropriate solution
+          4. **Rebuild** - run `make build-docs` again to verify
+          5. **Repeat if needed** - continue until build succeeds
+          
+          ### Development Server for Testing
+          
+          Use the development server to preview changes in real-time:
+          ```bash
+          make dev-docs
+          ```
+          
+          This starts Astro dev server at http://localhost:4321 with:
+          - Hot module reloading
+          - Fast refresh for instant updates
+          - Live error reporting
+          - Interactive debugging
+          
           ## Example Document Skeleton
           ```md
           ---
@@ -931,31 +1079,92 @@ jobs:
           
           The documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.
           
-          **To run the Astro dev server locally for live preview:**
+          ### Available Commands
+          
+          Use these commands from the repository root:
+          
           ```bash
-          cd docs && npm run dev
+          # Rebuild the documentation after making changes
+          make build-docs
+          
+          # Start development server for live preview
+          make dev-docs
+          
+          # Preview built documentation
+          make preview-docs
+          
+          # Clean documentation artifacts
+          make clean-docs
           ```
           
-          When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
+          ### Documentation Review Process
           
-          1. **Analyze the topic** provided in the workflow input
-          2. **Review relevant documentation files** in the docs/ folder related to: "__GH_AW_GITHUB_EVENT_INPUTS_TOPIC__"
-          3. **Verify the built documentation** in docs/dist is properly generated
-          4. **Provide constructive feedback** as a comment addressing:
-             - Clarity and conciseness
-             - Tone and voice consistency with GitHub Docs
-             - Code block formatting and examples
-             - Structure and organization
-             - Developer experience considerations
-             - Any missing prerequisites or setup steps
-             - Appropriate use of GitHub alerts
-             - Link quality and accessibility
-             - Build output quality and completeness
-          5. **Create a pull request with improvements** if you identify any changes needed:
-             - Make the necessary edits to improve the documentation
-             - Create a pull request with your changes using the safe-outputs create-pull-request functionality
+          When reviewing documentation for the specified topic in the **docs/** folder:
+          
+          1. **Analyze the topic** provided in the workflow input: "__GH_AW_GITHUB_EVENT_INPUTS_TOPIC__"
+          
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_INPUTS_TOPIC: ${{ github.event.inputs.topic }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_EVENT_INPUTS_TOPIC: process.env.GH_AW_GITHUB_EVENT_INPUTS_TOPIC
+              }
+            });
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_INPUTS_TOPIC: ${{ github.event.inputs.topic }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          2. **Review relevant documentation files** in the docs/ folder related to the topic
+          
+          3. **Make improvements** to the documentation as needed:
+             - Fix clarity and conciseness issues
+             - Improve tone and voice consistency with GitHub Docs
+             - Enhance code block formatting and examples
+             - Improve structure and organization
+             - Add missing prerequisites or setup steps
+             - Fix inappropriate use of GitHub alerts
+             - Improve link quality and accessibility
+          
+          4. **Rebuild and verify** after making changes:
+             ```bash
+             make build-docs
+             ```
+             - Fix any build errors that occur
+             - Verify all links validate correctly
+             - Ensure proper rendering in `docs/dist`
+          
+          5. **Only after successful build**, create a pull request with improvements:
+             - Use the safe-outputs create-pull-request functionality
              - Include a clear description of the improvements made
-             - Only create a pull request if you have made actual changes to the documentation files
+             - Document any build issues that were fixed
+             - Only create a pull request if you have made actual changes
+          
+          ### Build Verification Requirements
+          
+          **Before returning to the user or creating a pull request:**
+          
+          - ✅ Run `make build-docs` to verify documentation builds successfully
+          - ✅ Fix any build errors, warnings, or link validation issues
+          - ✅ Verify the built output in `docs/dist` is properly generated
+          - ✅ Confirm all changes render correctly
+          
+          **If build errors occur:**
+          - Read error messages carefully to understand the issue
+          - Fix broken links, invalid frontmatter, or markdown syntax errors
+          - Rebuild with `make build-docs` to verify fixes
+          - Do not proceed until the build succeeds without errors
           
           Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "__GH_AW_GITHUB_EVENT_INPUTS_TOPIC__"
           
@@ -988,7 +1197,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append cache memory instructions to prompt
+      - name: Append cache-memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
@@ -1129,7 +1338,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.8.2 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.0 \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --agent technical-doc-writer --allow-tool github --allow-tool safeoutputs --allow-tool shell --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -1337,7 +1546,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_WORKFLOW_NAME: "Rebuild the documentation after making changes"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1350,7 +1559,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_WORKFLOW_NAME: "Rebuild the documentation after making changes"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1363,7 +1572,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_WORKFLOW_NAME: "Rebuild the documentation after making changes"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"runStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"runSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"runFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
@@ -1382,7 +1591,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_WORKFLOW_NAME: "Rebuild the documentation after making changes"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"runStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"runSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"runFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
@@ -1435,7 +1644,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Technical Doc Writer"
+          WORKFLOW_NAME: "Rebuild the documentation after making changes"
           WORKFLOW_DESCRIPTION: "Reviews and improves technical documentation based on provided topics"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
@@ -1500,7 +1709,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.381 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.382 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1570,7 +1779,7 @@ jobs:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"runStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"runSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"runFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
       GH_AW_WORKFLOW_ID: "technical-doc-writer"
-      GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+      GH_AW_WORKFLOW_NAME: "Rebuild the documentation after making changes"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1735,7 +1944,7 @@ jobs:
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_WORKFLOW_NAME: "Rebuild the documentation after making changes"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"runStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"runSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"runFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
         with:

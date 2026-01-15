@@ -26,7 +26,7 @@ All campaign tracking MUST key off `campaign_id: "{{.CampaignID}}"`.
 
 | Field | Type | Allowed / Notes |
 |---|---|---|
-| `status` | single-select | `Todo` / `In Progress` / `Done` |
+| `status` | single-select | `Todo` / `In Progress` / `Review required` / `Blocked` / `Done` |
 | `campaign_id` | text | Must equal `{{.CampaignID}}` |
 | `worker_workflow` | text | workflow ID or `"unknown"` |
 | `repository` | text | `owner/repo` |

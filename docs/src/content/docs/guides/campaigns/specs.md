@@ -9,18 +9,17 @@ Campaigns are defined as Markdown files under `.github/workflows/` with a `.camp
 
 In GitHub Agentic Workflows, a campaign is not "a special kind of workflow." The `.campaign.md` file is a specification: a reviewable contract that wires together agentic workflows around a shared initiative.
 
-**Two operational modes:**
-- **ProjectOps pattern** (default): A [ProjectOps](/gh-aw/examples/issue-pr-events/projectops/) pattern with campaign structure—automated project board management plus objectives, KPIs, and governance
-- **Campaign orchestration** (`execute-workflows: true`): True campaign mode—actively executes workflows, creates missing ones, and drives progress autonomously
-
 In a typical setup:
 
 - Worker workflows do the work. They run an agent and use safe-outputs (for example `create_pull_request`, `add_comment`, or `update_issues`) for write operations.
-- A generated orchestrator workflow keeps the campaign coherent over time. With the ProjectOps pattern, it discovers and tracks work. In orchestration mode, it also executes workflows and drives progress.
+- A generated orchestrator workflow keeps the campaign coherent over time. It discovers and tracks work, executes workflows, and drives progress.
 - Repo-memory (optional) makes the campaign repeatable. It lets you store a cursor checkpoint and append-only metrics snapshots so each run can pick up where the last one left off.
 - GitHub Project dashboard serves as the canonical source of membership and progress tracking.
 
 **Note:** The `.campaign.g.md` file is a local debug artifact generated during compilation to help developers review the orchestrator structure. It is not committed to git (it's in `.gitignore`). Only the source `.campaign.md` and the compiled `.campaign.lock.yml` are version controlled.
+
+> [!TIP]
+> Worker workflows remain campaign-agnostic and don't need modification. The orchestrator handles all campaign coordination.
 
 ## Minimal spec
 
@@ -65,8 +64,10 @@ owners:
 - `tracker-label` (optional): an ingestion hint label that helps discover issues and pull requests created by workers (commonly `campaign:<id>`). When provided, the orchestrator's discovery precomputation step can discover work across runs. The project board remains the canonical source of truth.
 - `objective`: a single sentence describing what “done” means.
 - `kpis`: the measures you use to report progress. Use `priority: primary` to mark exactly one KPI as the primary measure (not `primary: true`).
-- `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`).
-- `execute-workflows` (optional): Set to `true` to enable campaign orchestration. When enabled, the orchestrator will run workflows directly, create missing workflows if needed, and use outputs to drive progress. Default: `false` (ProjectOps pattern with campaign tracking). This is the key distinction between the ProjectOps pattern (tracking only) and campaign orchestration (autonomous execution).
+- `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`). When workflows are configured, the orchestrator will execute them sequentially and can create missing workflows if needed.
+
+> [!IMPORTANT]
+> Use `priority: primary` (not `primary: true`) to mark your primary KPI.
 
 ## KPIs (recommended shape)
 
@@ -109,6 +110,9 @@ governance:
   max-project-updates-per-run: 50
   max-comments-per-run: 10
 ```
+
+> [!TIP]
+> Start conservative with low limits (e.g., `max-project-updates-per-run: 10`) for your first campaign, then increase as you gain confidence.
 
 ### Governance fields
 

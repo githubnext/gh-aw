@@ -173,14 +173,60 @@ async function getIssueDetails(owner, repo, issueNumber) {
 }
 
 /**
- * Assign agent to issue using GraphQL replaceActorsForAssignable mutation
- * @param {string} issueId - GitHub issue ID
+ * Get pull request details (ID and current assignees) using GraphQL
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} pullNumber - Pull request number
+ * @returns {Promise<{pullRequestId: string, currentAssignees: string[]}|null>}
+ */
+async function getPullRequestDetails(owner, repo, pullNumber) {
+  const query = `
+    query($owner: String!, $repo: String!, $pullNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $pullNumber) {
+          id
+          assignees(first: 100) {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await github.graphql(query, { owner, repo, pullNumber });
+    const pullRequest = response.repository.pullRequest;
+
+    if (!pullRequest || !pullRequest.id) {
+      core.error("Could not get pull request data");
+      return null;
+    }
+
+    const currentAssignees = pullRequest.assignees.nodes.map(assignee => assignee.id);
+
+    return {
+      pullRequestId: pullRequest.id,
+      currentAssignees,
+    };
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    core.error(`Failed to get pull request details: ${errorMessage}`);
+    // Re-throw the error to preserve the original error message for permission error detection
+    throw error;
+  }
+}
+
+/**
+ * Assign agent to issue or pull request using GraphQL replaceActorsForAssignable mutation
+ * @param {string} assignableId - GitHub issue or pull request ID
  * @param {string} agentId - Agent ID
  * @param {string[]} currentAssignees - List of current assignee IDs
  * @param {string} agentName - Agent name for error messages
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName) {
   // Build actor IDs array - include agent and preserve other assignees
   const actorIds = [agentId, ...currentAssignees.filter(id => id !== agentId)];
 
@@ -198,9 +244,9 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
   try {
     core.info("Using built-in github object for mutation");
 
-    core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+    core.debug(`GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}`);
     const response = await github.graphql(mutation, {
-      assignableId: issueId,
+      assignableId: assignableId,
       actorIds,
     });
 
@@ -295,9 +341,9 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
           }
         `;
         core.info("Using built-in github object for fallback mutation");
-        core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+        core.debug(`Fallback GraphQL mutation with variables: assignableId=${assignableId}, assigneeIds=[${agentId}]`);
         const fallbackResp = await github.graphql(fallbackMutation, {
-          assignableId: issueId,
+          assignableId: assignableId,
           assigneeIds: [agentId],
         });
         if (fallbackResp?.addAssigneesToAssignable) {
@@ -447,6 +493,7 @@ module.exports = {
   getAvailableAgentLogins,
   findAgent,
   getIssueDetails,
+  getPullRequestDetails,
   assignAgentToIssue,
   logPermissionError,
   generatePermissionErrorSummary,

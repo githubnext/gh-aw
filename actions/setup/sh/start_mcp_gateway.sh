@@ -146,11 +146,16 @@ echo "Retrying up to 120 times with 1s delay (120s total timeout)"
 # Check health endpoint using localhost (since we're running on the host)
 # Per MCP Gateway Specification v1.3.0, /health must return HTTP 200 with JSON body containing specVersion and gatewayVersion
 # Use curl retry: 120 attempts with 1 second delay = 120s total
+# Note: Disable errexit temporarily to capture curl exit code
+set +e
 RESPONSE=$(curl -s --retry 120 --retry-delay 1 --retry-connrefused --retry-all-errors -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
+CURL_EXIT_CODE=$?
+set -e
 HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
 HEALTH_RESPONSE=$(echo "$RESPONSE" | head -n -1)
 
 # Always log the health response for debugging
+echo "Curl exit code: $CURL_EXIT_CODE"
 echo "Health endpoint HTTP code: $HTTP_CODE"
 if [ -n "$HEALTH_RESPONSE" ]; then
   echo "Health response body: $HEALTH_RESPONSE"

@@ -93,7 +93,11 @@ async function main() {
     core.setOutput("is_team_member", "false");
     core.setOutput("result", "insufficient_permissions");
     core.setOutput("user_permission", result.permission);
-    core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
+    core.setOutput(
+      "error_message",
+      `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}. ` +
+        `To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [${requiredPermissions.join(", ")}, ${result.permission}]`
+    );
   }
 }
 

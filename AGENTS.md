@@ -30,19 +30,39 @@ Each skill provides focused guidance on specific topics. Reference them only as 
 
 ## Critical Requirements
 
-**ALWAYS RUN AGENT-FINISH BEFORE COMMITTING:**
+### ⚠️ MANDATORY PRE-COMMIT VALIDATION ⚠️
+
+**🚨 BEFORE EVERY COMMIT - NO EXCEPTIONS:**
+
 ```bash
 make agent-finish  # Runs build, test, recompile, fmt, lint
 ```
 
-**ALWAYS RUN RECOMPILE BEFORE COMMITTING CHANGES:**
+**Why this matters:**
+- **CI WILL FAIL** if you skip this step - this is automatic and non-negotiable
+- Unformatted code causes immediate CI failures that block all other work
+- This has caused **5 CI failures in a single day** - don't be the 6th!
+- The formatting check (`go fmt`) is strict and cannot be disabled
+
+**If you're in a hurry** and `make agent-finish` takes too long, **at minimum run**:
 ```bash
-make recompile     # Recompile all workflow files after code changes
+make fmt         # Format Go, JavaScript, and JSON files
+make test-unit   # Fast unit tests (~25s)
 ```
 
-**ALWAYS RUN MAKE RECOMPILE TO ENSURE JAVASCRIPT IS PROPERLY FORMATTED:**
+**After making Go code changes (*.go files):**
 ```bash
-make recompile     # Ensures JavaScript is properly formatted and workflows are compiled
+make fmt         # REQUIRED - formats Go code with go fmt
+```
+
+**After making workflow changes (*.md files):**
+```bash
+make recompile   # REQUIRED - recompile all workflow files after code changes
+```
+
+**After making JavaScript changes (*.cjs files):**
+```bash
+make fmt-cjs     # REQUIRED - ensures JavaScript is properly formatted
 ```
 
 **NEVER ADD LOCK FILES TO .GITIGNORE** - `.lock.yml` files are compiled workflows that must be tracked.
@@ -767,8 +787,17 @@ make minor-release  # Automated via GitHub Actions
 ```
 
 ## Quick Reference for AI Agents
+
+### 🚨 CRITICAL - Pre-Commit Checklist
+Before EVERY commit:
+1. ✅ Run `make agent-finish` (or at minimum `make fmt`)
+2. ✅ Verify no errors from the above command
+3. ✅ Only then commit and push
+
+**This is NOT optional** - skipping this causes immediate CI failures.
+
+### Development Guidelines
 - Go project with Makefile-managed build/test/lint
-- Always run `make agent-finish` before commits
 - Use `make test-unit` for fast development testing, `make test` for full coverage
 - Use console formatting for user output
 - Repository: `githubnext/gh-aw`

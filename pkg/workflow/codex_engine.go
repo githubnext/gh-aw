@@ -69,6 +69,12 @@ func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
+	// Skip installation if custom command is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		codexEngineLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
+
 	// Use base installation steps (secret validation + npm install)
 	steps := GetBaseInstallationSteps(EngineInstallConfig{
 		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
@@ -158,10 +164,19 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// Build the Codex command
-	// Use regular codex command regardless of firewall status
-	// PATH will be set to find codex in hostedtoolcache when firewall is enabled
-	codexCommand := fmt.Sprintf("codex %sexec%s%s%s\"$INSTRUCTION\"",
-		modelParam, webSearchParam, fullAutoParam, customArgsParam)
+	// Determine which command to use
+	var commandName string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+		codexEngineLog.Printf("Using custom command: %s", commandName)
+	} else {
+		// Use regular codex command regardless of firewall status
+		// PATH will be set to find codex in hostedtoolcache when firewall is enabled
+		commandName = "codex"
+	}
+
+	codexCommand := fmt.Sprintf("%s %sexec%s%s%s\"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
@@ -241,6 +256,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
 
+		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
+		sslBumpArgs := getSSLBumpArgs(firewallConfig)
+		awfArgs = append(awfArgs, sslBumpArgs...)
+
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
 			awfArgs = append(awfArgs, firewallConfig.Args...)
@@ -289,18 +308,19 @@ mkdir -p "$CODEX_HOME/logs"
 		}
 	} else {
 		// Build the command without AWF wrapping
+		// Reuse commandName already determined above
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			command = fmt.Sprintf(`set -o pipefail
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
-codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, agentPath, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, agentPath, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 		}
 	}
 

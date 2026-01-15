@@ -120,8 +120,8 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected --permission-mode bypassPermissions in CLI args: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "--output-format stream-json") {
-		t.Errorf("Expected --output-format stream-json in CLI args: %s", stepContent)
+	if !strings.Contains(stepContent, "--output-format json") {
+		t.Errorf("Expected --output-format json in CLI args: %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
@@ -510,4 +510,18 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 			t.Errorf("Expected correctly quoted PROMPT_TEXT variable, got:\n%s", stepContent)
 		}
 	})
+}
+
+func TestClaudeEngineSkipInstallationWithCommand(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test with custom command - should skip installation
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-claude"},
+	}
+	steps := engine.GetInstallationSteps(workflowData)
+
+	if len(steps) != 0 {
+		t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
+	}
 }

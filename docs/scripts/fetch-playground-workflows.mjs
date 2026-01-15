@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import fs from "node:fs/promises";
+import path from "node:path";
 
 const repo = process.env.PLAYGROUND_WORKFLOWS_REPO; // "owner/repo"
-const ref = process.env.PLAYGROUND_WORKFLOWS_REF || 'main';
+const ref = process.env.PLAYGROUND_WORKFLOWS_REF || "main";
 const token = process.env.PLAYGROUND_WORKFLOWS_TOKEN || process.env.GITHUB_TOKEN;
 
 // Comma-separated list of repo-relative file paths to fetch.
 // Example:
 //   .github/workflows/playground-user-project-update-draft.md,
 //   .github/workflows/playground-user-project-update-draft.lock.yml
-const filesCsv = process.env.PLAYGROUND_WORKFLOWS_FILES || '';
+const filesCsv = process.env.PLAYGROUND_WORKFLOWS_FILES || "";
 
-const outDir = path.resolve('src/assets/playground-workflows/user-owned');
+const outDir = path.resolve("src/assets/playground-workflows/user-owned");
 
 const MAX_FILES = Number(process.env.PLAYGROUND_WORKFLOWS_MAX_FILES || 25);
 const MAX_FILE_BYTES = Number(process.env.PLAYGROUND_WORKFLOWS_MAX_FILE_BYTES || 1024 * 1024);
@@ -29,8 +29,8 @@ function headerAuth() {
 async function ghJson(url) {
   const res = await fetch(url, {
     headers: {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
       ...headerAuth(),
     },
   });
@@ -49,26 +49,22 @@ async function verifyRepoAccess() {
   const url = `https://api.github.com/repos/${repo}`;
   const res = await fetch(url, {
     headers: {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
       ...headerAuth(),
     },
   });
 
   if (res.ok) return;
 
-  const body = await res.text().catch(() => '');
+  const body = await res.text().catch(() => "");
   if (res.status === 404) {
     throw new Error(
-      `[playground-workflows] Cannot access repo '${repo}'. GitHub returned 404 for the repo endpoint.\n` +
-        `This usually means the token is missing access to the private repo (or the repo name/ref is wrong).\n` +
-        `Response: ${body}`
+      `[playground-workflows] Cannot access repo '${repo}'. GitHub returned 404 for the repo endpoint.\n` + `This usually means the token is missing access to the private repo (or the repo name/ref is wrong).\n` + `Response: ${body}`
     );
   }
 
-  throw new Error(
-    `[playground-workflows] Repo access check failed (${res.status} ${res.statusText}).\nResponse: ${body}`
-  );
+  throw new Error(`[playground-workflows] Repo access check failed (${res.status} ${res.statusText}).\nResponse: ${body}`);
 }
 
 async function download(url) {
@@ -79,19 +75,19 @@ async function download(url) {
 
 async function main() {
   if (!repo) {
-    console.warn('[playground-workflows] PLAYGROUND_WORKFLOWS_REPO not set; skipping fetch.');
+    console.warn("[playground-workflows] PLAYGROUND_WORKFLOWS_REPO not set; skipping fetch.");
     return;
   }
 
   await verifyRepoAccess();
 
   const files = filesCsv
-    .split(',')
-    .map((s) => s.trim())
+    .split(",")
+    .map(s => s.trim())
     .filter(Boolean);
 
   if (files.length === 0) {
-    console.warn('[playground-workflows] PLAYGROUND_WORKFLOWS_FILES not set; skipping fetch.');
+    console.warn("[playground-workflows] PLAYGROUND_WORKFLOWS_FILES not set; skipping fetch.");
     return;
   }
 
@@ -105,23 +101,19 @@ async function main() {
 
   let totalBytes = 0;
   for (const repoPath of files) {
-    const url = `https://api.github.com/repos/${repo}/contents/${repoPath.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`;
+    const url = `https://api.github.com/repos/${repo}/contents/${repoPath.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(ref)}`;
     let info;
     try {
       info = await ghJson(url);
     } catch (err) {
       const msg = String(err?.message || err);
-      if (msg.includes('GitHub API 404')) {
-        throw new Error(
-          `[playground-workflows] File not found at '${repoPath}' (ref '${ref}').\n` +
-            `If the repo is private and you expected this file to exist, double-check token permissions and the path.\n` +
-            `Original error: ${msg}`
-        );
+      if (msg.includes("GitHub API 404")) {
+        throw new Error(`[playground-workflows] File not found at '${repoPath}' (ref '${ref}').\n` + `If the repo is private and you expected this file to exist, double-check token permissions and the path.\n` + `Original error: ${msg}`);
       }
       throw err;
     }
 
-    if (!info || typeof info !== 'object' || info.type !== 'file' || typeof info.download_url !== 'string') {
+    if (!info || typeof info !== "object" || info.type !== "file" || typeof info.download_url !== "string") {
       throw new Error(`[playground-workflows] Unexpected contents API response for ${repoPath}`);
     }
 
@@ -146,7 +138,7 @@ async function main() {
   }
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error(String(err?.stack || err));
   process.exitCode = 1;
 });

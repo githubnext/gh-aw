@@ -76,7 +76,7 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 	promptsLog.Printf("Generating cache memory prompt step with %d caches", len(config.Caches))
 
 	appendPromptStepWithHeredoc(yaml,
-		"Append cache memory instructions to prompt",
+		"Append cache-memory instructions to prompt",
 		func(y *strings.Builder) {
 			generateCacheMemoryPromptSection(y, config)
 		})

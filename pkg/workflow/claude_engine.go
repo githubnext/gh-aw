@@ -57,6 +57,12 @@ func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
+	// Skip installation if custom command is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		claudeLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
+
 	var steps []GitHubActionStep
 
 	// Define engine configuration for shared validation
@@ -190,7 +196,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	claudeArgs = append(claudeArgs, "--permission-mode", "bypassPermissions")
 
 	// Add output format for structured output
-	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
+	// Changed from "stream-json" to "json" to fix compatibility with Claude Code CLI 2.1.6
+	// which rejects "stream-json" with error: "only prompt commands are supported in streaming mode"
+	claudeArgs = append(claudeArgs, "--output-format", "json")
 
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
@@ -214,8 +222,17 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build the command string with proper argument formatting
-	// Use claude command directly (available in PATH from hostedtoolcache mount)
-	commandParts := []string{"claude"}
+	// Determine which command to use
+	var commandName string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+		claudeLog.Printf("Using custom command: %s", commandName)
+	} else {
+		// Use claude command directly (available in PATH from hostedtoolcache mount)
+		commandName = "claude"
+	}
+
+	commandParts := []string{commandName}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
@@ -324,6 +341,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfImageTag := getAWFImageTag(firewallConfig)
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		claudeLog.Printf("Pinned AWF image tag to %s", awfImageTag)
+
+		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
+		sslBumpArgs := getSSLBumpArgs(firewallConfig)
+		awfArgs = append(awfArgs, sslBumpArgs...)
 
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
