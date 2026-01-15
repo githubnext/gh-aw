@@ -22,7 +22,7 @@ echo "  Project: $GITHUB_WORKSPACE"
 
 # Start Serena with uvx in background
 nohup uvx --from git+https://github.com/oraios/serena serena start-mcp-server \
-  --transport http \
+  --transport streamable-http \
   --port "${GH_AW_SERENA_PORT}" \
   --context copilot \
   --project "${GITHUB_WORKSPACE}" \
