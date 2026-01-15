@@ -211,11 +211,6 @@ func ensureUpgradeAgenticWorkflowsPrompt(verbose bool, skipInstructions bool) er
 	)
 }
 
-// ensureAgenticCampaignsDispatcher ensures that .github/agents/agentic-campaigns.agent.md contains the campaigns dispatcher agent
-func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error {
-	return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
-}
-
 // deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists
 func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
 	gitRoot, err := findGitRoot()
