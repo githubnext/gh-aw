@@ -244,6 +244,20 @@ if [ -z "$MCP_GATEWAY_API_KEY" ]; then
   exit 1
 fi
 
+# Validate MCP_GATEWAY_DOMAIN is set (required by converter scripts)
+if [ -z "$MCP_GATEWAY_DOMAIN" ]; then
+  echo "ERROR: MCP_GATEWAY_DOMAIN environment variable must be set for converter scripts"
+  echo "This variable should be set in the workflow before calling start_mcp_gateway.sh"
+  exit 1
+fi
+
+# Validate MCP_GATEWAY_PORT is set (required by converter scripts)
+if [ -z "$MCP_GATEWAY_PORT" ]; then
+  echo "ERROR: MCP_GATEWAY_PORT environment variable must be set for converter scripts"
+  echo "This variable should be set in the workflow before calling start_mcp_gateway.sh"
+  exit 1
+fi
+
 # Export MCP_GATEWAY_* variables for use by converter scripts
 # These variables are required by converters to rewrite URLs with the correct domain
 export MCP_GATEWAY_DOMAIN
