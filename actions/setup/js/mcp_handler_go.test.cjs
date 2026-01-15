@@ -64,7 +64,7 @@ func main() {
     const output = JSON.parse(result.content[0].text);
     expect(output.message).toBe("Hello from Go");
     expect(output.input).toEqual({ name: "World", count: 42 });
-  });
+  }, 30000); // Increase timeout to allow for Go compilation
 
   it("should handle Go script with no input", async () => {
     testScriptPath = path.join(tempDir, "no-input.go");
@@ -86,7 +86,7 @@ func main() {
 
     const output = JSON.parse(result.content[0].text);
     expect(output.status).toBe("ok");
-  });
+  }, 30000); // Increase timeout to allow for Go compilation
 
   it("should handle non-JSON output", async () => {
     testScriptPath = path.join(tempDir, "text-output.go");
@@ -104,7 +104,7 @@ func main() {
 
     const output = JSON.parse(result.content[0].text);
     expect(output.stdout).toContain("Plain text output");
-  });
+  }, 30000); // Increase timeout to allow for Go compilation
 
   it("should respect timeout setting", async () => {
     testScriptPath = path.join(tempDir, "slow.go");
@@ -138,7 +138,7 @@ func main() {
     const handler = createGoHandler(mockServer, "error-tool", testScriptPath);
 
     await expect(handler({})).rejects.toThrow();
-  });
+  }, 30000); // Increase timeout to allow for Go compilation
 
   it("should pass complex input data", async () => {
     testScriptPath = path.join(tempDir, "complex.go");
@@ -173,5 +173,5 @@ func main() {
 
     const output = JSON.parse(result.content[0].text);
     expect(output).toEqual(complexInput);
-  });
+  }, 30000); // Increase timeout to allow for Go compilation
 });
