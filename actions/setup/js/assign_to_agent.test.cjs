@@ -227,7 +227,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid issue_number"));
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid issue number"));
   });
 
   it("should handle agent already assigned", async () => {

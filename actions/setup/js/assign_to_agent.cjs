@@ -3,7 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
+const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
@@ -27,7 +27,12 @@ async function main() {
       description: "The following agent assignments would be made if staged mode was disabled:",
       items: assignItems,
       renderItem: item => {
-        let content = `**Issue:** #${item.issue_number}\n`;
+        let content = "";
+        if (item.issue_number) {
+          content += `**Issue:** #${item.issue_number}\n`;
+        } else if (item.pull_number) {
+          content += `**Pull Request:** #${item.pull_number}\n`;
+        }
         content += `**Agent:** ${item.agent || "copilot"}\n`;
         content += "\n";
         return content;
@@ -80,11 +85,27 @@ async function main() {
   // Process each agent assignment
   const results = [];
   for (const item of itemsToProcess) {
-    const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
+    // Determine if this is an issue or PR assignment
+    const issueNumber = item.issue_number ? (typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10)) : null;
+    const pullNumber = item.pull_number ? (typeof item.pull_number === "number" ? item.pull_number : parseInt(String(item.pull_number), 10)) : null;
     const agentName = item.agent ?? defaultAgent;
 
-    if (isNaN(issueNumber) || issueNumber <= 0) {
-      core.error(`Invalid issue_number: ${item.issue_number}`);
+    // Validate that we have either issue_number or pull_number
+    if (!issueNumber && !pullNumber) {
+      core.error("Missing both issue_number and pull_number in assign_to_agent item");
+      continue;
+    }
+
+    if (issueNumber && pullNumber) {
+      core.error("Cannot specify both issue_number and pull_number in the same assign_to_agent item");
+      continue;
+    }
+
+    const number = issueNumber || pullNumber;
+    const type = issueNumber ? "issue" : "pull request";
+
+    if (isNaN(number) || number <= 0) {
+      core.error(`Invalid ${type} number: ${number}`);
       continue;
     }
 
@@ -93,6 +114,7 @@ async function main() {
       core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
       results.push({
         issue_number: issueNumber,
+        pull_number: pullNumber,
         agent: agentName,
         success: false,
         error: `Unsupported agent: ${agentName}`,
@@ -100,7 +122,7 @@ async function main() {
       continue;
     }
 
-    // Assign the agent to the issue using GraphQL
+    // Assign the agent to the issue or PR using GraphQL
     try {
       // Find agent (use cache if available) - uses built-in github object authenticated via github-token
       let agentId = agentCache[agentName];
@@ -114,20 +136,35 @@ async function main() {
         core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
       }
 
-      // Get issue details (ID and current assignees) via GraphQL
-      core.info("Getting issue details...");
-      const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
-      if (!issueDetails) {
-        throw new Error("Failed to get issue details");
+      // Get issue or PR details (ID and current assignees) via GraphQL
+      core.info(`Getting ${type} details...`);
+      let assignableId;
+      let currentAssignees;
+
+      if (issueNumber) {
+        const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+        if (!issueDetails) {
+          throw new Error(`Failed to get issue details`);
+        }
+        assignableId = issueDetails.issueId;
+        currentAssignees = issueDetails.currentAssignees;
+      } else {
+        const prDetails = await getPullRequestDetails(targetOwner, targetRepo, pullNumber);
+        if (!prDetails) {
+          throw new Error(`Failed to get pull request details`);
+        }
+        assignableId = prDetails.pullRequestId;
+        currentAssignees = prDetails.currentAssignees;
       }
 
-      core.info(`Issue ID: ${issueDetails.issueId}`);
+      core.info(`${type} ID: ${assignableId}`);
 
       // Check if agent is already assigned
-      if (issueDetails.currentAssignees.includes(agentId)) {
-        core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+      if (currentAssignees.includes(agentId)) {
+        core.info(`${agentName} is already assigned to ${type} #${number}`);
         results.push({
           issue_number: issueNumber,
+          pull_number: pullNumber,
           agent: agentName,
           success: true,
         });
@@ -135,16 +172,17 @@ async function main() {
       }
 
       // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
-      core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+      core.info(`Assigning ${agentName} coding agent to ${type} #${number}...`);
+      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);
       }
 
-      core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+      core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
       results.push({
         issue_number: issueNumber,
+        pull_number: pullNumber,
         agent: agentName,
         success: true,
       });
@@ -161,9 +199,10 @@ async function main() {
           core.debug("Failed to enrich unavailable agent message with available list");
         }
       }
-      core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+      core.error(`Failed to assign agent "${agentName}" to ${type} #${number}: ${errorMessage}`);
       results.push({
         issue_number: issueNumber,
+        pull_number: pullNumber,
         agent: agentName,
         success: false,
         error: errorMessage,
@@ -181,7 +220,10 @@ async function main() {
     summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
     summaryContent += results
       .filter(r => r.success)
-      .map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}`)
+      .map(r => {
+        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
+        return `- ${itemType} → Agent: ${r.agent}`;
+      })
       .join("\n");
     summaryContent += "\n\n";
   }
@@ -190,7 +232,10 @@ async function main() {
     summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
     summaryContent += results
       .filter(r => !r.success)
-      .map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}: ${r.error}`)
+      .map(r => {
+        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
+        return `- ${itemType} → Agent: ${r.agent}: ${r.error}`;
+      })
       .join("\n");
 
     // Check if any failures were permission-related
@@ -206,7 +251,11 @@ async function main() {
   // Set outputs
   const assignedAgents = results
     .filter(r => r.success)
-    .map(r => `${r.issue_number}:${r.agent}`)
+    .map(r => {
+      const number = r.issue_number || r.pull_number;
+      const prefix = r.issue_number ? "issue" : "pr";
+      return `${prefix}:${number}:${r.agent}`;
+    })
     .join("\n");
   core.setOutput("assigned_agents", assignedAgents);
 

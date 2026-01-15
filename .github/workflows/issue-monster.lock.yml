@@ -209,25 +209,41 @@ jobs:
               "name": "add_comment"
             },
             {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") CONSTRAINTS: Maximum 3 issue(s) can be assigned to agent.",
+              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\") CONSTRAINTS: Maximum 3 issue(s) can be assigned to agent.",
               "inputSchema": {
                 "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "required": [
+                      "issue_number"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "pull_number"
+                    ]
+                  }
+                ],
                 "properties": {
                   "agent": {
                     "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
                     "type": "string"
                   },
                   "issue_number": {
-                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements.",
+                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "pull_number": {
+                    "description": "Pull request number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",
                     "type": [
                       "number",
                       "string"
                     ]
                   }
                 },
-                "required": [
-                  "issue_number"
-                ],
                 "type": "object"
               },
               "name": "assign_to_agent"
