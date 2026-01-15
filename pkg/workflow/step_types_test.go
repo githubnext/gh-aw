@@ -157,7 +157,7 @@ func TestWorkflowStep_ToMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.step.ToMap()
-			assert.Equal(t, len(tt.want), len(got), "ToMap should return map with correct length for %s", tt.name)
+			assert.Len(t, got, len(tt.want), "ToMap should return map with correct length for %s", tt.name)
 			for key, wantVal := range tt.want {
 				gotVal, ok := got[key]
 				assert.True(t, ok, "ToMap should include key %q for %s", key, tt.name)
@@ -298,7 +298,7 @@ func TestWorkflowStep_Clone(t *testing.T) {
 
 	// Verify clone is independent (modifying clone doesn't affect original)
 	clone.Name = "Modified"
-	assert.NotEqual(t, original.Name, "Modified", "Clone should be independent - modifying clone Name should not affect original")
+	assert.NotEqual(t, "Modified", original.Name, "Clone should be independent - modifying clone Name should not affect original")
 
 	clone.With["new-key"] = "new-value"
 	_, exists := original.With["new-key"]
@@ -371,7 +371,7 @@ func TestMapToStep_RoundTrip(t *testing.T) {
 	resultMap := step.ToMap()
 
 	// Compare maps
-	assert.Equal(t, len(originalMap), len(resultMap), "Round trip should preserve map size")
+	assert.Len(t, resultMap, len(originalMap), "Round trip should preserve map size")
 
 	for key, originalVal := range originalMap {
 		resultVal, ok := resultMap[key]
@@ -384,7 +384,7 @@ func TestMapToStep_RoundTrip(t *testing.T) {
 			origEnv, origOK := originalVal.(map[string]any)
 			resultEnv, resultOK := resultVal.(map[string]string)
 			if origOK && resultOK {
-				assert.Equal(t, len(origEnv), len(resultEnv), "Round trip should preserve env map size")
+				assert.Len(t, resultEnv, len(origEnv), "Round trip should preserve env map size")
 				for k, v := range origEnv {
 					if vStr, ok := v.(string); ok {
 						assert.Equal(t, vStr, resultEnv[k], "Round trip should preserve env[%q]", k)
@@ -544,7 +544,7 @@ func TestSliceToSteps(t *testing.T) {
 				return
 			}
 			require.NoError(t, err, "SliceToSteps should succeed for %s", tt.name)
-			assert.Equal(t, len(tt.want), len(got), "SliceToSteps should return correct number of steps for %s", tt.name)
+			assert.Len(t, got, len(tt.want), "SliceToSteps should return correct number of steps for %s", tt.name)
 			for i := range got {
 				assert.True(t, compareSteps(got[i], tt.want[i]), "SliceToSteps step %d should match expected for %s", i, tt.name)
 			}
@@ -615,7 +615,7 @@ func TestStepsToSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := StepsToSlice(tt.input)
-			assert.Equal(t, len(tt.want), len(got), "StepsToSlice should return correct number of items for %s", tt.name)
+			assert.Len(t, got, len(tt.want), "StepsToSlice should return correct number of items for %s", tt.name)
 			for i := range got {
 				gotMap, ok := got[i].(map[string]any)
 				assert.True(t, ok, "StepsToSlice item %d should be a map for %s", i, tt.name)
@@ -627,7 +627,7 @@ func TestStepsToSlice(t *testing.T) {
 				if !ok {
 					continue
 				}
-				assert.Equal(t, len(wantMap), len(gotMap), "StepsToSlice item %d should have correct number of fields for %s", i, tt.name)
+				assert.Len(t, gotMap, len(wantMap), "StepsToSlice item %d should have correct number of fields for %s", i, tt.name)
 				for key, wantVal := range wantMap {
 					gotVal, exists := gotMap[key]
 					assert.True(t, exists, "StepsToSlice item %d should include key %q for %s", i, key, tt.name)
@@ -663,7 +663,7 @@ func TestSliceToSteps_RoundTrip(t *testing.T) {
 	resultSlice := StepsToSlice(steps)
 
 	// Compare
-	assert.Equal(t, len(originalSlice), len(resultSlice), "Round trip should preserve slice size")
+	assert.Len(t, resultSlice, len(originalSlice), "Round trip should preserve slice size")
 
 	for i := range originalSlice {
 		origMap, _ := originalSlice[i].(map[string]any)
@@ -895,7 +895,7 @@ func TestSliceToSteps_MixedValidInvalid(t *testing.T) {
 				require.Error(t, err, "SliceToSteps should return error for %s", tt.description)
 			} else {
 				require.NoError(t, err, "SliceToSteps should succeed for %s", tt.description)
-				assert.Equal(t, len(tt.input), len(steps), "SliceToSteps should return correct number of steps for %s", tt.description)
+				assert.Len(t, steps, len(tt.input), "SliceToSteps should return correct number of steps for %s", tt.description)
 			}
 		})
 	}
