@@ -329,6 +329,26 @@ test_validation_functions_exist() {
   fi
 }
 
+# Test 11: 0.0.0.0 replacement with gateway hostname
+test_0_0_0_0_replacement() {
+  echo ""
+  echo "Test 11: Verify 0.0.0.0 is replaced with gateway hostname"
+  
+  # Check for 0.0.0.0 replacement logic
+  if grep -q "Replace 0.0.0.0 with" "$SCRIPT_PATH"; then
+    print_result "0.0.0.0 replacement logic exists" "PASS"
+  else
+    print_result "0.0.0.0 replacement logic missing" "FAIL"
+  fi
+  
+  # Check that script extracts gateway hostname
+  if grep -q "GATEWAY_HOST" "$SCRIPT_PATH"; then
+    print_result "Gateway hostname extraction exists" "PASS"
+  else
+    print_result "Gateway hostname extraction missing" "FAIL"
+  fi
+}
+
 # Run all tests
 echo "=== Testing check_mcp_servers.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -343,6 +363,7 @@ test_valid_http_server
 test_server_without_url
 test_mixed_servers
 test_validation_functions_exist
+test_0_0_0_0_replacement
 
 # Print summary
 echo ""

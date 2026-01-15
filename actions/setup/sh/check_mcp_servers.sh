@@ -92,6 +92,15 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
   
+  # Replace 0.0.0.0 with the actual gateway hostname from GATEWAY_URL
+  # 0.0.0.0 is only valid for listening/binding, not for connecting
+  # Extract hostname and port from GATEWAY_URL (e.g., http://localhost:8080)
+  GATEWAY_HOST=$(echo "$GATEWAY_URL" | sed -E 's|^https?://([^:/]+)(:[0-9]+)?.*|\1|')
+  GATEWAY_PORT_FROM_URL=$(echo "$GATEWAY_URL" | sed -E 's|^https?://[^:/]+(:[0-9]+)?.*|\1|' | tr -d ':')
+  
+  # Replace 0.0.0.0 with the gateway hostname in the server URL
+  SERVER_URL=$(echo "$SERVER_URL" | sed "s|0\.0\.0\.0|${GATEWAY_HOST}|")
+  
   # Extract authentication headers from gateway configuration
   AUTH_HEADER=""
   if echo "$SERVER_CONFIG" | jq -e '.headers.Authorization' >/dev/null 2>&1; then
