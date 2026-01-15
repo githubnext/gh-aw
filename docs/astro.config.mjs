@@ -206,8 +206,8 @@ export default defineConfig({
 					autogenerate: { directory: 'troubleshooting' },
 				},
 				{
-					label: 'Labs',
-					link: '/labs/',
+					label: 'Agent Factory',
+					link: '/agent-factory/',
 				},
 			],
 		}),
