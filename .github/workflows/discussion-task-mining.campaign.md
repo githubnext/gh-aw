@@ -147,7 +147,7 @@ Scans AI-generated discussions from the last 7 days to extract actionable code q
 4. **Effort** (Single select): Small (1 day), Medium (2-3 days), Large (1 week)
    - Estimated effort for completion
    
-5. **Status** (Single select): Todo, In Progress, Blocked, Done
+5. **Status** (Single select): Todo, In Progress, Review required, Blocked, Done
    - Current work state
    
 6. **Impact Area** (Single select): Maintainability, Reliability, Performance, Security, Developer Experience
