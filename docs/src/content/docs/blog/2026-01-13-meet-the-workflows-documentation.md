@@ -2,8 +2,9 @@
 title: "Meet the Workflows: Documentation & Content"
 description: "A curated tour of workflows that maintain high-quality documentation"
 authors:
-  - mnkiefer
+  - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T03:00:00
 sidebar:
   label: "Documentation & Content"
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the documentation corner of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+Step right up, step right up, and enter the *documentation chamber* of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Pure imagination meets technical accuracy in this most delightful corner of our establishment!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/), we explored code quality and refactoring workflows - agents that continuously push our codebase toward better design, finding patterns and improvements that humans often miss. These workflows never take a day off, quietly working to make our code cleaner and more maintainable.
 

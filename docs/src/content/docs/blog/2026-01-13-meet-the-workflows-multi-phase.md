@@ -4,6 +4,7 @@ description: "A curated tour of multi-phase workflows that tackle long-running p
 authors:
   - dsyme
   - peli
+  - mnkiefer
 date: 2026-01-13T13:00:00
 sidebar:
   label: "Multi-Phase Improvers"

@@ -19,46 +19,35 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
+# Systematically extract actionable code quality improvement tasks from AI-generated discussions. Success: continuous identification of high-value refactoring, testing, and maintainability improvements.
 
-name: "Campaign Generator"
+name: "Campaign: Discussion Task Mining for Code Quality"
 "on":
-  issues:
-    # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
-    # names: # Label filtering applied via job conditions
-    # - create-agentic-campaign # Label filtering applied via job conditions
-    types:
-    - labeled
-  workflow_dispatch: null
+  schedule:
+  - cron: "0 18 * * *"
+  workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   issues: read
   pull-requests: read
+  security-events: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+  cancel-in-progress: false
+  group: campaign-discussion-task-mining-orchestrator-${{ github.ref }}
 
-run-name: "Campaign Generator"
+run-name: "Campaign: Discussion Task Mining for Code Quality"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
-      (github.event.label.name == 'create-agentic-campaign')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
     outputs:
-      comment_id: ${{ steps.react.outputs.comment-id }}
-      comment_repo: ${{ steps.react.outputs.comment-repo }}
-      comment_url: ${{ steps.react.outputs.comment-url }}
-      issue_locked: ${{ steps.lock-issue.outputs.locked }}
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
+      comment_id: ""
+      comment_repo: ""
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -73,46 +62,25 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "campaign-generator.lock.yml"
+          GH_AW_WORKFLOW_FILE: "discussion-task-mining.campaign.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
-      - name: Add eyes reaction to the triggering item
-        id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_REACTION: "eyes"
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
-          GH_AW_LOCK_FOR_AGENT: "true"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/add_reaction_and_edit_comment.cjs');
-            await main();
-      - name: Lock issue for agent workflow
-        id: lock-issue
-        if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/lock-issue.cjs');
-            await main();
 
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
+      security-events: read
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -144,6 +112,37 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Create workspace directory
+        run: mkdir -p ./.gh-aw
+      - env:
+          GH_AW_CAMPAIGN_ID: discussion-task-mining
+          GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/discussion-task-mining/cursor.json
+          GH_AW_MAX_DISCOVERY_ITEMS: "100"
+          GH_AW_MAX_DISCOVERY_PAGES: "10"
+          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/TBD
+          GH_AW_TRACKER_LABEL: campaign:discussion-task-mining
+          GH_AW_WORKFLOWS: discussion-task-miner
+        id: discovery
+        name: Run campaign discovery precomputation
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |-
+
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/campaign_discovery.cjs');
+            await main();
+
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (campaigns)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/campaigns
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
+          CREATE_ORPHAN: true
+        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -204,12 +203,52 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":10},"assign_to_agent":{},"create_project":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1},"update_project":{"max":10}}
+          {"add_comment":{"max":3},"create_issue":{"max":1},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 10 comment(s) can be added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "parent": {
+                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "temporary_id": {
+                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_issue"
+            },
+            {
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 3 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -230,61 +269,48 @@ jobs:
               "name": "add_comment"
             },
             {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "agent": {
-                    "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
-                    "type": "string"
-                  },
-                  "issue_number": {
-                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  }
-                },
-                "required": [
-                  "issue_number"
-                ],
-                "type": "object"
-              },
-              "name": "assign_to_agent"
-            },
-            {
-              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 1 issue(s) can be updated.",
+              "description": "Create a status update on a GitHub Projects v2 board. Status updates provide stakeholder communication and historical record of project progress with a timeline. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
+                    "description": "Status update body in markdown format describing progress, findings, trends, and next steps. Should provide stakeholders with clear understanding of project state.",
                     "type": "string"
                   },
-                  "issue_number": {
-                    "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
+                  "project": {
+                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  },
+                  "start_date": {
+                    "description": "Optional project start date in YYYY-MM-DD format (e.g., '2026-01-06').",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
                   },
                   "status": {
-                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
+                    "description": "Status indicator for the project. Defaults to ON_TRACK. Values: ON_TRACK (progressing well), AT_RISK (has issues/blockers), OFF_TRACK (significantly behind), COMPLETE (finished), INACTIVE (paused/cancelled).",
                     "enum": [
-                      "open",
-                      "closed"
+                      "ON_TRACK",
+                      "AT_RISK",
+                      "OFF_TRACK",
+                      "COMPLETE",
+                      "INACTIVE"
                     ],
                     "type": "string"
                   },
-                  "title": {
-                    "description": "New issue title to replace the existing title.",
+                  "target_date": {
+                    "description": "Optional project target/end date in YYYY-MM-DD format (e.g., '2026-12-31').",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                     "type": "string"
                   }
                 },
+                "required": [
+                  "project",
+                  "body"
+                ],
                 "type": "object"
               },
-              "name": "update_issue"
+              "name": "create_project_status_update"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -427,40 +453,6 @@ jobs:
               "name": "update_project"
             },
             {
-              "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "item_url": {
-                    "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123').",
-                    "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+$",
-                    "type": "string"
-                  },
-                  "owner": {
-                    "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter.",
-                    "type": "string"
-                  },
-                  "owner_type": {
-                    "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'.",
-                    "enum": [
-                      "org",
-                      "user"
-                    ],
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title"
-                ],
-                "type": "object"
-              },
-              "name": "create_project"
-            },
-            {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -508,47 +500,75 @@ jobs:
                 }
               }
             },
-            "assign_to_agent": {
+            "create_issue": {
               "defaultMax": 1,
               "fields": {
-                "agent": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "issue_number": {
+                "body": {
                   "required": true,
-                  "positiveInteger": true
-                }
-              }
-            },
-            "create_project": {
-              "defaultMax": 1,
-              "fields": {
-                "item_url": {
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 512,
-                  "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+",
-                  "patternError": "must be a full GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)"
+                  "maxLength": 65000
                 },
-                "owner": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
                 },
-                "owner_type": {
+                "parent": {
+                  "issueOrPRNumber": true
+                },
+                "repo": {
                   "type": "string",
-                  "enum": [
-                    "org",
-                    "user"
-                  ]
+                  "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
                 },
                 "title": {
                   "required": true,
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 256
+                  "maxLength": 128
+                }
+              }
+            },
+            "create_project_status_update": {
+              "defaultMax": 10,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65536
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                },
+                "start_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "patternError": "must be in YYYY-MM-DD format"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "INACTIVE",
+                    "ON_TRACK",
+                    "AT_RISK",
+                    "OFF_TRACK",
+                    "COMPLETE"
+                  ]
+                },
+                "target_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "patternError": "must be in YYYY-MM-DD format"
                 }
               }
             },
@@ -584,32 +604,6 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "update_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "issue_number": {
-                  "issueOrPRNumber": true
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "open",
-                    "closed"
-                  ]
-                },
-                "title": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              },
-              "customValidation": "requiresOneOf:status,title,body"
             },
             "update_project": {
               "defaultMax": 10,
@@ -679,7 +673,7 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions,code_security"
                 }
               },
               "safeoutputs": {
@@ -723,7 +717,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.1.6",
-              workflow_name: "Campaign Generator",
+              workflow_name: "Campaign: Discussion Task Mining for Code Quality",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -765,374 +759,546 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          {{#runtime-import? .github/shared-instructions.md}}
-          {{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
           
-          # Campaign Generator
           
-          You are a campaign workflow coordinator for GitHub Agentic Workflows. You handle campaign creation and project setup, then assign compilation to the Copilot Coding Agent.
           
-          ## IMPORTANT: Using Safe Output Tools
+          # Campaign Orchestrator
           
-          When creating or modifying GitHub resources (project, issue, comments), you **MUST use the MCP tool calling mechanism** to invoke the safe output tools. 
+          This workflow orchestrates the 'Campaign: Discussion Task Mining for Code Quality' campaign.
           
-          **Do NOT write markdown code fences or JSON** - you must make actual MCP tool calls using your MCP tool calling capability.
+          - Objective: Continuously mine AI-generated discussions for actionable code quality improvement tasks, converting insights into trackable issues that agents can implement
+          - KPIs:
+            - Tasks identified per week (primary): baseline 0 → target 15 over 7 days count
+            - Task conversion rate (issues created/tasks identified) (supporting): baseline 60 → target 80 over 7 days percent
+            - Task completion rate (closed/created issues) (supporting): baseline 50 → target 75 over 30 days percent
+          - Associated workflows: discussion-task-miner
+          - Memory paths: memory/campaigns/discussion-task-mining/**, memory/discussion-task-miner/**
+          - Metrics glob: `memory/campaigns/discussion-task-mining/metrics/*.json`
+          - Cursor glob: `memory/campaigns/discussion-task-mining/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/TBD
+          - Governance: max comments per run: 3
           
-          For example:
-          - To create a project, invoke the `create_project` MCP tool with the required parameters
-          - To update an issue, invoke the `update_issue` MCP tool with the required parameters
-          - To add a comment, invoke the `add_comment` MCP tool with the required parameters
-          - To assign to an agent, invoke the `assign_to_agent` MCP tool with the required parameters
+          ---
+          # ORCHESTRATOR INSTRUCTIONS
+          ---
+          # Orchestrator Instructions
           
-          MCP tool calls write structured data that downstream jobs process. Without proper MCP tool invocations, follow-up actions will be skipped.
+          This orchestrator coordinates a single campaign by discovering worker outputs, making deterministic decisions,
+          and synchronizing campaign state into a GitHub Project board.
           
-          ## Your Task
+          **Scope:** orchestration only (discovery, planning, pacing, reporting).  
+          **Write authority:** all project write semantics are governed by **Project Update Instructions** and MUST be followed.
           
-          **Your Responsibilities:**
-          1. Create GitHub Project board
-          2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)
-          3. Create recommended project views (Roadmap, Task Tracker, Progress Board)
-          4. Parse campaign requirements from issue
-          5. Discover matching workflows using the workflow catalog (local + agentics collection)
-          6. Generate complete `.campaign.md` specification file
-          7. Write the campaign file to the repository
-          8. Update the issue with campaign details
-          9. Assign to Copilot Coding Agent for compilation
+          ---
           
-          **Copilot Coding Agent Responsibilities:**
-          1. Compile campaign using `gh aw compile` (requires CLI binary)
-          2. Commit all files (spec + generated files)
-          3. Create pull request
+          ## Traffic and Rate Limits (Required)
           
-          ## Workflow Steps
+          - Minimize API calls; avoid full rescans when possible.
+          - Prefer incremental discovery with deterministic ordering (e.g., by `updatedAt`, tie-break by ID).
+          - Enforce strict pagination budgets; if a query requires many pages, stop early and continue next run.
+          - Use a durable cursor/checkpoint so the next run continues without rescanning.
+          - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
           
-          ### Step 1: Parse Campaign Requirements
           
-          Extract requirements from the issue body #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
-          - Campaign goal/description
-          - Timeline and scope
-          - Suggested workflows (if any)
-          - Ownership information
-          - Risk indicators
+          **Cursor file (repo-memory)**: `memory/campaigns/discussion-task-mining/cursor.json`  
+          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/discussion-task-mining/cursor.json`  
+          - If it exists: read first and continue from its boundary.  
+          - If it does not exist: create it by end of run.  
+          - Always write the updated cursor back to the same path.
           
-          **Issue format example:**
-          ```markdown
-          ### Campaign Goal
-          <User's description of what the campaign should accomplish>
           
-          ### Scope
-          <Timeline, repositories, teams involved>
           
-          ### Workflows Needed
-          <User's workflow suggestions, if any>
+          **Metrics snapshots (repo-memory)**: `memory/campaigns/discussion-task-mining/metrics/*.json`  
+          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/discussion-task-mining/metrics/*.json`  
+          - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
+          - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
+          - Each snapshot MUST include ALL required fields (even if zero):
+            - `campaign_id` (string): The campaign identifier
+            - `date` (string): UTC date in YYYY-MM-DD format
+            - `tasks_total` (number): Total number of tasks (>= 0, even if 0)
+            - `tasks_completed` (number): Completed task count (>= 0, even if 0)
+          - Optional fields (include only if available): `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`, `estimated_completion`
+          - Example minimum valid snapshot:
+            ```json
+            {
+              "campaign_id": "discussion-task-mining",
+              "date": "2025-12-22",
+              "tasks_total": 0,
+              "tasks_completed": 0
+            }
+            ```
           
-          ### Risk Level
-          <Low/Medium/High with reasoning>
           
-          ### Ownership
-          <Owner and sponsor information>
-          ```
           
-          ### Step 2: Create GitHub Project Board
           
-          Use the `create-project` safe output to create a new empty project:
           
-          ```javascript
-          create_project({
-            title: "Campaign: <campaign-name>",
-            owner: "__GH_AW_GITHUB_REPOSITORY_OWNER__",
-            item_url: "__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/issues/__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"
-          })
-          ```
           
-          **Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
+          **Write budget**: max project comments per run: 3
           
-          ### Step 2.5: Create Project Fields and Views
           
-          After creating the project, set up custom fields using the `update-project` safe output.
+          ---
           
-          **Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created from the workflow's frontmatter configuration when the agent makes any `update_project` call. You don't need to create them manually.
+          ## Core Principles
           
-          #### 2.5.1: Create Custom Fields
+          1. Workers are immutable and campaign-agnostic
+          2. The GitHub Project board is the authoritative campaign state
+          3. Correlation is explicit (tracker-id)
+          4. Reads and writes are separate steps (never interleave)
+          5. Idempotent operation is mandatory (safe to re-run)
+          6. Only predefined project fields may be updated
+          7. **Project Update Instructions take precedence for all project writes**
           
-          ```javascript
-          update_project({
-            project: "<project-url-from-step-2>",
-            operation: "create_fields",
-            field_definitions: [
-              {
-                name: "Worker/Workflow",
-                data_type: "SINGLE_SELECT",
-                options: ["<workflow-id-1>", "<workflow-id-2>"]
-              },
-              {
-                name: "Priority",
-                data_type: "SINGLE_SELECT",
-                options: ["High", "Medium", "Low"]
-              },
-              {
-                name: "Status",
-                data_type: "SINGLE_SELECT",
-                options: ["Todo", "In Progress", "Review required", "Blocked", "Done", "Closed"]
-              },
-              {
-                name: "Start Date",
-                data_type: "DATE"
-              },
-              {
-                name: "End Date",
-                data_type: "DATE"
-              },
-              {
-                name: "Effort",
-                data_type: "SINGLE_SELECT",
-                options: ["Small (1-3 days)", "Medium (1 week)", "Large (2+ weeks)"]
-              }
-            ]
-          })
-          ```
+          ---
           
-          ### Step 3: Discover Workflows Dynamically
+          ## Execution Steps (Required Order)
           
-          Perform comprehensive workflow discovery by scanning the filesystem:
+          ### Step 0 — Epic Issue Initialization [FIRST RUN ONLY]
           
-          1. **Scan for agentic workflows**:
-             ```bash
-             ls .github/workflows/*.md
+          **Campaign Epic Issue Requirements:**
+          - Each project board MUST have exactly ONE Epic issue representing the campaign
+          - The Epic serves as the parent for all campaign work issues
+          - The Epic is narrative-only and tracks overall campaign progress
+          
+          **On every run, before other steps:**
+          
+          1) **Check for existing Epic issue** by searching the repository for:
+             - An open issue with label `epic` or `type:epic`
+             - Body text containing: `campaign_id: discussion-task-mining`
+          
+          2) **If no Epic issue exists**, create it using `create-issue`:
+             ```yaml
+             create-issue:
+               title: "Campaign: Discussion Task Mining for Code Quality"
+               body: |
+                 ## Campaign Overview
+                 
+                 **Objective**: Continuously mine AI-generated discussions for actionable code quality improvement tasks, converting insights into trackable issues that agents can implement
+                 
+                 This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
+                 
+                 **Campaign Details:**
+                 - Campaign ID: `discussion-task-mining`
+                 - Project Board: https://github.com/orgs/githubnext/projects/TBD
+                 - Worker Workflows: `discussion-task-miner`
+                 
+                 ---
+                 `campaign_id: discussion-task-mining`
+               labels:
+                 - epic
+                 - type:epic
              ```
-             
-             For each agentic workflow file (`.md`):
-             - Parse the YAML frontmatter to extract `description`, `on`, and `safe-outputs`
-             - Match description to campaign keywords
-             - Categorize by purpose (security, quality, docs, CI/CD, etc.)
           
-          2. **Scan for regular workflows**:
-             ```bash
-             ls .github/workflows/*.yml | grep -v ".lock.yml"
+          3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
+             ```yaml
+             update-project:
+               project: "https://github.com/orgs/githubnext/projects/TBD"
+               campaign_id: "discussion-task-mining"
+               content_type: "issue"
+               content_number: <EPIC_ISSUE_NUMBER>
+               fields:
+                 status: "In Progress"
+                 campaign_id: "discussion-task-mining"
+                 worker_workflow: "unknown"
+                 repository: "<OWNER/REPO>"
+                 priority: "High"
+                 size: "Large"
+                 start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
+                 end_date: "<TODAY_YYYY-MM-DD>"
              ```
-             
-             For each regular workflow file:
-             - Read the workflow name and trigger configuration
-             - Scan jobs to understand functionality
-             - Assess if it could benefit from AI enhancement
           
-          3. **Include external workflow collections**:
-             
-             Reference reusable workflows from the Agentics Collection (https://github.com/githubnext/agentics):
-             - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
-             - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
-             - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
+          4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
           
-          4. **Categorize discovered workflows**:
-             - **Existing agentic workflows**: Found by scanning `.md` files
-             - **Regular workflows to enhance**: Found by scanning `.yml` files
-             - **External workflows**: From agentics collection
-             - **New workflows**: Suggested workflows not found
+          **Note:** This step typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
           
-          ### Step 4: Generate Campaign Specification File
+          ---
           
-          Using the **Campaign Creation Instructions** (imported above), create a complete `.campaign.md` file:
+          ### Step 1 — Read State (Discovery) [NO WRITES]
           
-          **File path:** `.github/workflows/<campaign-id>.campaign.md`  
-          **Campaign ID:** Convert name to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025")  
-          **Before creating:** Check if the file exists. If it does, append `-v2` or timestamp.
+          **IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
           
-          **File structure:**
+          1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
+             - This manifest contains all discovered worker outputs with normalized metadata
+             - Schema version: v1
+             - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
+          
+          2) Read current GitHub Project board state (items + required fields).
+          
+          3) Parse discovered items from the manifest:
+             - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
+             - Closed items have: closed_at (for issues) or merged_at (for PRs)
+             - Items are pre-sorted by updated_at for deterministic processing
+          
+          4) Check the manifest summary for work counts:
+             - `needs_add_count`: Number of items that need to be added to the project
+             - `needs_update_count`: Number of items that need status updates
+             - If both are 0, you may skip to reporting step
+          
+          5) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
+          
+          ### Step 2 — Make Decisions (Planning) [NO WRITES]
+          
+          5) Determine desired `status` strictly from explicit GitHub state:
+          - Open → `Todo` (or `In Progress` only if explicitly indicated elsewhere)
+          - Closed (issue/discussion) → `Done`
+          - Merged (PR) → `Done`
+          
+          **Why use explicit GitHub state?** - GitHub is the source of truth for work status. Inferring status from other signals (labels, comments) would be unreliable and could cause incorrect tracking.
+          
+          6) Calculate required date fields for each item (per Project Update Instructions):
+          - `start_date`: format `created_at` as `YYYY-MM-DD`
+          - `end_date`:
+            - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
+            - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
+          
+          **Why use today for open items?** - GitHub Projects requires end_date for roadmap views. Using today's date shows the item is actively tracked and updates automatically each run until completion.
+          
+          7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+          
+          **Why no comparison for idempotency?** - The safe-output system handles deduplication. Comparing would add complexity and potential race conditions. Trust the infrastructure.
+          
+          8) Apply write budget:
+          - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
+            (e.g., oldest `updated_at` first; tie-break by ID/number).
+          - Defer remaining items to next run via cursor.
+          
+          **Why use deterministic order?** - Ensures predictable behavior and prevents starvation. Oldest items are processed first, ensuring fair treatment of all work items. The cursor saves progress for next run.
+          
+          ### Step 3 — Write State (Execution) [WRITES ONLY]
+          
+          9) For each selected item, send an `update-project` request.
+          - Do NOT interleave reads.
+          - Do NOT pre-check whether the item is on the board.
+          - **All write semantics MUST follow Project Update Instructions**, including:
+            - first add → full required fields (status, campaign_id, worker_workflow, repo, priority, size, start_date, end_date)
+            - existing item → status-only update unless explicit backfill is required
+          
+          10) Record per-item outcome: success/failure + error details.
+          
+          ### Step 4 — Report & Status Update
+          
+          11) **REQUIRED: Create a project status update summarizing this run**
+          
+          Every campaign run MUST create a status update using `create-project-status-update` safe output. This is the primary communication mechanism for conveying campaign progress to stakeholders.
+          
+          **Required Sections:**
+          
+          - **Most Important Findings**: Highlight the 2-3 most critical discoveries, insights, or blockers from this run
+          - **What Was Learned**: Document key learnings, patterns observed, or insights gained during this run
+          - **KPI Trends**: Report progress on EACH campaign KPI (Tasks identified per week, Task conversion rate (issues created/tasks identified), Task completion rate (closed/created issues)) with baseline → current → target format, including direction and velocity
+          - **Campaign Summary**: Tasks completed, in progress, blocked, and overall completion percentage
+          - **Next Steps**: Clear action items and priorities for the next run
+          
+          **Configuration:**
+          - Set appropriate status: ON_TRACK, AT_RISK, OFF_TRACK, or COMPLETE
+          - Use today's date for start_date and target_date (or appropriate future date for target)
+          - Body must be comprehensive yet concise (target: 200-400 words)
+          
+          
+          **Campaign KPIs to Report:**
+          
+          - **Tasks identified per week** (primary): baseline 0 count → target 15 count over 7 days (increase)
+          
+          - **Task conversion rate (issues created/tasks identified)** (supporting): baseline 60 percent → target 80 percent over 7 days (increase)
+          
+          - **Task completion rate (closed/created issues)** (supporting): baseline 50 percent → target 75 percent over 30 days (increase)
+          
+          
+          
+          Example status update:
           ```yaml
-          ---
-          id: <campaign-id>
-          name: <Campaign Name>
-          description: <One-sentence description>
-          project-url: <Project URL from Step 2>
-          workflows:
-            - <workflow-id-1>
-            - <workflow-id-2>
-          memory-paths:
-            - memory/campaigns/<campaign-id>-*/**
-          owners:
-            - @<username>
-          executive-sponsors:  # if applicable
-            - @<sponsor>
-          risk-level: <low|medium|high>
-          state: planned
-          tags:
-            - <category>
-            - <technology>
-          tracker-label: campaign:<campaign-id>
-          allowed-safe-outputs:
-            - create-issue
-            - add-comment
-            - create-pull-request
-          approval-policy:  # if high/medium risk
-            required-approvals: <number>
-            required-reviewers:
-              - <team>
-          ---
+          create-project-status-update:
+            project: "https://github.com/orgs/githubnext/projects/TBD"
+            status: "ON_TRACK"
+            start_date: "2026-01-06"
+            target_date: "2026-01-31"
+            body: |
+              ## Campaign Run Summary
           
-          # <Campaign Name>
+              **Discovered:** 25 items (15 issues, 10 PRs)
+              **Processed:** 10 items added to project, 5 updated
+              **Completion:** 60% (30/50 total tasks)
           
-          <Clear description of campaign purpose and goals>
+              ## Most Important Findings
           
-          ## Goals
+              1. **Critical accessibility gaps identified**: 3 high-severity accessibility issues discovered in mobile navigation, requiring immediate attention
+              2. **Documentation coverage acceleration**: Achieved 5% improvement in one week (best velocity so far)
+              3. **Worker efficiency improving**: daily-doc-updater now processing 40% more items per run
           
-          - <Goal 1>
-          - <Goal 2>
-          - <Goal 3>
+              ## What Was Learned
           
-          ## Workflows
+              - Multi-device testing reveals issues that desktop-only testing misses - should be prioritized
+              - Documentation updates tied to code changes have higher accuracy and completeness
+              - Users report fewer issues when examples include error handling patterns
           
-          ### <workflow-id-1>
-          <What this workflow does>
+              ## KPI Trends
           
-          ### <workflow-id-2>
-          <What this workflow does>
+              **Documentation Coverage** (Primary KPI):
+              - Baseline: 85% → Current: 88% → Target: 95%
+              - Direction: ↑ Increasing (+3% this week, +1% velocity/week)
+              - Status: ON TRACK - At current velocity, will reach 95% in 7 weeks
           
-          ## Agent Behavior
+              **Accessibility Score** (Supporting KPI):
+              - Baseline: 90% → Current: 91% → Target: 98%
+              - Direction: ↑ Increasing (+1% this month)
+              - Status: AT RISK - Slower progress than expected, may need dedicated focus
           
-          Agents in this campaign should:
-          - <Guideline 1>
-          - <Guideline 2>
-          - <Guideline 3>
+              **User-Reported Issues** (Supporting KPI):
+              - Baseline: 15/month → Current: 12/month → Target: 5/month
+              - Direction: ↓ Decreasing (-3 this month, -20% velocity)
+              - Status: ON TRACK - Trending toward target
           
-          ## Timeline
+              ## Next Steps
           
-          - **Start**: <Date or "TBD">
-          - **Target completion**: <Date or "Ongoing">
-          - **Current state**: Planned
-          
-          ## Success Metrics
-          
-          - <Measurable outcome 1>
-          - <Measurable outcome 2>
-          - <Measurable outcome 3>
+              1. Address 3 critical accessibility issues identified this run (high priority)
+              2. Continue processing remaining 15 discovered items
+              3. Focus on accessibility improvements to accelerate supporting KPI
+              4. Maintain current documentation coverage velocity
           ```
           
-          **Create the file** in the repository at the specified path.
-          
-          ### Step 5: Update Issue with Campaign Details
-          
-          Use the `update-issue` safe output to update issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
-          
-          **Update the title** (if needed):
-          ```
-          <campaign-name>
-          ```
-          
-          **Update the body** with campaign information and instructions for the Copilot Coding Agent:
-          ```markdown
-          > **Original Request**
-          >
-          > <Quote the user's original campaign goal>
+          12) Report:
+          - counts discovered (by type)
+          - counts processed this run (by action: add/status_update/backfill/noop/failed)
+          - counts deferred due to budgets
+          - failures (with reasons)
+          - completion state (work items only)
+          - cursor advanced / remaining backlog estimate
           
           ---
           
-          ## 🎯 Campaign Details
+          ## Authority
           
-          **Campaign ID:** `<campaign-id>`  
-          **Campaign Name:** <Campaign Name>  
-          **Project Board:** [View Project](<project-url>)  
-          **Risk Level:** <Low/Medium/High>  
-          **State:** Planned
+          If any instruction in this file conflicts with **Project Update Instructions**, the Project Update Instructions win for all project writes.
+          ---
+          # PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)
+          ---
+          # Project Update Instructions (Authoritative Write Contract)
           
-          ## 📋 Workflows
+          ## Project Board Integration
           
-          ### Existing Workflows (Ready to Use)
-          - `<workflow-id-1>`: <Description>
-          - `<workflow-id-2>`: <Description>
-          
-          ### New Workflows (Need to Create)
-          - `<new-workflow-id-1>`: <Description>
-          - `<new-workflow-id-2>`: <Description>
-          
-          ## 🎯 Goals
-          
-          - <Goal 1>
-          - <Goal 2>
-          - <Goal 3>
-          
-          ## ⏱️ Timeline
-          
-          - **Start Date:** <Date or TBD>
-          - **Target Completion:** <Date or Ongoing>
+          This file defines the ONLY allowed rules for writing to the GitHub Project board.
+          If any other instructions conflict with this file, THIS FILE TAKES PRECEDENCE for all project writes.
           
           ---
           
-          ## 🤖 Instructions for Copilot Coding Agent
+          ## 0) Hard Requirements (Do Not Deviate)
           
-          The campaign specification file has been created at `.github/workflows/<campaign-id>.campaign.md`.
+          - Writes MUST use only the `update-project` safe-output.
+          - All writes MUST target exactly:
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/TBD`
+          - Every item MUST include:
+            - `campaign_id: "discussion-task-mining"`
           
-          **Your task:** Run `gh aw compile <campaign-id>` to compile the campaign
+          ## Campaign ID
+          
+          All campaign tracking MUST key off `campaign_id: "discussion-task-mining"`.
+          
+          ---
+          
+          ## 1) Required Project Fields (Must Already Exist)
+          
+          | Field | Type | Allowed / Notes |
+          |---|---|---|
+          | `status` | single-select | `Todo` / `In Progress` / `Review required` / `Blocked` / `Done` |
+          | `campaign_id` | text | Must equal `discussion-task-mining` |
+          | `worker_workflow` | text | workflow ID or `"unknown"` |
+          | `repository` | text | `owner/repo` |
+          | `priority` | single-select | `High` / `Medium` / `Low` |
+          | `size` | single-select | `Small` / `Medium` / `Large` |
+          | `start_date` | date | `YYYY-MM-DD` |
+          | `end_date` | date | `YYYY-MM-DD` |
+          
+          Field names are case-sensitive.
+          
+          ---
+          
+          ## 2) Content Identification (Mandatory)
+          
+          Use **content number** (integer), never the URL as an identifier.
+          
+          - Issue URL: `.../issues/123` → `content_type: "issue"`, `content_number: 123`
+          - PR URL: `.../pull/456` → `content_type: "pull_request"`, `content_number: 456`
+          
+          ---
+          
+          ## 3) Deterministic Field Rules (No Inference)
+          
+          These rules apply to any time you write fields:
+          
+          - `campaign_id`: always `discussion-task-mining`
+          - `worker_workflow`: workflow ID if known, else `"unknown"`
+          - `repository`: extract `owner/repo` from the issue/PR URL
+          - `priority`: default `Medium` unless explicitly known
+          - `size`: default `Medium` unless explicitly known
+          - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
+          - `end_date`:
+            - if closed/merged → `closed_at` / `merged_at` formatted `YYYY-MM-DD`
+            - if open → **today’s date** formatted `YYYY-MM-DD` (**required for roadmap view; do not leave blank**)
+          
+          For open items, `end_date` is a UI-required placeholder and does NOT represent actual completion.
+          
+          ---
+          
+          ## 4) Read-Write Separation (Prevents Read/Write Mixing)
+          
+          1. **READ STEP (no writes)** — validate existence and gather metadata
+          2. **WRITE STEP (writes only)** — execute `update-project`
+          
+          Never interleave reads and writes.
+          
+          ---
+          
+          ## 5) Adding an Issue or PR (First Write)
+          
+          ### Adding New Issues
+          
+          When first adding an item to the project, you MUST write ALL required fields.
+          
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/TBD"
+            campaign_id: "discussion-task-mining"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Todo"                   # "Done" if already closed/merged
+              campaign_id: "discussion-task-mining"
+              worker_workflow: "unknown"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-03"
           ```
           
-          ### Step 6: Post Progress Comment
-          
-          Use `add-comment` to inform the user:
-          
-          ```markdown
-          ✅ **Campaign Specification Created!**
-          
-          I've generated the campaign specification and configured the project board, then assigned the Copilot Coding Agent to compile it.
-          
-          📊 **Project Board:** [View Project](<project-url>)
-            - ✅ Custom fields: Worker/Workflow, Priority, Status, Start Date, End Date, Effort
-            - ✅ Campaign Roadmap view (timeline)
-            - ✅ Task Tracker view (table)
-            - ✅ Progress Board view (kanban)
-          
-          📁 **File Created:**
-          - `.github/workflows/<campaign-id>.campaign.md`
-          
-          📝 **Next Steps:**
-          1. Copilot Coding Agent will compile the campaign using `gh aw compile`
-          2. The agent will create a pull request with compiled files
-          ```
-          
-          ### Step 7: Assign to Copilot Coding Agent
-          
-          Use the `assign-to-agent` safe output to assign a Copilot Coding Agent session to compile the campaign and create a PR.
-          
-          The agent will:
-          1. Read the instructions in the issue body
-          2. Compile the campaign using `gh aw compile <campaign-id>`
-          3. Create a PR with the compiled files
-          
-          ## Important Notes
-          
-          ### Why Assign to Copilot Coding Agent?
-          - `gh aw compile` requires the gh-aw CLI binary
-          - CLI is only available in Copilot Coding Agent sessions (via actions/setup)
-          - GitHub Actions runners (where this workflow runs) don't have gh-aw CLI
+          ---
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_REPOSITORY_OWNER: process.env.GH_AW_GITHUB_REPOSITORY_OWNER,
-                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
-              }
-            });
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ## 6) Updating an Existing Item (Minimal Writes)
+          
+          ### Updating Existing Items
+          
+          Preferred behavior is minimal, idempotent writes:
+          
+          - If item exists and `status` is unchanged → **No-op**
+          - If item exists and `status` differs → **Update `status` only**
+          - If any required field is missing/empty/invalid → **One-time full backfill** (repair only)
+          
+          ### Status-only Update (Default)
+          
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/TBD"
+            campaign_id: "discussion-task-mining"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
+          ```
+          
+          ### Full Backfill (Repair Only)
+          
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/TBD"
+            campaign_id: "discussion-task-mining"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
+              campaign_id: "discussion-task-mining"
+              worker_workflow: "WORKFLOW_ID"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-02"
+          ```
+          
+          ---
+          
+          ## 7) Idempotency Rules
+          
+          - Matching status already set → **No-op**
+          - Different status → **Status-only update**
+          - Invalid/deleted/inaccessible URL → **Record failure and continue**
+          
+          ## Write Operation Rules
+          
+          All writes MUST conform to this file and use `update-project` only.
+          
+          ---
+          
+          ## 8) Logging + Failure Handling (Mandatory)
+          
+          For every attempted item, record:
+          
+          - `content_type`, `content_number`, `repository`
+          - action taken: `noop | add | status_update | backfill | failed`
+          - error details if failed
+          
+          Failures must not stop processing remaining items.
+          
+          ---
+          
+          ## 9) Worker Workflow Policy
+          
+          - Workers are campaign-agnostic.
+          - Orchestrator populates `worker_workflow`.
+          - If `worker_workflow` cannot be determined, it MUST remain `"unknown"` unless explicitly reclassified by the orchestrator.
+          
+          ---
+          
+          ## 10) Parent / Sub-Issue Rules (Campaign Hierarchy)
+          
+          - Each project board MUST have exactly **one Epic issue** representing the campaign.
+          - The Epic issue MUST:
+            - Be added to the project board
+            - Use the same `campaign_id`
+            - Use `worker_workflow: "unknown"`
+          
+          - All campaign work issues (non-epic) MUST be created as **sub-issues of the Epic**.
+          - Issues MUST NOT be re-parented based on worker assignment.
+          
+          - Pull requests cannot be sub-issues:
+            - PRs MUST reference their related issue via standard GitHub linking (e.g. “Closes #123”).
+          
+          - Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
+          
+          - The Epic issue is narrative only.
+          - The project board is the sole authoritative source of campaign state.
+          ---
+          # CLOSING INSTRUCTIONS (HIGHEST PRIORITY)
+          ---
+          # Closing Instructions (Highest Priority)
+          
+          Execute all four steps in strict order:
+          
+          1. Read State (no writes)
+          2. Make Decisions (no writes)
+          3. Write State (update-project only)
+          4. Report
+          
+          The following rules are mandatory and override inferred behavior:
+          
+          - The GitHub Project board is the single source of truth.
+          - All project writes MUST comply with `project_update_instructions.md`.
+          - State reads and state writes MUST NOT be interleaved.
+          - Do NOT infer missing data or invent values.
+          - Do NOT reorganize hierarchy.
+          - Do NOT overwrite fields except as explicitly allowed.
+          - Workers are immutable and campaign-agnostic.
+          
+          If any instruction conflicts, the Project Update Instructions take precedence for all writes.
+          
+          PROMPT_EOF
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1143,6 +1309,33 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Locations Available
+          
+          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:
+          
+          - **campaigns**: `/tmp/gh-aw/repo-memory/campaigns/` (branch: `memory/campaigns`)
+          
+          - **Read/Write Access**: You can freely read from and write to any files in these folders
+          - **Git Branch Storage**: Each memory is stored in its own git branch
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files
+          
+          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1156,7 +1349,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, assign_to_agent, create_project, missing_tool, noop, update_issue, update_project
+          **Available tools**: add_comment, create_issue, create_project_status_update, missing_tool, noop, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1238,10 +1431,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1322,7 +1511,7 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           set -o pipefail
           sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.8.2 \
@@ -1421,6 +1610,15 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (campaigns)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1440,6 +1638,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_repo_memory
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -1491,7 +1690,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1504,7 +1703,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1517,10 +1716,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1536,10 +1734,9 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1547,22 +1744,14 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
-      - name: Unlock issue after agent workflow
-        id: unlock-issue
-        if: (always()) && (((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
-            await main();
 
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -1597,8 +1786,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Campaign Generator"
-          WORKFLOW_DESCRIPTION: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
+          WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
+          WORKFLOW_DESCRIPTION: "Systematically extract actionable code quality improvement tasks from AI-generated discussions. Success: continuous identification of high-value refactoring, testing, and maintainability improvements."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1719,14 +1908,14 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  pre_activation:
-    if: >
-      (github.event_name != 'issues') || ((github.event.action != 'labeled') || (github.event.label.name == 'create-agentic-campaign'))
-    runs-on: ubuntu-slim
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
     permissions:
-      contents: read
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+      contents: write
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1738,22 +1927,51 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
-      - name: Check team membership for workflow
-        id: check_membership
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (campaigns)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+      - name: Push repo-memory changes (campaigns)
+        if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
+          MEMORY_ID: campaigns
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/campaigns
+          MAX_FILE_SIZE: 10240
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "discussion-task-mining/** memory/discussion-task-miner/**"
+          GH_AW_CAMPAIGN_ID: discussion-task-mining
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
             await main();
 
   safe_outputs:
     needs:
-      - activation
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
@@ -1766,11 +1984,9 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
-      GH_AW_WORKFLOW_ID: "campaign-generator"
-      GH_AW_WORKFLOW_NAME: "Campaign Generator"
+      GH_AW_WORKFLOW_ID: "discussion-task-mining.campaign.g"
+      GH_AW_WORKFLOW_NAME: "Campaign: Discussion Task Mining for Code Quality"
     outputs:
-      assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
@@ -1795,25 +2011,14 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Unlock issue for safe output operations
-        id: unlock-issue-for-safe-outputs
-        if: ((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true')
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
-            await main();
       - name: Update Project
         id: update_project
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_PROJECT_VIEWS: '[{"name":"Campaign Roadmap","layout":"roadmap","filter":"is:issue,is:pull_request"},{"name":"Task Tracker","layout":"table","filter":"is:issue,is:pull_request"},{"name":"Progress Board","layout":"board","filter":"is:issue,is:pull_request"}]'
         with:
-          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1824,25 +2029,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"create_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1},\"missing_data\":{},\"missing_tool\":{},\"update_issue\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3},\"create_issue\":{\"max\":1},\"create_project_status_update\":{\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
         with:
-          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
-            await main();
-      - name: Assign To Agent
-        id: assign_to_agent
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-        with:
-          github-token: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/assign_to_agent.cjs');
             await main();
 

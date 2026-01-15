@@ -3,6 +3,7 @@ title: "Meet the Workflows: Tool & Infrastructure"
 description: "A curated tour of infrastructure workflows that monitor the agentic systems"
 authors:
   - dsyme
+  - peli
   - mnkiefer
 date: 2026-01-13T12:00:00
 sidebar:
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome back to our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Delighted to have you back* on our journey through [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Now, prepare yourself for something *quite peculiar* - the room where we watch the watchers!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/), we explored testing and validation workflows that continuously verify our systems function correctly - running smoke tests, checking documentation across devices, and catching regressions before users notice them. We learned that trust must be verified.
 

@@ -14,7 +14,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Hi there! 👋 Welcome to Peli's Agent Factory!
+*Good morning, starshine!* 🎩✨ Welcome, welcome, WELCOME to Peli's Agent Factory!
 
 Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress.
 
@@ -22,7 +22,7 @@ Peli's Agent Factory is our exploration of what happens when you take the design
 
 Software development is changing rapidly. This is our attempt to understand how automated agentic AI can make software teams more efficient, collaborative, and more enjoyable.
 
-Welcome to the factory. Let's explore together!
+So *strike that, reverse it!* Welcome to the factory - a place of pure imagination where AI agents work their magic. Come with me, and you'll be in a world of pure automation! Let's explore together!
 
 ## What Is Peli's Agent Factory?
 

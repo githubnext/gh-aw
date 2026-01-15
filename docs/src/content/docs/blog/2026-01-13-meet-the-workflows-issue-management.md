@@ -3,6 +3,7 @@ title: "Meet the Workflows: Issue & PR Management"
 description: "A curated tour of workflows that enhance GitHub collaboration"
 authors:
   - dsyme
+  - peli
   - mnkiefer
 date: 2026-01-13T04:00:00
 sidebar:
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Let's talk collaboration at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+*Ah!* Let's discuss the art of collaboration at [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! A most delicious topic indeed!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/), we explored documentation and content workflows - agents that maintain glossaries, technical docs, slide decks, and blog content. We learned that AI-generated docs need human review, but they're dramatically better than having no docs at all.
 

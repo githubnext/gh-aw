@@ -3,6 +3,7 @@ title: "Meet the Workflows: Code Quality & Refactoring"
 description: "A curated tour of code quality workflows that make codebases cleaner"
 authors:
   - dsyme
+  - peli
   - mnkiefer
 date: 2026-01-13T02:00:00
 sidebar:
@@ -17,7 +18,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-Welcome to the next chapter in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+Ah, what marvelous timing! Come, come, let me show you the *next wonder* in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows/), we explored how triage and summarization workflows help us stay on top of incoming activity - automatically labeling issues, creating digestible summaries, and narrating the day's events. These workflows taught us that tone matters and even simple automation dramatically reduces cognitive load.
 
