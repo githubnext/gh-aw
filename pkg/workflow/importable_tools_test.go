@@ -977,3 +977,175 @@ Uses all imported neutral tools.
 		t.Error("Expected compiled workflow to contain startup-timeout configuration (90 seconds)")
 	}
 }
+
+// TestImportSerenaLocalMode tests serena with local mode using uvx
+func TestImportSerenaLocalMode(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with serena in local mode
+	sharedPath := filepath.Join(tempDir, "shared-serena-local.md")
+	sharedContent := `---
+description: "Shared serena in local mode"
+tools:
+  serena:
+    mode: local
+    languages:
+      go: {}
+---
+
+# Shared Serena Local Mode Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that imports serena in local mode
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-serena-local.md
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+---
+
+# Main Workflow
+
+Uses imported serena in local mode.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify serena is configured in the MCP config
+	if !strings.Contains(workflowData, `"serena"`) {
+		t.Error("Expected compiled workflow to contain serena tool")
+	}
+
+	// Verify HTTP transport is used (not container)
+	if !strings.Contains(workflowData, `"type": "http"`) {
+		t.Error("Expected serena local mode to use HTTP transport")
+	}
+
+	// Verify port configuration
+	if !strings.Contains(workflowData, "GH_AW_SERENA_PORT") {
+		t.Error("Expected serena local mode to have port configuration")
+	}
+
+	// Verify serena startup steps are present
+	if !strings.Contains(workflowData, "Start Serena MCP HTTP Server") {
+		t.Error("Expected serena local mode to have startup step")
+	}
+
+	// Verify shell script is called
+	if !strings.Contains(workflowData, "start_serena_server.sh") {
+		t.Error("Expected serena local mode to call start_serena_server.sh")
+	}
+
+	// Verify language runtime setup (Go in this case)
+	if !strings.Contains(workflowData, "Setup Go") {
+		t.Error("Expected serena local mode to setup Go runtime")
+	}
+
+	// Verify uv runtime setup
+	if !strings.Contains(workflowData, "Setup uv") {
+		t.Error("Expected serena local mode to setup uv runtime")
+	}
+
+	// Verify NO container is used
+	if strings.Contains(workflowData, "ghcr.io/oraios/serena:latest") {
+		t.Error("Did not expect serena local mode to use Docker container")
+	}
+}
+
+// TestImportSerenaLocalModeMultipleLanguages tests serena local mode with multiple languages
+func TestImportSerenaLocalModeMultipleLanguages(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with serena in local mode with multiple languages
+	sharedPath := filepath.Join(tempDir, "shared-serena-multi.md")
+	sharedContent := `---
+description: "Shared serena in local mode with multiple languages"
+tools:
+  serena:
+    mode: local
+    languages:
+      go:
+        version: "1.21"
+      typescript: {}
+      python: {}
+---
+
+# Shared Serena Local Mode Multiple Languages
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-serena-multi.md
+permissions:
+  contents: read
+  issues: read
+---
+
+# Main Workflow
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := workflow.NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Verify multiple language runtimes are setup
+	if !strings.Contains(workflowData, "Setup Go") {
+		t.Error("Expected Go runtime setup")
+	}
+	if !strings.Contains(workflowData, "Setup Node.js") {
+		t.Error("Expected Node.js runtime setup for TypeScript")
+	}
+	if !strings.Contains(workflowData, "Setup Python") {
+		t.Error("Expected Python runtime setup")
+	}
+
+	// Verify HTTP transport
+	if !strings.Contains(workflowData, `"type": "http"`) {
+		t.Error("Expected HTTP transport for serena local mode")
+	}
+}
