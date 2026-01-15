@@ -3,6 +3,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,7 +61,25 @@ func TestExtractHTTPMCPDomains(t *testing.T) {
 					"allowed_domains": []string{"github.com"},
 				},
 			},
-			expected: []string{"mcp.tavily.com"},
+			expected: []string{constants.GitHubCopilotMCPDomain, "mcp.tavily.com"},
+		},
+		{
+			name: "github MCP in remote mode",
+			tools: map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+			expected: []string{constants.GitHubCopilotMCPDomain},
+		},
+		{
+			name: "github MCP in local mode (no domain extraction)",
+			tools: map[string]any{
+				"github": map[string]any{
+					"mode": "local",
+				},
+			},
+			expected: []string{},
 		},
 		{
 			name:     "no tools",

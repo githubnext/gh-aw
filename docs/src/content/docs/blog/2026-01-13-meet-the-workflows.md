@@ -1,5 +1,5 @@
 ---
-title: "Meet the Workflows: Triage & Summarization"
+title: "Meet the Workflows: Issue Triage"
 description: "A curated tour of triage and summarization workflows in the factory"
 authors:
   - dsyme
@@ -7,7 +7,7 @@ authors:
   - mnkiefer
 date: 2026-01-13T01:00:00
 sidebar:
-  label: "Triage & Summarization"
+  label: "Issue Triage"
 prev:
   link: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
   label: Welcome to Peli's Agent Factory
@@ -18,11 +18,11 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-*Wonderful to see you again!* 🎩 So glad you've returned to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
+Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We're the GitHub Next team, and we've been on quite a journey. Over the past months, we've built and operated a collection of automated agentic workflows. These aren't just demos or proof-of-concepts - these are real agents doing actual work in our [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and its companion [`githubnext/agentics`](https://github.com/githubnext/agentics) collection.
+We're the GitHub Next team. Over the past months, we've built and operated a collection of automated agentic workflows. These aren't just demos - these are real agents doing actual work in our [`githubnext/gh-aw`](https://github.com/githubnext/gh-aw) repository and others.
 
-Think of this as your guided tour through our agent factory. We're showcasing the workflows that caught our attention, taught us something new, or just made our lives easier. Every workflow links to its source Markdown file, so you can peek under the hood and see exactly how it works.
+Think of this as your guided tour through our agent factory. We're showcasing the workflows that caught our attention. Every workflow links to its source markdown file, so you can peek under the hood and see exactly how it works.
 
 ## Starting Simple: Automated Issue Triage
 
@@ -39,8 +39,8 @@ Our **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/bb7946527af3
 timeout-minutes: 5
 
 on:
-  schedule: "0 14 * * 1-5"
-  workflow_dispatch:
+  issue:
+    types: [opened, reopened]
 
 permissions:
   issues: read
@@ -66,33 +66,15 @@ Skip issues that:
 After adding the label to an issue, mention the issue author in a comment explaining why the label was added.
 ```
 
-Note how concise and readable this is - it's almost like reading a to-do list for the agent. The workflow runs every weekday at 14:00 UTC, checks for unlabeled issues, and applies appropriate labels based on content analysis. It even leaves a friendly comment explaining the label choice.
+Note how concise this is - it's like reading a to-do list for the agent. The workflow runs whenever a new issue is opened or reopened. It checks for unlabeled issues, analyzes their content, and applies appropriate labels based on content analysis. It even leaves a friendly comment explaining the label choice.
 
 In the frontmatter, we define permissions, tools, and safe outputs. This ensures the agent only has access to what it needs and can't perform any unsafe actions. The natural language instructions in the body guide the agent's behavior in a clear, human-readable way.
 
-## Automated Activity Summarization
-
-To continue the tour, let's look briefly at two automated summarization workflows that help us stay on top of repository activity. These agents digest large amounts of information and present it in a concise, readable format.
-
-First, the **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/weekly-issue-summary.md?plain=1)** creates digestible summaries complete with charts and trends (because who has time to read everything?)
-
-Next, the **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md?plain=1)** marrates the day's activity like a storyteller - seriously, it's kind of delightful.
-
-## Learnings
-
-What surprised us most about this category?
-
-First, the **reduction of cognitive load**. Having these agents handle triage and summarization freed up mental bandwidth for more important work. We no longer had to constantly monitor incoming issues or sift through activity logs - the agents did it for us, delivering only the essentials. This drastically reduced context switching and decision fatigue.
-
-Second, the **tone** matters. When the Daily Repo Chronicle started writing summaries in a narrative, almost journalistic style, people actually *wanted* to read them. AI agents don't have to be robotic - they can have personality while still being informative.
-
-Third, **customization** is key. Triage differs in every repository. Team needs for activity summaries and actions that arise from them differ in every repository. Tailoring these workflows to our specific context made them far more effective. Generic agents are okay, but customized ones are game-changers.
-
-Finally, these workflows became part of our routine. The Daily Repo Chronicle was a morning regular, giving us a quick overview of what happened overnight while we sipped. For teams that move fast using agents, these are key.
+What surprised us most about this workflow? Most of all, **customization** is key. Triage differs in every repository. Tailoring workflows to our specific context made them more effective. Generic agents are okay, but customized ones are often a better fit.
 
 ## Next Up: Code Quality & Refactoring Workflows
 
-Now that we've explored how triage and summarization workflows help us stay on top of incoming activity, let's turn to the agents that continuously improve code quality.
+Now that we've explored how triage workflows help us stay on top of incoming activity, let's turn to the agents that continuously improve code quality.
 
 Continue reading: [Code Quality & Refactoring Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/)
 

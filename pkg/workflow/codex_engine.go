@@ -153,7 +153,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// See https://github.com/githubnext/gh-aw/issues/892
-	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
+	// --sandbox danger-full-access: Disables Codex CLI's internal Landlock sandbox
+	// This is safe because AWF already provides a container-level sandbox layer
+	// Without this, Codex's sandbox blocks file writes and shell commands even with --full-auto
+	fullAutoParam := " --full-auto --skip-git-repo-check --sandbox danger-full-access "
 
 	// Build custom args parameter if specified in engineConfig
 	var customArgsParam string
