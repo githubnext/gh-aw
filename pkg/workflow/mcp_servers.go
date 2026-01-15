@@ -496,9 +496,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 				domain = "localhost"
 			} else {
-				// Use the AWF network gateway IP directly to avoid DNS resolution issues
-				// The gateway IP for the 172.30.0.0/24 network is 172.30.0.1
-				domain = "172.30.0.1"
+				domain = "host.docker.internal"
 			}
 		}
 
