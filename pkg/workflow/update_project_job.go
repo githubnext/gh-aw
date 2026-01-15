@@ -57,7 +57,7 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		StepID:        "update_project",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        getUpdateProjectScript(),
+		Script:        "", // Script loaded at runtime from /opt/gh-aw/actions/update_project.cjs
 		ScriptName:    "update_project",
 		Permissions:   permissions,
 		Outputs:       nil,
