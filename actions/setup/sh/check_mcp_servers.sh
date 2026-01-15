@@ -83,9 +83,11 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
   
-  # Extract server URL (should be HTTP URL pointing to gateway)
+  # Extract server URL for validation (should be HTTP URL pointing to gateway)
   # Note: Gateway may output URLs with 0.0.0.0 (bind address), so we construct
-  # the correct URL using the gateway URL parameter and the server name
+  # the correct URL using the gateway URL parameter and the server name.
+  # We still extract the config URL to validate that the server is HTTP-based
+  # (has a URL field), which distinguishes HTTP servers from stdio servers.
   SERVER_URL_FROM_CONFIG=$(echo "$SERVER_CONFIG" | jq -r '.url // empty' 2>/dev/null)
   
   if [ -z "$SERVER_URL_FROM_CONFIG" ] || [ "$SERVER_URL_FROM_CONFIG" = "null" ]; then
