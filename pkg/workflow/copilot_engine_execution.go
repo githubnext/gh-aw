@@ -151,7 +151,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	if sandboxEnabled {
 		// Build base command
 		var baseCommand string
-		
+
 		// Check if custom command is specified
 		var commandName string
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
@@ -171,7 +171,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 				commandName = "/usr/local/bin/copilot"
 			}
 		}
-		
+
 		baseCommand = fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
 
 		// Add conditional model flag if needed
@@ -189,7 +189,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		} else {
 			commandName = "copilot"
 		}
-		
+
 		baseCommand := fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
 
 		// Add conditional model flag if needed
