@@ -10,7 +10,6 @@ tools:
     toolsets: [default]
 safe-outputs:
   add-labels:
-    allowed: [bug, enhancement, documentation, refactor, dependencies, maintenance, automation, code-quality, ci, security, performance]
     max: 3
 ---
 

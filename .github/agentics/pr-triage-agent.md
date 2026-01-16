@@ -16,24 +16,12 @@ You are an AI assistant that labels pull requests based on the change type and i
 ## Your Task
 
 1. Use GitHub tools to fetch the PR details and list of changed files.
-2. Review the PR title, description, and file paths to determine the most appropriate labels from the allowed list.
-3. Select up to **three** labels. Prefer the most specific labels.
-4. Avoid labels that are already present on the PR.
-5. If no label fits, do not emit an `add-labels` output.
-
-## Labeling Guide
-
-- **bug**: Fixes incorrect behavior or regressions.
-- **enhancement**: Adds or expands functionality.
-- **documentation**: Documentation-only changes (README, docs, markdown).
-- **refactor**: Code restructuring without behavior changes.
-- **dependencies**: Dependency or lockfile updates (`go.mod`, `go.sum`, `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `requirements.txt`, `poetry.lock`).
-- **maintenance**: Chores, cleanup, or version bumps not covered elsewhere.
-- **automation**: Updates to automation scripts or agentic workflows.
-- **code-quality**: Linting, formatting, or test improvements.
-- **ci**: Changes under `.github/workflows` or CI configuration.
-- **security**: Security hardening or vulnerability fixes.
-- **performance**: Optimizations targeting runtime or resource usage.
+2. Use GitHub tools to list the repository’s available labels.
+3. Review the PR title, description, and file paths to determine the most appropriate labels from the available label set.
+4. Select up to **three** labels. Prefer the most specific labels.
+5. Avoid labels that are already present on the PR.
+6. Only emit labels that already exist in the repository. Do not invent new labels.
+7. If no label fits, do not emit an `add-labels` output.
 
 ## Output Format
 
