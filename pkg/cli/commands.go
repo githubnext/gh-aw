@@ -45,25 +45,25 @@ var debugWorkflowPromptTemplate string
 //go:embed templates/upgrade-agentic-workflows.md
 var upgradeAgenticWorkflowsPromptTemplate string
 
-//go:embed templates/campaign-creation-instructions.md
+//go:embed templates/campaign-creation.md
 var campaignCreationInstructionsTemplate string
 
-//go:embed templates/campaign-orchestrator-instructions.md
+//go:embed templates/campaign-orchestrator.md
 var campaignOrchestratorInstructionsTemplate string
 
-//go:embed templates/campaign-project-update-instructions.md
+//go:embed templates/campaign-project-update.md
 var campaignProjectUpdateInstructionsTemplate string
 
 //go:embed templates/campaign-workflow-execution.md
 var campaignWorkflowExecutionTemplate string
 
-//go:embed templates/campaign-closing-instructions.md
+//go:embed templates/campaign-closing.md
 var campaignClosingInstructionsTemplate string
 
-//go:embed templates/campaign-project-update-contract-checklist.md
+//go:embed templates/campaign-project-update-contract.md
 var campaignProjectUpdateContractChecklistTemplate string
 
-//go:embed templates/campaign-generator-instructions.md
+//go:embed templates/campaign-generator.md
 var campaignGeneratorInstructionsTemplate string
 
 // SetVersionInfo sets the version information for the CLI

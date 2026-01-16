@@ -216,11 +216,11 @@ func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error
 	return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
 }
 
-// ensureCampaignCreationInstructions ensures that .github/aw/campaign-creation-instructions.md exists
+// ensureCampaignCreationInstructions ensures that .github/aw/campaign-creation.md exists
 func ensureCampaignCreationInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"campaign-creation-instructions.md",
+		"campaign-creation.md",
 		campaignCreationInstructionsTemplate,
 		"campaign creation instructions",
 		verbose,
@@ -228,11 +228,11 @@ func ensureCampaignCreationInstructions(verbose bool, skipInstructions bool) err
 	)
 }
 
-// ensureCampaignOrchestratorInstructions ensures that .github/aw/campaign-orchestrator-instructions.md exists
+// ensureCampaignOrchestratorInstructions ensures that .github/aw/campaign-orchestrator.md exists
 func ensureCampaignOrchestratorInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"campaign-orchestrator-instructions.md",
+		"campaign-orchestrator.md",
 		campaignOrchestratorInstructionsTemplate,
 		"campaign orchestrator instructions",
 		verbose,
@@ -240,11 +240,11 @@ func ensureCampaignOrchestratorInstructions(verbose bool, skipInstructions bool)
 	)
 }
 
-// ensureCampaignProjectUpdateInstructions ensures that .github/aw/campaign-project-update-instructions.md exists
+// ensureCampaignProjectUpdateInstructions ensures that .github/aw/campaign-project-update.md exists
 func ensureCampaignProjectUpdateInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"campaign-project-update-instructions.md",
+		"campaign-project-update.md",
 		campaignProjectUpdateInstructionsTemplate,
 		"campaign project update instructions",
 		verbose,
@@ -264,11 +264,11 @@ func ensureCampaignWorkflowExecution(verbose bool, skipInstructions bool) error 
 	)
 }
 
-// ensureCampaignClosingInstructions ensures that .github/aw/campaign-closing-instructions.md exists
+// ensureCampaignClosingInstructions ensures that .github/aw/campaign-closing.md exists
 func ensureCampaignClosingInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"campaign-closing-instructions.md",
+		"campaign-closing.md",
 		campaignClosingInstructionsTemplate,
 		"campaign closing instructions",
 		verbose,
@@ -276,11 +276,11 @@ func ensureCampaignClosingInstructions(verbose bool, skipInstructions bool) erro
 	)
 }
 
-// ensureCampaignProjectUpdateContractChecklist ensures that .github/aw/campaign-project-update-contract-checklist.md exists
+// ensureCampaignProjectUpdateContractChecklist ensures that .github/aw/campaign-project-update-contract.md exists
 func ensureCampaignProjectUpdateContractChecklist(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"campaign-project-update-contract-checklist.md",
+		"campaign-project-update-contract.md",
 		campaignProjectUpdateContractChecklistTemplate,
 		"campaign project update contract checklist",
 		verbose,
@@ -288,11 +288,11 @@ func ensureCampaignProjectUpdateContractChecklist(verbose bool, skipInstructions
 	)
 }
 
-// ensureCampaignGeneratorInstructions ensures that .github/aw/campaign-generator-instructions.md exists
+// ensureCampaignGeneratorInstructions ensures that .github/aw/campaign-generator.md exists
 func ensureCampaignGeneratorInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"campaign-generator-instructions.md",
+		"campaign-generator.md",
 		campaignGeneratorInstructionsTemplate,
 		"campaign generator instructions",
 		verbose,

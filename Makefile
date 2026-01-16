@@ -571,13 +571,13 @@ sync-templates:
 	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/
 	@cp .github/agents/agentic-workflows.agent.md pkg/cli/templates/
 	@cp .github/agents/agentic-campaigns.agent.md pkg/cli/templates/
-	@cp .github/aw/campaign-creation-instructions.md pkg/cli/templates/
-	@cp .github/aw/campaign-orchestrator-instructions.md pkg/cli/templates/
-	@cp .github/aw/campaign-project-update-instructions.md pkg/cli/templates/
+	@cp .github/aw/campaign-creation.md pkg/cli/templates/
+	@cp .github/aw/campaign-orchestrator.md pkg/cli/templates/
+	@cp .github/aw/campaign-project-update.md pkg/cli/templates/
 	@cp .github/aw/campaign-workflow-execution.md pkg/cli/templates/
-	@cp .github/aw/campaign-closing-instructions.md pkg/cli/templates/
-	@cp .github/aw/campaign-project-update-contract-checklist.md pkg/cli/templates/
-	@cp .github/aw/campaign-generator-instructions.md pkg/cli/templates/
+	@cp .github/aw/campaign-closing.md pkg/cli/templates/
+	@cp .github/aw/campaign-project-update-contract.md pkg/cli/templates/
+	@cp .github/aw/campaign-generator.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
 
