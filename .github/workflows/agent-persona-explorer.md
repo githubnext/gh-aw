@@ -15,7 +15,7 @@ safe-outputs:
     category: "agent-research"
     max: 1
     close-older-discussions: true
-timeout-minutes: 30
+timeout-minutes: 600
 ---
 
 # Agent Persona Explorer
