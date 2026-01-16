@@ -310,10 +310,7 @@ jobs:
                     "type": "string"
                   }
                 },
-                "required": [
-                  "data_type",
-                  "reason"
-                ],
+                "required": [],
                 "type": "object"
               },
               "name": "missing_data"
