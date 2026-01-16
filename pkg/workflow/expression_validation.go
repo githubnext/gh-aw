@@ -237,11 +237,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 			if leftIsSafe {
 				// Check if right side is a literal string (single, double, or backtick quotes)
-				// Check for matching quotes: 'string', "string", or `string`
-				isStringLiteral := (len(rightExpr) >= 2 &&
-					((rightExpr[0] == '\'' && rightExpr[len(rightExpr)-1] == '\'') ||
-						(rightExpr[0] == '"' && rightExpr[len(rightExpr)-1] == '"') ||
-						(rightExpr[0] == '`' && rightExpr[len(rightExpr)-1] == '`')))
+				// Note: Using alternation (|) to check each quote type separately
+				isStringLiteral := regexp.MustCompile(`^'[^']*'$|^"[^"]*"$|^` + "`[^`]*`$").MatchString(rightExpr)
 				// Check if right side is a number literal
 				isNumberLiteral := regexp.MustCompile(`^-?\d+(\.\d+)?$`).MatchString(rightExpr)
 				// Check if right side is a boolean literal
