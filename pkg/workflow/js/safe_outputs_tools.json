@@ -945,7 +945,10 @@
         },
         "owner_type": {
           "type": "string",
-          "enum": ["org", "user"],
+          "enum": [
+            "org",
+            "user"
+          ],
           "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'."
         },
         "item_url": {
@@ -969,7 +972,10 @@
       ],
       "properties": {
         "alert_number": {
-          "type": ["number", "string"],
+          "type": [
+            "number",
+            "string"
+          ],
           "description": "The security alert number to create an autofix for. This is the numeric ID from the code scanning alert (e.g., 42 in github.com/owner/repo/security/code-scanning/42)."
         },
         "fix_description": {
@@ -989,10 +995,7 @@
     "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "data_type",
-        "reason"
-      ],
+      "required": [],
       "properties": {
         "data_type": {
           "type": "string",

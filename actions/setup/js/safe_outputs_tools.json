@@ -651,7 +651,7 @@
     "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
     "inputSchema": {
       "type": "object",
-      "required": ["data_type", "reason"],
+      "required": [],
       "properties": {
         "data_type": {
           "type": "string",
