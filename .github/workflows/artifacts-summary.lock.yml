@@ -33,9 +33,7 @@ name: "Artifacts Summary"
     # Friendly format: weekly on sunday around 06:00 (scattered)
   workflow_dispatch:
 
-permissions:
-  actions: read
-  contents: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

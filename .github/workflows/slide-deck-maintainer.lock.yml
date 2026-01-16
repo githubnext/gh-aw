@@ -33,10 +33,7 @@ name: "Slide Deck Maintainer"
         description: Focus area (feature-deep-dive or global-sweep)
         required: false
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

@@ -32,13 +32,7 @@ name: "GitHub MCP Structural Analysis"
   - cron: "0 11 * * 1-5"
   workflow_dispatch:
 
-permissions:
-  actions: read
-  contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
-  security-events: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

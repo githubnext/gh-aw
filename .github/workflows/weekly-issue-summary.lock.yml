@@ -33,8 +33,7 @@ name: "Weekly Issue Summary"
   - cron: "0 15 * * 1"
   workflow_dispatch:
 
-permissions:
-  issues: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

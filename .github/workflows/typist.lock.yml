@@ -31,10 +31,7 @@ name: "Typist - Go Type Analysis"
   - cron: "0 11 * * 1-5"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

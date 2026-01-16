@@ -28,10 +28,7 @@ name: "GitHub Remote MCP Authentication Test"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
-permissions:
-  contents: read
-  discussions: read
-  issues: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

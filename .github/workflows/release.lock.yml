@@ -42,11 +42,7 @@ name: "Release"
         required: true
         type: choice
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"

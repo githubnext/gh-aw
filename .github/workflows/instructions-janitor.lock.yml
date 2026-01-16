@@ -28,10 +28,7 @@ name: "Instructions Janitor"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
