@@ -150,7 +150,7 @@ tools:
 			require.NoError(t, err, "ProcessImportsFromFrontmatterWithManifest should not fail")
 
 			// Verify the order
-			assert.Equal(t, len(tt.expectedOrder), len(result.ImportedFiles),
+			assert.Len(t, result.ImportedFiles, len(tt.expectedOrder),
 				"Number of imported files should match expected")
 
 			// Check that the order matches expected topological order
@@ -203,7 +203,7 @@ Tool configuration here.`,
 	require.NoError(t, err)
 
 	// b.md should come before a.md (even with section reference)
-	assert.Equal(t, 2, len(result.ImportedFiles))
+	assert.Len(t, result.ImportedFiles, 2)
 	assert.Equal(t, "b.md#Tools", result.ImportedFiles[0])
 	assert.Equal(t, "a.md", result.ImportedFiles[1])
 }
@@ -243,7 +243,7 @@ tools:
 	require.NoError(t, err)
 
 	// All are roots, should be sorted alphabetically
-	assert.Equal(t, 3, len(result.ImportedFiles))
+	assert.Len(t, result.ImportedFiles, 3)
 	assert.Equal(t, "a-root.md", result.ImportedFiles[0])
 	assert.Equal(t, "m-root.md", result.ImportedFiles[1])
 	assert.Equal(t, "z-root.md", result.ImportedFiles[2])
