@@ -25,8 +25,8 @@ type ToolCallInfo struct {
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
-	TokenUsage    int
-	EstimatedCost float64
+	TokenUsage    int            // Total tokens consumed (sum of all token types)
+	EstimatedCost float64        // Total cost in USD for the entire run (NOT per-token cost)
 	Turns         int            // Number of turns needed to complete the task
 	ToolCalls     []ToolCallInfo // Tool call statistics
 	ToolSequences [][]string     // Sequences of tool calls preserving order
@@ -168,7 +168,18 @@ func ExtractJSONTokenUsage(data map[string]any) int {
 	return 0
 }
 
-// ExtractJSONCost extracts cost information from JSON data
+// ExtractJSONCost extracts cost information from JSON data.
+//
+// The extracted cost represents the TOTAL cost in USD for the workflow run,
+// as calculated by the AI engine's API. This is NOT a per-token cost.
+//
+// For models like Claude, the API automatically accounts for different token types
+// having different pricing (e.g., input tokens at $3/million, output tokens at $15/million,
+// cache reads at $0.30/million, cache writes at $3.75/million). The returned total_cost_usd
+// is the sum of costs for all token types used in the run.
+//
+// Note: Dividing this cost by total tokens to get "average cost per token" is misleading
+// because it doesn't reflect the actual per-token pricing tiers used by the API.
 func ExtractJSONCost(data map[string]any) float64 {
 	// Common cost field names
 	costFields := []string{"total_cost_usd", "cost", "price", "amount", "total_cost", "estimated_cost"}
