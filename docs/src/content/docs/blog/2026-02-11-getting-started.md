@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-02-11
 draft: true
 prev:
@@ -88,39 +86,20 @@ Review the PR and merge it into your repository. You're doing great!
 
 ### Step 3: Configure AI Authentication
 
-Workflows need to authenticate with an AI service. By default, they use **GitHub Copilot**.
+Workflows need to authenticate with an AI service to execute tasks.
 
-#### Create a Personal Access Token (PAT)
+#### Setting Up Authentication
 
-1. Visit <https://github.com/settings/personal-access-tokens/new>
-2. Configure the token:
-   - **Token name**: "Agentic Workflows Copilot"
-   - **Expiration**: 90 days (recommended for testing)
-   - **Resource owner**: Your personal account
-   - **Repository access**: "Public repositories" or "All repositories"
-3. Add permissions:
-   - In **"Account permissions"** (not Repository permissions)
-   - Find **"Copilot Requests"**
-   - Set to **"Access: Read"**
-4. Click **"Generate token"** and copy it immediately
+For detailed instructions on configuring authentication for your chosen AI engine, see:
 
-:::tip
-Can't find "Copilot Requests" permission? Make sure you have:
+- [AI Engines Reference](/gh-aw/reference/engines/) - Complete engine configuration guide
+- [Quick Start](/gh-aw/setup/quick-start/) - Step-by-step authentication setup
 
-- An active [GitHub Copilot subscription](https://github.com/settings/copilot)
-- A fine-grained token (not classic)
-- Personal account as Resource owner
-- Public or all repositories selected
+The setup typically involves:
 
-:::
-
-#### Add Token to Your Repository
-
-1. Go to your repository → **Settings** → **Secrets and variables** → **Actions**
-2. Click **"New repository secret"**
-3. Set **Name** to `COPILOT_GITHUB_TOKEN`
-4. Paste the token in **Secret**
-5. Click **"Add secret"**
+1. Creating an authentication token or API key for your chosen AI service
+2. Adding it as a repository secret in **Settings** → **Secrets and variables** → **Actions**
+3. Referencing the secret in your workflow configuration
 
 Perfect! You're almost there.
 
@@ -132,13 +111,7 @@ Check that everything is configured correctly:
 gh aw status
 ```
 
-**Expected output:**
-
-```text
-Workflow              Engine    State     Enabled  Schedule
-──────────────────────────────────────────────────────────
-daily-team-status     copilot   ✓         Yes      0 9 * * 1-5
-```
+This will show your installed workflows, their configuration state, and schedules.
 
 Looking good!
 
@@ -360,21 +333,15 @@ gh aw mcp inspect <workflow-name>
 
 ### "Which AI engine should I use?"
 
-**Start with Copilot** (default). It's integrated with GitHub and uses your Copilot subscription. Try other engines later:
+The gh-aw framework supports multiple AI engines. For production workflows, we recommend using the default engine configured in the [AI Engines reference documentation](/gh-aw/reference/engines/).
 
-- **Claude**: For longer context and detailed analysis
-- **Codex**: For enterprise Azure integration
-- **Custom**: For proprietary or specialized models
+Each engine has different capabilities and requirements. See the [reference documentation](/gh-aw/reference/engines/) for detailed comparisons and configuration options.
 
 ### "How do I handle secrets?"
 
-Use repository secrets (Settings → Secrets → Actions):
+Use repository secrets (Settings → Secrets → Actions) to store authentication credentials for your chosen AI engine.
 
-- `COPILOT_GITHUB_TOKEN` for Copilot
-- `ANTHROPIC_API_KEY` for Claude
-- `AZURE_OPENAI_*` for Codex
-
-Never put secrets in workflow files!
+Never put secrets in workflow files! Always reference them as repository secrets.
 
 ### "What if a workflow creates too many issues?"
 
@@ -393,10 +360,9 @@ safe_outputs:
 Costs depend on:
 
 - **GitHub Actions**: Free tier covers many workflows
-- **AI API calls**: Billed per request/token
-- **Copilot**: Included in Copilot subscription
+- **AI API calls**: Billed per request/token based on your chosen engine
 
-Start with free tier, monitor usage with `gh aw audit`.
+Start with the free tier, monitor usage with `gh aw audit`.
 
 ### "Can I use this in production?"
 

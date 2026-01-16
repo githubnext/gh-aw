@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-01-13T09:00:00
 sidebar:
   label: "Teamwork & Culture"
@@ -36,7 +34,7 @@ These agents facilitate team communication and remind us that work can be fun:
 - **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/weekly-issue-summary.md?plain=1)** - Creates digestible summaries complete with charts and trends
 - **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md?plain=1)** - Narrates the day's activity like a storyteller - seriously, it's kind of delightful.
 
-The Poem Bot started as a whimsy in our Copilot for PRs project in 2022. Someone said "wouldn't it be funny if we had an agent that writes poems about our code?" and then we built it. We learned that AI agents don't have to be all business - they can build culture and create moments of joy. We brought this forward to this project.
+The Poem Bot started as a whimsy in a previous GitHub project. Someone said "wouldn't it be funny if we had an agent that writes poems about our code?" and then we built it. We learned that AI agents don't have to be all business - they can build culture and create moments of joy. We brought this forward to this project.
 
 The Daily News workflow curates relevant articles, but it also adds commentary and connects them to our work.
 

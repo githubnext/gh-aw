@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-01-13T01:00:00
 sidebar:
   label: "Issue Triage"
@@ -30,7 +28,7 @@ Think of this as your guided tour through our agent factory. We're showcasing th
 
 To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage.
 
-Issue triage now represents the "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter examples in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
+Issue triage now represents the "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as a starter example in many agentic automation technologies.
 
 The purpose of automated issue triage is straightforward: when a new issue is opened, the agent analyzes its content, does research in the codebase and other issues, responds with a comment, and applies appropriate labels based on predefined categories. This helps maintainers quickly understand the nature of incoming issues without manual review.
 

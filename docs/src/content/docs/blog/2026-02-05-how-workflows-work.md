@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-02-05
 draft: true
 prev:
@@ -393,62 +391,23 @@ Every agent action creates a permanent record:
 
 ## The AI Engine Interface
 
-Workflows can use different AI engines:
+Workflows can use different AI engines to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
-### Copilot Engine (Default)
-
-```yaml
-engine: copilot
-model: claude-sonnet-4  # or other models
-```
-
-GitHub Copilot provides:
-
-- Code-aware context
-- GitHub API integration
-- Secure execution environment
-- Usage tracked in Copilot subscription
-
-### Claude Engine
-
-```yaml
-engine: claude
-model: claude-sonnet-4
-```
-
-Anthropic Claude (via API key) provides:
-
-- Long context windows
-- Strong reasoning
-- Detailed analysis
-- Requires ANTHROPIC_API_KEY secret
-
-### Codex Engine
-
-```yaml
-engine: codex
-```
-
-Azure OpenAI Codex provides:
-
-- Enterprise integration
-- Fine-tuned models
-- Compliance features
-- Requires Azure credentials
-
-### Custom Engine
+You can specify an engine in your workflow frontmatter:
 
 ```yaml
 engine: custom
 endpoint: "https://my-ai.example.com"
 ```
 
-Bring your own AI provider:
+Engines provide:
 
-- Custom endpoints
-- Proprietary models
-- Specialized fine-tuning
-- Full control over AI stack
+- Natural language understanding
+- Tool calling and execution
+- Secure execution environment
+- Integration with GitHub Actions
+
+For detailed configuration options and available engines, see the [AI Engines reference documentation](/gh-aw/reference/engines/).
 
 ## Tool Architecture: MCP Servers
 

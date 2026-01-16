@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-01-13T15:00:00
 sidebar:
   label: "Advanced Analytics & ML"

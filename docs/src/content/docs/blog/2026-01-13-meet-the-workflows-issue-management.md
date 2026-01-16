@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-01-13T04:00:00
 sidebar:
   label: "Issue & PR Management"
@@ -31,14 +29,14 @@ Now let's talk about the daily rituals of software development: managing issues 
 These agents enhance issue and pull request workflows:
 
 - **[Issue Arborist](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-arborist.md?plain=1)** - Links related issues as sub-issues  
-- **[Issue Monster](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to Copilot agents one at a time
+- **[Issue Monster](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to AI agents one at a time
 - **[Mergefest](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/mergefest.md?plain=1)** - Automatically merges main branch into PR branches
 - **[Sub Issue Closer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/sub-issue-closer.md?plain=1)** - Closes completed sub-issues automatically
 - **[Issue Template Optimizer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-template-optimizer.md?plain=1)** - Improves issue templates based on usage
 
 The Issue Arborist automatically links related issues, building a dependency tree we'd never maintain manually.
 
-The Issue Monster became our task dispatcher for AI agents - it assigns one issue at a time to Copilot agents, preventing the chaos of parallel work on the same codebase.
+The Issue Monster became our task dispatcher for AI agents - it assigns one issue at a time to agents, preventing the chaos of parallel work on the same codebase.
 
 Mergefest eliminates the "please merge main" dance that happens on long-lived PRs.
 
