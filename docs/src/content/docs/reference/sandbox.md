@@ -285,6 +285,10 @@ sandbox:
     port: 8000
 ```
 
+> [!NOTE]
+> Adjust `args` and `entrypointArgs` to match the gateway container's
+> runtime requirements.
+
 ## Legacy Format
 
 For backward compatibility, legacy formats are still supported:
