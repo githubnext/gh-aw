@@ -1,6 +1,5 @@
 ---
-title: Security Audit 2026 Campaign
-description: Quarterly security audit campaign focusing on vulnerabilities and dependencies
+title: Security Audit Campaign Example
 id: security-audit-2026
 name: Security Audit 2026
 version: v1
