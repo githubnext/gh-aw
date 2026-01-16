@@ -313,3 +313,76 @@ Line 3`,
 		})
 	}
 }
+
+func TestRemoveConsecutiveEmptyLines(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "removes consecutive empty lines",
+			input: `Line 1
+
+
+Line 2`,
+			expected: `Line 1
+
+Line 2`,
+		},
+		{
+			name: "keeps single empty lines",
+			input: `Line 1
+
+Line 2
+
+Line 3`,
+			expected: `Line 1
+
+Line 2
+
+Line 3`,
+		},
+		{
+			name: "handles multiple consecutive empty lines",
+			input: `Line 1
+
+
+
+
+Line 2`,
+			expected: `Line 1
+
+Line 2`,
+		},
+		{
+			name:     "handles no empty lines",
+			input:    "Line 1\nLine 2\nLine 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
+		{
+			name: "handles empty lines at start",
+			input: `
+
+Line 1`,
+			expected: `
+Line 1`,
+		},
+		{
+			name: "handles empty lines at end",
+			input: `Line 1
+
+
+`,
+			expected: `Line 1
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := removeConsecutiveEmptyLines(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

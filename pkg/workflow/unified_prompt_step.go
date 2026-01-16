@@ -82,7 +82,8 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				// Inline content inside conditional - open heredoc, write content, close
 				yaml.WriteString("            cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
-				contentLines := strings.Split(normalizedContent, "\n")
+				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
+				contentLines := strings.Split(cleanedContent, "\n")
 				for _, line := range contentLines {
 					yaml.WriteString("            " + line + "\n")
 				}
@@ -109,7 +110,8 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				}
 				// Write content directly to open heredoc
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
-				contentLines := strings.Split(normalizedContent, "\n")
+				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
+				contentLines := strings.Split(cleanedContent, "\n")
 				for _, line := range contentLines {
 					yaml.WriteString("          " + line + "\n")
 				}
@@ -168,6 +170,35 @@ func normalizeLeadingWhitespace(content string) string {
 	}
 
 	return result.String()
+}
+
+// removeConsecutiveEmptyLines removes consecutive empty lines, keeping only one
+func removeConsecutiveEmptyLines(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return content
+	}
+
+	var result []string
+	lastWasEmpty := false
+
+	for _, line := range lines {
+		isEmpty := strings.TrimSpace(line) == ""
+
+		if isEmpty {
+			// Only add if the last line wasn't empty
+			if !lastWasEmpty {
+				result = append(result, line)
+				lastWasEmpty = true
+			}
+			// Skip consecutive empty lines
+		} else {
+			result = append(result, line)
+			lastWasEmpty = false
+		}
+	}
+
+	return strings.Join(result, "\n")
 }
 
 // collectPromptSections collects all prompt sections in the order they should be appended
