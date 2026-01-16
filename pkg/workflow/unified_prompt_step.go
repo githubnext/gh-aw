@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -51,9 +52,14 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 
-	// Add all environment variables
-	for key, value := range allEnvVars {
-		fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+	// Add all environment variables in sorted order for consistency
+	var envKeys []string
+	for key := range allEnvVars {
+		envKeys = append(envKeys, key)
+	}
+	sort.Strings(envKeys)
+	for _, key := range envKeys {
+		fmt.Fprintf(yaml, "          %s: %s\n", key, allEnvVars[key])
 	}
 
 	yaml.WriteString("        run: |\n")
