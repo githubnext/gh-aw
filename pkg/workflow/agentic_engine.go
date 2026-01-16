@@ -295,8 +295,9 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 
 	// Build the command to call the validation script
 	// The script expects: SECRET_NAME1 [SECRET_NAME2 ...] ENGINE_NAME DOCS_URL
+	// Use shellJoinArgs to properly escape multi-word engine names and special characters
 	scriptArgs := append(secretNames, engineName, docsURL)
-	scriptArgsStr := strings.Join(scriptArgs, " ")
+	scriptArgsStr := shellJoinArgs(scriptArgs)
 
 	stepLines := []string{
 		stepName,

@@ -83,6 +83,29 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
 			},
 		},
+		{
+			name:        "GitHub Copilot CLI with multi-word engine name",
+			secretNames: []string{"COPILOT_GITHUB_TOKEN"},
+			engineName:  "GitHub Copilot CLI",
+			docsURL:     "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
+			wantStrings: []string{
+				"Validate COPILOT_GITHUB_TOKEN secret",
+				"run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
+				"COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}",
+			},
+		},
+		{
+			name:        "Claude Code with multi-word engine name and dual secrets",
+			secretNames: []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
+			engineName:  "Claude Code",
+			docsURL:     "https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
+			wantStrings: []string{
+				"Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret",
+				"run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
+				"CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+				"ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}",
+			},
+		},
 	}
 
 	for _, tt := range tests {
