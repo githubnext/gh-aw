@@ -235,7 +235,7 @@ on: pull_request
 	require.NoError(t, err)
 
 	// Verify results
-	assert.Equal(t, 2, len(results))
+	assert.Len(t, results, 2)
 
 	for _, result := range results {
 		assert.True(t, strings.HasSuffix(result.CampaignWorkflowID, "-worker"))

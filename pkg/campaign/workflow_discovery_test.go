@@ -99,7 +99,7 @@ description: Does something random
 			require.NoError(t, err)
 
 			// Verify results
-			assert.Equal(t, tt.expectedCount, len(matches), "Expected %d matches, got %d", tt.expectedCount, len(matches))
+			assert.Len(t, matches, tt.expectedCount, "Expected %d matches, got %d", tt.expectedCount, len(matches))
 
 			// Verify IDs
 			actualIDs := make([]string, len(matches))
