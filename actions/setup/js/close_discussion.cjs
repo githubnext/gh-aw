@@ -152,7 +152,6 @@ async function main(config = {}) {
   // Extract configuration
   const requiredLabels = config.required_labels || [];
   const requiredTitlePrefix = config.required_title_prefix || "";
-  const requiredCategory = config.required_category || "";
   const maxCount = config.max || 10;
 
   core.info(`Close discussion configuration: max=${maxCount}`);
@@ -161,9 +160,6 @@ async function main(config = {}) {
   }
   if (requiredTitlePrefix) {
     core.info(`Required title prefix: ${requiredTitlePrefix}`);
-  }
-  if (requiredCategory) {
-    core.info(`Required category: ${requiredCategory}`);
   }
 
   // Track how many items we've processed for max limit
@@ -236,15 +232,6 @@ async function main(config = {}) {
         return {
           success: false,
           error: `Title doesn't start with "${requiredTitlePrefix}"`,
-        };
-      }
-
-      // Validate required category if configured
-      if (requiredCategory && discussion.category.name !== requiredCategory) {
-        core.warning(`Discussion #${discussionNumber} category "${discussion.category.name}" doesn't match required "${requiredCategory}"`);
-        return {
-          success: false,
-          error: `Category doesn't match "${requiredCategory}"`,
         };
       }
 

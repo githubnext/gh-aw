@@ -40,9 +40,9 @@ The Daily News workflow curates relevant articles, but it also adds commentary a
 
 The Weekly Issue Summary and Daily Repo Chronicle workflows turn dry data into engaging narratives, making it easier to stay informed without feeling overwhelmed.
 
-A theme here is the **reduction of cognitive load**. Having these agents handle triage and summarization freed up mental bandwidth for more important work. We no longer had to constantly monitor incoming issues or sift through activity logs - the agents did it for us, delivering only the essentials. This drastically reduced context switching and decision fatigue.
+A theme here is the **reduction of cognitive load**. Having agents summarize and narrate daily activity means we don't have to mentally parse long lists of issues or PRs. Instead, we get digestible stories that highlight what's important. This frees up mental bandwidth for actual work.
 
-Anpther theme is that **tone** matters. The Daily Repo Chronicle started writing summaries in a narrative, almost journalistic style. AI agents don't have to be robotic - they can have personality while still being informative.
+Another theme is that **tone** can help make things more enjoyable. The Daily Repo Chronicle started writing summaries in a narrative, almost journalistic style. The outputs from AI agents don't have to be robotic - they can have personality while still being informative.
 
 These communication workflows help build team cohesion and remind us that work can be delightful.
 
@@ -59,4 +59,4 @@ Continue reading: [Interactive & ChatOps Workflows →](/gh-aw/blog/2026-01-13-m
 
 ---
 
-*This is part 9 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 12 of a 19-part series exploring the workflows in Peli's Agent Factory.*

@@ -51,4 +51,4 @@ Continue reading: [Security-related Workflows →](/gh-aw/blog/2026-01-13-meet-t
 
 ---
 
-*This is part 7 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 10 of a 19-part series exploring the workflows in Peli's Agent Factory.*
