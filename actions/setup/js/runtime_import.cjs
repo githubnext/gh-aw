@@ -39,6 +39,242 @@ function removeXMLComments(content) {
 }
 
 /**
+ * Safe list of allowed GitHub Actions expressions
+ * These are expressions that cannot be tampered with by users
+ * and are safe to evaluate at runtime.
+ *
+ * This list matches pkg/constants/constants.go:AllowedExpressions
+ */
+const ALLOWED_EXPRESSIONS = [
+  "github.event.after",
+  "github.event.before",
+  "github.event.check_run.id",
+  "github.event.check_suite.id",
+  "github.event.comment.id",
+  "github.event.deployment.id",
+  "github.event.deployment_status.id",
+  "github.event.head_commit.id",
+  "github.event.installation.id",
+  "github.event.issue.number",
+  "github.event.discussion.number",
+  "github.event.pull_request.number",
+  "github.event.milestone.number",
+  "github.event.check_run.number",
+  "github.event.check_suite.number",
+  "github.event.workflow_job.run_id",
+  "github.event.workflow_run.number",
+  "github.event.label.id",
+  "github.event.milestone.id",
+  "github.event.organization.id",
+  "github.event.page.id",
+  "github.event.project.id",
+  "github.event.project_card.id",
+  "github.event.project_column.id",
+  "github.event.release.assets[0].id",
+  "github.event.release.id",
+  "github.event.release.tag_name",
+  "github.event.repository.id",
+  "github.event.repository.default_branch",
+  "github.event.review.id",
+  "github.event.review_comment.id",
+  "github.event.sender.id",
+  "github.event.workflow_run.id",
+  "github.event.workflow_run.conclusion",
+  "github.event.workflow_run.html_url",
+  "github.event.workflow_run.head_sha",
+  "github.event.workflow_run.run_number",
+  "github.event.workflow_run.event",
+  "github.event.workflow_run.status",
+  "github.event.issue.state",
+  "github.event.issue.title",
+  "github.event.pull_request.state",
+  "github.event.pull_request.title",
+  "github.event.discussion.title",
+  "github.event.discussion.category.name",
+  "github.event.release.name",
+  "github.event.workflow_job.id",
+  "github.event.deployment.environment",
+  "github.event.pull_request.head.sha",
+  "github.event.pull_request.base.sha",
+  "github.actor",
+  "github.job",
+  "github.owner",
+  "github.repository",
+  "github.repository_owner",
+  "github.run_id",
+  "github.run_number",
+  "github.server_url",
+  "github.workflow",
+  "github.workspace",
+];
+
+/**
+ * Checks if an expression is in the safe list
+ * @param {string} expr - The expression to check (without ${{ }})
+ * @returns {boolean} - True if expression is safe
+ */
+function isSafeExpression(expr) {
+  const trimmed = expr.trim();
+
+  // Check exact match in allowed list
+  if (ALLOWED_EXPRESSIONS.includes(trimmed)) {
+    return true;
+  }
+
+  // Check if it matches dynamic patterns:
+  // - needs.* and steps.* (job dependencies and step outputs)
+  // - github.event.inputs.* (workflow_dispatch inputs)
+  // - github.aw.inputs.* (shared workflow inputs)
+  // - inputs.* (workflow_call inputs)
+  // - env.* (environment variables)
+  const dynamicPatterns = [/^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/, /^github\.event\.inputs\.[a-zA-Z0-9_-]+$/, /^github\.aw\.inputs\.[a-zA-Z0-9_-]+$/, /^inputs\.[a-zA-Z0-9_-]+$/, /^env\.[a-zA-Z0-9_-]+$/];
+
+  for (const pattern of dynamicPatterns) {
+    if (pattern.test(trimmed)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Evaluates a safe GitHub Actions expression at runtime
+ * @param {string} expr - The expression to evaluate (without ${{ }})
+ * @returns {string} - The evaluated value or original expression if cannot evaluate
+ */
+function evaluateExpression(expr) {
+  const trimmed = expr.trim();
+
+  // Access GitHub context through environment variables
+  // The context object is available globally when running in github-script
+  if (typeof context !== "undefined") {
+    try {
+      // Build the evaluation context with safe properties
+      const evalContext = {
+        github: {
+          actor: context.actor,
+          job: context.job,
+          owner: context.repo.owner,
+          repository: `${context.repo.owner}/${context.repo.repo}`,
+          repository_owner: context.repo.owner,
+          run_id: context.runId,
+          run_number: context.runNumber,
+          server_url: process.env.GITHUB_SERVER_URL || "https://github.com",
+          workflow: context.workflow,
+          workspace: process.env.GITHUB_WORKSPACE || "",
+          event: context.payload || {},
+        },
+        env: process.env,
+      };
+
+      // Parse property access (e.g., "github.actor" -> ["github", "actor"])
+      const parts = trimmed.split(".");
+      let value = evalContext;
+
+      for (const part of parts) {
+        // Handle array access like release.assets[0].id
+        const arrayMatch = part.match(/^([a-zA-Z0-9_-]+)\[(\d+)\]$/);
+        if (arrayMatch) {
+          const key = arrayMatch[1];
+          const index = parseInt(arrayMatch[2], 10);
+          value = value?.[key]?.[index];
+        } else {
+          value = value?.[part];
+        }
+
+        if (value === undefined || value === null) {
+          break;
+        }
+      }
+
+      // If we successfully resolved the value, return it as a string
+      if (value !== undefined && value !== null) {
+        return String(value);
+      }
+    } catch (error) {
+      // If evaluation fails, log but don't throw
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.warning(`Failed to evaluate expression "${trimmed}": ${errorMessage}`);
+    }
+  }
+
+  // If we can't evaluate, return the original expression wrapped in ${{ }}
+  // This allows GitHub Actions to evaluate it later
+  return `\${{ ${trimmed} }}`;
+}
+
+/**
+ * Validates and renders GitHub Actions expressions in content
+ * @param {string} content - The content with potential expressions
+ * @param {string} source - The source identifier (file path or URL) for error messages
+ * @returns {string} - Content with safe expressions rendered
+ * @throws {Error} - If unsafe expressions are found
+ */
+function processExpressions(content, source) {
+  // Pattern to match GitHub Actions expressions: ${{ ... }}
+  const expressionRegex = /\$\{\{([\s\S]*?)\}\}/g;
+
+  const matches = [...content.matchAll(expressionRegex)];
+  if (matches.length === 0) {
+    return content;
+  }
+
+  core.info(`Found ${matches.length} expression(s) in ${source}`);
+
+  const unsafeExpressions = [];
+  const replacements = new Map();
+
+  // First pass: validate all expressions
+  for (const match of matches) {
+    const fullMatch = match[0];
+    const expr = match[1];
+
+    // Skip multiline expressions (security: prevent injection)
+    if (expr.includes("\n")) {
+      unsafeExpressions.push(expr.trim());
+      continue;
+    }
+
+    const trimmed = expr.trim();
+
+    // Check if expression is safe
+    if (!isSafeExpression(trimmed)) {
+      unsafeExpressions.push(trimmed);
+      continue;
+    }
+
+    // Expression is safe - evaluate it
+    const evaluated = evaluateExpression(trimmed);
+    replacements.set(fullMatch, evaluated);
+  }
+
+  // If any unsafe expressions found, throw error
+  if (unsafeExpressions.length > 0) {
+    const errorMsg =
+      `${source} contains unauthorized GitHub Actions expressions:\n` +
+      unsafeExpressions.map(e => `  - ${e}`).join("\n") +
+      "\n\n" +
+      "Only expressions from the safe list can be used in runtime imports.\n" +
+      "Safe expressions include:\n" +
+      "  - github.actor, github.repository, github.run_id, etc.\n" +
+      "  - github.event.issue.number, github.event.pull_request.number, etc.\n" +
+      "  - needs.*, steps.*, env.*, inputs.*\n\n" +
+      "See documentation for the complete list of allowed expressions.";
+    throw new Error(errorMsg);
+  }
+
+  // Second pass: replace safe expressions with evaluated values
+  let result = content;
+  for (const [original, evaluated] of replacements.entries()) {
+    result = result.replace(original, evaluated);
+  }
+
+  core.info(`Successfully processed ${replacements.size} safe expression(s) in ${source}`);
+  return result;
+}
+
+/**
  * Checks if content contains GitHub Actions macros (${{ ... }})
  * @param {string} content - The content to check
  * @returns {boolean} - True if GitHub Actions macros are found
@@ -185,9 +421,9 @@ async function processUrlImport(url, optional, startLine, endLine) {
   // Remove XML comments
   content = removeXMLComments(content);
 
-  // Check for GitHub Actions macros and error if found
+  // Process GitHub Actions expressions (validate and render safe ones)
   if (hasGitHubActionsMacros(content)) {
-    throw new Error(`URL ${url} contains GitHub Actions macros (\${{ ... }}) which are not allowed in runtime imports`);
+    content = processExpressions(content, `URL ${url}`);
   }
 
   return content;
@@ -306,9 +542,9 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
   // Remove XML comments
   content = removeXMLComments(content);
 
-  // Check for GitHub Actions macros and error if found
+  // Process GitHub Actions expressions (validate and render safe ones)
   if (hasGitHubActionsMacros(content)) {
-    throw new Error(`File ${filepath} contains GitHub Actions macros (\${{ ... }}) which are not allowed in runtime imports`);
+    content = processExpressions(content, `File ${filepath}`);
   }
 
   return content;
@@ -475,4 +711,7 @@ module.exports = {
   hasFrontMatter,
   removeXMLComments,
   hasGitHubActionsMacros,
+  isSafeExpression,
+  evaluateExpression,
+  processExpressions,
 };
