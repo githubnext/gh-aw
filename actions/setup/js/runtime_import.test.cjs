@@ -105,9 +105,26 @@ describe("runtime_import", () => {
           const result = await processRuntimeImport("with-comments.md", !1, tempDir);
           (expect(result).toContain("# Title"), expect(result).toContain("Content here."), expect(result).not.toContain("\x3c!-- This is a comment --\x3e"));
         }),
-        it("should throw error for GitHub Actions macros", async () => {
-          (fs.writeFileSync(path.join(githubDir, "with-macros.md"), "# Title\n\nActor: ${{ github.actor }}\n"),
-            await expect(processRuntimeImport("with-macros.md", !1, tempDir)).rejects.toThrow("File with-macros.md contains GitHub Actions macros (${{ ... }}) which are not allowed in runtime imports"));
+        it("should render safe GitHub Actions expressions", async () => {
+          // Setup context for expression evaluation
+          global.context = {
+            actor: "testuser",
+            job: "test-job",
+            repo: { owner: "testorg", repo: "testrepo" },
+            runId: 12345,
+            runNumber: 42,
+            workflow: "test-workflow",
+            payload: {},
+          };
+          fs.writeFileSync(path.join(githubDir, "with-macros.md"), "# Title\n\nActor: ${{ github.actor }}\n");
+          const result = await processRuntimeImport("with-macros.md", !1, tempDir);
+          expect(result).toContain("# Title");
+          expect(result).toContain("Actor: testuser");
+          delete global.context;
+        }),
+        it("should reject unsafe GitHub Actions expressions", async () => {
+          fs.writeFileSync(path.join(githubDir, "unsafe-macros.md"), "Secret: ${{ secrets.TOKEN }}\n");
+          await expect(processRuntimeImport("unsafe-macros.md", !1, tempDir)).rejects.toThrow("unauthorized GitHub Actions expressions");
         }),
         it("should handle file in subdirectory", async () => {
           const subdir = path.join(githubDir, "subdir");
@@ -263,8 +280,9 @@ describe("runtime_import", () => {
         }));
     }),
     describe("Error Handling", () => {
-      (it("should provide clear error for GitHub Actions macros", async () => {
-        (fs.writeFileSync(path.join(githubDir, "bad.md"), "${{ github.actor }}"), await expect(processRuntimeImports("{{#runtime-import bad.md}}", tempDir)).rejects.toThrow("Failed to process runtime import for bad.md"));
+      (it("should provide clear error for unsafe GitHub Actions expressions", async () => {
+        fs.writeFileSync(path.join(githubDir, "bad.md"), "${{ secrets.TOKEN }}");
+        await expect(processRuntimeImports("{{#runtime-import bad.md}}", tempDir)).rejects.toThrow("unauthorized GitHub Actions expressions");
       }),
         it("should provide clear error for missing required files", async () => {
           await expect(processRuntimeImports("{{#runtime-import nonexistent.md}}", tempDir)).rejects.toThrow("Failed to process runtime import for nonexistent.md");
@@ -445,5 +463,156 @@ describe("runtime_import", () => {
           const result = await processRuntimeImports("First: {{#runtime-import test.txt:1-2}} Second: {{#runtime-import test.txt:4-5}}", tempDir);
           expect(result).toBe("First: Line 1\nLine 2 Second: Line 4\nLine 5");
         }));
+    }),
+    describe("Expression Validation and Rendering", () => {
+      const { isSafeExpression, evaluateExpression, processExpressions } = require("./runtime_import.cjs");
+
+      // Setup mock context for expression evaluation
+      beforeEach(() => {
+        global.context = {
+          actor: "testuser",
+          job: "test-job",
+          repo: { owner: "testorg", repo: "testrepo" },
+          runId: 12345,
+          runNumber: 42,
+          workflow: "test-workflow",
+          payload: {
+            issue: { number: 123, title: "Test Issue", state: "open" },
+            pull_request: { number: 456, title: "Test PR", state: "open" },
+            sender: { id: 789 },
+          },
+        };
+        process.env.GITHUB_SERVER_URL = "https://github.com";
+        process.env.GITHUB_WORKSPACE = "/workspace";
+      });
+
+      afterEach(() => {
+        delete global.context;
+      });
+
+      describe("isSafeExpression", () => {
+        it("should allow expressions from the safe list", () => {
+          expect(isSafeExpression("github.actor")).toBe(true);
+          expect(isSafeExpression("github.repository")).toBe(true);
+          expect(isSafeExpression("github.event.issue.number")).toBe(true);
+          expect(isSafeExpression("github.event.pull_request.title")).toBe(true);
+        });
+
+        it("should allow dynamic patterns", () => {
+          expect(isSafeExpression("needs.build.outputs.version")).toBe(true);
+          expect(isSafeExpression("steps.checkout.outputs.ref")).toBe(true);
+          expect(isSafeExpression("github.event.inputs.branch")).toBe(true);
+          expect(isSafeExpression("inputs.version")).toBe(true);
+          expect(isSafeExpression("env.NODE_VERSION")).toBe(true);
+        });
+
+        it("should reject unsafe expressions", () => {
+          expect(isSafeExpression("secrets.GITHUB_TOKEN")).toBe(false);
+          expect(isSafeExpression("github.token")).toBe(false);
+          expect(isSafeExpression("runner.os")).toBe(false);
+          expect(isSafeExpression("vars.MY_VAR")).toBe(false);
+        });
+
+        it("should handle whitespace", () => {
+          expect(isSafeExpression("  github.actor  ")).toBe(true);
+          expect(isSafeExpression("\ngithub.repository\n")).toBe(true);
+        });
+      });
+
+      describe("evaluateExpression", () => {
+        it("should evaluate simple GitHub context expressions", () => {
+          expect(evaluateExpression("github.actor")).toBe("testuser");
+          expect(evaluateExpression("github.repository")).toBe("testorg/testrepo");
+          expect(evaluateExpression("github.run_id")).toBe("12345");
+        });
+
+        it("should evaluate nested event properties", () => {
+          expect(evaluateExpression("github.event.issue.number")).toBe("123");
+          expect(evaluateExpression("github.event.pull_request.title")).toBe("Test PR");
+          expect(evaluateExpression("github.event.sender.id")).toBe("789");
+        });
+
+        it("should return wrapped expression for unresolvable values", () => {
+          expect(evaluateExpression("needs.build.outputs.version")).toContain("needs.build.outputs.version");
+          expect(evaluateExpression("steps.test.outputs.result")).toContain("steps.test.outputs.result");
+        });
+
+        it("should handle missing properties gracefully", () => {
+          const result = evaluateExpression("github.event.nonexistent.property");
+          expect(result).toContain("github.event.nonexistent.property");
+        });
+      });
+
+      describe("processExpressions", () => {
+        it("should render safe expressions in content", () => {
+          const content = "Actor: ${{ github.actor }}, Run: ${{ github.run_id }}";
+          const result = processExpressions(content, "test.md");
+          expect(result).toBe("Actor: testuser, Run: 12345");
+        });
+
+        it("should handle multiple expressions", () => {
+          const content = "Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}";
+          const result = processExpressions(content, "test.md");
+          expect(result).toBe("Issue #123: Test Issue");
+        });
+
+        it("should throw error for unsafe expressions", () => {
+          const content = "Token: ${{ secrets.GITHUB_TOKEN }}";
+          expect(() => processExpressions(content, "test.md")).toThrow("unauthorized GitHub Actions expressions");
+        });
+
+        it("should throw error for multiline expressions", () => {
+          const content = "Value: ${{ \ngithub.actor \n}}";
+          expect(() => processExpressions(content, "test.md")).toThrow("unauthorized");
+        });
+
+        it("should handle mixed safe and unsafe expressions", () => {
+          const content = "Safe: ${{ github.actor }}, Unsafe: ${{ secrets.TOKEN }}";
+          expect(() => processExpressions(content, "test.md")).toThrow("unauthorized");
+          expect(() => processExpressions(content, "test.md")).toThrow("secrets.TOKEN");
+        });
+
+        it("should pass through content without expressions", () => {
+          const content = "No expressions here";
+          const result = processExpressions(content, "test.md");
+          expect(result).toBe("No expressions here");
+        });
+      });
+
+      describe("runtime import with expressions", () => {
+        it("should process file with safe expressions", async () => {
+          const content = "Actor: ${{ github.actor }}\nRepo: ${{ github.repository }}";
+          fs.writeFileSync(path.join(githubDir, "with-expr.md"), content);
+          const result = await processRuntimeImport("with-expr.md", false, tempDir);
+          expect(result).toBe("Actor: testuser\nRepo: testorg/testrepo");
+        });
+
+        it("should reject file with unsafe expressions", async () => {
+          const content = "Secret: ${{ secrets.TOKEN }}";
+          fs.writeFileSync(path.join(githubDir, "unsafe.md"), content);
+          await expect(processRuntimeImport("unsafe.md", false, tempDir)).rejects.toThrow("unauthorized");
+        });
+
+        it("should process expressions in URL imports", async () => {
+          // Note: URL imports would need HTTP mocking to test properly
+          // This is a placeholder for the structure
+        });
+
+        it("should handle expressions with front matter removal", async () => {
+          const content = "---\ntitle: Test\n---\n\nActor: ${{ github.actor }}";
+          fs.writeFileSync(path.join(githubDir, "frontmatter-expr.md"), content);
+          const result = await processRuntimeImport("frontmatter-expr.md", false, tempDir);
+          expect(result).toContain("Actor: testuser");
+          expect(result).not.toContain("title: Test");
+        });
+
+        it("should handle expressions with XML comments", async () => {
+          const content = "<!-- Comment -->\nActor: ${{ github.actor }}";
+          fs.writeFileSync(path.join(githubDir, "comment-expr.md"), content);
+          const result = await processRuntimeImport("comment-expr.md", false, tempDir);
+          expect(result).toContain("Actor: testuser");
+          expect(result).not.toContain("<!-- Comment -->");
+        });
+      });
     }));
 });
