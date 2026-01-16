@@ -11,7 +11,7 @@ Conduct a comprehensive audit of the target repository to discover patterns, ine
 
 ## Current Context
 
-- **Target Repository**: ${{ inputs.repository || 'FStarLang/FStar' }}
+- **Target Repository**: ${{ inputs.repository }}
 - **Analysis Date**: $(date +%Y-%m-%d)
 - **Cache Location**: `/tmp/gh-aw/cache-memory/repo-audits/`
 
@@ -26,7 +26,7 @@ Check if this repository has been analyzed before:
 mkdir -p /tmp/gh-aw/cache-memory/repo-audits/
 
 # Check for previous analysis
-REPO_SLUG=$(echo "${{ inputs.repository || 'FStarLang/FStar' }}" | tr '/' '_')
+REPO_SLUG=$(echo "${{ inputs.repository }}" | tr '/' '_')
 if [ -f "/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}.json" ]; then
   echo "Found previous analysis:"
   cat "/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}.json"
@@ -39,7 +39,7 @@ Use GitHub API to collect basic repository information:
 
 ```bash
 # Repository info
-gh api "repos/${{ inputs.repository || 'FStarLang/FStar' }}" --jq '{
+gh api "repos/${{ inputs.repository }}" --jq '{
   name: .name,
   full_name: .full_name,
   description: .description,
@@ -58,10 +58,10 @@ gh api "repos/${{ inputs.repository || 'FStarLang/FStar' }}" --jq '{
 }'
 
 # Contributors
-gh api "repos/${{ inputs.repository || 'FStarLang/FStar' }}/contributors?per_page=10" --jq '.[] | {login: .login, contributions: .contributions}'
+gh api "repos/${{ inputs.repository }}/contributors?per_page=10" --jq '.[] | {login: .login, contributions: .contributions}'
 
 # Languages
-gh api "repos/${{ inputs.repository || 'FStarLang/FStar' }}/languages"
+gh api "repos/${{ inputs.repository }}/languages"
 ```
 
 ## Phase 1: Deep Research - Project Understanding
@@ -73,7 +73,7 @@ Analyze the repository structure to understand the project:
 ```bash
 # Clone repository for deep analysis
 REPO_DIR="/tmp/repo-analysis"
-git clone "https://github.com/${{ inputs.repository || 'FStarLang/FStar' }}.git" "$REPO_DIR" --depth 1
+git clone "https://github.com/${{ inputs.repository }}.git" "$REPO_DIR" --depth 1
 
 cd "$REPO_DIR"
 
@@ -145,7 +145,7 @@ Analyze all GitHub Actions workflows in detail:
 
 ```bash
 # List all workflows
-gh api "repos/${{ inputs.repository || 'FStarLang/FStar' }}/actions/workflows" --jq '.workflows[] | {
+gh api "repos/${{ inputs.repository }}/actions/workflows" --jq '.workflows[] | {
   name: .name,
   path: .path,
   state: .state,
@@ -188,7 +188,7 @@ Analyze recent workflow runs to identify patterns:
 
 ```bash
 # Recent workflow runs (last 30 days)
-gh api "repos/${{ inputs.repository || 'FStarLang/FStar' }}/actions/runs?per_page=100&created=>=$(date -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -v-30d +%Y-%m-%d)" --jq '.workflow_runs[] | {
+gh api "repos/${{ inputs.repository }}/actions/runs?per_page=100&created=>=$(date -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -v-30d +%Y-%m-%d)" --jq '.workflow_runs[] | {
   id: .id,
   name: .name,
   status: .status,
@@ -236,7 +236,8 @@ grep -B 5 "run:" .github/workflows/*.{yml,yaml} 2>/dev/null | grep -c "continue-
 
 # Hardcoded secrets or tokens
 echo "Potential hardcoded secrets:"
-grep -r "token\|password\|api_key" .github/workflows/*.{yml,yaml} 2>/dev/null | grep -v '\${{' | wc -l
+# Use bash variable construction to avoid triggering expression extraction
+EXPR_START='$'; EXPR_OPEN='{{'; grep -r "token\|password\|api_key" .github/workflows/*.{yml,yaml} 2>/dev/null | grep -v "${EXPR_START}${EXPR_OPEN}" | wc -l
 ```
 
 ## Phase 3: Issue History Analysis
@@ -247,7 +248,7 @@ Analyze issue history to identify recurring problems:
 
 ```bash
 # Recent issues (last 90 days)
-gh api "repos/${{ inputs.repository || 'FStarLang/FStar' }}/issues?state=all&per_page=100&since=$(date -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-90d +%Y-%m-%dT%H:%M:%SZ)" --jq '.[] | {
+gh api "repos/${{ inputs.repository }}/issues?state=all&per_page=100&since=$(date -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-90d +%Y-%m-%dT%H:%M:%SZ)" --jq '.[] | {
   number: .number,
   title: .title,
   state: .state,
@@ -353,7 +354,7 @@ Create a detailed analysis report with actionable recommendations:
 ```markdown
 # 🔍 Repository Audit & Agentic Workflow Opportunities Report
 
-**Repository**: ${{ inputs.repository || 'FStarLang/FStar' }}  
+**Repository**: ${{ inputs.repository }}  
 **Analysis Date**: $(date +%Y-%m-%d)  
 **Audit Type**: Comprehensive (code + workflows + issues + patterns)
 
@@ -601,7 +602,7 @@ safe-outputs:
 
 ## 📚 Repository-Specific Recommendations
 
-### Custom Insights for ${{ inputs.repository || 'FStarLang/FStar' }}
+### Custom Insights for ${{ inputs.repository }}
 
 [Based on actual analysis, provide specific recommendations that are unique to this repository, not generic advice]
 
@@ -666,11 +667,11 @@ After generating the report, save analysis data for future reference:
 
 ```bash
 # Save repository metadata
-REPO_SLUG=$(echo "${{ inputs.repository || 'FStarLang/FStar' }}" | tr '/' '_')
+REPO_SLUG=$(echo "${{ inputs.repository }}" | tr '/' '_')
 
 cat > "/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}.json" << EOF
 {
-  "repository": "${{ inputs.repository || 'FStarLang/FStar' }}",
+  "repository": "${{ inputs.repository }}",
   "analysis_date": "$(date +%Y-%m-%d)",
   "primary_language": "[detected language]",
   "workflow_count": [N],
