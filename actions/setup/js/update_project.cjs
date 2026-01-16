@@ -948,84 +948,101 @@ async function updateProject(output) {
 }
 
 /**
- * Main entry point
+ * Main entry point - handler factory that returns a message handler function
+ * @param {Object} config - Handler configuration
+ * @param {number} [config.max] - Maximum number of update_project items to process
+ * @param {Array<Object>} [config.views] - Views to create from configuration
+ * @returns {Promise<Function>} Message handler function
  */
-async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) return;
+async function main(config = {}) {
+  // Extract configuration
+  const maxCount = config.max || 10;
+  const configuredViews = Array.isArray(config.views) ? config.views : [];
 
-  const updateProjectItems = result.items.filter(item => item.type === "update_project");
-
-  // Check if views are configured in frontmatter
-  const configuredViews = process.env.GH_AW_PROJECT_VIEWS;
-  let viewsToCreate = [];
-  if (configuredViews) {
-    try {
-      viewsToCreate = JSON.parse(configuredViews);
-      if (Array.isArray(viewsToCreate) && viewsToCreate.length > 0) {
-        core.info(`Found ${viewsToCreate.length} configured view(s) in frontmatter`);
-      }
-    } catch (parseError) {
-      core.warning(`Failed to parse GH_AW_PROJECT_VIEWS: ${getErrorMessage(parseError)}`);
-    }
+  if (configuredViews.length > 0) {
+    core.info(`Found ${configuredViews.length} configured view(s) in frontmatter`);
   }
+  core.info(`Max count: ${maxCount}`);
 
-  // If no update_project items and no configured views, nothing to do
-  if (updateProjectItems.length === 0 && viewsToCreate.length === 0) return;
+  // Track state
+  let processedCount = 0;
+  let firstProjectUrl = null;
+  let viewsCreated = false;
 
-  // Process update_project items from agent output
-  for (let i = 0; i < updateProjectItems.length; i++) {
-    const output = updateProjectItems[i];
+  /**
+   * Message handler function that processes a single update_project message
+   * @param {Object} message - The update_project message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs (unused for update_project)
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleUpdateProject(message, resolvedTemporaryIds) {
+    // Check max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping update_project: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+
+    processedCount++;
+
     try {
-      await updateProject(output);
+      // Store the first project URL for view creation
+      if (!firstProjectUrl && message.project) {
+        firstProjectUrl = message.project;
+      }
+
+      // Process the update_project message
+      await updateProject(message);
+
+      // After processing the first message, create configured views if any
+      // Views are created after the first item is processed to ensure the project exists
+      if (!viewsCreated && configuredViews.length > 0 && firstProjectUrl) {
+        viewsCreated = true;
+        core.info(`Creating ${configuredViews.length} configured view(s) on project: ${firstProjectUrl}`);
+
+        for (let i = 0; i < configuredViews.length; i++) {
+          const viewConfig = configuredViews[i];
+          try {
+            // Create a synthetic output item for view creation
+            const viewOutput = {
+              type: "update_project",
+              project: firstProjectUrl,
+              operation: "create_view",
+              view: {
+                name: viewConfig.name,
+                layout: viewConfig.layout,
+                filter: viewConfig.filter,
+                visible_fields: viewConfig.visible_fields,
+                description: viewConfig.description,
+              },
+            };
+
+            await updateProject(viewOutput);
+            core.info(`✓ Created view ${i + 1}/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
+          } catch (err) {
+            // prettier-ignore
+            const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+            core.error(`Failed to create configured view ${i + 1}: ${viewConfig.name}`);
+            logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
+          }
+        }
+      }
+
+      return {
+        success: true,
+      };
     } catch (err) {
       // prettier-ignore
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-      core.error(`Failed to process item ${i + 1}`);
-      logGraphQLError(error, `Processing update_project item ${i + 1}`);
+      logGraphQLError(error, "update_project");
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
     }
-  }
-
-  // Create views from frontmatter configuration if any
-  // Views are created after items are processed to ensure the project exists
-  if (viewsToCreate.length > 0) {
-    // Get project URL from the first update_project item or fail if none
-    const projectUrl = updateProjectItems.length > 0 ? updateProjectItems[0].project : null;
-
-    if (!projectUrl) {
-      core.warning("Cannot create configured views: no project URL found in update_project items. Views require at least one update_project operation to determine the target project.");
-      return;
-    }
-
-    core.info(`Creating ${viewsToCreate.length} configured view(s) on project: ${projectUrl}`);
-
-    for (let i = 0; i < viewsToCreate.length; i++) {
-      const viewConfig = viewsToCreate[i];
-      try {
-        // Create a synthetic output item for view creation
-        const viewOutput = {
-          type: "update_project",
-          project: projectUrl,
-          operation: "create_view",
-          view: {
-            name: viewConfig.name,
-            layout: viewConfig.layout,
-            filter: viewConfig.filter,
-            visible_fields: viewConfig.visible_fields,
-            description: viewConfig.description,
-          },
-        };
-
-        await updateProject(viewOutput);
-        core.info(`✓ Created view ${i + 1}/${viewsToCreate.length}: ${viewConfig.name} (${viewConfig.layout})`);
-      } catch (err) {
-        // prettier-ignore
-        const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-        core.error(`Failed to create configured view ${i + 1}: ${viewConfig.name}`);
-        logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
-      }
-    }
-  }
+  };
 }
 
 module.exports = { updateProject, parseProjectInput, generateCampaignId, main };
