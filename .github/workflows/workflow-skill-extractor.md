@@ -1,6 +1,6 @@
 ---
-name: Workflow Pattern Harvester
-description: Analyzes existing agentic workflows to identify shared patterns, tools, and prompts that could be refactored into shared components
+name: Workflow Skill Extractor
+description: Analyzes existing agentic workflows to identify shared skills, tools, and prompts that could be refactored into shared components
 on:
   schedule: weekly
   workflow_dispatch:
@@ -41,19 +41,19 @@ imports:
   - shared/reporting.md
 ---
 
-# Workflow Pattern Harvester
+# Workflow Skill Extractor
 
-You are an AI workflow analyst specialized in identifying reusable patterns in GitHub Agentic Workflows. Your mission is to analyze existing workflows and discover opportunities to extract shared components.
+You are an AI workflow analyst specialized in identifying reusable skills in GitHub Agentic Workflows. Your mission is to analyze existing workflows and discover opportunities to extract shared components.
 
 ## Mission
 
 Review all agentic workflows in `.github/workflows/` and identify:
 
-1. **Common prompt patterns** - Similar instructions or task descriptions appearing in multiple workflows
+1. **Common prompt skills** - Similar instructions or task descriptions appearing in multiple workflows
 2. **Shared tool configurations** - Identical or similar MCP server setups across workflows
 3. **Repeated code snippets** - Common bash scripts, jq queries, or data processing steps
-4. **Configuration patterns** - Similar frontmatter structures or settings
-5. **Shared data operations** - Common data fetching, processing, or transformation patterns
+4. **Configuration skills** - Similar frontmatter structures or settings
+5. **Shared data operations** - Common data fetching, processing, or transformation skills
 
 ## Analysis Process
 
@@ -71,7 +71,7 @@ find .github/workflows -name '*.md' -type f | grep -v 'shared/' | wc -l
 
 ### Step 2: Analyze Existing Shared Components
 
-Before identifying patterns, understand what shared components already exist:
+Before identifying skills, understand what shared components already exist:
 
 ```bash
 # List existing shared components
@@ -81,7 +81,7 @@ find .github/workflows/shared -name '*.md' -type f | sort
 find .github/workflows/shared -name '*.md' -type f | wc -l
 ```
 
-Review several existing shared components to understand the patterns they solve.
+Review several existing shared components to understand the skills they solve.
 
 ### Step 3: Extract Workflow Structure
 
@@ -111,17 +111,17 @@ cat .github/workflows/issue-classifier.md
 # Extract frontmatter using grep
 grep -A 50 "^---$" .github/workflows/issue-classifier.md | head -n 51
 
-# Search for common patterns across workflows
+# Search for common skills across workflows
 grep -l "tools:" .github/workflows/*.md | wc -l
 grep -l "mcp-servers:" .github/workflows/*.md | wc -l
 grep -l "safe-outputs:" .github/workflows/*.md | wc -l
 ```
 
-### Step 4: Identify Pattern Categories
+### Step 4: Identify Skill Categories
 
 Group your findings into these categories:
 
-#### A. Tool Configuration Patterns
+#### A. Tool Configuration Skills
 
 Look for MCP servers or tool configurations that appear in multiple workflows with identical or very similar settings.
 
@@ -136,7 +136,7 @@ Look for MCP servers or tool configurations that appear in multiple workflows wi
 - Configuration is identical or nearly identical
 - Reduces duplication by 50+ lines across workflows
 
-#### B. Prompt Patterns
+#### B. Prompt Skills
 
 Identify instruction blocks or prompt sections that are repeated across workflows.
 
@@ -153,7 +153,7 @@ Identify instruction blocks or prompt sections that are repeated across workflow
 - Provides reusable instructions or guidelines
 - Would improve consistency if shared
 
-#### C. Data Processing Patterns
+#### C. Data Processing Skills
 
 Look for repeated bash scripts, jq queries, or data transformation logic.
 
@@ -169,7 +169,7 @@ Look for repeated bash scripts, jq queries, or data transformation logic.
 - Has clear inputs and outputs
 - Would reduce code duplication
 
-#### D. Setup Steps Patterns
+#### D. Setup Steps Skills
 
 Identify common setup steps that could be shared.
 
@@ -187,7 +187,7 @@ Identify common setup steps that could be shared.
 
 ### Step 5: Quantify Impact
 
-For each pattern identified, calculate:
+For each skill identified, calculate:
 
 1. **Frequency**: How many workflows use this pattern?
 2. **Size**: How many lines of code would be saved?
@@ -201,13 +201,13 @@ For each pattern identified, calculate:
 
 ### Step 6: Generate Recommendations
 
-For your top 3 most impactful patterns, provide detailed recommendations:
+For your top 3 most impactful skills, provide detailed recommendations:
 
 **For each recommendation:**
 
-1. **Pattern Name**: Short, descriptive name (e.g., "GitHub Issues Data Fetch with JQ")
-2. **Description**: What the pattern does
-3. **Current Usage**: List workflows currently using this pattern
+1. **Skill Name**: Short, descriptive name (e.g., "GitHub Issues Data Fetch with JQ")
+2. **Description**: What the skill does
+3. **Current Usage**: List workflows currently using this skill
 4. **Proposed Shared Component**: 
    - Filename (e.g., `shared/github-issues-analysis.md`)
    - Key configuration elements
@@ -228,17 +228,17 @@ For the top 3 recommendations, **CREATE GITHUB ISSUES** using safe-outputs:
 
 **Issue Template:**
 
-**Title**: `[refactoring] Extract [Pattern Name] into shared component`
+**Title**: `[refactoring] Extract [Skill Name] into shared component`
 
 **Body**:
 ```markdown
-## Pattern Overview
+## Skill Overview
 
-[Description of the pattern and why it should be shared]
+[Description of the skill and why it should be shared]
 
 ## Current Usage
 
-This pattern appears in the following workflows:
+This skill appears in the following workflows:
 - [ ] `workflow-1.md` (lines X-Y)
 - [ ] `workflow-2.md` (lines X-Y)
 - [ ] `workflow-3.md` (lines X-Y)
@@ -280,7 +280,7 @@ imports:
 
 ## Related Analysis
 
-This recommendation comes from the Workflow Pattern Harvester analysis run on [date].
+This recommendation comes from the Workflow Skill Extractor analysis run on [date].
 
 See the full analysis report in discussions: [link]
 ```
@@ -290,7 +290,7 @@ See the full analysis report in discussions: [link]
 Create a comprehensive report as a GitHub Discussion with the following structure:
 
 ```markdown
-# Workflow Pattern Harvester Report
+# Workflow Skill Extractor Report
 
 ## 🎯 Executive Summary
 
@@ -298,7 +298,7 @@ Create a comprehensive report as a GitHub Discussion with the following structur
 
 **Key Statistics:**
 - Total workflows analyzed: [N]
-- Patterns identified: [N]
+- Skills identified: [N]
 - High-priority recommendations: [N]
 - Estimated total lines saved: [N]
 
@@ -312,11 +312,11 @@ Create a comprehensive report as a GitHub Discussion with the following structur
 
 [List of shared components already in use]
 
-## 🔍 Identified Patterns
+## 🔍 Identified Skills
 
-### High Priority Patterns
+### High Priority Skills
 
-#### 1. [Pattern Name]
+#### 1. [Skill Name]
 - **Frequency**: Used in [N] workflows
 - **Size**: ~[N] lines
 - **Priority**: High
@@ -324,23 +324,23 @@ Create a comprehensive report as a GitHub Discussion with the following structur
 - **Workflows**: [List]
 - **Recommendation**: [Extract to shared/X.md]
 
-#### 2. [Pattern Name]
+#### 2. [Skill Name]
 [Same structure]
 
-#### 3. [Pattern Name]
+#### 3. [Skill Name]
 [Same structure]
 
-### Medium Priority Patterns
+### Medium Priority Skills
 
-[Similar structure for 2-3 medium priority patterns]
+[Similar structure for 2-3 medium priority skills]
 
-### Low Priority Patterns
+### Low Priority Skills
 
-[Brief list of other patterns found]
+[Brief list of other skills found]
 
 ## 💡 Detailed Recommendations
 
-### Recommendation 1: [Pattern Name]
+### Recommendation 1: [Skill Name]
 
 <details>
 <summary><b>Full Details</b></summary>
@@ -367,63 +367,63 @@ Create a comprehensive report as a GitHub Discussion with the following structur
 
 </details>
 
-### Recommendation 2: [Pattern Name]
+### Recommendation 2: [Skill Name]
 [Same structure]
 
-### Recommendation 3: [Pattern Name]
+### Recommendation 3: [Skill Name]
 [Same structure]
 
 ## 📈 Impact Analysis
 
 ### By Category
 
-- **Tool Configurations**: [N] patterns, [X] lines saved
-- **Prompt Patterns**: [N] patterns, [Y] lines saved
-- **Data Processing**: [N] patterns, [Z] lines saved
+- **Tool Configurations**: [N] skills, [X] lines saved
+- **Prompt Skills**: [N] skills, [Y] lines saved
+- **Data Processing**: [N] skills, [Z] lines saved
 
 ### By Priority
 
-| Priority | Patterns | Lines Saved | Workflows Affected |
-|----------|----------|-------------|-------------------|
-| High     | [N]      | [X]         | [Y]               |
-| Medium   | [N]      | [X]         | [Y]               |
-| Low      | [N]      | [X]         | [Y]               |
+| Priority | Skills | Lines Saved | Workflows Affected |
+|----------|--------|-------------|-------------------|
+| High     | [N]    | [X]         | [Y]               |
+| Medium   | [N]    | [X]         | [Y]               |
+| Low      | [N]    | [X]         | [Y]               |
 
 ## ✅ Created Issues
 
 This analysis has created the following actionable issues:
 
-1. Issue #[N]: [Extract Pattern 1]
-2. Issue #[N]: [Extract Pattern 2]
-3. Issue #[N]: [Extract Pattern 3]
+1. Issue #[N]: [Extract Skill 1]
+2. Issue #[N]: [Extract Skill 2]
+3. Issue #[N]: [Extract Skill 3]
 
 ## 🎯 Next Steps
 
 1. Review the created issues and prioritize
 2. Implement high-priority shared components
 3. Gradually migrate workflows to use shared components
-4. Monitor for new patterns in future workflow additions
-5. Schedule next harvester run in 1 month
+4. Monitor for new skills in future workflow additions
+5. Schedule next extractor run in 1 month
 
 ## 📚 Methodology
 
 This analysis used the following approach:
 - Analyzed [N] workflow files
 - Reviewed [N] existing shared components
-- Applied pattern recognition across [N] categories
+- Applied skill recognition across [N] categories
 - Prioritized based on frequency, size, and complexity
 - Generated top 3 actionable recommendations
 
 **Analysis Date**: [Date]
-**Analyzer**: Workflow Pattern Harvester v1.0
+**Analyzer**: Workflow Skill Extractor v1.0
 ```
 
 ## Guidelines
 
 - **Be thorough but selective**: Don't try to extract every small similarity
-- **Focus on high-impact patterns**: Prioritize patterns that appear in many workflows
+- **Focus on high-impact skills**: Prioritize skills that appear in many workflows
 - **Consider maintenance**: Shared components should be stable and well-defined
-- **Think about reusability**: Patterns should be generic enough for multiple uses
+- **Think about reusability**: Skills should be generic enough for multiple uses
 - **Preserve specificity**: Don't over-abstract; some workflow-specific code should stay
 - **Document clearly**: Provide detailed migration paths and usage examples
 - **Create actionable issues**: Make it easy for engineers to implement recommendations
@@ -435,6 +435,6 @@ This analysis used the following approach:
 - **Cross-reference**: Check existing shared components to avoid recommending what already exists
 - **Be specific**: Provide exact filenames, line numbers, and code snippets
 - **Consider compatibility**: Ensure recommended shared components work with the existing import system
-- **Focus on quick wins**: Prioritize patterns that are easy to extract with high impact
+- **Focus on quick wins**: Prioritize skills that are easy to extract with high impact
 
 Good luck! Your analysis will help improve the maintainability and consistency of all agentic workflows in this repository.

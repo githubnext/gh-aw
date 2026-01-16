@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
+const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros, isSafeExpression, evaluateExpression } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
   let githubDir;
@@ -76,6 +76,102 @@ describe("runtime_import", () => {
         it("should handle content without macros", () => {
           expect(hasGitHubActionsMacros("No macros here")).toBe(!1);
         }));
+    }),
+    describe("isSafeExpression", () => {
+      it("should allow basic safe expressions", () => {
+        expect(isSafeExpression("github.actor")).toBe(!0);
+        expect(isSafeExpression("github.repository")).toBe(!0);
+        expect(isSafeExpression("github.event.issue.number")).toBe(!0);
+      });
+      it("should allow dynamic patterns", () => {
+        expect(isSafeExpression("needs.job-id.outputs.result")).toBe(!0);
+        expect(isSafeExpression("steps.step-id.outputs.value")).toBe(!0);
+        expect(isSafeExpression("github.event.inputs.repo")).toBe(!0);
+        expect(isSafeExpression("inputs.repository")).toBe(!0);
+        expect(isSafeExpression("env.MY_VAR")).toBe(!0);
+      });
+      it("should reject unsafe expressions", () => {
+        expect(isSafeExpression("secrets.TOKEN")).toBe(!1);
+        expect(isSafeExpression("vars.MY_VAR")).toBe(!1);
+        expect(isSafeExpression("unknown.property")).toBe(!1);
+      });
+      it("should allow OR with single-quoted literals", () => {
+        expect(isSafeExpression("inputs.repository || 'FStarLang/FStar'")).toBe(!0);
+        expect(isSafeExpression("github.event.inputs.name || 'default'")).toBe(!0);
+      });
+      it("should allow OR with double-quoted literals", () => {
+        expect(isSafeExpression('inputs.value || "default"')).toBe(!0);
+        expect(isSafeExpression('github.actor || "anonymous"')).toBe(!0);
+      });
+      it("should allow OR with backtick literals", () => {
+        expect(isSafeExpression("inputs.config || `default-config`")).toBe(!0);
+        expect(isSafeExpression("env.MODE || `production`")).toBe(!0);
+      });
+      it("should allow OR with number literals", () => {
+        expect(isSafeExpression("inputs.count || 42")).toBe(!0);
+        expect(isSafeExpression("inputs.timeout || 3600")).toBe(!0);
+      });
+      it("should allow OR with boolean literals", () => {
+        expect(isSafeExpression("inputs.flag || true")).toBe(!0);
+        expect(isSafeExpression("inputs.enabled || false")).toBe(!0);
+      });
+      it("should allow OR with two safe expressions", () => {
+        expect(isSafeExpression("inputs.repo || github.repository")).toBe(!0);
+        expect(isSafeExpression("github.actor || github.repository_owner")).toBe(!0);
+      });
+      it("should reject OR with unsafe left side", () => {
+        expect(isSafeExpression("secrets.TOKEN || 'default'")).toBe(!1);
+        expect(isSafeExpression("vars.SECRET || 'fallback'")).toBe(!1);
+      });
+      it("should reject OR with unsafe right side (non-literal)", () => {
+        expect(isSafeExpression("inputs.value || secrets.TOKEN")).toBe(!1);
+        expect(isSafeExpression("github.actor || vars.NAME")).toBe(!1);
+      });
+    }),
+    describe("evaluateExpression", () => {
+      beforeEach(() => {
+        // Mock the global context object
+        global.context = {
+          actor: "testuser",
+          job: "test-job",
+          repo: { owner: "testorg", repo: "testrepo" },
+          runId: 12345,
+          runNumber: 67,
+          workflow: "test-workflow",
+          payload: { inputs: { repository: "testorg/testrepo", name: "test-name" } },
+        };
+      });
+      afterEach(() => {
+        delete global.context;
+      });
+      it("should evaluate basic expressions", () => {
+        expect(evaluateExpression("github.actor")).toBe("testuser");
+        expect(evaluateExpression("github.repository")).toBe("testorg/testrepo");
+      });
+      it("should evaluate OR with literal fallback when left is undefined", () => {
+        expect(evaluateExpression("inputs.missing || 'default'")).toBe("default");
+        expect(evaluateExpression('inputs.undefined || "fallback"')).toBe("fallback");
+        expect(evaluateExpression("inputs.none || `backup`")).toBe("backup");
+      });
+      it("should use left value when defined", () => {
+        expect(evaluateExpression("inputs.repository || 'FStarLang/FStar'")).toBe("testorg/testrepo");
+        expect(evaluateExpression("inputs.name || 'default-name'")).toBe("test-name");
+      });
+      it("should handle number literals", () => {
+        expect(evaluateExpression("inputs.missing || 42")).toBe("42");
+        expect(evaluateExpression("inputs.undefined || 100")).toBe("100");
+      });
+      it("should handle boolean literals", () => {
+        expect(evaluateExpression("inputs.missing || true")).toBe("true");
+        expect(evaluateExpression("inputs.undefined || false")).toBe("false");
+      });
+      it("should chain OR expressions", () => {
+        expect(evaluateExpression("inputs.missing1 || inputs.missing2 || 'final-fallback'")).toBe("final-fallback");
+      });
+      it("should return wrapped expression for undefined without fallback", () => {
+        expect(evaluateExpression("inputs.missing")).toContain("${{");
+        expect(evaluateExpression("inputs.missing")).toContain("inputs.missing");
+      });
     }),
     describe("processRuntimeImport", () => {
       (it("should read and return file content", async () => {

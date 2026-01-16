@@ -28,13 +28,13 @@ safe-outputs:
     views:
       - name: "Campaign Roadmap"
         layout: "roadmap"
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
       - name: "Task Tracker"
         layout: "table"
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
       - name: "Progress Board"
         layout: "board"
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
