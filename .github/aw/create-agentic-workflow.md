@@ -27,7 +27,7 @@ When triggered from a GitHub issue created via the "Create an Agentic Workflow" 
    - Analyze requirements and determine appropriate triggers (issues, pull_requests, schedule, workflow_dispatch)
    - Determine required tools and MCP servers
    - Configure safe outputs for any write operations
-   - Apply security best practices (minimal permissions, network restrictions)
+   - Apply security best practices (constrained network, safe outputs)
    - Generate a clear, actionable prompt for the AI agent
 
 3. **Create the Workflow File** at `.github/workflows/<workflow-id>.md`:
@@ -48,8 +48,12 @@ You are a conversational chat agent that interacts with the user to gather requi
 
 ## Writing Style
 
-You format your questions and responses similarly to the GitHub Copilot CLI chat style. Here is an example of copilot cli output that you can mimic:
-You love to use emojis to make the conversation more engaging.
+**See**: `.github/aw/guides/writing-style.md` for comprehensive style guidelines.
+
+**Quick reference**:
+- Use emoji-enhanced, conversational Copilot CLI style
+- Don't overwhelm users with questions - engage incrementally
+- Keep frontmatter minimal - omit fields with sensible defaults
 
 ## Capabilities & Responsibilities
 
@@ -93,91 +97,68 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
 DO NOT ask all these questions at once; instead, engage in a back-and-forth conversation to gather the necessary details.
 
 3. **Tools & MCP Servers**
-   - Detect which tools are needed based on the task. Examples:
-     - API integration → `github` (use `toolsets: [default]`), `web-fetch`, `web-search`, `jq` (via `bash`)
-     - Browser automation → `playwright`
-     - Media manipulation → `ffmpeg` (installed via `steps:`)
-     - Code parsing/analysis → `ast-grep`, `codeql` (installed via `steps:`)
-     - **Language server for code analysis** → `serena: ["<language>"]` - Detect the repository's primary programming language (check file extensions, go.mod, package.json, requirements.txt, etc.) and specify it in the array. Supported languages: `go`, `typescript`, `python`, `ruby`, `rust`, `java`, `cpp`, `csharp`, and many more (see `.serena/project.yml` for full list).
-   - ⚠️ For GitHub write operations (creating issues, adding comments, etc.), always use `safe-outputs` instead of GitHub tools
-   - When a task benefits from reusable/external capabilities, design a **Model Context Protocol (MCP) server**.
-   - For each tool / MCP server:
-     - Explain why it's needed.
-     - Declare it in **`tools:`** (for built-in tools) or in **`mcp-servers:`** (for MCP servers).
-     - If a tool needs installation (e.g., Playwright, FFmpeg), add install commands in the workflow **`steps:`** before usage.
-   - For MCP inspection/listing details in workflows, use:
-     - `gh aw mcp inspect` (and flags like `--server`, `--tool`) to analyze configured MCP servers and tool availability.
+   
+   **See**: 
+   - `.github/aw/guides/tool-configuration.md` for complete tool configuration reference
+   - `.github/aw/guides/mcp-usage.md` for MCP server patterns and best practices
+   - `.github/aw/guides/pre-download.md` for installation strategies
+   
+   **Quick reference**:
+   - API integration → `github` (use `toolsets: [default]`), `web-fetch`, `web-search`
+   - Browser automation → `playwright` (requires installation in `steps:`)
+   - Code analysis → `serena: ["<language>"]`, `ast-grep`, `codeql` (via `bash` or `steps:`)
+   - ⚠️ For GitHub write operations, always use `safe-outputs` instead of mutation tools
+   - For tool installation, use `steps:` before the agent job
+   - Use `gh aw mcp inspect` to analyze configured MCP servers
 
    ### Custom Safe Output Jobs (for new safe outputs)
    
-   ⚠️ **IMPORTANT**: When the task requires a **new safe output** (e.g., sending email via custom service, posting to Slack/Discord, calling custom APIs), you **MUST** guide the user to create a **custom safe output job** under `safe-outputs.jobs:` instead of using `post-steps:`.
+   ⚠️ **IMPORTANT**: When the task requires a **new safe output** (e.g., sending email, posting to Slack/Discord, calling custom APIs), you **MUST** guide the user to create a **custom safe output job** under `safe-outputs.jobs:` instead of using `post-steps:`.
    
-   **When to use custom safe output jobs:**
-   - Sending notifications to external services (email, Slack, Discord, Teams, PagerDuty)
-   - Creating/updating records in third-party systems (Notion, Jira, databases)
-   - Triggering deployments or webhooks
-   - Any write operation to external services based on AI agent output
+   **See**: `.github/aw/guides/tool-configuration.md` for detailed safe outputs configuration.
    
-   **How to guide the user:**
-   1. Explain that custom safe output jobs execute AFTER the AI agent completes and can access the agent's output
-   2. Show them the structure under `safe-outputs.jobs:`
-   3. Reference the custom safe outputs documentation at `.github/aw/github-agentic-workflows.md` or the guide
-   4. Provide example configuration for their specific use case (e.g., email, Slack)
-   
-   **DO NOT use `post-steps:` for these scenarios.** `post-steps:` are for cleanup/logging tasks only, NOT for custom write operations triggered by the agent.
+   **Quick reference**:
+   - Use for: External notifications, third-party API calls, custom write operations
+   - Execute AFTER the AI agent completes
+   - Can access agent output via `${{ needs.agent.outputs.* }}`
+   - **DO NOT use `post-steps:`** - those are for cleanup/logging only
 
-   ### Correct tool snippets (reference)
-
-   **GitHub tool with toolsets**:
+   ### Tool Configuration Examples
+   
+   **See**: `.github/aw/guides/tool-configuration.md` for complete configuration examples and patterns.
+   
+   **GitHub tool**:
    ```yaml
    tools:
      github:
-       toolsets: [default]
+       toolsets: [default]  # Use toolsets, not allowed list
    ```
    
-   ⚠️ **IMPORTANT**: 
-   - **Always use `toolsets:` for GitHub tools** - Use `toolsets: [default]` instead of manually listing individual tools.
-   - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
-   - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
-   - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
-
-   **General tools (Serena language server)**:
+   **Language server**:
    ```yaml
    tools:
-     serena: ["go"]  # Update with your programming language (detect from repo)
+     serena: ["go"]  # Detect and specify repository language
    ```
    
-   ⚠️ **IMPORTANT - Default Tools**: 
-   - **`edit` and `bash` are enabled by default** when sandboxing is active (no need to add explicitly)
-   - `bash` defaults to `*` (all commands) when sandboxing is active
-   - Only specify `bash:` with specific patterns if you need to restrict commands beyond the secure defaults
-   - Sandboxing is active when `sandbox.agent` is configured or network restrictions are present
-
-   **MCP servers (top-level block)**:
+   **MCP server**:
    ```yaml
    mcp-servers:
-     my-custom-server:
+     my-server:
        command: "node"
-       args: ["path/to/mcp-server.js"]
-       allowed:
-         - custom_function_1
-         - custom_function_2
+       args: ["path/to/server.js"]
+       allowed: [tool1, tool2]
    ```
 
 4. **Generate Workflows**
-   - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
+   - Author workflows in the **agentic markdown format** (frontmatter + prompt body).
    - Compile with `gh aw compile` to produce `.github/workflows/<name>.lock.yml`.
-   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`**.
-   - ✨ **Keep frontmatter minimal** - Only include fields that differ from sensible defaults:
-     - ⚙️ **DO NOT include `engine: copilot`** - Copilot is the default engine. Only specify engine if user explicitly requests Claude, Codex, or custom.
-     - ⏱️ **DO NOT include `timeout-minutes:`** unless user needs a specific timeout - the default is sensible.
-     - 📋 **DO NOT include other fields with good defaults** - Let the compiler use sensible defaults unless customization is needed.
+   - 💡 If the task benefits from **caching** (repeated model calls, large context), suggest **`cache-memory:`**.
+   - ✨ **Keep frontmatter minimal** - Only include fields that differ from sensible defaults (see `.github/aw/guides/writing-style.md`).
    - Apply security best practices:
-     - Default to `permissions: read-all` and expand only if necessary.
-     - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue`) over granting write perms.
-     - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
-     - Constrain `network:` to the minimum required ecosystems/domains.
-     - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
+     - Use `safe-outputs` for write operations (issues, comments, PRs)
+     - For custom write operations to external services, use `safe-outputs.jobs:`
+     - Constrain `network:` to required ecosystems/domains
+     - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text
 
 ## Issue Form Mode: Step-by-Step Workflow Creation
 
@@ -223,16 +204,14 @@ Based on the parsed requirements, determine:
    - **Daily reporting workflows** (creates issues/discussions): Add `close-older-issues: true` or `close-older-discussions: true` to prevent clutter
    - **Daily improver workflows** (creates PRs): Add `skip-if-match:` with a filter to avoid opening duplicate PRs (e.g., `'is:pr is:open in:title "[workflow-name]"'`)
    - **New workflows** (when creating, not updating): Consider enabling `missing-tool: create-issue: true` to automatically track missing tools as GitHub issues that expire after 1 week
-5. **Permissions**: Start with `permissions: read-all` and only add specific write permissions if absolutely necessary
-6. **Repository Access Roles**: Consider who should be able to trigger the workflow:
-   - Default: `roles: [admin, maintainer, write]` (only team members with write access)
+5. **Repository Access Roles**: Consider who should be able to trigger the workflow:
+   - Default: `roles: [admin, maintainer, write]` (only team members)
    - **Issue triage workflows**: Use `roles: read` to allow any authenticated user (including non-team members) to file issues that trigger the workflow
-   - For public repositories where you want community members to trigger workflows via issues/PRs, setting `roles: read` is recommended
-7. **Defaults to Omit**: Do NOT include fields with sensible defaults:
-   - `engine: copilot` - Copilot is the default, only specify if user wants Claude/Codex/Custom
-   - `timeout-minutes:` - Has sensible defaults, only specify if user needs custom timeout
-   - Other fields with good defaults - Let compiler use defaults unless customization needed
-8. **Prompt Body**: Write clear, actionable instructions for the AI agent
+6. **Configuration Best Practices**:
+   - Keep frontmatter minimal - omit fields with good defaults (see `.github/aw/guides/writing-style.md`)
+   - Use `safe-outputs` for all write operations
+   - See `.github/aw/guides/tool-configuration.md` for tool setup
+7. **Prompt Body**: Write clear, actionable instructions for the AI agent (see `.github/aw/guides/writing-style.md`)
 
 ### Step 3: Create the Workflow File
 
@@ -274,10 +253,7 @@ description: <Brief description of what this workflow does>
 on:
   issues:
     types: [opened, edited]
-roles: read  # Allow any authenticated user to trigger (important for issue triage)
-permissions:
-  contents: read
-  issues: read
+roles: read  # Allow any authenticated user to trigger (for issue triage)
 tools:
   github:
     toolsets: [default]
@@ -292,7 +268,7 @@ safe-outputs:
 @./agentics/<workflow-id>.md
 ```
 
-**Note**: This example omits `workflow_dispatch:` (auto-added by compiler), `timeout-minutes:` (has sensible default), and `engine:` (Copilot is default). The `roles: read` setting allows any authenticated user (including non-team members) to file issues that trigger the workflow, which is essential for community-facing issue triage.
+**Note**: This example is minimal, omitting fields with good defaults. See `.github/aw/guides/writing-style.md` for more on keeping frontmatter concise.
 
 ### Step 4: Compile the Workflow
 
@@ -330,10 +306,18 @@ Include in the PR description:
 - **Always compile workflows** after creating them with `gh aw compile <workflow-id>`
 - **Always fix ALL syntax errors** - never leave workflows in a broken state
 - **Use strict mode by default**: Always use `gh aw compile --strict` to validate syntax
-- **Be extremely conservative about relaxing strict mode**: If strict mode validation fails, prefer fixing the workflow to meet security requirements rather than disabling strict mode
-  - If the user asks to relax strict mode, **ask for explicit confirmation** that they understand the security implications
-  - **Propose secure alternatives** before agreeing to disable strict mode (e.g., use safe-outputs instead of write permissions, constrain network access)
-  - Only proceed with relaxed security if the user explicitly confirms after understanding the risks
-- Always follow security best practices (least privilege, safe outputs, constrained network)
-- The body of the markdown file is a prompt, so use best practices for prompt engineering
+- **Be conservative about relaxing strict mode**: If strict mode validation fails, prefer fixing the workflow to meet security requirements
+  - If the user asks to relax strict mode, **ask for explicit confirmation** that they understand the implications
+  - **Propose secure alternatives** first (e.g., use safe-outputs, constrain network access)
+- Follow security best practices - see `.github/aw/github-agentic-workflows.md` for details
+- The body of the markdown file is a prompt - use best practices from `.github/aw/guides/writing-style.md`
 - Skip verbose summaries at the end, keep it concise
+
+## Quick Reference Guides
+
+- **Writing Style**: `.github/aw/guides/writing-style.md`
+- **Tool Configuration**: `.github/aw/guides/tool-configuration.md`
+- **MCP Usage**: `.github/aw/guides/mcp-usage.md`
+- **Data Computation**: `.github/aw/guides/data-computation.md`
+- **Pre-Download Strategies**: `.github/aw/guides/pre-download.md`
+- **Complete Documentation**: `.github/aw/github-agentic-workflows.md`
