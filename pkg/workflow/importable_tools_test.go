@@ -226,14 +226,14 @@ Uses imported agentic-workflows tool.
 
 	workflowData := string(lockFileContent)
 
-	// Verify gh aw mcp-server command is present
-	if !strings.Contains(workflowData, `"aw", "mcp-server"`) {
-		t.Error("Expected compiled workflow to contain 'aw', 'mcp-server' command")
+	// Verify containerized agentic_workflows server is present (per MCP Gateway Specification v1.0.0)
+	if !strings.Contains(workflowData, `"entrypointArgs": ["mcp-server"]`) {
+		t.Error("Expected compiled workflow to contain 'mcp-server' entrypointArgs")
 	}
 
-	// Verify gh CLI is used
-	if !strings.Contains(workflowData, `"command": "gh"`) {
-		t.Error("Expected compiled workflow to contain gh CLI command for agentic-workflows")
+	// Verify container format is used (not command format)
+	if !strings.Contains(workflowData, `"container": "alpine:latest"`) {
+		t.Error("Expected compiled workflow to contain alpine container for agentic-workflows")
 	}
 }
 

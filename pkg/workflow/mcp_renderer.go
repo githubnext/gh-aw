@@ -321,14 +321,14 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 }
 
 // renderAgenticWorkflowsTOML generates Agentic Workflows MCP configuration in TOML format
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.agentic_workflows]\n")
-	yaml.WriteString("          command = \"gh\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"aw\",\n")
-	yaml.WriteString("            \"mcp-server\",\n")
-	yaml.WriteString("          ]\n")
+	yaml.WriteString("          container = \"" + constants.DefaultAlpineImage + "\"\n")
+	yaml.WriteString("          entrypoint = \"/opt/gh-aw/gh-aw\"\n")
+	yaml.WriteString("          entrypointArgs = [\"mcp-server\"]\n")
+	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\"]\n")
 	yaml.WriteString("          env_vars = [\"GITHUB_TOKEN\"]\n")
 }
 

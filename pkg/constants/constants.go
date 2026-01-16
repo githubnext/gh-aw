@@ -313,6 +313,10 @@ const DefaultNodeAlpineLTSImage = "node:lts-alpine"
 // Using python:alpine provides the latest stable version with minimal footprint
 const DefaultPythonAlpineLTSImage = "python:alpine"
 
+// DefaultAlpineImage is the default minimal Alpine container image for running Go binaries
+// Used for MCP servers that run statically-linked Go binaries like gh-aw mcp-server
+const DefaultAlpineImage = "alpine:latest"
+
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"
 

@@ -226,72 +226,6 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 	}
 }
 
-// BuiltinMCPServerOptions contains the options for rendering a built-in MCP server block
-type BuiltinMCPServerOptions struct {
-	Yaml                 *strings.Builder
-	ServerID             string
-	Command              string
-	Args                 []string
-	EnvVars              []string
-	IsLast               bool
-	IncludeCopilotFields bool
-}
-
-// renderBuiltinMCPServerBlock is a shared helper function that renders MCP server configuration blocks
-// for built-in servers (Safe Outputs and Agentic Workflows) with consistent formatting.
-// This eliminates code duplication between renderSafeOutputsMCPConfigWithOptions and
-// renderAgenticWorkflowsMCPConfigWithOptions by extracting the common YAML generation pattern.
-func renderBuiltinMCPServerBlock(opts BuiltinMCPServerOptions) {
-	opts.Yaml.WriteString("              \"" + opts.ServerID + "\": {\n")
-
-	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
-	if opts.IncludeCopilotFields {
-		opts.Yaml.WriteString("                \"type\": \"stdio\",\n")
-	}
-
-	opts.Yaml.WriteString("                \"command\": \"" + opts.Command + "\",\n")
-
-	// Write args array
-	opts.Yaml.WriteString("                \"args\": [")
-	for i, arg := range opts.Args {
-		if i > 0 {
-			opts.Yaml.WriteString(", ")
-		}
-		opts.Yaml.WriteString("\"" + arg + "\"")
-	}
-	opts.Yaml.WriteString("],\n")
-
-	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot. This keeps the gateway config compatible with the schema.
-
-	opts.Yaml.WriteString("                \"env\": {\n")
-
-	// Write environment variables with appropriate escaping
-	for i, envVar := range opts.EnvVars {
-		isLastEnvVar := i == len(opts.EnvVars)-1
-		comma := ""
-		if !isLastEnvVar {
-			comma = ","
-		}
-
-		if opts.IncludeCopilotFields {
-			// Copilot format: backslash-escaped shell variable reference
-			opts.Yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
-		} else {
-			// Claude/Custom format: direct shell variable reference
-			opts.Yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
-		}
-	}
-
-	opts.Yaml.WriteString("                }\n")
-
-	if opts.IsLast {
-		opts.Yaml.WriteString("              }\n")
-	} else {
-		opts.Yaml.WriteString("              },\n")
-	}
-}
-
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 // This is a shared function used by both Claude and Custom engines
 func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
@@ -363,20 +297,55 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 }
 
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
 	envVars := []string{
 		"GITHUB_TOKEN",
 	}
 
-	renderBuiltinMCPServerBlock(BuiltinMCPServerOptions{
-		Yaml:                 yaml,
-		ServerID:             "agentic_workflows",
-		Command:              "gh",
-		Args:                 []string{"aw", "mcp-server"},
-		EnvVars:              envVars,
-		IsLast:               isLast,
-		IncludeCopilotFields: includeCopilotFields,
-	})
+	// Use MCP Gateway spec format with container, entrypoint, entrypointArgs, and mounts
+	// The gh-aw binary is mounted from /opt/gh-aw and executed directly inside a minimal Alpine container
+	yaml.WriteString("              \"agentic_workflows\": {\n")
+
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	// MCP Gateway spec fields for containerized stdio servers
+	yaml.WriteString("                \"container\": \"" + constants.DefaultAlpineImage + "\",\n")
+	yaml.WriteString("                \"entrypoint\": \"/opt/gh-aw/gh-aw\",\n")
+	yaml.WriteString("                \"entrypointArgs\": [\"mcp-server\"],\n")
+	yaml.WriteString("                \"mounts\": [\"/opt/gh-aw:/opt/gh-aw:ro\"],\n")
+
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
+
+	// Write environment variables
+	yaml.WriteString("                \"env\": {\n")
+	for i, envVar := range envVars {
+		isLastEnvVar := i == len(envVars)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+		}
+	}
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex
@@ -438,14 +407,15 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 }
 
 // renderAgenticWorkflowsMCPConfigTOML generates the Agentic Workflows MCP server configuration in TOML format for Codex
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func renderAgenticWorkflowsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.agentic_workflows]\n")
-	yaml.WriteString("          command = \"gh\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"aw\",\n")
-	yaml.WriteString("            \"mcp-server\",\n")
-	yaml.WriteString("          ]\n")
+	yaml.WriteString("          container = \"" + constants.DefaultAlpineImage + "\"\n")
+	yaml.WriteString("          entrypoint = \"/opt/gh-aw/gh-aw\"\n")
+	yaml.WriteString("          entrypointArgs = [\"mcp-server\"]\n")
+	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\"]\n")
 	// Use env_vars array to reference environment variables instead of embedding secrets
 	yaml.WriteString("          env_vars = [\"GITHUB_TOKEN\"]\n")
 }

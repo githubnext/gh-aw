@@ -271,18 +271,19 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify Copilot-specific fields
-	if !strings.Contains(output, `"type": "local"`) {
-		t.Error("Expected 'type': 'local' field for Copilot")
-	}
-	if !strings.Contains(output, `"tools": ["*"]`) {
-		t.Error("Expected 'tools' field for Copilot")
+	// Verify Copilot-specific fields (per MCP Gateway Specification v1.0.0)
+	if !strings.Contains(output, `"type": "stdio"`) {
+		t.Error("Expected 'type': 'stdio' field for Copilot")
 	}
 	if !strings.Contains(output, `"agentic_workflows": {`) {
 		t.Error("Expected agentic_workflows server ID")
 	}
-	if !strings.Contains(output, `"command": "gh"`) {
-		t.Error("Expected gh command")
+	// Per MCP Gateway Specification v1.0.0, stdio servers MUST use container format
+	if !strings.Contains(output, `"container": "alpine:latest"`) {
+		t.Error("Expected container field for containerized server")
+	}
+	if !strings.Contains(output, `"entrypoint": "/opt/gh-aw/gh-aw"`) {
+		t.Error("Expected entrypoint field for containerized server")
 	}
 }
 
@@ -321,15 +322,19 @@ func TestRenderAgenticWorkflowsMCP_TOML(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify TOML format
+	// Verify TOML format (per MCP Gateway Specification v1.0.0)
 	if !strings.Contains(output, "[mcp_servers.agentic_workflows]") {
 		t.Error("Expected TOML section header")
 	}
-	if !strings.Contains(output, `command = "gh"`) {
-		t.Error("Expected TOML command format")
+	// Per MCP Gateway Specification v1.0.0, stdio servers MUST use container format
+	if !strings.Contains(output, `container = "alpine:latest"`) {
+		t.Error("Expected TOML container field for containerized server")
 	}
-	if !strings.Contains(output, "args = [") {
-		t.Error("Expected TOML args array")
+	if !strings.Contains(output, `entrypoint = "/opt/gh-aw/gh-aw"`) {
+		t.Error("Expected TOML entrypoint field for containerized server")
+	}
+	if !strings.Contains(output, `entrypointArgs = ["mcp-server"]`) {
+		t.Error("Expected TOML entrypointArgs field")
 	}
 }
 
