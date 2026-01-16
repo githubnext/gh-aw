@@ -127,6 +127,8 @@ create_project({
 
 **Save the project URL** from the response - you'll need it for Step 2.5 and Step 4.
 
+**Important:** If the project is created under an organization (org-owned), ensure it's linked to this repository. The `item_url` parameter passed to `create_project` should automatically link the project to the repository when the initial issue is added as a project item.
+
 **Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created immediately after the project is created, as configured in the workflow's frontmatter. You don't need to create them manually.
 
 ### Step 2.5: Create Project Fields
@@ -300,6 +302,8 @@ Use the `update-issue` safe output to update issue #${{ github.event.issue.numbe
 
 **Update the body** with campaign information and instructions for the Copilot Coding Agent:
 ```markdown
+📊 **Project Board:** [View Project](<project-url>)
+
 > **Original Request**
 >
 > <Quote the user's original campaign goal>
@@ -310,7 +314,6 @@ Use the `update-issue` safe output to update issue #${{ github.event.issue.numbe
 
 **Campaign ID:** `<campaign-id>`  
 **Campaign Name:** <Campaign Name>  
-**Project Board:** [View Project](<project-url>)  
 **Risk Level:** <Low/Medium/High>  
 **State:** Planned
 
@@ -350,21 +353,6 @@ Use `add-comment` to inform the user:
 
 ```markdown
 ✅ **Campaign Specification Created!**
-
-I've generated the campaign specification and configured the project board, then assigned the Copilot Coding Agent to compile it.
-
-📊 **Project Board:** [View Project](<project-url>)
-  - ✅ Custom fields: Worker/Workflow, Priority, Status, Start Date, End Date, Effort
-  - ✅ Campaign Roadmap view (timeline)
-  - ✅ Task Tracker view (table)
-  - ✅ Progress Board view (kanban)
-
-📁 **File Created:**
-- `.github/workflows/<campaign-id>.campaign.md`
-
-📝 **Next Steps:**
-1. Copilot Coding Agent will compile the campaign using `gh aw compile`
-2. The agent will create a pull request with compiled files
 ```
 
 ### Step 7: Assign to Copilot Coding Agent
