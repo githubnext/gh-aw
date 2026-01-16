@@ -162,6 +162,13 @@ When adding `workflow_dispatch`:
 - Include lock files in the same folder
 - Commit fused workflows for pattern analysis
 
+## Examples
+
+Example campaign workflows demonstrating these concepts can be found in:
+- [Campaign Examples](./docs/src/content/docs/examples/campaigns.md) - Example campaign specs and worker workflows
+- Example security audit campaign with 3 worker workflows
+- Example security scanner workflow with tracker-id usage
+
 ## Related Documentation
 
 - [Campaign Specs](./specs/campaigns-files.md) - Campaign specification format
