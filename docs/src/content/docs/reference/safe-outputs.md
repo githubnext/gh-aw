@@ -287,7 +287,7 @@ safe-outputs:
         layout: table
 ```
 
-When `views` are configured, they are created automatically after project creation. The first configured view replaces GitHub's default "View 1", and additional views are created as new views.
+When `views` are configured, they are created automatically after project creation. GitHub's default "View 1" will remain, and configured views are created as additional views.
 
 The `target-owner` field is an optional default. When configured, the agent can omit the owner field in tool calls, and the default will be used. The agent can still override by providing an explicit owner value.
 
