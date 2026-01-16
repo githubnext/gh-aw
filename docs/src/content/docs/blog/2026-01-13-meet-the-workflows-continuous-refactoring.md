@@ -33,14 +33,14 @@ These agents analyze code structure and suggest systematic improvements:
 
 ### Semantic Function Refactor: The Structure Analyzer
 
-The **Semantic Function Refactor** workflow embodies one of the most powerful capabilities of AI agents: holding an entire codebase in context. It analyzes all Go source files in the `pkg/` directory to identify functions that might be in the wrong place.
+The **Semantic Function Refactor** workflow embodies one of the most powerful capabilities of AI agents when combined with code analysis tools: addressing the structure of entire codebase. It analyzes all Go source files in the `pkg/` directory to identify functions that might be in the wrong place.
 
 As codebases evolve, functions sometimes end up in files where they don't quite belong. A utility function gets added to a specific feature file, or several files end up with similar responsibilities. Humans struggle to notice these organizational issues because we work on one file at a time, can't hold all function names and purposes in memory, and focus on making code work rather than on where it lives.
 
 The workflow performs comprehensive discovery by
 
-1. collecting all function names from non-test Go files, then
-2. grouping functions semantically by name and purpose.
+1. algorithmically collecting all function names from non-test Go files, then
+2. agentically grouping functions semantically by name and purpose.
 
 It then identifies functions that don't fit their current file's theme as outliers, uses Serena-powered semantic code analysis to detect potential duplicates, and creates single consolidated refactoring issues.
 
