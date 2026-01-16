@@ -9,7 +9,7 @@ This section contains example campaign workflows that demonstrate how to use cam
 
 ## Security Audit Campaign
 
-[**Security Audit 2026**](./security-audit.campaign.md) - A comprehensive security audit campaign that demonstrates:
+[**Security Audit 2026**](/gh-aw/examples/campaigns/security-auditcampaign/) - A comprehensive security audit campaign that demonstrates:
 
 - **Worker Discovery**: Finding existing security-related workflows
 - **Workflow Fusion**: Adapting workflows with `workflow_dispatch` triggers
@@ -26,7 +26,7 @@ This section contains example campaign workflows that demonstrate how to use cam
 
 ### Worker Example
 
-[**Security Scanner**](./security-scanner.md) - An example security scanner workflow that:
+[**Security Scanner**](/gh-aw/examples/campaigns/security-scanner/) - An example security scanner workflow that:
 
 - Runs on a schedule (weekly)
 - Creates issues for vulnerabilities
@@ -67,7 +67,7 @@ docs/src/content/docs/examples/campaigns/
 ## Learn More
 
 - [Campaign Guides](/gh-aw/guides/campaigns/) - Complete campaign documentation
-- [Campaign Worker Fusion](/gh-aw/campaign-worker-fusion/) - Technical implementation details
+- [Technical Overview](/gh-aw/guides/campaigns/technical-overview/) - How campaigns work
 - [Dispatch Workflow](/gh-aw/guides/dispatchops/) - Using workflow_dispatch
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - dispatch_workflow configuration
 
