@@ -31,11 +31,7 @@ name: "Repository Quality Improvement Agent"
   - cron: "0 13 * * 1-5"
   workflow_dispatch:
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

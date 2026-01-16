@@ -31,10 +31,7 @@ name: "Dictation Prompt Generator"
   - cron: "0 6 * * 0"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

@@ -33,10 +33,7 @@ name: "Daily File Diet"
   # skip-if-match: is:issue is:open in:title "[file-diet]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

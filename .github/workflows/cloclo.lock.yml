@@ -54,12 +54,7 @@ name: "/cloclo"
     - created
     - edited
 
-permissions:
-  actions: read
-  contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   cancel-in-progress: false

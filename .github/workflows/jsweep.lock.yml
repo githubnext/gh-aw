@@ -28,11 +28,7 @@ name: "jsweep - JavaScript Unbloater"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

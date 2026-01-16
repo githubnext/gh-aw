@@ -34,12 +34,7 @@ name: "Organization Health Report"
     # Friendly format: weekly on monday around 09:00 (scattered)
   workflow_dispatch:
 
-permissions:
-  actions: read
-  contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

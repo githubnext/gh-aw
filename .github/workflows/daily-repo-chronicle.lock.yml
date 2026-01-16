@@ -33,11 +33,7 @@ name: "The Daily Repository Chronicle"
   - cron: "0 16 * * 1-5"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

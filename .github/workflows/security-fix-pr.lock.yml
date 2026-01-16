@@ -34,10 +34,7 @@ name: "Security Fix PR"
         description: Security alert URL (e.g., https://github.com/owner/repo/security/code-scanning/123)
         required: false
 
-permissions:
-  contents: read
-  pull-requests: read
-  security-events: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

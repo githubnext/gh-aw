@@ -28,9 +28,7 @@ name: "Sub-Issue Closer"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

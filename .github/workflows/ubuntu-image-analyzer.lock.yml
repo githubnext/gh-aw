@@ -29,11 +29,7 @@ name: "Ubuntu Actions Image Analyzer"
   # skip-if-match: is:pr is:open in:title "[ubuntu-image]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
