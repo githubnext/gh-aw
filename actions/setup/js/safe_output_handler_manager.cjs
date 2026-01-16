@@ -48,16 +48,22 @@ const HANDLER_MAP = {
   create_missing_data_issue: "./create_missing_data_issue.cjs",
   missing_data: "./missing_data.cjs",
   noop: "./noop_handler.cjs",
+  // Project-related handlers (use custom token from config)
+  create_project: "./create_project.cjs",
+  create_project_status_update: "./create_project_status_update.cjs",
+  update_project: "./update_project.cjs",
+  copy_project: "./copy_project.cjs",
+  // Agent assignment handler (uses custom token from config)
+  assign_to_agent: "./assign_to_agent.cjs",
 };
 
 /**
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  *
- * Note: Project-related types (create_project, create_project_status_update, update_project, copy_project)
- * require GH_AW_PROJECT_GITHUB_TOKEN and are processed in the dedicated project handler manager
+ * Note: create_agent_task and upload_asset are legacy types not yet migrated to the handler manager
  */
-const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "create_project", "create_project_status_update", "update_project", "copy_project", "upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["create_agent_task", "upload_asset"]);
 
 /**
  * Load configuration for safe outputs
@@ -761,6 +767,31 @@ async function main() {
     }
     core.info(`Temporary IDs registered: ${Object.keys(processingResult.temporaryIdMap).length}`);
     core.info(`Synthetic updates: ${syntheticUpdateCount}`);
+
+    // Set step outputs for specific handler types
+    // assign_to_agent: Collect all successful assignments
+    const assignToAgentResults = processingResult.results.filter(r => r.type === "assign_to_agent" && r.success);
+    if (assignToAgentResults.length > 0) {
+      const assignedAgents = assignToAgentResults
+        .map(r => {
+          // Extract from result data - the handler should include issue_number/pull_number and agent
+          const number = r.data?.issue_number || r.data?.pull_number;
+          const agent = r.data?.agent || "copilot";
+          const prefix = r.data?.issue_number ? "issue" : "pr";
+          return number ? `${prefix}:${number}:${agent}` : null;
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      if (assignedAgents) {
+        core.setOutput("assign_to_agent_assigned", assignedAgents);
+        core.info(`Set assign_to_agent_assigned output: ${assignedAgents.split("\n").length} assignment(s)`);
+      }
+    }
+
+    // Set common outputs
+    core.setOutput("processed_count", successCount);
+    core.setOutput("temporary_id_map", JSON.stringify(processingResult.temporaryIdMap));
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);

@@ -485,6 +485,91 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["autofix_code_scanning_alert"] = handlerConfig
 	}
 
+	// Project-related handlers (now handled by unified handler manager)
+	// These handlers receive their custom token via the github-token config parameter
+	if data.SafeOutputs.CreateProjects != nil {
+		cfg := data.SafeOutputs.CreateProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.TargetOwner != "" {
+			handlerConfig["target_owner"] = cfg.TargetOwner
+		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["create_project"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+		cfg := data.SafeOutputs.CreateProjectStatusUpdates
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["create_project_status_update"] = handlerConfig
+	}
+
+	if data.SafeOutputs.UpdateProjects != nil {
+		cfg := data.SafeOutputs.UpdateProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if len(cfg.Views) > 0 {
+			handlerConfig["views"] = cfg.Views
+		}
+		config["update_project"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CopyProjects != nil {
+		cfg := data.SafeOutputs.CopyProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if cfg.SourceProject != "" {
+			handlerConfig["source_project"] = cfg.SourceProject
+		}
+		if cfg.TargetOwner != "" {
+			handlerConfig["target_owner"] = cfg.TargetOwner
+		}
+		config["copy_project"] = handlerConfig
+	}
+
+	// Assign to agent handler (now handled by unified handler manager)
+	// This handler receives its custom token via the github-token config parameter
+	if data.SafeOutputs.AssignToAgent != nil {
+		cfg := data.SafeOutputs.AssignToAgent
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		// Get the effective token for assign_to_agent using the precedence chain:
+		// 1. safe-outputs.assign-to-agent.github-token
+		// 2. safe-outputs.github-token
+		// 3. github-token
+		// The JavaScript handler will use this custom token or fall back to the default
+		effectiveToken := getEffectiveAssignToAgentToken(cfg.GitHubToken, data.GitHubToken)
+		if effectiveToken != "" {
+			handlerConfig["github-token"] = effectiveToken
+		}
+		config["assign_to_agent"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)
@@ -498,7 +583,28 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	}
 }
 
-// addProjectHandlerManagerConfigEnvVar adds the GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG environment variable
+// getEffectiveAssignToAgentToken returns the effective token for assign_to_agent operations.
+// Precedence (highest to lowest):
+// 1. safe-outputs.assign-to-agent.github-token (specific override)
+// 2. GH_AW_AGENT_TOKEN secret (via expression)
+// 3. safe-outputs.github-token (general safe outputs token)
+// 4. GH_AW_GITHUB_TOKEN secret (via expression)
+// 5. GITHUB_TOKEN (default)
+//
+// Returns a token expression that will be resolved at runtime.
+func getEffectiveAssignToAgentToken(assignToAgentToken, safeOutputsToken string) string {
+	// If a specific token is configured for assign_to_agent, use it
+	if assignToAgentToken != "" {
+		return assignToAgentToken
+	}
+
+	// Otherwise use the precedence chain as expression that will be resolved at runtime
+	// The github-script step will get this token via the with.github-token parameter
+	// But assign_to_agent needs a fallback chain
+	return "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+}
+
+// Note: addProjectHandlerManagerConfigEnvVar is now deprecated
 // containing JSON configuration for project-related safe output handlers (create_project, create_project_status_update).
 // These handlers require GH_AW_PROJECT_GITHUB_TOKEN and are processed separately from the main handler manager.
 func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {

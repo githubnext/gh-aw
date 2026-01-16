@@ -129,7 +129,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// - Max count enforcement across all safe output types
 
 	// Check if any handler-manager-supported types are enabled
-	// Note: Project-related types are handled by the project handler manager
+	// All safe output types are now handled by the unified handler manager
 	hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
 		data.SafeOutputs.AddComments != nil ||
 		data.SafeOutputs.CreateDiscussions != nil ||
@@ -151,14 +151,16 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
 		data.SafeOutputs.MissingTool != nil ||
-		data.SafeOutputs.MissingData != nil
-
-	// Check if any project-handler-manager-supported types are enabled
-	// These types require GH_AW_PROJECT_GITHUB_TOKEN and are processed separately
-	hasProjectHandlerManagerTypes := data.SafeOutputs.CreateProjects != nil ||
+		data.SafeOutputs.MissingData != nil ||
+		// Project-related types (now handled by unified handler manager with custom tokens)
+		data.SafeOutputs.CreateProjects != nil ||
 		data.SafeOutputs.CreateProjectStatusUpdates != nil ||
 		data.SafeOutputs.UpdateProjects != nil ||
-		data.SafeOutputs.CopyProjects != nil
+		data.SafeOutputs.CopyProjects != nil ||
+		// Agent assignment (now handled by unified handler manager with custom token)
+		data.SafeOutputs.AssignToAgent != nil
+
+	// Note: Project types and assign_to_agent are now handled by the unified handler manager above
 
 	// 1. Handler Manager step (processes update_issue, add_comment, etc.)
 	// This runs BEFORE project operations, allowing issue/PR creation
@@ -228,23 +230,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.DispatchWorkflow != nil {
 			permissions.Merge(NewPermissionsActionsWrite())
 		}
-	}
-
-	// 2. Project Handler Manager step (processes create_project, update_project, copy_project, etc.)
-	// These types require GH_AW_PROJECT_GITHUB_TOKEN and must be processed separately from the main handler manager
-	// This runs AFTER main handler but BEFORE agent assignment
-	if hasProjectHandlerManagerTypes {
-		consolidatedSafeOutputsJobLog.Print("Using project handler manager for project-related safe outputs")
-		projectHandlerManagerSteps := c.buildProjectHandlerManagerStep(data)
-		steps = append(steps, projectHandlerManagerSteps...)
-		safeOutputStepNames = append(safeOutputStepNames, "process_project_safe_outputs")
-
-		// Add outputs from project handler manager
-		outputs["process_project_safe_outputs_processed_count"] = "${{ steps.process_project_safe_outputs.outputs.processed_count }}"
-
-		// Add permissions for project-related types
-		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
-		// The permissions here are for workflow-level permissions, actual API calls use GH_AW_PROJECT_GITHUB_TOKEN
+		// Add permissions for project-related types (now handled by unified handler manager)
 		if data.SafeOutputs.CreateProjects != nil {
 			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 		}
@@ -257,19 +243,60 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.CopyProjects != nil {
 			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 		}
+		// Add permissions for agent assignment (now handled by unified handler manager)
+		if data.SafeOutputs.AssignToAgent != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+			// Add output for assign_to_agent
+			outputs["assign_to_agent_assigned"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assigned }}"
+		}
 	}
 
-	// 3. Assign To Agent step (runs after handler managers)
-	if data.SafeOutputs.AssignToAgent != nil {
-		stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+	// 2. Project Handler Manager step - DEPRECATED (now handled by unified handler manager above)
+	// These types are now processed by the main handler manager with custom tokens passed in configuration
+	// Keeping this code commented for reference during migration
+	/*
+		if hasProjectHandlerManagerTypes {
+			consolidatedSafeOutputsJobLog.Print("Using project handler manager for project-related safe outputs")
+			projectHandlerManagerSteps := c.buildProjectHandlerManagerStep(data)
+			steps = append(steps, projectHandlerManagerSteps...)
+			safeOutputStepNames = append(safeOutputStepNames, "process_project_safe_outputs")
 
-		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
+			// Add outputs from project handler manager
+			outputs["process_project_safe_outputs_processed_count"] = "${{ steps.process_project_safe_outputs.outputs.processed_count }}"
 
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
+			// Add permissions for project-related types
+			// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+			// The permissions here are for workflow-level permissions, actual API calls use GH_AW_PROJECT_GITHUB_TOKEN
+			if data.SafeOutputs.CreateProjects != nil {
+				permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+			}
+			if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+				permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+			}
+			if data.SafeOutputs.UpdateProjects != nil {
+				permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+			}
+			if data.SafeOutputs.CopyProjects != nil {
+				permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+			}
+		}
+	*/
+
+	// 3. Assign To Agent step - DEPRECATED (now handled by unified handler manager above)
+	// Agent assignment is now processed by the main handler manager with custom token passed in configuration
+	// Keeping this code commented for reference during migration
+	/*
+		if data.SafeOutputs.AssignToAgent != nil {
+			stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
+			stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+			steps = append(steps, stepYAML...)
+			safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+			outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
+
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		}
+	*/
 
 	// 4. Create Agent Session step
 	if data.SafeOutputs.CreateAgentSessions != nil {

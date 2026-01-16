@@ -64,7 +64,7 @@ func buildGeneratorTools() map[string]any {
 // buildGeneratorSafeOutputs creates the safe-outputs configuration
 func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 	return &workflow.SafeOutputsConfig{
-		AddComments:   &workflow.AddCommentsConfig{},
+		AddComments: &workflow.AddCommentsConfig{},
 		CreateProjects: &workflow.CreateProjectsConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		},
