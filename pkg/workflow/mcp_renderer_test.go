@@ -267,22 +267,25 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderAgenticWorkflowsMCP(&yaml)
+	renderer.RenderAgenticWorkflowsMCP(&yaml, nil)
 
 	output := yaml.String()
 
-	// Verify Copilot-specific fields
-	if !strings.Contains(output, `"type": "local"`) {
-		t.Error("Expected 'type': 'local' field for Copilot")
+	// Verify HTTP transport fields
+	if !strings.Contains(output, `"type": "http"`) {
+		t.Error("Expected 'type': 'http' field for HTTP transport")
 	}
-	if !strings.Contains(output, `"tools": ["*"]`) {
-		t.Error("Expected 'tools' field for Copilot")
+	if !strings.Contains(output, `"url"`) {
+		t.Error("Expected 'url' field for HTTP transport")
+	}
+	if !strings.Contains(output, `"headers"`) {
+		t.Error("Expected 'headers' field for HTTP transport")
+	}
+	if !strings.Contains(output, `"Authorization"`) {
+		t.Error("Expected 'Authorization' header")
 	}
 	if !strings.Contains(output, `"agentic_workflows": {`) {
 		t.Error("Expected agentic_workflows server ID")
-	}
-	if !strings.Contains(output, `"command": "gh"`) {
-		t.Error("Expected gh command")
 	}
 }
 
@@ -295,16 +298,23 @@ func TestRenderAgenticWorkflowsMCP_JSON_Claude(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderAgenticWorkflowsMCP(&yaml)
+	renderer.RenderAgenticWorkflowsMCP(&yaml, nil)
 
 	output := yaml.String()
 
-	// Verify Claude format (no Copilot-specific fields)
-	if strings.Contains(output, `"type"`) {
-		t.Error("Should not contain 'type' field for Claude")
+	// Verify HTTP format with Claude-style variables
+	if !strings.Contains(output, `"type": "http"`) {
+		t.Error("Expected 'type': 'http' field for HTTP transport")
 	}
-	if strings.Contains(output, `"tools"`) {
-		t.Error("Should not contain 'tools' field for Claude")
+	if !strings.Contains(output, `"url"`) {
+		t.Error("Expected 'url' field")
+	}
+	if !strings.Contains(output, `"headers"`) {
+		t.Error("Expected 'headers' field")
+	}
+	// Verify trailing comma for non-last
+	if !strings.Contains(output, "},") {
+		t.Error("Expected trailing comma for non-last server")
 	}
 }
 
@@ -317,19 +327,22 @@ func TestRenderAgenticWorkflowsMCP_TOML(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderAgenticWorkflowsMCP(&yaml)
+	renderer.RenderAgenticWorkflowsMCP(&yaml, nil)
 
 	output := yaml.String()
 
-	// Verify TOML format
+	// Verify TOML format with HTTP transport
 	if !strings.Contains(output, "[mcp_servers.agentic_workflows]") {
 		t.Error("Expected TOML section header")
 	}
-	if !strings.Contains(output, `command = "gh"`) {
-		t.Error("Expected TOML command format")
+	if !strings.Contains(output, `type = "http"`) {
+		t.Error("Expected TOML HTTP type")
 	}
-	if !strings.Contains(output, "args = [") {
-		t.Error("Expected TOML args array")
+	if !strings.Contains(output, `url = `) {
+		t.Error("Expected TOML url field")
+	}
+	if !strings.Contains(output, `headers = `) {
+		t.Error("Expected TOML headers field")
 	}
 }
 
@@ -536,7 +549,7 @@ func TestOptionCombinations(t *testing.T) {
 			renderer.RenderSafeOutputsMCP(&yaml)
 
 			yaml.Reset()
-			renderer.RenderAgenticWorkflowsMCP(&yaml)
+			renderer.RenderAgenticWorkflowsMCP(&yaml, nil)
 
 			yaml.Reset()
 			githubTool := map[string]any{

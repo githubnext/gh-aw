@@ -53,7 +53,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			serenaTool := expandedTools["serena"]
 			renderer.RenderSerenaMCP(yaml, serenaTool)
 		case "agentic-workflows":
-			renderer.RenderAgenticWorkflowsMCP(yaml)
+			renderer.RenderAgenticWorkflowsMCP(yaml, workflowData)
 		case "safe-outputs":
 			// Add safe-outputs MCP server if safe-outputs are configured
 			hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
@@ -137,9 +137,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				// Cache-memory is not used as MCP server
 			},
-			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
+			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				renderer := createJSONRenderer(isLast)
-				renderer.RenderAgenticWorkflowsMCP(yaml)
+				renderer.RenderAgenticWorkflowsMCP(yaml, workflowData)
 			},
 			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
 				renderer := createJSONRenderer(isLast)

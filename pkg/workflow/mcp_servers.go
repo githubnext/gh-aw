@@ -115,9 +115,12 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		envVars["GH_AW_SERENA_PORT"] = "${{ steps.serena-config.outputs.serena_port }}"
 	}
 
-	// Check for agentic-workflows GITHUB_TOKEN
+	// Check for agentic-workflows HTTP server config
 	if hasAgenticWorkflows {
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
+		// Add HTTP server configuration from step outputs
+		envVars["GH_AW_AGENTIC_WORKFLOWS_PORT"] = "${{ steps.agentic-workflows-start.outputs.port }}"
+		envVars["GH_AW_AGENTIC_WORKFLOWS_API_KEY"] = "${{ steps.agentic-workflows-start.outputs.api_key }}"
 	}
 
 	// Check for Playwright domain secrets
@@ -248,6 +251,73 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("            gh extension install githubnext/gh-aw\n")
 		yaml.WriteString("          fi\n")
 		yaml.WriteString("          gh aw --version\n")
+	}
+
+	// Start agentic-workflows HTTP MCP server if configured
+	if hasAgenticWorkflows {
+		// Step 1: Generate API key and choose port for HTTP server
+		yaml.WriteString("      - name: Generate Agentic Workflows MCP Server Config\n")
+		yaml.WriteString("        id: agentic-workflows-config\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          # Generate a secure random API key (360 bits of entropy, 40+ chars)\n")
+		yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
+		yaml.WriteString("          PORT=3001\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Register API key as secret to mask it from logs\n")
+		yaml.WriteString("          echo \"::add-mask::${API_KEY}\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Set outputs for next steps\n")
+		yaml.WriteString("          {\n")
+		yaml.WriteString("            echo \"agentic_workflows_api_key=${API_KEY}\"\n")
+		yaml.WriteString("            echo \"agentic_workflows_port=${PORT}\"\n")
+		yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          echo \"Agentic Workflows MCP server will run on port ${PORT}\"\n")
+		yaml.WriteString("          \n")
+
+		// Step 2: Start the HTTP server in the background
+		yaml.WriteString("      - name: Start Agentic Workflows MCP HTTP Server\n")
+		yaml.WriteString("        id: agentic-workflows-start\n")
+
+		// Add env block with step outputs
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_AW_AGENTIC_WORKFLOWS_PORT: ${{ steps.agentic-workflows-config.outputs.agentic_workflows_port }}\n")
+		yaml.WriteString("          GH_AW_AGENTIC_WORKFLOWS_API_KEY: ${{ steps.agentic-workflows-config.outputs.agentic_workflows_api_key }}\n")
+		yaml.WriteString("          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
+		yaml.WriteString("          export GH_AW_AGENTIC_WORKFLOWS_PORT\n")
+		yaml.WriteString("          export GH_AW_AGENTIC_WORKFLOWS_API_KEY\n")
+		yaml.WriteString("          export GITHUB_TOKEN\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Create log directory for agentic-workflows MCP server\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/agentic-workflows\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Start gh aw mcp-server in HTTP mode with API key authentication\n")
+		yaml.WriteString("          # Run in background and verify it started successfully\n")
+		yaml.WriteString("          nohup gh aw mcp-server --port \"${GH_AW_AGENTIC_WORKFLOWS_PORT}\" \\\n")
+		yaml.WriteString("            > /tmp/gh-aw/mcp-logs/agentic-workflows/server.log 2>&1 &\n")
+		yaml.WriteString("          SERVER_PID=$!\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Wait for server to start (max 10 seconds)\n")
+		yaml.WriteString("          for i in {1..20}; do\n")
+		yaml.WriteString("            if curl -s -H \"Authorization: ${GH_AW_AGENTIC_WORKFLOWS_API_KEY}\" \\\n")
+		yaml.WriteString("                 \"http://localhost:${GH_AW_AGENTIC_WORKFLOWS_PORT}/health\" > /dev/null 2>&1; then\n")
+		yaml.WriteString("              echo \"Agentic Workflows MCP server started successfully on port ${GH_AW_AGENTIC_WORKFLOWS_PORT}\"\n")
+		yaml.WriteString("              echo \"port=${GH_AW_AGENTIC_WORKFLOWS_PORT}\" >> \"$GITHUB_OUTPUT\"\n")
+		yaml.WriteString("              echo \"api_key=${GH_AW_AGENTIC_WORKFLOWS_API_KEY}\" >> \"$GITHUB_OUTPUT\"\n")
+		yaml.WriteString("              exit 0\n")
+		yaml.WriteString("            fi\n")
+		yaml.WriteString("            sleep 0.5\n")
+		yaml.WriteString("          done\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Server failed to start\n")
+		yaml.WriteString("          echo \"ERROR: Agentic Workflows MCP server failed to start\"\n")
+		yaml.WriteString("          echo \"Server log:\"\n")
+		yaml.WriteString("          cat /tmp/gh-aw/mcp-logs/agentic-workflows/server.log || true\n")
+		yaml.WriteString("          exit 1\n")
+		yaml.WriteString("          \n")
 	}
 
 	// Write safe-outputs MCP server if enabled

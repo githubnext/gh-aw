@@ -95,14 +95,19 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 				t.Errorf("Expected MCP config to contain 'agentic_workflows', got: %s", result)
 			}
 
-			// Verify it has the correct command
-			if !strings.Contains(result, "gh") {
-				t.Errorf("Expected MCP config to contain 'gh' command, got: %s", result)
+			// Verify it uses HTTP transport
+			if !strings.Contains(result, "http") {
+				t.Errorf("Expected MCP config to use HTTP transport, got: %s", result)
 			}
 
-			// Verify it has the mcp-server argument
-			if !strings.Contains(result, "mcp-server") {
-				t.Errorf("Expected MCP config to contain 'mcp-server' argument, got: %s", result)
+			// Verify it has URL and headers (HTTP mode)
+			if !strings.Contains(result, "url") && !strings.Contains(result, "URL") {
+				t.Errorf("Expected MCP config to contain 'url' field for HTTP transport, got: %s", result)
+			}
+
+			// Verify it has Authorization header
+			if !strings.Contains(result, "Authorization") && !strings.Contains(result, "headers") {
+				t.Errorf("Expected MCP config to contain 'Authorization' header, got: %s", result)
 			}
 		})
 	}

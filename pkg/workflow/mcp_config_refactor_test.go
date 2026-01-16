@@ -199,7 +199,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 }
 
 // TestRenderAgenticWorkflowsMCPConfigWithOptions verifies the shared Agentic Workflows config helper
-// works correctly with both Copilot and non-Copilot engines
+// works correctly with both Copilot and non-Copilot engines using HTTP transport
 func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 	tests := []struct {
 		name                 string
@@ -209,39 +209,39 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 		unexpectedContent    []string
 	}{
 		{
-			name:                 "Copilot with type/tools and escaped env vars",
+			name:                 "Copilot with HTTP transport and escaped API key",
 			isLast:               false,
 			includeCopilotFields: true,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
-				`"type": "local"`,
-				`"command": "gh"`,
-				`"args": ["aw", "mcp-server"]`,
-				`"tools": ["*"]`,
-				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_AGENTIC_WORKFLOWS_PORT"`,
+				`"headers": {`,
+				`"Authorization": "\${GH_AW_AGENTIC_WORKFLOWS_API_KEY}"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
+				`"command"`,
+				`"args"`,
 				`${{ secrets.`,
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with shell env vars",
+			name:                 "Claude/Custom with HTTP transport and shell variables",
 			isLast:               true,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
-				`"command": "gh"`,
-				`"args": ["aw", "mcp-server"]`,
-				// Security fix: Now uses shell variable instead of GitHub secret expression
-				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_AGENTIC_WORKFLOWS_PORT"`,
+				`"headers": {`,
+				`"Authorization": "$GH_AW_AGENTIC_WORKFLOWS_API_KEY"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
-				`"type"`,
-				`"tools"`,
+				`"command"`,
+				`"args"`,
 				`\\${`,
-				// Verify GitHub expressions are NOT in the output (security fix)
 				`${{ secrets.`,
 			},
 		},
@@ -251,7 +251,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderAgenticWorkflowsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields)
+			renderAgenticWorkflowsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields, nil)
 
 			result := output.String()
 

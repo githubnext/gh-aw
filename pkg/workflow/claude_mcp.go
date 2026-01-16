@@ -51,9 +51,9 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer.RenderSerenaMCP(yaml, serenaTool)
 			},
 			RenderCacheMemory: e.renderCacheMemoryMCPConfig,
-			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
+			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)
-				renderer.RenderAgenticWorkflowsMCP(yaml)
+				renderer.RenderAgenticWorkflowsMCP(yaml, workflowData)
 			},
 			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
 				renderer := createRenderer(isLast)

@@ -539,7 +539,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 						yaml.WriteString("\n")
 					},
 					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
 					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
 					RenderCustomMCPConfig:  nil,
@@ -573,7 +573,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 					},
 					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
 					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
 					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
 					RenderCustomMCPConfig:  nil,
@@ -606,7 +606,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 					},
 					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
 					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
 					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
 					RenderCustomMCPConfig:  nil,
@@ -635,7 +635,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 					RenderGitHub:           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {},
 					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
 					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
 					RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 						yaml.WriteString("              \"web-fetch\": { \"enabled\": true }\n")
@@ -703,7 +703,7 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 				isLastValues = append(isLastValues, isLast)
 			},
 			RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 			RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				callOrder = append(callOrder, "web-fetch")

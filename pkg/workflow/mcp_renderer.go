@@ -308,28 +308,34 @@ func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, s
 }
 
 // RenderAgenticWorkflowsMCP generates the Agentic Workflows MCP server configuration
-func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Builder) {
+func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Builder, workflowData *WorkflowData) {
 	mcpRendererLog.Printf("Rendering Agentic Workflows MCP: format=%s", r.options.Format)
 
 	if r.options.Format == "toml" {
-		r.renderAgenticWorkflowsTOML(yaml)
+		r.renderAgenticWorkflowsTOML(yaml, workflowData)
 		return
 	}
 
 	// JSON format
-	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields)
+	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
 }
 
 // renderAgenticWorkflowsTOML generates Agentic Workflows MCP configuration in TOML format
-func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder) {
+// Uses HTTP transport mode with API key authentication
+func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.agentic_workflows]\n")
-	yaml.WriteString("          command = \"gh\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"aw\",\n")
-	yaml.WriteString("            \"mcp-server\",\n")
-	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env_vars = [\"GITHUB_TOKEN\"]\n")
+	yaml.WriteString("          type = \"http\"\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+	}
+
+	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_AGENTIC_WORKFLOWS_PORT\"\n")
+	yaml.WriteString("          headers = { Authorization = \"$GH_AW_AGENTIC_WORKFLOWS_API_KEY\" }\n")
 }
 
 // renderGitHubTOML generates GitHub MCP configuration in TOML format (for Codex engine)
@@ -493,7 +499,7 @@ type MCPToolRenderers struct {
 	RenderPlaywright       func(yaml *strings.Builder, playwrightTool any, isLast bool)
 	RenderSerena           func(yaml *strings.Builder, serenaTool any, isLast bool)
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
-	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
+	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool)
 	RenderSafeInputs       func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool)
 	RenderWebFetch         func(yaml *strings.Builder, isLast bool)
@@ -778,7 +784,7 @@ func RenderJSONMCPConfig(
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":
-			options.Renderers.RenderAgenticWorkflows(&configBuilder, isLast)
+			options.Renderers.RenderAgenticWorkflows(&configBuilder, isLast, workflowData)
 		case "safe-outputs":
 			options.Renderers.RenderSafeOutputs(&configBuilder, isLast)
 		case "safe-inputs":
