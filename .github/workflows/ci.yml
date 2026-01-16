@@ -300,6 +300,40 @@ jobs:
       - name: Build code
         run: make build
 
+      - name: Detect grafted commits
+        run: |
+          if git log -1 --oneline | grep -q '(grafted)'; then
+            echo "❌ ERROR: Grafted commit detected" >> $GITHUB_STEP_SUMMARY
+            echo "This indicates shallow history or history manipulation" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Commit details:" >> $GITHUB_STEP_SUMMARY
+            git log -1 --oneline >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Grafted commits can cause 'make recompile' to fail" >> $GITHUB_STEP_SUMMARY
+            echo "Please revert this commit and re-apply changes cleanly" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ No grafted commits detected" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check commit size sanity
+        run: |
+          FILES_CHANGED=$(git show --stat | tail -1 | grep -oP '\d+(?= files? changed)' || echo "0")
+          echo "📊 Files changed in last commit: $FILES_CHANGED" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FILES_CHANGED" -gt 100 ]; then
+            echo "⚠️ WARNING: Large commit detected ($FILES_CHANGED files)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please verify this matches the PR description:" >> $GITHUB_STEP_SUMMARY
+            git log -1 --pretty=format:"%s" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "If this commit accidentally includes lock files or other unintended changes," >> $GITHUB_STEP_SUMMARY
+            echo "please revert and re-apply changes cleanly using 'git restore'." >> $GITHUB_STEP_SUMMARY
+            # This is a warning, not an error - don't fail the build
+          else
+            echo "✅ Commit size looks reasonable ($FILES_CHANGED files)" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Rebuild lock files
         run: make recompile
         env:
