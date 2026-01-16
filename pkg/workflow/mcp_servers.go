@@ -650,6 +650,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
 			containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
 		}
+		// Environment variables used by agentic-workflows MCP server (HTTP mode)
+		if hasAgenticWorkflows {
+			containerCmd += " -e GH_AW_AGENTIC_WORKFLOWS_PORT"
+			containerCmd += " -e GH_AW_AGENTIC_WORKFLOWS_API_KEY"
+		}
 		if len(gatewayConfig.Env) > 0 {
 			envVarNames := make([]string, 0, len(gatewayConfig.Env))
 			for envVarName := range gatewayConfig.Env {
