@@ -122,9 +122,9 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate expressions in runtime-import files at compile time
 	log.Printf("Validating runtime-import files")
 	// Go up from .github/workflows/file.md to repo root
-	workflowDir := filepath.Dir(markdownPath)                       // .github/workflows
-	githubDir := filepath.Dir(workflowDir)                          // .github
-	workspaceDir := filepath.Dir(githubDir)                         // repo root
+	workflowDir := filepath.Dir(markdownPath) // .github/workflows
+	githubDir := filepath.Dir(workflowDir)    // .github
+	workspaceDir := filepath.Dir(githubDir)   // repo root
 	if err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir); err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
 			Position: console.ErrorPosition{

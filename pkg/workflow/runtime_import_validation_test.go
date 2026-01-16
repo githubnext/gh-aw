@@ -206,7 +206,7 @@ ${{ github.actor
 			err := validateRuntimeImportFiles(tt.markdown, tmpDir)
 
 			if tt.expectError {
-				assert.Error(t, err, "Expected an error")
+				require.Error(t, err, "Expected an error")
 				if tt.errorText != "" {
 					assert.Contains(t, err.Error(), tt.errorText, "Error should contain expected text")
 				}
@@ -359,7 +359,7 @@ Please process the issue.
 	err := compiler.CompileWorkflow(workflowFile)
 
 	// Should succeed - all expressions are valid
-	assert.NoError(t, err, "Compilation should succeed with valid expressions in runtime-import file")
+	require.NoError(t, err, "Compilation should succeed with valid expressions in runtime-import file")
 
 	// Clean up lock file if it was created
 	if err == nil {
