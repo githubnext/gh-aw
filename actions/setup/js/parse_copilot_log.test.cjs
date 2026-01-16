@@ -279,3 +279,90 @@ describe("parse_copilot_log.cjs", () => {
     });
   });
 });
+
+describe("detectAuthenticationError", () => {
+  let detectAuthenticationError;
+
+  beforeEach(async () => {
+    // Import the module to get the exported function
+    const module = await import("./parse_copilot_log.cjs?" + Date.now());
+    detectAuthenticationError = module.detectAuthenticationError;
+  });
+
+  it("should detect authentication failed error", () => {
+    const logContent = "[ERROR] Authentication failed: invalid token provided";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeDefined();
+    expect(result.hasAuthError).toBe(true);
+    expect(result.errorType).toBe("auth");
+    expect(result.errorMessage).toContain("Authentication failed");
+  });
+
+  it("should detect 401 unauthorized error", () => {
+    const logContent = "HTTP 401 unauthorized - request failed";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeDefined();
+    expect(result.hasAuthError).toBe(true);
+    expect(result.errorType).toBe("auth");
+    expect(result.errorMessage).toContain("Unauthorized (401)");
+  });
+
+  it("should detect 403 forbidden error", () => {
+    const logContent = "HTTP 403 forbidden - access denied";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeDefined();
+    expect(result.hasAuthError).toBe(true);
+    expect(result.errorType).toBe("permission");
+    expect(result.errorMessage).toContain("Forbidden (403)");
+  });
+
+  it("should detect organization permission error", () => {
+    const logContent = "[ERROR] missing organization permission: Members read-only required";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeDefined();
+    expect(result.hasAuthError).toBe(true);
+    expect(result.errorType).toBe("org_permission");
+    expect(result.errorMessage).toContain("organization permissions");
+    expect(result.errorMessage).toContain("Members: read-only");
+  });
+
+  it("should detect Copilot subscription error", () => {
+    const logContent = "[ERROR] Copilot not enabled for this user";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeDefined();
+    expect(result.hasAuthError).toBe(true);
+    expect(result.errorType).toBe("copilot_subscription");
+    expect(result.errorMessage).toContain("Copilot subscription required");
+  });
+
+  it("should detect generic permission denied error", () => {
+    const logContent = "[ERROR] permission denied when accessing resource";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeDefined();
+    expect(result.hasAuthError).toBe(true);
+    expect(result.errorType).toBe("permission");
+    expect(result.errorMessage).toContain("Permission denied");
+  });
+
+  it("should return undefined for logs with no auth errors", () => {
+    const logContent = "[INFO] Operation completed successfully\n[DEBUG] Processing request";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should prioritize more specific error patterns", () => {
+    // Organization permission error should be detected first before generic permission denied
+    const logContent = "[ERROR] missing organization permission\n[ERROR] permission denied";
+    const result = detectAuthenticationError(logContent);
+
+    expect(result).toBeDefined();
+    expect(result.errorType).toBe("org_permission");
+  });
+});
