@@ -220,6 +220,42 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		}
 	}
 
+	// Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
+	// Pattern: safe_expression || 'literal' or safe_expression || "literal" or safe_expression || `literal`
+	// Also supports numbers and booleans as literals
+	if !allowed {
+		// Match pattern: something || something_else
+		orPattern := regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
+		orMatch := orPattern.FindStringSubmatch(expression)
+		if orMatch != nil && len(orMatch) > 2 {
+			leftExpr := strings.TrimSpace(orMatch[1])
+			rightExpr := strings.TrimSpace(orMatch[2])
+
+			// Check if left side is safe (recursively validate)
+			leftErr := validateSingleExpression(leftExpr, opts)
+			leftIsSafe := leftErr == nil && !containsExpression(opts.UnauthorizedExpressions, leftExpr)
+
+			if leftIsSafe {
+				// Check if right side is a literal string (single, double, or backtick quotes)
+				isStringLiteral := regexp.MustCompile(`^(['"\x60]).*\1$`).MatchString(rightExpr)
+				// Check if right side is a number literal
+				isNumberLiteral := regexp.MustCompile(`^-?\d+(\.\d+)?$`).MatchString(rightExpr)
+				// Check if right side is a boolean literal
+				isBooleanLiteral := rightExpr == "true" || rightExpr == "false"
+
+				if isStringLiteral || isNumberLiteral || isBooleanLiteral {
+					allowed = true
+				} else {
+					// If right side is also a safe expression, recursively check it
+					rightErr := validateSingleExpression(rightExpr, opts)
+					if rightErr == nil && !containsExpression(opts.UnauthorizedExpressions, rightExpr) {
+						allowed = true
+					}
+				}
+			}
+		}
+	}
+
 	// If not allowed as a whole, try to extract and validate property accesses from comparisons
 	if !allowed {
 		// Extract property accesses from comparison expressions (e.g., "github.workflow == 'value'")
@@ -270,6 +306,16 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 	}
 
 	return nil
+}
+
+// containsExpression checks if an expression is in the list
+func containsExpression(list *[]string, expr string) bool {
+	for _, item := range *list {
+		if item == expr {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateExpressionSafetyPublic is a public wrapper for validateExpressionSafety

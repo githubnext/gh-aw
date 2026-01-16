@@ -1095,14 +1095,11 @@ starlight-toc h2 {
   color: var(--sl-color-text-accent);
 }
 
-<<<<<<< HEAD
-=======
 /* Add vertical spacing between blog metadata (authors, date) and content */
 .sl-markdown-content > .metadata {
   margin-bottom: 2.5rem; /* Increased from default for cleaner look */
 }
 
->>>>>>> origin/main
 /* Pagination Links */
 .pagination-links {
   border-top: 1px solid #30363d;

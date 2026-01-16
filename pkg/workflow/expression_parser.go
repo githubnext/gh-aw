@@ -120,7 +120,8 @@ func (p *ExpressionParser) tokenize(expression string) ([]token, error) {
 				ch := expression[i]
 
 				// Handle quoted strings - skip everything inside quotes
-				if ch == '\'' || ch == '"' {
+				// Support single quotes ('), double quotes ("), and backticks (`)
+				if ch == '\'' || ch == '"' || ch == '`' {
 					quote := ch
 					i++ // skip opening quote
 					for i < len(expression) {
@@ -334,7 +335,8 @@ func BreakLongExpression(expression string) []string {
 		char := expression[i]
 
 		// Handle quoted strings - don't break inside quotes
-		if char == '\'' || char == '"' {
+		// Support single quotes ('), double quotes ("), and backticks (`)
+		if char == '\'' || char == '"' || char == '`' {
 			quote := char
 			current += string(char)
 			i++
