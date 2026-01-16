@@ -48,9 +48,9 @@ governance:
 
 # Team
 owners:
-  - @security-team
+  - "@security-team"
 executive-sponsors:
-  - @cto
+  - "@cto"
 risk-level: high
 ---
 
