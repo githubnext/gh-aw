@@ -358,10 +358,13 @@ jobs:
                   "maxLength": 128
                 },
                 "issue_number": {
-                  "required": true,
-                  "positiveInteger": true
+                  "optionalPositiveInteger": true
+                },
+                "pull_number": {
+                  "optionalPositiveInteger": true
                 }
-              }
+              },
+              "customValidation": "requiresOneOf:issue_number,pull_number"
             },
             "missing_tool": {
               "defaultMax": 20,

@@ -98,9 +98,11 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"assign_to_agent": {
-		DefaultMax: 1,
+		DefaultMax:       1,
+		CustomValidation: "requiresOneOf:issue_number,pull_number",
 		Fields: map[string]FieldValidation{
-			"issue_number": {Required: true, PositiveInteger: true},
+			"issue_number": {OptionalPositiveInteger: true},
+			"pull_number":  {OptionalPositiveInteger: true},
 			"agent":        {Type: "string", Sanitize: true, MaxLength: 128},
 		},
 	},

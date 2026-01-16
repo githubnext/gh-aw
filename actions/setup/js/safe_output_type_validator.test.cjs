@@ -46,6 +46,15 @@ const SAMPLE_VALIDATION_CONFIG = {
       issue_number: { issueOrPRNumber: true },
     },
   },
+  assign_to_agent: {
+    defaultMax: 1,
+    customValidation: "requiresOneOf:issue_number,pull_number",
+    fields: {
+      issue_number: { optionalPositiveInteger: true },
+      pull_number: { optionalPositiveInteger: true },
+      agent: { type: "string", sanitize: true, maxLength: 128 },
+    },
+  },
   create_pull_request_review_comment: {
     defaultMax: 1,
     customValidation: "startLineLessOrEqualLine",
@@ -355,6 +364,33 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("requires at least one of");
+    });
+
+    it("should pass for assign_to_agent with issue_number", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "assign_to_agent", issue_number: 123 }, "assign_to_agent", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should pass for assign_to_agent with pull_number", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "assign_to_agent", pull_number: 456 }, "assign_to_agent", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should fail for assign_to_agent without issue_number or pull_number", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "assign_to_agent", agent: "copilot" }, "assign_to_agent", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("requires at least one of");
+      expect(result.error).toContain("issue_number");
+      expect(result.error).toContain("pull_number");
     });
   });
 
