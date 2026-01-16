@@ -23,8 +23,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/reporting.md
 #     - shared/python-dataviz.md
+#     - shared/reporting.md
 #     - shared/trends.md
 
 name: "Daily Code Metrics and Trend Tracking Agent"

@@ -23,10 +23,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/ci-data-analysis.md
 #     - shared/ci-optimization-strategies.md
-#     - shared/reporting.md
 #     - shared/jqschema.md
+#     - shared/ci-data-analysis.md
+#     - shared/reporting.md
 
 name: "CI Optimization Coach"
 "on":

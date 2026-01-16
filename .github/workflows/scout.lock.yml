@@ -23,14 +23,14 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/reporting.md
-#     - shared/mcp/arxiv.md
-#     - shared/mcp/tavily.md
-#     - shared/mcp/microsoft-docs.md
-#     - shared/mcp/deepwiki.md
-#     - shared/mcp/context7.md
-#     - shared/mcp/markitdown.md
 #     - shared/jqschema.md
+#     - shared/mcp/arxiv.md
+#     - shared/mcp/context7.md
+#     - shared/mcp/deepwiki.md
+#     - shared/mcp/markitdown.md
+#     - shared/mcp/microsoft-docs.md
+#     - shared/mcp/tavily.md
+#     - shared/reporting.md
 
 name: "Scout"
 "on":

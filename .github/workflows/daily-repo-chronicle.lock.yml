@@ -23,9 +23,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
-#     - shared/python-dataviz.md
 
 name: "The Daily Repository Chronicle"
 "on":

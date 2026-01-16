@@ -23,8 +23,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/python-dataviz.md
 #     - shared/jqschema.md
+#     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 
 name: "Stale Repository Identifier"

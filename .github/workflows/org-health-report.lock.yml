@@ -23,8 +23,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/python-dataviz.md
 #     - shared/jqschema.md
+#     - shared/python-dataviz.md
 #     - shared/reporting.md
 
 name: "Organization Health Report"

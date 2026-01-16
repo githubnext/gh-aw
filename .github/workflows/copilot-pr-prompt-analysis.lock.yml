@@ -23,9 +23,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/copilot-pr-data-fetch.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
-#     - shared/copilot-pr-data-fetch.md
 
 name: "Copilot PR Prompt Pattern Analysis"
 "on":

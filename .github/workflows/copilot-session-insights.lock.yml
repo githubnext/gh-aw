@@ -25,10 +25,10 @@
 #   Imports:
 #     - shared/jqschema.md
 #     - shared/copilot-session-data-fetch.md
+#     - shared/python-dataviz.md
+#     - shared/reporting.md
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
-#     - shared/reporting.md
-#     - shared/python-dataviz.md
 
 name: "Copilot Session Insights"
 "on":

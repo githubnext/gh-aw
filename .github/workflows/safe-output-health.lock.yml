@@ -23,8 +23,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/gh-aw.md
 #     - shared/jqschema.md
+#     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
 
 name: "Safe Output Health Monitor"
