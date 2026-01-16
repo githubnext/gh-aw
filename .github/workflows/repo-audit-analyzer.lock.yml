@@ -1015,7 +1015,7 @@ jobs:
         # --allow-tool shell(ls)
         # --allow-tool shell(tail)
         # --allow-tool shell(wc)
-        timeout-minutes: 20
+        timeout-minutes: 600
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
