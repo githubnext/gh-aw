@@ -9,6 +9,24 @@ MemoryOps enables workflows to persist state across runs using `cache-memory` an
 
 Use MemoryOps for incremental processing, trend analysis, multi-step tasks, and workflow coordination.
 
+## How to Use These Patterns
+
+> [!TIP]
+> **Let the AI Agent Do the Work**
+>
+> When using these patterns, **state your high-level goal** in the workflow prompt and let the AI agent generate the concrete implementation. The patterns below are conceptual guides—you don't need to write the detailed code yourself.
+>
+> **Example approach:**
+> ```markdown
+> # Process All Open Issues
+> 
+> Analyze all open issues in the repository. Use cache-memory to track which 
+> issues you've already processed so you can resume if interrupted. For each 
+> issue, extract sentiment and priority, then generate a summary report.
+> ```
+>
+> The agent will see the cache-memory configuration in your frontmatter and implement the todo/done tracking pattern automatically based on your goal.
+
 ## Memory Types
 
 ### Cache Memory
@@ -42,9 +60,18 @@ tools:
 
 Track progress through large datasets with todo/done lists to ensure complete coverage across multiple runs.
 
-**Concept**: Maintain a state file with items to process (`todo`) and completed items (`done`). After processing each item, immediately update the state so the workflow can resume if interrupted.
+**Your goal**: "Process all items in a collection, tracking which ones are done so I can resume if interrupted."
 
-**Example structure**:
+**How to state it in your workflow**:
+```markdown
+Analyze all open issues in the repository. Track your progress in cache-memory 
+so you can resume if the workflow times out. Mark each issue as done after 
+processing it. Generate a final report with statistics.
+```
+
+**What the agent will implement**: Maintain a state file with items to process (`todo`) and completed items (`done`). After processing each item, immediately update the state so the workflow can resume if interrupted.
+
+**Example structure the agent might use**:
 ```json
 {
   "todo": [123, 456, 789],
@@ -54,21 +81,24 @@ Track progress through large datasets with todo/done lists to ensure complete co
 }
 ```
 
-**Workflow steps**:
-1. Load existing state or initialize new state
-2. Build todo list (exclude already-done items)
-3. Process items one by one, marking each as done immediately
-4. Generate progress report
-
 **Real examples**: `.github/workflows/repository-quality-improver.md`, `.github/workflows/copilot-agent-analysis.md`
 
 ## Pattern 2: State Persistence
 
 Save workflow checkpoints to resume long-running tasks that may timeout.
 
-**Concept**: Store a checkpoint with the last processed position. Each run loads the checkpoint, processes a batch, then saves the new position.
+**Your goal**: "Process data in batches, saving progress so I can continue where I left off in the next run."
 
-**Example checkpoint**:
+**How to state it in your workflow**:
+```markdown
+Migrate 10,000 records from the old format to the new format. Process 500 
+records per run and save a checkpoint. Each run should resume from the last 
+checkpoint until all records are migrated.
+```
+
+**What the agent will implement**: Store a checkpoint with the last processed position. Each run loads the checkpoint, processes a batch, then saves the new position.
+
+**Example checkpoint the agent might use**:
 ```json
 {
   "last_processed_id": 1250,
@@ -78,44 +108,35 @@ Save workflow checkpoints to resume long-running tasks that may timeout.
 }
 ```
 
-**Workflow steps**:
-1. Load checkpoint (or start at 0)
-2. Process next batch from checkpoint position
-3. Save new checkpoint with updated position
-4. Detect completion when no items remain
-
 **Real examples**: `.github/workflows/daily-news.md`, `.github/workflows/cli-consistency-checker.md`
 
 ## Pattern 3: Shared Information
 
 Share data between workflows using repo-memory branches.
 
-**Concept**: One workflow (producer) collects data and stores it in repo-memory. Other workflows (consumers) read and analyze the shared data.
+**Your goal**: "Collect data in one workflow and analyze it in other workflows."
 
-**Producer workflow**:
+**How to state it in your workflow**:
+
+*Producer workflow:*
+```markdown
+Every 6 hours, collect repository metrics (issues, PRs, stars) and store them 
+in repo-memory so other workflows can analyze the data later.
+```
+
+*Consumer workflow:*
+```markdown
+Load the historical metrics from repo-memory and compute weekly trends. 
+Generate a trend report with visualizations.
+```
+
+**What the agent will implement**: One workflow (producer) collects data and stores it in repo-memory. Other workflows (consumers) read and analyze the shared data using the same branch name.
+
+**Configuration both workflows need**:
 ```yaml
 tools:
   repo-memory:
-    branch-name: memory/shared-data
-```
-
-Store data in JSON Lines format:
-```bash
-# Append new data point
-echo '{"timestamp": 1705334400, "value": 42}' >> history.jsonl
-```
-
-**Consumer workflow**:
-```yaml
-tools:
-  repo-memory:
-    branch-name: memory/shared-data  # Same branch
-```
-
-Read shared data:
-```bash
-# Load historical data
-cat /tmp/gh-aw/repo-memory/default/history.jsonl
+    branch-name: memory/shared-data  # Same branch for producer and consumer
 ```
 
 **Real examples**: `.github/workflows/metrics-collector.md` (producer), trend analysis workflows (consumers)
@@ -124,30 +145,18 @@ cat /tmp/gh-aw/repo-memory/default/history.jsonl
 
 Cache API responses to avoid rate limits and reduce workflow time.
 
-**Concept**: Before making expensive API calls, check if cached data exists and is fresh. If cache is valid (based on TTL), use cached data. Otherwise, fetch fresh data and update cache.
+**Your goal**: "Avoid hitting rate limits by caching API responses that don't change frequently."
 
-**Example with 24-hour TTL**:
-```bash
-CACHE_FILE="/tmp/gh-aw/cache-memory/data.json"
-CACHE_TIMESTAMP="/tmp/gh-aw/cache-memory/.timestamp"
-CACHE_TTL=86400  # 24 hours
-
-if [ -f "$CACHE_TIMESTAMP" ]; then
-  CACHE_AGE=$(($(date +%s) - $(cat "$CACHE_TIMESTAMP")))
-  if [ $CACHE_AGE -lt $CACHE_TTL ]; then
-    echo "Using cached data"
-    DATA=$(cat "$CACHE_FILE")
-  fi
-fi
-
-# If no valid cache, fetch fresh data
-if [ -z "$DATA" ]; then
-  # Fetch from API
-  date +%s > "$CACHE_TIMESTAMP"
-fi
+**How to state it in your workflow**:
+```markdown
+Fetch repository metadata and contributor lists. Cache the data for 24 hours 
+to avoid repeated API calls. If the cache is fresh, use it. Otherwise, fetch 
+new data and update the cache.
 ```
 
-**Cache TTL guidelines**:
+**What the agent will implement**: Before making expensive API calls, check if cached data exists and is fresh. If cache is valid (based on TTL), use cached data. Otherwise, fetch fresh data and update cache.
+
+**TTL guidelines to include in your prompt**:
 - Repository metadata: 24 hours
 - Contributor lists: 12 hours
 - Issues/PRs: 1 hour
@@ -159,27 +168,16 @@ fi
 
 Store time-series data and compute trends, moving averages, and statistics.
 
-**Concept**: Append new data points to a history file (JSON Lines format). Load historical data to compute trends, moving averages, and generate visualizations.
+**Your goal**: "Track metrics over time and identify trends."
 
-**Data collection**:
-```bash
-# Append today's metrics
-echo '{"date": "2024-01-15", "value": 42}' >> history.jsonl
+**How to state it in your workflow**:
+```markdown
+Collect daily build times and test times. Store them in repo-memory as 
+time-series data. Compute 7-day and 30-day moving averages. Generate trend 
+charts showing whether performance is improving or declining over time.
 ```
 
-**Trend analysis**:
-```python
-import pandas as pd
-
-# Load data
-df = pd.read_json('history.jsonl', lines=True)
-
-# Compute 7-day moving average
-df['ma_7d'] = df['value'].rolling(window=7).mean()
-
-# Compute 30-day moving average
-df['ma_30d'] = df['value'].rolling(window=30).mean()
-```
+**What the agent will implement**: Append new data points to a history file (JSON Lines format). Load historical data to compute trends, moving averages, and generate visualizations using Python.
 
 **Real examples**: `.github/workflows/daily-code-metrics.md`, `.github/workflows/shared/charts-with-trending.md`
 
@@ -187,9 +185,18 @@ df['ma_30d'] = df['value'].rolling(window=30).mean()
 
 Use multiple memory instances for different purposes and retention policies.
 
-**Concept**: Separate hot data (cache-memory) from historical data (repo-memory). Use different repo-memory branches for metrics vs. configuration vs. archives.
+**Your goal**: "Organize data with different lifecycles—temporary session data, historical metrics, configuration, and archived snapshots."
 
-**Example configuration**:
+**How to state it in your workflow**:
+```markdown
+Use cache-memory for temporary API responses during this run. Store daily 
+metrics in one repo-memory branch for trend analysis. Keep data schemas in 
+another branch. Archive full snapshots in a third branch with compression.
+```
+
+**What the agent will implement**: Separate hot data (cache-memory) from historical data (repo-memory). Use different repo-memory branches for metrics vs. configuration vs. archives.
+
+**Configuration to include**:
 ```yaml
 tools:
   cache-memory:
@@ -205,12 +212,6 @@ tools:
     - id: archive
       branch-name: memory/archive  # Compressed backups
 ```
-
-**Access patterns**:
-- **Session cache**: Intermediate calculations within a run
-- **Metrics store**: Daily statistics and trends
-- **Config store**: Data schemas and catalogs
-- **Archive store**: Full data snapshots (compressed)
 
 ## Best Practices
 
