@@ -2,7 +2,7 @@ name: Doc Build - Deploy
 
 on:
   schedule:
-    # Daily rebuild so the Playground can pick up updated run snapshots.
+    # Daily rebuild
     # (GitHub uses UTC for cron schedules.)
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -46,49 +46,6 @@ jobs:
       - name: Install dependencies
         working-directory: ./docs
         run: npm ci
-
-      - name: Fetch org-owned playground workflows
-        working-directory: ./docs
-        run: npm run fetch-playground-org-owned
-
-      - name: Validate Playground fetch configuration (optional)
-        working-directory: ./docs
-        env:
-          PLAYGROUND_SNAPSHOTS_REPO: ${{ secrets.PLAYGROUND_SNAPSHOTS_REPO }}
-          PLAYGROUND_SNAPSHOTS_REF: ${{ secrets.PLAYGROUND_SNAPSHOTS_REF }}
-          PLAYGROUND_SNAPSHOTS_PATH: ${{ secrets.PLAYGROUND_SNAPSHOTS_PATH }}
-          PLAYGROUND_SNAPSHOTS_TOKEN: ${{ secrets.PLAYGROUND_SNAPSHOTS_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${PLAYGROUND_SNAPSHOTS_REPO:-}" ]]; then
-            echo "[playground] PLAYGROUND_SNAPSHOTS_REPO not set; skipping private-repo fetch."
-            exit 0
-          fi
-
-          if [[ -z "${PLAYGROUND_SNAPSHOTS_TOKEN:-}" ]]; then
-            echo "::error::[playground] PLAYGROUND_SNAPSHOTS_TOKEN is required to fetch from a private repo."
-            exit 1
-          fi
-
-          echo "[playground] Repo: ${PLAYGROUND_SNAPSHOTS_REPO}"
-          echo "[playground] Ref: ${PLAYGROUND_SNAPSHOTS_REF:-<default main>}"
-          echo "[playground] Snapshots path: ${PLAYGROUND_SNAPSHOTS_PATH:-<default docs/playground-snapshots>}"
-
-      - name: Fetch playground workflows (optional)
-        working-directory: ./docs
-        env:
-          PLAYGROUND_WORKFLOWS_REPO: ${{ secrets.PLAYGROUND_SNAPSHOTS_REPO }}
-          PLAYGROUND_WORKFLOWS_REF: ${{ secrets.PLAYGROUND_SNAPSHOTS_REF }}
-          PLAYGROUND_WORKFLOWS_TOKEN: ${{ secrets.PLAYGROUND_SNAPSHOTS_TOKEN }}
-          # Repo-relative file paths to fetch (comma-separated).
-          PLAYGROUND_WORKFLOWS_FILES: >-
-            .github/workflows/project-board-draft-updater.md,
-            .github/workflows/project-board-draft-updater.lock.yml,
-            .github/workflows/project-board-issue-updater.md,
-            .github/workflows/project-board-issue-updater.lock.yml
-        run: npm run fetch-playground-workflows
 
       - name: Build documentation
         working-directory: ./docs

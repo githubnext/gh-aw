@@ -9,21 +9,6 @@ import (
 
 var repoMemoryPromptLog = logger.New("workflow:repo_memory_prompt")
 
-// generateRepoMemoryPromptStep generates a separate step for repo memory instructions
-// when repo-memory is enabled, informing the agent about git-based persistent storage capabilities
-func (c *Compiler) generateRepoMemoryPromptStep(yaml *strings.Builder, config *RepoMemoryConfig) {
-	if config == nil || len(config.Memories) == 0 {
-		return
-	}
-
-	repoMemoryPromptLog.Printf("Generating repo memory prompt step: memory_count=%d", len(config.Memories))
-	appendPromptStepWithHeredoc(yaml,
-		"Append repo-memory instructions to prompt",
-		func(y *strings.Builder) {
-			generateRepoMemoryPromptSection(y, config)
-		})
-}
-
 // generateRepoMemoryPromptSection generates the repo memory notification section for prompts
 // when repo-memory is enabled, informing the agent about git-based persistent storage capabilities
 func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryConfig) {
