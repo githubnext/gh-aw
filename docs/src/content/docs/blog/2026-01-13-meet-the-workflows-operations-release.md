@@ -3,7 +3,7 @@ title: "Meet the Workflows: Operations & Release"
 description: "A curated tour of operations and release workflows that ship software"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T07:00:00
 sidebar:

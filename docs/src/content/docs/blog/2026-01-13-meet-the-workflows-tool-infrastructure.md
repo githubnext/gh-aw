@@ -3,7 +3,7 @@ title: "Meet the Workflows: Tool & Infrastructure"
 description: "A curated tour of infrastructure workflows that monitor the agentic systems"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T12:00:00
 sidebar:

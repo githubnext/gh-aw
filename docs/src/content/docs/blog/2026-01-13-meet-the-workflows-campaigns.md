@@ -3,7 +3,7 @@ title: "Meet the Workflows: Project Coordination"
 description: "A curated tour of workflows that coordinate multi-agent projects"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T16:00:00
 sidebar:

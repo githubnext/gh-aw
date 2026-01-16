@@ -3,7 +3,7 @@ title: "Meet the Workflows: Fault Investigation"
 description: "A curated tour of proactive fault investigation workflows that maintain codebase health"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T05:00:00
 sidebar:

@@ -3,7 +3,7 @@ title: "Meet the Workflows: Organization & Cross-Repo"
 description: "A curated tour of workflows that operate at organization scale"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T14:00:00
 sidebar:

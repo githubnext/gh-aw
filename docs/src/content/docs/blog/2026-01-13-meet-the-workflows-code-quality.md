@@ -3,7 +3,7 @@ title: "Meet the Workflows: Code Quality & Refactoring"
 description: "A curated tour of code quality workflows that make codebases cleaner"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T02:00:00
 sidebar:
