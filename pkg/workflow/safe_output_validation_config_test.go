@@ -232,10 +232,11 @@ func TestFieldValidationMarshaling(t *testing.T) {
 func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{
-		"requiresOneOf:status,title,body": true,
-		"requiresOneOf:title,body":        true,
-		"startLineLessOrEqualLine":        true,
-		"parentAndSubDifferent":           true,
+		"requiresOneOf:status,title,body":        true,
+		"requiresOneOf:title,body":               true,
+		"requiresOneOf:issue_number,pull_number": true,
+		"startLineLessOrEqualLine":               true,
+		"parentAndSubDifferent":                  true,
 	}
 
 	for typeName, config := range ValidationConfig {

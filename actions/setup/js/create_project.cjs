@@ -153,6 +153,186 @@ async function getIssueNodeId(owner, repo, issueNumber) {
 }
 
 /**
+ * Parse project URL into components
+ * @param {string} projectUrl - Project URL
+ * @returns {{ scope: string, ownerLogin: string, projectNumber: string }} Project info
+ */
+function parseProjectUrl(projectUrl) {
+  if (!projectUrl || typeof projectUrl !== "string") {
+    throw new Error(`Invalid project URL: expected string, got ${typeof projectUrl}`);
+  }
+
+  const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
+  if (!match) {
+    throw new Error(`Invalid project URL: "${projectUrl}". Expected format: https://github.com/orgs/myorg/projects/123`);
+  }
+
+  return {
+    scope: match[1],
+    ownerLogin: match[2],
+    projectNumber: match[3],
+  };
+}
+
+/**
+ * List all views for a project
+ * @param {string} projectId - Project node ID
+ * @returns {Promise<Array<{id: string, name: string, number: number}>>} Array of views
+ */
+async function listProjectViews(projectId) {
+  core.info(`Listing views for project...`);
+
+  const result = await github.graphql(
+    `query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          views(first: 20) {
+            nodes {
+              id
+              name
+              number
+            }
+          }
+        }
+      }
+    }`,
+    { projectId }
+  );
+
+  const views = result.node.views.nodes;
+  core.info(`Found ${views.length} view(s) in project`);
+
+  return views;
+}
+
+/**
+ * Delete a project view
+ * @param {string} viewId - View node ID
+ * @returns {Promise<void>}
+ */
+async function deleteProjectView(viewId) {
+  core.info(`Deleting view...`);
+
+  await github.graphql(
+    `mutation($viewId: ID!) {
+      deleteProjectV2View(input: { viewId: $viewId }) {
+        deletedViewId
+      }
+    }`,
+    { viewId }
+  );
+
+  core.info(`✓ Deleted view`);
+}
+
+/**
+ * Delete the default "View 1" from a project
+ * @param {string} projectId - Project node ID
+ * @returns {Promise<void>}
+ */
+async function deleteDefaultView(projectId) {
+  try {
+    core.info(`Checking for default view to remove...`);
+
+    const views = await listProjectViews(projectId);
+
+    // Find the default view (typically named "View 1" and has number 1)
+    // We identify it by checking if the name matches common default patterns
+    const defaultView = views.find(view => view.name === "View 1" || (view.number === 1 && /^View \d+$/.test(view.name)));
+
+    if (defaultView) {
+      core.info(`Found default view "${defaultView.name}" (ID: ${defaultView.id}), deleting...`);
+      await deleteProjectView(defaultView.id);
+      core.info(`✓ Successfully removed default view "${defaultView.name}"`);
+    } else {
+      core.info(`No default view found to remove`);
+    }
+  } catch (err) {
+    // prettier-ignore
+    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+    core.warning(`Failed to delete default view: ${getErrorMessage(error)}`);
+    logGraphQLError(error, "Deleting default view");
+    // Don't fail the whole operation if we can't delete the default view
+  }
+}
+
+/**
+ * Create a project view
+ * @param {string} projectUrl - Project URL
+ * @param {Object} viewConfig - View configuration
+ * @param {string} viewConfig.name - View name
+ * @param {string} viewConfig.layout - View layout (table, board, roadmap)
+ * @param {string} [viewConfig.filter] - View filter
+ * @param {Array<number>} [viewConfig.visible_fields] - Visible field IDs
+ * @param {string} [viewConfig.description] - View description (not supported by GitHub API, will be ignored)
+ * @returns {Promise<void>}
+ */
+async function createProjectView(projectUrl, viewConfig) {
+  const projectInfo = parseProjectUrl(projectUrl);
+  const projectNumber = parseInt(projectInfo.projectNumber, 10);
+
+  const name = typeof viewConfig.name === "string" ? viewConfig.name.trim() : "";
+  if (!name) {
+    throw new Error("View name is required and must be a non-empty string");
+  }
+
+  const layout = typeof viewConfig.layout === "string" ? viewConfig.layout.trim() : "";
+  if (!layout || !["table", "board", "roadmap"].includes(layout)) {
+    throw new Error(`Invalid view layout "${layout}". Must be one of: table, board, roadmap`);
+  }
+
+  const filter = typeof viewConfig.filter === "string" ? viewConfig.filter : undefined;
+  let visibleFields = Array.isArray(viewConfig.visible_fields) ? viewConfig.visible_fields : undefined;
+
+  if (visibleFields) {
+    const invalid = visibleFields.filter(v => typeof v !== "number" || !Number.isFinite(v));
+    if (invalid.length > 0) {
+      throw new Error(`Invalid visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
+    }
+  }
+
+  if (layout === "roadmap" && visibleFields && visibleFields.length > 0) {
+    core.warning('visible_fields is not applicable to layout "roadmap"; ignoring.');
+    visibleFields = undefined;
+  }
+
+  if (typeof viewConfig.description === "string" && viewConfig.description.trim()) {
+    core.warning("view.description is not supported by the GitHub Projects Views API; ignoring.");
+  }
+
+  const route = projectInfo.scope === "orgs" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{user_id}/projectsV2/{project_number}/views";
+
+  const params =
+    projectInfo.scope === "orgs"
+      ? {
+          org: projectInfo.ownerLogin,
+          project_number: projectNumber,
+          name,
+          layout,
+          ...(filter ? { filter } : {}),
+          ...(visibleFields ? { visible_fields: visibleFields } : {}),
+        }
+      : {
+          user_id: projectInfo.ownerLogin,
+          project_number: projectNumber,
+          name,
+          layout,
+          ...(filter ? { filter } : {}),
+          ...(visibleFields ? { visible_fields: visibleFields } : {}),
+        };
+
+  core.info(`Creating project view: ${name} (${layout})...`);
+  const response = await github.request(route, params);
+  const created = response?.data;
+
+  if (created?.id) {
+    core.info(`✓ Created view: ${name} (ID: ${created.id})`);
+  } else {
+    core.info(`✓ Created view: ${name}`);
+  }
+}
+
+/**
  * Main entry point - handler factory that returns a message handler function
  * @param {Object} config - Handler configuration
  * @returns {Promise<Function>} Message handler function
@@ -162,6 +342,7 @@ async function main(config = {}) {
   const defaultTargetOwner = config.target_owner || "";
   const maxCount = config.max || 1;
   const titlePrefix = config.title_prefix || "Campaign";
+  const configuredViews = Array.isArray(config.views) ? config.views : [];
 
   // The github object is already authenticated with the custom token via the
   // github-token parameter set on the actions/github-script action
@@ -172,6 +353,9 @@ async function main(config = {}) {
   core.info(`Max count: ${maxCount}`);
   if (config.title_prefix) {
     core.info(`Title prefix: ${titlePrefix}`);
+  }
+  if (configuredViews.length > 0) {
+    core.info(`Found ${configuredViews.length} configured view(s) in frontmatter`);
   }
 
   // Track state
@@ -256,6 +440,27 @@ async function main(config = {}) {
       }
 
       core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
+
+      // Create configured views if any
+      if (configuredViews.length > 0) {
+        core.info(`Creating ${configuredViews.length} configured view(s) on project: ${projectInfo.projectUrl}`);
+
+        for (let i = 0; i < configuredViews.length; i++) {
+          const viewConfig = configuredViews[i];
+          try {
+            await createProjectView(projectInfo.projectUrl, viewConfig);
+            core.info(`✓ Created view ${i + 1}/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
+          } catch (err) {
+            // prettier-ignore
+            const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+            core.error(`Failed to create configured view ${i + 1}: ${viewConfig.name}`);
+            logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
+          }
+        }
+
+        // After creating custom views, delete the default "View 1" that GitHub automatically creates
+        await deleteDefaultView(projectInfo.projectId);
+      }
 
       // Return result
       return {
