@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -866,6 +867,10 @@ func prepareConfigForValidation(config string) string {
 	// ${MCP_GATEWAY_API_KEY} -> "sample-api-key" (example key)
 	// $GITHUB_MCP_SERVER_TOKEN -> "sample-token" (example token)
 	// $GITHUB_MCP_LOCKDOWN -> "1" (example lockdown value)
+	// $GH_AW_SAFE_INPUTS_PORT -> 3000 (example safe inputs port)
+	// $GH_AW_SAFE_INPUTS_API_KEY -> "sample-api-key" (example safe inputs API key)
+	// $GH_AW_SERENA_PORT -> 3001 (example serena port)
+	// $GH_AW_GITHUB_TOKEN -> "sample-token" (example GitHub token)
 	// \${...} (escaped for Copilot) -> ${...} (unescaped for validation)
 
 	cleaned = strings.ReplaceAll(cleaned, "$MCP_GATEWAY_PORT", "8080")
@@ -873,13 +878,31 @@ func prepareConfigForValidation(config string) string {
 	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_API_KEY}\"", "\"sample-api-key\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_LOCKDOWN\"", "\"1\"")
+	cleaned = strings.ReplaceAll(cleaned, "$GH_AW_SAFE_INPUTS_PORT", "3000")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_SAFE_INPUTS_API_KEY\"", "\"sample-api-key\"")
+	cleaned = strings.ReplaceAll(cleaned, "$GH_AW_SERENA_PORT", "3001")
+	cleaned = strings.ReplaceAll(cleaned, "\"$GH_AW_GITHUB_TOKEN\"", "\"sample-token\"")
 
 	// Handle Copilot-style escaped variables: \${VARIABLE} -> sample-value
 	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_PERSONAL_ACCESS_TOKEN}", "sample-token")
 	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_MCP_SERVER_TOKEN}", "sample-token")
+	cleaned = strings.ReplaceAll(cleaned, "\\${GH_AW_GITHUB_TOKEN}", "sample-token")
 
 	// Handle shell command substitutions: $([ "$VAR" = "1" ] && echo true || echo false) -> true
 	cleaned = strings.ReplaceAll(cleaned, "\"$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)\"", "\"true\"")
+
+	// Use regex to replace any remaining environment variables with sample values
+	// Pattern 1: "$VARIABLE_NAME" -> "sample-value" (direct shell variable references)
+	directVarPattern := regexp.MustCompile(`"\$([A-Z_][A-Z0-9_]*)"`)
+	cleaned = directVarPattern.ReplaceAllString(cleaned, `"sample-value"`)
+
+	// Pattern 2: "\\${VARIABLE_NAME}" -> "sample-value" (backslash-escaped for Copilot)
+	escapedVarPattern := regexp.MustCompile(`"\\\\?\$\{([A-Z_][A-Z0-9_]*)\}"`)
+	cleaned = escapedVarPattern.ReplaceAllString(cleaned, `"sample-value"`)
+
+	// Pattern 3: Unquoted $VAR (like $MCP_GATEWAY_PORT) -> sample-value
+	unquotedVarPattern := regexp.MustCompile(`\$([A-Z_][A-Z0-9_]*)`)
+	cleaned = unquotedVarPattern.ReplaceAllString(cleaned, `sample-value`)
 
 	return cleaned
 }
