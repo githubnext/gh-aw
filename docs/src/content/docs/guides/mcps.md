@@ -120,16 +120,13 @@ mcp-servers:
     allowed: ["tool1", "tool2"]
 ```
 
-The `container` field generates `docker run
---rm -i <args> <image> <entrypointArgs>`.
-Since Docker socket access is not available
-inside the agent sandbox, gh-aw runs the
-`docker run` command on the host runner
-(outside the agent sandbox). If Docker is
-unavailable on the host, use HTTP MCP servers
-or external stdio servers instead. Network
-restrictions use a Squid proxy and apply only
-to containerized stdio servers.
+The `container` field generates `docker run --rm -i <args> <image> <entrypointArgs>`.
+Since Docker socket access is not available inside the agent
+sandbox, gh-aw runs the `docker run` command on the host runner
+(outside the agent sandbox). If Docker is unavailable on the host,
+use HTTP MCP servers or external stdio servers instead. Network
+restrictions use a Squid proxy and apply only to containerized
+stdio servers.
 
 ### 3. HTTP MCP Servers
 
