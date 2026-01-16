@@ -93,13 +93,11 @@ AWF automatically mounts several paths from the host into the container to enabl
 These default mounts ensure the agent has access to essential tools and the repository files. Custom mounts specified via `sandbox.agent.mounts` are added alongside these defaults.
 
 > [!WARNING]
-> The agent sandbox does not expose
-> `/var/run/docker.sock`, so Docker-in-Docker
-> workflows are not supported. If you need
-> containerized tools, run them on the host
-> runner. For agent-side integrations, use
-> HTTP MCP servers or stdio servers that run
-> outside the agent sandbox.
+> The agent sandbox does not provide Docker
+> socket access (`/var/run/docker.sock`),
+> preventing Docker-in-Docker workflows. Use
+> HTTP MCP servers or stdio servers running on
+> the host runner for containerized tools.
 
 #### Custom AWF Configuration
 
