@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Paths
-const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/agent-factory.mdx");
+const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/agent-factory-status.mdx");
 
 /**
  * Test helper to check if output contains expected content

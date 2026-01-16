@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-01-30
 draft: true
 prev:
