@@ -8,10 +8,17 @@ permissions:
   contents: read
   pull-requests: read
   actions: read
+  discussions: read
+  issues: read
+  security-events: read
 tools:
   cache-memory: true
   github:
-    toolsets: [pull_requests, repos]
+    toolsets: [all]
+  agentic-workflows:
+  bash: ["*"]
+  edit:
+  web-fetch:
 safe-outputs:
   add-comment:
     max: 1
