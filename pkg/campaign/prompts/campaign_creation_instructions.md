@@ -52,22 +52,6 @@ When identifying workflows for a campaign:
    - Include relevant workflows from agentics collection
    - Create new workflows only if gaps remain
 
-6. **Workflow Fusion for Campaigns:**
-   - **What**: Adapt existing workflows for campaign use by adding `workflow_dispatch` trigger
-   - **Where**: Store fused workflows in `.github/workflows/campaigns/<campaign-id>/` folder
-   - **Why**: Allows campaign orchestrator to dispatch worker workflows on-demand
-   - **How**: 
-     - Copy original workflow to campaign folder with `-worker` suffix
-     - Add `workflow_dispatch` trigger if not present
-     - Preserve existing triggers alongside workflow_dispatch
-     - Add campaign metadata: `campaign-worker: true`, `campaign-id: <id>`, `source-workflow: <original>`
-
-7. **Campaign Orchestration:**
-   - **dispatch-workflow** safe output enables orchestrator to trigger worker workflows
-   - Orchestrator can dispatch up to 3 workflows per run (configurable)
-   - Worker workflows are discovered and tracked separately from manually-created campaign items
-   - Use campaign-specific folder structure for pattern analysis and reuse
-
 ---
 
 ## Safe Output Configuration
