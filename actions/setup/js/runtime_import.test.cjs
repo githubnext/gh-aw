@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-const { processRuntimeImports, processRuntimeImport, convertInlinesToMacros, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
+const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
   let githubDir;
@@ -384,72 +384,6 @@ describe("runtime_import", () => {
           // After front matter removal, these lines are part of front matter so they get removed
           // The result should be empty or minimal content
           expect(result).toBeTruthy(); // At minimum, it should not fail
-        }));
-    }),
-    describe("convertInlinesToMacros", () => {
-      (it("should convert @./path to {{#runtime-import ./path}}", () => {
-        const result = convertInlinesToMacros("Before @./test.txt after");
-        expect(result).toBe("Before {{#runtime-import ./test.txt}} after");
-      }),
-        it("should convert @./path:line-line to {{#runtime-import ./path:line-line}}", () => {
-          const result = convertInlinesToMacros("Content: @./test.txt:2-4 end");
-          expect(result).toBe("Content: {{#runtime-import ./test.txt:2-4}} end");
-        }),
-        it("should convert multiple @./path references", () => {
-          const result = convertInlinesToMacros("Start @./file1.txt middle @./file2.txt end");
-          expect(result).toBe("Start {{#runtime-import ./file1.txt}} middle {{#runtime-import ./file2.txt}} end");
-        }),
-        it("should handle @./path with subdirectories", () => {
-          const result = convertInlinesToMacros("See @./docs/readme.md for details");
-          expect(result).toBe("See {{#runtime-import ./docs/readme.md}} for details");
-        }),
-        it("should handle @../path references", () => {
-          const result = convertInlinesToMacros("Parent: @../parent.md content");
-          expect(result).toBe("Parent: {{#runtime-import ../parent.md}} content");
-        }),
-        it("should NOT convert @path without ./ or ../", () => {
-          const result = convertInlinesToMacros("Before @test.txt after");
-          expect(result).toBe("Before @test.txt after");
-        }),
-        it("should NOT convert @docs/file without ./ prefix", () => {
-          const result = convertInlinesToMacros("See @docs/readme.md for details");
-          expect(result).toBe("See @docs/readme.md for details");
-        }),
-        it("should convert @url to {{#runtime-import url}}", () => {
-          const result = convertInlinesToMacros("Content from @https://example.com/file.txt ");
-          expect(result).toBe("Content from {{#runtime-import https://example.com/file.txt}} ");
-        }),
-        it("should convert @url:line-line to {{#runtime-import url:line-line}}", () => {
-          const result = convertInlinesToMacros("Lines: @https://example.com/file.txt:10-20 ");
-          expect(result).toBe("Lines: {{#runtime-import https://example.com/file.txt:10-20}} ");
-        }),
-        it("should not convert email addresses", () => {
-          const result = convertInlinesToMacros("Email: user@example.com is valid");
-          expect(result).toBe("Email: user@example.com is valid");
-        }),
-        it("should handle content without @path references", () => {
-          const result = convertInlinesToMacros("No inline references here");
-          expect(result).toBe("No inline references here");
-        }),
-        it("should handle @./path at start of content", () => {
-          const result = convertInlinesToMacros("@./start.txt following text");
-          expect(result).toBe("{{#runtime-import ./start.txt}} following text");
-        }),
-        it("should handle @./path at end of content", () => {
-          const result = convertInlinesToMacros("Preceding text @./end.txt");
-          expect(result).toBe("Preceding text {{#runtime-import ./end.txt}}");
-        }),
-        it("should handle @./path on its own line", () => {
-          const result = convertInlinesToMacros("Before\n@./content.txt\nAfter");
-          expect(result).toBe("Before\n{{#runtime-import ./content.txt}}\nAfter");
-        }),
-        it("should handle multiple line ranges", () => {
-          const result = convertInlinesToMacros("First: @./test.txt:1-2 Second: @./test.txt:4-5");
-          expect(result).toBe("First: {{#runtime-import ./test.txt:1-2}} Second: {{#runtime-import ./test.txt:4-5}}");
-        }),
-        it("should convert mixed @./path and @url references", () => {
-          const result = convertInlinesToMacros("File: @./local.txt URL: @https://example.com/remote.txt ");
-          expect(result).toBe("File: {{#runtime-import ./local.txt}} URL: {{#runtime-import https://example.com/remote.txt}} ");
         }));
     }),
     describe("processRuntimeImports with line ranges from macros", () => {

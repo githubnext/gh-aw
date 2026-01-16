@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
-const { processRuntimeImports, convertInlinesToMacros } = require("./runtime_import.cjs");
+const { processRuntimeImports } = require("./runtime_import.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -79,17 +79,7 @@ async function main() {
     // Read the prompt file
     let content = fs.readFileSync(promptPath, "utf8");
 
-    // Step 1: Convert @./path and @url inline syntax to {{#runtime-import}} macros
-    const hasInlines = /@[^\s]+/.test(content);
-    if (hasInlines) {
-      core.info("Converting inline references (@./path, @../path, and @url) to runtime-import macros");
-      content = convertInlinesToMacros(content);
-      core.info("Inline references converted successfully");
-    } else {
-      core.info("No inline references found, skipping conversion");
-    }
-
-    // Step 2: Process runtime imports (including converted @./path and @url macros)
+    // Step 1: Process runtime imports (files and URLs)
     const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
     if (hasRuntimeImports) {
       core.info("Processing runtime import macros (files and URLs)");
@@ -99,7 +89,7 @@ async function main() {
       core.info("No runtime import macros found, skipping runtime import processing");
     }
 
-    // Step 3: Interpolate variables
+    // Step 2: Interpolate variables
     /** @type {Record<string, string>} */
     const variables = {};
     for (const [key, value] of Object.entries(process.env)) {
@@ -117,7 +107,7 @@ async function main() {
       core.info("No expression variables found, skipping interpolation");
     }
 
-    // Step 4: Render template conditionals
+    // Step 3: Render template conditionals
     const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
     if (hasConditionals) {
       core.info("Processing conditional template blocks");

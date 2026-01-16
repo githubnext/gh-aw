@@ -39,39 +39,13 @@ Workflow instructions here...
 {{#import shared/common-tools.md}}
 ```
 
-### Runtime Import with @ Syntax
-
-The `@` syntax provides runtime imports that are inlined during compilation but can be edited independently without recompilation. This is useful for agent prompts that need frequent updates:
-
-```aw wrap
----
-on: issues
-  types: [opened]
-engine: copilot
----
-
-@./agentics/issue-triage.md
-```
-
-The referenced file (`.github/agentics/issue-triage.md`) contains the agent prompt and is inlined during compilation. Changes to this file take effect immediately on the next workflow run without requiring recompilation. The file must exist or the workflow will fail - there is no optional variant.
-
-**When to use `@` syntax**:
-- Agent prompts that need frequent updates
-- Content that changes independently from workflow configuration
-- Separation of workflow structure from prompt content
-
-**When to use `{{#import}}` macro**:
-- Reusable configuration components (tools, MCP servers, etc.)
-- Optional imports with `{{#import?}}` fallback
-- Complex frontmatter merging requirements
-
 ## Shared Workflow Components
 
 Workflows without an `on` field are shared workflow components. These files are validated but not compiled into GitHub Actions - they're meant to be imported by other workflows. The compiler skips them with an informative message, allowing you to organize reusable components without generating unnecessary lock files.
 
 ## Path Formats
 
-Import paths support local files (`shared/file.md`, `../file.md`), remote repositories (`owner/repo/file.md@v1.0.0`), and section references (`file.md#SectionName`). Optional imports use `{{#import? file.md}}` syntax in markdown. Runtime imports use `@path/to/file.md` syntax for content that updates without recompilation.
+Import paths support local files (`shared/file.md`, `../file.md`), remote repositories (`owner/repo/file.md@v1.0.0`), and section references (`file.md#SectionName`). Optional imports use `{{#import? file.md}}` syntax in markdown.
 
 Paths are resolved relative to the importing file, with support for nested imports and circular import protection.
 

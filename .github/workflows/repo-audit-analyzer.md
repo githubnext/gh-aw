@@ -35,4 +35,4 @@ imports:
 ---
 
 <!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
-@./agentics/repo-audit-analyzer.md
+{{#runtime-import agentics/repo-audit-analyzer.md}}
