@@ -227,7 +227,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		// Match pattern: something || something_else
 		orPattern := regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
 		orMatch := orPattern.FindStringSubmatch(expression)
-		if orMatch != nil && len(orMatch) > 2 {
+		if len(orMatch) > 2 {
 			leftExpr := strings.TrimSpace(orMatch[1])
 			rightExpr := strings.TrimSpace(orMatch[2])
 
@@ -237,7 +237,10 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 			if leftIsSafe {
 				// Check if right side is a literal string (single, double, or backtick quotes)
-				isStringLiteral := regexp.MustCompile(`^(['"\x60]).*\1$`).MatchString(rightExpr)
+				// Go regexp doesn't support backreferences, so check quotes manually
+				isStringLiteral := (strings.HasPrefix(rightExpr, "'") && strings.HasSuffix(rightExpr, "'") && len(rightExpr) >= 2) ||
+					(strings.HasPrefix(rightExpr, "\"") && strings.HasSuffix(rightExpr, "\"") && len(rightExpr) >= 2) ||
+					(strings.HasPrefix(rightExpr, "`") && strings.HasSuffix(rightExpr, "`") && len(rightExpr) >= 2)
 				// Check if right side is a number literal
 				isNumberLiteral := regexp.MustCompile(`^-?\d+(\.\d+)?$`).MatchString(rightExpr)
 				// Check if right side is a boolean literal
