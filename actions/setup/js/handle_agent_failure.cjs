@@ -112,9 +112,9 @@ All individual workflow failure issues are linked as sub-issues below. Click on 
    - Propose specific fixes
    - Validate solutions
 
-#### Using gh-aw CLI
+#### Using gh aw CLI
 
-You can also debug failures using the \`gh-aw\` CLI:
+You can also debug failures using the \`gh aw\` CLI:
 
 \`\`\`bash
 # Download and analyze workflow logs
