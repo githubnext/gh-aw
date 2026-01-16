@@ -87,7 +87,7 @@ and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Disc
 
 ## Agent Factory
 
-See the [Agent Factory](https://githubnext.github.io/gh-aw/agent-factory-status/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
+See the [Agent Factory Status](https://githubnext.github.io/gh-aw/agent-factory-status/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
 
 ## Related Projects
 
