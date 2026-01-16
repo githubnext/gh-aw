@@ -210,7 +210,14 @@ func (c *Compiler) buildProjectHandlerManagerStep(data *WorkflowData) []string {
 
 	// Add GH_AW_PROJECT_GITHUB_TOKEN - this is the critical difference from the main handler manager
 	// Project operations require this special token that has Projects permissions
-	token := getEffectiveProjectGitHubToken("", data.GitHubToken)
+	// Determine which custom token to use: prioritize create_project, then create_project_status_update
+	var customToken string
+	if data.SafeOutputs.CreateProjects != nil && data.SafeOutputs.CreateProjects.GitHubToken != "" {
+		customToken = data.SafeOutputs.CreateProjects.GitHubToken
+	} else if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken != "" {
+		customToken = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
+	}
+	token := getEffectiveProjectGitHubToken(customToken, data.GitHubToken)
 	steps = append(steps, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", token))
 
 	// With section for github-token
