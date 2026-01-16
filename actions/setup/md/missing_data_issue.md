@@ -1,6 +1,6 @@
-## Problem
+## Missing Data Reported
 
-The workflow **{workflow_name}** reported missing data during execution. The AI agent requires this data to complete its tasks effectively and has been **truthful** in acknowledging the data gaps rather than inventing information.
+The following data was reported as missing during workflow execution. The AI agent requires this data to complete its tasks effectively and has been **truthful** in acknowledging the data gaps rather than inventing information.
 
 > **Note:** This report demonstrates responsible AI behavior. The agent correctly identified missing information instead of hallucinating or making assumptions that could lead to incorrect results.
 
