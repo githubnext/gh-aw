@@ -310,7 +310,8 @@ Uses all imported tools.
 	if !strings.Contains(workflowData, `"serena"`) {
 		t.Error("Expected compiled workflow to contain serena tool")
 	}
-	if !strings.Contains(workflowData, `"aw", "mcp-server"`) {
+	// Per MCP Gateway Specification v1.0.0, agentic-workflows uses containerized format
+	if !strings.Contains(workflowData, `"agentic_workflows"`) {
 		t.Error("Expected compiled workflow to contain agentic-workflows tool")
 	}
 
