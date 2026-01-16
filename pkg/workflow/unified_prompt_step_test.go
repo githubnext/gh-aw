@@ -386,3 +386,68 @@ Line 1`,
 		})
 	}
 }
+
+func TestGenerateUnifiedPromptStep_EnvVarsSorted(t *testing.T) {
+	// Test that environment variables are sorted alphabetically
+	compiler := &Compiler{
+		trialMode:            false,
+		trialLogicalRepoSlug: "",
+	}
+
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{
+			"github": true,
+		}),
+		CacheMemoryConfig: nil,
+		RepoMemoryConfig:  nil,
+		SafeOutputs:       nil,
+		Permissions:       "",
+		On:                "push",
+	}
+
+	var yaml strings.Builder
+	compiler.generateUnifiedPromptStep(&yaml, data)
+
+	output := yaml.String()
+
+	// Verify environment variables are present and sorted
+	lines := strings.Split(output, "\n")
+	envSectionStarted := false
+	runSectionStarted := false
+	var envVarLines []string
+
+	for _, line := range lines {
+		if strings.Contains(line, "env:") {
+			envSectionStarted = true
+			continue
+		}
+		if strings.Contains(line, "run: |") {
+			runSectionStarted = true
+			break
+		}
+		if envSectionStarted && strings.Contains(line, ": ${{") {
+			// Extract just the variable name (before the colon)
+			trimmed := strings.TrimSpace(line)
+			colonIndex := strings.Index(trimmed, ":")
+			if colonIndex > 0 {
+				varName := trimmed[:colonIndex]
+				envVarLines = append(envVarLines, varName)
+			}
+		}
+	}
+
+	assert.True(t, runSectionStarted, "Should have found run section")
+
+	// Verify that environment variables (excluding GH_AW_PROMPT which is always first) are sorted
+	// Skip the first entry which is GH_AW_PROMPT
+	if len(envVarLines) > 0 {
+		// Check that the remaining variables are in sorted order
+		for i := 0; i < len(envVarLines)-1; i++ {
+			current := envVarLines[i]
+			next := envVarLines[i+1]
+			if current > next {
+				t.Errorf("Environment variables are not sorted: %s comes before %s", current, next)
+			}
+		}
+	}
+}
