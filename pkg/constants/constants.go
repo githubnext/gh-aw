@@ -284,6 +284,9 @@ const DefaultMCPGatewayVersion Version = "v0.0.60"
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
 
+// DefaultSerenaMCPServerContainer is the default container image for the Serena MCP server
+const DefaultSerenaMCPServerContainer = "ghcr.io/githubnext/serena-mcp-server"
+
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
 const DefaultSandboxRuntimeVersion Version = "0.0.28"
 

@@ -93,7 +93,7 @@ mcp-servers:
 \`\`\`yaml
 mcp-servers:
   serena:
-    container: "ghcr.io/oraios/serena"
+    container: "ghcr.io/githubnext/serena-mcp-server"
     version: "latest"
     args: # args come before the docker image argument
       - "-v"

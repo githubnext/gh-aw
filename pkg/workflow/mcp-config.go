@@ -147,7 +147,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
 // Supports two modes:
-// - "docker" (default): Uses Docker container with stdio transport (ghcr.io/oraios/serena:latest)
+// - "docker" (default): Uses Docker container with stdio transport (ghcr.io/githubnext/serena-mcp-server:latest)
 // - "local": Uses local uvx with HTTP transport on fixed port
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	customArgs := getSerenaCustomArgs(serenaTool)
@@ -178,7 +178,7 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 		}
 
 		// Use Serena's Docker container image
-		yaml.WriteString("                \"container\": \"ghcr.io/oraios/serena:latest\",\n")
+		yaml.WriteString("                \"container\": \"" + constants.DefaultSerenaMCPServerContainer + ":latest\",\n")
 
 		// Docker runtime args (--network host for network access)
 		if inlineArgs {
