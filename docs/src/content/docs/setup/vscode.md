@@ -99,7 +99,7 @@ name: My Workflow  # ✓ Valid string
 on: push           # ✓ Valid trigger
 permissions:
   contents: read   # ✓ Valid permission level
-engine: copilot    # ✓ Valid engine
+engine: custom     # ✓ Valid engine (see /gh-aw/reference/engines/)
 invalid-field: x   # ✗ Error: Unknown property
 ---
 ```
@@ -107,7 +107,7 @@ invalid-field: x   # ✗ Error: Unknown property
 The extension validates:
 - Required fields (e.g., `on` trigger is required)
 - Field types (strings, numbers, booleans, objects, arrays)
-- Enum values (e.g., `engine` must be one of: `copilot`, `claude`, `codex`, `custom`)
+- Enum values (e.g., `engine` must be a valid engine name - see [AI Engines](/gh-aw/reference/engines/))
 - Nested object structures
 - Complex conditional logic
 

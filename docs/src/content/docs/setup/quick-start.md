@@ -39,7 +39,7 @@ Initialize your repository to configure custom agents and MCP server:
 gh aw init
 ```
 
-This command installs agents and tools for GitHub Copilot.
+This command installs agents and tools for agentic workflows.
 
 ### Step 3 — Add a sample workflow
 
@@ -55,41 +55,17 @@ This creates a pull request that adds `.github/workflows/daily-team-status.md` a
 
 ### Step 4 — Add an AI secret
 
-[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the coding agent (the AI system that executes your instructions).
+[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. Workflows use a [coding agent or engine](/gh-aw/reference/glossary/#engine) (the AI system that executes your instructions).
 
-To allow your workflows to use Copilot, you'll create a token and add it as a repository secret.
+To set up authentication for your chosen AI engine, follow the detailed instructions in the [AI Engines reference documentation](/gh-aw/reference/engines/).
 
-#### Create a Personal Access Token (PAT)
+The setup process typically involves:
 
-Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-token-pat) to authenticate your workflows with GitHub Copilot:
+1. Creating a Personal Access Token or API key for your AI service
+2. Adding it as a repository secret in **Settings** → **Secrets and variables** → **Actions**
+3. Configuring your workflow to use the appropriate secret
 
-1. Visit <https://github.com/settings/personal-access-tokens/new>
-2. Configure the token:
-   - **Token name**: "Agentic Workflows Copilot"
-   - **Expiration**: 90 days (recommended for testing)
-   - **Resource owner**: Your personal account (required for Copilot Requests permission)
-   - **Repository access**: "Public repositories" (required for Copilot Requests permission to appear)
-3. Add permissions:
-   - In **"Account permissions"** (not Repository permissions), find **"Copilot Requests"**
-   - Set to **"Access: Read"**
-4. Click **"Generate token"** and copy it immediately (you won't see it again)
-
-> [!TIP]
-> Can't find Copilot Requests permission?
->
-> Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
->
-
-#### Add the token to your repository
-
-Store the token as a repository secret:
-
-1. Go to **your repository** → **Settings** → **Secrets and variables** → **Actions**
-2. Click **New repository secret**
-3. Set **Name** to `COPILOT_GITHUB_TOKEN` and paste the token in **Secret**
-4. Click **Add secret**
-
-Repository secrets are encrypted and only accessible to workflows in your repository. See [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat) for more details.
+See [AI Engines](/gh-aw/reference/engines/) for complete authentication instructions and supported engines.
 
 #### Verify your setup
 
@@ -102,11 +78,11 @@ gh aw status
 **Expected output:**
 
 ```text
-┌─────────────────┬───────┬────────┬──────┬──────────────┬──────┬──────────┬──────────────┐
-│Workflow         │Engine │Compiled│Status│Time Remaining│Labels│Run Status│Run Conclusion│
-├─────────────────┼───────┼────────┼──────┼──────────────┼──────┼──────────┼──────────────┤
-│daily-team-status│copilot│No      │active│30d 22h       │-     │-         │-             │
-└─────────────────┴───────┴────────┴──────┴──────────────┴──────┴──────────┴──────────────┘
+┌─────────────────┬────────┬────────┬──────┬──────────────┬──────┬──────────┬──────────────┐
+│Workflow         │Engine  │Compiled│Status│Time Remaining│Labels│Run Status│Run Conclusion│
+├─────────────────┼────────┼────────┼──────┼──────────────┼──────┼──────────┼──────────────┤
+│daily-team-status│<engine>│No      │active│30d 22h       │-     │-         │-             │
+└─────────────────┴────────┴────────┴──────┴──────────────┴──────┴──────────┴──────────────┘
 ```
 
 This confirms the workflow is compiled, enabled, and scheduled correctly.
@@ -114,7 +90,7 @@ This confirms the workflow is compiled, enabled, and scheduled correctly.
 > [!TIP]
 > Troubleshooting
 >
-> If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
+> If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify your AI engine secret is set correctly and hasn't expired. Run `gh aw secrets bootstrap --engine <engine-name>` to check configuration. See [AI Engines](/gh-aw/reference/engines/) for troubleshooting steps.
 >
 
 ### Step 5 — Trigger a workflow run

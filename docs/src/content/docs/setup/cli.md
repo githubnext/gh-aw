@@ -113,19 +113,19 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, Copilot instructions, prompt files, and logs `.gitignore`. Enables MCP server integration by default (use `--no-mcp` to skip).
+Initialize repository for agentic workflows. Configures `.gitattributes`, prompt files, and logs `.gitignore`. Enables MCP server integration by default (use `--no-mcp` to skip).
 
 ```bash wrap
 gh aw init                              # With MCP integration (default)
 gh aw init --no-mcp                     # Skip MCP server integration
-gh aw init --tokens --engine copilot    # Check Copilot token configuration
+gh aw init --tokens --engine <engine>   # Check token configuration for specific engine
 gh aw init --codespaces                 # Configure devcontainer for current repo
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --campaign                   # Enable campaign functionality
 gh aw init --completions                # Install shell completions
 ```
 
-**Options:** `--no-mcp`, `--tokens`, `--engine` (copilot, claude, codex), `--codespaces`, `--campaign`, `--completions`
+**Options:** `--no-mcp`, `--tokens`, `--engine` (see [AI Engines](/gh-aw/reference/engines/)), `--codespaces`, `--campaign`, `--completions`
 
 #### `add`
 
@@ -171,11 +171,10 @@ gh aw secrets set MY_SECRET --value-from-env MY_TOKEN          # From env var
 Check token configuration and print setup instructions for missing secrets (read-only).
 
 ```bash wrap
-gh aw secrets bootstrap --engine copilot   # Check Copilot tokens
-gh aw secrets bootstrap --engine claude    # Check Claude tokens
+gh aw secrets bootstrap --engine <engine>   # Check tokens for specific engine
 ```
 
-**Options:** `--engine` (copilot, claude, codex), `--owner`, `--repo`
+**Options:** `--engine` (see [AI Engines](/gh-aw/reference/engines/)), `--owner`, `--repo`
 
 See [GitHub Tokens reference](/gh-aw/reference/tokens/) for details.
 
@@ -296,7 +295,7 @@ gh aw logs --campaign                      # Campaign orchestrators only
 
 #### `audit`
 
-Analyze specific runs with overview, metrics, tool usage, MCP failures, firewall analysis, noops, and artifacts. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot agent runs for specialized parsing.
+Analyze specific runs with overview, metrics, tool usage, MCP failures, firewall analysis, noops, and artifacts. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects agent runs for specialized parsing.
 
 When provided with a job URL, automatically extracts logs for the specific job. When a step fragment is included, extracts only that step's output. If no step is specified, automatically identifies and extracts the first failing step.
 
