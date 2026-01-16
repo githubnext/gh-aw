@@ -57,13 +57,18 @@ safe-outputs:
 
 # Issue Triage Agent
 
-List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. 
+List open issues in ${{ github.repository }} that have no labels. For each 
+unlabeled issue, analyze the title and body, then add one of the allowed
+labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. 
 
 Skip issues that:
 - Already have any of these labels
 - Have been assigned to any user (especially non-bot users)
 
-Do research on the issue in the context of the codebase and, after after adding the label to an issue, mention the issue author in a comment, explain why the label was added and give a brief summary of how the issue may be addressed.
+Do research on the issue in the context of the codebase and, after after
+adding the label to an issue, mention the issue author in a comment, explain
+why the label was added and give a brief summary of how the issue may be
+addressed.
 ```
 
 Note how concise this is - it's like reading a to-do list for the agent. The workflow runs whenever a new issue is opened or reopened. It checks for unlabeled issues, analyzes their content, and applies appropriate labels based on content analysis. It even leaves a friendly comment explaining the label choice.
