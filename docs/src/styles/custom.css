@@ -236,7 +236,8 @@
 }
 
 /* Light Theme Navigation Links */
-:root[data-theme='light'] nav a {
+:root[data-theme='light'] nav a,
+:root[data-theme='light'] nav a:visited {
   color: #424a53;
 }
 
@@ -307,7 +308,8 @@
 }
 
 /* Light Theme General Links */
-:root[data-theme='light'] a {
+:root[data-theme='light'] a,
+:root[data-theme='light'] a:visited {
   color: #5b3da3;
 }
 
@@ -417,7 +419,8 @@ body:has(.hero)::before {
 
 /* Sidebar Navigation Styling */
 .sidebar .top-level > li > details > summary,
-.sidebar .top-level > li > a {
+.sidebar .top-level > li > a,
+.sidebar .top-level > li > a:visited {
   font-weight: 600;
   font-size: 0.6875rem;
   color: #8d96a0;
@@ -434,7 +437,8 @@ body:has(.hero)::before {
   background: none !important;
 }
 
-.sidebar nav li li a {
+.sidebar nav li li a,
+.sidebar nav li li a:visited {
   transition: color 0.15s ease, border-color 0.15s ease;
   color: #8d96a0;
   font-size: 0.875rem;
@@ -496,7 +500,8 @@ a[aria-current="page"].link:hover {
 }
 
 :root[data-theme='light'] .sidebar .top-level > li > details > summary,
-:root[data-theme='light'] .sidebar .top-level > li > a {
+:root[data-theme='light'] .sidebar .top-level > li > a,
+:root[data-theme='light'] .sidebar .top-level > li > a:visited {
   color: #656d76;
 }
 
@@ -506,7 +511,8 @@ a[aria-current="page"].link:hover {
   background: none !important;
 }
 
-:root[data-theme='light'] .sidebar nav li li a {
+:root[data-theme='light'] .sidebar nav li li a,
+:root[data-theme='light'] .sidebar nav li li a:visited {
   color: #656d76;
 }
 
@@ -861,7 +867,8 @@ header::after {
 }
 
 /* Links */
-.sl-markdown-content a {
+.sl-markdown-content a,
+.sl-markdown-content a:visited {
   color: #79c0ff;
   text-decoration: none;
   transition: color 0.15s ease;
@@ -886,7 +893,8 @@ header::after {
   }
 }
 
-:root[data-theme='light'] .sl-markdown-content a {
+:root[data-theme='light'] .sl-markdown-content a,
+:root[data-theme='light'] .sl-markdown-content a:visited {
   color: #0969da;
 }
 
@@ -896,7 +904,8 @@ header::after {
 }
 
 /* Navigation Links */
-nav a {
+nav a,
+nav a:visited {
   color: #d0d7de;
   transition: color 0.2s ease;
 }
@@ -911,11 +920,13 @@ nav a[aria-current="page"] {
 }
 
 /* Social Icons */
-.social-icons a[href*="github.com"] {
+.social-icons a[href*="github.com"],
+.social-icons a[href*="github.com"]:visited {
   color: #ffffff !important;
 }
 
-:root[data-theme='light'] .social-icons a[href*="github.com"] {
+:root[data-theme='light'] .social-icons a[href*="github.com"],
+:root[data-theme='light'] .social-icons a[href*="github.com"]:visited {
   color: #010409 !important;
 }
 
@@ -1009,7 +1020,8 @@ starlight-toc nav {
   font-size: 0.875rem;
 }
 
-starlight-toc a {
+starlight-toc a,
+starlight-toc a:visited {
   color: #8d96a0;
   text-decoration: none;
   border-left: none;
@@ -1037,7 +1049,8 @@ starlight-toc h2 {
   letter-spacing: 0.05em;
 }
 
-:root[data-theme='light'] starlight-toc a {
+:root[data-theme='light'] starlight-toc a,
+:root[data-theme='light'] starlight-toc a:visited {
   color: #656d76;
 }
 
@@ -1066,7 +1079,8 @@ starlight-toc h2 {
   border-top: 1px solid #30363d;
 }
 
-.pagination-links a {
+.pagination-links a,
+.pagination-links a:visited {
   border: 1px solid #444c56;
   border-radius: 6px;
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(139, 92, 246, 0.03));
@@ -1125,7 +1139,8 @@ starlight-toc h2 {
   border-top-color: #d0d7de;
 }
 
-:root[data-theme='light'] .pagination-links a {
+:root[data-theme='light'] .pagination-links a,
+:root[data-theme='light'] .pagination-links a:visited {
   border-color: #d0d7de;
   background: linear-gradient(135deg, rgba(91, 61, 163, 0.06), rgba(91, 61, 163, 0.03));
 }
@@ -1421,7 +1436,8 @@ html {
 }
 
 /* General Links */
-a {
+a,
+a:visited {
   color: #d896ff;
 }
 
