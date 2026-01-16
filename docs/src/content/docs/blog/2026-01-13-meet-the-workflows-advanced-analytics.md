@@ -3,7 +3,7 @@ title: "Meet the Workflows: Advanced Analytics & ML"
 description: "A curated tour of workflows that use ML to extract insights from agent behavior"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T15:00:00
 sidebar:

@@ -3,7 +3,7 @@ title: "Meet the Workflows: Teamwork & Culture"
 description: "A curated tour of creative and culture workflows that bring joy to work"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T09:00:00
 sidebar:

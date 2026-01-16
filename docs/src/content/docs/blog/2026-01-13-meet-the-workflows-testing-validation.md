@@ -3,7 +3,7 @@ title: "Meet the Workflows: Testing & Validation"
 description: "A curated tour of testing workflows that keep everything running smoothly"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T11:00:00
 sidebar:
