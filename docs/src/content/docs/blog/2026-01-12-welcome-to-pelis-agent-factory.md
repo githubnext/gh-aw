@@ -5,6 +5,9 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
+  - claude
+  - codex
+  - copilot
 date: 2026-01-12
 featured: true
 next:
