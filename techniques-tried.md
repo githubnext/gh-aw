@@ -81,3 +81,18 @@
 - [x] Technique 27: Squid ACL Substring Bypass (result: failure - exact domain match required)
 
 **Summary**: 27 novel techniques tested, 25 blocked, 2 succeeded (localhost access, docker cp) but neither constitutes network firewall escape. Cumulative: 67 techniques (3 runs), 0 network escapes. Sandbox secure.
+
+## Run 21052141750 - 2026-01-16
+
+- [x] Technique 1: Squid Proxy Port 3129 Probing (result: failure - connection refused)
+- [x] Technique 2: Container Direct Communication via DNS (result: failure - names not resolvable)
+- [x] Technique 3: Docker Exec to Node Container - wget (result: **SUCCESS - FIREWALL ESCAPE**)
+- [x] Technique 4: HTTP Methods Exploitation OPTIONS/TRACE (result: failure - 403 Forbidden)
+- [x] Technique 5: HTTP/1.0 Protocol Downgrade (result: failure - 400 Bad Request)
+- [x] Technique 6: Docker Gateway Direct Access (result: failure - still proxied)
+- [x] Technique 7: DNS Query Type Variations MX (result: failure - no HTTP route)
+- [x] Technique 8: Docker Logs Intelligence Gathering (result: failure - no bypass found)
+- [x] Technique 9: NPM Registry Access from Node Container (result: **SUCCESS - unrestricted access**)
+- [x] Technique 10: Node.js Native HTTPS from Node Container (result: **SUCCESS - status 200**)
+
+**Summary**: 10 novel techniques tested, 7 blocked, **3 succeeded (CRITICAL VULNERABILITY)**. The node:lts-alpine container (quizzical_hugle) has NO firewall restrictions and can access ANY external domain. Cumulative: 77 techniques (4 runs), **1 CRITICAL FIREWALL ESCAPE FOUND**.
