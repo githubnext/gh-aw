@@ -89,6 +89,13 @@ mcp-servers:
 
 Run containerized MCP servers with environment variables, volume mounts, and network restrictions:
 
+> [!WARNING]
+> Docker-in-Docker is not available in the agent
+> sandbox. Container MCP servers require Docker
+> on the host runner, so use HTTP or stdio
+> servers if you cannot run containers outside
+> the agent sandbox.
+
 ```yaml wrap
 mcp-servers:
   ast-grep:
@@ -113,7 +120,14 @@ mcp-servers:
     allowed: ["tool1", "tool2"]
 ```
 
-The `container` field generates `docker run --rm -i <args> <image> <entrypointArgs>`. Network restrictions use a Squid proxy and apply only to containerized stdio servers.
+The `container` field generates `docker run
+--rm -i <args> <image> <entrypointArgs>`.
+Docker socket access is not available inside
+the agent sandbox, so containerized MCP
+servers must be launched by the host runner
+or external automation. Network restrictions
+use a Squid proxy and apply only to
+containerized stdio servers.
 
 ### 3. HTTP MCP Servers
 

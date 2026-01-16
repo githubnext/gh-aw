@@ -868,8 +868,12 @@ sandbox:
     # (optional)
     type: "awf"
 
-    # Custom command to replace the default AWF or SRT installation. For AWF: 'docker
-    # run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'
+    # Custom command to replace the default AWF
+    # or SRT installation. For AWF: 'docker
+    # run my-custom-awf-image' (requires host
+    # Docker; the agent sandbox does not expose
+    # the Docker socket). For SRT: 'docker run
+    # my-custom-srt-wrapper'
     # (optional)
     command: "example-value"
 
@@ -917,7 +921,7 @@ sandbox:
       ignoreViolations:
         {}
 
-      # Enable weaker nested sandbox mode (recommended: true for Docker access)
+      # Enable weaker nested sandbox mode (does not grant Docker socket access)
       # (optional)
       enableWeakerNestedSandbox: true
 

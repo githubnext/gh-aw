@@ -92,6 +92,13 @@ AWF automatically mounts several paths from the host into the container to enabl
 
 These default mounts ensure the agent has access to essential tools and the repository files. Custom mounts specified via `sandbox.agent.mounts` are added alongside these defaults.
 
+> [!WARNING]
+> The agent sandbox does not expose
+> `/var/run/docker.sock`, so Docker-in-Docker
+> workflows are not supported. If you need
+> containerized tools, run them on the host
+> runner or use HTTP/stdio MCP servers instead.
+
 #### Custom AWF Configuration
 
 Use custom commands, arguments, and environment variables to replace the standard AWF installation with a custom setup:
@@ -178,7 +185,7 @@ network:
 | `filesystem.denyRead` | `string[]` | Paths denied for read access |
 | `filesystem.denyWrite` | `string[]` | Paths denied for write access |
 | `ignoreViolations` | `object` | Map of command patterns to paths that should ignore violations |
-| `enableWeakerNestedSandbox` | `boolean` | Enable weaker nested sandbox mode (recommended for Docker access) |
+| `enableWeakerNestedSandbox` | `boolean` | Enable weaker nested sandbox mode (does not grant Docker socket access) |
 
 > [!NOTE]
 > Network Configuration
@@ -260,6 +267,12 @@ sandbox:
 
 ### Example: Container Mode
 
+> [!WARNING]
+> Container mode requires Docker on the host
+> runner. The agent sandbox no longer has
+> Docker socket access, so it cannot launch
+> containers itself.
+
 ```yaml wrap
 features:
   mcp-gateway: true
@@ -267,11 +280,9 @@ features:
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg:latest"
-    args: ["--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock"]
+    args: ["--rm", "-i"]
     entrypointArgs: ["--routed", "--listen", "0.0.0.0:8000", "--config-stdin"]
     port: 8000
-    env:
-      DOCKER_API_VERSION: "1.44"
 ```
 
 ## Legacy Format
