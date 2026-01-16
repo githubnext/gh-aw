@@ -204,11 +204,6 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		codexEngineLog.Print("Set container working directory to GITHUB_WORKSPACE")
 
 		// Add mount arguments for required paths
-		// Mount the entire host filesystem as read-only first
-		// More specific mounts below will override this for their respective paths
-		awfArgs = append(awfArgs, "--mount", "/:/:ro")
-		codexEngineLog.Print("Added root filesystem mount as readonly to AWF container")
-
 		// Always mount /tmp for temporary files, cache, and CODEX_HOME
 		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
 

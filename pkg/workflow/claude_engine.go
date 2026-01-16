@@ -287,11 +287,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeLog.Print("Set container working directory to GITHUB_WORKSPACE")
 
 		// Add mount arguments for required paths
-		// Mount the entire host filesystem as read-only first
-		// More specific mounts below will override this for their respective paths
-		awfArgs = append(awfArgs, "--mount", "/:/:ro")
-		claudeLog.Print("Added root filesystem mount as readonly to AWF container")
-
 		// Always mount /tmp for temporary files and cache
 		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
 
