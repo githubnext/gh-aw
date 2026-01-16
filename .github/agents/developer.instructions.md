@@ -9,6 +9,7 @@ This document consolidates development guidelines, architectural patterns, and i
 
 ## Table of Contents
 
+- [Workflow Template Library](#workflow-template-library)
 - [Code Organization Patterns](#code-organization-patterns)
 - [Validation Architecture](#validation-architecture)
 - [Development Standards](#development-standards)
@@ -22,6 +23,85 @@ This document consolidates development guidelines, architectural patterns, and i
 - [Hierarchical Agent Management](#hierarchical-agent-management)
 - [Release Management](#release-management)
 - [Quick Reference](#quick-reference)
+
+---
+
+## Workflow Template Library
+
+### Overview
+
+A curated collection of 7 reusable workflow templates based on high-performing automation patterns is available at `.github/workflows/templates/`. These templates provide production-ready starting points for common automation scenarios, reducing development time from 25 minutes to under 5 minutes.
+
+### Available Templates
+
+| Template | File | Use Case | Key Features |
+|----------|------|----------|--------------|
+| **PR Code Review** | `pr-code-review.md` | Automated code review on PRs | Multi-category analysis, cache-memory learning |
+| **Scheduled Monitoring** | `scheduled-monitoring.md` | API/system health monitoring | Baseline comparison, alert thresholds, trend tracking |
+| **Visual Testing** | `visual-testing.md` | UI regression testing | Multi-device testing, screenshot comparison |
+| **On-Demand Reports** | `on-demand-report.md` | Data aggregation and reporting | Flexible data sources, visualizations, Discussions |
+| **Multi-Phase Analysis** | `multi-phase-analysis.md` | Complex analysis pipelines | 6-phase pipeline, historical tracking, alerting |
+| **Rate-Limited Automation** | `rate-limited-automation.md` | Controlled automation | Prioritization, deduplication, configurable limits |
+| **API Persistence** | `api-persistence.md` | API monitoring with baselines | Baseline comparison, anomaly detection, persistence |
+
+### When to Use Templates
+
+**Recommend templates when working with workflows that match these patterns:**
+
+- **Code review scenarios** → PR Code Review template
+- **Monitoring/alerting needs** → Scheduled Monitoring or API Persistence templates
+- **Visual/UI testing** → Visual Testing template
+- **Report generation** → On-Demand Reports template
+- **Complex data analysis** → Multi-Phase Analysis template
+- **Batch automation** → Rate-Limited Automation template
+
+### Template Structure
+
+Each template includes:
+- **Configuration checklist** - Step-by-step setup guide
+- **Frontmatter configuration** - Ready-to-customize YAML
+- **Agent instructions** - Structured workflow logic
+- **Common variations** - Alternative implementations
+- **Success criteria** - Expected outcomes
+- **Related scenarios** - Links to research background
+
+### Using Templates
+
+```bash
+# Copy template to workflows directory
+cp .github/workflows/templates/[template-name].md .github/workflows/my-workflow.md
+
+# Customize configuration
+# - Replace [TODO] placeholders
+# - Configure safe-outputs limits
+# - Set triggers and schedule
+# - Add network domains if needed
+
+# Compile and test
+gh aw compile my-workflow.md
+gh workflow run my-workflow.lock.yml
+```
+
+### Template Development Guidelines
+
+When creating new templates:
+
+1. **Base on proven patterns** - Templates should reflect successful, high-performing workflows
+2. **Include configuration checklist** - Make customization clear and straightforward
+3. **Provide variations** - Show common alternative implementations
+4. **Add TODO markers** - Highlight areas requiring customization
+5. **Document success criteria** - Define what "working" means
+6. **Link to research** - Reference source scenarios that informed the template
+
+### Referencing Templates
+
+When working with custom agents or providing workflow guidance:
+- Point users to `.github/workflows/templates/README.md` for template selection
+- Recommend specific templates based on the use case
+- Encourage customization rather than copying verbatim
+- Suggest starting simple and adding complexity gradually
+
+**Template Catalog**: See `.github/workflows/templates/README.md` for complete documentation and selection guide.
 
 ---
 
