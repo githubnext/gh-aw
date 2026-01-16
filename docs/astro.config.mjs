@@ -183,6 +183,7 @@ export default defineConfig({
 						{ label: 'Triage & Analysis', link: '/examples/issue-pr-events/triage-analysis/' },
 						{ label: 'Coding & Development', link: '/examples/issue-pr-events/coding-development/' },
 						{ label: 'Quality & Testing', link: '/examples/issue-pr-events/quality-testing/' },
+						{ label: "Peli's Agent Factory", link: '/blog/2026-01-12-welcome-to-pelis-agent-factory/' },
 					],
 				},
 				{
@@ -226,10 +227,6 @@ export default defineConfig({
 				{
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
-				},
-				{
-					label: 'Agent Factory',
-					link: '/agent-factory/',
 				},
 			],
 		}),
