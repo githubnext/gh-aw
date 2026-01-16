@@ -114,6 +114,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["startup-timeout"]; exists {
 		tools.StartupTimeout = parseStartupTimeoutTool(val)
 	}
+	if val, exists := toolsMap["inline"]; exists {
+		tools.Inline = parseInlineTools(val)
+	}
 
 	// Extract custom MCP tools (anything not in the known list)
 	knownTools := map[string]bool{
@@ -130,6 +133,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
+		"inline":            true,
 	}
 
 	customCount := 0
@@ -571,4 +575,52 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 	}
 
 	return config
+}
+
+// parseInlineTools converts raw inline tools configuration to []InlineToolConfig
+func parseInlineTools(val any) []InlineToolConfig {
+	if val == nil {
+		return nil
+	}
+
+	// Inline tools must be an array
+	toolsArray, ok := val.([]any)
+	if !ok {
+		toolsParserLog.Printf("Inline tools must be an array, got %T", val)
+		return nil
+	}
+
+	var tools []InlineToolConfig
+	for i, toolVal := range toolsArray {
+		toolMap, ok := toolVal.(map[string]any)
+		if !ok {
+			toolsParserLog.Printf("Inline tool at index %d must be an object, got %T", i, toolVal)
+			continue
+		}
+
+		tool := InlineToolConfig{}
+
+		// Parse required fields
+		if name, ok := toolMap["name"].(string); ok {
+			tool.Name = name
+		}
+
+		if description, ok := toolMap["description"].(string); ok {
+			tool.Description = description
+		}
+
+		// Parse optional fields
+		if parameters, ok := toolMap["parameters"].(map[string]any); ok {
+			tool.Parameters = parameters
+		}
+
+		if implementation, ok := toolMap["implementation"].(string); ok {
+			tool.Implementation = implementation
+		}
+
+		tools = append(tools, tool)
+	}
+
+	toolsParserLog.Printf("Parsed %d inline tools", len(tools))
+	return tools
 }

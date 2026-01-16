@@ -193,6 +193,54 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate inline tools configuration
+	log.Printf("Validating inline tools configuration")
+	if err := validateInlineTools(workflowData); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return errors.New(formattedErr)
+	}
+
+	// Validate individual inline tool definitions
+	if workflowData.ParsedTools != nil && len(workflowData.ParsedTools.Inline) > 0 {
+		log.Printf("Validating %d inline tool definitions", len(workflowData.ParsedTools.Inline))
+		for i, tool := range workflowData.ParsedTools.Inline {
+			if err := validateInlineToolDefinition(tool, i); err != nil {
+				formattedErr := console.FormatError(console.CompilerError{
+					Position: console.ErrorPosition{
+						File:   markdownPath,
+						Line:   1,
+						Column: 1,
+					},
+					Type:    "error",
+					Message: err.Error(),
+				})
+				return errors.New(formattedErr)
+			}
+		}
+
+		// Check for name uniqueness
+		if err := checkInlineToolNameUniqueness(workflowData.ParsedTools.Inline, workflowData.ParsedTools); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: err.Error(),
+			})
+			return errors.New(formattedErr)
+		}
+	}
+
 	// Validate safe-outputs allowed-domains configuration
 	log.Printf("Validating safe-outputs allowed-domains")
 	if err := validateSafeOutputsAllowedDomains(workflowData.SafeOutputs); err != nil {

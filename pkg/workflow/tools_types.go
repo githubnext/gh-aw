@@ -75,6 +75,9 @@ type ToolsConfig struct {
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
 
+	// Inline tools - custom tools defined directly in the workflow (SDK mode only)
+	Inline []InlineToolConfig `yaml:"inline,omitempty"`
+
 	// Custom MCP tools (anything not in the above list)
 	Custom map[string]MCPServerConfig `yaml:",inline"`
 
@@ -209,6 +212,24 @@ func (t *ToolsConfig) ToMap() map[string]any {
 		result["startup-timeout"] = *t.StartupTimeout
 	}
 
+	// Add inline tools
+	if len(t.Inline) > 0 {
+		inlineTools := make([]map[string]any, 0, len(t.Inline))
+		for _, tool := range t.Inline {
+			toolMap := make(map[string]any)
+			toolMap["name"] = tool.Name
+			toolMap["description"] = tool.Description
+			if tool.Parameters != nil {
+				toolMap["parameters"] = tool.Parameters
+			}
+			if tool.Implementation != "" {
+				toolMap["implementation"] = tool.Implementation
+			}
+			inlineTools = append(inlineTools, toolMap)
+		}
+		result["inline"] = inlineTools
+	}
+
 	// Add custom tools - convert MCPServerConfig to map[string]any
 	for name, config := range t.Custom {
 		result[name] = mcpServerConfigToMap(config)
@@ -286,6 +307,41 @@ type AgenticWorkflowsToolConfig struct {
 type CacheMemoryToolConfig struct {
 	// Can be boolean, object, or array - handled by cache.go
 	Raw any `yaml:"-"`
+}
+
+// InlineToolConfig represents a custom tool defined inline in the workflow.
+// These tools are defined directly in the frontmatter with their implementation
+// and are only supported in SDK mode.
+//
+// # Example Usage
+//
+//	tools:
+//	  inline:
+//	    - name: create_deployment
+//	      description: "Create deployment to specified environment"
+//	      parameters:
+//	        type: object
+//	        properties:
+//	          environment:
+//	            type: string
+//	            enum: [staging, production]
+//	        required: [environment]
+//	      implementation: |
+//	        const { environment } = params;
+//	        const result = await exec(`gh api ...`);
+//	        return { deployment_id: result.id };
+//
+// # Security Considerations
+//
+//   - Inline tools run in the workflow's execution context with access to secrets
+//   - Implementation code should be carefully reviewed for security issues
+//   - Parameters are validated against the JSON Schema before execution
+//   - Only supported in SDK mode to provide proper sandboxing
+type InlineToolConfig struct {
+	Name           string         `yaml:"name"`                     // Tool name (required, must be unique)
+	Description    string         `yaml:"description"`              // Human-readable description of what the tool does (required)
+	Parameters     map[string]any `yaml:"parameters,omitempty"`     // JSON Schema for tool parameters
+	Implementation string         `yaml:"implementation,omitempty"` // JavaScript/TypeScript implementation code
 }
 
 // MCPServerConfig represents the configuration for a custom MCP server.

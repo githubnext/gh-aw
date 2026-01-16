@@ -21,6 +21,7 @@
 //   - firewall_validation.go: Firewall log-level validation
 //   - gateway_validation.go: Gateway port validation
 //   - sandbox_validation.go: Sandbox and mounts validation
+//   - inline_tools_validation.go: Inline tool definition validation
 //   - bundler_safety_validation.go: JavaScript bundle safety (require/module checks)
 //   - bundler_script_validation.go: JavaScript script content (execSync, GitHub globals)
 //   - bundler_runtime_validation.go: JavaScript runtime mode compatibility
