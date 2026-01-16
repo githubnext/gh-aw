@@ -511,7 +511,7 @@ jobs:
           - Call with parameters:
             - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
             - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__`)
-            - `alert_number`: The alert number from step 1
+            - `alertNumber`: The alert number from step 1
           - Extract key information:
             - Alert number
             - Severity level
