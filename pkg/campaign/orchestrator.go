@@ -362,6 +362,17 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	}
 	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
 
+	// Add dispatch_workflow if workflows are configured
+	// This allows the orchestrator to dispatch worker workflows for the campaign
+	if len(spec.Workflows) > 0 {
+		dispatchWorkflowConfig := &workflow.DispatchWorkflowConfig{
+			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
+			Workflows:            spec.Workflows,
+		}
+		safeOutputs.DispatchWorkflow = dispatchWorkflowConfig
+		orchestratorLog.Printf("Campaign orchestrator '%s' configured with dispatch_workflow for %d workflows", spec.ID, len(spec.Workflows))
+	}
+
 	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
 
 	// Extract file-glob patterns from memory-paths or metrics-glob to support
