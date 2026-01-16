@@ -43,6 +43,26 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		permissions = perms.RenderToYAML()
 	}
 
+	// Add reaction step immediately after setup for instant user feedback
+	// This happens BEFORE any checks, so users see progress immediately
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		reactionCondition := BuildReactionCondition()
+
+		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
+		steps = append(steps, "        id: react\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+		// Add environment variables
+		steps = append(steps, "        env:\n")
+		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
+		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
+
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
+	}
+
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
@@ -362,23 +382,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
-	// Add reaction step if ai-reaction is configured and not "none"
+	// Add comment with workflow run link if ai-reaction is configured and not "none"
+	// Note: The reaction was already added in the pre-activation job for immediate feedback
 	if data.AIReaction != "" && data.AIReaction != "none" {
 		reactionCondition := BuildReactionCondition()
 
-		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
-		steps = append(steps, "        id: react\n")
+		steps = append(steps, "      - name: Add comment with workflow run link\n")
+		steps = append(steps, "        id: add-comment\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 		// Add environment variables
 		steps = append(steps, "        env:\n")
-		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
-		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
-		if len(data.Command) > 0 {
-			// Pass first command for backward compatibility with reaction script
-			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command[0]))
-		}
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 
 		// Add tracker-id if present
@@ -403,13 +418,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("add_reaction_and_edit_comment.cjs"))
+		steps = append(steps, generateGitHubScriptWithRequire("add_workflow_run_comment.cjs"))
 
-		// Add reaction outputs
-		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
-		outputs["comment_id"] = "${{ steps.react.outputs.comment-id }}"
-		outputs["comment_url"] = "${{ steps.react.outputs.comment-url }}"
-		outputs["comment_repo"] = "${{ steps.react.outputs.comment-repo }}"
+		// Add comment outputs (no reaction_id since reaction was added in pre-activation)
+		outputs["comment_id"] = "${{ steps.add-comment.outputs.comment-id }}"
+		outputs["comment_url"] = "${{ steps.add-comment.outputs.comment-url }}"
+		outputs["comment_repo"] = "${{ steps.add-comment.outputs.comment-repo }}"
 	}
 
 	// Add lock step if lock-for-agent is enabled
