@@ -268,7 +268,7 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) 
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
 	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"]\n")
-	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
+	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\", \"HTTP_PROXY\", \"HTTPS_PROXY\", \"http_proxy\", \"https_proxy\", \"NO_PROXY\", \"no_proxy\"]\n")
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration

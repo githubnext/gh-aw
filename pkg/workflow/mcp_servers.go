@@ -574,6 +574,17 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		containerCmd += " -e GITHUB_SHA"
 		containerCmd += " -e GITHUB_WORKSPACE"
 		containerCmd += " -e GITHUB_TOKEN"
+		// Proxy environment variables for firewall enforcement
+		// AWF sets these proxy variables in the main agent container via --env-all
+		// MCP Gateway must receive them and pass them to sibling containers it spawns
+		// This ensures safe-outputs and other MCP containers respect firewall rules
+		// Passing both uppercase and lowercase variants for compatibility (some tools check one or the other)
+		containerCmd += " -e HTTP_PROXY"
+		containerCmd += " -e HTTPS_PROXY"
+		containerCmd += " -e http_proxy"
+		containerCmd += " -e https_proxy"
+		containerCmd += " -e NO_PROXY"
+		containerCmd += " -e no_proxy"
 		// Environment variables used by safeinputs MCP server
 		// Only add if safe-inputs is actually enabled (has tools configured)
 		if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {

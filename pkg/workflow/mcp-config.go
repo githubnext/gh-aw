@@ -250,6 +250,15 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		"GITHUB_SHA",
 		"GITHUB_WORKSPACE",
 		"DEFAULT_BRANCH",
+		// Proxy environment variables for firewall enforcement
+		// AWF sets these in the agent container; MCP Gateway receives them and passes to sibling containers
+		// This ensures safe-outputs container respects firewall rules when accessed via docker exec
+		"HTTP_PROXY",
+		"HTTPS_PROXY",
+		"http_proxy",
+		"https_proxy",
+		"NO_PROXY",
+		"no_proxy",
 	}
 
 	// Use MCP Gateway spec format with container, entrypoint, entrypointArgs, and mounts
