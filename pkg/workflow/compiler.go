@@ -439,6 +439,26 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands
+	log.Print("Validating for template injection vulnerabilities")
+	if err := validateNoTemplateInjection(yamlContent); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		// Write the invalid YAML to a .invalid.yml file for inspection
+		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow with template injection risks written to: %s", console.ToRelativePath(invalidFile))))
+		}
+		return errors.New(formattedErr)
+	}
+
 	// Validate against GitHub Actions schema (unless skipped)
 	if !c.skipValidation {
 		log.Print("Validating workflow against GitHub Actions schema")

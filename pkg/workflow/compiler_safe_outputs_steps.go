@@ -121,18 +121,20 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	}
 
 	// Step 2: Configure Git credentials with conditional execution
+	// Security: Pass GitHub token through environment variable to prevent template injection
 	gitConfigSteps := []string{
 		"      - name: Configure Git credentials\n",
 		fmt.Sprintf("        if: %s\n", condition.Render()),
 		"        env:\n",
 		"          REPO_NAME: ${{ github.repository }}\n",
 		"          SERVER_URL: ${{ github.server_url }}\n",
+		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
 		"          # Re-authenticate git with GitHub token\n",
 		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
-		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", gitRemoteToken),
+		"          git remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
 		"          echo \"Git configured with standard GitHub Actions identity\"\n",
 	}
 	steps = append(steps, gitConfigSteps...)
