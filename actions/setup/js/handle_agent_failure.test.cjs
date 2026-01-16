@@ -350,8 +350,8 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify body contains required sections (check second call - failure issue)
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
-      expect(failureIssueCreateCall.body).toContain("**Workflow Failure**");
-      expect(failureIssueCreateCall.body).toContain("**Action Required**");
+      expect(failureIssueCreateCall.body).toContain("### Workflow Failure");
+      expect(failureIssueCreateCall.body).toContain("### Action Required");
       expect(failureIssueCreateCall.body).toContain("agentic-workflows");
       expect(failureIssueCreateCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
       expect(failureIssueCreateCall.body).toContain("**Branch:**");
