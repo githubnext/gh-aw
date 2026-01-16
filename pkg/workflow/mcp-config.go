@@ -265,7 +265,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	yaml.WriteString("                \"container\": \"" + constants.DefaultNodeAlpineLTSImage + "\",\n")
 	yaml.WriteString("                \"entrypoint\": \"node\",\n")
 	yaml.WriteString("                \"entrypointArgs\": [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"],\n")
-	yaml.WriteString("                \"mounts\": [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"],\n")
+	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultTmpGhAwMount + "\"],\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.
@@ -317,7 +317,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	yaml.WriteString("                \"container\": \"" + constants.DefaultAlpineImage + "\",\n")
 	yaml.WriteString("                \"entrypoint\": \"/opt/gh-aw/gh-aw\",\n")
 	yaml.WriteString("                \"entrypointArgs\": [\"mcp-server\"],\n")
-	yaml.WriteString("                \"mounts\": [\"/opt/gh-aw:/opt/gh-aw:ro\"],\n")
+	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\"],\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.
@@ -401,7 +401,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
-	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\"]\n")
+	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultTmpGhAwMount + "\"]\n")
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
 	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
 }
@@ -415,7 +415,7 @@ func renderAgenticWorkflowsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          container = \"" + constants.DefaultAlpineImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"/opt/gh-aw/gh-aw\"\n")
 	yaml.WriteString("          entrypointArgs = [\"mcp-server\"]\n")
-	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\"]\n")
+	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\"]\n")
 	// Use env_vars array to reference environment variables instead of embedding secrets
 	yaml.WriteString("          env_vars = [\"GITHUB_TOKEN\"]\n")
 }

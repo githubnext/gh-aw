@@ -328,7 +328,7 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	yaml.WriteString("          container = \"" + constants.DefaultAlpineImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"/opt/gh-aw/gh-aw\"\n")
 	yaml.WriteString("          entrypointArgs = [\"mcp-server\"]\n")
-	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\"]\n")
+	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\"]\n")
 	yaml.WriteString("          env_vars = [\"GITHUB_TOKEN\"]\n")
 }
 

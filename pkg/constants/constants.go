@@ -317,6 +317,14 @@ const DefaultPythonAlpineLTSImage = "python:alpine"
 // Used for MCP servers that run statically-linked Go binaries like gh-aw mcp-server
 const DefaultAlpineImage = "alpine:latest"
 
+// DefaultGhAwMount is the mount path for the gh-aw directory in containerized MCP servers
+// The gh-aw binary and supporting files are mounted read-only from /opt/gh-aw
+const DefaultGhAwMount = "/opt/gh-aw:/opt/gh-aw:ro"
+
+// DefaultTmpGhAwMount is the mount path for temporary gh-aw files in containerized MCP servers
+// Used for logs, cache, and other runtime data that needs read-write access
+const DefaultTmpGhAwMount = "/tmp/gh-aw:/tmp/gh-aw:rw"
+
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"
 

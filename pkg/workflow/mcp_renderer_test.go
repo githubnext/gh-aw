@@ -271,9 +271,9 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify Copilot-specific fields (per MCP Gateway Specification v1.0.0)
+	// Verify MCP Gateway Specification v1.0.0 fields
 	if !strings.Contains(output, `"type": "stdio"`) {
-		t.Error("Expected 'type': 'stdio' field for Copilot")
+		t.Error("Expected 'type': 'stdio' field per MCP Gateway Specification")
 	}
 	if !strings.Contains(output, `"agentic_workflows": {`) {
 		t.Error("Expected agentic_workflows server ID")
