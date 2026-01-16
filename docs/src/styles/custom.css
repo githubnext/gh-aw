@@ -1429,25 +1429,6 @@ a:hover {
   color: #e5c7ff;
 }
 
-/* Blog Author Links - Prevent visited state */
-.authors a.author,
-.authors a.author:visited {
-  color: #d896ff;
-}
-
-.authors a.author:hover {
-  color: #e5c7ff;
-}
-
-:root[data-theme='light'] .authors a.author,
-:root[data-theme='light'] .authors a.author:visited {
-  color: #5b3da3;
-}
-
-:root[data-theme='light'] .authors a.author:hover {
-  color: #6b46c1;
-}
-
 /* Badges */
 .sl-badge {
   background-color: #2ea043;
