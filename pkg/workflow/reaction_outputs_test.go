@@ -57,8 +57,8 @@ This workflow should generate add_reaction job with comment outputs.
 	}
 
 	// Check for reaction job outputs
+	// Verify that comment-related outputs are present (reaction_id is no longer in activation)
 	expectedOutputs := []string{
-		"reaction_id:",
 		"comment_id:",
 		"comment_url:",
 		"comment_repo:",
@@ -70,23 +70,20 @@ This workflow should generate add_reaction job with comment outputs.
 		}
 	}
 
-	// Verify the outputs reference the react step - now in activation job
-	if !strings.Contains(yamlContent, "steps.react.outputs.reaction-id") {
-		t.Error("Generated YAML should contain reaction-id output reference")
-	}
-	if !strings.Contains(yamlContent, "steps.react.outputs.comment-id") {
+	// Verify the outputs reference the add-comment step in activation job
+	if !strings.Contains(yamlContent, "steps.add-comment.outputs.comment-id") {
 		t.Error("Generated YAML should contain comment-id output reference")
 	}
-	if !strings.Contains(yamlContent, "steps.react.outputs.comment-url") {
+	if !strings.Contains(yamlContent, "steps.add-comment.outputs.comment-url") {
 		t.Error("Generated YAML should contain comment-url output reference")
 	}
-	if !strings.Contains(yamlContent, "steps.react.outputs.comment-repo") {
+	if !strings.Contains(yamlContent, "steps.add-comment.outputs.comment-repo") {
 		t.Error("Generated YAML should contain comment-repo output reference")
 	}
 
-	// Verify reaction step is in activation job, not a separate add_reaction job
-	if strings.Contains(yamlContent, "add_reaction:") {
-		t.Error("Generated YAML should not contain separate add_reaction job")
+	// Verify reaction is in pre-activation job for immediate feedback
+	if !strings.Contains(yamlContent, "Add eyes reaction for immediate feedback") {
+		t.Error("Generated YAML should contain reaction step in pre-activation job")
 	}
 }
 

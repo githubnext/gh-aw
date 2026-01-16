@@ -37,9 +37,25 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination)...)
 
-	// Set permissions if checkout is needed (for local actions in dev mode)
+	// Determine permissions for pre-activation job
+	var perms *Permissions
 	if needsContentsRead {
-		perms := NewPermissionsContentsRead()
+		perms = NewPermissionsContentsRead()
+	}
+
+	// Add reaction permissions if reaction is configured (reactions added in pre-activation for immediate feedback)
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		if perms == nil {
+			perms = NewPermissions()
+		}
+		// Add write permissions for reactions
+		perms.Set(PermissionIssues, PermissionWrite)
+		perms.Set(PermissionPullRequests, PermissionWrite)
+		perms.Set(PermissionDiscussions, PermissionWrite)
+	}
+
+	// Set permissions if any were configured
+	if perms != nil {
 		permissions = perms.RenderToYAML()
 	}
 
