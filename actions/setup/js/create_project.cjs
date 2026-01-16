@@ -182,6 +182,7 @@ function parseProjectUrl(projectUrl) {
  * @param {string} viewConfig.layout - View layout (table, board, roadmap)
  * @param {string} [viewConfig.filter] - View filter
  * @param {Array<number>} [viewConfig.visible_fields] - Visible field IDs
+ * @param {string} [viewConfig.description] - View description (not supported by GitHub API, will be ignored)
  * @returns {Promise<void>}
  */
 async function createProjectView(projectUrl, viewConfig) {
