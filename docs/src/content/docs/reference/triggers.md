@@ -205,6 +205,56 @@ on:
     types: [opened, edited, labeled]
 ```
 
+#### Issue Locking (`lock-for-agent:`)
+
+Prevent concurrent modifications to an issue during workflow execution by setting `lock-for-agent: true`:
+
+```yaml wrap
+on:
+  issues:
+    types: [opened, edited]
+    lock-for-agent: true
+```
+
+When enabled:
+- The issue is **locked** at the start of the workflow (in the activation job)
+- The issue is **unlocked** after workflow completion (in the conclusion job)
+- If safe-outputs are configured, the issue is unlocked before safe output processing to allow comments/updates
+- The unlock step runs with `always()` condition to ensure unlocking even if the workflow fails
+
+**When to use `lock-for-agent`:**
+- Workflows that make multiple sequential updates to an issue
+- Preventing race conditions when multiple workflow runs might modify the same issue
+- Ensuring consistent state during complex issue processing
+
+**Requirements and behavior:**
+- Requires `issues: write` permission (automatically added to activation and conclusion jobs)
+- Pull requests are silently skipped (they cannot be locked via the issues API)
+- Already-locked issues are skipped without error
+
+**Example workflow:**
+```aw wrap
+---
+on:
+  issues:
+    types: [opened]
+    lock-for-agent: true
+permissions:
+  contents: read
+  issues: write
+safe-outputs:
+  add-comment:
+    max: 3
+---
+
+# Issue Processor with Locking
+
+Process the issue and make multiple updates without interference
+from concurrent modifications.
+
+Context: "${{ needs.activation.outputs.text }}"
+```
+
 ### Pull Request Triggers (`pull_request:`)
 
 Trigger on pull request events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
@@ -247,6 +297,21 @@ on:
     types: [created]
   reaction: "eyes"
 ```
+
+#### Comment Locking (`lock-for-agent:`)
+
+For `issue_comment` events, you can lock the parent issue during workflow execution:
+
+```yaml wrap
+on:
+  issue_comment:
+    types: [created, edited]
+    lock-for-agent: true
+```
+
+This prevents concurrent modifications to the issue while processing the comment. The locking behavior is identical to the `issues:` trigger (see [Issue Locking](#issue-locking-lock-for-agent) above for full details).
+
+**Note:** Pull request comments are silently skipped as pull requests cannot be locked via the issues API.
 
 ### Workflow Run Triggers (`workflow_run:`)
 
