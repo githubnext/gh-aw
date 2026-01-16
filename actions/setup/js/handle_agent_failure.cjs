@@ -314,12 +314,16 @@ async function main() {
         const issueTemplatePath = "/opt/gh-aw/prompts/agent_failure_issue.md";
         const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
+        // Get current branch information
+        const currentBranch = getCurrentBranch();
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
           run_url: runUrl,
           workflow_source_url: workflowSourceURL || "#",
-          pull_request_info: pullRequest ? `\n- **Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
+          branch: currentBranch,
+          pull_request_info: pullRequest ? `  \n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
         };
 
         // Render the issue template
