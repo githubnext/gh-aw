@@ -352,7 +352,7 @@ const DefaultDenoVersion Version = "2.x"
 // Timeout constants using time.Duration for type safety and clear units
 
 // DefaultAgenticWorkflowTimeout is the default timeout for agentic workflow execution
-const DefaultAgenticWorkflowTimeout = 20 * time.Minute
+const DefaultAgenticWorkflowTimeout = 10 * time.Hour
 
 // DefaultToolTimeout is the default timeout for tool/MCP server operations
 const DefaultToolTimeout = 60 * time.Second
