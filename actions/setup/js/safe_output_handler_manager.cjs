@@ -62,8 +62,9 @@ const HANDLER_MAP = {
  * These types should not trigger warnings when skipped by the handler manager
  *
  * Note: create_agent_task and upload_asset are legacy types not yet migrated to the handler manager
+ * Note: noop is intentionally kept as a standalone type for special handling
  */
-const STANDALONE_STEP_TYPES = new Set(["create_agent_task", "upload_asset"]);
+const STANDALONE_STEP_TYPES = new Set(["create_agent_task", "upload_asset", "noop"]);
 
 /**
  * Load configuration for safe outputs
