@@ -196,6 +196,63 @@ jobs:
             gh extension install githubnext/gh-aw
           fi
           gh aw --version
+      - name: Generate Agentic Workflows MCP Server Config
+        id: agentic-workflows-config
+        run: |
+          # Generate a secure random API key (360 bits of entropy, 40+ chars)
+          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          PORT=3001
+          
+          # Register API key as secret to mask it from logs
+          echo "::add-mask::${API_KEY}"
+          
+          # Set outputs for next steps
+          {
+            echo "agentic_workflows_api_key=${API_KEY}"
+            echo "agentic_workflows_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "Agentic Workflows MCP server will run on port ${PORT}"
+          
+      - name: Start Agentic Workflows MCP HTTP Server
+        id: agentic-workflows-start
+        env:
+          GH_AW_AGENTIC_WORKFLOWS_PORT: ${{ steps.agentic-workflows-config.outputs.agentic_workflows_port }}
+          GH_AW_AGENTIC_WORKFLOWS_API_KEY: ${{ steps.agentic-workflows-config.outputs.agentic_workflows_api_key }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Environment variables are set above to prevent template injection
+          export GH_AW_AGENTIC_WORKFLOWS_PORT
+          export GH_AW_AGENTIC_WORKFLOWS_API_KEY
+          export GITHUB_TOKEN
+          
+          # Create log directory for agentic-workflows MCP server
+          mkdir -p /tmp/gh-aw/mcp-logs/agentic-workflows
+          
+          # Start gh aw mcp-server in HTTP mode with API key authentication
+          # Run in background and verify it started successfully
+          nohup gh aw mcp-server --port "${GH_AW_AGENTIC_WORKFLOWS_PORT}" \
+            > /tmp/gh-aw/mcp-logs/agentic-workflows/server.log 2>&1 &
+          SERVER_PID=$!
+          
+          # Wait for server to start (max 10 seconds)
+          for i in {1..20}; do
+            if curl -s -H "Authorization: ${GH_AW_AGENTIC_WORKFLOWS_API_KEY}" \
+                 "http://localhost:${GH_AW_AGENTIC_WORKFLOWS_PORT}/health" > /dev/null 2>&1; then
+              echo "Agentic Workflows MCP server started successfully on port ${GH_AW_AGENTIC_WORKFLOWS_PORT}"
+              echo "port=${GH_AW_AGENTIC_WORKFLOWS_PORT}" >> "$GITHUB_OUTPUT"
+              echo "api_key=${GH_AW_AGENTIC_WORKFLOWS_API_KEY}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 0.5
+          done
+          
+          # Server failed to start
+          echo "ERROR: Agentic Workflows MCP server failed to start"
+          echo "Server log:"
+          cat /tmp/gh-aw/mcp-logs/agentic-workflows/server.log || true
+          exit 1
+          
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -477,6 +534,8 @@ jobs:
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
+          GH_AW_AGENTIC_WORKFLOWS_API_KEY: ${{ steps.agentic-workflows-start.outputs.api_key }}
+          GH_AW_AGENTIC_WORKFLOWS_PORT: ${{ steps.agentic-workflows-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -502,11 +561,10 @@ jobs:
           {
             "mcpServers": {
               "agentic_workflows": {
-                "type": "stdio",
-                "command": "gh",
-                "args": ["aw", "mcp-server"],
-                "env": {
-                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                "type": "http",
+                "url": "http://host.docker.internal:$GH_AW_AGENTIC_WORKFLOWS_PORT",
+                "headers": {
+                  "Authorization": "\${GH_AW_AGENTIC_WORKFLOWS_API_KEY}"
                 }
               },
               "github": {
