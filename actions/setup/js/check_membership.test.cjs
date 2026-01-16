@@ -109,6 +109,15 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
     });
 
+    it("should skip check for merge_group events", async () => {
+      mockContext.eventName = "merge_group";
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("✅ Event merge_group does not require validation");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
+    });
+
     it("should skip check for workflow_dispatch when write role is allowed", async () => {
       mockContext.eventName = "workflow_dispatch";
       process.env.GH_AW_REQUIRED_ROLES = "write,read";

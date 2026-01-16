@@ -206,7 +206,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh alpine:latest ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
       - name: Install gh-aw extension
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -379,10 +379,7 @@ jobs:
                     "type": "string"
                   }
                 },
-                "required": [
-                  "data_type",
-                  "reason"
-                ],
+                "required": [],
                 "type": "object"
               },
               "name": "missing_data"
@@ -517,8 +514,10 @@ jobs:
             "mcpServers": {
               "agentic_workflows": {
                 "type": "stdio",
-                "command": "gh",
-                "args": ["aw", "mcp-server"],
+                "container": "alpine:latest",
+                "entrypoint": "/opt/gh-aw/gh-aw",
+                "entrypointArgs": ["mcp-server"],
+                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro"],
                 "env": {
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
                 }

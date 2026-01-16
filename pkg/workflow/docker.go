@@ -49,6 +49,16 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []str
 		}
 	}
 
+	// Check for agentic-workflows tool (uses alpine container for gh-aw mcp-server)
+	if _, hasAgenticWorkflows := tools["agentic-workflows"]; hasAgenticWorkflows {
+		image := constants.DefaultAlpineImage
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+			dockerLog.Printf("Added agentic-workflows MCP server container: %s", image)
+		}
+	}
+
 	// Collect sandbox.mcp container (MCP gateway)
 	// Skip if sandbox is disabled (sandbox: false)
 	if workflowData != nil && workflowData.SandboxConfig != nil {

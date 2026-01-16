@@ -40,35 +40,21 @@ async function main(config = {}) {
       };
     }
 
-    // Validate required fields
-    if (!message.data_type) {
-      core.warning(`missing_data message missing 'data_type' field: ${JSON.stringify(message)}`);
-      return {
-        success: false,
-        error: "Missing required field: data_type",
-      };
-    }
-
-    if (!message.reason) {
-      core.warning(`missing_data message missing 'reason' field: ${JSON.stringify(message)}`);
-      return {
-        success: false,
-        error: "Missing required field: reason",
-      };
-    }
-
+    // No required fields - the model can just tell us it's missing something
     processedCount++;
 
     const missingData = {
-      data_type: message.data_type,
-      reason: message.reason,
+      data_type: message.data_type || null,
+      reason: message.reason || null,
       context: message.context || null,
       alternatives: message.alternatives || null,
       timestamp: new Date().toISOString(),
     };
 
-    core.info(`✓ Recorded missing data: ${missingData.data_type}`);
-    core.info(`   Reason: ${missingData.reason}`);
+    core.info(`✓ Recorded missing data${missingData.data_type ? `: ${missingData.data_type}` : ""}`);
+    if (missingData.reason) {
+      core.info(`   Reason: ${missingData.reason}`);
+    }
     if (missingData.context) {
       core.info(`   Context: ${missingData.context}`);
     }
