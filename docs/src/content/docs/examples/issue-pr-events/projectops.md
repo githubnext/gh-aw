@@ -13,23 +13,36 @@ Safe outputs handle all project operations in separate, scoped jobs with minimal
 
 ## Prerequisites
 
-ProjectOps workflows require a GitHub token with Projects permissions. The specific token requirements vary by operation:
+1. **Create a Project**: Before you wire up a workflow, you must first create the Project in the GitHub UI (user or organization level). Keep the Project URL handy (you'll need to reference it in your workflow instructions).
 
-**For most project operations** (update-project, create-project-status-update):
-- **Classic PAT**: `project` scope (user projects) or `project` + `repo` scope (org projects)
-- **Fine-grained PAT**: Organization permissions → Projects: Read & Write
+2. **Create a token**: The kind of token you need depends on whether the Project you created is **user-owned** or **organization-owned**.
 
-**For project creation and copying** (create-project, copy-project):
-- Same token permissions as above
-- Token must have access to the target organization or user
+#### User-owned Projects (v2)
 
-Store your token as a repository secret:
+Use a **classic PAT** with scopes:
+- `project` (required for user Projects)
+- `repo` (required if accessing private repositories)
+
+#### Organization-owned Projects (v2)
+
+Use a **fine-grained** PAT with scopes:
+- Repository access: Select specific repos that will use the workflow
+- Repository permissions:
+  - Contents: Read
+  - Issues: Read (if workflow is triggered by issues)
+  - Pull requests: Read (if workflow is triggered by pull requests)
+- Organization permissions:
+  - Projects: Read & Write (required for updating projects)
+
+### 3) Store the token as a secret
+
+After creating your token, add it to your repository:
 
 ```bash
 gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_TOKEN"
 ```
 
-See the [GitHub Projects v2 token reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) for complete token setup details.
+See the [GitHub Projects v2 token reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) for complete details.
 
 ## Example: Smart Issue Triage
 
