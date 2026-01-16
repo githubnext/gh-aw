@@ -24,8 +24,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/github-queries-safe-input.md
-#     - shared/trending-charts-simple.md
 #     - shared/reporting.md
+#     - shared/trending-charts-simple.md
 
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":

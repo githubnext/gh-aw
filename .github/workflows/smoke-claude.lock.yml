@@ -23,8 +23,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp-pagination.md
 #     - shared/gh.md
+#     - shared/mcp-pagination.md
 #     - shared/mcp/tavily.md
 
 name: "Smoke Claude"

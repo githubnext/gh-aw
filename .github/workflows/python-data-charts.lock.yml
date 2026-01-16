@@ -23,9 +23,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/charts-with-trending.md
 #     - shared/python-dataviz.md
 #     - shared/trends.md
+#     - shared/charts-with-trending.md
 
 name: "Python Data Visualization Generator"
 "on":

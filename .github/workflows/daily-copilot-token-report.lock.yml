@@ -23,8 +23,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/reporting.md
 #     - shared/python-dataviz.md
+#     - shared/reporting.md
 
 name: "Daily Copilot Token Consumption Report"
 "on":

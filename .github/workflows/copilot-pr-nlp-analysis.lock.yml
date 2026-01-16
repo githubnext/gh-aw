@@ -23,10 +23,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/copilot-pr-data-fetch.md
 #     - shared/jqschema.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
-#     - shared/copilot-pr-data-fetch.md
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":

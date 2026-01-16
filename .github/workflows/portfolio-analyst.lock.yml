@@ -23,9 +23,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/jqschema.md
 #     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
-#     - shared/jqschema.md
 #     - shared/trending-charts-simple.md
 
 name: "Automated Portfolio Analyst"

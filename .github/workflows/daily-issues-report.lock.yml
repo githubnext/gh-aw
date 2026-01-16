@@ -23,11 +23,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/jqschema.md
 #     - shared/issues-data-fetch.md
+#     - shared/jqschema.md
 #     - shared/python-dataviz.md
-#     - shared/trends.md
 #     - shared/reporting.md
+#     - shared/trends.md
 
 name: "Daily Issues Report Generator"
 "on":

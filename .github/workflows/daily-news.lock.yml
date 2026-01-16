@@ -23,11 +23,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/tavily.md
 #     - shared/jqschema.md
+#     - shared/mcp/tavily.md
+#     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
-#     - shared/python-dataviz.md
 
 name: "Daily News"
 "on":

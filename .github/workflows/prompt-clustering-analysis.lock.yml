@@ -23,10 +23,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/jqschema.md
-#     - shared/reporting.md
-#     - shared/mcp/gh-aw.md
 #     - shared/copilot-pr-data-fetch.md
+#     - shared/jqschema.md
+#     - shared/mcp/gh-aw.md
+#     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 
 name: "Copilot Agent Prompt Clustering Analysis"

@@ -24,9 +24,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/weekly-issues-data-fetch.md
 #     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
+#     - shared/weekly-issues-data-fetch.md
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":
