@@ -5,6 +5,8 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
+  - claude
+  - copilot
 date: 2026-01-13T04:00:00
 sidebar:
   label: "Issue & PR Management"
