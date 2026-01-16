@@ -491,7 +491,7 @@ jobs:
           - Do NOT add footer attribution (system adds automatically)
           
           
-          @./agentics/repo-audit-analyzer.md
+          {{#runtime-import agentics/repo-audit-analyzer.md}}
           
           PROMPT_EOF
       - name: Append temporary folder instructions to prompt

@@ -2,11 +2,11 @@
 
 ## Feature Overview
 
-This implementation adds inline syntax support for including file and URL content directly within workflow prompts at runtime:
+This implementation adds runtime import support for including file and URL content directly within workflow prompts at runtime:
 
-- **`@path/to/file`** - Include entire file content (from `.github` folder)
-- **`@path/to/file:10-20`** - Include lines 10-20 from a file (1-indexed, from `.github` folder)
-- **`@https://example.com/file.txt`** - Fetch and include URL content (with caching)
+- **`{{#runtime-import filepath}}`** - Include entire file content (from `.github` folder)
+- **`{{#runtime-import filepath:10-20}}`** - Include lines 10-20 from a file (1-indexed, from `.github` folder)
+- **`{{#runtime-import https://example.com/file.txt}}`** - Fetch and include URL content (with caching)
 
 **Security Note:** File imports are **restricted to the `.github` folder** to prevent access to arbitrary repository files. URLs are not restricted.
 
@@ -32,8 +32,6 @@ The feature reuses and extends the existing `runtime_import.cjs` infrastructure:
 
 3. **Integration** (`interpolate_prompt.cjs`)
    - Step 1: Process `{{#runtime-import}}` macros
-   - Step 1.5: Process `@path` and `@path:line-line` references
-   - Step 1.6: Process `@https://...` and `@http://...` references
    - Step 2: Interpolate variables (`${GH_AW_EXPR_*}`)
    - Step 3: Render template conditionals (`{{#if}}`)
 
@@ -49,11 +47,6 @@ Workflow Source (.md)
 [Runtime Execution in GitHub Actions]
         ↓
     {{#runtime-import}} → Includes external markdown files
-        ↓
-    @path → Inlines file content
-    @path:start-end → Inlines line ranges
-        ↓
-    @https://... → Fetches and inlines URL content
         ↓
     ${GH_AW_EXPR_*} → Variable interpolation
         ↓
@@ -79,11 +72,11 @@ Please review this pull request following our coding guidelines.
 
 ## Coding Standards
 
-@docs/coding-standards.md
+{{#runtime-import docs/coding-standards.md}}
 
 ## Security Checklist
 
-@https://raw.githubusercontent.com/org/security/main/checklist.md
+{{#runtime-import https://raw.githubusercontent.com/org/security/main/checklist.md}}
 
 ## Review Process
 
@@ -111,11 +104,11 @@ ${{ github.event.issue.body }}
 
 The issue appears to be in the authentication module:
 
-@src/auth.go:45-75
+{{#runtime-import src/auth.go:45-75}}
 
 ## Related Test Cases
 
-@tests/auth_test.go:100-150
+{{#runtime-import tests/auth_test.go:100-150}}
 
 Please analyze the bug and suggest a fix.
 ```
@@ -135,18 +128,18 @@ Update our README with the latest version information.
 
 ## Current README Header
 
-@README.md:1-10
+{{#runtime-import README.md:1-10}}
 
 ## License Information
 
-@LICENSE:1-5
+{{#runtime-import LICENSE:1-5}}
 
 Ensure all documentation is consistent and up-to-date.
 ```
 
 ## Testing Coverage
 
-### Unit Tests (82 tests in `runtime_import.test.cjs`)
+### Unit Tests in `runtime_import.test.cjs`
 
 **File Processing Tests:**
 - ✅ Full file content reading
@@ -159,15 +152,12 @@ Ensure all documentation is consistent and up-to-date.
 - ✅ Empty files
 - ✅ Files with only front matter
 
-**Inline Processing Tests:**
-- ✅ Single @path reference
-- ✅ Multiple @path references
-- ✅ @path:line-line syntax
+**Macro Processing Tests:**
+- ✅ Single `{{#runtime-import}}` reference
+- ✅ Multiple `{{#runtime-import}}` references
+- ✅ `{{#runtime-import filepath:line-line}}` syntax
 - ✅ Multiple line ranges in same content
-- ✅ Email address filtering (user@example.com not processed)
 - ✅ Subdirectory paths
-- ✅ @path at start, middle, end of content
-- ✅ @path on its own line
 - ✅ Unicode content handling
 - ✅ Special characters in content
 
@@ -183,7 +173,7 @@ Ensure all documentation is consistent and up-to-date.
 
 **Integration Tests:**
 - ✅ Works with existing runtime-import feature
-- ✅ All 2367 JavaScript tests pass
+- ✅ All JavaScript tests pass
 - ✅ All Go unit tests pass
 
 ## Real-World Use Cases
@@ -193,7 +183,7 @@ Ensure all documentation is consistent and up-to-date.
 Instead of duplicating review guidelines in every workflow:
 
 ```markdown
-@.github/workflows/shared/review-standards.md
+{{#runtime-import .github/workflows/shared/review-standards.md}}
 ```
 
 ### 2. Security Audit Checklists
@@ -201,7 +191,7 @@ Instead of duplicating review guidelines in every workflow:
 Include security checklists from a central source:
 
 ```markdown
-@https://company.com/security/api-security-checklist.md
+{{#runtime-import https://company.com/security/api-security-checklist.md}}
 ```
 
 ### 3. Code Context for AI Analysis
@@ -211,11 +201,11 @@ Provide specific code sections for targeted analysis:
 ```markdown
 Review this function:
 
-@src/payment/processor.go:234-267
+{{#runtime-import src/payment/processor.go:234-267}}
 
 Compare with the test:
 
-@tests/payment/processor_test.go:145-178
+{{#runtime-import tests/payment/processor_test.go:145-178}}
 ```
 
 ### 4. License and Attribution
@@ -225,7 +215,7 @@ Include license information in generated content:
 ```markdown
 ## License
 
-@LICENSE:1-5
+{{#runtime-import LICENSE:1-5}}
 ```
 
 ### 5. Configuration Templates
@@ -235,7 +225,7 @@ Reference standard configurations:
 ```markdown
 Use this Terraform template:
 
-@templates/vpc-config.tf:10-50
+{{#runtime-import templates/vpc-config.tf:10-50}}
 ```
 
 ## Performance Considerations
@@ -294,36 +284,19 @@ Potential improvements for future versions:
 5. **Binary file support** - Handle base64-encoded binary content
 6. **Git ref support** - `@repo@ref:path/to/file.md` syntax for cross-repo files
 
-## Migration from `{{#runtime-import}}`
-
-The new inline syntax complements (not replaces) `{{#runtime-import}}`:
-
-### When to use `{{#runtime-import}}`
-- ✅ Importing entire markdown files with frontmatter merging
-- ✅ Importing shared workflow components
-- ✅ Modular workflow organization
-
-### When to use `@path` inline syntax
-- ✅ Including code snippets in prompts
-- ✅ Referencing specific line ranges
-- ✅ Embedding documentation excerpts
-- ✅ Including license information
-- ✅ Quick content inclusion without macros
-
 ## Conclusion
 
-The file/URL inlining feature provides a powerful, flexible way to include external content in workflow prompts. It reuses the proven `runtime_import` infrastructure while adding convenient inline syntax that's intuitive and easy to use.
+The runtime import feature provides a powerful, flexible way to include external content in workflow prompts. It uses the `{{#runtime-import}}` macro syntax for consistent and predictable behavior.
 
 ### Key Benefits
-- ✅ **Simpler syntax** than `{{#runtime-import}}`
+- ✅ **Clear syntax** with `{{#runtime-import}}`
 - ✅ **Line range support** for targeted content
 - ✅ **URL fetching** with automatic caching
-- ✅ **Smart filtering** avoids email addresses
 - ✅ **Security built-in** with macro detection
-- ✅ **Comprehensive testing** with 82+ unit tests
+- ✅ **Comprehensive testing** with unit tests
 
 ### Implementation Quality
-- ✅ All tests passing (2367 JS tests + Go tests)
+- ✅ All tests passing
 - ✅ Comprehensive documentation
 - ✅ Example workflows provided
 - ✅ No breaking changes to existing features
