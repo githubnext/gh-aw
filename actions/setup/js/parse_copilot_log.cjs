@@ -10,6 +10,44 @@ const main = createEngineLogParser({
 });
 
 /**
+ * Generates a formatted authentication error section for display in workflow summary
+ * @param {Object} authError - The authentication error object
+ * @param {string} authError.errorType - Type of error (auth, permission, org_permission, etc.)
+ * @param {string} authError.errorMessage - Error message to display
+ * @returns {string} Formatted markdown section
+ */
+function formatAuthErrorSection(authError) {
+  let section = "";
+  section += "### ⚠️ Authentication/Permission Error Detected\n\n";
+  section += `**Error Type:** ${authError.errorType}\n\n`;
+  section += `**Issue:** ${authError.errorMessage}\n\n`;
+  section += "**Resolution:**\n\n";
+
+  if (authError.errorType === "org_permission") {
+    section += "For organization-owned repositories, your COPILOT_GITHUB_TOKEN must have:\n\n";
+    section += "1. **Organization permissions:**\n";
+    section += "   - Members: Read-only ✓\n";
+    section += "   - GitHub Copilot Business: Read-only ✓\n\n";
+    section += "2. **Repository permissions:**\n";
+    section += "   - Copilot Requests: Read-only ✓\n\n";
+    section += "3. **Resource owner:** Set to the organization that owns the repository\n\n";
+  } else if (authError.errorType === "auth") {
+    section += "1. Verify COPILOT_GITHUB_TOKEN is set correctly in repository secrets\n";
+    section += "2. Check token hasn't expired\n";
+    section += "3. Ensure token has 'Copilot Requests: read-only' permission\n\n";
+  } else {
+    section += "1. Check COPILOT_GITHUB_TOKEN has required permissions\n";
+    section += "2. For org-owned repos, ensure organization permissions are granted\n";
+    section += "3. Verify user has GitHub Copilot access\n\n";
+  }
+
+  section += "**Documentation:** https://githubnext.github.io/gh-aw/reference/tokens/#copilot_github_token-copilot-authentication\n\n";
+  section += "---\n\n";
+
+  return section;
+}
+
+/**
  * Extracts the premium request count from the log content using regex
  * @param {string} logContent - The raw log content as a string
  * @returns {number} The number of premium requests consumed (defaults to 1 if not found)
@@ -75,9 +113,9 @@ function detectAuthenticationError(logContent) {
       message: 'Permission denied. Check that COPILOT_GITHUB_TOKEN has "Copilot Requests: read-only" permission.',
     },
 
-    // Generic authentication/token errors (check last)
+    // Generic authentication/token errors (check last, without 'unauthorized' to avoid conflicts with 401 pattern)
     {
-      pattern: /(?:authentication failed|invalid.*token|token.*invalid|unauthorized)/i,
+      pattern: /(?:authentication failed|invalid.*token|token.*invalid)/i,
       type: "auth",
       message: "Authentication failed. COPILOT_GITHUB_TOKEN may be invalid or expired.",
     },
@@ -134,31 +172,7 @@ function parseCopilotLog(logContent) {
 
     // If we detected an auth error but have no log entries, show auth error prominently
     if (authError) {
-      markdown += "### ⚠️ Authentication/Permission Error Detected\n\n";
-      markdown += `**Error Type:** ${authError.errorType}\n\n`;
-      markdown += `**Issue:** ${authError.errorMessage}\n\n`;
-      markdown += "**Resolution:**\n\n";
-
-      if (authError.errorType === "org_permission") {
-        markdown += "For organization-owned repositories, your COPILOT_GITHUB_TOKEN must have:\n\n";
-        markdown += "1. **Organization permissions:**\n";
-        markdown += "   - Members: Read-only ✓\n";
-        markdown += "   - GitHub Copilot Business: Read-only ✓\n\n";
-        markdown += "2. **Repository permissions:**\n";
-        markdown += "   - Copilot Requests: Read-only ✓\n\n";
-        markdown += "3. **Resource owner:** Set to the organization that owns the repository\n\n";
-      } else if (authError.errorType === "auth") {
-        markdown += "1. Verify COPILOT_GITHUB_TOKEN is set correctly in repository secrets\n";
-        markdown += "2. Check token hasn't expired\n";
-        markdown += "3. Ensure token has 'Copilot Requests: read-only' permission\n\n";
-      } else {
-        markdown += "1. Check COPILOT_GITHUB_TOKEN has required permissions\n";
-        markdown += "2. For org-owned repos, ensure organization permissions are granted\n";
-        markdown += "3. Verify user has GitHub Copilot access\n\n";
-      }
-
-      markdown += "**Documentation:** https://githubnext.github.io/gh-aw/reference/tokens/#copilot_github_token-copilot-authentication\n\n";
-      markdown += "---\n\n";
+      markdown += formatAuthErrorSection(authError);
     }
 
     markdown += "Log format not recognized as Copilot JSON array or JSONL.\n";
@@ -245,8 +259,9 @@ function parseCopilotLog(logContent) {
   let markdown = conversationResult.markdown;
 
   // Prepend authentication error section if detected
-  if (authErrorSection) {
-    markdown = authErrorSection + markdown;
+  // Prepend authentication error section if detected
+  if (authError) {
+    markdown = formatAuthErrorSection(authError) + markdown;
   }
 
   // Add Information section
@@ -832,5 +847,6 @@ if (typeof module !== "undefined" && module.exports) {
     parseCopilotLog,
     extractPremiumRequestCount,
     detectAuthenticationError,
+    formatAuthErrorSection,
   };
 }
