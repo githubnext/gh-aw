@@ -57,4 +57,4 @@ Continue reading: [Teamwork & Culture Workflows →](/gh-aw/blog/2026-01-13-meet
 
 ---
 
-*This is part 8 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 11 of a 19-part series exploring the workflows in Peli's Agent Factory.*

@@ -47,4 +47,4 @@ Continue reading: [Advanced Analytics & ML Workflows →](/gh-aw/blog/2026-01-13
 
 ---
 
-*This is part 14 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 17 of a 19-part series exploring the workflows in Peli's Agent Factory.*

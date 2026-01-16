@@ -12,8 +12,8 @@ prev:
   link: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
   label: Welcome to Peli's Agent Factory
 next:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/
-  label: "Code Quality & Refactoring Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
+  label: "Continuous Simplicity Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -59,7 +59,8 @@ safe-outputs:
 
 List open issues in ${{ github.repository }} that have no labels. For each 
 unlabeled issue, analyze the title and body, then add one of the allowed
-labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. 
+labels: `bug`, `feature`, `enhancement`, `documentation`, `question`,
+`help-wanted`, or `good-first-issue`. 
 
 Skip issues that:
 - Already have any of these labels
@@ -75,13 +76,13 @@ Note how concise this is - it's like reading a to-do list for the agent. The wor
 
 In the frontmatter, we define permissions, tools, and safe outputs. This ensures the agent only has access to what it needs and can't perform any unsafe actions. The natural language instructions in the body guide the agent's behavior in a clear, human-readable way.
 
-What surprised us most about this workflow? Most of all, **customization** is key. Triage differs in every repository. Tailoring workflows to our specific context made them more effective. Generic agents are okay, but customized ones are often a better fit.
+We've deliberately kept this workflow ultra-simple. In practice, in your own repo, **customization** is key. Triage differs in every repository. Tailoring workflows to your specific context will make them more effective. Generic agents are okay, but customized ones are often a better fit.
 
 ## Next Up: Code Quality & Refactoring Workflows
 
 Now that we've explored how triage workflows help us stay on top of incoming activity, let's turn to the agents that continuously improve code quality.
 
-Continue reading: [Code Quality & Refactoring Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/)
+Continue reading: [Continuous Simplicity Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
 
 ## Learn More
 
@@ -90,4 +91,4 @@ Continue reading: [Code Quality & Refactoring Workflows →](/gh-aw/blog/2026-01
 
 ---
 
-*This is part 1 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 1 of a 19-part series exploring the workflows in Peli's Agent Factory.*

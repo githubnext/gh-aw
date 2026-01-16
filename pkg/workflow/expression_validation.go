@@ -237,10 +237,15 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 			if leftIsSafe {
 				// Check if right side is a literal string (single, double, or backtick quotes)
+<<<<<<< HEAD
 				// Go regexp doesn't support backreferences, so check quotes manually
 				isStringLiteral := (strings.HasPrefix(rightExpr, "'") && strings.HasSuffix(rightExpr, "'") && len(rightExpr) >= 2) ||
 					(strings.HasPrefix(rightExpr, "\"") && strings.HasSuffix(rightExpr, "\"") && len(rightExpr) >= 2) ||
 					(strings.HasPrefix(rightExpr, "`") && strings.HasSuffix(rightExpr, "`") && len(rightExpr) >= 2)
+=======
+				// Note: Using (?:) for non-capturing group and checking each quote type separately
+				isStringLiteral := regexp.MustCompile(`^'[^']*'$|^"[^"]*"$|^` + "`[^`]*`$").MatchString(rightExpr)
+>>>>>>> origin/main
 				// Check if right side is a number literal
 				isNumberLiteral := regexp.MustCompile(`^-?\d+(\.\d+)?$`).MatchString(rightExpr)
 				// Check if right side is a boolean literal

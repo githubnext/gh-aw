@@ -93,6 +93,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.CloseOlderDiscussions {
 			handlerConfig["close_older_discussions"] = true
 		}
+		if cfg.RequiredCategory != "" {
+			handlerConfig["required_category"] = cfg.RequiredCategory
+		}
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
 		}
@@ -141,9 +144,6 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.RequiredTitlePrefix != "" {
 			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
-		}
-		if cfg.RequiredCategory != "" {
-			handlerConfig["required_category"] = cfg.RequiredCategory
 		}
 		if cfg.TargetRepoSlug != "" {
 			handlerConfig["target-repo"] = cfg.TargetRepoSlug
