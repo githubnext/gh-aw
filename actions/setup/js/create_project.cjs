@@ -206,53 +206,81 @@ async function listProjectViews(projectId) {
 }
 
 /**
- * Delete a project view
- * @param {string} viewId - View node ID
+ * Update an existing project view
+ * @param {string} projectUrl - Project URL
+ * @param {string} viewNumber - View number to update
+ * @param {Object} viewConfig - View configuration
+ * @param {string} viewConfig.name - View name
+ * @param {string} viewConfig.layout - View layout (table, board, roadmap)
+ * @param {string} [viewConfig.filter] - View filter
+ * @param {Array<number>} [viewConfig.visible_fields] - Visible field IDs
+ * @param {string} [viewConfig.description] - View description (not supported by GitHub API, will be ignored)
  * @returns {Promise<void>}
  */
-async function deleteProjectView(viewId) {
-  core.info(`Deleting view...`);
+async function updateProjectView(projectUrl, viewNumber, viewConfig) {
+  const projectInfo = parseProjectUrl(projectUrl);
+  const projectNumber = parseInt(projectInfo.projectNumber, 10);
 
-  await github.graphql(
-    `mutation($viewId: ID!) {
-      deleteProjectV2View(input: { viewId: $viewId }) {
-        deletedViewId
-      }
-    }`,
-    { viewId }
-  );
+  const name = typeof viewConfig.name === "string" ? viewConfig.name.trim() : "";
+  if (!name) {
+    throw new Error("View name is required and must be a non-empty string");
+  }
 
-  core.info(`✓ Deleted view`);
-}
+  const layout = typeof viewConfig.layout === "string" ? viewConfig.layout.trim() : "";
+  if (!layout || !["table", "board", "roadmap"].includes(layout)) {
+    throw new Error(`Invalid view layout "${layout}". Must be one of: table, board, roadmap`);
+  }
 
-/**
- * Delete the default "View 1" from a project
- * @param {string} projectId - Project node ID
- * @returns {Promise<void>}
- */
-async function deleteDefaultView(projectId) {
-  try {
-    core.info(`Checking for default view to remove...`);
+  const filter = typeof viewConfig.filter === "string" ? viewConfig.filter : undefined;
+  let visibleFields = Array.isArray(viewConfig.visible_fields) ? viewConfig.visible_fields : undefined;
 
-    const views = await listProjectViews(projectId);
-
-    // Find the default view (typically named "View 1" and has number 1)
-    // We identify it by checking if the name matches common default patterns
-    const defaultView = views.find(view => view.name === "View 1" || (view.number === 1 && /^View \d+$/.test(view.name)));
-
-    if (defaultView) {
-      core.info(`Found default view "${defaultView.name}" (ID: ${defaultView.id}), deleting...`);
-      await deleteProjectView(defaultView.id);
-      core.info(`✓ Successfully removed default view "${defaultView.name}"`);
-    } else {
-      core.info(`No default view found to remove`);
+  if (visibleFields) {
+    const invalid = visibleFields.filter(v => typeof v !== "number" || !Number.isFinite(v));
+    if (invalid.length > 0) {
+      throw new Error(`Invalid visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
     }
-  } catch (err) {
-    // prettier-ignore
-    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-    core.warning(`Failed to delete default view: ${getErrorMessage(error)}`);
-    logGraphQLError(error, "Deleting default view");
-    // Don't fail the whole operation if we can't delete the default view
+  }
+
+  if (layout === "roadmap" && visibleFields && visibleFields.length > 0) {
+    core.warning('visible_fields is not applicable to layout "roadmap"; ignoring.');
+    visibleFields = undefined;
+  }
+
+  if (typeof viewConfig.description === "string" && viewConfig.description.trim()) {
+    core.warning("view.description is not supported by the GitHub Projects Views API; ignoring.");
+  }
+
+  const route = projectInfo.scope === "orgs" ? "PATCH /orgs/{org}/projectsV2/{project_number}/views/{view_number}" : "PATCH /users/{user_id}/projectsV2/{project_number}/views/{view_number}";
+
+  const params =
+    projectInfo.scope === "orgs"
+      ? {
+          org: projectInfo.ownerLogin,
+          project_number: projectNumber,
+          view_number: parseInt(viewNumber, 10),
+          name,
+          layout,
+          ...(filter ? { filter } : {}),
+          ...(visibleFields ? { visible_fields: visibleFields } : {}),
+        }
+      : {
+          user_id: projectInfo.ownerLogin,
+          project_number: projectNumber,
+          view_number: parseInt(viewNumber, 10),
+          name,
+          layout,
+          ...(filter ? { filter } : {}),
+          ...(visibleFields ? { visible_fields: visibleFields } : {}),
+        };
+
+  core.info(`Updating project view #${viewNumber} to: ${name} (${layout})...`);
+  const response = await github.request(route, params);
+  const updated = response?.data;
+
+  if (updated?.id) {
+    core.info(`✓ Updated view: ${name} (ID: ${updated.id})`);
+  } else {
+    core.info(`✓ Updated view: ${name}`);
   }
 }
 
@@ -448,18 +476,23 @@ async function main(config = {}) {
         for (let i = 0; i < configuredViews.length; i++) {
           const viewConfig = configuredViews[i];
           try {
-            await createProjectView(projectInfo.projectUrl, viewConfig);
-            core.info(`✓ Created view ${i + 1}/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
+            // For the first configured view, update the default "View 1" instead of creating a new view
+            // This is because GitHub doesn't allow deleting views via the API
+            if (i === 0) {
+              core.info(`Renaming default view to: ${viewConfig.name} (${viewConfig.layout})`);
+              await updateProjectView(projectInfo.projectUrl, "1", viewConfig);
+              core.info(`✓ Updated view 1/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
+            } else {
+              await createProjectView(projectInfo.projectUrl, viewConfig);
+              core.info(`✓ Created view ${i + 1}/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
+            }
           } catch (err) {
             // prettier-ignore
             const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-            core.error(`Failed to create configured view ${i + 1}: ${viewConfig.name}`);
-            logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
+            core.error(`Failed to ${i === 0 ? "update" : "create"} configured view ${i + 1}: ${viewConfig.name}`);
+            logGraphQLError(error, `${i === 0 ? "Updating" : "Creating"} configured view: ${viewConfig.name}`);
           }
         }
-
-        // After creating custom views, delete the default "View 1" that GitHub automatically creates
-        await deleteDefaultView(projectInfo.projectId);
       }
 
       // Return result
