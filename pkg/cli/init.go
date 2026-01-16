@@ -448,12 +448,6 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 		return fmt.Errorf("failed to find workflow files: %w", err)
 	}
 
-	if len(files) == 0 {
-		// No workflows yet, skip maintenance workflow generation
-		initLog.Print("No workflow files found, skipping maintenance workflow generation")
-		return nil
-	}
-
 	// Create a compiler to parse workflows
 	compiler := workflow.NewCompiler(false, "", GetVersion())
 
@@ -476,18 +470,14 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 		workflowDataList = append(workflowDataList, workflowData)
 	}
 
-	if len(workflowDataList) == 0 {
-		initLog.Print("No valid workflows parsed, skipping maintenance workflow generation")
-		return nil
-	}
-
-	// Generate/update maintenance workflow
+	// Always call GenerateMaintenanceWorkflow even with empty list
+	// This allows it to delete existing maintenance workflow if no workflows have expires
 	initLog.Printf("Generating maintenance workflow for %d workflows", len(workflowDataList))
 	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, GetVersion(), compiler.GetActionMode(), verbose); err != nil {
 		return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 	}
 
-	if verbose {
+	if verbose && len(workflowDataList) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Generated/updated maintenance workflow"))
 	}
 
