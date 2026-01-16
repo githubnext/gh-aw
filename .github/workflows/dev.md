@@ -3,6 +3,7 @@ on:
   issues:
     types: [labeled, opened]
     names: [dev]
+  workflow_dispatch:
 name: Dev
 description: Read an issue and post a poem about it using OpenCode
 timeout-minutes: 5

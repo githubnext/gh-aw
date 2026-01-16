@@ -29,6 +29,7 @@ name: "Dev"
     types:
     - labeled
     - opened
+  workflow_dispatch:
 
 permissions:
   contents: read
