@@ -83,38 +83,32 @@ async function ensureParentIssue() {
 
 This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.
 
-## Purpose
-
-This parent issue helps you:
+**Purpose:**
 - View all workflow failures in one place by checking the sub-issues below
 - Filter out failure issues from your main issue list using \`no:parent-issue\`
 - Track the health of your agentic workflows over time
 
-## Sub-Issues
+**Sub-Issues:**
 
 All individual workflow failure issues are linked as sub-issues below. Click on any sub-issue to see details about a specific failure.
 
-## Troubleshooting Failed Workflows
+---
 
-### Using agentic-workflows Agent (Recommended)
+**Troubleshooting Failed Workflows**
 
-**Agent:** \`agentic-workflows\`  
-**Purpose:** Debug and fix workflow failures
+**Option 1: Using agentic-workflows Agent (Recommended)**
 
-**Instructions:**
+Agent: \`agentic-workflows\` — Purpose: Debug and fix workflow failures
 
+Instructions:
 1. Invoke the agent: Type \`/agent\` in GitHub Copilot Chat and select **agentic-workflows**
 2. Provide context: Tell the agent to **debug** the workflow failure
 3. Supply the workflow run URL for analysis
-4. The agent will:
-   - Analyze failure logs
-   - Identify root causes
-   - Propose specific fixes
-   - Validate solutions
+4. The agent will analyze failure logs, identify root causes, propose specific fixes, and validate solutions
 
-### Using gh-aw CLI
+**Option 2: Using gh-aw CLI**
 
-You can also debug failures using the \`gh-aw\` CLI:
+Debug failures using the \`gh-aw\` CLI:
 
 \`\`\`bash
 # Download and analyze workflow logs
@@ -124,15 +118,14 @@ gh aw logs <workflow-run-url>
 gh aw audit <run-id>
 \`\`\`
 
-### Manual Investigation
+**Option 3: Manual Investigation**
 
 1. Click on a sub-issue to see the failed workflow details
 2. Follow the workflow run link in the issue
 3. Review the agent job logs for error messages
 4. Check the workflow configuration in your repository
 
-## Resources
-
+**Resources:**
 - [GitHub Agentic Workflows Documentation](https://github.com/githubnext/gh-aw)
 - [Troubleshooting Guide](https://github.com/githubnext/gh-aw/blob/main/docs/troubleshooting.md)
 
