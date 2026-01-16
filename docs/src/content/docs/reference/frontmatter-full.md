@@ -921,7 +921,8 @@ sandbox:
       ignoreViolations:
         {}
 
-      # Enable weaker nested sandbox mode (does not grant Docker socket access)
+      # Enable weaker nested sandbox mode for nested sandbox compatibility (does not
+      # grant Docker socket access)
       # (optional)
       enableWeakerNestedSandbox: true
 

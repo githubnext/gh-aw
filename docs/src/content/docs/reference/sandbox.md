@@ -184,7 +184,7 @@ network:
 | `filesystem.denyRead` | `string[]` | Paths denied for read access |
 | `filesystem.denyWrite` | `string[]` | Paths denied for write access |
 | `ignoreViolations` | `object` | Map of command patterns to paths that should ignore violations |
-| `enableWeakerNestedSandbox` | `boolean` | Enable weaker nested sandbox mode (does not grant Docker socket access) |
+| `enableWeakerNestedSandbox` | `boolean` | Enable weaker nested sandbox mode for nested sandbox compatibility (does not grant Docker socket access) |
 
 > [!NOTE]
 > Network Configuration
