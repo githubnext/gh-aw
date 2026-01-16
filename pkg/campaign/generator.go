@@ -104,8 +104,8 @@ func buildGeneratorPrompt() string {
 	var prompt strings.Builder
 
 	prompt.WriteString("{{#runtime-import? .github/shared-instructions.md}}\n")
-	prompt.WriteString("{{#runtime-import? .github/aw/campaign-creation.md}}\n")
-	prompt.WriteString("{{#runtime-import? .github/aw/campaign-generator.md}}\n")
+	prompt.WriteString("{{#runtime-import? .github/aw/create-campaign.md}}\n")
+	prompt.WriteString("{{#runtime-import? .github/aw/generate-campaign.md}}\n")
 
 	return prompt.String()
 }
