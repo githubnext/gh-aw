@@ -539,6 +539,39 @@ func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *W
 		config["create_project_status_update"] = handlerConfig
 	}
 
+	if data.SafeOutputs.UpdateProjects != nil {
+		cfg := data.SafeOutputs.UpdateProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if len(cfg.Views) > 0 {
+			handlerConfig["views"] = cfg.Views
+		}
+		config["update_project"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CopyProjects != nil {
+		cfg := data.SafeOutputs.CopyProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if cfg.SourceProject != "" {
+			handlerConfig["source_project"] = cfg.SourceProject
+		}
+		if cfg.TargetOwner != "" {
+			handlerConfig["target_owner"] = cfg.TargetOwner
+		}
+		config["copy_project"] = handlerConfig
+	}
+
 	// Only add the env var if there are project handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)
