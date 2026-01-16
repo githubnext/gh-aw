@@ -37,13 +37,6 @@ func validateInlineTools(workflowData *WorkflowData) error {
 	// Inline tools are currently only supported in SDK mode (future implementation)
 	// For now, we reject them with a clear error message
 	// TODO: Update this validation once SDK mode is implemented
-	var engine string
-	if workflowData.EngineConfig != nil {
-		engine = workflowData.EngineConfig.ID
-	}
-	if engine == "" {
-		engine = "copilot" // default engine
-	}
 
 	// Check if this is SDK mode (currently not implemented, so we reject all inline tools)
 	// SDK mode would be indicated by a specific engine configuration like "copilot-sdk" or mode field
@@ -196,17 +189,17 @@ func isValidToolName(name string) bool {
 
 	// First character must be a letter
 	firstChar := rune(name[0])
-	if !((firstChar >= 'a' && firstChar <= 'z') || (firstChar >= 'A' && firstChar <= 'Z')) {
+	if (firstChar < 'a' || firstChar > 'z') && (firstChar < 'A' || firstChar > 'Z') {
 		return false
 	}
 
 	// Remaining characters must be letters, numbers, underscores, or hyphens
 	for _, char := range name[1:] {
-		if !((char >= 'a' && char <= 'z') ||
-			(char >= 'A' && char <= 'Z') ||
-			(char >= '0' && char <= '9') ||
-			char == '_' ||
-			char == '-') {
+		if (char < 'a' || char > 'z') &&
+			(char < 'A' || char > 'Z') &&
+			(char < '0' || char > '9') &&
+			char != '_' &&
+			char != '-' {
 			return false
 		}
 	}

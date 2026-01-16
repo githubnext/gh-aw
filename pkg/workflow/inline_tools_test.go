@@ -136,7 +136,7 @@ func TestParseInlineTools(t *testing.T) {
 				assert.Nil(t, result)
 			} else {
 				require.NotNil(t, result)
-				assert.Equal(t, len(tt.expected), len(result))
+				assert.Len(t, result, len(tt.expected))
 
 				for i, expectedTool := range tt.expected {
 					assert.Equal(t, expectedTool.Name, result[i].Name)
@@ -616,7 +616,7 @@ func TestToolsConfigWithInlineTools(t *testing.T) {
 
 	require.NotNil(t, tools)
 	assert.NotNil(t, tools.GitHub)
-	assert.Equal(t, 1, len(tools.Inline))
+	assert.Len(t, tools.Inline, 1)
 	assert.Equal(t, "custom_tool", tools.Inline[0].Name)
 	assert.Equal(t, "A custom inline tool", tools.Inline[0].Description)
 
@@ -634,14 +634,14 @@ func TestToolsConfigWithInlineTools(t *testing.T) {
 		// It might be []any, so we need to convert
 		inlineAny, ok := inlineField.([]any)
 		require.True(t, ok, "inline should be convertible to []any, got %T", inlineField)
-		require.Equal(t, 1, len(inlineAny))
+		require.Len(t, inlineAny, 1)
 
 		// Convert first element to map
 		toolMap, ok := inlineAny[0].(map[string]any)
 		require.True(t, ok, "inline tool should be map[string]any, got %T", inlineAny[0])
 		assert.Equal(t, "custom_tool", toolMap["name"])
 	} else {
-		assert.Equal(t, 1, len(inlineSlice))
+		assert.Len(t, inlineSlice, 1)
 		assert.Equal(t, "custom_tool", inlineSlice[0]["name"])
 	}
 }
