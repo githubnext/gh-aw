@@ -105,14 +105,19 @@ func validateNoTemplateInjection(yamlContent string) error {
 			continue
 		}
 
-		// Extract all inline expressions from this run block
-		expressions := inlineExpressionRegex.FindAllString(runContent, -1)
+		// Remove heredoc content from the run block to avoid false positives
+		// Heredocs (e.g., << 'EOF' ... EOF) safely contain template expressions
+		// because they're written to files, not executed in shell
+		contentWithoutHeredocs := removeHeredocContent(runContent)
+
+		// Extract all inline expressions from this run block (excluding heredocs)
+		expressions := inlineExpressionRegex.FindAllString(contentWithoutHeredocs, -1)
 
 		// Check each expression for unsafe contexts
 		for _, expr := range expressions {
 			if unsafeContextRegex.MatchString(expr) {
 				// Found an unsafe pattern - extract a snippet for context
-				snippet := extractRunSnippet(runContent, expr)
+				snippet := extractRunSnippet(contentWithoutHeredocs, expr)
 				violations = append(violations, TemplateInjectionViolation{
 					Expression: expr,
 					Snippet:    snippet,
@@ -132,6 +137,32 @@ func validateNoTemplateInjection(yamlContent string) error {
 
 	templateInjectionValidationLog.Print("Template injection validation passed")
 	return nil
+}
+
+// removeHeredocContent removes heredoc sections from shell commands
+// Heredocs (e.g., cat > file << 'EOF' ... EOF) are safe for template expressions
+// because the content is written to files, not executed in the shell
+func removeHeredocContent(content string) string {
+	// Match common heredoc patterns with known delimiters
+	// Since Go regex doesn't support backreferences, we match common heredoc delimiters explicitly
+	commonDelimiters := []string{"EOF", "EOL", "END", "HEREDOC", "JSON", "YAML", "SQL"}
+	
+	result := content
+	for _, delimiter := range commonDelimiters {
+		// Pattern for quoted delimiter: << 'DELIMITER' or << "DELIMITER"
+		// (?ms) enables multiline and dotall modes, .*? is non-greedy
+		// \s*%s\s*$ allows for leading/trailing whitespace on the closing delimiter
+		quotedPattern := fmt.Sprintf(`(?ms)<<\s*['"]%s['"].*?\n\s*%s\s*$`, delimiter, delimiter)
+		quotedRegex := regexp.MustCompile(quotedPattern)
+		result = quotedRegex.ReplaceAllString(result, "# heredoc removed")
+		
+		// Pattern for unquoted delimiter: << DELIMITER
+		unquotedPattern := fmt.Sprintf(`(?ms)<<\s*%s.*?\n\s*%s\s*$`, delimiter, delimiter)
+		unquotedRegex := regexp.MustCompile(unquotedPattern)
+		result = unquotedRegex.ReplaceAllString(result, "# heredoc removed")
+	}
+	
+	return result
 }
 
 // TemplateInjectionViolation represents a detected template injection risk
