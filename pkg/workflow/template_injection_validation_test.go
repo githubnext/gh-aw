@@ -676,8 +676,8 @@ echo "done"`,
 			content: `cat > file << EOF
 {"value": "${{ github.event.issue.number }}"}
 EOF`,
-			want:    "cat > file # heredoc removed",
-			hasExpr: false,
+			want:     "cat > file # heredoc removed",
+			hasExpr:  false,
 			describe: "Unquoted EOF heredoc should be removed",
 		},
 		{
@@ -685,8 +685,8 @@ EOF`,
 			content: `cat > file.json << 'JSON'
 {"title": "${{ github.event.issue.title }}"}
 JSON`,
-			want:    "cat > file.json # heredoc removed",
-			hasExpr: false,
+			want:     "cat > file.json # heredoc removed",
+			hasExpr:  false,
 			describe: "JSON delimiter heredoc should be removed",
 		},
 		{
@@ -695,8 +695,8 @@ JSON`,
 {"safe": "value"}
 EOF
 echo "${{ github.event.issue.title }}"`,
-			want:    "cat > file # heredoc removed\necho \"${{ github.event.issue.title }}\"",
-			hasExpr: true,
+			want:     "cat > file # heredoc removed\necho \"${{ github.event.issue.title }}\"",
+			hasExpr:  true,
 			describe: "Expressions outside heredoc should remain",
 		},
 		{
@@ -707,8 +707,8 @@ EOF
 cat > file2 << 'EOF'
 {"b": "${{ github.event.issue.title }}"}
 EOF`,
-			want:    "cat > file1 # heredoc removed\ncat > file2 # heredoc removed",
-			hasExpr: false,
+			want:     "cat > file1 # heredoc removed\ncat > file2 # heredoc removed",
+			hasExpr:  false,
 			describe: "Multiple heredocs should all be removed",
 		},
 		{
@@ -723,8 +723,8 @@ EOF`,
 			content: `          cat > file << 'EOF'
           {"value": "${{ github.event.issue.number }}"}
           EOF`,
-			want:    "          cat > file # heredoc removed",
-			hasExpr: false,
+			want:     "          cat > file # heredoc removed",
+			hasExpr:  false,
 			describe: "Indented heredoc should be handled",
 		},
 	}
