@@ -36,6 +36,17 @@ func FuzzExpressionParser(f *testing.F) {
 	f.Add("NOT expression: ${{ !github.workflow }}")
 	f.Add("Nested: ${{ (github.workflow && github.repository) || github.run_id }}")
 
+	// OR with string literals (fallback patterns)
+	f.Add("OR with single-quoted literal: ${{ inputs.repository || 'FStarLang/FStar' }}")
+	f.Add("OR with double-quoted literal: ${{ inputs.name || \"default-name\" }}")
+	f.Add("OR with backtick literal: ${{ inputs.config || `default-config` }}")
+	f.Add("OR with number literal: ${{ inputs.count || 42 }}")
+	f.Add("OR with boolean literal: ${{ inputs.flag || true }}")
+	f.Add("Complex OR with nested quotes: ${{ inputs.repo || 'owner/repo' }}")
+	f.Add("Multiple OR with literals: ${{ inputs.a || 'default-a' || inputs.b || 'default-b' }}")
+	f.Add("OR with special chars in literal: ${{ inputs.path || '/default/path' }}")
+	f.Add("OR with escaped quotes: ${{ inputs.text || 'don\\'t panic' }}")
+
 	// Seed corpus with potentially malicious injection attempts
 	// These should all fail validation
 	f.Add("Token injection: ${{ secrets.GITHUB_TOKEN }}")
