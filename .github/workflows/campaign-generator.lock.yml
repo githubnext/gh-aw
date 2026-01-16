@@ -783,7 +783,7 @@ jobs:
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           {{#runtime-import? .github/shared-instructions.md}}
-          {{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
+          {{#runtime-import? .github/aw/campaign-creation-instructions.md}}
           
           # Campaign Generator
           

@@ -310,14 +310,14 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Errorf("Generated workflow should not contain 'source' field - it should be built internally")
 	}
 
-	// Verify it has the runtime imports for campaign creation instructions
-	if !strings.Contains(workflowStr, "{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}") {
-		t.Errorf("Expected campaign-generator to import campaign_creation_instructions.md")
+	// Verify it has the runtime imports for campaign creation instructions from .github/aw
+	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/create-campaign.md}}") {
+		t.Errorf("Expected campaign-generator to import create-campaign.md from .github/aw/")
 	}
 
-	// Verify it imports campaign-generator-instructions from .github/aw (not inline)
-	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/campaign-generator-instructions.md}}") {
-		t.Errorf("Expected campaign-generator to import campaign-generator-instructions.md from .github/aw/")
+	// Verify it imports generate-campaign from .github/aw (not inline)
+	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/generate-campaign.md}}") {
+		t.Errorf("Expected campaign-generator to import generate-campaign.md from .github/aw/")
 	}
 }
 
