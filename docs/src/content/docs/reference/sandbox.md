@@ -97,7 +97,9 @@ These default mounts ensure the agent has access to essential tools and the repo
 > `/var/run/docker.sock`, so Docker-in-Docker
 > workflows are not supported. If you need
 > containerized tools, run them on the host
-> runner or use HTTP/stdio MCP servers instead.
+> runner. For agent-side integrations, use
+> HTTP MCP servers or stdio servers that run
+> outside the agent sandbox.
 
 #### Custom AWF Configuration
 
