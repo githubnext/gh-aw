@@ -33,7 +33,6 @@ safe-outputs:
     run-failure: "⚠️ Delight scan interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
 
 tools:
-  serena: ["go"]
   repo-memory:
     branch-name: memory/delight
     description: "Track delight findings and historical patterns"
@@ -212,7 +211,7 @@ For each sampled workflow, review the messages section:
 find pkg -name '*validation*.go' | shuf -n 3
 ```
 
-Review error messages in sampled files using Serena for semantic analysis:
+Review error messages in sampled files:
 
 #### Delight Factors
 - ✅ **Clear problem statement**: User understands what went wrong
@@ -254,16 +253,7 @@ For each sampled item:
 3. Note specific examples (quote text, show screenshots if CLI)
 4. Rate on a scale: 😍 Delightful | 🙂 Good | 😐 Neutral | 😕 Needs Work | 😫 Painful
 
-### Step 4: Use Serena for Semantic Analysis
-
-Leverage the Serena MCP server to:
-- Analyze documentation readability and flow
-- Identify jargon or complex terminology
-- Find missing context or prerequisites
-- Detect inconsistent tone across files
-- Suggest improvements for error messages
-
-### Step 5: Synthesize Findings
+### Step 4: Synthesize Findings
 
 Create a comprehensive delight report:
 
@@ -361,11 +351,11 @@ Today's random sampling focused on:
 - New patterns identified: [N]
 ```
 
-### Step 6: Create Discussion
+### Step 5: Create Discussion
 
 Always create a discussion with your findings using the `create-discussion` safe output with the report above.
 
-### Step 7: Include Agentic Tasks in Discussion
+### Step 6: Include Agentic Tasks in Discussion
 
 For the **top 1-3 highest-impact delight opportunities**, include them as **actionable tasks in markdown format** within the discussion.
 
@@ -431,7 +421,7 @@ Here are 1-3 actionable improvement tasks that can be addressed by agents:
 
 **Important**: Include these tasks directly in the discussion body - do NOT create separate GitHub issues.
 
-### Step 8: Update Memory
+### Step 7: Update Memory
 
 Save findings to repo-memory:
 
