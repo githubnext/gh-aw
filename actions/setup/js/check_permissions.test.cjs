@@ -66,6 +66,15 @@ const mockCore = {
           expect(mockCore.error).not.toHaveBeenCalled(),
           expect(mockCore.warning).not.toHaveBeenCalled());
       }),
+      it("should skip validation for merge_group events", async () => {
+        ((process.env.GH_AW_REQUIRED_ROLES = "admin"),
+          (global.context.eventName = "merge_group"),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
+          expect(mockCore.info).toHaveBeenCalledWith("✅ Event merge_group does not require validation"),
+          expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled(),
+          expect(mockCore.error).not.toHaveBeenCalled(),
+          expect(mockCore.warning).not.toHaveBeenCalled());
+      }),
       it("should pass validation for admin permission", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "admin" } }),
