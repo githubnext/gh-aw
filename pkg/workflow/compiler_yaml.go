@@ -266,43 +266,17 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
 	}
 
-	// Add temporary folder usage instructions
-	c.generateTempFolderPromptStep(yaml)
-
-	// Add playwright output directory instructions if playwright tool is enabled
-	c.generatePlaywrightPromptStep(yaml, data)
-
-	// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
-	// if len(trialTargetRepoName) == 2 {
-	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
-	// }
-	// If trialling, generate a step to append a note about it in the prompt
-	if c.trialMode {
-		yaml.WriteString("      - name: Append trial mode note to prompt\n")
-		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
-		yaml.WriteString("          ## Note\n")
-		fmt.Fprintf(yaml, "          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug)
-		yaml.WriteString("          PROMPT_EOF\n")
-	}
-
-	// Add cache memory prompt as separate step if enabled
-	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
-
-	// Add repo memory prompt as separate step if enabled
-	c.generateRepoMemoryPromptStep(yaml, data.RepoMemoryConfig)
-
-	// Add safe outputs instructions to prompt when safe-outputs are configured
-	// This tells agents to use the safeoutputs MCP server instead of gh CLI
-	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
-
-	// Add GitHub context prompt as separate step if GitHub tool is enabled
-	c.generateGitHubContextPromptStep(yaml, data)
-
-	// Add PR context prompt as separate step if enabled
-	c.generatePRContextPromptStep(yaml, data)
+	// Add all context instructions in a single unified step
+	// This consolidates what used to be separate steps for:
+	// - Temporary folder instructions
+	// - Playwright instructions
+	// - Trial mode note
+	// - Cache memory instructions
+	// - Repo memory instructions
+	// - Safe outputs instructions
+	// - GitHub context
+	// - PR context instructions
+	c.generateUnifiedPromptStep(yaml, data)
 
 	// Add combined interpolation and template rendering step
 	c.generateInterpolationAndTemplateStep(yaml, expressionMappings, data)
