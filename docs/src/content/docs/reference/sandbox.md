@@ -95,8 +95,9 @@ These default mounts ensure the agent has access to essential tools and the repo
 > [!WARNING]
 > The agent sandbox does not provide Docker socket access
 > (`/var/run/docker.sock`), preventing Docker-in-Docker
-> workflows. Use HTTP MCP servers or stdio servers running
-> on the host runner for containerized tools.
+> workflows. Use HTTP MCP servers or stdio MCP servers that
+> run on the host runner outside the sandbox for containerized
+> tools.
 
 #### Custom AWF Configuration
 
@@ -268,7 +269,7 @@ sandbox:
 
 > [!WARNING]
 > Container mode requires Docker on the host
-> runner. The agent sandbox no longer has
+> runner. The agent sandbox does not have
 > Docker socket access, so it cannot launch
 > containers itself.
 

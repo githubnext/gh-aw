@@ -124,8 +124,9 @@ The `container` field generates `docker run --rm -i <args> <image> <entrypointAr
 Since Docker socket access is not available inside the agent
 sandbox, gh-aw runs the `docker run` command on the host runner
 (outside the agent sandbox). If Docker is unavailable on the host,
-use HTTP MCP servers or external stdio servers instead. GitHub-hosted
-Linux runners include Docker by default; self-hosted runners must
+use HTTP MCP servers or stdio servers running on the host outside
+the sandbox instead. GitHub-hosted Linux runners include Docker by
+default; self-hosted runners must
 install and start Docker before using container MCP servers. Network
 restrictions use a Squid proxy and apply only to containerized
 stdio servers.
