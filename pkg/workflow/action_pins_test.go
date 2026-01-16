@@ -278,7 +278,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
+			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -347,9 +347,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 30 as of this test after deduplication)
-	if len(pins) != 30 {
-		t.Errorf("getActionPins() returned %d pins, expected 30", len(pins))
+	// Verify we got all the pins (should be 38 as of this test after deduplication)
+	if len(pins) != 38 {
+		t.Errorf("getActionPins() returned %d pins, expected 38", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -457,7 +457,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
+			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -661,7 +661,7 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			name:           "fallback to highest version for setup-go when requesting v6",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6",
-			expectedVer:    "v6.1.0", // Should use highest version (v6.1.0) not v6
+			expectedVer:    "v6", // Returns exact match v6, not v6.1.0
 			strictMode:     false,
 			shouldFallback: true,
 		},

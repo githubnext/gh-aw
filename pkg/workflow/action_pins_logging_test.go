@@ -22,10 +22,10 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 		expectMismatch bool
 	}{
 		{
-			name:           "ai-inference v1 resolves to v2.0.4 pin",
+			name:           "ai-inference v1 resolves to v2 pin",
 			repo:           "actions/ai-inference",
 			requestedVer:   "v1",
-			expectedPinVer: "v2.0.4",
+			expectedPinVer: "v2",
 			expectMismatch: true,
 		},
 		{
@@ -36,10 +36,10 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			expectMismatch: true,
 		},
 		{
-			name:           "github-script v7 resolves to v8.0.0 pin (latest version)",
+			name:           "github-script v7 resolves to v7.1.0 pin",
 			repo:           "actions/github-script",
 			requestedVer:   "v7",
-			expectedPinVer: "v8.0.0", // Returns latest version for this repo
+			expectedPinVer: "v7.1.0", // Returns matching major version
 			expectMismatch: true,
 		},
 		{

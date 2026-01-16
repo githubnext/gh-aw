@@ -1,11 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getOctokit } = require("@actions/github");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-// Module-level variable to hold the Octokit instance (either custom or global github)
+// Module-level variable to hold the Octokit instance (uses global github object)
 // This is initialized once in main() and used by all handler invocations
 // Safe because handlers are initialized once and called sequentially
 let octokitInstance;
@@ -168,16 +167,9 @@ async function main(config = {}) {
   const defaultTargetOwner = config.target_owner || "";
   const maxCount = config.max || 1;
   const titlePrefix = config.title_prefix || "Campaign";
-  const customToken = config["github-token"] || "";
 
-  // Initialize Octokit instance with custom token if provided, otherwise use global github
-  if (customToken) {
-    core.info("Using custom GitHub token for create_project operations");
-    octokitInstance = getOctokit(customToken);
-  } else {
-    core.info("Using default GitHub token for create_project operations");
-    octokitInstance = github;
-  }
+  // Use the global github object (authenticated via github-token step parameter if custom token needed)
+  octokitInstance = github;
 
   if (defaultTargetOwner) {
     core.info(`Default target owner: ${defaultTargetOwner}`);
