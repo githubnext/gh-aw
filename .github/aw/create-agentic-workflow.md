@@ -178,6 +178,14 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
      - Constrain `network:` to the minimum required ecosystems/domains.
      - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
+   - **Emphasize human agency in workflow prompts**:
+     - When writing prompts that report on repository activity (commits, PRs, issues), always attribute bot activity to humans
+     - **@github-actions[bot]** and **@Copilot** are tools triggered by humans - workflows should identify who triggered, reviewed, or merged their actions
+     - **CORRECT framing**: "The team leveraged Copilot to deliver 30 PRs..." or "@developer used automation to..."
+     - **INCORRECT framing**: "The Copilot bot staged a takeover..." or "automation dominated while humans looked on..."
+     - Instruct agents to check PR/issue assignees, reviewers, mergers, and workflow triggers to credit the humans behind bot actions
+     - Present automation as a positive productivity tool used BY humans, not as independent actors or replacements
+     - This is especially important for reporting/summary workflows (daily reports, chronicles, team status updates)
 
 ## Issue Form Mode: Step-by-Step Workflow Creation
 
