@@ -1,11 +1,8 @@
 ---
 on: 
-  workflow_dispatch:
-    inputs:
-      issue_number:
-        description: Issue number to read
-        required: true
-        type: string
+  issues:
+    types: [labeled, opened]
+    names: [dev]
 name: Dev
 description: Read an issue and post a poem about it using OpenCode
 timeout-minutes: 5
@@ -29,10 +26,10 @@ safe-outputs:
 
 # Read Issue and Post Poem
 
-Read a single issue and post a poem about it as a comment in staged mode.
+Read the current issue and post a poem about it as a comment in staged mode.
 
 **Requirements:**
-1. Read the issue specified by the `issue_number` input
+1. Read the current issue from the GitHub context
 2. Understand the issue's title, body, and context
 3. Write a creative poem inspired by the issue content
 4. Post the poem as a comment on the issue using `create_issue_comment` in staged mode
