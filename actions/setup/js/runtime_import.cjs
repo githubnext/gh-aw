@@ -135,6 +135,37 @@ function isSafeExpression(expr) {
     }
   }
 
+  // Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
+  // Pattern: safe_expression || 'literal' or safe_expression || "literal" or safe_expression || `literal`
+  // Also supports numbers and booleans as literals
+  const orMatch = trimmed.match(/^(.+?)\s*\|\|\s*(.+)$/);
+  if (orMatch) {
+    const leftExpr = orMatch[1].trim();
+    const rightExpr = orMatch[2].trim();
+
+    // Check if left side is safe
+    const leftIsSafe = isSafeExpression(leftExpr);
+    if (!leftIsSafe) {
+      return false;
+    }
+
+    // Check if right side is a literal string (single, double, or backtick quotes)
+    const isStringLiteral = /^(['"`]).*\1$/.test(rightExpr);
+    // Check if right side is a number literal
+    const isNumberLiteral = /^-?\d+(\.\d+)?$/.test(rightExpr);
+    // Check if right side is a boolean literal
+    const isBooleanLiteral = rightExpr === "true" || rightExpr === "false";
+
+    if (isStringLiteral || isNumberLiteral || isBooleanLiteral) {
+      return true;
+    }
+
+    // If right side is also a safe expression (e.g., secrets.FOO || secrets.BAR)
+    if (isSafeExpression(rightExpr)) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -145,6 +176,37 @@ function isSafeExpression(expr) {
  */
 function evaluateExpression(expr) {
   const trimmed = expr.trim();
+
+  // Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
+  const orMatch = trimmed.match(/^(.+?)\s*\|\|\s*(.+)$/);
+  if (orMatch) {
+    const leftExpr = orMatch[1].trim();
+    const rightExpr = orMatch[2].trim();
+
+    // Try to evaluate the left expression
+    const leftValue = evaluateExpression(leftExpr);
+
+    // Check if left value is truthy (not empty, not undefined, not null)
+    // If it's wrapped in ${{ }}, it means it couldn't be evaluated
+    if (!leftValue.startsWith("${{")) {
+      return leftValue;
+    }
+
+    // Left value is falsy or couldn't be evaluated, use the right side
+    // If right side is a literal, extract and return it
+    const stringLiteralMatch = rightExpr.match(/^(['"`])(.+)\1$/);
+    if (stringLiteralMatch) {
+      return stringLiteralMatch[2]; // Return the literal value without quotes
+    }
+
+    // If right side is a number or boolean literal, return it
+    if (/^-?\d+(\.\d+)?$/.test(rightExpr) || rightExpr === "true" || rightExpr === "false") {
+      return rightExpr;
+    }
+
+    // Otherwise try to evaluate the right expression
+    return evaluateExpression(rightExpr);
+  }
 
   // Access GitHub context through environment variables
   // The context object is available globally when running in github-script
@@ -166,6 +228,7 @@ function evaluateExpression(expr) {
           event: context.payload || {},
         },
         env: process.env,
+        inputs: context.payload?.inputs || {},
       };
 
       // Parse property access (e.g., "github.actor" -> ["github", "actor"])
