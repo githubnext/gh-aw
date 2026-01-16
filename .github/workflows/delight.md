@@ -26,11 +26,6 @@ safe-outputs:
     category: "audits"
     max: 1
     close-older-discussions: true
-  create-issue:
-    title-prefix: "[delight] "
-    labels: [ux, user-experience, delight, automated-analysis]
-    max: 3
-    expires: 7d
   messages:
     footer: "> ✨ *Delight analysis by [{workflow_name}]({run_url})*"
     run-started: "✨ Delight Agent starting! [{workflow_name}]({run_url}) is scanning for user experience opportunities..."
@@ -362,7 +357,7 @@ Today's random sampling focused on:
 [Compare with previous runs if memory exists]
 
 - Improvement in delight score: [+/- N]
-- Issues resolved since last run: [N]
+- Tasks completed since last run: [N]
 - New patterns identified: [N]
 ```
 
@@ -370,58 +365,71 @@ Today's random sampling focused on:
 
 Always create a discussion with your findings using the `create-discussion` safe output with the report above.
 
-### Step 7: Generate Agentic Tasks
+### Step 7: Include Agentic Tasks in Discussion
 
-For the **top 1-3 highest-impact delight opportunities**, create issues that can be addressed by agents:
+For the **top 1-3 highest-impact delight opportunities**, include them as **actionable tasks in markdown format** within the discussion.
 
-**Issue Format:**
+Add an "Agentic Tasks" section to the discussion report with this format:
 
 ```markdown
-# [Title]: Improve [Aspect] to Enhance User Delight
+## 🎯 Agentic Tasks
 
-## Current Experience
+Here are 1-3 actionable improvement tasks that can be addressed by agents:
+
+### Task 1: [Title] - Improve [Aspect] to Enhance User Delight
+
+**Current Experience**
 
 [Description of current state with specific examples]
 
-## Delight Gap
+**Delight Gap**
 
 **AirBnB Principle**: [Which principle is violated]
 
 [Explanation of why this creates friction or misses delight opportunity]
 
-## Proposed Improvement
+**Proposed Improvement**
 
 [Specific, actionable changes]
 
-### Before
+**Before:**
 ```
 [Current text/code/experience]
 ```
 
-### After
+**After:**
 ```
 [Proposed text/code/experience]
 ```
 
-## Why This Matters
-
+**Why This Matters**
 - **User Impact**: [How this improves user experience]
 - **Delight Factor**: [Which delight factor this enhances]
 - **Frequency**: [How often users encounter this]
 
-## Success Criteria
-
+**Success Criteria**
 - [ ] [Specific measurable outcome]
 - [ ] [Specific measurable outcome]
 - [ ] Delight rating improves from [emoji] to [emoji]
 
-## Context
+**Context**
+- Files affected: [List]
+- Priority: High/Medium/Low
 
-Source: Delight Audit [DATE] - [Discussion Link]
-Files affected: [List]
+---
+
+### Task 2: [Title] - [Brief description]
+
+[Repeat the same structure]
+
+---
+
+### Task 3: [Title] - [Brief description]
+
+[Repeat the same structure]
 ```
 
-Create issues using `create-issue` safe output for **maximum 3 improvements**.
+**Important**: Include these tasks directly in the discussion body - do NOT create separate GitHub issues.
 
 ### Step 8: Update Memory
 
@@ -485,22 +493,23 @@ EOF
 - **Balance** - acknowledge what's already delightful
 
 ### Task Creation
-- **Maximum 3 issues** per run to avoid overwhelming
-- **Actionable and scoped** - each issue should be completable in 1-2 days
+- **Maximum 3 tasks** per run to avoid overwhelming
+- **Actionable and scoped** - each task should be completable in 1-2 days
 - **Evidence-based** - include specific examples from audit
 - **User-focused** - frame in terms of user experience impact
+- **Include in discussion** - tasks are rendered as markdown in the discussion body, not as separate issues
 
 ### Quality Standards
 - All recommendations backed by AirBnB design principles
 - Every opportunity has a concrete suggestion
-- Issues are tagged with affected files/commands
+- Tasks include affected files/commands
 - Discussion includes both highlights and opportunities
 
 ## Success Metrics
 
 Track these in repo-memory:
 - **Delight score trend** - Is the average improving?
-- **Issue resolution rate** - Are delight issues being fixed?
+- **Task completion rate** - Are delight tasks being addressed?
 - **Coverage** - Have we sampled all major areas over time?
 - **Theme emergence** - Are patterns becoming clear?
 - **User impact** - Are high-frequency touchpoints prioritized?
@@ -508,10 +517,10 @@ Track these in repo-memory:
 ## Anti-Patterns to Avoid
 
 ❌ Reviewing everything instead of random sampling
-❌ Creating generic "improve docs" issues without specifics
+❌ Creating generic "improve docs" tasks without specifics
 ❌ Focusing on internal/technical aspects instead of user-facing
 ❌ Ignoring existing delight in favor of only finding problems
-❌ Creating more than 3 issues per run
+❌ Creating more than 3 tasks per run
 ❌ Not using AirBnB principles as evaluation framework
 ❌ Forgetting to update repo-memory
 
