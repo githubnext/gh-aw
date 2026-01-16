@@ -22,6 +22,7 @@ tools:
     mode: local
     read-only: true
     toolsets: [default]
+    allowed: [issue_read, list_issues, get_file_contents, get_repository]
 if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.should_skip != 'true')
 permissions:
   contents: read

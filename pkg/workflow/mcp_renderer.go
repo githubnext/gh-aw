@@ -425,6 +425,18 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 
 		envVars["GITHUB_TOOLSETS"] = toolsets
 
+		// Individual tools (when AllowedTools is specified, this takes precedence over toolsets)
+		// GITHUB_TOOLS environment variable specifies comma-separated list of specific tools to enable
+		// This is useful for excluding problematic tools or limiting tool exposure
+		allowedTools := getGitHubAllowedTools(githubTool)
+		if len(allowedTools) > 0 {
+			// Sort tools for deterministic output
+			sortedTools := make([]string, len(allowedTools))
+			copy(sortedTools, allowedTools)
+			sort.Strings(sortedTools)
+			envVars["GITHUB_TOOLS"] = strings.Join(sortedTools, ",")
+		}
+
 		// Write environment variables in sorted order for deterministic output
 		envKeys := make([]string, 0, len(envVars))
 		for key := range envVars {
@@ -611,7 +623,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 
 	// Lockdown mode
 	if options.LockdownFromStep {
-		// Security: Use environment variable instead of template expression to prevent template injection
+		// Security: Use environment variable instead of template injection to prevent template injection
 		// The GITHUB_MCP_LOCKDOWN env var is set in Start MCP gateway step from step output
 		// Value is already converted to "1" or "0" in the environment variable
 		envVars["GITHUB_LOCKDOWN_MODE"] = "$GITHUB_MCP_LOCKDOWN"
@@ -622,6 +634,17 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 
 	// Toolsets (always configured, defaults to "default")
 	envVars["GITHUB_TOOLSETS"] = options.Toolsets
+
+	// Individual tools (when AllowedTools is specified, this takes precedence over toolsets)
+	// GITHUB_TOOLS environment variable specifies comma-separated list of specific tools to enable
+	// This is useful for excluding problematic tools or limiting tool exposure
+	if len(options.AllowedTools) > 0 {
+		// Sort tools for deterministic output
+		sortedTools := make([]string, len(options.AllowedTools))
+		copy(sortedTools, options.AllowedTools)
+		sort.Strings(sortedTools)
+		envVars["GITHUB_TOOLS"] = strings.Join(sortedTools, ",")
+	}
 
 	// Write environment variables in sorted order for deterministic output
 	envKeys := make([]string, 0, len(envVars))
@@ -698,6 +721,16 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Add X-MCP-Toolsets header if toolsets are configured
 	if options.Toolsets != "" {
 		headers["X-MCP-Toolsets"] = options.Toolsets
+	}
+
+	// Add X-MCP-Tools header if specific allowed tools are configured
+	// This takes precedence over toolsets and is useful for excluding problematic tools
+	if len(options.AllowedTools) > 0 {
+		// Sort tools for deterministic output
+		sortedTools := make([]string, len(options.AllowedTools))
+		copy(sortedTools, options.AllowedTools)
+		sort.Strings(sortedTools)
+		headers["X-MCP-Tools"] = strings.Join(sortedTools, ",")
 	}
 
 	// Write headers using helper
