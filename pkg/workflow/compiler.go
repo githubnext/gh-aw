@@ -614,10 +614,6 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 // splitContentIntoChunks splits markdown content into chunks that fit within GitHub Actions script size limits
 
-// generateCacheMemoryPromptStep generates a separate step for cache memory prompt section
-
-// generateSafeOutputsPromptStep generates a separate step for safe outputs prompt section
-
 // generatePostSteps generates the post-steps section that runs after AI execution
 
 // convertStepToYAML converts a step map to YAML string with proper indentation
