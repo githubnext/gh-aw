@@ -57,4 +57,4 @@ Continue reading: [Fault Investigation Workflows →](/gh-aw/blog/2026-01-13-mee
 
 ---
 
-*This is part 4 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 7 of a 19-part series exploring the workflows in Peli's Agent Factory.*
