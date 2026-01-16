@@ -58,40 +58,116 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 
 	yaml.WriteString("        run: |\n")
 
-	// Write each section
+	// Track if we're inside a heredoc
+	inHeredoc := false
+
+	// Write each section's content
 	for i, section := range sections {
 		unifiedPromptLog.Printf("Writing section %d/%d: hasCondition=%v, isFile=%v",
 			i+1, len(sections), section.ShellCondition != "", section.IsFile)
 
 		if section.ShellCondition != "" {
-			// Wrap in shell if statement
+			// Close heredoc if open, add conditional
+			if inHeredoc {
+				yaml.WriteString("          PROMPT_EOF\n")
+				inHeredoc = false
+			}
 			fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
-			c.writeSectionContent(yaml, section, "            ")
+
+			if section.IsFile {
+				// File reference inside conditional
+				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
+				yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+			} else {
+				// Inline content inside conditional - open heredoc, write content, close
+				yaml.WriteString("            cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+				normalizedContent := normalizeLeadingWhitespace(section.Content)
+				contentLines := strings.Split(normalizedContent, "\n")
+				for _, line := range contentLines {
+					yaml.WriteString("            " + line + "\n")
+				}
+				yaml.WriteString("            PROMPT_EOF\n")
+			}
+
 			yaml.WriteString("          fi\n")
 		} else {
-			c.writeSectionContent(yaml, section, "          ")
+			// Unconditional section
+			if section.IsFile {
+				// Close heredoc if open
+				if inHeredoc {
+					yaml.WriteString("          PROMPT_EOF\n")
+					inHeredoc = false
+				}
+				// Cat the file
+				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
+				yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+			} else {
+				// Inline content - open heredoc if not already open
+				if !inHeredoc {
+					yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+					inHeredoc = true
+				}
+				// Write content directly to open heredoc
+				normalizedContent := normalizeLeadingWhitespace(section.Content)
+				contentLines := strings.Split(normalizedContent, "\n")
+				for _, line := range contentLines {
+					yaml.WriteString("          " + line + "\n")
+				}
+			}
 		}
+	}
+
+	// Close heredoc if still open
+	if inHeredoc {
+		yaml.WriteString("          PROMPT_EOF\n")
 	}
 
 	unifiedPromptLog.Print("Unified prompt step generated successfully")
 }
 
-// writeSectionContent writes the actual content of a prompt section
-func (c *Compiler) writeSectionContent(yaml *strings.Builder, section PromptSection, indent string) {
-	if section.IsFile {
-		// Reference to a file in /opt/gh-aw/prompts/
-		promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-		yaml.WriteString(indent + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
-	} else {
-		// Inline content
-		yaml.WriteString(indent + "cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
-		// Write content with proper indentation
-		contentLines := strings.Split(section.Content, "\n")
-		for _, line := range contentLines {
-			fmt.Fprintf(yaml, "%s%s\n", indent, line)
-		}
-		yaml.WriteString(indent + "PROMPT_EOF\n")
+// normalizeLeadingWhitespace removes consistent leading whitespace from all lines
+// This handles content that was generated with indentation for heredocs
+func normalizeLeadingWhitespace(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return content
 	}
+
+	// Find minimum leading whitespace (excluding empty lines)
+	minLeadingSpaces := -1
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue // Skip empty lines
+		}
+		leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
+		if minLeadingSpaces == -1 || leadingSpaces < minLeadingSpaces {
+			minLeadingSpaces = leadingSpaces
+		}
+	}
+
+	// If no content or no leading spaces, return as-is
+	if minLeadingSpaces <= 0 {
+		return content
+	}
+
+	// Remove the minimum leading whitespace from all lines
+	var result strings.Builder
+	for i, line := range lines {
+		if i > 0 {
+			result.WriteString("\n")
+		}
+		if strings.TrimSpace(line) == "" {
+			// Keep empty lines as empty
+			result.WriteString("")
+		} else if len(line) >= minLeadingSpaces {
+			// Remove leading whitespace
+			result.WriteString(line[minLeadingSpaces:])
+		} else {
+			result.WriteString(line)
+		}
+	}
+
+	return result.String()
 }
 
 // collectPromptSections collects all prompt sections in the order they should be appended

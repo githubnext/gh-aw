@@ -827,44 +827,42 @@ jobs:
       - name: Append context instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-                    
-                    ---
-                    
-                    ## Repo Memory Available
-                    
-                    You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Copilot CLI research notes and analysis history
-                    
-                    - **Read/Write Access**: You can freely read from and write to any files in this folder
-                    - **Git Branch Storage**: Files are stored in the `memory/copilot-cli-research` branch of the current repository
-                    - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
-                    - **Merge Strategy**: In case of conflicts, your changes (current version) win
-                    - **Persistence**: Files persist across workflow runs via git branch storage
-                    
-                    **Constraints:**
-                    - **Allowed Files**: Only files matching patterns: memory/copilot-cli-research/*.json, memory/copilot-cli-research/*.md
-                    - **Max File Size**: 204800 bytes (0.20 MB) per file
-                    - **Max File Count**: 100 files per commit
-                    
-                    Examples of what you can store:
-                    - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-                    - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-                    - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
-                    
-                    Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Copilot CLI research notes and analysis history
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/copilot-cli-research` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: memory/copilot-cli-research/*.json, memory/copilot-cli-research/*.md
+          - **Max File Size**: 204800 bytes (0.20 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -878,8 +876,6 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
           </safe-outputs>
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}

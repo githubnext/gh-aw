@@ -245,38 +245,6 @@ func TestCollectPromptSections_Order(t *testing.T) {
 	}
 }
 
-func TestWriteSectionContent_FileReference(t *testing.T) {
-	compiler := &Compiler{}
-	section := PromptSection{
-		Content: "test_prompt.md",
-		IsFile:  true,
-	}
-
-	var yaml strings.Builder
-	compiler.writeSectionContent(&yaml, section, "  ")
-
-	output := yaml.String()
-	assert.Contains(t, output, `cat "/opt/gh-aw/prompts/test_prompt.md" >> "$GH_AW_PROMPT"`)
-}
-
-func TestWriteSectionContent_InlineContent(t *testing.T) {
-	compiler := &Compiler{}
-	section := PromptSection{
-		Content: "Line 1\nLine 2\nLine 3",
-		IsFile:  false,
-	}
-
-	var yaml strings.Builder
-	compiler.writeSectionContent(&yaml, section, "  ")
-
-	output := yaml.String()
-	assert.Contains(t, output, "cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"")
-	assert.Contains(t, output, "Line 1")
-	assert.Contains(t, output, "Line 2")
-	assert.Contains(t, output, "Line 3")
-	assert.Contains(t, output, "PROMPT_EOF")
-}
-
 func TestGenerateUnifiedPromptStep_NoSections(t *testing.T) {
 	// This should never happen in practice, but test the edge case
 	compiler := &Compiler{
@@ -296,4 +264,52 @@ func TestGenerateUnifiedPromptStep_NoSections(t *testing.T) {
 	// Should still generate step with at least temp folder
 	assert.Contains(t, output, "- name: Append context instructions to prompt")
 	assert.Contains(t, output, "temp_folder_prompt.md")
+}
+
+func TestNormalizeLeadingWhitespace(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "removes consistent leading spaces",
+			input: `          Line 1
+          Line 2
+          Line 3`,
+			expected: `Line 1
+Line 2
+Line 3`,
+		},
+		{
+			name:     "handles no leading spaces",
+			input:    "Line 1\nLine 2",
+			expected: "Line 1\nLine 2",
+		},
+		{
+			name: "preserves relative indentation",
+			input: `          Line 1
+            Indented Line 2
+          Line 3`,
+			expected: `Line 1
+  Indented Line 2
+Line 3`,
+		},
+		{
+			name: "handles empty lines",
+			input: `          Line 1
+
+          Line 3`,
+			expected: `Line 1
+
+Line 3`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := normalizeLeadingWhitespace(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
