@@ -49,4 +49,4 @@ Continue reading: [Operations & Release Workflows →](/gh-aw/blog/2026-01-13-me
 
 ---
 
-*This is part 6 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 9 of a 19-part series exploring the workflows in Peli's Agent Factory.*

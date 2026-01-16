@@ -20,7 +20,7 @@ prev:
 
 My dear friends, we've arrived at the *grand finale* - the most spectacular room of all in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-We've journeyed through 15 categories of workflows - from triage bots to code quality improvers, from security guards to creative poets, culminating in [advanced analytics](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/) that use machine learning to understand agent behavior patterns. Each workflow handles its individual task admirably.
+We've journeyed through 18 categories of workflows - from triage bots to code quality improvers, from security guards to creative poets, culminating in [advanced analytics](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/) that use machine learning to understand agent behavior patterns. Each workflow handles its individual task admirably.
 
 But here's the ultimate challenge: how do you coordinate *multiple* agents working toward a shared goal? How do you break down a large initiative like "migrate all workflows to a new engine" into trackable sub-tasks that different agents can tackle? How do you monitor progress, alert on delays, and ensure the whole is greater than the sum of its parts? This final post explores planning, task-decomposition and project coordination workflows - the orchestration layer that proves AI agents can handle not just individual tasks, but entire structured projects requiring careful coordination and progress tracking.
 
@@ -48,7 +48,7 @@ These workflows implement patterns like epic issues, progress tracking, and dead
 
 ## What We've Learned
 
-Throughout this 16-part journey, we've explored workflows spanning from simple triage bots to sophisticated multi-phase improvers, from security guards to creative poets, from individual task automation to organization-wide orchestration.
+Throughout this 19-part journey, we've explored workflows spanning from simple triage bots to sophisticated multi-phase improvers, from security guards to creative poets, from individual task automation to organization-wide orchestration.
 
 The key insight? **AI agents are most powerful when they're specialized, well-coordinated, and designed for their specific context.** No single agent does everything - instead, we have an ecosystem where each agent excels at its particular job, and they work together through careful orchestration.
 
@@ -56,4 +56,4 @@ We've learned that observability is essential, that incremental progress beats h
 
 As you build your own agentic workflows, remember: start small, measure everything, iterate based on real usage, and don't be afraid to experiment. The workflows we've shown you evolved through experimentation and real-world use. Yours will too.
 
-*This is part 16 (final) of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 19 (final) of a 19-part series exploring the workflows in Peli's Agent Factory.*

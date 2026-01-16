@@ -13,7 +13,7 @@ prev:
   label: "Organization & Cross-Repo Workflows"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/
-  label: "Campaigns & Project Coordination Workflows"
+  label: "Project Coordination Workflows"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -46,12 +46,12 @@ These workflows helped us understand not just what our agents do, but *how* they
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
-## Next Up: Campaigns & Project Coordination Workflows
+## Next Up: Project Coordination Workflows
 
 We've reached the final stop: coordinating multiple agents toward shared, complex goals across extended timelines.
 
-Continue reading: [Campaigns & Project Coordination Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/)
+Continue reading: [Project Coordination Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/)
 
 ---
 
-*This is part 15 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 18 of a 19-part series exploring the workflows in Peli's Agent Factory.*
