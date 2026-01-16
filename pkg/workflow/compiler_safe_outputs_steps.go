@@ -168,10 +168,18 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
 
 	// With section for github-token
-	// Use the standard safe outputs token for all operations
-	// Project-specific handlers (create_project) will use custom tokens from their handler config
+	// Check if create_project or create_project_status_update have custom tokens
+	// If so, use that custom token at the step level
+	var customToken string
+	if data.SafeOutputs != nil {
+		if data.SafeOutputs.CreateProjects != nil && data.SafeOutputs.CreateProjects.GitHubToken != "" {
+			customToken = data.SafeOutputs.CreateProjects.GitHubToken
+		} else if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken != "" {
+			customToken = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
+		}
+	}
 	steps = append(steps, "        with:\n")
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, customToken)
 
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
