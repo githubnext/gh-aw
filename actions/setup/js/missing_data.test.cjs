@@ -80,20 +80,7 @@ describe("missing_data.cjs handler", () => {
       expect(result.alternatives).toBeNull();
     });
 
-    it("should reject message missing data_type field", async () => {
-      const message = {
-        type: "missing_data",
-        reason: "No data type specified",
-      };
-
-      const result = await handler(message, {});
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Missing required field: data_type");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing 'data_type' field"));
-    });
-
-    it("should reject message missing reason field", async () => {
+    it("should process message with only data_type", async () => {
       const message = {
         type: "missing_data",
         data_type: "some_data",
@@ -101,9 +88,39 @@ describe("missing_data.cjs handler", () => {
 
       const result = await handler(message, {});
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Missing required field: reason");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing 'reason' field"));
+      expect(result.success).toBe(true);
+      expect(result.data_type).toBe("some_data");
+      expect(result.reason).toBeNull();
+      expect(result.context).toBeNull();
+      expect(result.alternatives).toBeNull();
+    });
+
+    it("should process message with only reason", async () => {
+      const message = {
+        type: "missing_data",
+        reason: "No data type specified",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.data_type).toBeNull();
+      expect(result.reason).toBe("No data type specified");
+    });
+
+    it("should process message with no fields (empty message)", async () => {
+      const message = {
+        type: "missing_data",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.data_type).toBeNull();
+      expect(result.reason).toBeNull();
+      expect(result.context).toBeNull();
+      expect(result.alternatives).toBeNull();
+      expect(result.timestamp).toBeDefined();
     });
   });
 
@@ -113,15 +130,15 @@ describe("missing_data.cjs handler", () => {
       const limitedHandler = await (await import("./missing_data.cjs")).main({ max: 2 });
 
       // First message should succeed
-      const result1 = await limitedHandler({ data_type: "data1", reason: "reason1" }, {});
+      const result1 = await limitedHandler({ type: "missing_data", data_type: "data1" }, {});
       expect(result1.success).toBe(true);
 
       // Second message should succeed
-      const result2 = await limitedHandler({ data_type: "data2", reason: "reason2" }, {});
+      const result2 = await limitedHandler({ type: "missing_data", reason: "reason2" }, {});
       expect(result2.success).toBe(true);
 
       // Third message should fail
-      const result3 = await limitedHandler({ data_type: "data3", reason: "reason3" }, {});
+      const result3 = await limitedHandler({ type: "missing_data" }, {});
       expect(result3.success).toBe(false);
       expect(result3.error).toContain("Max count");
     });
