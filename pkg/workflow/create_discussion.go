@@ -18,7 +18,7 @@ type CreateDiscussionsConfig struct {
 	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
 	AllowedRepos          []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
 	CloseOlderDiscussions bool     `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
-	RequiredCategory      string   `yaml:"required-category,omitempty"`       // Required category for matching when closing older discussions
+	RequiredCategory      string   `yaml:"required-category,omitempty"`       // Required category for matching when close-older-discussions is enabled
 	Expires               int      `yaml:"expires,omitempty"`                 // Hours until the discussion expires and should be automatically closed
 }
 
@@ -90,9 +90,9 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	}
 	if config.CloseOlderDiscussions {
 		discussionLog.Print("Close older discussions enabled")
-	}
-	if config.RequiredCategory != "" {
-		discussionLog.Printf("Required category for close older discussions: %q", config.RequiredCategory)
+		if config.RequiredCategory != "" {
+			discussionLog.Printf("Required category for close older discussions: %q", config.RequiredCategory)
+		}
 	}
 	if config.Expires > 0 {
 		discussionLog.Printf("Discussion expiration configured: %d hours", config.Expires)
