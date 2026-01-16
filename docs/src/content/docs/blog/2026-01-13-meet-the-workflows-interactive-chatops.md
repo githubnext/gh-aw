@@ -3,7 +3,7 @@ title: "Meet the Workflows: Interactive & ChatOps"
 description: "A curated tour of interactive workflows that respond to commands"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T10:00:00
 sidebar:

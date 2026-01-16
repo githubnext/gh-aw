@@ -3,7 +3,7 @@ title: "Welcome to Peli's Agent Factory"
 description: "An exploration of automated agentic workflows at scale"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-12
 featured: true

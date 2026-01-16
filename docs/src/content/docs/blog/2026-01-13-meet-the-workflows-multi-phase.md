@@ -3,7 +3,7 @@ title: "Meet the Workflows: Multi-Phase Improvers"
 description: "A curated tour of multi-phase workflows that tackle long-running projects"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T13:00:00
 sidebar:
