@@ -185,6 +185,50 @@ func TestParseExpressionComprehensive(t *testing.T) {
 			wantErr:  false,
 		},
 
+		// OR with string literals (fallback patterns)
+		{
+			name:     "OR with single-quoted literal",
+			input:    "inputs.repository || 'FStarLang/FStar'",
+			expected: "(inputs.repository) || ('FStarLang/FStar')",
+			wantErr:  false,
+		},
+		{
+			name:     "OR with double-quoted literal",
+			input:    `inputs.name || "default-name"`,
+			expected: `(inputs.name) || ("default-name")`,
+			wantErr:  false,
+		},
+		{
+			name:     "OR with backtick literal",
+			input:    "inputs.config || `default-config`",
+			expected: "(inputs.config) || (`default-config`)",
+			wantErr:  false,
+		},
+		{
+			name:     "OR with number literal",
+			input:    "inputs.count || 42",
+			expected: "(inputs.count) || (42)",
+			wantErr:  false,
+		},
+		{
+			name:     "OR with boolean literal",
+			input:    "inputs.flag || true",
+			expected: "(inputs.flag) || (true)",
+			wantErr:  false,
+		},
+		{
+			name:     "complex OR with literal and parentheses",
+			input:    "(inputs.value || 'default') && github.actor",
+			expected: "((inputs.value) || ('default')) && (github.actor)",
+			wantErr:  false,
+		},
+		{
+			name:     "multiple OR with mixed literals",
+			input:    "inputs.a || 'default-a' || inputs.b || 'default-b'",
+			expected: "(((inputs.a) || ('default-a')) || (inputs.b)) || ('default-b')",
+			wantErr:  false,
+		},
+
 		// Whitespace handling
 		{
 			name:     "expression with extra whitespace",
