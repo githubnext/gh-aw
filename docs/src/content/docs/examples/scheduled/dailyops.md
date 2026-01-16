@@ -24,7 +24,7 @@ Workflows run on weekday schedules (avoiding weekends) with `workflow_dispatch` 
 ---
 on:
   schedule:
-    - cron: "0 2 * * 1-5"  # 2am UTC, Monday-Friday
+    - cron: "0 2 * * 1-5"  # Weekdays only (no short syntax available)
   workflow_dispatch:
 ---
 ```

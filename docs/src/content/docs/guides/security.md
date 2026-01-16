@@ -218,9 +218,7 @@ CLI flag takes precedence over frontmatter. See [Frontmatter Reference](/gh-aw/r
 Use `stop-after:` to set workflow expiration:
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"
+on: weekly on monday
   stop-after: "+7d"
 ```
 

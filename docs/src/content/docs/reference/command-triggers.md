@@ -73,8 +73,7 @@ on:
   slash_command:
     name: my-bot
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * 1"
+  schedule: weekly on monday
 ```
 
 **Note**: You cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.

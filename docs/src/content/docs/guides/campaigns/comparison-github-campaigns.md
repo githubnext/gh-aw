@@ -35,9 +35,7 @@ engine: copilot
 tools:
   github:
     toolsets: [default, code_security]
-on:
-  schedule:
-    - cron: "0 9 * * 1"
+on: weekly on monday
 ---
 
 # Task

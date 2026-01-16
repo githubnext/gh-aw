@@ -24,9 +24,7 @@ GitHub Agentic Workflows includes several features designed to automatically exp
 Automatically disable workflow triggering after a deadline to control costs and prevent indefinite execution.
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"
+on: weekly on monday
   stop-after: "+25h"  # 25 hours from compilation time
 ```
 
@@ -299,9 +297,7 @@ This configuration ensures:
 Use multiple expiration features together for comprehensive cleanup:
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"
+on: weekly on monday
   stop-after: "+30d"  # Stop workflow after 30 days
 
 safe-outputs:
