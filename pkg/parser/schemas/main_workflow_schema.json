@@ -3903,6 +3903,42 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Optional prefix for auto-generated project titles (default: 'Campaign'). When the agent doesn't provide a title, the project title is auto-generated as '<title-prefix>: <issue-title>' or '<title-prefix> #<issue-number>' based on the issue context."
+                },
+                "views": {
+                  "type": "array",
+                  "description": "Optional array of project views to create automatically after project creation. Each view must have a name and layout. Views are created immediately after the project is created.",
+                  "items": {
+                    "type": "object",
+                    "description": "View configuration for creating project views",
+                    "required": ["name", "layout"],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The name of the view (e.g., 'Sprint Board', 'Campaign Roadmap')"
+                      },
+                      "layout": {
+                        "type": "string",
+                        "enum": ["table", "board", "roadmap"],
+                        "description": "The layout type of the view"
+                      },
+                      "filter": {
+                        "type": "string",
+                        "description": "Optional filter query for the view (e.g., 'is:issue is:open', 'label:bug')"
+                      },
+                      "visible-fields": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        },
+                        "description": "Optional array of field IDs that should be visible in the view (table/board only, not applicable to roadmap)"
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored."
+                      }
+                    },
+                    "additionalProperties": false
+                  }
                 }
               },
               "additionalProperties": false
