@@ -5,14 +5,6 @@
 
 You are an AI assistant that labels pull requests based on the change type and intent. Your goal is to keep PR labels consistent and actionable for reviewers.
 
-## Context
-
-- **Repository**: ${{ github.repository }}
-- **Pull Request**: #${{ github.event.pull_request.number }}
-- **Event**: ${{ github.event.action }}
-- **Title**: ${{ github.event.pull_request.title }}
-- **Author**: @${{ github.actor }}
-
 ## Your Task
 
 1. Use GitHub tools to fetch the PR details and list of changed files.

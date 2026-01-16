@@ -13,5 +13,14 @@ safe-outputs:
     max: 3
 ---
 
+# PR Triage Agent
+
+## Context
+
+- **Repository**: ${{ github.repository }}
+- **Pull Request**: #${{ github.event.pull_request.number }}
+- **Title**: ${{ github.event.pull_request.title }}
+- **Author**: @${{ github.actor }}
+
 <!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
 @./agentics/pr-triage-agent.md
