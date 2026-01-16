@@ -654,7 +654,7 @@ If you need to discuss efficiency, focus on:
 - Cost trends over time
 - Cost efficiency as "cost per run" or "cost per successful outcome"
 
-See `/docs/cost-reporting-guide.md` for detailed explanation.
+See `/specs/cost-reporting-guide.md` for detailed explanation.
 
 ### Data Processing
 - **Pre-downloaded logs**: Logs are already downloaded to `/tmp/gh-aw/copilot-logs.json` - use this file directly

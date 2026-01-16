@@ -1376,6 +1376,27 @@ jobs:
           - **Historical Data**: [N] days of trend data
           - **Cost Model**: Based on Copilot token pricing
           
+          ### 📝 Important Notes About Cost Calculations
+          
+          **Cost data represents TOTAL cost, not per-token pricing**. The `EstimatedCost` values are the complete cost in USD for each workflow run, as calculated by the AI engine's API.
+          
+          ⚠️ **Do NOT calculate "average cost per token"** by dividing total cost by total tokens. This is misleading because:
+          - Different token types have vastly different pricing (e.g., for Claude: input $3/M, output $15/M, cache reads $0.30/M)
+          - Cache usage significantly affects the token mix
+          - The "average" varies wildly depending on token type distribution
+          
+          **Correct metrics to report**:
+          - ✅ Total cost per workflow/run
+          - ✅ Average cost per run  
+          - ✅ Cost trends over time
+          - ❌ "Cost per 1000 tokens" (this is NOT representative of actual API pricing)
+          
+          If you need to discuss efficiency, focus on:
+          - Cost per workflow run
+          - Cost trends relative to number of runs
+          - Workflows with unusually high costs
+          - Optimization opportunities (e.g., reducing unnecessary turns, using caching)
+          
           ## 📊 Data Quality Notes
           
           - [Any caveats about data completeness]
@@ -1391,6 +1412,21 @@ jobs:
           ```
           
           ## Important Guidelines
+          
+          ### ⚠️ Cost Calculation Warning
+          
+          **DO NOT calculate or report "average cost per 1000 tokens"**. This metric is misleading because:
+          - The `EstimatedCost` field contains the TOTAL cost in USD for the entire run, not a per-token cost
+          - Different token types have vastly different pricing (input, output, cache reads, cache writes)
+          - An "average" doesn't reflect actual API pricing and will confuse users
+          
+          **Instead, report**:
+          - Total cost and total tokens separately
+          - Average cost per workflow run
+          - Cost trends over time
+          - Cost efficiency as "cost per run" or "cost per successful outcome"
+          
+          See `/specs/cost-reporting-guide.md` for detailed explanation.
           
           ### Data Processing
           - **Pre-downloaded logs**: Logs are already downloaded to `/tmp/gh-aw/copilot-logs.json` - use this file directly
