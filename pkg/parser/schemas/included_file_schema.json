@@ -746,7 +746,8 @@
             },
             "additionalProperties": true
           }
-        ]
+        ],
+        "$comment": "Simplified MCP configuration for included files. Full MCP configuration (command, args, env, etc.) is only available in main workflow files for security reasons. Included files use mcp references and allowed lists."
       }
     },
     "engine": {
@@ -1517,7 +1518,9 @@
           "required": ["id"],
           "additionalProperties": false
         }
-      ]
+      ],
+      "$comment": "The engine.command property is restricted in included files for security. Only main workflow files can specify custom engine executables."
     }
-  }
+  },
+  "$comment": "Included files use applyTo patterns to determine when they apply, so the 'on' trigger field is not required. Main workflow files must specify 'on' to define trigger conditions."
 }
