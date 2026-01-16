@@ -382,3 +382,140 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 		}
 	})
 }
+
+// TestRootFilesystemMount tests that the entire filesystem is mounted as readonly
+func TestRootFilesystemMount(t *testing.T) {
+	t.Run("copilot engine mounts root filesystem as readonly", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that root filesystem is mounted as readonly
+		if !strings.Contains(stepContent, "--mount /:/:ro") {
+			t.Error("Expected command to contain root filesystem mount '--mount /:/:ro'")
+		}
+
+		// Verify root mount appears before other mounts
+		rootPos := strings.Index(stepContent, "--mount /:/:ro")
+		tmpPos := strings.Index(stepContent, "--mount /tmp:/tmp:rw")
+
+		if rootPos == -1 || tmpPos == -1 {
+			t.Error("Expected both root mount and /tmp mount to be present")
+		}
+
+		if rootPos >= tmpPos {
+			t.Error("Expected root mount '/:/:ro' to appear before '/tmp:/tmp:rw'")
+		}
+	})
+
+	t.Run("claude engine mounts root filesystem as readonly", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewClaudeEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that root filesystem is mounted as readonly
+		if !strings.Contains(stepContent, "--mount /:/:ro") {
+			t.Error("Expected command to contain root filesystem mount '--mount /:/:ro'")
+		}
+	})
+
+	t.Run("codex engine mounts root filesystem as readonly", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCodexEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that root filesystem is mounted as readonly
+		if !strings.Contains(stepContent, "--mount /:/:ro") {
+			t.Error("Expected command to contain root filesystem mount '--mount /:/:ro'")
+		}
+	})
+
+	t.Run("specific mounts override root mount", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Verify that specific mounts are present after root mount
+		// These should override the root mount for their respective paths
+		requiredMounts := []string{
+			"--mount /:/:ro",       // Root filesystem (readonly)
+			"--mount /tmp:/tmp:rw", // /tmp needs write access
+			"--mount \"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"", // Workspace needs write access
+			"--mount /home/runner/.copilot:/home/runner/.copilot:rw", // .copilot config needs write access
+		}
+
+		for _, mount := range requiredMounts {
+			if !strings.Contains(stepContent, mount) {
+				t.Errorf("Expected command to contain mount '%s'", mount)
+			}
+		}
+	})
+}
