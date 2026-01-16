@@ -8,6 +8,8 @@ on:
         required: false
         type: string
         default: 'FStarLang/FStar'
+env:
+  TARGET_REPOSITORY: ${{ inputs.repository || 'FStarLang/FStar' }}
 permissions:
   contents: read
   actions: read

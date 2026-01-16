@@ -42,6 +42,9 @@ concurrency:
 
 run-name: "Repo Audit Analyzer"
 
+env:
+  TARGET_REPOSITORY: ${{ inputs.repository || 'FStarLang/FStar' }}
+
 jobs:
   activation:
     runs-on: ubuntu-slim

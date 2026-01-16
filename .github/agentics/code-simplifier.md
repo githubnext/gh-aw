@@ -11,9 +11,9 @@ Analyze recently modified code from the last 24 hours and apply refinements that
 
 ## Current Context
 
-- **Repository**: ${{ github.repository }}
+- **Repository**: ${GITHUB_REPOSITORY}
 - **Analysis Date**: $(date +%Y-%m-%d)
-- **Workspace**: ${{ github.workspace }}
+- **Workspace**: ${GITHUB_WORKSPACE}
 
 ## Phase 1: Identify Recently Modified Code
 
@@ -30,7 +30,7 @@ git log --since="24 hours ago" --pretty=format:"%H %s" --no-merges
 ```
 
 Use GitHub tools to:
-- Search for pull requests merged in the last 24 hours: `repo:${{ github.repository }} is:pr is:merged merged:>=${YESTERDAY}`
+- Search for pull requests merged in the last 24 hours: `repo:${GITHUB_REPOSITORY} is:pr is:merged merged:>=${YESTERDAY}`
 - Get details of merged PRs to understand what files were changed
 - List commits from the last 24 hours to identify modified files
 
