@@ -119,6 +119,25 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate expressions in runtime-import files at compile time
+	log.Printf("Validating runtime-import files")
+	// Go up from .github/workflows/file.md to repo root
+	workflowDir := filepath.Dir(markdownPath) // .github/workflows
+	githubDir := filepath.Dir(workflowDir)    // .github
+	workspaceDir := filepath.Dir(githubDir)   // repo root
+	if err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return errors.New(formattedErr)
+	}
+
 	// Validate feature flags
 	log.Printf("Validating feature flags")
 	if err := validateFeatures(workflowData); err != nil {
@@ -594,10 +613,6 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 // func (c *Compiler) validateMarkdownSizeForGitHubActions(content string) error { ... }
 
 // splitContentIntoChunks splits markdown content into chunks that fit within GitHub Actions script size limits
-
-// generateCacheMemoryPromptStep generates a separate step for cache memory prompt section
-
-// generateSafeOutputsPromptStep generates a separate step for safe outputs prompt section
 
 // generatePostSteps generates the post-steps section that runs after AI execution
 

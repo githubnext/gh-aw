@@ -14,6 +14,7 @@ import (
 // ============================================================================
 
 func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
+	// Test that safe outputs are included in unified prompt step when enabled
 	compiler := &Compiler{}
 	var yaml strings.Builder
 
@@ -22,11 +23,16 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 		CreateIssues: &CreateIssuesConfig{},
 	}
 
-	compiler.generateSafeOutputsPromptStep(&yaml, safeOutputs)
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{}),
+		SafeOutputs: safeOutputs,
+	}
+
+	compiler.generateUnifiedPromptStep(&yaml, data)
 
 	output := yaml.String()
-	if !strings.Contains(output, "Append safe outputs instructions to prompt") {
-		t.Error("Expected safe outputs prompt step to be generated when enabled")
+	if !strings.Contains(output, "Append context instructions to prompt") {
+		t.Error("Expected unified prompt step to be generated when safe outputs enabled")
 	}
 	if !strings.Contains(output, "safe output tool") {
 		t.Error("Expected prompt to mention safe output tools")
@@ -40,15 +46,21 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 }
 
 func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
+	// Test that safe outputs are not included in unified prompt step when disabled
 	compiler := &Compiler{}
 	var yaml strings.Builder
 
-	// Pass nil for disabled
-	compiler.generateSafeOutputsPromptStep(&yaml, nil)
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{}),
+		SafeOutputs: nil,
+	}
+
+	compiler.generateUnifiedPromptStep(&yaml, data)
 
 	output := yaml.String()
-	if strings.Contains(output, "safe outputs") {
-		t.Error("Expected safe outputs prompt step to NOT be generated when disabled")
+	// Should still have unified step (for temp folder), but not safe outputs
+	if strings.Contains(output, "<safe-outputs>") {
+		t.Error("Expected safe outputs section to NOT be in unified prompt when disabled")
 	}
 }
 
@@ -104,8 +116,8 @@ This is a test workflow with cache-memory enabled.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify cache memory prompt step is created
-	if !strings.Contains(lockStr, "- name: Append cache-memory instructions to prompt") {
-		t.Error("Expected 'Append cache-memory instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
 	}
 
 	// Test 2: Verify the instruction text contains cache folder information
@@ -168,8 +180,8 @@ This is a test workflow without cache-memory.
 	lockStr := string(lockContent)
 
 	// Test: Verify cache memory prompt step is NOT created
-	if strings.Contains(lockStr, "- name: Append cache-memory instructions to prompt") {
-		t.Error("Did not expect 'Append cache-memory instructions to prompt' step in workflow without cache-memory")
+	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Did not expect 'Append context instructions to prompt' step in workflow without cache-memory")
 	}
 
 	if strings.Contains(lockStr, "Cache Folder Available") {
@@ -225,8 +237,8 @@ This is a test workflow with multiple cache-memory entries.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify cache memory prompt step is created
-	if !strings.Contains(lockStr, "- name: Append cache-memory instructions to prompt") {
-		t.Error("Expected 'Append cache-memory instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
 	}
 
 	// Test 2: Verify plural form is used for multiple caches
@@ -292,8 +304,8 @@ This is a test workflow with playwright enabled.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify playwright prompt step is created
-	if !strings.Contains(lockStr, "- name: Append playwright output directory instructions to prompt") {
-		t.Error("Expected 'Append playwright output directory instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
 	}
 
 	// Test 2: Verify the cat command for playwright prompt file is included
@@ -346,8 +358,8 @@ This is a test workflow without playwright.
 	lockStr := string(lockContent)
 
 	// Test: Verify playwright prompt step is NOT created
-	if strings.Contains(lockStr, "- name: Append playwright output directory instructions to prompt") {
-		t.Error("Did not expect 'Append playwright output directory instructions to prompt' step in workflow without playwright")
+	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Did not expect 'Append context instructions to prompt' step in workflow without playwright")
 	}
 
 	if strings.Contains(lockStr, "Playwright Output Directory") {
@@ -399,8 +411,8 @@ This is a test workflow to verify playwright instructions come after temp folder
 	lockStr := string(lockContent)
 
 	// Find positions of temp folder and playwright instructions
-	tempFolderPos := strings.Index(lockStr, "Append temporary folder instructions to prompt")
-	playwrightPos := strings.Index(lockStr, "Append playwright output directory instructions to prompt")
+	tempFolderPos := strings.Index(lockStr, "Append context instructions to prompt")
+	playwrightPos := strings.Index(lockStr, "Append context instructions to prompt")
 
 	// Test: Verify playwright instructions come after temp folder instructions
 	if tempFolderPos == -1 {
@@ -466,8 +478,8 @@ This is a test workflow with issue_comment trigger.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify PR context prompt step is created
-	if !strings.Contains(lockStr, "- name: Append PR context instructions to prompt") {
-		t.Error("Expected 'Append PR context instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
 	}
 
 	// Test 2: Verify the cat command for PR context prompt file is included
@@ -522,8 +534,8 @@ This is a test workflow with command trigger.
 	lockStr := string(lockContent)
 
 	// Test: Verify PR context prompt step is created for command triggers
-	if !strings.Contains(lockStr, "- name: Append PR context instructions to prompt") {
-		t.Error("Expected 'Append PR context instructions to prompt' step in workflow with command trigger")
+	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Expected 'Append context instructions to prompt' step in workflow with command trigger")
 	}
 
 	t.Logf("Successfully verified PR context instructions are included for command trigger")
@@ -571,8 +583,8 @@ This is a test workflow with push trigger only.
 	lockStr := string(lockContent)
 
 	// Test: Verify PR context prompt step is NOT created for push triggers
-	if strings.Contains(lockStr, "- name: Append PR context instructions to prompt") {
-		t.Error("Did not expect 'Append PR context instructions to prompt' step for push trigger")
+	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Did not expect 'Append context instructions to prompt' step for push trigger")
 	}
 
 	t.Logf("Successfully verified PR context instructions are NOT included for push trigger")
@@ -622,8 +634,8 @@ This is a test workflow without contents read permission.
 	lockStr := string(lockContent)
 
 	// Test: Verify PR context prompt step is NOT created without contents permission
-	if strings.Contains(lockStr, "- name: Append PR context instructions to prompt") {
-		t.Error("Did not expect 'Append PR context instructions to prompt' step without contents read permission")
+	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Did not expect 'Append context instructions to prompt' step without contents read permission")
 	}
 
 	t.Logf("Successfully verified PR context instructions are NOT included without contents permission")
