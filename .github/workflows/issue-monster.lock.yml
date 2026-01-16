@@ -181,12 +181,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":3},"assign_to_agent":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":3,"target":"*"},"assign_to_agent":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 3 comment(s) can be added.",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 3 comment(s) can be added. Target: *.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -648,17 +648,13 @@ jobs:
           
           ### 6. Add Comment to Each Assigned Issue
           
-          Add a comment to each issue being assigned:
+          For each issue you assign, use the `add_comment` tool from the `safeoutputs` MCP server to add a comment:
           
-          ```markdown
-          🍪 **Issue Monster has assigned this to Copilot!**
-          
-          I've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.
-          
-          The Copilot agent will analyze the issue and create a pull request with the fix.
-          
-          Om nom nom! 🍪
           ```
+          safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster has assigned this to Copilot!**\n\nI've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.\n\nThe Copilot agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
+          ```
+          
+          **Important**: You must specify the `item_number` parameter with the issue number you're commenting on. This workflow runs on a schedule without a triggering issue, so the target must be explicitly specified.
           
           ## Important Guidelines
           
@@ -1311,7 +1307,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
