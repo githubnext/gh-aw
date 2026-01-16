@@ -77,7 +77,7 @@ export default defineConfig({
 						'gh-next': {
 							name: 'GitHub Next',
 							url: 'https://githubnext.com/',
-							picture: 'https://github.com/gh-next.png?size=200',
+							picture: 'https://github.com/githubnext.png?size=200',
 						},
 						'dsyme': {
 							name: 'Don Syme',
@@ -87,7 +87,7 @@ export default defineConfig({
 						'peli': {
 							name: 'Peli de Halleux',
 							url: 'https://www.microsoft.com/research/people/jhalleux/',
-							picture: 'https://github.com/peli.png?size=200',
+							picture: 'https://github.com/pelikhan.png?size=200',
 						},
 						'mnkiefer': {
 							name: 'Mara Kiefer',
