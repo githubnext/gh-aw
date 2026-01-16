@@ -5,8 +5,6 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
-  - claude
-  - copilot
 date: 2026-01-13T01:00:00
 sidebar:
   label: "Issue Triage"
