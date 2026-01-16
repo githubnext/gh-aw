@@ -3,7 +3,7 @@ title: "12 Design Patterns from Peli's Agent Factory"
 description: "Fundamental behavioral patterns for successful agentic workflows"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-24
 draft: true

@@ -3,7 +3,7 @@ title: "Meet the Workflows: Issue & PR Management"
 description: "A curated tour of workflows that enhance GitHub collaboration"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T04:00:00
 sidebar:

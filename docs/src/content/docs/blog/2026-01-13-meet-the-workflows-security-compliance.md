@@ -3,7 +3,7 @@ title: "Meet the Workflows: Security-related"
 description: "A curated tour of security and compliance workflows that enforce safe boundaries"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T08:00:00
 sidebar:
