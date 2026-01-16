@@ -488,6 +488,51 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	}
 }
 
+// TestHandlerManagerOrderWithProjects tests that project handler manager comes before general handler manager
+func TestHandlerManagerOrderWithProjects(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreateProjects: &CreateProjectsConfig{
+				GitHubToken: "${{ secrets.PROJECTS_PAT }}",
+				TargetOwner: "test-org",
+			},
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test] ",
+			},
+			AssignToAgent: &AssignToAgentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Find positions of handler steps
+	projectHandlerPos := strings.Index(stepsContent, "name: Process Project-Related Safe Outputs")
+	generalHandlerPos := strings.Index(stepsContent, "name: Process Safe Outputs")
+	assignAgentPos := strings.Index(stepsContent, "name: Assign To Agent")
+
+	// Verify all steps are present
+	assert.NotEqual(t, -1, projectHandlerPos, "Project handler manager step should be present")
+	assert.NotEqual(t, -1, generalHandlerPos, "General handler manager step should be present")
+	assert.NotEqual(t, -1, assignAgentPos, "Assign to agent step should be present")
+
+	// Verify correct order: Project Handler → General Handler → Assign To Agent
+	assert.Less(t, projectHandlerPos, generalHandlerPos, "Project handler should come before general handler")
+	assert.Less(t, generalHandlerPos, assignAgentPos, "General handler should come before assign to agent")
+}
+
 // TestStepWithoutCondition tests step building without condition
 func TestStepWithoutCondition(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")

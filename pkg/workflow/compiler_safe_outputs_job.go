@@ -109,24 +109,14 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	//
 	// IMPORTANT: Step order matters for safe outputs that depend on each other.
 	// The execution order ensures dependencies are satisfied:
-	// 1. Handler Manager - processes create_issue, update_issue, add_comment, etc.
-	// 2. Project Handler Manager - processes create_project, update_project, copy_project, create_project_status_update
-	// 3. Assign To Agent - assigns issue to agent (after update_issue completes)
+	// 1. Project Handler Manager - processes create_project, update_project, copy_project, create_project_status_update
+	// 2. Handler Manager - processes create_issue, update_issue, add_comment, etc.
+	// 3. Assign To Agent - assigns issue to agent (after handler managers complete)
 	// 4. Create Agent Session - creates agent session (after assignment)
 	//
-	// Note: All project-related operations are now processed by the project handler manager (step 2)
-	// This allows proper token isolation with GH_AW_PROJECT_GITHUB_TOKEN.
-	// Issues can be created first (step 1), then added to projects (step 2).
-	// project URLs before assigning to an agent for compilation.
-
-	// Note: create_project is now handled by the handler manager only
-	// Previously had a standalone step, but this was removed to avoid confusion
-	// and ensure consistent behavior through the centralized handler manager.
-	// The handler manager provides:
-	// - Consistent configuration management
-	// - Proper temporary ID resolution
-	// - Unified error handling
-	// - Max count enforcement across all safe output types
+	// Note: Project-related operations (step 1) run first to ensure projects exist before
+	// issues/PRs are created (step 2) and potentially added to those projects.
+	// All project-related operations require GH_AW_PROJECT_GITHUB_TOKEN for proper token isolation.
 
 	// Check if any handler-manager-supported types are enabled
 	// Note: Project-related types are handled by the project handler manager
@@ -160,9 +150,38 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.UpdateProjects != nil ||
 		data.SafeOutputs.CopyProjects != nil
 
-	// 1. Handler Manager step (processes update_issue, add_comment, etc.)
-	// This runs BEFORE project operations, allowing issue/PR creation
-	// Critical for workflows that create issues and then add them to projects
+	// 1. Project Handler Manager step (processes create_project, update_project, copy_project, etc.)
+	// These types require GH_AW_PROJECT_GITHUB_TOKEN and must be processed separately from the main handler manager
+	// This runs FIRST to ensure projects exist before issues/PRs are created and potentially added to them
+	if hasProjectHandlerManagerTypes {
+		consolidatedSafeOutputsJobLog.Print("Using project handler manager for project-related safe outputs")
+		projectHandlerManagerSteps := c.buildProjectHandlerManagerStep(data)
+		steps = append(steps, projectHandlerManagerSteps...)
+		safeOutputStepNames = append(safeOutputStepNames, "process_project_safe_outputs")
+
+		// Add outputs from project handler manager
+		outputs["process_project_safe_outputs_processed_count"] = "${{ steps.process_project_safe_outputs.outputs.processed_count }}"
+
+		// Add permissions for project-related types
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+		// The permissions here are for workflow-level permissions, actual API calls use GH_AW_PROJECT_GITHUB_TOKEN
+		if data.SafeOutputs.CreateProjects != nil {
+			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		}
+		if data.SafeOutputs.UpdateProjects != nil {
+			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		}
+		if data.SafeOutputs.CopyProjects != nil {
+			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		}
+	}
+
+	// 2. Handler Manager step (processes create_issue, update_issue, add_comment, etc.)
+	// This runs AFTER project operations, allowing projects to exist before issues/PRs reference them
+	// Critical for workflows that create projects and then add issues/PRs to those projects
 	if hasHandlerManagerTypes {
 		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
 		handlerManagerSteps := c.buildHandlerManagerStep(data)
@@ -227,35 +246,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.DispatchWorkflow != nil {
 			permissions.Merge(NewPermissionsActionsWrite())
-		}
-	}
-
-	// 2. Project Handler Manager step (processes create_project, update_project, copy_project, etc.)
-	// These types require GH_AW_PROJECT_GITHUB_TOKEN and must be processed separately from the main handler manager
-	// This runs AFTER main handler but BEFORE agent assignment
-	if hasProjectHandlerManagerTypes {
-		consolidatedSafeOutputsJobLog.Print("Using project handler manager for project-related safe outputs")
-		projectHandlerManagerSteps := c.buildProjectHandlerManagerStep(data)
-		steps = append(steps, projectHandlerManagerSteps...)
-		safeOutputStepNames = append(safeOutputStepNames, "process_project_safe_outputs")
-
-		// Add outputs from project handler manager
-		outputs["process_project_safe_outputs_processed_count"] = "${{ steps.process_project_safe_outputs.outputs.processed_count }}"
-
-		// Add permissions for project-related types
-		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
-		// The permissions here are for workflow-level permissions, actual API calls use GH_AW_PROJECT_GITHUB_TOKEN
-		if data.SafeOutputs.CreateProjects != nil {
-			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-		}
-		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
-			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-		}
-		if data.SafeOutputs.UpdateProjects != nil {
-			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-		}
-		if data.SafeOutputs.CopyProjects != nil {
-			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 		}
 	}
 
