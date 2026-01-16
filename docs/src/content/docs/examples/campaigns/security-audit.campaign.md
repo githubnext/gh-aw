@@ -1,7 +1,8 @@
 ---
+title: Security Audit 2026 Campaign
+description: Quarterly security audit campaign focusing on vulnerabilities and dependencies
 id: security-audit-2026
 name: Security Audit 2026
-description: Quarterly security audit campaign focusing on vulnerabilities and dependencies
 version: v1
 state: planned
 project-url: https://github.com/orgs/example/projects/42

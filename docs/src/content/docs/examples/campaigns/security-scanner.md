@@ -1,6 +1,7 @@
 ---
-name: Security Scanner
+title: Security Scanner Worker
 description: Scan repositories for security vulnerabilities
+name: Security Scanner
 on:
   schedule:
     - cron: "0 9 * * 1" # Every Monday at 9 AM
