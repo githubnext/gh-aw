@@ -533,7 +533,6 @@ func TestHandlerManagerOrderWithProjects(t *testing.T) {
 	assert.Less(t, generalHandlerPos, assignAgentPos, "General handler should come before assign to agent")
 }
 
-
 // TestStepWithoutCondition tests step building without condition
 func TestStepWithoutCondition(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
