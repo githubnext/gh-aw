@@ -322,37 +322,6 @@ func extractRuntimeImportPaths(markdownContent string) []string {
 		}
 	}
 
-	// Pattern 2: @./path or @../path (inline syntax)
-	// These are converted to runtime-import macros at runtime
-	inlinePattern := `@(\.\.?/[a-zA-Z0-9_\-./]+)(?::(\d+)-(\d+))?`
-	inlineRe := regexp.MustCompile(inlinePattern)
-	inlineMatches := inlineRe.FindAllStringSubmatch(markdownContent, -1)
-
-	for _, match := range inlineMatches {
-		if len(match) > 1 {
-			filepath := strings.TrimSpace(match[1])
-
-			// Skip if this looks like part of an email address
-			// (Check if preceded by alphanumeric character)
-			matchIndex := strings.Index(markdownContent, match[0])
-			if matchIndex > 0 {
-				charBefore := markdownContent[matchIndex-1]
-				if (charBefore >= 'a' && charBefore <= 'z') ||
-					(charBefore >= 'A' && charBefore <= 'Z') ||
-					(charBefore >= '0' && charBefore <= '9') ||
-					charBefore == '_' {
-					continue
-				}
-			}
-
-			// Add to list if not already seen
-			if !seen[filepath] {
-				paths = append(paths, filepath)
-				seen[filepath] = true
-			}
-		}
-	}
-
 	return paths
 }
 

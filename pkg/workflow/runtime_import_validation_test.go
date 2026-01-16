@@ -58,36 +58,6 @@ func TestExtractRuntimeImportPaths(t *testing.T) {
 			expected: []string{"./local.md"},
 		},
 		{
-			name:     "inline syntax @./path",
-			content:  "Import this: @./shared/instructions.md",
-			expected: []string{"./shared/instructions.md"},
-		},
-		{
-			name:     "inline syntax @../path",
-			content:  "Import this: @../parent/file.md",
-			expected: []string{"../parent/file.md"},
-		},
-		{
-			name:     "inline syntax with line range",
-			content:  "Import this: @./file.md:5-10",
-			expected: []string{"./file.md"},
-		},
-		{
-			name:     "email address (should be excluded)",
-			content:  "Contact user@example.com for help",
-			expected: nil,
-		},
-		{
-			name:     "inline URL (should be excluded)",
-			content:  "See @https://github.com/repo/file.md",
-			expected: nil,
-		},
-		{
-			name:     "mixed macro and inline syntax",
-			content:  "{{#runtime-import ./macro.md}}\nAlso see @./inline.md",
-			expected: []string{"./macro.md", "./inline.md"},
-		},
-		{
 			name:     ".github prefix in path",
 			content:  "{{#runtime-import .github/shared/common.md}}",
 			expected: []string{".github/shared/common.md"},
@@ -188,17 +158,6 @@ ${{ github.actor
 			markdown:    "{{#runtime-import https://example.com/remote.md}}",
 			expectError: false,
 		},
-		{
-			name:        "inline syntax with valid file",
-			markdown:    "Import this: @./shared/valid.md",
-			expectError: false,
-		},
-		{
-			name:        "inline syntax with invalid file",
-			markdown:    "Import this: @./shared/invalid.md",
-			expectError: true,
-			errorText:   "runner.os",
-		},
 	}
 
 	for _, tt := range tests {
@@ -248,11 +207,6 @@ func TestValidateRuntimeImportFiles_PathNormalization(t *testing.T) {
 		{
 			name:        "path without prefix",
 			markdown:    "{{#runtime-import shared/test.md}}",
-			expectError: false,
-		},
-		{
-			name:        "inline path with ./",
-			markdown:    "@./shared/test.md",
 			expectError: false,
 		},
 	}
