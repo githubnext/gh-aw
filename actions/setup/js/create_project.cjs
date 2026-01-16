@@ -175,6 +175,88 @@ function parseProjectUrl(projectUrl) {
 }
 
 /**
+ * List all views for a project
+ * @param {string} projectId - Project node ID
+ * @returns {Promise<Array<{id: string, name: string, number: number}>>} Array of views
+ */
+async function listProjectViews(projectId) {
+  core.info(`Listing views for project...`);
+
+  const result = await github.graphql(
+    `query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          views(first: 20) {
+            nodes {
+              id
+              name
+              number
+            }
+          }
+        }
+      }
+    }`,
+    { projectId }
+  );
+
+  const views = result.node.views.nodes;
+  core.info(`Found ${views.length} view(s) in project`);
+
+  return views;
+}
+
+/**
+ * Delete a project view
+ * @param {string} viewId - View node ID
+ * @returns {Promise<void>}
+ */
+async function deleteProjectView(viewId) {
+  core.info(`Deleting view...`);
+
+  await github.graphql(
+    `mutation($viewId: ID!) {
+      deleteProjectV2View(input: { viewId: $viewId }) {
+        deletedViewId
+      }
+    }`,
+    { viewId }
+  );
+
+  core.info(`✓ Deleted view`);
+}
+
+/**
+ * Delete the default "View 1" from a project
+ * @param {string} projectId - Project node ID
+ * @returns {Promise<void>}
+ */
+async function deleteDefaultView(projectId) {
+  try {
+    core.info(`Checking for default view to remove...`);
+
+    const views = await listProjectViews(projectId);
+
+    // Find the default view (typically named "View 1" and has number 1)
+    // We identify it by checking if the name matches common default patterns
+    const defaultView = views.find(view => view.name === "View 1" || (view.number === 1 && /^View \d+$/.test(view.name)));
+
+    if (defaultView) {
+      core.info(`Found default view "${defaultView.name}" (ID: ${defaultView.id}), deleting...`);
+      await deleteProjectView(defaultView.id);
+      core.info(`✓ Successfully removed default view "${defaultView.name}"`);
+    } else {
+      core.info(`No default view found to remove`);
+    }
+  } catch (err) {
+    // prettier-ignore
+    const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+    core.warning(`Failed to delete default view: ${getErrorMessage(error)}`);
+    logGraphQLError(error, "Deleting default view");
+    // Don't fail the whole operation if we can't delete the default view
+  }
+}
+
+/**
  * Create a project view
  * @param {string} projectUrl - Project URL
  * @param {Object} viewConfig - View configuration
@@ -375,6 +457,9 @@ async function main(config = {}) {
             logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
           }
         }
+
+        // After creating custom views, delete the default "View 1" that GitHub automatically creates
+        await deleteDefaultView(projectInfo.projectId);
       }
 
       // Return result
