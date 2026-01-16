@@ -479,10 +479,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -501,12 +497,6 @@ jobs:
           6. **Create Pull Request**: Submit a pull request with the fix
           7. **Record in cache**: Store the alert number to prevent duplicate fixes
           
-          ## Current Context
-          
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Triggered by**: @__GH_AW_GITHUB_ACTOR__
-          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
-          
           ## Workflow Steps
           
           ### 1. Check Cache for Previously Fixed Alerts
@@ -521,8 +511,8 @@ jobs:
           
           Use the GitHub MCP server to list all open code scanning alerts with high severity:
           - Use `list_code_scanning_alerts` with the following parameters:
-            - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
-            - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__` - it's the part after the slash)
+            - `owner`: The repository owner (available in the GitHub context)
+            - `repo`: The repository name (available in the GitHub context)
             - `state`: open
             - `severity`: high
           - This will return only high severity alerts that are currently open
@@ -539,8 +529,8 @@ jobs:
           
           Get detailed information about the selected alert using `get_code_scanning_alert`:
           - Call with parameters:
-            - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
-            - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__` - it's the part after the slash)
+            - `owner`: The repository owner (available in the GitHub context)
+            - `repo`: The repository name (available in the GitHub context)
             - `alertNumber`: The alert number from step 3
           - Extract key information:
             - Alert number
@@ -554,8 +544,8 @@ jobs:
           
           Understand the security issue:
           - Read the affected file using `get_file_contents`:
-            - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
-            - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__` - it's the part after the slash)
+            - `owner`: The repository owner (available in the GitHub context)
+            - `repo`: The repository name (available in the GitHub context)
             - `path`: The file path from the alert
           - Review the code context around the vulnerability (at least 20 lines before and after)
           - Understand the root cause of the security issue
@@ -615,7 +605,7 @@ jobs:
           
           ---
           **Automated by**: Code Scanning Fixer Workflow
-          **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          **Run ID**: (available in GitHub context)
           ```
           
           ### 8. Record Fixed Alert in Cache
@@ -664,28 +654,6 @@ jobs:
           Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_REPOSITORY_OWNER: process.env.GH_AW_GITHUB_REPOSITORY_OWNER,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -811,10 +779,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
