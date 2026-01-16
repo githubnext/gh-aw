@@ -6,9 +6,15 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+  discussions: read
 tools:
   agentic-workflows:
   cache-memory: true
+safe-outputs:
+  create-discussion:
+    category: "agent-research"
+    max: 1
+    close-older-discussions: true
 timeout-minutes: 30
 ---
 
@@ -107,9 +113,13 @@ Review all captured responses and identify:
 - Should certain patterns be more strongly recommended?
 - Are there edge cases the agent doesn't handle well?
 
-## Phase 5: Document Findings (1 minute)
+## Phase 5: Document and Publish Findings (1 minute)
 
-Store a summary in cache memory with this structure:
+Create a GitHub discussion with a comprehensive summary report. Use the `create discussion` safe-output to publish your findings.
+
+**Discussion title**: "Agent Persona Exploration - [DATE]" (e.g., "Agent Persona Exploration - 2024-01-16")
+
+**Discussion content structure**:
 
 ```markdown
 # Agent Persona Exploration - [DATE]
@@ -135,7 +145,16 @@ Store a summary in cache memory with this structure:
 1. [Actionable recommendation for improving agent behavior]
 2. [Suggestion for documentation updates]
 3. [Ideas for additional examples or guidance]
+
+<details>
+<summary><b>Detailed Scenario Analysis</b></summary>
+
+[Include more detailed analysis of each scenario tested, quality scores, and specific agent responses]
+
+</details>
 ```
+
+**Also store a copy in cache memory** for historical comparison across runs.
 
 ## Important Guidelines
 
