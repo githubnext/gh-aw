@@ -3,7 +3,7 @@ title: "Meet the Workflows: Issue Triage"
 description: "A curated tour of triage and summarization workflows in the factory"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T01:00:00
 sidebar:

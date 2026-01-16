@@ -47,7 +47,7 @@ timeout-minutes: 10
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
-{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
+{{#runtime-import? .github/aw/campaign-creation-instructions.md}}
 
 # Campaign Generator
 

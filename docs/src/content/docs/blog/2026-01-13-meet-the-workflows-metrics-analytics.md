@@ -3,7 +3,7 @@ title: "Meet the Workflows: Metrics & Analytics"
 description: "A curated tour of metrics and analytics workflows that turn data into insights"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T06:00:00
 sidebar:

@@ -19,42 +19,30 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
+# Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions.
 
-name: "Campaign Generator"
+name: "Go File Size Reduction Campaign (Project 68)"
 "on":
-  issues:
-    # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
-    # names: # Label filtering applied via job conditions
-    # - create-agentic-campaign # Label filtering applied via job conditions
-    types:
-    - labeled
-  workflow_dispatch: null
+  schedule:
+  - cron: "0 18 * * *"
+  workflow_dispatch:
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+  cancel-in-progress: false
+  group: campaign-file-size-reduction-project68-orchestrator-${{ github.ref }}
 
-run-name: "Campaign Generator"
+run-name: "Go File Size Reduction Campaign (Project 68)"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
-      (github.event.label.name == 'create-agentic-campaign')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
     outputs:
-      comment_id: ${{ steps.add-comment.outputs.comment-id }}
-      comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
-      comment_url: ${{ steps.add-comment.outputs.comment-url }}
-      issue_locked: ${{ steps.lock-issue.outputs.locked }}
+      comment_id: ""
+      comment_repo: ""
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -69,45 +57,25 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "campaign-generator.lock.yml"
+          GH_AW_WORKFLOW_FILE: "file-size-reduction-project64.campaign.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
-      - name: Add comment with workflow run link
-        id: add-comment
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
-          GH_AW_LOCK_FOR_AGENT: "true"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/add_workflow_run_comment.cjs');
-            await main();
-      - name: Lock issue for agent workflow
-        id: lock-issue
-        if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/lock-issue.cjs');
-            await main();
 
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
+      security-events: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -139,6 +107,15 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (campaigns)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/campaigns
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
+          CREATE_ORPHAN: true
+        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -163,24 +140,30 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
+      - name: Validate COPILOT_GITHUB_TOKEN secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: |
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          
+          # Execute the installer with the specified version
+          # Pass VERSION directly to sudo to ensure it's available to the installer script
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
+          
+          # Cleanup
+          rm -f /tmp/copilot-install.sh
+          
+          # Verify installation
+          copilot --version
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.9.1)"
           curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.1 bash
           which awf
           awf --version
-      - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.7
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -199,7 +182,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":10},"assign_to_agent":{},"create_project":{"max":1,"target_owner":"${{ github.repository_owner }}","title_prefix":"Campaign"},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1},"update_project":{"max":10}}
+          {"add_comment":{"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -223,79 +206,6 @@ jobs:
                 "type": "object"
               },
               "name": "add_comment"
-            },
-            {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
-              "inputSchema": {
-                "additionalProperties": false,
-                "oneOf": [
-                  {
-                    "required": [
-                      "issue_number"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "pull_number"
-                    ]
-                  }
-                ],
-                "properties": {
-                  "agent": {
-                    "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
-                    "type": "string"
-                  },
-                  "issue_number": {
-                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "pull_number": {
-                    "description": "Pull request number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  }
-                },
-                "type": "object"
-              },
-              "name": "assign_to_agent"
-            },
-            {
-              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 1 issue(s) can be updated.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
-                    "type": "string"
-                  },
-                  "issue_number": {
-                    "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "status": {
-                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
-                    "enum": [
-                      "open",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "New issue title to replace the existing title.",
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              },
-              "name": "update_issue"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -438,38 +348,6 @@ jobs:
               "name": "update_project"
             },
             {
-              "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "item_url": {
-                    "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123').",
-                    "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+$",
-                    "type": "string"
-                  },
-                  "owner": {
-                    "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter.",
-                    "type": "string"
-                  },
-                  "owner_type": {
-                    "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'.",
-                    "enum": [
-                      "org",
-                      "user"
-                    ],
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated using the title-prefix configuration (default: 'Campaign') as '\u003ctitle-prefix\u003e: \u003cissue-title\u003e' or '\u003ctitle-prefix\u003e #\u003cissue-number\u003e' based on the issue context.",
-                    "type": "string"
-                  }
-                },
-                "required": [],
-                "type": "object"
-              },
-              "name": "create_project"
-            },
-            {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -514,52 +392,6 @@ jobs:
                 }
               }
             },
-            "assign_to_agent": {
-              "defaultMax": 1,
-              "fields": {
-                "agent": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "issue_number": {
-                  "optionalPositiveInteger": true
-                },
-                "pull_number": {
-                  "optionalPositiveInteger": true
-                }
-              },
-              "customValidation": "requiresOneOf:issue_number,pull_number"
-            },
-            "create_project": {
-              "defaultMax": 1,
-              "fields": {
-                "item_url": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 512,
-                  "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+",
-                  "patternError": "must be a full GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)"
-                },
-                "owner": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "owner_type": {
-                  "type": "string",
-                  "enum": [
-                    "org",
-                    "user"
-                  ]
-                },
-                "title": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                }
-              }
-            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -592,32 +424,6 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "update_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "issue_number": {
-                  "issueOrPRNumber": true
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "open",
-                    "closed"
-                  ]
-                },
-                "title": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              },
-              "customValidation": "requiresOneOf:status,title,body"
             },
             "update_project": {
               "defaultMax": 10,
@@ -677,39 +483,42 @@ jobs:
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
-          export GH_AW_ENGINE="claude"
+          export GH_AW_ENGINE="copilot"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.60'
           
+          mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.28.1",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions,code_security"
                 }
               },
               "safeoutputs": {
+                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
                 "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
                 "env": {
-                  "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
-                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
-                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
-                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
-                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
-                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
-                  "GITHUB_SHA": "$GITHUB_SHA",
-                  "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
-                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
+                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
+                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
+                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
+                  "GITHUB_SHA": "\${GITHUB_SHA}",
+                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
+                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
               }
             },
@@ -728,13 +537,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
-              model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "2.1.7",
-              workflow_name: "Campaign Generator",
-              experimental: true,
+              agent_version: "0.0.382",
+              workflow_name: "Go File Size Reduction Campaign (Project 68)",
+              experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -775,366 +584,410 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          {{#runtime-import? .github/shared-instructions.md}}
-          {{#runtime-import? .github/aw/campaign-creation-instructions.md}}
           
-          # Campaign Generator
           
-          You are a campaign workflow coordinator for GitHub Agentic Workflows. You handle campaign creation and project setup, then assign compilation to the Copilot Coding Agent.
           
-          ## IMPORTANT: Using Safe Output Tools
+          # Campaign Orchestrator
           
-          When creating or modifying GitHub resources (project, issue, comments), you **MUST use the MCP tool calling mechanism** to invoke the safe output tools. 
+          This workflow orchestrates the 'Go File Size Reduction Campaign (Project 68)' campaign.
           
-          **Do NOT write markdown code fences or JSON** - you must make actual MCP tool calls using your MCP tool calling capability.
+          - Objective: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
+          - KPIs:
+            - Files reduced to target size (primary): baseline 0 → target 100 over 90 days percent
+            - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days percent
+          - Associated workflows: daily-file-diet
+          - Memory paths: memory/campaigns/file-size-reduction-project68/**
+          - Metrics glob: `memory/campaigns/file-size-reduction-project68/metrics/*.json`
+          - Cursor glob: `memory/campaigns/file-size-reduction-project68/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/68
+          - Governance: max new items per run: 5
+          - Governance: max discovery items per run: 50
+          - Governance: max discovery pages per run: 5
+          - Governance: max project updates per run: 10
+          - Governance: max comments per run: 10
           
-          For example:
-          - To create a project, invoke the `create_project` MCP tool with the required parameters
-          - To update an issue, invoke the `update_issue` MCP tool with the required parameters
-          - To add a comment, invoke the `add_comment` MCP tool with the required parameters
-          - To assign to an agent, invoke the `assign_to_agent` MCP tool with the required parameters
+          ---
+          # ORCHESTRATOR INSTRUCTIONS
+          ---
+          # Orchestrator Instructions
           
-          MCP tool calls write structured data that downstream jobs process. Without proper MCP tool invocations, follow-up actions will be skipped.
+          This orchestrator coordinates a single campaign by discovering worker outputs, making deterministic decisions,
+          and synchronizing campaign state into a GitHub Project board.
           
-          ## Your Task
+          **Scope:** orchestration only (discovery, planning, pacing, reporting).  
+          **Write authority:** all project write semantics are governed by **Project Update Instructions** and MUST be followed.
           
-          **Your Responsibilities:**
-          1. Create GitHub Project board with automatic view creation
-          2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)
-          3. Parse campaign requirements from issue
-          4. Discover matching workflows using the workflow catalog (local + agentics collection)
-          5. Generate complete `.campaign.md` specification file
-          6. Write the campaign file to the repository
-          7. Update the issue with campaign details
-          8. Assign to Copilot Coding Agent for compilation
+          ---
           
-          **Copilot Coding Agent Responsibilities:**
-          1. Compile campaign using `gh aw compile` (requires CLI binary)
-          2. Commit all files (spec + generated files)
-          3. Create pull request
+          ## Traffic and Rate Limits (Required)
           
-          ## Workflow Steps
+          - Minimize API calls; avoid full rescans when possible.
+          - Prefer incremental discovery with deterministic ordering (e.g., by `updatedAt`, tie-break by ID).
+          - Enforce strict pagination budgets; if a query requires many pages, stop early and continue next run.
+          - Use a durable cursor/checkpoint so the next run continues without rescanning.
+          - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
           
-          ### Step 1: Parse Campaign Requirements
           
-          Extract requirements from the issue body #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
-          - Campaign goal/description
-          - Timeline and scope
-          - Suggested workflows (if any)
-          - Ownership information
-          - Risk indicators
+          **Cursor file (repo-memory)**: `memory/campaigns/file-size-reduction-project68/cursor.json`  
+          - If it exists: read first and continue from its boundary.  
+          - If it does not exist: create it by end of run.  
+          - Always write the updated cursor back to the same path.
           
-          **Issue format example:**
-          ```markdown
-          ### Campaign Goal
-          <User's description of what the campaign should accomplish>
           
-          ### Scope
-          <Timeline, repositories, teams involved>
           
-          ### Workflows Needed
-          <User's workflow suggestions, if any>
+          **Metrics snapshots (repo-memory)**: `memory/campaigns/file-size-reduction-project68/metrics/*.json`  
+          - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
+          - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
+          - Each snapshot MUST include `campaign_id` and `date` (UTC).
           
-          ### Risk Level
-          <Low/Medium/High with reasoning>
           
-          ### Ownership
-          <Owner and sponsor information>
-          ```
           
-          ### Step 2: Create GitHub Project Board
+          **Read budget**: max discovery items per run: 50
           
-          Use the `create-project` safe output to create a new project with automatic view creation:
           
-          ```javascript
-          create_project({
-            title: "Campaign: <campaign-name>",
-            owner: "__GH_AW_GITHUB_REPOSITORY_OWNER__",
-            item_url: "__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/issues/__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"
-          })
-          ```
+          **Read budget**: max discovery pages per run: 5
           
-          **Save the project URL** from the response - you'll need it for Step 2.5 and Step 4.
           
-          **Important:** If the project is created under an organization (org-owned), ensure it's linked to this repository. The `item_url` parameter passed to `create_project` should automatically link the project to the repository when the initial issue is added as a project item.
+          **Write budget**: max project updates per run: 10
           
-          **Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created immediately after the project is created, as configured in the workflow's frontmatter. You don't need to create them manually.
           
-          ### Step 2.5: Create Project Fields
+          **Write budget**: max project comments per run: 10
           
-          After creating the project (with views already configured), set up custom fields using the `update-project` safe output.
           
-          #### 2.5.1: Create Custom Fields
+          ---
           
-          ```javascript
-          update_project({
-            project: "<project-url-from-step-2>",
-            operation: "create_fields",
-            field_definitions: [
-              {
-                name: "Worker/Workflow",
-                data_type: "SINGLE_SELECT",
-                options: ["<workflow-id-1>", "<workflow-id-2>"]
-              },
-              {
-                name: "Priority",
-                data_type: "SINGLE_SELECT",
-                options: ["High", "Medium", "Low"]
-              },
-              {
-                name: "Status",
-                data_type: "SINGLE_SELECT",
-                options: ["Todo", "In Progress", "Review required", "Blocked", "Done", "Closed"]
-              },
-              {
-                name: "Start Date",
-                data_type: "DATE"
-              },
-              {
-                name: "End Date",
-                data_type: "DATE"
-              },
-              {
-                name: "Effort",
-                data_type: "SINGLE_SELECT",
-                options: ["Small (1-3 days)", "Medium (1 week)", "Large (2+ weeks)"]
-              }
-            ]
-          })
-          ```
+          ## Core Principles (Non-Negotiable)
           
-          ### Step 3: Discover Workflows Dynamically
+          1. Workers are immutable.
+          2. Workers are campaign-agnostic.
+          3. Campaign logic is external to workers (orchestrator only).
+          4. The GitHub Project board is the authoritative campaign state.
+          5. Correlation is explicit (tracker-id).
+          6. Reads and writes are separate phases (never interleave).
+          7. Idempotent operation is mandatory (safe to re-run).
+          8. Only predefined project fields may be updated.
+          9. **Project Update Instructions take precedence for all project writes.**
           
-          Perform comprehensive workflow discovery by scanning the filesystem:
+          ---
           
-          1. **Scan for agentic workflows**:
-             ```bash
-             ls .github/workflows/*.md
-             ```
-             
-             For each agentic workflow file (`.md`):
-             - Parse the YAML frontmatter to extract `description`, `on`, and `safe-outputs`
-             - Match description to campaign keywords
-             - Categorize by purpose (security, quality, docs, CI/CD, etc.)
+          ## Required Phases (Execute In Order)
           
-          2. **Scan for regular workflows**:
-             ```bash
-             ls .github/workflows/*.yml | grep -v ".lock.yml"
-             ```
-             
-             For each regular workflow file:
-             - Read the workflow name and trigger configuration
-             - Scan jobs to understand functionality
-             - Assess if it could benefit from AI enhancement
+          ### Phase 1 — Read State (Discovery) [NO WRITES]
           
-          3. **Include external workflow collections**:
-             
-             Reference reusable workflows from the Agentics Collection (https://github.com/githubnext/agentics):
-             - **Triage & Analysis**: issue-triage, ci-doctor, repo-ask, daily-accessibility-review, q-workflow-optimizer
-             - **Research & Planning**: weekly-research, daily-team-status, daily-plan, plan-command
-             - **Coding & Development**: daily-progress, daily-dependency-updater, update-docs, pr-fix, daily-adhoc-qa, daily-test-coverage-improver, daily-performance-improver
+          1) Read current GitHub Project board state (items + required fields).
           
-          4. **Categorize discovered workflows**:
-             - **Existing agentic workflows**: Found by scanning `.md` files
-             - **Regular workflows to enhance**: Found by scanning `.yml` files
-             - **External workflows**: From agentics collection
-             - **New workflows**: Suggested workflows not found
+          2) Discover worker outputs (if workers are configured):
           
-          ### Step 4: Generate Campaign Specification File
+          - Perform separate discovery per worker workflow:
           
-          Using the **Campaign Creation Instructions** (imported above), create a complete `.campaign.md` file:
+            - Search for tracker-id `daily-file-diet` across issues/PRs/discussions/comments (parent issue/PR is the unit of work).
           
-          **File path:** `.github/workflows/<campaign-id>.campaign.md`  
-          **Campaign ID:** Convert name to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025")  
-          **Before creating:** Check if the file exists. If it does, append `-v2` or timestamp.
           
-          **File structure:**
+          
+          3) Normalize discovered items into a single list with:
+          - URL, `content_type` (issue/pull_request/discussion), `content_number`
+          - `repository` (owner/repo), `created_at`, `updated_at`
+          - `state` (open/closed/merged), `closed_at`/`merged_at` when applicable
+          
+          4) Respect read budgets and cursor; stop early if needed and persist cursor.
+          
+          ### Phase 2 — Make Decisions (Planning) [NO WRITES]
+          
+          5) Determine desired `status` strictly from explicit GitHub state:
+          - Open → `Todo` (or `In Progress` only if explicitly indicated elsewhere)
+          - Closed (issue/discussion) → `Done`
+          - Merged (PR) → `Done`
+          
+          6) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+          
+          7) Apply write budget:
+          - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
+            (e.g., oldest `updated_at` first; tie-break by ID/number).
+          - Defer remaining items to next run via cursor.
+          
+          ### Phase 3 — Write State (Execution) [WRITES ONLY]
+          
+          8) For each selected item, send an `update-project` request.
+          - Do NOT interleave reads.
+          - Do NOT pre-check whether the item is on the board.
+          - **All write semantics MUST follow Project Update Instructions**, including:
+            - first add → full required fields
+            - existing item → status-only update unless explicit backfill is required
+          
+          9) Record per-item outcome: success/failure + error details.
+          
+          ### Phase 4 — Report
+          
+          10) Report:
+          - counts discovered (by type)
+          - counts processed this run (by action: add/status_update/backfill/noop/failed)
+          - counts deferred due to budgets
+          - failures (with reasons)
+          - completion state (work items only)
+          - cursor advanced / remaining backlog estimate
+          
+          ---
+          
+          ## Authority
+          
+          If any instruction in this file conflicts with **Project Update Instructions**, the Project Update Instructions win for all project writes.
+          ---
+          # PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)
+          ---
+          # Project Update Instructions (Authoritative Write Contract)
+          
+          ## Project Board Integration
+          
+          This file defines the ONLY allowed rules for writing to the GitHub Project board.
+          If any other instructions conflict with this file, THIS FILE TAKES PRECEDENCE for all project writes.
+          
+          ---
+          
+          ## 0) Hard Requirements (Do Not Deviate)
+          
+          - Writes MUST use only the `update-project` safe-output.
+          - All writes MUST target exactly:
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/68`
+          - Every item MUST include:
+            - `campaign_id: "file-size-reduction-project68"`
+          
+          ## Campaign ID
+          
+          All campaign tracking MUST key off `campaign_id: "file-size-reduction-project68"`.
+          
+          ---
+          
+          ## 1) Required Project Fields (Must Already Exist)
+          
+          | Field | Type | Allowed / Notes |
+          |---|---|---|
+          | `status` | single-select | `Todo` / `In Progress` / `Done` |
+          | `campaign_id` | text | Must equal `file-size-reduction-project68` |
+          | `worker_workflow` | text | workflow ID or `"unknown"` |
+          | `repository` | text | `owner/repo` |
+          | `priority` | single-select | `High` / `Medium` / `Low` |
+          | `size` | single-select | `Small` / `Medium` / `Large` |
+          | `start_date` | date | `YYYY-MM-DD` |
+          | `end_date` | date | `YYYY-MM-DD` |
+          
+          Field names are case-sensitive.
+          
+          ---
+          
+          ## 2) Content Identification (Mandatory)
+          
+          Use **content number** (integer), never the URL as an identifier.
+          
+          - Issue URL: `.../issues/123` → `content_type: "issue"`, `content_number: 123`
+          - PR URL: `.../pull/456` → `content_type: "pull_request"`, `content_number: 456`
+          
+          ---
+          
+          ## 3) Deterministic Field Rules (No Inference)
+          
+          These rules apply to any time you write fields:
+          
+          - `campaign_id`: always `file-size-reduction-project68`
+          - `worker_workflow`: workflow ID if known, else `"unknown"`
+          - `repository`: extract `owner/repo` from the issue/PR URL
+          - `priority`: default `Medium` unless explicitly known
+          - `size`: default `Medium` unless explicitly known
+          - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
+          - `end_date`:
+            - if closed/merged → `closed_at` / `merged_at` formatted `YYYY-MM-DD`
+            - if open → **today’s date** formatted `YYYY-MM-DD` (**required for roadmap view; do not leave blank**)
+          
+          For open items, `end_date` is a UI-required placeholder and does NOT represent actual completion.
+          
+          ---
+          
+          ## 4) Two-Phase Execution (Prevents Read/Write Mixing)
+          
+          1. **READ PHASE (no writes)** — validate existence and gather metadata
+          2. **WRITE PHASE (writes only)** — execute `update-project`
+          
+          Never interleave reads and writes.
+          
+          ---
+          
+          ## 5) Adding an Issue or PR (First Write)
+          
+          ### Adding New Issues
+          
+          When first adding an item to the project, you MUST write ALL required fields.
+          
           ```yaml
-          ---
-          id: <campaign-id>
-          name: <Campaign Name>
-          description: <One-sentence description>
-          project-url: <Project URL from Step 2>
-          workflows:
-            - <workflow-id-1>
-            - <workflow-id-2>
-          memory-paths:
-            - memory/campaigns/<campaign-id>-*/**
-          owners:
-            - @<username>
-          executive-sponsors:  # if applicable
-            - @<sponsor>
-          risk-level: <low|medium|high>
-          state: planned
-          tags:
-            - <category>
-            - <technology>
-          tracker-label: campaign:<campaign-id>
-          allowed-safe-outputs:
-            - create-issue
-            - add-comment
-            - create-pull-request
-          approval-policy:  # if high/medium risk
-            required-approvals: <number>
-            required-reviewers:
-              - <team>
-          ---
-          
-          # <Campaign Name>
-          
-          <Clear description of campaign purpose and goals>
-          
-          ## Goals
-          
-          - <Goal 1>
-          - <Goal 2>
-          - <Goal 3>
-          
-          ## Workflows
-          
-          ### <workflow-id-1>
-          <What this workflow does>
-          
-          ### <workflow-id-2>
-          <What this workflow does>
-          
-          ## Agent Behavior
-          
-          Agents in this campaign should:
-          - <Guideline 1>
-          - <Guideline 2>
-          - <Guideline 3>
-          
-          ## Timeline
-          
-          - **Start**: <Date or "TBD">
-          - **Target completion**: <Date or "Ongoing">
-          - **Current state**: Planned
-          
-          ## Success Metrics
-          
-          - <Measurable outcome 1>
-          - <Measurable outcome 2>
-          - <Measurable outcome 3>
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/68"
+            campaign_id: "file-size-reduction-project68"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Todo"                   # "Done" if already closed/merged
+              campaign_id: "file-size-reduction-project68"
+              worker_workflow: "unknown"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-03"
           ```
-          
-          **Create the file** in the repository at the specified path.
-          
-          ### Step 5: Update Issue with Campaign Details
-          
-          Use the `update-issue` safe output to update issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__:
-          
-          **Update the title** (if needed):
-          ```
-          <campaign-name>
-          ```
-          
-          **Update the body** with campaign information and instructions for the Copilot Coding Agent:
-          ```markdown
-          📊 **Project Board:** [View Project](<project-url>)
-          
-          > **Original Request**
-          >
-          > <Quote the user's original campaign goal>
           
           ---
           
-          ## 🎯 Campaign Details
+          ## 6) Updating an Existing Item (Minimal Writes)
           
-          **Campaign ID:** `<campaign-id>`  
-          **Campaign Name:** <Campaign Name>  
-          **Risk Level:** <Low/Medium/High>  
-          **State:** Planned
+          ### Updating Existing Items
           
-          ## 📋 Workflows
+          Preferred behavior is minimal, idempotent writes:
           
-          ### Existing Workflows (Ready to Use)
-          - `<workflow-id-1>`: <Description>
-          - `<workflow-id-2>`: <Description>
+          - If item exists and `status` is unchanged → **No-op**
+          - If item exists and `status` differs → **Update `status` only**
+          - If any required field is missing/empty/invalid → **One-time full backfill** (repair only)
           
-          ### New Workflows (Need to Create)
-          - `<new-workflow-id-1>`: <Description>
-          - `<new-workflow-id-2>`: <Description>
+          ### Status-only Update (Default)
           
-          ## 🎯 Goals
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/68"
+            campaign_id: "file-size-reduction-project68"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
+          ```
           
-          - <Goal 1>
-          - <Goal 2>
-          - <Goal 3>
+          ### Full Backfill (Repair Only)
           
-          ## ⏱️ Timeline
-          
-          - **Start Date:** <Date or TBD>
-          - **Target Completion:** <Date or Ongoing>
+          ```yaml
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/68"
+            campaign_id: "file-size-reduction-project68"
+            content_type: "issue"              # or "pull_request"
+            content_number: 123
+            fields:
+              status: "Done"
+              campaign_id: "file-size-reduction-project68"
+              worker_workflow: "WORKFLOW_ID"
+              repository: "owner/repo"
+              priority: "Medium"
+              size: "Medium"
+              start_date: "2025-12-15"
+              end_date: "2026-01-02"
+          ```
           
           ---
           
-          ## 🤖 Instructions for Copilot Coding Agent
+          ## 7) Idempotency Rules
           
-          The campaign specification file has been created at `.github/workflows/<campaign-id>.campaign.md`.
+          - Matching status already set → **No-op**
+          - Different status → **Status-only update**
+          - Invalid/deleted/inaccessible URL → **Record failure and continue**
           
-          **Your task:** Run `gh aw compile <campaign-id>` to compile the campaign
-          ```
+          ## Write Operation Rules
           
-          ### Step 6: Post Progress Comment
+          All writes MUST conform to this file and use `update-project` only.
           
-          Use `add-comment` to inform the user:
+          ---
           
-          ```markdown
-          ✅ **Campaign Specification Created!**
-          ```
+          ## 8) Logging + Failure Handling (Mandatory)
           
-          ### Step 7: Assign to Copilot Coding Agent
+          For every attempted item, record:
           
-          Use the `assign-to-agent` safe output to assign a Copilot Coding Agent session to compile the campaign and create a PR.
+          - `content_type`, `content_number`, `repository`
+          - action taken: `noop | add | status_update | backfill | failed`
+          - error details if failed
           
-          The agent will:
-          1. Read the instructions in the issue body
-          2. Compile the campaign using `gh aw compile <campaign-id>`
-          3. Create a PR with the compiled files
+          Failures must not stop processing remaining items.
           
-          ## Important Notes
+          ---
           
-          ### Why Assign to Copilot Coding Agent?
-          - `gh aw compile` requires the gh-aw CLI binary
-          - CLI is only available in Copilot Coding Agent sessions (via actions/setup)
-          - GitHub Actions runners (where this workflow runs) don't have gh-aw CLI
+          ## 9) Worker Workflow Policy
+          
+          - Workers are campaign-agnostic.
+          - Orchestrator populates `worker_workflow`.
+          - If `worker_workflow` cannot be determined, it MUST remain `"unknown"` unless explicitly reclassified by the orchestrator.
+          
+          ---
+          
+          ## 10) Parent / Sub-Issue Rules (Campaign Hierarchy)
+          
+          - Each project board MUST have exactly **one Epic issue** representing the campaign.
+          - The Epic issue MUST:
+            - Be added to the project board
+            - Use the same `campaign_id`
+            - Use `worker_workflow: "unknown"`
+          
+          - All campaign work issues (non-epic) MUST be created as **sub-issues of the Epic**.
+          - Issues MUST NOT be re-parented based on worker assignment.
+          
+          - Pull requests cannot be sub-issues:
+            - PRs MUST reference their related issue via standard GitHub linking (e.g. “Closes #123”).
+          
+          - Worker grouping MUST be done via the `worker_workflow` project field, not via parent issues.
+          
+          - The Epic issue is narrative only.
+          - The project board is the sole authoritative source of campaign state.
+          ---
+          # CLOSING INSTRUCTIONS (HIGHEST PRIORITY)
+          ---
+          # Closing Instructions (Highest Priority)
+          
+          Execute all four phases in strict order:
+          
+          1. Read State (no writes)
+          2. Make Decisions (no writes)
+          3. Write State (update-project only)
+          4. Report
+          
+          The following rules are mandatory and override inferred behavior:
+          
+          - The GitHub Project board is the single source of truth.
+          - All project writes MUST comply with `project_update_instructions.md`.
+          - State reads and state writes MUST NOT be interleaved.
+          - Do NOT infer missing data or invent values.
+          - Do NOT reorganize hierarchy.
+          - Do NOT overwrite fields except as explicitly allowed.
+          - Workers are immutable and campaign-agnostic.
+          
+          If any instruction conflicts, the Project Update Instructions take precedence for all writes.
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_REPOSITORY_OWNER: process.env.GH_AW_GITHUB_REPOSITORY_OWNER,
-                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
-              }
-            });
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+      - name: Append repo-memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Locations Available
+          
+          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:
+          
+          - **campaigns**: `/tmp/gh-aw/repo-memory/campaigns/` (branch: `memory/campaigns`)
+          
+          - **Read/Write Access**: You can freely read from and write to any files in these folders
+          - **Git Branch Storage**: Each memory is stored in its own git branch
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files
+          
+          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1148,7 +1001,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, assign_to_agent, create_project, missing_tool, noop, update_issue, update_project
+          **Available tools**: add_comment, missing_tool, noop, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1230,10 +1083,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1244,97 +1093,44 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
-      - name: Execute Claude Code CLI
+      - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        # Allowed tools (sorted):
-        # - Bash
-        # - BashOutput
-        # - Edit
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - KillBash
-        # - LS
-        # - MultiEdit
-        # - NotebookEdit
-        # - NotebookRead
-        # - Read
-        # - Task
-        # - TodoWrite
-        # - Write
-        # - mcp__github__download_workflow_run_artifact
-        # - mcp__github__get_code_scanning_alert
-        # - mcp__github__get_commit
-        # - mcp__github__get_dependabot_alert
-        # - mcp__github__get_discussion
-        # - mcp__github__get_discussion_comments
-        # - mcp__github__get_file_contents
-        # - mcp__github__get_job_logs
-        # - mcp__github__get_label
-        # - mcp__github__get_latest_release
-        # - mcp__github__get_me
-        # - mcp__github__get_notification_details
-        # - mcp__github__get_pull_request
-        # - mcp__github__get_pull_request_comments
-        # - mcp__github__get_pull_request_diff
-        # - mcp__github__get_pull_request_files
-        # - mcp__github__get_pull_request_review_comments
-        # - mcp__github__get_pull_request_reviews
-        # - mcp__github__get_pull_request_status
-        # - mcp__github__get_release_by_tag
-        # - mcp__github__get_secret_scanning_alert
-        # - mcp__github__get_tag
-        # - mcp__github__get_workflow_run
-        # - mcp__github__get_workflow_run_logs
-        # - mcp__github__get_workflow_run_usage
-        # - mcp__github__issue_read
-        # - mcp__github__list_branches
-        # - mcp__github__list_code_scanning_alerts
-        # - mcp__github__list_commits
-        # - mcp__github__list_dependabot_alerts
-        # - mcp__github__list_discussion_categories
-        # - mcp__github__list_discussions
-        # - mcp__github__list_issue_types
-        # - mcp__github__list_issues
-        # - mcp__github__list_label
-        # - mcp__github__list_notifications
-        # - mcp__github__list_pull_requests
-        # - mcp__github__list_releases
-        # - mcp__github__list_secret_scanning_alerts
-        # - mcp__github__list_starred_repositories
-        # - mcp__github__list_tags
-        # - mcp__github__list_workflow_jobs
-        # - mcp__github__list_workflow_run_artifacts
-        # - mcp__github__list_workflow_runs
-        # - mcp__github__list_workflows
-        # - mcp__github__pull_request_read
-        # - mcp__github__search_code
-        # - mcp__github__search_issues
-        # - mcp__github__search_orgs
-        # - mcp__github__search_pull_requests
-        # - mcp__github__search_repositories
-        # - mcp__github__search_users
-        timeout-minutes: 10
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
-            -- /bin/bash -c 'NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BASH_DEFAULT_TIMEOUT_MS: 60000
-          BASH_MAX_TIMEOUT_MS: 60000
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_BUG_COMMAND: 1
-          DISABLE_ERROR_REPORTING: 1
-          DISABLE_TELEMETRY: 1
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
-          GH_AW_MODEL_AGENT_CLAUDE: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          MCP_TIMEOUT: 120000
-          MCP_TOOL_TIMEOUT: 60000
+          XDG_CONFIG_HOME: /home/runner
+      - name: Copy Copilot session state files to logs
+        if: always()
+        continue-on-error: true
+        run: |
+          # Copy Copilot session state files to logs folder for artifact collection
+          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
+          SESSION_STATE_DIR="$HOME/.copilot/session-state"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
+          
+          if [ -d "$SESSION_STATE_DIR" ]; then
+            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
+            mkdir -p "$LOGS_DIR"
+            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
+            echo "Session state files copied successfully"
+          else
+            echo "No session-state directory found at $SESSION_STATE_DIR"
+          fi
       - name: Stop MCP gateway
         if: always()
         continue-on-error: true
@@ -1353,9 +1149,8 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1371,7 +1166,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1387,16 +1182,24 @@ jobs:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/parse_claude_log.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
             await main();
       - name: Parse MCP gateway logs for step summary
         if: always()
@@ -1417,6 +1220,15 @@ jobs:
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
           awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (campaigns)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1436,6 +1248,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_repo_memory
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -1487,7 +1300,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1500,7 +1313,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1513,10 +1326,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1532,10 +1344,9 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1543,22 +1354,14 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
-      - name: Unlock issue after agent workflow
-        id: unlock-issue
-        if: (always()) && (((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
-            await main();
 
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -1593,8 +1396,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Campaign Generator"
-          WORKFLOW_DESCRIPTION: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
+          WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
+          WORKFLOW_DESCRIPTION: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1648,56 +1451,53 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
+      - name: Validate COPILOT_GITHUB_TOKEN secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.7
-      - name: Execute Claude Code CLI
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: |
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          
+          # Execute the installer with the specified version
+          # Pass VERSION directly to sudo to ensure it's available to the installer script
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
+          
+          # Cleanup
+          rm -f /tmp/copilot-install.sh
+          
+          # Verify installation
+          copilot --version
+      - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(jq)
-        # - Bash(ls)
-        # - Bash(tail)
-        # - Bash(wc)
-        # - BashOutput
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - KillBash
-        # - LS
-        # - NotebookRead
-        # - Read
-        # - Task
-        # - TodoWrite
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool shell(cat)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(jq)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(wc)
         timeout-minutes: 20
         run: |
           set -o pipefail
-                    # Execute Claude Code CLI with prompt from file
-                    NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && claude --print --disable-slash-commands --no-chrome --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+          mkdir -p /tmp/
+          mkdir -p /tmp/gh-aw/
+          mkdir -p /tmp/gh-aw/agent/
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BASH_DEFAULT_TIMEOUT_MS: 60000
-          BASH_MAX_TIMEOUT_MS: 60000
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_BUG_COMMAND: 1
-          DISABLE_ERROR_REPORTING: 1
-          DISABLE_TELEMETRY: 1
-          GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || '' }}
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          MCP_TIMEOUT: 120000
-          MCP_TOOL_TIMEOUT: 60000
+          XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1715,17 +1515,14 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  pre_activation:
-    if: >
-      (github.event_name != 'issues') || ((github.event.action != 'labeled') || (github.event.label.name == 'create-agentic-campaign'))
-    runs-on: ubuntu-slim
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
     permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+      contents: write
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1737,34 +1534,51 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
-      - name: Add eyes reaction for immediate feedback
-        id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (campaigns)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+      - name: Push repo-memory changes (campaigns)
+        if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_REACTION: "eyes"
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
+          MEMORY_ID: campaigns
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/campaigns
+          MAX_FILE_SIZE: 10240
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "file-size-reduction-project68/**"
+          GH_AW_CAMPAIGN_ID: file-size-reduction-project68
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/add_reaction.cjs');
-            await main();
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
             await main();
 
   safe_outputs:
     needs:
-      - activation
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
@@ -1776,12 +1590,10 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_ENGINE_ID: "claude"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
-      GH_AW_WORKFLOW_ID: "campaign-generator"
-      GH_AW_WORKFLOW_NAME: "Campaign Generator"
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_WORKFLOW_ID: "file-size-reduction-project64.campaign.g"
+      GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 68)"
     outputs:
-      assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
       process_project_safe_outputs_processed_count: ${{ steps.process_project_safe_outputs.outputs.processed_count }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1807,22 +1619,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Unlock issue for safe output operations
-        id: unlock-issue-for-safe-outputs
-        if: ((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true')
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
-            await main();
       - name: Process Project-Related Safe Outputs
         id: process_project_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: "{\"create_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"target_owner\":\"${{ github.repository_owner }}\",\"title_prefix\":\"Campaign\",\"views\":[{\"name\":\"Campaign Roadmap\",\"layout\":\"roadmap\",\"filter\":\"is:issue,is:pull_request\"},{\"name\":\"Task Tracker\",\"layout\":\"table\",\"filter\":\"is:issue,is:pull_request\"},{\"name\":\"Progress Board\",\"layout\":\"board\",\"filter\":\"is:issue,is:pull_request\"}]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":10}}"
+          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: "{\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":10}}"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
@@ -1836,25 +1638,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"missing_data\":{},\"missing_tool\":{},\"update_issue\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
-            await main();
-      - name: Assign To Agent
-        id: assign_to_agent
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-        with:
-          github-token: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/assign_to_agent.cjs');
             await main();
 
