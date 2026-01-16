@@ -187,7 +187,7 @@ async function processUrlImport(url, optional, startLine, endLine) {
 
   // Check for GitHub Actions macros and error if found
   if (hasGitHubActionsMacros(content)) {
-    throw new Error(`URL ${url} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
+    throw new Error(`URL ${url} contains GitHub Actions macros (\${{ ... }}) which are not allowed in runtime imports`);
   }
 
   return content;
@@ -308,7 +308,7 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
 
   // Check for GitHub Actions macros and error if found
   if (hasGitHubActionsMacros(content)) {
-    throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
+    throw new Error(`File ${filepath} contains GitHub Actions macros (\${{ ... }}) which are not allowed in runtime imports`);
   }
 
   return content;
