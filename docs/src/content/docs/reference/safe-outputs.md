@@ -380,7 +380,7 @@ safe-outputs:
         filter: "is:issue is:open"  # optional: filter query
       - name: "Task Tracker"
         layout: table
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
       - name: "Campaign Timeline"
         layout: roadmap
 ```
@@ -401,8 +401,8 @@ safe-outputs:
 
 **Filter syntax examples:**
 - `is:issue is:open` — Open issues only
-- `is:pull_request` — Pull requests only  
-- `is:issue,is:pull_request` — Both issues and PRs
+- `is:pr` — Pull requests only  
+- `is:issue is:pr` — Both issues and PRs
 - `label:bug` — Items with bug label
 - `assignee:@me` — Items assigned to viewer
 

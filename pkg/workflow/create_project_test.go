@@ -55,7 +55,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 						map[string]any{
 							"name":   "Campaign Roadmap",
 							"layout": "roadmap",
-							"filter": "is:issue,is:pull_request",
+							"filter": "is:issue is:pr",
 						},
 						map[string]any{
 							"name":   "Task Tracker",
@@ -73,7 +73,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 					{
 						Name:   "Campaign Roadmap",
 						Layout: "roadmap",
-						Filter: "is:issue,is:pull_request",
+						Filter: "is:issue is:pr",
 					},
 					{
 						Name:   "Task Tracker",
