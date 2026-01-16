@@ -26,8 +26,7 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 imports:
-  - shared/reporting.md
-  - shared/python-dataviz.md
+  - shared/python-chart-discussion-report.md
   - shared/trends.md
 ---
 
@@ -66,80 +65,39 @@ Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
 
 ## Data Visualization with Python
 
-Generate **6 high-quality charts** to visualize code metrics and trends using Python, matplotlib, and seaborn. All charts must be uploaded as assets and embedded in the discussion report.
+Generate **6 high-quality charts** following the chart quality standards from the Python Chart Discussion Report guide. All charts must be uploaded as assets and embedded in the discussion report.
 
 ### Required Charts
 
 #### 1. LOC by Language (`loc_by_language.png`)
-**Type**: Horizontal bar chart
-**Content**: Distribution of lines of code by programming language
-- Sort by LOC descending
-- Include percentage labels on bars
-- Use color-coding by language type (e.g., compiled vs interpreted)
-- Show total LOC in title
+- **Type**: Horizontal bar chart
+- **Content**: Distribution of lines of code by programming language (sort by LOC descending, include percentage labels)
 - Save to: `/tmp/gh-aw/python/charts/loc_by_language.png`
 
 #### 2. Top Directories (`top_directories.png`)
-**Type**: Horizontal bar chart
-**Content**: Top 10 directories by lines of code
-- Show full directory paths
-- Display LOC count and percentage of total codebase
-- Highlight key directories (cmd, pkg, docs, workflows)
-- Use distinct colors for different directory types
+- **Type**: Horizontal bar chart
+- **Content**: Top 10 directories by lines of code (show full paths, LOC count and percentage)
 - Save to: `/tmp/gh-aw/python/charts/top_directories.png`
 
 #### 3. Quality Score Breakdown (`quality_score_breakdown.png`)
-**Type**: Stacked bar or pie chart with breakdown
-**Content**: Quality score component breakdown
-- Test Coverage: 30%
-- Code Organization: 25%
-- Documentation: 20%
-- Churn Stability: 15%
-- Comment Density: 10%
-- Show current score vs target (100%) for each component
-- Use color gradient from red (poor) to green (excellent)
+- **Type**: Stacked bar or pie chart with breakdown
+- **Content**: Quality score components (Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%)
 - Save to: `/tmp/gh-aw/python/charts/quality_score_breakdown.png`
 
 #### 4. Test Coverage (`test_coverage.png`)
-**Type**: Grouped bar chart or side-by-side comparison
-**Content**: Test vs source code comparison
-- Test LOC vs Source LOC by language
-- Test-to-source ratio visualization
-- Include trend indicator if historical data available
-- Highlight recommended ratio (e.g., 0.5-1.0)
+- **Type**: Grouped bar chart or side-by-side comparison
+- **Content**: Test vs source code comparison (Test LOC vs Source LOC by language, test-to-source ratio)
 - Save to: `/tmp/gh-aw/python/charts/test_coverage.png`
 
 #### 5. Code Churn (`code_churn.png`)
-**Type**: Diverging bar chart
-**Content**: Top 10 most changed files in last 7 days
-- Show lines added (positive) and deleted (negative)
-- Net change highlighting
-- Color-code by file type
-- Include file paths truncated if needed
+- **Type**: Diverging bar chart
+- **Content**: Top 10 most changed files in last 7 days (lines added/deleted, net change)
 - Save to: `/tmp/gh-aw/python/charts/code_churn.png`
 
 #### 6. Historical Trends (`historical_trends.png`)
-**Type**: Multi-line time series chart
-**Content**: Track key metrics over 30 days
-- Total LOC trend line
-- Test coverage percentage trend line
-- Quality score trend line
-- Use multiple y-axes if scales differ significantly
-- Show 7-day moving averages
-- Annotate significant changes (>10%)
+- **Type**: Multi-line time series chart
+- **Content**: Track key metrics over 30 days (Total LOC, test coverage %, quality score with 7-day moving averages)
 - Save to: `/tmp/gh-aw/python/charts/historical_trends.png`
-
-### Chart Quality Standards
-
-All charts must meet these quality standards:
-
-- **DPI**: 300 minimum for publication quality
-- **Figure Size**: 12x7 inches (consistent with daily-issues-report)
-- **Styling**: Use seaborn styling (`sns.set_style("whitegrid")`)
-- **Color Palette**: Professional colors (`sns.set_palette("husl")` or custom)
-- **Labels**: Clear titles, axis labels, and legends
-- **Grid Lines**: Enable for readability (`ax.grid(True, alpha=0.3)`)
-- **Save Format**: PNG with `bbox_inches='tight'` for proper cropping
 
 ### Python Script Structure
 
@@ -199,34 +157,7 @@ print("All charts generated successfully")
 
 ### Chart Upload and Embedding
 
-After generating charts:
-
-1. **Upload each chart as an asset**:
-   - Use the `upload asset` safe-output tool for each PNG file
-   - Collect the returned URLs for embedding
-
-2. **Embed in discussion report**:
-   ```markdown
-   ## 📊 Visualizations
-   
-   ### LOC Distribution by Language
-   ![LOC by Language](URL_FROM_UPLOAD_ASSET_1)
-   
-   ### Top Directories by LOC
-   ![Top Directories](URL_FROM_UPLOAD_ASSET_2)
-   
-   ### Quality Score Breakdown
-   ![Quality Score](URL_FROM_UPLOAD_ASSET_3)
-   
-   ### Test Coverage Analysis
-   ![Test Coverage](URL_FROM_UPLOAD_ASSET_4)
-   
-   ### Code Churn (7 Days)
-   ![Code Churn](URL_FROM_UPLOAD_ASSET_5)
-   
-   ### Historical Trends (30 Days)
-   ![Historical Trends](URL_FROM_UPLOAD_ASSET_6)
-   ```
+Upload all 6 charts as assets and collect the returned URLs for embedding in the discussion report.
 
 ## Trend Calculation
 
@@ -234,145 +165,24 @@ For each metric: current value, 7-day % change, 30-day % change, trend indicator
 
 ## Report Format
 
-Use detailed template with embedded visualization charts:
-
-### Discussion Structure
+Create a discussion following the standard report structure from the Python Chart Discussion Report guide.
 
 **Title**: `Daily Code Metrics Report - YYYY-MM-DD`
 
-**Body**:
+**Body**: Include:
 
-```markdown
-Brief 2-3 paragraph executive summary highlighting key findings, quality score, notable trends, and any concerns requiring attention.
-
-## 📊 Visualizations
-
-### LOC Distribution by Language
-![LOC by Language](URL_FROM_UPLOAD_ASSET)
-
-[Analysis of language distribution and changes]
-
-### Top Directories by LOC
-![Top Directories](URL_FROM_UPLOAD_ASSET)
-
-[Analysis of directory sizes and organization]
-
-### Quality Score Breakdown
-![Quality Score](URL_FROM_UPLOAD_ASSET)
-
-[Current quality score and component analysis]
-
-### Test Coverage Analysis
-![Test Coverage](URL_FROM_UPLOAD_ASSET)
-
-[Test coverage metrics and recommendations]
-
-### Code Churn (Last 7 Days)
-![Code Churn](URL_FROM_UPLOAD_ASSET)
-
-[Most changed files and activity patterns]
-
-### Historical Trends (30 Days)
-![Historical Trends](URL_FROM_UPLOAD_ASSET)
-
-[Trend analysis and significant changes]
-
-<details>
-<summary><b>📈 Detailed Metrics</b></summary>
-
-## Size Metrics
-
-### Lines of Code by Language
-| Language | LOC | % of Total | Change (7d) |
-|----------|-----|------------|-------------|
-| Go | X,XXX | XX% | ⬆️ +X% |
-| JavaScript | X,XXX | XX% | ➡️ 0% |
-| ... | ... | ... | ... |
-
-### Lines of Code by Directory
-| Directory | LOC | % of Total | Files |
-|-----------|-----|------------|-------|
-| pkg/ | X,XXX | XX% | XXX |
-| cmd/ | X,XXX | XX% | XX |
-| ... | ... | ... | ... |
-
-## Quality Indicators
-
-- **Average File Size**: XXX lines
-- **Large Files (>500 LOC)**: XX files
-- **Function Count**: X,XXX functions
-- **Comment Lines**: X,XXX lines (XX% ratio)
-- **Comment Density**: XX%
-
-## Test Coverage
-
-- **Test Files**: XX files
-- **Test LOC**: X,XXX lines
-- **Source LOC**: X,XXX lines  
-- **Test-to-Source Ratio**: X.XX
-- **Trend (7d)**: ⬆️ +X%
-- **Trend (30d)**: ⬆️ +X%
-
-## Code Churn (Last 7 Days)
-
-- **Files Modified**: XXX files
-- **Commits**: XXX commits
-- **Lines Added**: +X,XXX lines
-- **Lines Deleted**: -X,XXX lines
-- **Net Change**: +/-X,XXX lines
-
-### Most Active Files
-1. path/to/file.go: +XXX/-XXX lines
-2. path/to/file.js: +XXX/-XXX lines
-...
-
-## Workflow Metrics
-
-- **Total Workflow Files (.md)**: XXX files
-- **Compiled Workflows (.lock.yml)**: XXX files
-- **Average Workflow Size**: XXX lines
-- **Growth (7d)**: ⬆️ +X%
-
-## Documentation
-
-- **Doc Files (docs/)**: XXX files
-- **Doc LOC**: X,XXX lines
-- **Code-to-Docs Ratio**: X.XX:1
-- **Documentation Coverage**: XX%
-
-## Quality Score: XX/100
-
-### Component Breakdown
-- **Test Coverage (30%)**: XX/30 points
-- **Code Organization (25%)**: XX/25 points
-- **Documentation (20%)**: XX/20 points
-- **Churn Stability (15%)**: XX/15 points
-- **Comment Density (10%)**: XX/10 points
-
-</details>
-
-## 💡 Insights & Recommendations
-
-1. [Specific actionable recommendation based on metrics]
-2. [Another recommendation]
-3. [Focus area for improvement]
-4. [...]
-
----
-*Report generated by Daily Code Metrics workflow*
-*Historical data: 30 days | Last updated: YYYY-MM-DD HH:MM UTC*
-```
-
-### Report Guidelines
-
-- Include all 6 visualization charts as embedded images
-- Upload charts using `upload asset` tool for permanent URLs
-- Provide brief analysis for each chart
-- Use collapsible details section for detailed metrics tables
-- Highlight trends with emoji indicators (⬆️/➡️/⬇️)
-- Calculate and display quality score prominently
-- Provide 3-5 actionable recommendations
-- Include metadata footer with generation info
+1. **Executive Summary**: 2-3 paragraphs highlighting key findings, quality score, notable trends, and concerns
+2. **Key Visualizations**: Embed all 6 uploaded charts with 2-3 sentence analysis for each
+3. **Detailed Metrics** (in collapsible `<details>` section):
+   - Size metrics (LOC by language and directory tables)
+   - Quality indicators (avg file size, large files, function count, comment density)
+   - Test coverage (test files, LOC, ratios, trends)
+   - Code churn (files modified, commits, lines added/deleted, most active files)
+   - Workflow metrics (total workflow files, compiled workflows, growth)
+   - Documentation (doc files, LOC, code-to-docs ratio)
+   - Quality score breakdown (component scores)
+4. **Recommendations**: 3-5 specific, actionable recommendations
+5. **Footer**: Workflow name, historical data period, generation info
 
 ## Quality Score
 

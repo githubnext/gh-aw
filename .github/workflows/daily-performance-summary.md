@@ -30,8 +30,7 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/github-queries-safe-input.md
-  - shared/trending-charts-simple.md
-  - shared/reporting.md
+  - shared/python-chart-discussion-report.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -369,12 +368,7 @@ print("Velocity metrics chart saved!")
 
 ## Phase 4: Upload Charts
 
-Use the `upload asset` tool to upload all three charts:
-1. Upload `/tmp/gh-aw/python/charts/activity_overview.png`
-2. Upload `/tmp/gh-aw/python/charts/resolution_metrics.png`
-3. Upload `/tmp/gh-aw/python/charts/velocity_metrics.png`
-
-Collect the returned URLs for embedding in the discussion.
+Upload all three charts as assets and collect the returned URLs for embedding in the discussion.
 
 ## Phase 5: Close Previous Discussions
 
@@ -386,80 +380,23 @@ Before creating the new discussion, find and close previous daily performance di
 
 ## Phase 6: Create Discussion Report
 
-Create a new discussion with the comprehensive performance report.
-
-### Discussion Format
+Create a discussion following the standard report structure from the Python Chart Discussion Report guide.
 
 **Title**: `[daily performance] Daily Performance Summary - YYYY-MM-DD`
 
-**Body**:
+**Body**: Include:
 
-```markdown
-Brief 2-3 paragraph executive summary highlighting:
-- Overall project health and activity levels
-- Key achievements (PRs merged, issues resolved)
-- Areas needing attention
-
-<details>
-<summary><b>📊 Full Performance Report</b></summary>
-
-## 📈 Activity Overview
-
-![Activity Overview](URL_FROM_UPLOAD_ASSET_CHART_1)
-
-[Brief analysis of activity distribution across PRs, issues, and discussions]
-
-## 🎯 Resolution Metrics
-
-![Resolution Metrics](URL_FROM_UPLOAD_ASSET_CHART_2)
-
-[Analysis of PR merge rates and issue resolution rates]
-
-## ⚡ Velocity Metrics
-
-![Velocity Metrics](URL_FROM_UPLOAD_ASSET_CHART_3)
-
-[Analysis of response times, contributor activity, and discussion engagement]
-
-## 📊 Key Performance Indicators
-
-### Pull Requests
-| Metric | Value |
-|--------|-------|
-| Total PRs | [NUMBER] |
-| Merged | [NUMBER] |
-| Open | [NUMBER] |
-| Avg Merge Time | [HOURS] hours |
-| Unique Contributors | [NUMBER] |
-
-### Issues
-| Metric | Value |
-|--------|-------|
-| Total Issues | [NUMBER] |
-| Closed | [NUMBER] |
-| Open | [NUMBER] |
-| Avg Resolution Time | [HOURS] hours |
-
-### Discussions
-| Metric | Value |
-|--------|-------|
-| Total Discussions | [NUMBER] |
-| Answered | [NUMBER] |
-| Answer Rate | [PERCENT]% |
-
-## 💡 Insights & Recommendations
-
-1. [Key insight based on the data]
-2. [Recommendation for improvement]
-3. [Action item if needed]
-
-</details>
-
----
-*Report generated automatically by the Daily Performance Summary workflow*
-*Data source: ${{ github.repository }} - Last 90 days*
-*Powered by **Safe-Input Tools** - GitHub queries exposed as MCP tools*
-```
+1. **Executive Summary**: 2-3 paragraphs on overall project health, key achievements (PRs merged, issues resolved), and areas needing attention
+2. **Key Visualizations**: Embed all 3 uploaded charts with 2-3 sentence analysis for each:
+   - Activity Overview (distribution across PRs, issues, discussions)
+   - Resolution Metrics (PR merge rates, issue resolution rates)
+   - Velocity Metrics (response times, contributor activity, discussion engagement)
+3. **Detailed Metrics** (in collapsible `<details>` section):
+   - Pull Requests table (total, merged, open, avg merge time, unique contributors)
+   - Issues table (total, closed, open, avg resolution time)
+   - Discussions table (total, answered, answer rate)
+4. **Recommendations**: 3-5 specific, actionable insights and recommendations
+5. **Footer**: Workflow name, data source (last 90 days), safe-input tools note
 
 ## Success Criteria
 

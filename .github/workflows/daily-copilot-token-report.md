@@ -57,8 +57,7 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 20
 imports:
-  - shared/reporting.md
-  - shared/python-dataviz.md
+  - shared/python-chart-discussion-report.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

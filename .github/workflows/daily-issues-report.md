@@ -29,9 +29,8 @@ timeout-minutes: 30
 imports:
   - shared/jqschema.md
   - shared/issues-data-fetch.md
-  - shared/python-dataviz.md
+  - shared/python-chart-discussion-report.md
   - shared/trends.md
-  - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -186,7 +185,9 @@ pip install --user scikit-learn
 
 ## Phase 3: Generate Trend Charts
 
-Generate exactly **2 high-quality charts**:
+## Phase 3: Generate Trend Charts
+
+Generate exactly **2 high-quality charts** following the chart quality standards from the Python Chart Discussion Report guide:
 
 ### Chart 1: Issue Activity Trends
 - **Title**: "Issue Activity - Last 30 Days"
@@ -205,19 +206,9 @@ Generate exactly **2 high-quality charts**:
   - Sort by count descending
 - **Save to**: `/tmp/gh-aw/python/charts/issue_clusters.png`
 
-### Chart Quality Requirements
-- DPI: 300 minimum
-- Figure size: 12x7 inches
-- Use seaborn styling with professional colors
-- Clear labels and legend
-- Grid lines for readability
-
 ## Phase 4: Upload Charts
 
-Use the `upload asset` tool to upload both charts:
-1. Upload `/tmp/gh-aw/python/charts/issue_activity_trends.png`
-2. Upload `/tmp/gh-aw/python/charts/issue_clusters.png`
-3. Collect the returned URLs for embedding in the discussion
+Use the `upload asset` tool to upload both charts and collect the returned URLs for embedding in the discussion.
 
 ## Phase 5: Close Previous Discussions
 
@@ -237,87 +228,25 @@ Create a new discussion with the comprehensive report.
 
 **Title**: `[daily issues] Daily Issues Report - YYYY-MM-DD`
 
-**Body**:
+## Phase 6: Create Discussion Report
 
-```markdown
-Brief 2-3 paragraph summary of key findings: total issues analyzed, main clusters identified, notable trends, and any concerns that need attention.
+Create a new discussion following the standard report structure from the Python Chart Discussion Report guide.
 
-<details>
-<summary><b>📊 Full Report Details</b></summary>
+**Title**: `[daily issues] Daily Issues Report - YYYY-MM-DD`
 
-## 📈 Issue Activity Trends
+**Body**: Use the standard report structure with:
 
-![Issue Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
-
-[2-3 sentence analysis of activity trends - peaks, patterns, recent changes]
-
-## 🏷️ Issue Clusters by Theme
-
-![Issue Clusters](URL_FROM_UPLOAD_ASSET_CHART_2)
-
-[Analysis of the major clusters found and their characteristics]
-
-### Cluster Details
-
-| Cluster | Theme | Issue Count | Sample Issues |
-|---------|-------|-------------|---------------|
-| 1 | [Theme] | [Count] | #123, #456 |
-| 2 | [Theme] | [Count] | #789, #101 |
-| ... | ... | ... | ... |
-
-## 📊 Key Metrics
-
-### Volume Metrics
-- **Total Issues Analyzed**: [NUMBER]
-- **Open Issues**: [NUMBER] ([PERCENT]%)
-- **Closed Issues**: [NUMBER] ([PERCENT]%)
-
-### Time-Based Metrics
-- **Issues Opened (Last 7 Days)**: [NUMBER]
-- **Issues Opened (Last 30 Days)**: [NUMBER]
-- **Average Time to Close**: [DURATION]
-
-### Triage Metrics
-- **Issues Without Labels**: [NUMBER]
-- **Issues Without Assignees**: [NUMBER]
-- **Stale Issues (30+ days)**: [NUMBER]
-
-## 🏆 Top Labels
-
-| Label | Issue Count |
-|-------|-------------|
-| [label] | [count] |
-| ... | ... |
-
-## 👥 Most Active Authors
-
-| Author | Issues Created |
-|--------|----------------|
-| @[author] | [count] |
-| ... | ... |
-
-## ⚠️ Issues Needing Attention
-
-### Stale Issues (No Activity 30+ Days)
-- #[number]: [title]
-- #[number]: [title]
-
-### Unlabeled Issues
-- #[number]: [title]
-- #[number]: [title]
-
-## 📝 Recommendations
-
-1. [Specific actionable recommendation based on findings]
-2. [Another recommendation]
-3. [...]
-
-</details>
-
----
-*Report generated automatically by the Daily Issues Report workflow*
-*Data source: Last 1000 issues from ${{ github.repository }}*
-```
+1. **Executive Summary**: 2-3 paragraphs summarizing total issues analyzed, main clusters identified, notable trends, and concerns
+2. **Key Visualizations**: Embed both uploaded charts with 2-3 sentence analysis for each
+3. **Detailed Metrics** (in collapsible `<details>` section):
+   - Cluster details table
+   - Volume metrics (total, open, closed counts)
+   - Time-based metrics (7-day, 30-day, average close time)
+   - Triage metrics (unlabeled, unassigned, stale)
+   - Top labels and active authors tables
+   - Issues needing attention lists
+4. **Recommendations**: 3-5 specific, actionable recommendations
+5. **Footer**: Workflow name, data source, generation info
 
 ## Important Guidelines
 
@@ -330,16 +259,6 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 - If scikit-learn is not available, use keyword-based clustering
 - Focus on meaningful themes, not just statistical clusters
 - Aim for 5-10 clusters maximum for readability
-
-### Chart Quality
-- Use consistent color schemes
-- Make charts readable when embedded in markdown
-- Include proper axis labels and titles
-
-### Report Quality
-- Be specific with numbers and percentages
-- Highlight actionable insights
-- Keep the summary brief but informative
 
 ## Success Criteria
 
