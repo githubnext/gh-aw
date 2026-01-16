@@ -107,6 +107,10 @@ export default defineConfig({
 							name: 'Claude',
 							url: 'https://claude.ai',
 						},
+						'codex': {
+							name: 'Codex',
+							url: 'https://openai.com/index/openai-codex/',
+						},
 						'copilot': {
 							name: 'Copilot',
 							url: 'https://github.com/features/copilot',
