@@ -154,6 +154,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// Check if any handler-manager-supported types are enabled
+	// Note: CreateProjects and CreateProjectStatusUpdates are handled by the project handler manager
 	hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
 		data.SafeOutputs.AddComments != nil ||
 		data.SafeOutputs.CreateDiscussions != nil ||
@@ -174,16 +175,18 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.DispatchWorkflow != nil ||
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
-		data.SafeOutputs.CreateProjectStatusUpdates != nil ||
-		data.SafeOutputs.CreateProjects != nil ||
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil
 
-	// 3. Handler Manager step (processes create_project, update_issue, add_comment, etc.)
-	// This runs AFTER project copy operations but BEFORE agent assignment, allowing
-	// create_project to create projects and update_issue to reference project resources
-	// before the agent is assigned.
-	// Critical for workflows like campaign-generator that create projects and update issue
+	// Check if any project-handler-manager-supported types are enabled
+	// These types require GH_AW_PROJECT_GITHUB_TOKEN and are processed separately
+	hasProjectHandlerManagerTypes := data.SafeOutputs.CreateProjects != nil ||
+		data.SafeOutputs.CreateProjectStatusUpdates != nil
+
+	// 3. Handler Manager step (processes update_issue, add_comment, etc.)
+	// This runs AFTER project operations but BEFORE agent assignment, allowing
+	// update_issue to reference project resources before the agent is assigned.
+	// Critical for workflows like campaign-generator that update issue
 	// with project details before assigning to agent for compilation.
 	if hasHandlerManagerTypes {
 		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
@@ -250,7 +253,27 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.DispatchWorkflow != nil {
 			permissions.Merge(NewPermissionsActionsWrite())
 		}
+	}
+
+	// 3.5. Project Handler Manager step (processes create_project, create_project_status_update)
+	// These types require GH_AW_PROJECT_GITHUB_TOKEN and must be processed separately from the main handler manager
+	// This runs AFTER update_project/copy_project but BEFORE agent assignment
+	if hasProjectHandlerManagerTypes {
+		consolidatedSafeOutputsJobLog.Print("Using project handler manager for project-related safe outputs")
+		projectHandlerManagerSteps := c.buildProjectHandlerManagerStep(data)
+		steps = append(steps, projectHandlerManagerSteps...)
+		safeOutputStepNames = append(safeOutputStepNames, "process_project_safe_outputs")
+
+		// Add outputs from project handler manager
+		outputs["process_project_safe_outputs_processed_count"] = "${{ steps.process_project_safe_outputs.outputs.processed_count }}"
+
+		// Add permissions for project-related types
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
+		// The permissions here are for workflow-level permissions, actual API calls use GH_AW_PROJECT_GITHUB_TOKEN
 		if data.SafeOutputs.CreateProjects != nil {
+			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
 			permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 		}
 	}

@@ -181,3 +181,48 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 
 	return steps
 }
+
+// buildProjectHandlerManagerStep builds a single step that uses the safe output project handler manager
+// to dispatch project-related messages (create_project, create_project_status_update) to appropriate handlers.
+// These types require GH_AW_PROJECT_GITHUB_TOKEN and are separated from the main handler manager.
+func (c *Compiler) buildProjectHandlerManagerStep(data *WorkflowData) []string {
+	consolidatedSafeOutputsStepsLog.Print("Building project handler manager step")
+
+	var steps []string
+
+	// Step name and metadata
+	steps = append(steps, "      - name: Process Project-Related Safe Outputs\n")
+	steps = append(steps, "        id: process_project_safe_outputs\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+	// Environment variables
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+
+	// Add project handler manager config as JSON
+	c.addProjectHandlerManagerConfigEnvVar(&steps, data)
+
+	// Add custom safe output env vars
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// Add all safe output configuration env vars (still needed by individual handlers)
+	c.addAllSafeOutputConfigEnvVars(&steps, data)
+
+	// Add GH_AW_PROJECT_GITHUB_TOKEN - this is the critical difference from the main handler manager
+	// Project operations require this special token that has Projects permissions
+	token := getEffectiveProjectGitHubToken("", data.GitHubToken)
+	steps = append(steps, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", token))
+
+	// With section for github-token
+	// Use the project token for authentication
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          github-token: %s\n", token))
+
+	steps = append(steps, "          script: |\n")
+	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+	steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_project_handler_manager.cjs');\n")
+	steps = append(steps, "            await main();\n")
+
+	return steps
+}
