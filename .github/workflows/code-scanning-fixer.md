@@ -41,9 +41,9 @@ Your goal is to:
 
 ## Current Context
 
-- **Repository**: ${{ github.repository }}
-- **Triggered by**: @${{ github.actor }}
-- **Run ID**: ${{ github.run_id }}
+- **Repository**: __GH_AW_GITHUB_REPOSITORY__
+- **Triggered by**: @__GH_AW_GITHUB_ACTOR__
+- **Run ID**: __GH_AW_GITHUB_RUN_ID__
 
 ## Workflow Steps
 
@@ -59,8 +59,8 @@ Before selecting an alert, check the cache memory to see which alerts have been 
 
 Use the GitHub MCP server to list all open code scanning alerts with high severity:
 - Use `list_code_scanning_alerts` with the following parameters:
-  - `owner`: ${{ github.repository_owner }}
-  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
+  - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__` - it's the part after the slash)
   - `state`: open
   - `severity`: high
 - This will return only high severity alerts that are currently open
@@ -77,8 +77,8 @@ From the list of high severity alerts:
 
 Get detailed information about the selected alert using `get_code_scanning_alert`:
 - Call with parameters:
-  - `owner`: ${{ github.repository_owner }}
-  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
+  - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__` - it's the part after the slash)
   - `alertNumber`: The alert number from step 3
 - Extract key information:
   - Alert number
@@ -92,8 +92,8 @@ Get detailed information about the selected alert using `get_code_scanning_alert
 
 Understand the security issue:
 - Read the affected file using `get_file_contents`:
-  - `owner`: ${{ github.repository_owner }}
-  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `owner`: __GH_AW_GITHUB_REPOSITORY_OWNER__
+  - `repo`: The repository name (extract from `__GH_AW_GITHUB_REPOSITORY__` - it's the part after the slash)
   - `path`: The file path from the alert
 - Review the code context around the vulnerability (at least 20 lines before and after)
 - Understand the root cause of the security issue
@@ -153,7 +153,7 @@ After making the code changes, create a pull request with:
 
 ---
 **Automated by**: Code Scanning Fixer Workflow
-**Run ID**: ${{ github.run_id }}
+**Run ID**: __GH_AW_GITHUB_RUN_ID__
 ```
 
 ### 8. Record Fixed Alert in Cache
