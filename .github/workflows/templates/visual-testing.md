@@ -1,5 +1,5 @@
 ---
-description: [TODO] Automated visual testing with Playwright, screenshot comparison, and PR feedback
+description: Automated visual testing with Playwright, screenshot comparison, and PR feedback
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -7,7 +7,7 @@ on:
   # schedule: daily
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   actions: read
 engine: claude  # or copilot
 tools:

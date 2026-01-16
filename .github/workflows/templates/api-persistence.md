@@ -1,11 +1,11 @@
 ---
-description: [TODO] Monitors external API, compares against baseline stored in repo-memory, and alerts on significant changes
+description: Monitors external API, compares against baseline stored in repo-memory, and alerts on significant changes
 on:
   schedule: hourly  # or daily depending on API update frequency
   workflow_dispatch:
 permissions:
   contents: read
-  issues: write
+  issues: read
   actions: read
 tracker-id: api-monitoring  # Unique identifier
 engine: claude  # or copilot
@@ -26,11 +26,11 @@ safe-outputs:
     run-success: "✅ API monitoring complete"
     run-failure: "❌ API monitoring failed: {status}"
 timeout-minutes: 15
-network:
-  allowed:
-    # [TODO] Add your API domains
-    # - "api.example.com"
-    # - "status.example.com"
+# Optional: Add network access for external APIs
+# network:
+#   allowed:
+#     - "api.example.com"
+#     - "status.example.com"
 ---
 
 # API Integration with Persistence
@@ -129,7 +129,7 @@ echo "=== Step 2: Query API ==="
 
 # Set API endpoint and auth
 API_ENDPOINT="https://api.example.com/v1/data"
-# API_KEY="${{ secrets.API_KEY }}"  # Use secrets for auth
+# API_KEY="$API_KEY_FROM_ENV"  # Use environment variables for auth
 
 # Make API request with timing
 START_TIME=$(date +%s%N)

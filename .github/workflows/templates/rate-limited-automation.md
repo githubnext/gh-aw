@@ -1,12 +1,12 @@
 ---
-description: [TODO] Detects items requiring action, prioritizes them, and creates limited PRs/issues to avoid overwhelming the team
+description: Detects items requiring action, prioritizes them, and creates limited PRs/issues to avoid overwhelming the team
 on:
   schedule: daily  # Run daily to check for new items
   workflow_dispatch:
 permissions:
   contents: read
-  issues: write
-  pull-requests: write  # If creating PRs
+  issues: read
+  pull-requests: read  # If creating PRs
   actions: read
 engine: claude  # or copilot
 tools:

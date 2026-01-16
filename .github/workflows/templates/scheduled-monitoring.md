@@ -1,11 +1,11 @@
 ---
-description: [TODO] Monitors external APIs or data sources on a schedule, detects issues, and creates GitHub issues for alerting
+description: Monitors external APIs or data sources on a schedule, detects issues, and creates GitHub issues for alerting
 on:
   schedule: daily  # Options: hourly, daily, weekly, monthly
   workflow_dispatch:  # Allow manual triggering
 permissions:
   contents: read
-  issues: write
+  issues: read
   actions: read
 tracker-id: scheduled-monitoring  # Unique identifier for tracking
 engine: claude  # or copilot
@@ -21,20 +21,20 @@ safe-outputs:
     title-prefix: "[alert] "
     labels: [alert, monitoring, automated]
     max: 5
-    close-older-issues: false  # Keep all alerts for tracking
   upload-asset:
   messages:
     run-started: "🔍 Monitoring check started..."
     run-success: "✅ Monitoring complete. Status: {status}"
     run-failure: "❌ Monitoring failed: {status}"
 timeout-minutes: 20
-imports:
-  - shared/reporting.md
-network:
-  allowed:
-    # [TODO] Add allowed domains for your API/data sources
-    # - "api.example.com"
-    # - "status.example.com"
+# Optional: Import shared instructions
+# imports:
+#   - shared/reporting.md
+# Optional: Add network access for external APIs
+# network:
+#   allowed:
+#     - "api.example.com"
+#     - "status.example.com"
 ---
 
 # Scheduled Monitoring with Alerting
@@ -57,7 +57,6 @@ Before using this template, configure the following:
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Schedule**: ${{ github.event.schedule }}
 - **Triggered by**: ${{ github.actor }}
 - **Run ID**: ${{ github.run_id }}
 

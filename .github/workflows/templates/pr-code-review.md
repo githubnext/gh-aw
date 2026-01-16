@@ -1,5 +1,5 @@
 ---
-description: [TODO] Provides automated code review analyzing changes and posting detailed PR comments
+description: Provides automated code review analyzing changes and posting detailed PR comments
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -30,8 +30,9 @@ safe-outputs:
     run-success: "✅ Code review complete! Check the comments for feedback."
     run-failure: "❌ Code review failed: {status}"
 timeout-minutes: 15
-imports:
-  - shared/reporting.md
+# Optional: Import shared instructions for report formatting
+# imports:
+#   - shared/reporting.md
 ---
 
 # PR Code Review Automation

@@ -1,5 +1,5 @@
 ---
-description: [TODO] Generate on-demand reports by aggregating data and posting to GitHub Discussions
+description: Generate on-demand reports by aggregating data and posting to GitHub Discussions
 on:
   workflow_dispatch:
     inputs:
@@ -20,7 +20,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  discussions: write
+  discussions: read
   actions: read
 engine: claude  # or copilot
 tools:
@@ -37,9 +37,10 @@ safe-outputs:
     run-success: "✅ Report generated successfully"
     run-failure: "❌ Report generation failed: {status}"
 timeout-minutes: 20
-imports:
-  - shared/reporting.md
-  - shared/python-dataviz.md  # Optional: for charts
+# Optional: Import shared instructions for formatting and visualization
+# imports:
+#   - shared/reporting.md
+#   - shared/python-dataviz.md
 ---
 
 # On-Demand Report Generation
@@ -65,7 +66,6 @@ Before using this template, configure the following:
 - **Report Type**: ${{ inputs.report_type }}
 - **Date Range**: ${{ inputs.date_range }}
 - **Triggered by**: ${{ github.actor }}
-- **Generated at**: ${{ github.event.workflow_dispatch.created_at }}
 
 ## Your Mission
 

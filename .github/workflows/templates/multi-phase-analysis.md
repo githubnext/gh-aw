@@ -1,11 +1,11 @@
 ---
-description: [TODO] Multi-phase analysis pipeline with data collection, analysis, historical tracking, and reporting
+description: Multi-phase analysis pipeline with data collection, analysis, historical tracking, and reporting
 on:
   schedule: daily  # or weekly for less frequent analysis
   workflow_dispatch:
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
   actions: read
 tracker-id: multi-phase-analysis  # Unique identifier
@@ -34,9 +34,10 @@ safe-outputs:
     run-success: "✅ Analysis pipeline complete"
     run-failure: "❌ Analysis pipeline failed: {status}"
 timeout-minutes: 30
-imports:
-  - shared/reporting.md
-  - shared/python-dataviz.md
+# Optional: Import shared instructions
+# imports:
+#   - shared/reporting.md
+#   - shared/python-dataviz.md
 ---
 
 # Multi-Phase Analysis Pipeline
@@ -61,7 +62,6 @@ Before using this template, configure the following:
 - **Repository**: ${{ github.repository }}
 - **Triggered by**: ${{ github.actor }}
 - **Run ID**: ${{ github.run_id }}
-- **Timestamp**: ${{ github.event.workflow_dispatch.created_at }}
 
 ## Your Mission
 
