@@ -29,7 +29,11 @@ async function main() {
   // - Privilege escalation (inherits permissions from triggering workflow)
   // - Branch protection bypass (can execute on protected branches)
   // - Secret exposure (secrets available from untrusted code)
-  const safeEvents = ["schedule"];
+  // merge_group is safe because:
+  // - Only triggered by GitHub's merge queue system (not user-initiated)
+  // - Requires branch protection rules to be enabled
+  // - Validates combined state of multiple PRs before merging
+  const safeEvents = ["schedule", "merge_group"];
   if (safeEvents.includes(eventName)) {
     core.info(`✅ Event ${eventName} does not require validation`);
     core.setOutput("is_team_member", "true");
