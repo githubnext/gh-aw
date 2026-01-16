@@ -30,6 +30,7 @@ name: "Glossary Maintainer"
 "on":
   schedule:
   - cron: "0 10 * * 1-5"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
