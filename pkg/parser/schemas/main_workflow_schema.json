@@ -2330,6 +2330,11 @@
                   "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')",
                   "examples": ["latest", "v1.0.0"]
                 },
+                "entrypoint": {
+                  "type": "string",
+                  "description": "Optional custom entrypoint for the MCP gateway container. Overrides the container's default entrypoint.",
+                  "examples": ["/bin/bash", "/custom/start.sh", "/usr/bin/env"]
+                },
                 "args": {
                   "type": "array",
                   "items": {
@@ -2343,6 +2348,21 @@
                     "type": "string"
                   },
                   "description": "Arguments to add after the container image (container entrypoint arguments)"
+                },
+                "mounts": {
+                  "type": "array",
+                  "description": "Volume mounts for the MCP gateway container. Each mount is specified using Docker mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or 'rw' (read-write). Example: '/host/data:/container/data:ro'",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[^:]+:[^:]+:(ro|rw)$",
+                    "description": "Mount specification in format 'source:destination:mode'"
+                  },
+                  "examples": [
+                    [
+                      "/host/data:/container/data:ro",
+                      "/host/config:/container/config:rw"
+                    ]
+                  ]
                 },
                 "env": {
                   "type": "object",
