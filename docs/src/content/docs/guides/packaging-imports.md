@@ -36,7 +36,7 @@ Import reusable components using the `imports:` field in frontmatter. File paths
 ```yaml wrap
 ---
 on: issues
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 imports:
   - shared/common-tools.md
   - shared/security-setup.md
@@ -180,7 +180,7 @@ Individual workflows import required components:
 ```yaml wrap
 ---
 on: pull_request
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 imports:
   - acme-org/workflow-library/shared/tools/github-standard.md@v2.0.0
   - acme-org/workflow-library/shared/tools/code-analysis.md@v2.0.0

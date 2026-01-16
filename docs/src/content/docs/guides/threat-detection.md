@@ -84,7 +84,7 @@ safe-outputs:
 |-------|------|-------------|
 | `enabled` | boolean | Enable or disable detection (default: `true` when safe-outputs exist) |
 | `prompt` | string | Custom instructions appended to default detection prompt |
-| `engine` | string/object/false | AI engine config (`"copilot"`, full config object, or `false` for no AI) |
+| `engine` | string/object/false | AI engine config (see [AI Engines](/gh-aw/reference/engines/)), full config object, or `false` for no AI) |
 | `steps` | array | Additional GitHub Actions steps to run after AI analysis |
 
 ## AI-Based Detection (Default)
@@ -98,7 +98,7 @@ By default, threat detection uses the same AI engine as your main workflow to an
 on: push
 safe-outputs:
   create-pull-request:
-  threat-detection: true  # Uses Claude for analysis
+  threat-detection: true  # Uses configured AI engine for analysis
 ---
 
 # Code Review Agent
@@ -151,8 +151,10 @@ Override the main workflow engine for threat detection:
 safe-outputs:
   create-pull-request:
   threat-detection:
-    engine: copilot  # Use Copilot instead of main workflow engine
+    engine: <engine-name>  # Use specific engine for threat detection
 ```
+
+See [AI Engines](/gh-aw/reference/engines/) for available engines.
 
 **Object Format:**
 
@@ -161,7 +163,7 @@ safe-outputs:
   create-pull-request:
   threat-detection:
     engine:
-      id: copilot
+      id: <engine-name>
       max-turns: 3
 ```
 
@@ -210,7 +212,6 @@ Use Ollama with LlamaGuard 3 for specialized threat detection:
 ```yaml wrap
 ---
 on: push
-engine: copilot
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -255,7 +256,6 @@ safe-outputs:
   create-pull-request:
   threat-detection:
     prompt: "Check for authentication bypass vulnerabilities"
-    engine: copilot
     steps:
       - name: Static Analysis
         run: |

@@ -92,7 +92,7 @@ network:
 Restrict domains to specific protocols for enhanced security (Copilot engine with AWF firewall):
 
 ```yaml
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 network:
   allowed:
     - defaults

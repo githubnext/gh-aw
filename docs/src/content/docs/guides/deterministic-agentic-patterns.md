@@ -51,7 +51,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 safe-outputs:
   update-release:
 
@@ -86,7 +86,7 @@ Define multiple deterministic jobs with dependencies:
 ---
 on:
   schedule: daily
-engine: claude
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 safe-outputs:
   create-discussion:
 
@@ -122,7 +122,7 @@ Use deterministic `steps:` for custom trigger logic:
 on:
   issues:
     types: [opened, edited]
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 safe-outputs:
   add-comment:
 
@@ -153,7 +153,7 @@ Use custom safe output jobs for deterministic post-processing:
 on:
   pull_request:
     types: [opened]
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 
 safe-outputs:
   jobs:
@@ -207,7 +207,7 @@ Import in workflows:
 ---
 on:
   schedule: daily
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 imports:
   - shared/reporting.md
 safe-outputs:

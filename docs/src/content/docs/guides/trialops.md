@@ -121,13 +121,13 @@ gh aw trial githubnext/agentics/feature-workflow --auto-merge-prs
 
 ### Engine Comparison
 
+Test workflows with different AI engines to compare their behavior:
+
 ```bash
-gh aw trial ./my-workflow.md --engine claude
-gh aw trial ./my-workflow.md --engine copilot
-gh aw trial ./my-workflow.md --engine codex
+gh aw trial ./my-workflow.md --engine <engine-name>
 ```
 
-Required API keys: `COPILOT_GITHUB_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`.
+See [AI Engines](/gh-aw/reference/engines/) for available engines and their required API keys.
 
 ### Append Instructions
 

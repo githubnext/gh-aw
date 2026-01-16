@@ -97,7 +97,7 @@ on:
         description: "What should the agent work on?"
         required: true
 
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 
 permissions:
   contents: read
@@ -143,7 +143,7 @@ Run scheduled checks on your main repository:
 ---
 on: weekly on monday
 
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 
 permissions:
   contents: read

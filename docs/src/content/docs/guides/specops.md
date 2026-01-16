@@ -38,7 +38,7 @@ on:
         required: true
         type: string
 
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 strict: true
 
 safe-outputs:
@@ -96,7 +96,7 @@ on:
       - 'docs/src/content/docs/reference/mcp-gateway.md'
   workflow_dispatch:
 
-engine: copilot
+engine: <your-engine>  # See /gh-aw/reference/engines/ for options
 strict: true
 
 safe-outputs:
