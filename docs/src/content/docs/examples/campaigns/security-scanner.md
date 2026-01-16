@@ -1,4 +1,5 @@
 ---
+title: Security Scanner Workflow Example
 name: Security Scanner
 description: Scan repositories for security vulnerabilities
 on:
