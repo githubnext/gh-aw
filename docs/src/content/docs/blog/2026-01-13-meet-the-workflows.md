@@ -63,7 +63,7 @@ Skip issues that:
 - Already have any of these labels
 - Have been assigned to any user (especially non-bot users)
 
-After adding the label to an issue, mention the issue author in a comment explaining why the label was added.
+Do research on the issue in the context of the codebase and, after after adding the label to an issue, mention the issue author in a comment, explain why the label was added and give a brief summary of how the issue may be addressed.
 ```
 
 Note how concise this is - it's like reading a to-do list for the agent. The workflow runs whenever a new issue is opened or reopened. It checks for unlabeled issues, analyzes their content, and applies appropriate labels based on content analysis. It even leaves a friendly comment explaining the label choice.
