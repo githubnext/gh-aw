@@ -1097,6 +1097,22 @@ jobs:
           
           Transform the last 24 hours of repository activity into a compelling narrative that reads like a daily newspaper. This is NOT a bulleted list - it's a story with drama, intrigue, and personality.
           
+          ## CRITICAL: Human Agency First
+          
+          **Bot activity MUST be attributed to human actors:**
+          
+          - **@github-actions[bot]** and **@Copilot** are tools triggered by humans - they don't act independently
+          - When you see bot commits/PRs, identify WHO triggered them:
+            - Issue assigners who set work in motion
+            - PR reviewers and mergers who approved changes
+            - Repository maintainers who configured workflows
+          - **CORRECT framing**: "The team leveraged Copilot to deliver 30 PRs..." or "@developer used GitHub Actions to automate..."
+          - **INCORRECT framing**: "The Copilot bot staged a takeover..." or "automation army dominated while humans looked on..."
+          - Mention bot usage as a positive productivity tool, not as replacement for humans
+          - True autonomous actions (like scheduled jobs with no human trigger) can be mentioned as automated, but emphasize the humans who set them up
+          
+          **Remember**: Every bot action has a human behind it - find and credit them!
+          
           ## Editorial Guidelines
           
           **Structure your newspaper with distinct sections:**
@@ -1105,13 +1121,13 @@ jobs:
           Open with the most significant event from the past 24 hours. Was there a major PR merged? A critical bug discovered? A heated discussion? Lead with drama and impact.
           
           ### 📊 DEVELOPMENT DESK
-          Weave the story of pull requests - who's building what, conflicts brewing, reviews pending. Connect the PRs into a narrative: "While the frontend team races to ship the new dashboard, the backend crew grapples with database migrations..."
+          Weave the story of pull requests - who's building what, conflicts brewing, reviews pending. Connect the PRs into a narrative. **Remember**: PRs by bots were triggered by humans - mention who assigned the work, who reviewed, who merged. Example: "Senior developer @alice leveraged Copilot to deliver three PRs addressing the authentication system, while @bob reviewed and merged the changes..."
           
           ### 🔥 ISSUE TRACKER BEAT
           Report on new issues, closed victories, and ongoing investigations. Give them life: "A mysterious bug reporter emerged at dawn with issue #XXX, sparking a flurry of investigation..."
           
           ### 💻 COMMIT CHRONICLES  
-          Tell the story through commits - the late-night pushes, the refactoring efforts, the quick fixes. Paint the picture of developer activity.
+          Tell the story through commits - the late-night pushes, the refactoring efforts, the quick fixes. Paint the picture of developer activity. **Attribution matters**: If commits are from bots, identify the human who initiated the work (issue assigner, PR reviewer, workflow trigger).
           
           ### 📈 THE NUMBERS
           End with a brief statistical snapshot, but keep it snappy.
@@ -1124,6 +1140,9 @@ jobs:
           - **Scene-setting**: "As the clock struck midnight, @developer pushed a flurry of commits..."
           - **NO bullet points** in the main sections - write in flowing paragraphs
           - **Editorial flair**: "Breaking news", "In a stunning turn of events", "Meanwhile, across the codebase..."
+          - **Human-centric**: Always attribute bot actions to the humans who triggered, reviewed, or merged them
+          - **Tools, not actors**: Frame automation as productivity tools used BY developers, not independent actors
+          - **Avoid "robot uprising" tropes**: No "bot takeovers", "automation armies", or "humans displaced by machines"
           
           ## Technical Requirements
           
@@ -1132,14 +1151,21 @@ jobs:
              - Issues (opened, closed, comments)
              - Commits to main branches
           
-          2. Create a discussion with your newspaper-style report using the `create-discussion` safe output format:
+          2. **For bot activity, identify human actors:**
+             - Check PR/issue assignees to find who initiated the work
+             - Look at PR reviewers and mergers - they're making decisions
+             - Examine issue comments to see who requested the action
+             - Check workflow triggers (manual dispatch, issue assignment, etc.)
+             - Credit the humans who configured, triggered, reviewed, or approved bot actions
+          
+          3. Create a discussion with your newspaper-style report using the `create-discussion` safe output format:
              ```
              TITLE: Repository Chronicle - [Catchy headline from top story]
              
              BODY: Your dramatic newspaper content
              ```
           
-          3. If there's no activity, write a "Quiet Day" edition acknowledging the calm.
+          4. If there's no activity, write a "Quiet Day" edition acknowledging the calm.
           
           Remember: You're a newspaper editor, not a bot. Make it engaging! 📰
           

@@ -52,28 +52,8 @@ func TestContainsRuntimeImports(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "inline syntax @./path",
-			content:  "Include this file: @./docs/guide.md",
-			expected: true,
-		},
-		{
-			name:     "inline syntax @../path",
-			content:  "See: @../shared/template.md for details",
-			expected: true,
-		},
-		{
-			name:     "inline syntax with line range",
-			content:  "Code snippet: @./src/main.go:10-20",
-			expected: true,
-		},
-		{
 			name:     "email address should NOT trigger",
 			content:  "Contact: user@example.com",
-			expected: false,
-		},
-		{
-			name:     "inline URL @https should NOT trigger",
-			content:  "@https://example.com/file.md",
 			expected: false,
 		},
 		{
@@ -145,24 +125,6 @@ features:
 			markdown:            "# Agent\n\n{{#runtime-import .github/shared.md}}\n\nDo the task.",
 			expectedHasCheckout: true,
 			description:         "Runtime-import should trigger checkout when contents: read is present",
-		},
-		{
-			name: "inline syntax @./ with contents read",
-			frontmatter: `---
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  issues: write
-engine: copilot
-strict: false
-features:
-  dangerous-permissions-write: true
----`,
-			markdown:            "# Agent\n\nFollow these guidelines:\n\n@./docs/standards.md\n\nComplete the task.",
-			expectedHasCheckout: true,
-			description:         "Inline @./ syntax should trigger checkout",
 		},
 		{
 			name: "no runtime-imports with contents read",

@@ -5,6 +5,8 @@ authors:
   - dsyme
   - pelikhan
   - mnkiefer
+  - claude
+  - copilot
 date: 2026-01-13T12:00:00
 sidebar:
   label: "Tool & Infrastructure"

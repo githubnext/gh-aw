@@ -622,92 +622,9 @@ async function processRuntimeImports(content, workspaceDir) {
   return processedContent;
 }
 
-/**
- * Converts inline syntax to runtime-import macros
- * - File paths: `@./path` or `@../path` (must start with ./ or ../)
- * - URLs: `@https://...` or `@http://...`
- * @param {string} content - The markdown content containing inline references
- * @returns {string} - Content with inline references converted to runtime-import macros
- */
-function convertInlinesToMacros(content) {
-  let processedContent = content;
-
-  // First, process URL patterns (@https://... or @http://...)
-  const urlPattern = /@(https?:\/\/[^\s]+?)(?::(\d+)-(\d+))?(?=[\s\n]|$)/g;
-  let match;
-
-  urlPattern.lastIndex = 0;
-  while ((match = urlPattern.exec(content)) !== null) {
-    const url = match[1];
-    const startLine = match[2];
-    const endLine = match[3];
-    const fullMatch = match[0];
-
-    // Skip if this looks like part of an email address
-    const matchIndex = match.index;
-    if (matchIndex > 0) {
-      const charBefore = content[matchIndex - 1];
-      if (/[a-zA-Z0-9_]/.test(charBefore)) {
-        continue;
-      }
-    }
-
-    // Convert to {{#runtime-import URL}} or {{#runtime-import URL:start-end}}
-    let macro;
-    if (startLine && endLine) {
-      macro = `{{#runtime-import ${url}:${startLine}-${endLine}}}`;
-    } else {
-      macro = `{{#runtime-import ${url}}}`;
-    }
-
-    processedContent = processedContent.replace(fullMatch, macro);
-  }
-
-  // Then, process file path patterns (@./path or @../path or @./path:line-line)
-  // This pattern matches ONLY relative paths starting with ./ or ../
-  // - @./file.ext
-  // - @./path/to/file.ext
-  // - @../path/to/file.ext:10-20
-  // But NOT:
-  // - @path (without ./ or ../)
-  // - email addresses like user@example.com
-  // - URLs (already processed)
-  const filePattern = /@(\.\.?\/[a-zA-Z0-9_\-./]+)(?::(\d+)-(\d+))?/g;
-
-  filePattern.lastIndex = 0;
-  while ((match = filePattern.exec(processedContent)) !== null) {
-    const filepath = match[1];
-    const startLine = match[2];
-    const endLine = match[3];
-    const fullMatch = match[0];
-
-    // Skip if this looks like part of an email address
-    const matchIndex = match.index;
-    if (matchIndex > 0) {
-      const charBefore = processedContent[matchIndex - 1];
-      if (/[a-zA-Z0-9_]/.test(charBefore)) {
-        continue;
-      }
-    }
-
-    // Convert to {{#runtime-import filepath}} or {{#runtime-import filepath:start-end}}
-    let macro;
-    if (startLine && endLine) {
-      macro = `{{#runtime-import ${filepath}:${startLine}-${endLine}}}`;
-    } else {
-      macro = `{{#runtime-import ${filepath}}}`;
-    }
-
-    processedContent = processedContent.replace(fullMatch, macro);
-  }
-
-  return processedContent;
-}
-
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
-  convertInlinesToMacros,
   hasFrontMatter,
   removeXMLComments,
   hasGitHubActionsMacros,

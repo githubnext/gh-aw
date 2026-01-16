@@ -10,13 +10,13 @@ import { fileURLToPath } from 'node:url';
 
 /**
  * Creates blog authors config with GitHub profile pictures
- * @param {Record<string, {name: string, url: string}>} authors
+ * @param {Record<string, {name: string, url: string, picture?: string}>} authors
  */
 function createAuthors(authors) {
 	return Object.fromEntries(
 		Object.entries(authors).map(([key, author]) => [
 			key,
-			{ ...author, picture: `https://github.com/${key}.png?size=200` }
+			{ ...author, picture: author.picture ?? `https://github.com/${key}.png?size=200` }
 		])
 	);
 }
@@ -102,6 +102,15 @@ export default defineConfig({
 						'mnkiefer': {
 							name: 'Mara Kiefer',
 							url: 'https://github.com/mnkiefer',
+						},
+						'claude': {
+							name: 'Claude AI',
+							url: 'https://claude.ai',
+						},
+						'copilot': {
+							name: 'GitHub Copilot',
+							url: 'https://github.com/features/copilot',
+							picture: 'https://avatars.githubusercontent.com/in/1143301?s=64&amp;v=4',
 						},
 					}),
 				}),
