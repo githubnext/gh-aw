@@ -45,6 +45,27 @@ var debugWorkflowPromptTemplate string
 //go:embed templates/upgrade-agentic-workflows.md
 var upgradeAgenticWorkflowsPromptTemplate string
 
+//go:embed templates/campaign-creation-instructions.md
+var campaignCreationInstructionsTemplate string
+
+//go:embed templates/campaign-orchestrator-instructions.md
+var campaignOrchestratorInstructionsTemplate string
+
+//go:embed templates/campaign-project-update-instructions.md
+var campaignProjectUpdateInstructionsTemplate string
+
+//go:embed templates/campaign-workflow-execution.md
+var campaignWorkflowExecutionTemplate string
+
+//go:embed templates/campaign-closing-instructions.md
+var campaignClosingInstructionsTemplate string
+
+//go:embed templates/campaign-project-update-contract-checklist.md
+var campaignProjectUpdateContractChecklistTemplate string
+
+//go:embed templates/campaign-generator-instructions.md
+var campaignGeneratorInstructionsTemplate string
+
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
 	version = v

@@ -216,6 +216,90 @@ func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error
 	return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
 }
 
+// ensureCampaignCreationInstructions ensures that .github/aw/campaign-creation-instructions.md exists
+func ensureCampaignCreationInstructions(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"campaign-creation-instructions.md",
+		campaignCreationInstructionsTemplate,
+		"campaign creation instructions",
+		verbose,
+		skipInstructions,
+	)
+}
+
+// ensureCampaignOrchestratorInstructions ensures that .github/aw/campaign-orchestrator-instructions.md exists
+func ensureCampaignOrchestratorInstructions(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"campaign-orchestrator-instructions.md",
+		campaignOrchestratorInstructionsTemplate,
+		"campaign orchestrator instructions",
+		verbose,
+		skipInstructions,
+	)
+}
+
+// ensureCampaignProjectUpdateInstructions ensures that .github/aw/campaign-project-update-instructions.md exists
+func ensureCampaignProjectUpdateInstructions(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"campaign-project-update-instructions.md",
+		campaignProjectUpdateInstructionsTemplate,
+		"campaign project update instructions",
+		verbose,
+		skipInstructions,
+	)
+}
+
+// ensureCampaignWorkflowExecution ensures that .github/aw/campaign-workflow-execution.md exists
+func ensureCampaignWorkflowExecution(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"campaign-workflow-execution.md",
+		campaignWorkflowExecutionTemplate,
+		"campaign workflow execution",
+		verbose,
+		skipInstructions,
+	)
+}
+
+// ensureCampaignClosingInstructions ensures that .github/aw/campaign-closing-instructions.md exists
+func ensureCampaignClosingInstructions(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"campaign-closing-instructions.md",
+		campaignClosingInstructionsTemplate,
+		"campaign closing instructions",
+		verbose,
+		skipInstructions,
+	)
+}
+
+// ensureCampaignProjectUpdateContractChecklist ensures that .github/aw/campaign-project-update-contract-checklist.md exists
+func ensureCampaignProjectUpdateContractChecklist(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"campaign-project-update-contract-checklist.md",
+		campaignProjectUpdateContractChecklistTemplate,
+		"campaign project update contract checklist",
+		verbose,
+		skipInstructions,
+	)
+}
+
+// ensureCampaignGeneratorInstructions ensures that .github/aw/campaign-generator-instructions.md exists
+func ensureCampaignGeneratorInstructions(verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "aw"),
+		"campaign-generator-instructions.md",
+		campaignGeneratorInstructionsTemplate,
+		"campaign generator instructions",
+		verbose,
+		skipInstructions,
+	)
+}
+
 // deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists
 func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
 	gitRoot, err := findGitRoot()
