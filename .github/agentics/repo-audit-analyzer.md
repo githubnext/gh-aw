@@ -236,7 +236,8 @@ grep -B 5 "run:" .github/workflows/*.{yml,yaml} 2>/dev/null | grep -c "continue-
 
 # Hardcoded secrets or tokens
 echo "Potential hardcoded secrets:"
-grep -r "token\|password\|api_key" .github/workflows/*.{yml,yaml} 2>/dev/null | grep -v '\${{' | wc -l
+# Use bash variable construction to avoid triggering expression extraction
+EXPR_START='$'; EXPR_OPEN='{{'; grep -r "token\|password\|api_key" .github/workflows/*.{yml,yaml} 2>/dev/null | grep -v "${EXPR_START}${EXPR_OPEN}" | wc -l
 ```
 
 ## Phase 3: Issue History Analysis
