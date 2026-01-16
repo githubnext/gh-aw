@@ -11,15 +11,23 @@ GitHub Agentic Workflows use AI [coding agents or engines](/gh-aw/reference/glos
 > Experimental Engines
 > Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
 
+> [!TIP]
+> SDK Mode Available
+> GitHub Copilot now supports **SDK mode** for advanced workflows with multi-turn conversations, custom inline tools, and multi-agent orchestration. See [Copilot SDK Engine](/gh-aw/reference/engines-sdk/) for details.
+
 ## GitHub Copilot CLI
 
 [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) is the default and recommended AI [coding agent engine](/gh-aw/reference/glossary/#engine).
+
+### CLI Mode (Default)
+
+CLI mode provides single-pass workflow execution with standard MCP tools.
 
 ```yaml wrap
 engine: copilot
 ```
 
-### Extended Configuration
+### Extended Configuration (CLI Mode)
 
 ```yaml wrap
 engine:
@@ -30,6 +38,28 @@ engine:
 ```
 
 Configuration options: `model` (gpt-5 or claude-sonnet-4), `version` (CLI version), `args` (command-line arguments). Alternatively set model via `COPILOT_MODEL` environment variable.
+
+### SDK Mode
+
+For advanced workflows, use SDK mode with multi-turn conversations and custom tools:
+
+```yaml wrap
+engine:
+  id: copilot
+  mode: sdk
+  session:
+    persistent: true
+    max-turns: 10
+```
+
+**SDK mode features:**
+- Multi-turn conversations with context retention
+- Custom inline tools
+- Real-time event handling
+- Multi-agent orchestration
+- Budget controls
+
+See [Copilot SDK Engine](/gh-aw/reference/engines-sdk/) for complete SDK documentation and [Migration Guide](/gh-aw/guides/migrate-to-sdk/) for converting CLI workflows to SDK mode.
 
 ### Required Secrets
 
@@ -220,6 +250,12 @@ Engine-specific features may not be available when switching engines.
 
 ## Related Documentation
 
+- [Copilot SDK Engine](/gh-aw/reference/engines-sdk/) - Advanced SDK mode with multi-turn conversations and custom tools
+- [Session Management](/gh-aw/guides/sdk-sessions/) - Managing multi-turn conversations in SDK mode
+- [SDK Custom Tools](/gh-aw/guides/sdk-custom-tools/) - Creating inline tools for SDK workflows
+- [SDK Events](/gh-aw/guides/sdk-events/) - Real-time event handling in SDK mode
+- [SDK Multi-Agent](/gh-aw/guides/sdk-multi-agent/) - Multi-agent orchestration patterns
+- [Migration Guide](/gh-aw/guides/migrate-to-sdk/) - Migrating CLI workflows to SDK mode
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
 - [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
 - [Security Guide](/gh-aw/guides/security/) - Security considerations for AI engines
