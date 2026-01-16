@@ -69,7 +69,6 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -114,86 +113,7 @@ func generateStaticPromptStep(yaml *strings.Builder, description string, promptT
 		"          ")
 }
 
-// generateStaticPromptStepFromFile generates a workflow step for appending a prompt file
-// from /opt/gh-aw/prompts/ to the prompt file. This is the preferred approach as it
-// keeps prompt content in markdown files instead of embedding in the binary.
-//
-// Parameters:
-//   - yaml: The string builder to write the YAML to
-//   - description: The name of the workflow step (e.g., "Append XPIA security instructions to prompt")
-//   - promptFilename: The filename of the prompt in /opt/gh-aw/prompts/ (e.g., "xpia_prompt.md")
-//   - shouldInclude: Whether to generate the step (false means skip generation entirely)
-func generateStaticPromptStepFromFile(yaml *strings.Builder, description string, promptFilename string, shouldInclude bool) {
-	promptStepHelperLog.Printf("Generating static prompt step from file: description=%s, file=%s, shouldInclude=%t", description, promptFilename, shouldInclude)
-	// Skip generation if guard condition is false
-	if !shouldInclude {
-		return
-	}
-
-	// Use the existing appendPromptStep helper with a renderer that cats the file
-	appendPromptStep(yaml,
-		description,
-		func(y *strings.Builder, indent string) {
-			WritePromptFileToYAML(y, promptFilename, indent)
-		},
-		"", // no condition
-		"          ")
-}
-
-// generateStaticPromptStepWithExpressions generates a workflow step for appending prompt text
-// that contains GitHub Actions expressions (${{ ... }}). It extracts the expressions into
-// environment variables and uses shell variable expansion in the heredoc for security.
-//
-// This prevents template injection vulnerabilities by ensuring expressions are evaluated
-// in the env: section (controlled context) rather than inline in shell scripts.
-//
-// Parameters:
-//   - yaml: The string builder to write the YAML to
-//   - description: The name of the workflow step
-//   - promptText: The prompt text content that may contain ${{ ... }} expressions
-//   - shouldInclude: Whether to generate the step (false means skip generation entirely)
-func generateStaticPromptStepWithExpressions(yaml *strings.Builder, description string, promptText string, shouldInclude bool) {
-	promptStepHelperLog.Printf("Generating static prompt step with expressions: description=%s, shouldInclude=%t", description, shouldInclude)
-	// Skip generation if guard condition is false
-	if !shouldInclude {
-		return
-	}
-
-	// Extract GitHub Actions expressions and create environment variable mappings
-	extractor := NewExpressionExtractor()
-	expressionMappings, err := extractor.ExtractExpressions(promptText)
-	if err != nil {
-		// If extraction fails, fall back to the standard method
-		generateStaticPromptStep(yaml, description, promptText, shouldInclude)
-		return
-	}
-
-	// Replace expressions with environment variable references in the prompt text
-	modifiedPromptText := promptText
-	if len(expressionMappings) > 0 {
-		modifiedPromptText = extractor.ReplaceExpressionsWithEnvVars(promptText)
-	}
-
-	// Generate the step with env vars for the extracted expressions
-	yaml.WriteString("      - name: " + description + "\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-
-	// Add environment variables for each extracted expression
-	// The expressions are evaluated in the env: section (controlled context)
-	for _, mapping := range expressionMappings {
-		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
-	}
-
-	yaml.WriteString("        run: |\n")
-	// Write prompt text with placeholders
-	WritePromptTextToYAMLWithPlaceholders(yaml, modifiedPromptText, "          ")
-
-	// Generate JavaScript-based placeholder substitution step
-	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
-}
-
-// TODO: generateStaticPromptStepFromFileWithExpressions could be implemented in the future
-// to generate workflow steps for appending prompt files that contain GitHub Actions expressions.
-// For now, we use the text-based approach with generateStaticPromptStepWithExpressions instead.
+// TODO: generateStaticPromptStepFromFile and generateStaticPromptStepFromFileWithExpressions
+// could be implemented in the future to generate workflow steps for appending prompt files.
+// For now, we use the unified prompt step approach in unified_prompt_step.go.
 // See commit history if this needs to be restored.
