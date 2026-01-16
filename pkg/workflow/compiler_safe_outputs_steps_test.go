@@ -336,28 +336,84 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 			},
 		},
+		// Note: create_project and create_project_status_update are now handled by
+		// the project handler manager (buildProjectHandlerManagerStep), not the main handler manager
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			steps := compiler.buildHandlerManagerStep(workflowData)
+
+			require.NotEmpty(t, steps)
+
+			stepsContent := strings.Join(steps, "")
+
+			for _, expected := range tt.checkContains {
+				assert.Contains(t, stepsContent, expected, "Expected to find: "+expected)
+			}
+		})
+	}
+}
+
+// TestBuildProjectHandlerManagerStep tests project handler manager step generation
+func TestBuildProjectHandlerManagerStep(t *testing.T) {
+	tests := []struct {
+		name          string
+		safeOutputs   *SafeOutputsConfig
+		checkContains []string
+	}{
 		{
-			name: "handler manager with create_project uses project token",
+			name: "project handler manager with create_project",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjects: &CreateProjectsConfig{
-					GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+					GitHubToken: "${{ secrets.PROJECTS_PAT }}",
 					TargetOwner: "test-org",
 				},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
-				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+				"name: Process Project-Related Safe Outputs",
+				"id: process_project_safe_outputs",
+				"uses: actions/github-script@",
+				"GH_AW_AGENT_OUTPUT",
+				"GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG",
+				"GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
+				"github-token: ${{ secrets.PROJECTS_PAT }}",
+				"setupGlobals",
+				"safe_output_project_handler_manager.cjs",
 			},
 		},
 		{
-			name: "handler manager with create_project_status_update uses project token",
+			name: "project handler manager with create_project_status_update",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
-					GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+					GitHubToken: "${{ secrets.PROJECTS_PAT }}",
 				},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
+				"name: Process Project-Related Safe Outputs",
+				"id: process_project_safe_outputs",
+				"GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG",
+				"GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
+				"github-token: ${{ secrets.PROJECTS_PAT }}",
+			},
+		},
+		{
+			name: "project handler manager without custom token uses default",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjects: &CreateProjectsConfig{
+					TargetOwner: "test-org",
+				},
+			},
+			checkContains: []string{
+				"name: Process Project-Related Safe Outputs",
+				"GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 			},
 		},
@@ -372,7 +428,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			steps := compiler.buildHandlerManagerStep(workflowData)
+			steps := compiler.buildProjectHandlerManagerStep(workflowData)
 
 			require.NotEmpty(t, steps)
 

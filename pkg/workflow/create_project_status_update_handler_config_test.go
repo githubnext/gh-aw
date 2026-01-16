@@ -123,7 +123,8 @@ Test workflow
 
 // TestCreateProjectStatusUpdateHandlerConfigLoadedByManager verifies that when
 // create-project-status-update is configured alongside other handlers like create-issue or add-comment,
-// the handler manager is properly configured to load the create_project_status_update handler
+// the project handler manager is properly configured to load the create_project_status_update handler
+// (separately from the main handler manager which handles create-issue)
 func TestCreateProjectStatusUpdateHandlerConfigLoadedByManager(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "handler-config-test")
 
@@ -158,30 +159,43 @@ Test workflow
 
 	compiledStr := string(compiledContent)
 
-	// Extract handler config JSON
+	// Extract main handler config JSON
 	lines := strings.Split(compiledStr, "\n")
-	var configJSON string
+	var mainConfigJSON string
+	var projectConfigJSON string
 	for _, line := range lines {
 		if strings.Contains(line, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG:") {
 			parts := strings.SplitN(line, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG:", 2)
 			if len(parts) == 2 {
-				configJSON = strings.TrimSpace(parts[1])
-				configJSON = strings.Trim(configJSON, "\"")
-				configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
-				break
+				mainConfigJSON = strings.TrimSpace(parts[1])
+				mainConfigJSON = strings.Trim(mainConfigJSON, "\"")
+				mainConfigJSON = strings.ReplaceAll(mainConfigJSON, "\\\"", "\"")
+			}
+		}
+		if strings.Contains(line, "GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG:") {
+			parts := strings.SplitN(line, "GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG:", 2)
+			if len(parts) == 2 {
+				projectConfigJSON = strings.TrimSpace(parts[1])
+				projectConfigJSON = strings.Trim(projectConfigJSON, "\"")
+				projectConfigJSON = strings.ReplaceAll(projectConfigJSON, "\\\"", "\"")
 			}
 		}
 	}
 
-	require.NotEmpty(t, configJSON, "Failed to extract GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON")
+	require.NotEmpty(t, mainConfigJSON, "Failed to extract GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON")
+	require.NotEmpty(t, projectConfigJSON, "Failed to extract GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG JSON")
 
-	// Verify both handlers are in the config
-	assert.Contains(t, configJSON, "create_issue",
-		"Expected create_issue in handler config")
-	assert.Contains(t, configJSON, "create_project_status_update",
-		"Expected create_project_status_update in handler config")
+	// Verify create_issue is in the main handler config
+	assert.Contains(t, mainConfigJSON, "create_issue",
+		"Expected create_issue in main handler config")
+
+	// Verify create_project_status_update is in the project handler config (NOT in main config)
+	assert.NotContains(t, mainConfigJSON, "create_project_status_update",
+		"create_project_status_update should not be in main handler config")
+	assert.Contains(t, projectConfigJSON, "create_project_status_update",
+		"Expected create_project_status_update in project handler config")
 
 	// Verify max values are correct
-	assert.Contains(t, configJSON, `"create_project_status_update":{"max":2}`,
-		"Expected create_project_status_update with max:2 in handler config")
+	assert.Contains(t, projectConfigJSON, `"create_project_status_update":{"max":2}`,
+		"Expected create_project_status_update with max:2 in project handler config")
 }
