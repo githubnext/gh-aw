@@ -57,11 +57,14 @@ Before selecting an alert, check the cache memory to see which alerts have been 
 
 ### 2. List High Severity Alerts
 
-Use the GitHub API to list all open code scanning alerts:
-- Use `list_code_scanning_alerts` with `state: open`
-- Filter the results to only include alerts with `severity: high`
-- Sort by creation date (oldest first) to prioritize long-standing issues
-- Create a list of alert numbers that are high severity and still open
+Use the GitHub MCP server to list all open code scanning alerts with high severity:
+- Use `list_code_scanning_alerts` with the following parameters:
+  - `owner`: ${{ github.repository_owner }}
+  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `state`: open
+  - `severity`: high
+- This will return only high severity alerts that are currently open
+- Create a list of alert numbers from the results
 
 ### 3. Select an Unfixed Alert
 
@@ -73,6 +76,10 @@ From the list of high severity alerts:
 ### 4. Get Alert Details
 
 Get detailed information about the selected alert using `get_code_scanning_alert`:
+- Call with parameters:
+  - `owner`: ${{ github.repository_owner }}
+  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `alertNumber`: The alert number from step 3
 - Extract key information:
   - Alert number
   - Severity level (should be "high")
@@ -84,7 +91,10 @@ Get detailed information about the selected alert using `get_code_scanning_alert
 ### 5. Analyze the Vulnerability
 
 Understand the security issue:
-- Read the affected file using `get_file_contents`
+- Read the affected file using `get_file_contents`:
+  - `owner`: ${{ github.repository_owner }}
+  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `path`: The file path from the alert
 - Review the code context around the vulnerability (at least 20 lines before and after)
 - Understand the root cause of the security issue
 - Research the specific vulnerability type (use the rule ID and CWE)

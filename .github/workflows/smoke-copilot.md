@@ -11,6 +11,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+  actions: read
 name: Smoke Copilot
 engine: copilot
 network:
@@ -20,6 +21,7 @@ network:
     - github
     - playwright
 tools:
+  agentic-workflows:
   cache-memory: true
   edit:
   bash:

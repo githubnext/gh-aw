@@ -71,7 +71,7 @@ Get detailed information about the selected alert using `get_code_scanning_alert
 - Call with parameters:
   - `owner`: ${{ github.repository_owner }}
   - `repo`: The repository name (extract from `${{ github.repository }}`)
-  - `alert_number`: The alert number from step 1
+  - `alertNumber`: The alert number from step 1
 - Extract key information:
   - Alert number
   - Severity level

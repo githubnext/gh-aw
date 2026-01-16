@@ -292,10 +292,7 @@ jobs:
                     "type": "string"
                   }
                 },
-                "required": [
-                  "data_type",
-                  "reason"
-                ],
+                "required": [],
                 "type": "object"
               },
               "name": "missing_data"
@@ -1565,7 +1562,11 @@ jobs:
         continue-on-error: true
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
-        run: awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # AWF runs with sudo, creating files owned by root
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()

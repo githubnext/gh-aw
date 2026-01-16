@@ -141,12 +141,20 @@ The compiler deterministically assigns each workflow a unique execution time bas
 **Human-Friendly Format:**
 
 ```yaml wrap
-on:
-```yaml wrap
-on:
-  schedule:
-    - cron: "0 2 * * *"  # Cron syntax for fixed times
+on: daily  # Recommended: automatically scattered
 ```
+
+```yaml wrap
+on: weekly on monday  # Recommended: scattered time on Mondays
+```
+
+```yaml wrap
+on: every 6h  # Run every 6 hours
+```
+
+**Fixed-Time Cron Format:**
+
+For workflows that must run at a specific fixed time, use standard cron syntax:
 
 ```yaml wrap
 on:
@@ -183,9 +191,7 @@ The human-friendly format is automatically converted to standard cron expression
 **Standard Cron Format:**
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"  # Every Monday at 9 AM UTC
+on: weekly on monday
   stop-after: "+7d"      # Stop after a week
 ```
 
@@ -377,9 +383,7 @@ The reaction is added to the triggering item. For issues/PRs, a comment with the
 Automatically disable workflow triggering after a deadline to control costs.
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"
+on: weekly on monday
   stop-after: "+25h"  # 25 hours from compilation time
 ```
 
@@ -404,16 +408,12 @@ The field accepts a string environment name that must match a configured environ
 Conditionally skip workflow execution when a GitHub search query has matches. Useful for preventing duplicate scheduled runs or waiting for prerequisites.
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 13 * * 1-5"
+on: daily
   skip-if-match: 'is:issue is:open in:title "[daily-report]"'  # Skip if any match
 ```
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"
+on: weekly on monday
   skip-if-match:
     query: "is:pr is:open label:urgent"
     max: 3  # Skip if 3 or more PRs match
@@ -426,9 +426,7 @@ A pre-activation check runs the search query against the current repository. If 
 Conditionally skip workflow execution when a GitHub search query has **no matches** (or fewer than the minimum required). This is the opposite of `skip-if-match`.
 
 ```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"
+on: weekly on monday
   skip-if-no-match: 'is:pr is:open label:ready-to-deploy'  # Skip if no matches
 ```
 
