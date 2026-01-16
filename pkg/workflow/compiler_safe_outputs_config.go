@@ -524,6 +524,9 @@ func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *W
 		if cfg.GitHubToken != "" {
 			handlerConfig["github-token"] = cfg.GitHubToken
 		}
+		if len(cfg.Views) > 0 {
+			handlerConfig["views"] = cfg.Views
+		}
 		config["create_project"] = handlerConfig
 	}
 
