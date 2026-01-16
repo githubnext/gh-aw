@@ -1061,6 +1061,40 @@ starlight-toc h2 {
   display: none;
 }
 
+/* Blog Author Styling Overrides - Make author links look like regular links */
+.metadata .authors .author[href] .name {
+  color: var(--sl-color-text); /* Use regular text color instead of accent */
+  text-decoration: none;
+  font-size: 0.875rem; /* Smaller font size to fit better */
+}
+
+.metadata .authors .author[href]:hover .name {
+  color: var(--sl-color-text-accent); /* Show accent color on hover */
+  text-decoration: underline;
+}
+
+.metadata .authors .author img {
+  height: 2rem; /* Smaller avatar: 32px instead of 40px */
+  width: 2rem;
+}
+
+.metadata .authors .author {
+  gap: 0.375rem; /* Tighter gap between avatar and name */
+}
+
+.metadata .authors {
+  gap: 0.5rem 0.75rem; /* Tighter vertical gap for better single-line layout */
+}
+
+/* Light theme overrides */
+:root[data-theme='light'] .metadata .authors .author[href] .name {
+  color: var(--sl-color-text);
+}
+
+:root[data-theme='light'] .metadata .authors .author[href]:hover .name {
+  color: var(--sl-color-text-accent);
+}
+
 /* Pagination Links */
 .pagination-links {
   border-top: 1px solid #30363d;

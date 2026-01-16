@@ -104,11 +104,11 @@ export default defineConfig({
 							url: 'https://github.com/mnkiefer',
 						},
 						'claude': {
-							name: 'Claude AI',
+							name: 'Claude',
 							url: 'https://claude.ai',
 						},
 						'copilot': {
-							name: 'GitHub Copilot',
+							name: 'Copilot',
 							url: 'https://github.com/features/copilot',
 							picture: 'https://avatars.githubusercontent.com/in/1143301?s=64&amp;v=4',
 						},
