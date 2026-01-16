@@ -200,7 +200,7 @@ func TestValidateNoTemplateInjection(t *testing.T) {
 			err := validateNoTemplateInjection(tt.yaml)
 
 			if tt.shouldError {
-				assert.Error(t, err, "Expected validation to fail but it passed")
+				require.Error(t, err, "Expected validation to fail but it passed")
 				if tt.errorString != "" {
 					assert.Contains(t, err.Error(), tt.errorString,
 						"Error message should contain expected string")
@@ -291,7 +291,7 @@ func TestExtractRunSnippet(t *testing.T) {
 			want:       `if [ -n "${{ github.event.issue.number }}" ]; then`,
 		},
 		{
-			name: "long line truncation",
+			name:       "long line truncation",
 			runContent: "  " + strings.Repeat("x", 120) + " ${{ github.event.issue.title }}",
 			expression: "${{ github.event.issue.title }}",
 			want:       strings.Repeat("x", 97) + "...",
@@ -369,7 +369,7 @@ func TestTemplateInjectionRealWorldPatterns(t *testing.T) {
           bash /opt/gh-aw/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}`
 
 		err := validateNoTemplateInjection(yaml)
-		assert.Error(t, err, "Should detect unsafe gateway-pid usage in run command")
+		require.Error(t, err, "Should detect unsafe gateway-pid usage in run command")
 		assert.Contains(t, err.Error(), "steps.*.outputs",
 			"Should identify as steps.outputs context")
 		assert.Contains(t, err.Error(), "gateway-pid",

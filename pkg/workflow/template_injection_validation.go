@@ -146,7 +146,7 @@ func removeHeredocContent(content string) string {
 	// Match common heredoc patterns with known delimiters
 	// Since Go regex doesn't support backreferences, we match common heredoc delimiters explicitly
 	commonDelimiters := []string{"EOF", "EOL", "END", "HEREDOC", "JSON", "YAML", "SQL"}
-	
+
 	result := content
 	for _, delimiter := range commonDelimiters {
 		// Pattern for quoted delimiter: << 'DELIMITER' or << "DELIMITER"
@@ -155,13 +155,13 @@ func removeHeredocContent(content string) string {
 		quotedPattern := fmt.Sprintf(`(?ms)<<\s*['"]%s['"].*?\n\s*%s\s*$`, delimiter, delimiter)
 		quotedRegex := regexp.MustCompile(quotedPattern)
 		result = quotedRegex.ReplaceAllString(result, "# heredoc removed")
-		
+
 		// Pattern for unquoted delimiter: << DELIMITER
 		unquotedPattern := fmt.Sprintf(`(?ms)<<\s*%s.*?\n\s*%s\s*$`, delimiter, delimiter)
 		unquotedRegex := regexp.MustCompile(unquotedPattern)
 		result = unquotedRegex.ReplaceAllString(result, "# heredoc removed")
 	}
-	
+
 	return result
 }
 
@@ -221,17 +221,17 @@ func formatTemplateInjectionError(violations []TemplateInjectionViolation) error
 
 	// Report violations grouped by context
 	for context, contextViolations := range contextGroups {
-		builder.WriteString(fmt.Sprintf("  %s context (%d occurrence(s)):\n", context, len(contextViolations)))
+		fmt.Fprintf(&builder, "  %s context (%d occurrence(s)):\n", context, len(contextViolations))
 
 		// Show up to 3 examples per context to keep error message manageable
 		maxExamples := 3
 		for i, v := range contextViolations {
 			if i >= maxExamples {
-				builder.WriteString(fmt.Sprintf("    ... and %d more\n", len(contextViolations)-maxExamples))
+				fmt.Fprintf(&builder, "    ... and %d more\n", len(contextViolations)-maxExamples)
 				break
 			}
-			builder.WriteString(fmt.Sprintf("    - %s\n", v.Expression))
-			builder.WriteString(fmt.Sprintf("      in: %s\n", v.Snippet))
+			fmt.Fprintf(&builder, "    - %s\n", v.Expression)
+			fmt.Fprintf(&builder, "      in: %s\n", v.Snippet)
 		}
 		builder.WriteString("\n")
 	}
