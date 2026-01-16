@@ -56,7 +56,7 @@ func buildGeneratorPermissions() string {
 func buildGeneratorTools() map[string]any {
 	return map[string]any{
 		"github": map[string]any{
-			"toolsets": []any{"default"},
+			"toolsets": []any{"default, projects"},
 		},
 	}
 }
@@ -65,8 +65,6 @@ func buildGeneratorTools() map[string]any {
 func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 	return &workflow.SafeOutputsConfig{
 		AddComments:   &workflow.AddCommentsConfig{},
-		UpdateIssues:  &workflow.UpdateIssuesConfig{},
-		AssignToAgent: &workflow.AssignToAgentConfig{},
 		CreateProjects: &workflow.CreateProjectsConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		},
@@ -90,6 +88,8 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 				},
 			},
 		},
+		UpdateIssues:  &workflow.UpdateIssuesConfig{},
+		AssignToAgent: &workflow.AssignToAgentConfig{},
 		Messages: &workflow.SafeOutputMessagesConfig{
 			Footer:     "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*",
 			RunStarted: "🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...",
