@@ -1471,6 +1471,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation.\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
