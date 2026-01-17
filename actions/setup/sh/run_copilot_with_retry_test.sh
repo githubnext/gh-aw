@@ -95,9 +95,20 @@ EOF
     chmod +x /tmp/mock_copilot_fail_then_success.sh
 }
 
+create_mock_stdout_stderr() {
+    cat > /tmp/mock_copilot_stdout_stderr.sh <<'EOF'
+#!/bin/bash
+echo "This goes to stdout"
+echo "This goes to stderr" >&2
+echo "More stdout output"
+exit 0
+EOF
+    chmod +x /tmp/mock_copilot_stdout_stderr.sh
+}
+
 # Clean up function
 cleanup() {
-    rm -f /tmp/mock_copilot_*.sh /tmp/mock_copilot_state
+    rm -f /tmp/mock_copilot_*.sh /tmp/mock_copilot_state /tmp/test_output_*.txt
 }
 
 trap cleanup EXIT
@@ -134,6 +145,21 @@ rm -f /tmp/mock_copilot_state
 export COPILOT_RETRY_MAX_ATTEMPTS=3
 export COPILOT_RETRY_DELAY=1
 assert_success "Fail with finish_reason then succeed on retry" "'$SCRIPT' /tmp/mock_copilot_fail_then_success.sh"
+
+# Test 7: Verify stdout and stderr are both piped correctly
+create_mock_stdout_stderr
+echo -e "${YELLOW}Testing: Both stdout and stderr are piped correctly${NC}"
+output=$("$SCRIPT" /tmp/mock_copilot_stdout_stderr.sh 2>&1)
+if echo "$output" | grep -q "This goes to stdout" && echo "$output" | grep -q "This goes to stderr"; then
+    echo -e "${GREEN}✓ PASS${NC}"
+    tests_passed=$((tests_passed + 1))
+else
+    echo -e "${RED}✗ FAIL - Output not piped correctly${NC}"
+    echo "Captured output:"
+    echo "$output"
+    tests_failed=$((tests_failed + 1))
+fi
+echo
 
 # Summary
 echo "======================================"

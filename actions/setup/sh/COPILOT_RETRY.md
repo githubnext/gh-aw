@@ -4,6 +4,12 @@
 
 The `run_copilot_with_retry.sh` script provides automatic retry logic for the GitHub Copilot CLI when it encounters the transient "missing finish_reason" API error. This error occurs when the Copilot backend returns an incomplete response without the required `finish_reason` field.
 
+**Key Features:**
+- 🔄 Automatic retry on transient errors
+- 📺 Real-time stdout/stderr streaming - feels like Copilot is running directly
+- 🔒 Preserves all output and exit codes - errors are never swallowed
+- 🎯 Smart detection - only retries specific error conditions
+
 ## Problem
 
 The Copilot CLI occasionally fails with:
@@ -68,6 +74,16 @@ export COPILOT_RETRY_DELAY=3
 
 ## Behavior
 
+### Output Streaming
+
+The script **streams all output in real-time**:
+- ✅ **stdout** is piped through in real-time - you see all Copilot output as it happens
+- ✅ **stderr** is piped through in real-time - you see all errors as they occur
+- ✅ Both streams are also captured internally for error detection
+- ✅ Exit codes are preserved - failed commands still report failure
+
+This means the wrapper is **transparent** - it feels like you're running Copilot directly, with automatic retry on transient errors.
+
 ### Retry Logic
 
 The script will retry **only** if ALL of the following conditions are met:
@@ -107,6 +123,9 @@ The test suite validates:
 - ✅ Retry on quick finish_reason failures
 - ✅ No retry on slow failures
 - ✅ No retry on other error types
+- ✅ Success after retry
+- ✅ Failure after max retries
+- ✅ **Both stdout and stderr are properly piped in real-time**
 - ✅ Success after retry
 - ✅ Failure after max retries
 

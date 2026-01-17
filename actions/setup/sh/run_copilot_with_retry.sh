@@ -41,9 +41,9 @@ fi
 
 # Function to check if error output contains finish_reason error
 check_finish_reason_error() {
-    local error_log="$1"
-    if [ -f "$error_log" ]; then
-        if grep -q "missing finish_reason" "$error_log"; then
+    local stderr_log="$1"
+    if [ -f "$stderr_log" ]; then
+        if grep -q "missing finish_reason" "$stderr_log"; then
             return 0
         fi
     fi
@@ -57,18 +57,23 @@ success=false
 while [ $attempt -le $MAX_ATTEMPTS ]; do
     echo -e "${GREEN}[Attempt $attempt/$MAX_ATTEMPTS]${NC} Executing: $*" >&2
     
-    # Create temporary file for stderr capture
-    error_log=$(mktemp)
-    trap "rm -f $error_log" EXIT
+    # Create temporary files for stdout and stderr capture
+    stdout_log=$(mktemp)
+    stderr_log=$(mktemp)
+    trap "rm -f $stdout_log $stderr_log" EXIT
     
     # Record start time
     start_time=$(date +%s)
     
-    # Execute the command, capturing stderr to file while also displaying it
+    # Execute the command, capturing both stdout and stderr while displaying in real-time
+    # Use process substitution to tee both streams and capture stderr for error checking
     set +e
-    "$@" 2> >(tee "$error_log" >&2)
+    "$@" > >(tee "$stdout_log") 2> >(tee "$stderr_log" >&2)
     exit_code=$?
     set -e
+    
+    # Wait for background processes to complete
+    wait
     
     # Record end time and calculate duration
     end_time=$(date +%s)
@@ -86,14 +91,14 @@ while [ $attempt -le $MAX_ATTEMPTS ]; do
         echo -e "${YELLOW}⚠ Command failed quickly (${duration}s) - checking for finish_reason error${NC}" >&2
         
         # Check if the error is the finish_reason issue
-        if check_finish_reason_error "$error_log"; then
+        if check_finish_reason_error "$stderr_log"; then
             echo -e "${YELLOW}✗ Detected 'missing finish_reason' error${NC}" >&2
             
             if [ $attempt -lt $MAX_ATTEMPTS ]; then
                 echo -e "${YELLOW}⟳ Retrying in ${RETRY_DELAY}s...${NC}" >&2
                 sleep $RETRY_DELAY
                 attempt=$((attempt + 1))
-                rm -f "$error_log"
+                rm -f "$stdout_log" "$stderr_log"
                 continue
             else
                 echo -e "${RED}✗ Max retry attempts reached${NC}" >&2
