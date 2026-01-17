@@ -15,6 +15,7 @@ tools:
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "**"
+    max-file-size: 102400  # 100KB
 safe-outputs:
   create-issue:
     max: 10
