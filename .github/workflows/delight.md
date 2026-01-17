@@ -26,6 +26,9 @@ safe-outputs:
     category: "audits"
     max: 1
     close-older-discussions: true
+  create-issue:
+    labels: [delight]
+    max: 3
   messages:
     footer: "> ✨ *Delight analysis by [{workflow_name}]({run_url})*"
     run-started: "✨ Delight Agent starting! [{workflow_name}]({run_url}) is scanning for user experience opportunities..."
@@ -419,7 +422,7 @@ Here are 1-3 actionable improvement tasks that can be addressed by agents:
 [Repeat the same structure]
 ```
 
-**Important**: Include these tasks directly in the discussion body - do NOT create separate GitHub issues.
+**Important**: You can include these tasks directly in the discussion body OR create separate GitHub issues with the `create-issue` safe output. When creating issues, they will automatically have the "delight" label applied.
 
 ### Step 7: Update Memory
 
@@ -487,7 +490,7 @@ EOF
 - **Actionable and scoped** - each task should be completable in 1-2 days
 - **Evidence-based** - include specific examples from audit
 - **User-focused** - frame in terms of user experience impact
-- **Include in discussion** - tasks are rendered as markdown in the discussion body, not as separate issues
+- **Flexible output** - tasks can be included in the discussion body or created as separate issues with the "delight" label
 
 ### Quality Standards
 - All recommendations backed by AirBnB design principles
