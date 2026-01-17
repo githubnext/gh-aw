@@ -757,14 +757,25 @@ Creates Copilot agent sessions. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB
 
 Assigns Copilot coding agent to issues or pull requests. Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as `GH_AW_AGENT_TOKEN`, or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
 
-The agent must provide either `issue_number` or `pull_number` in the output to specify which item to assign.
+Auto-resolves target from workflow context (issue/PR events) when `issue_number` or `pull_number` not explicitly provided. Restrict with `allowed` list. Target: `"triggering"` (default), `"*"` (any), or number.
 
 ```yaml wrap
 safe-outputs:
   assign-to-agent:
-    name: "copilot"            # default agent (optional)
+    name: "copilot"            # default agent (default: "copilot")
+    allowed: [copilot]         # restrict to specific agents (optional)
+    max: 1                     # max assignments (default: 1)
+    target: "triggering"       # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository
 ```
+
+**Behavior:**
+- `target: "triggering"` — Auto-resolves from `github.event.issue.number` or `github.event.pull_request.number`
+- `target: "*"` — Requires explicit `issue_number` or `pull_number` in agent output
+- `target: "123"` — Always uses issue/PR #123
+
+**Assignee Filtering:**
+When `allowed` list is configured, existing agent assignees not in the list are removed while regular user assignees are preserved.
 
 ### Assign to User (`assign-to-user:`)
 

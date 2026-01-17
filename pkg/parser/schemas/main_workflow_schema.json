@@ -4775,10 +4775,21 @@
                   "type": "string",
                   "description": "Default agent name to assign (default: 'copilot')"
                 },
+                "allowed": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of allowed agent names. If specified, only these agents can be assigned. When configured, existing agent assignees not in the list are removed while regular user assignees are preserved."
+                },
                 "max": {
                   "type": "integer",
                   "description": "Optional maximum number of agent assignments (default: 1)",
                   "minimum": 1
+                },
+                "target": {
+                  "type": ["string", "number"],
+                  "description": "Target issue/PR to assign agents to. Use 'triggering' (default) for the triggering issue/PR, '*' to require explicit issue_number/pull_number, or a specific issue/PR number. With 'triggering', auto-resolves from github.event.issue.number or github.event.pull_request.number."
                 },
                 "target-repo": {
                   "type": "string",

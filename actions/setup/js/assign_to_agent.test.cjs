@@ -47,7 +47,15 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_DEFAULT;
     delete process.env.GH_AW_AGENT_MAX_COUNT;
+    delete process.env.GH_AW_AGENT_TARGET;
+    delete process.env.GH_AW_AGENT_ALLOWED;
     delete process.env.GH_AW_TARGET_REPO;
+
+    // Reset context to default
+    mockContext.eventName = "issues";
+    mockContext.payload = {
+      issue: { number: 42 },
+    };
 
     // Clear module cache to ensure we get the latest version of assign_agent_helpers
     const helpersPath = require.resolve("./assign_agent_helpers.cjs");
@@ -227,7 +235,8 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid issue number"));
+    // Error message changed to use resolveTarget validation
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid"));
   });
 
   it("should handle agent already assigned", async () => {
@@ -588,12 +597,74 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
-  it("should error when neither issue_number nor pull_number are provided", async () => {
+  it("should auto-resolve issue number from context when not provided (triggering target)", async () => {
+    // Set up context to simulate an issue event
+    mockContext.eventName = "issues";
+    mockContext.payload = {
+      issue: { number: 123 },
+    };
+    mockContext.repo = {
+      owner: "test-owner",
+      repo: "test-repo",
+    };
+
     setAgentOutput({
       items: [
         {
           type: "assign_to_agent",
           agent: "copilot",
+          // No issue_number or pull_number - should auto-resolve
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses in the correct order
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id-123",
+            assignees: {
+              nodes: [],
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // The key assertion: Target configuration should be "triggering" (the default)
+    // This shows that when no explicit issue_number/pull_number is provided,
+    // the handler falls back to the triggering context
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Target configuration: triggering"));
+
+    // GraphQL should have been called for finding the agent and getting issue details
+    expect(mockGithub.graphql).toHaveBeenCalled();
+  });
+
+  it("should skip when context doesn't match triggering target", async () => {
+    // Set up context that doesn't support triggering target (e.g., push event)
+    mockContext.eventName = "push";
+
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          agent: "copilot",
+          // No issue_number or pull_number
         },
       ],
       errors: [],
@@ -601,7 +672,138 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.error).toHaveBeenCalledWith("Missing both issue_number and pull_number in assign_to_agent item");
+    // Should skip gracefully (not fail the workflow)
+    expect(mockCore.error).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not running in issue or pull request context"));
+  });
+
+  it("should error when neither issue_number nor pull_number provided and target is '*'", async () => {
+    process.env.GH_AW_AGENT_TARGET = "*"; // Explicit target mode
+
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          agent: "copilot",
+          // No issue_number or pull_number
+        },
+      ],
+      errors: [],
+    });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should fail because target "*" requires explicit issue_number or pull_number
+    expect(mockCore.error).toHaveBeenCalled();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
+  });
+
+  it("should accept agent when in allowed list", async () => {
+    process.env.GH_AW_AGENT_ALLOWED = "copilot";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=", __typename: "Bot" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: { id: "issue-id", assignees: { nodes: [] } },
+        },
+      })
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Key assertion: allowed agents list should be logged
+    expect(mockCore.info).toHaveBeenCalledWith("Allowed agents: copilot");
+
+    // Should not reject the agent for being not in the allowed list
+    expect(mockCore.error).not.toHaveBeenCalledWith(expect.stringContaining("not in the allowed list"));
+  });
+
+  it("should reject agent not in allowed list", async () => {
+    process.env.GH_AW_AGENT_ALLOWED = "other-agent";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // No GraphQL mocks needed - validation happens before GraphQL calls
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith("Allowed agents: other-agent");
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining('Agent "copilot" is not in the allowed list'));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
+
+    // Should not have made any GraphQL calls since validation failed early
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+  });
+
+  it("should allow any agent when no allowed list is configured", async () => {
+    // No GH_AW_AGENT_ALLOWED set
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: { id: "issue-id", assignees: { nodes: [] } },
+        },
+      })
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should not log allowed agents when list is not configured
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Allowed agents:"));
+    expect(mockCore.error).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 });

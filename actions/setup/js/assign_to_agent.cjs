@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTarget } = require("./safe_output_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -44,6 +45,22 @@ async function main() {
   // Get default agent from configuration
   const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() ?? "copilot";
   core.info(`Default agent: ${defaultAgent}`);
+
+  // Get target configuration (defaults to "triggering")
+  const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
+  core.info(`Target configuration: ${targetConfig}`);
+
+  // Get allowed agents list (comma-separated)
+  const allowedAgentsEnv = process.env.GH_AW_AGENT_ALLOWED?.trim();
+  const allowedAgents = allowedAgentsEnv
+    ? allowedAgentsEnv
+        .split(",")
+        .map(a => a.trim())
+        .filter(a => a)
+    : null;
+  if (allowedAgents) {
+    core.info(`Allowed agents: ${allowedAgents.join(", ")}`);
+  }
 
   // Get max count configuration
   const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
@@ -85,29 +102,14 @@ async function main() {
   // Process each agent assignment
   const results = [];
   for (const item of itemsToProcess) {
-    // Determine if this is an issue or PR assignment
-    const issueNumber = item.issue_number ? (typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10)) : null;
-    const pullNumber = item.pull_number ? (typeof item.pull_number === "number" ? item.pull_number : parseInt(String(item.pull_number), 10)) : null;
     const agentName = item.agent ?? defaultAgent;
 
-    // Validate that we have either issue_number or pull_number
-    if (!issueNumber && !pullNumber) {
-      core.error("Missing both issue_number and pull_number in assign_to_agent item");
-      results.push({
-        issue_number: issueNumber,
-        pull_number: pullNumber,
-        agent: agentName,
-        success: false,
-        error: "Missing both issue_number and pull_number",
-      });
-      continue;
-    }
-
-    if (issueNumber && pullNumber) {
+    // Validate that both issue_number and pull_number are not specified simultaneously
+    if (item.issue_number != null && item.pull_number != null) {
       core.error("Cannot specify both issue_number and pull_number in the same assign_to_agent item");
       results.push({
-        issue_number: issueNumber,
-        pull_number: pullNumber,
+        issue_number: item.issue_number,
+        pull_number: item.pull_number,
         agent: agentName,
         success: false,
         error: "Cannot specify both issue_number and pull_number",
@@ -115,8 +117,44 @@ async function main() {
       continue;
     }
 
-    const number = issueNumber || pullNumber;
-    const type = issueNumber ? "issue" : "pull request";
+    // Determine the effective target configuration:
+    // - If issue_number or pull_number is explicitly provided, use "*" (explicit mode)
+    // - Otherwise use the configured target (defaults to "triggering")
+    const hasExplicitTarget = item.issue_number != null || item.pull_number != null;
+    const effectiveTarget = hasExplicitTarget ? "*" : targetConfig;
+
+    // Resolve target number using the same logic as other safe outputs
+    // This allows automatic resolution from workflow context when issue_number/pull_number is not explicitly provided
+    const targetResult = resolveTarget({
+      targetConfig: effectiveTarget,
+      item,
+      context,
+      itemType: "assign_to_agent",
+      supportsPR: true, // Supports both issues and PRs
+      supportsIssue: false, // Use supportsPR=true to indicate both are supported
+    });
+
+    if (!targetResult.success) {
+      if (targetResult.shouldFail) {
+        core.error(targetResult.error);
+        results.push({
+          issue_number: item.issue_number || null,
+          pull_number: item.pull_number || null,
+          agent: agentName,
+          success: false,
+          error: targetResult.error,
+        });
+      } else {
+        // Just skip this item (e.g., wrong event type for "triggering" target)
+        core.info(targetResult.error);
+      }
+      continue;
+    }
+
+    const number = targetResult.number;
+    const type = targetResult.contextType;
+    const issueNumber = type === "issue" ? number : null;
+    const pullNumber = type === "pull request" ? number : null;
 
     if (isNaN(number) || number <= 0) {
       core.error(`Invalid ${type} number: ${number}`);
@@ -139,6 +177,19 @@ async function main() {
         agent: agentName,
         success: false,
         error: `Unsupported agent: ${agentName}`,
+      });
+      continue;
+    }
+
+    // Check if agent is in allowed list (if configured)
+    if (allowedAgents && !allowedAgents.includes(agentName)) {
+      core.error(`Agent "${agentName}" is not in the allowed list. Allowed agents: ${allowedAgents.join(", ")}`);
+      results.push({
+        issue_number: issueNumber,
+        pull_number: pullNumber,
+        agent: agentName,
+        success: false,
+        error: `Agent not allowed: ${agentName}`,
       });
       continue;
     }
@@ -169,19 +220,22 @@ async function main() {
         }
         assignableId = issueDetails.issueId;
         currentAssignees = issueDetails.currentAssignees;
-      } else {
+      } else if (pullNumber) {
         const prDetails = await getPullRequestDetails(targetOwner, targetRepo, pullNumber);
         if (!prDetails) {
           throw new Error(`Failed to get pull request details`);
         }
         assignableId = prDetails.pullRequestId;
         currentAssignees = prDetails.currentAssignees;
+      } else {
+        // This should never happen due to resolveTarget logic, but TypeScript needs it
+        throw new Error(`No issue or pull request number available`);
       }
 
       core.info(`${type} ID: ${assignableId}`);
 
       // Check if agent is already assigned
-      if (currentAssignees.includes(agentId)) {
+      if (currentAssignees.some(a => a.id === agentId)) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
         results.push({
           issue_number: issueNumber,
@@ -193,8 +247,9 @@ async function main() {
       }
 
       // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
+      // Pass the allowed list so existing assignees are filtered before calling replaceActorsForAssignable
       core.info(`Assigning ${agentName} coding agent to ${type} #${number}...`);
-      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName);
+      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);

@@ -20,6 +20,8 @@ safe-outputs:
     body:
     target: "${{ github.event.issue.number }}"
   assign-to-agent:
+    target: "triggering"  # Auto-resolves from github.event.issue.number
+    allowed: [copilot]    # Only allow copilot agent
 timeout-minutes: 5
 ---
 
