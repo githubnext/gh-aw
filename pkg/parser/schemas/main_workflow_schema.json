@@ -2357,12 +2357,7 @@
                     "pattern": "^[^:]+:[^:]+:(ro|rw)$",
                     "description": "Mount specification in format 'source:destination:mode'"
                   },
-                  "examples": [
-                    [
-                      "/host/data:/container/data:ro",
-                      "/host/config:/container/config:rw"
-                    ]
-                  ]
+                  "examples": [["/host/data:/container/data:ro", "/host/config:/container/config:rw"]]
                 },
                 "env": {
                   "type": "object",
