@@ -437,25 +437,11 @@ jobs:
             "mcpServers": {
               "arxiv": {
                 "type": "stdio",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/arxiv-mcp-server"
-                ]
+                "container": "mcp/arxiv-mcp-server"
               },
               "context7": {
                 "type": "stdio",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "CONTEXT7_API_KEY",
-                  "mcp/context7"
-                ],
+                "container": "mcp/context7",
                 "env": {
                   "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
                 }

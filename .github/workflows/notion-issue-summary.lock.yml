@@ -317,20 +317,12 @@ jobs:
               },
               "notion": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "mcp/notion",
                 "tools": [
                   "search_pages",
                   "get_page",
                   "get_database",
                   "query_database"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "NOTION_API_TOKEN",
-                  "mcp/notion"
                 ],
                 "env": {
                   "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
