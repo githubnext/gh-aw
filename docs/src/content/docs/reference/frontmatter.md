@@ -357,6 +357,224 @@ cache:
     node-modules-
 ```
 
+## Main Workflows vs Included Files
+
+Understanding which frontmatter properties are available in main workflows versus included (shared) files is crucial for avoiding validation errors and structuring your workflows correctly.
+
+### Property Comparison Table
+
+This table shows all available frontmatter properties and their availability in main workflows versus included files:
+
+| Property | Main Workflow | Included File | Notes |
+|----------|---------------|---------------|-------|
+| `on` | ✅ | ❌ | **Required** in main workflows; triggers workflow execution |
+| `command` | ✅ | ❌ | Command-line trigger configuration |
+| `if` | ✅ | ❌ | Conditional execution expression |
+| `github-token` | ✅ | ❌ | Security: Token configuration only in main |
+| `roles` | ✅ | ❌ | Security: Access control only in main |
+| `strict` | ✅ | ❌ | Security: Validation mode only in main |
+| `run-name` | ✅ | ❌ | Runtime display name |
+| `runs-on` | ✅ | ❌ | Runner specification |
+| `timeout-minutes` | ✅ | ❌ | Execution timeout |
+| `timeout_minutes` | ✅ | ❌ | Deprecated; use `timeout-minutes` |
+| `concurrency` | ✅ | ❌ | Concurrency control |
+| `container` | ✅ | ❌ | Container configuration |
+| `environment` | ✅ | ❌ | Deployment environment |
+| `jobs` | ✅ | ❌ | Custom job definitions |
+| `post-steps` | ✅ | ❌ | Steps after agentic execution |
+| `cache` | ✅ | ❌ | Cache configuration |
+| `bots` | ✅ | ❌ | Bot actor configuration |
+| `tracker-id` | ✅ | ❌ | Asset tracking identifier |
+| `labels` | ✅ | ❌ | Workflow categorization labels |
+| `source` | ✅ | ❌ | Workflow origin tracking |
+| `name` | ✅ | ❌ | Workflow name |
+| `engine` | ✅ | ⚠️ | Main: full config; Included: limited (no `command` field) |
+| `env` | ✅ | ❌ | Workflow-level environment variables |
+| `features` | ✅ | ❌ | Feature flag configuration |
+| `imports` | ✅ | ❌ | Import declarations |
+| `sandbox` | ✅ | ❌ | Sandbox configuration |
+| `description` | ✅ | ✅ | Workflow/file description |
+| `metadata` | ✅ | ✅ | Custom key-value metadata |
+| `tools` | ✅ | ✅ | Tool configurations (bash, github, etc.) |
+| `mcp-servers` | ✅ | ⚠️ | Main: full config; Included: limited (no container config) |
+| `network` | ✅ | ✅ | Network permissions |
+| `permissions` | ✅ | ✅ | GitHub Actions permissions (validated, not merged) |
+| `safe-inputs` | ✅ | ✅ | Custom tool definitions |
+| `safe-outputs` | ✅ | ✅ | Safe output configurations |
+| `services` | ✅ | ✅ | Docker service containers |
+| `steps` | ✅ | ✅ | Custom workflow steps |
+| `runtimes` | ✅ | ✅ | Runtime version overrides (node, python, etc.) |
+| `secret-masking` | ✅ | ✅ | Secret masking configuration |
+| `inputs` | ❌ | ✅ | Input parameter declarations (for shared workflows) |
+| `applyTo` | ❌ | ✅ | Glob patterns for custom agent targeting |
+
+### Key Differences
+
+#### Triggers and Execution Control
+- **Main workflows** are entry points that respond to events (`on`), commands (`command`), or conditions (`if`)
+- **Included files** cannot define triggers—they're imported and used by main workflows
+- The presence of an `on` field distinguishes a main workflow from a shared component
+
+#### Security and Authorization
+- **Token management** (`github-token`): Only main workflows configure tokens
+- **Access control** (`roles`): Only main workflows specify who can trigger execution
+- **Validation mode** (`strict`): Only main workflows control security validation level
+- This prevents included files from weakening security policies
+
+#### Configuration Scope
+- **Full engine configuration**: Main workflows use `engine.command`; included files have limited engine config
+- **MCP servers**: Main workflows can configure containers; included files have restricted MCP config
+- **Runtime settings**: Main workflows control runners, timeouts, concurrency, and environments
+- **Custom jobs**: Only main workflows can define custom GitHub Actions jobs
+
+#### Shared Component Features
+- **Input parameters** (`inputs`): Only included files declare reusable inputs
+- **Targeting patterns** (`applyTo`): Only included files (custom agents) use glob patterns to target specific code areas
+- **Tool configurations**: Both can define tools, but included files enable reusable tool setups
+
+### Common Pitfalls
+
+#### ❌ Forgetting Required `on` Field in Main Workflows
+
+```yaml
+---
+# ERROR: Missing required 'on' field
+engine: copilot
+tools:
+  bash: {}
+---
+```
+
+**Fix**: Add a trigger to make this a valid main workflow:
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+tools:
+  bash: {}
+---
+```
+
+Or remove the `on` field entirely if you intend this to be a shared component for import.
+
+#### ❌ Using `engine.command` in Included Files
+
+```yaml
+# shared/tools.md - INCORRECT
+---
+engine:
+  provider: copilot
+  command: custom-copilot-agent  # ERROR: Not allowed in included files
+tools:
+  bash: {}
+---
+```
+
+**Fix**: Move engine command configuration to the main workflow:
+
+```yaml
+# shared/tools.md - CORRECT
+---
+tools:
+  bash: {}
+---
+
+# main.md
+---
+on: issues
+engine:
+  provider: copilot
+  command: custom-copilot-agent  # Only in main workflow
+imports:
+  - shared/tools.md
+---
+```
+
+#### ❌ Expecting Full MCP Container Config in Included Files
+
+```yaml
+# shared/mcp.md - INCORRECT
+---
+mcp-servers:
+  custom:
+    container:
+      image: custom-mcp:latest  # ERROR: Container config restricted
+---
+```
+
+**Fix**: Define MCP containers in the main workflow:
+
+```yaml
+# main.md - CORRECT
+---
+on: issues
+mcp-servers:
+  custom:
+    container:
+      image: custom-mcp:latest
+imports:
+  - shared/mcp.md  # Can provide other MCP settings
+---
+```
+
+#### ❌ Using `inputs` Field in Main Workflows
+
+```yaml
+# main.md - INCORRECT
+---
+on: issues
+inputs:  # ERROR: inputs only valid in included files
+  max_items:
+    type: number
+    default: 10
+---
+```
+
+**Fix**: `inputs` are only for shared workflows that will be imported. If you need dynamic configuration, use environment variables or GitHub Actions inputs via `workflow_dispatch`:
+
+```yaml
+# shared/component.md - CORRECT
+---
+inputs:
+  max_items:
+    type: number
+    default: 10
+---
+
+# main.md
+---
+on:
+  workflow_dispatch:
+    inputs:
+      item_count:
+        type: number
+        default: 10
+imports:
+  - path: shared/component.md
+    inputs:
+      max_items: ${{ github.event.inputs.item_count }}
+---
+```
+
+### Design Philosophy
+
+The separation between main workflows and included files follows these principles:
+
+1. **Security boundary**: Critical security settings (`github-token`, `roles`, `strict`) are confined to main workflows to prevent imported files from weakening security posture
+2. **Execution control**: Only main workflows define when and how workflows execute (`on`, `command`, `if`)
+3. **Reusability**: Included files focus on portable, reusable configurations (tools, permissions, steps) that can be shared across workflows
+4. **Composition**: Main workflows orchestrate execution by importing and combining shared components
+
+### Cross-References
+
+- [Imports](/gh-aw/reference/imports/) - Detailed guide to importing and merging frontmatter configurations
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Understanding workflow composition
+- [Security Guide](/gh-aw/guides/security/) - Security policies and token management
+- [Tools](/gh-aw/reference/tools/) - Configuring tools in main and included files
+
 ## Related Documentation
 
 See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)
