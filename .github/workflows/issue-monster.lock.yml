@@ -526,7 +526,7 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
           - **Run Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           
           ## Step-by-Step Process
@@ -555,12 +555,12 @@ jobs:
           - Has any priority label: +10 points
           - Age bonus: +0-20 points (older issues get slight priority)
           
-          **Issue Count**: __GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT__
-          **Issue Numbers**: __GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS__
+          **Issue Count**: ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT}
+          **Issue Numbers**: ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS}
           
           **Available Issues (sorted by priority score):**
           ```
-          __GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST__
+          ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST}
           ```
           
           Work with this pre-fetched, filtered, and prioritized list of issues. Do not perform additional searches - the issue numbers are already identified above, sorted from highest to lowest priority.
@@ -745,29 +745,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

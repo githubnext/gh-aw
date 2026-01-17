@@ -582,27 +582,27 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Issue Number**: __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
-          - **Discussion Number**: __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Issue Number**: ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          - **Discussion Number**: ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           - **Comment Content**: 
           
           <comment>
-          __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
+          ${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}
           </comment>
           
           ## Your Mission
           
           Analyze the issue or discussion along with the comment content (which may contain additional guidance from the user), then:
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
           **When triggered from an issue comment** (current context):
-          - Use the **current issue** (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) as the parent issue
+          - Use the **current issue** (#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}) as the parent issue
           - Create actionable **sub-issues** (at most 5) as children of this issue
           - Do NOT create a new parent tracking issue
           {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
           **When triggered from a discussion** (current context):
           1. **First**: Create a **parent tracking issue** that links to the triggering discussion and summarizes the overall plan
           2. **Then**: Create actionable **sub-issues** (at most 5) as children of that parent issue
@@ -610,23 +610,23 @@ jobs:
           
           The comment text above may contain additional guidance or specific requirements from the user - integrate these when deciding which issues to create.
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
           ## Step 1: Create Sub-Issues (Using Current Issue as Parent)
           
-          Since this was triggered from an issue comment, use the **current issue** (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) as the parent:
-          - Use the **parent** field set to `#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__` to link each sub-issue to the current issue
+          Since this was triggered from an issue comment, use the **current issue** (#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}) as the parent:
+          - Use the **parent** field set to `#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}` to link each sub-issue to the current issue
           - Each sub-issue should be a clear, actionable task for a SWE agent
           - Do NOT create a new parent tracking issue
           {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
           ## Step 1: Create the Parent Tracking Issue
           
           Create a parent issue first with:
           - **Title**: A brief summary of the overall work (e.g., "Implement user authentication system")
           - **Body**: 
             - Overview of the work to be done
-            - Link back to the triggering discussion (#__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__)
+            - Link back to the triggering discussion (#${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER})
             - High-level breakdown of the planned sub-issues
           - **temporary_id**: Generate a unique temporary ID (format: `aw_` followed by 12 hex characters, e.g., `aw_abc123def456`) to reference this parent issue when creating sub-issues
           
@@ -669,7 +669,7 @@ jobs:
           
           ## Example: Creating Parent and Sub-Issues
           
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
           ### When Triggered from a Discussion
           
           #### Parent Issue (create first)
@@ -678,7 +678,7 @@ jobs:
             "type": "create_issue",
             "temporary_id": "aw_abc123def456",
             "title": "Implement user authentication system",
-            "body": "## Overview\n\nThis tracking issue covers the implementation of a complete user authentication system.\n\n**Source**: Discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__\n\n## Planned Tasks\n\n1. Add authentication middleware\n2. Implement login/logout endpoints\n3. Add session management\n4. Write tests"
+            "body": "## Overview\n\nThis tracking issue covers the implementation of a complete user authentication system.\n\n**Source**: Discussion #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}\n\n## Planned Tasks\n\n1. Add authentication middleware\n2. Implement login/logout endpoints\n3. Add session management\n4. Write tests"
           }
           ```
           
@@ -693,16 +693,16 @@ jobs:
           ```
           {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
           ### When Triggered from an Issue Comment
           
-          Since this was triggered from issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__, use it as the parent for all sub-issues:
+          Since this was triggered from issue #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}, use it as the parent for all sub-issues:
           
           #### Sub-Issue (referencing current issue as parent)
           ```json
           {
             "type": "create_issue",
-            "parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__",
+            "parent": "#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}",
             "title": "Add user authentication middleware",
             "body": "## Objective\n\nImplement JWT-based authentication middleware for API routes.\n\n## Context\n\nThis is needed to secure API endpoints before implementing user-specific features.\n\n## Approach\n\n1. Create middleware function in `src/middleware/auth.js`\n2. Add JWT verification using the existing auth library\n3. Attach user info to request object\n4. Handle token expiration and invalid tokens\n\n## Files to Modify\n\n- Create: `src/middleware/auth.js`\n- Update: `src/routes/api.js` (to use the middleware)\n- Update: `tests/middleware/auth.test.js` (add tests)\n\n## Acceptance Criteria\n\n- [ ] Middleware validates JWT tokens\n- [ ] Invalid tokens return 401 status\n- [ ] User info is accessible in route handlers\n- [ ] Tests cover success and error cases"
           }
@@ -711,17 +711,17 @@ jobs:
           
           ## Important Notes
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
           - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues
-          - **Use Current Issue as Parent**: All sub-issues should use `"parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"` to link to the current issue
-          - **No Parent Issue Creation**: Do NOT create a new parent tracking issue - use the existing issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          - **Use Current Issue as Parent**: All sub-issues should use `"parent": "#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}"` to link to the current issue
+          - **No Parent Issue Creation**: Do NOT create a new parent tracking issue - use the existing issue #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           - **User Guidance**: Pay attention to the comment content above - the user may have provided specific instructions or priorities
           - **Clear Steps**: Each sub-issue should have clear, actionable steps
           - **No Duplication**: Don't create sub-issues for work that's already done
           - **Prioritize Clarity**: SWE agents need unambiguous instructions
           {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
           - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues (plus 1 parent issue = 6 total)
           - **Parent Issue First**: Always create the parent tracking issue first with a temporary_id
           - **Link Sub-Issues**: Use the parent's temporary_id in each sub-issue's `parent` field
@@ -738,13 +738,13 @@ jobs:
           
           ## Begin Planning
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          1. First, analyze the current issue (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) and the user's comment for context and any additional guidance
-          2. Create sub-issues as children of the current issue using `"parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"` (do NOT create a new parent issue)
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          1. First, analyze the current issue (#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}) and the user's comment for context and any additional guidance
+          2. Create sub-issues as children of the current issue using `"parent": "#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}"` (do NOT create a new parent issue)
           3. If this was triggered from a discussion in the "Ideas" category (it wasn't in this case), close the discussion with a comment
           {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
           1. First, analyze the discussion and the user's comment for context and any additional guidance
           2. Create the parent tracking issue with a temporary_id that links to the source discussion
           3. Create sub-issues as children of the parent issue using the temporary_id
@@ -804,29 +804,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

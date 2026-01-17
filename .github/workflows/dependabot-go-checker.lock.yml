@@ -527,7 +527,7 @@ jobs:
           Close any existing open dependency update issues with the `[deps]` prefix, then check for available Go module and NPM dependency updates using Dependabot, categorize them by safety level, and create issues using a three-tier strategy: group safe patch updates into a single consolidated issue, create individual issues for potentially problematic updates, and skip major version updates.
           
           ## Current Context
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
           - **Go Module File**: `go.mod` in repository root
           - **NPM Packages**: Check for `@playwright/mcp` updates in constants.go
           
@@ -538,7 +538,7 @@ jobs:
           **Before performing any analysis**, you must close existing open issues with the `[deps]` title prefix to prevent duplicate dependency update issues.
           
           Use the GitHub API tools to:
-          1. Search for open issues with title starting with `[deps]` in repository __GH_AW_GITHUB_REPOSITORY__
+          1. Search for open issues with title starting with `[deps]` in repository ${GH_AW_GITHUB_REPOSITORY}
           2. Close each found issue with a comment explaining that a new dependency check is being performed
           3. Use the `close_issue` safe output to close these issues with reason "not_planned"
           
@@ -986,29 +986,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

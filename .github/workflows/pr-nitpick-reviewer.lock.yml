@@ -662,10 +662,10 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Pull Request**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
-          - **PR Title**: "__GH_AW_GITHUB_EVENT_PULL_REQUEST_TITLE__"
-          - **Triggered by**: __GH_AW_GITHUB_ACTOR__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Pull Request**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          - **PR Title**: "${GH_AW_GITHUB_EVENT_PULL_REQUEST_TITLE}"
+          - **Triggered by**: ${GH_AW_GITHUB_ACTOR}
           
           ## Your Mission
           
@@ -709,7 +709,7 @@ jobs:
           
           Use the GitHub tools to get complete PR information:
           
-          1. **Get PR details** for PR #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          1. **Get PR details** for PR #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           2. **Get files changed** in the PR
           3. **Get PR diff** to see exact line-by-line changes
           4. **Review PR comments** to avoid duplicating existing feedback
@@ -822,9 +822,9 @@ jobs:
           
           ## Pull Request Overview
           
-          - **PR #**: __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
-          - **Title**: __GH_AW_GITHUB_EVENT_PULL_REQUEST_TITLE__
-          - **Triggered by**: __GH_AW_GITHUB_ACTOR__
+          - **PR #**: ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          - **Title**: ${GH_AW_GITHUB_EVENT_PULL_REQUEST_TITLE}
+          - **Triggered by**: ${GH_AW_GITHUB_ACTOR}
           - **Files Changed**: [count]
           - **Lines Added/Removed**: +[additions] -[deletions]
           
@@ -881,8 +881,8 @@ jobs:
           ---
           
           **Review Details:**
-          - Repository: __GH_AW_GITHUB_REPOSITORY__
-          - PR: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          - Repository: ${GH_AW_GITHUB_REPOSITORY}
+          - PR: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           - Reviewed: [timestamp]
           ```
           
@@ -899,10 +899,10 @@ jobs:
           - Note any team-specific conventions observed
           - Track preferences inferred from PR feedback
           
-          **Create `/tmp/gh-aw/cache-memory/pr-__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__.json`:**
+          **Create `/tmp/gh-aw/cache-memory/pr-${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}.json`:**
           ```json
           {
-            "pr_number": __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__,
+            "pr_number": ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER},
             "reviewed_date": "[timestamp]",
             "files_reviewed": ["list of files"],
             "nitpick_count": 0,
@@ -1075,29 +1075,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

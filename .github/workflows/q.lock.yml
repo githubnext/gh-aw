@@ -653,45 +653,45 @@ jobs:
           <current_context>
           ## Current Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Triggering Content**: "__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__"
-          - **Issue/PR Number**: __GH_AW_EXPR_799BE623__
-          - **Triggered by**: @__GH_AW_GITHUB_ACTOR__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Triggering Content**: "${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}"
+          - **Issue/PR Number**: ${GH_AW_EXPR_799BE623}
+          - **Triggered by**: @${GH_AW_GITHUB_ACTOR}
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
           ### Parent Issue Context
           
-          This workflow was triggered from a comment on issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__.
+          This workflow was triggered from a comment on issue #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}.
           
           **Important**: Before proceeding with your analysis, retrieve the full issue details to understand the context of the work to be done:
           
-          1. Use the `issue_read` tool with method `get` to fetch issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          1. Use the `issue_read` tool with method `get` to fetch issue #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           2. Review the issue title, body, and labels to understand what workflows or problems are being discussed
           3. Consider any linked issues or previous comments for additional context
           4. Use this issue context to inform your investigation and recommendations
           {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
           ### Parent Pull Request Context
           
-          This workflow was triggered from a comment on pull request #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__.
+          This workflow was triggered from a comment on pull request #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}.
           
           **Important**: Before proceeding with your analysis, retrieve the full PR details to understand the context of the work to be done:
           
-          1. Use the `pull_request_read` tool with method `get` to fetch PR #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          1. Use the `pull_request_read` tool with method `get` to fetch PR #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           2. Review the PR title, description, and changed files to understand what changes are being proposed
           3. Consider the PR's relationship to workflow optimizations or issues
           4. Use this PR context to inform your investigation and recommendations
           {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
           ### Parent Discussion Context
           
-          This workflow was triggered from a comment on discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__.
+          This workflow was triggered from a comment on discussion #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}.
           
           **Important**: Before proceeding with your analysis, retrieve the full discussion details to understand the context of the work to be done:
           
-          1. Use the `list_discussions` tool to fetch discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          1. Use the `list_discussions` tool to fetch discussion #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           2. Review the discussion title and body to understand the topic being discussed
           3. Read any recent comments in the discussion for additional context
           4. Consider the discussion context when planning your workflow optimizations
@@ -1078,29 +1078,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

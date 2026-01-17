@@ -80,21 +80,21 @@ Normal content here.
 	}
 
 	// Verify that GitHub expressions are replaced with placeholders
-	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}") {
+	if !strings.Contains(compiledStr, "{{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}") {
 		t.Error("Compiled workflow should contain placeholder for github.event.issue.number expression")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_ACTOR__ }}") {
+	if !strings.Contains(compiledStr, "{{#if ${GH_AW_GITHUB_ACTOR} }}") {
 		t.Error("Compiled workflow should contain placeholder for github.actor expression")
 	}
 
 	// Verify that literal values are also replaced with placeholders
-	// true and false literals get normalized to __GH_AW_TRUE__ and __GH_AW_FALSE__
-	if !strings.Contains(compiledStr, "{{#if __GH_AW_TRUE__ }}") {
+	// true and false literals get normalized to ${GH_AW_TRUE} and ${GH_AW_FALSE}
+	if !strings.Contains(compiledStr, "{{#if ${GH_AW_TRUE} }}") {
 		t.Error("Compiled workflow should contain placeholder for literal true")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if __GH_AW_FALSE__ }}") {
+	if !strings.Contains(compiledStr, "{{#if ${GH_AW_FALSE} }}") {
 		t.Error("Compiled workflow should contain placeholder for literal false")
 	}
 

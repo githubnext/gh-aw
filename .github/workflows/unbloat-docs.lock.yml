@@ -619,8 +619,8 @@ jobs:
           
           ## Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Triggered by**: __GH_AW_GITHUB_ACTOR__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Triggered by**: ${GH_AW_GITHUB_ACTOR}
           
           ## What is Documentation Bloat?
           
@@ -657,8 +657,8 @@ jobs:
           
           Focus on files that were recently modified or are in the `docs/src/content/docs/samples/` directory.
           
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__}}
-          **Pull Request Context**: Since this workflow is running in the context of PR #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}}}
+          **Pull Request Context**: Since this workflow is running in the context of PR #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
           
           ```bash
           # Get PR file changes using the pull_request_read tool
@@ -934,29 +934,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

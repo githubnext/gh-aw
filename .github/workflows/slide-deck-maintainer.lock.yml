@@ -517,11 +517,11 @@ jobs:
           
           ## Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Workflow run**: #__GH_AW_GITHUB_RUN_NUMBER__
-          - **Triggered by**: @__GH_AW_GITHUB_ACTOR__
-          - **Focus mode**: __GH_AW_INPUTS_FOCUS__
-          - **Working directory**: __GH_AW_GITHUB_WORKSPACE__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Workflow run**: #${GH_AW_GITHUB_RUN_NUMBER}
+          - **Triggered by**: @${GH_AW_GITHUB_ACTOR}
+          - **Focus mode**: ${GH_AW_INPUTS_FOCUS}
+          - **Working directory**: ${GH_AW_GITHUB_WORKSPACE}
           
           ## Your Mission
           
@@ -536,7 +536,7 @@ jobs:
           The slides use Marp syntax. Build them to HTML for testing:
           
           ```bash
-          cd __GH_AW_GITHUB_WORKSPACE__/docs
+          cd ${GH_AW_GITHUB_WORKSPACE}/docs
           npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
           ```
           
@@ -622,7 +622,7 @@ jobs:
           
           ## Step 5: Decide on Changes
           
-          Based on workflow input `__GH_AW_INPUTS_FOCUS__`:
+          Based on workflow input `${GH_AW_INPUTS_FOCUS}`:
           
           ### Feature Deep Dive
           - Pick ONE specific feature or topic
@@ -659,7 +659,7 @@ jobs:
           After editing, rebuild and retest:
           
           ```bash
-          cd __GH_AW_GITHUB_WORKSPACE__/docs
+          cd ${GH_AW_GITHUB_WORKSPACE}/docs
           npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
           ```
           
@@ -697,7 +697,7 @@ jobs:
           - [e.g., "Reviewed documentation updates"]
           
           ### Focus Mode
-          __GH_AW_INPUTS_FOCUS__
+          ${GH_AW_INPUTS_FOCUS}
           
           ---
           **Verification**: Built slides with Marp and tested with Playwright for visual correctness.
@@ -790,29 +790,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

@@ -555,18 +555,18 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Workflow Run**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__
-          - **Conclusion**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__
-          - **Run URL**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__
-          - **Head SHA**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Workflow Run**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}
+          - **Conclusion**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}
+          - **Run URL**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL}
+          - **Head SHA**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
           
           ## Investigation Protocol
           
           **ONLY proceed if the workflow conclusion is 'failure' or 'cancelled'**. Exit immediately if the workflow was successful.
           
           ### Phase 1: Initial Triage
-          1. **Verify Failure**: Check that `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__` is `failure` or `cancelled`
+          1. **Verify Failure**: Check that `${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}` is `failure` or `cancelled`
           2. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
           3. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
           4. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
@@ -653,15 +653,15 @@ jobs:
           When creating an investigation issue, use this structure:
           
           ```markdown
-          # 🏥 CI Failure Investigation - Run #__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER__
+          # 🏥 CI Failure Investigation - Run #${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER}
           
           ## Summary
           [Brief description of the failure]
           
           ## Failure Details
-          - **Run**: [__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__](__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__)
-          - **Commit**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__
-          - **Trigger**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT__
+          - **Run**: [${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}](${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL})
+          - **Commit**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          - **Trigger**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -781,29 +781,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

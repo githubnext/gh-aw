@@ -535,8 +535,8 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Issue/Comment**: __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Issue/Comment**: ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           - **Request**: 
           
           
@@ -586,7 +586,7 @@ jobs:
           **Markdown Content:**
           - Clear title describing the workflow's purpose
           - Mission statement explaining what the AI should do
-          - Context section with allowed GitHub expressions (see documentation for allowed expressions like `__GH_AW_GITHUB_REPOSITORY__`, `__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__`, and `__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__`)
+          - Context section with allowed GitHub expressions (see documentation for allowed expressions like `${GH_AW_GITHUB_REPOSITORY}`, `${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}`, and `${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}`)
           - Step-by-step instructions for the AI agent
           - Guidelines and constraints
           - Output format specifications
@@ -644,7 +644,7 @@ jobs:
           - **Repository-agnostic**: Don't hardcode repository-specific details
           
           ### Security
-          - **Use sanitized context**: Prefer `__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__` over raw event fields
+          - **Use sanitized context**: Prefer `${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}` over raw event fields
           - **Validate inputs**: Check that user requests are reasonable and safe
           - **Minimal tools**: Only enable tools that are actually used
           
@@ -742,9 +742,9 @@ jobs:
           
           ## Context
           
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Issue**: __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
-          - **Content**: "__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__"
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Issue**: ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          - **Content**: "${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}"
           
           ## Instructions
           
@@ -769,7 +769,7 @@ jobs:
           
           ## Begin Workflow Creation
           
-          Now analyze the user's request: "__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__"
+          Now analyze the user's request: "${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}"
           
           1. Load the documentation
           2. Analyze the request
@@ -829,29 +829,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
-          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
-          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
-          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
-          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
-          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
-          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
-          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
           </github-context>
           

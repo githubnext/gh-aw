@@ -140,9 +140,9 @@ func (e *ExpressionExtractor) ReplaceExpressionsWithEnvVars(markdown string) str
 	})
 
 	// Replace each expression with its environment variable reference
-	// Use __VAR__ placeholder format to prevent template injection
+	// Use ${VAR} placeholder format to match interpolate_prompt.cjs expectations
 	for _, mapping := range mappings {
-		placeholder := fmt.Sprintf("__%s__", mapping.EnvVar)
+		placeholder := fmt.Sprintf("${%s}", mapping.EnvVar)
 		result = strings.ReplaceAll(result, mapping.Original, placeholder)
 	}
 
