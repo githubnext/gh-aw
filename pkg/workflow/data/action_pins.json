@@ -75,6 +75,11 @@
       "version": "v4.8.0",
       "sha": "c1e323688fd81a25caa38c78aa6df2d33d3e20d9"
     },
+    "actions/setup-node@v4": {
+      "repo": "actions/setup-node",
+      "version": "v4",
+      "sha": "49933ea5288caeca8642d1e84afbd3f7d6820020"
+    },
     "actions/setup-node@v6": {
       "repo": "actions/setup-node",
       "version": "v6",
@@ -130,6 +135,11 @@
       "version": "v2.0.3",
       "sha": "e95548e56dfa95d4e1a28d6f422fafe75c4c26fb"
     },
+    "docker/build-push-action@v5": {
+      "repo": "docker/build-push-action",
+      "version": "v5",
+      "sha": "ca052bb54ab0790a636c9b5f226502c73d547a25"
+    },
     "docker/build-push-action@v6": {
       "repo": "docker/build-push-action",
       "version": "v6",
@@ -179,6 +189,11 @@
       "repo": "ruby/setup-ruby",
       "version": "v1.275.0",
       "sha": "d354de180d0c9e813cfddfcbdc079945d4be589b"
+    },
+    "softprops/action-gh-release@v1": {
+      "repo": "softprops/action-gh-release",
+      "version": "v1",
+      "sha": "26994186c0ac3ef5cae75ac16aa32e8153525f77"
     },
     "super-linter/super-linter@v8.2.1": {
       "repo": "super-linter/super-linter",
