@@ -868,8 +868,8 @@ sandbox:
     # (optional)
     type: "awf"
 
-    # Custom command to replace the default AWF or SRT installation. For AWF: 'docker
-    # run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'
+    # Custom command to replace the default AWF or SRT installation. For AWF: '/usr/
+    # local/bin/custom-awf-wrapper'. For SRT: '/usr/local/bin/custom-srt-wrapper'
     # (optional)
     command: "example-value"
 
@@ -886,7 +886,8 @@ sandbox:
 
     # Container mounts to add when using AWF. Each mount is specified using Docker
     # mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or
-    # 'rw' (read-write). Example: '/host/path:/container/path:ro'
+    # 'rw' (read-write). Example: '/host/path:/container/path:ro'. Docker socket
+    # mounts such as '/var/run/docker.sock' are not supported.
     # (optional)
     mounts: []
       # Array of Mount specification in format 'source:destination:mode'
@@ -917,7 +918,7 @@ sandbox:
       ignoreViolations:
         {}
 
-      # Enable weaker nested sandbox mode (recommended: true for Docker access)
+      # Enable weaker nested sandbox mode (use only when required)
       # (optional)
       enableWeakerNestedSandbox: true
 
