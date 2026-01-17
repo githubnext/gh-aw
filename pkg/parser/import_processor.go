@@ -3,8 +3,13 @@ package parser
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var importLog = logger.New("parser:import_processor")
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
@@ -431,6 +436,10 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
 
+	// Sort imports in topological order (roots first, dependencies before dependents)
+	topologicalOrder := topologicalSortImports(processedOrder, baseDir, cache)
+	log.Printf("Sorted imports in topological order: %v", topologicalOrder)
+
 	return &ImportsResult{
 		MergedTools:         toolsBuilder.String(),
 		MergedMCPServers:    mcpServersBuilder.String(),
@@ -444,8 +453,156 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedNetwork:       networkBuilder.String(),
 		MergedPermissions:   permissionsBuilder.String(),
 		MergedSecretMasking: secretMaskingBuilder.String(),
-		ImportedFiles:       processedOrder,
+		ImportedFiles:       topologicalOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,
 	}, nil
+}
+
+// topologicalSortImports sorts imports in topological order using Kahn's algorithm
+// Returns imports sorted such that roots (files with no imports) come first,
+// and each import has all its dependencies listed before it
+func topologicalSortImports(imports []string, baseDir string, cache *ImportCache) []string {
+	importLog.Printf("Starting topological sort of %d imports", len(imports))
+
+	// Build dependency graph: map each import to its list of nested imports
+	dependencies := make(map[string][]string)
+	allImportsSet := make(map[string]bool)
+
+	// Track all imports (including the ones we're sorting)
+	for _, imp := range imports {
+		allImportsSet[imp] = true
+	}
+
+	// Extract dependencies for each import by reading and parsing each file
+	for _, importPath := range imports {
+		// Resolve the import path to get the full path
+		var filePath string
+		if strings.Contains(importPath, "#") {
+			parts := strings.SplitN(importPath, "#", 2)
+			filePath = parts[0]
+		} else {
+			filePath = importPath
+		}
+
+		fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
+		if err != nil {
+			importLog.Printf("Failed to resolve import path %s during topological sort: %v", importPath, err)
+			dependencies[importPath] = []string{}
+			continue
+		}
+
+		// Read and parse the file to extract its imports
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			importLog.Printf("Failed to read file %s during topological sort: %v", fullPath, err)
+			dependencies[importPath] = []string{}
+			continue
+		}
+
+		result, err := ExtractFrontmatterFromContent(string(content))
+		if err != nil {
+			importLog.Printf("Failed to extract frontmatter from %s during topological sort: %v", fullPath, err)
+			dependencies[importPath] = []string{}
+			continue
+		}
+
+		// Extract nested imports
+		nestedImports := extractImportPaths(result.Frontmatter)
+		dependencies[importPath] = nestedImports
+		importLog.Printf("Import %s has %d dependencies: %v", importPath, len(nestedImports), nestedImports)
+	}
+
+	// Kahn's algorithm: Calculate in-degrees (number of dependencies for each import)
+	inDegree := make(map[string]int)
+	for _, imp := range imports {
+		inDegree[imp] = 0
+	}
+
+	// Count dependencies: how many imports does each file depend on (within our import set)
+	for imp, deps := range dependencies {
+		for _, dep := range deps {
+			// Only count dependencies that are in our import set
+			if allImportsSet[dep] {
+				inDegree[imp]++
+			}
+		}
+	}
+
+	importLog.Printf("Calculated in-degrees: %v", inDegree)
+
+	// Start with imports that have no dependencies (in-degree = 0) - these are the roots
+	queue := make([]string, 0)
+	for _, imp := range imports {
+		if inDegree[imp] == 0 {
+			queue = append(queue, imp)
+			importLog.Printf("Root import (no dependencies): %s", imp)
+		}
+	}
+
+	// Process imports in topological order
+	result := make([]string, 0, len(imports))
+	for len(queue) > 0 {
+		// Sort queue for deterministic output when multiple imports have same in-degree
+		sort.Strings(queue)
+
+		// Take the first import from queue
+		current := queue[0]
+		queue = queue[1:]
+		result = append(result, current)
+
+		importLog.Printf("Processing import %s (in-degree was 0)", current)
+
+		// For each import that depends on the current import, reduce its in-degree
+		for imp, deps := range dependencies {
+			for _, dep := range deps {
+				if dep == current && allImportsSet[imp] {
+					inDegree[imp]--
+					importLog.Printf("Reduced in-degree of %s to %d (resolved dependency on %s)", imp, inDegree[imp], current)
+					if inDegree[imp] == 0 {
+						queue = append(queue, imp)
+						importLog.Printf("Added %s to queue (in-degree reached 0)", imp)
+					}
+				}
+			}
+		}
+	}
+
+	importLog.Printf("Topological sort complete: %v", result)
+	return result
+}
+
+// extractImportPaths extracts just the import paths from frontmatter
+func extractImportPaths(frontmatter map[string]any) []string {
+	var imports []string
+
+	if frontmatter == nil {
+		return imports
+	}
+
+	importsField, exists := frontmatter["imports"]
+	if !exists {
+		return imports
+	}
+
+	// Parse imports field - can be array of strings or objects with path
+	switch v := importsField.(type) {
+	case []any:
+		for _, item := range v {
+			switch importItem := item.(type) {
+			case string:
+				imports = append(imports, importItem)
+			case map[string]any:
+				if pathValue, hasPath := importItem["path"]; hasPath {
+					if pathStr, ok := pathValue.(string); ok {
+						imports = append(imports, pathStr)
+					}
+				}
+			}
+		}
+	case []string:
+		imports = v
+	}
+
+	return imports
 }

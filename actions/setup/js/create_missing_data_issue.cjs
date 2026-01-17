@@ -67,7 +67,7 @@ async function main(config = {}) {
         core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
         // Build comment body
-        const commentLines = [`## Missing Data Reported (${new Date().toISOString()})`, ``, `The following data was reported as missing during [workflow run](${runUrl}):`, ``];
+        const commentLines = [`## Missing Data Reported`, ``, `The following data was reported as missing during [workflow run](${runUrl}):`, ``];
 
         missingDataItems.forEach((item, index) => {
           commentLines.push(`### ${index + 1}. **${item.data_type}**`);

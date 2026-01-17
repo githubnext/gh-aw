@@ -3,7 +3,7 @@ title: "Meet the Workflows: Fault Investigation"
 description: "A curated tour of proactive fault investigation workflows that maintain codebase health"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T05:00:00
 sidebar:
@@ -55,4 +55,4 @@ Continue reading: [Metrics & Analytics Workflows →](/gh-aw/blog/2026-01-13-mee
 
 ---
 
-*This is part 5 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 8 of a 19-part series exploring the workflows in Peli's Agent Factory.*

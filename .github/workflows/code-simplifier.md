@@ -31,4 +31,4 @@ strict: true
 ---
 
 <!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
-@./agentics/code-simplifier.md
+{{#runtime-import agentics/code-simplifier.md}}

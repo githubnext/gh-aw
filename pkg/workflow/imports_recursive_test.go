@@ -296,7 +296,7 @@ This workflow tests diamond import pattern.
 	}
 }
 
-// TestImportOrdering tests that imports are processed in BFS order
+// TestImportOrdering tests that imports are processed in topological order
 func TestImportOrdering(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := testutil.TempDir(t, "test-*")
@@ -306,7 +306,9 @@ func TestImportOrdering(t *testing.T) {
 	//   A -> C, D
 	//   B -> E
 	//   C -> F
-	// Expected BFS order: Main, A, B, C, D, E, F
+	// Expected topological order: roots (D, E, F) first, then dependents
+	// Valid orderings include: [D, E, F, C, A, B] or [D, E, B, F, C, A]
+	// Key constraints: F before C, {C,D} before A, E before B
 
 	// Create file F (deepest level)
 	fileFPath := filepath.Join(tempDir, "file-f.md")
@@ -434,9 +436,8 @@ imports:
 		}
 	}
 
-	// Verify BFS ordering by checking that allowed arrays are merged in correct order
-	// Since BFS processes level by level: A,B (level 1), then C,D,E (level 2), then F (level 3)
-	// The merged allowed array should reflect this order
+	// Verify topological ordering by checking that tools are properly merged
+	// Tools from all imports should be present regardless of order
 	if !strings.Contains(workflowData, "a") {
 		t.Error("Expected allowed array to contain 'a'")
 	}
@@ -446,4 +447,84 @@ imports:
 	if !strings.Contains(workflowData, "c") {
 		t.Error("Expected allowed array to contain 'c'")
 	}
+
+	// Verify topological ordering in the manifest
+	// Extract the imports section from the manifest
+	manifestStart := strings.Index(workflowData, "# Resolved workflow manifest:")
+	if manifestStart == -1 {
+		t.Fatal("Could not find manifest in compiled workflow")
+	}
+	manifestEnd := strings.Index(workflowData[manifestStart:], "\nname:")
+	if manifestEnd == -1 {
+		manifestEnd = len(workflowData) - manifestStart
+	}
+	manifest := workflowData[manifestStart : manifestStart+manifestEnd]
+
+	// Extract import lines
+	var importLines []string
+	for _, line := range strings.Split(manifest, "\n") {
+		if strings.Contains(line, "#     - ") {
+			importName := strings.TrimSpace(strings.TrimPrefix(line, "#     - "))
+			importLines = append(importLines, importName)
+		}
+	}
+
+	// Verify topological order: roots (D, E, F) before dependents
+	// Expected order should have F before C, C and D before A, E before B
+	// Valid orderings: [D, E, F, C, A, B] or [D, E, B, F, C, A] or similar
+	// Key constraints: F before C, {C,D} before A, E before B
+
+	// Check that F comes before C
+	fIndex := -1
+	cIndex := -1
+	for i, imp := range importLines {
+		if imp == "file-f.md" {
+			fIndex = i
+		}
+		if imp == "file-c.md" {
+			cIndex = i
+		}
+	}
+	if fIndex != -1 && cIndex != -1 && fIndex >= cIndex {
+		t.Errorf("Expected file-f.md (index %d) to come before file-c.md (index %d) in topological order", fIndex, cIndex)
+	}
+
+	// Check that C comes before A
+	aIndex := -1
+	for i, imp := range importLines {
+		if imp == "file-a.md" {
+			aIndex = i
+		}
+	}
+	if cIndex != -1 && aIndex != -1 && cIndex >= aIndex {
+		t.Errorf("Expected file-c.md (index %d) to come before file-a.md (index %d) in topological order", cIndex, aIndex)
+	}
+
+	// Check that D comes before A
+	dIndex := -1
+	for i, imp := range importLines {
+		if imp == "file-d.md" {
+			dIndex = i
+		}
+	}
+	if dIndex != -1 && aIndex != -1 && dIndex >= aIndex {
+		t.Errorf("Expected file-d.md (index %d) to come before file-a.md (index %d) in topological order", dIndex, aIndex)
+	}
+
+	// Check that E comes before B
+	eIndex := -1
+	bIndex := -1
+	for i, imp := range importLines {
+		if imp == "file-e.md" {
+			eIndex = i
+		}
+		if imp == "file-b.md" {
+			bIndex = i
+		}
+	}
+	if eIndex != -1 && bIndex != -1 && eIndex >= bIndex {
+		t.Errorf("Expected file-e.md (index %d) to come before file-b.md (index %d) in topological order", eIndex, bIndex)
+	}
+
+	t.Logf("Import order in manifest: %v", importLines)
 }

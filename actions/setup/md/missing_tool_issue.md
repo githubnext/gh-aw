@@ -1,6 +1,6 @@
-## Problem
+## Missing Tools Reported
 
-The workflow **{workflow_name}** reported missing tools during execution. These tools are needed for the agent to complete its tasks effectively.
+The following tools were reported as missing during workflow execution. These tools are needed for the agent to complete its tasks effectively.
 
 ### Missing Tools
 

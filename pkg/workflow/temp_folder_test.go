@@ -48,9 +48,9 @@ This is a test workflow to verify temp folder instructions are included.
 
 	lockStr := string(lockContent)
 
-	// Test 1: Verify temporary folder step is created
-	if !strings.Contains(lockStr, "- name: Append temporary folder instructions to prompt") {
-		t.Error("Expected 'Append temporary folder instructions to prompt' step in generated workflow")
+	// Test 1: Verify temporary folder step is created (now part of unified step)
+	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
+		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
 	}
 
 	// Test 2: Verify the cat command for temp folder prompt file is included

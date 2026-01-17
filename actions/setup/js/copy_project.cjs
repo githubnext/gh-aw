@@ -254,33 +254,73 @@ async function copyProject(output) {
 }
 
 /**
- * Main execution function
+ * Main entry point - handler factory that returns a message handler function
+ * @param {Object} config - Handler configuration
+ * @param {number} [config.max] - Maximum number of copy_project items to process
+ * @param {string} [config.source_project] - Default source project URL
+ * @param {string} [config.target_owner] - Default target owner
+ * @returns {Promise<Function>} Message handler function
  */
-async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) return;
+async function main(config = {}) {
+  // Extract configuration
+  const maxCount = config.max || 10;
+  const defaultSourceProject = config.source_project || "";
+  const defaultTargetOwner = config.target_owner || "";
 
-  const copyProjectItems = result.items.filter(item => item.type === "copy_project");
-  if (copyProjectItems.length === 0) return;
+  core.info(`Max count: ${maxCount}`);
+  if (defaultSourceProject) {
+    core.info(`Default source project: ${defaultSourceProject}`);
+  }
+  if (defaultTargetOwner) {
+    core.info(`Default target owner: ${defaultTargetOwner}`);
+  }
 
-  for (let i = 0; i < copyProjectItems.length; i++) {
-    const output = copyProjectItems[i];
+  // Track state
+  let processedCount = 0;
+
+  /**
+   * Message handler function that processes a single copy_project message
+   * @param {Object} message - The copy_project message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs (unused for copy_project)
+   * @returns {Promise<Object>} Result with success/error status and project details
+   */
+  return async function handleCopyProject(message, resolvedTemporaryIds) {
+    // Check max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping copy_project: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+
+    processedCount++;
+
     try {
-      const projectResult = await copyProject(output);
+      // Process the copy_project message
+      const projectResult = await copyProject(message);
 
       // Set step outputs
       core.setOutput("project_id", projectResult.projectId);
       core.setOutput("project_title", projectResult.projectTitle);
       core.setOutput("project_url", projectResult.projectUrl);
 
-      core.info(`Successfully processed copy_project item ${i + 1}`);
+      return {
+        success: true,
+        projectId: projectResult.projectId,
+        projectTitle: projectResult.projectTitle,
+        projectUrl: projectResult.projectUrl,
+      };
     } catch (err) {
       // prettier-ignore
       const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
-      core.error(`Failed to process item ${i + 1}`);
-      logGraphQLError(error, `Processing copy_project item ${i + 1}`);
+      logGraphQLError(error, "copy_project");
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
     }
-  }
+  };
 }
 
 module.exports = { copyProject, parseProjectUrl, getProjectId, getOwnerId, main };

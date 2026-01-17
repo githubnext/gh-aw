@@ -1,63 +1,51 @@
-# File/URL Inlining Syntax
+# Runtime Import Syntax
 
-This document describes the file and URL inlining syntax feature for GitHub Agentic Workflows.
+This document describes the runtime import syntax feature for GitHub Agentic Workflows.
 
 ## Overview
 
-The file/URL inlining syntax allows you to include content from files and URLs directly within your workflow prompts at runtime. This provides a convenient way to reference external content without using the `{{#runtime-import}}` macro.
+The runtime import syntax allows you to include content from files and URLs directly within your workflow prompts at runtime. This provides a convenient way to reference external content using the `{{#runtime-import}}` macro.
 
-**Important:** File paths must start with `./` or `../` (relative paths only). Paths are resolved relative to `GITHUB_WORKSPACE` and are validated to ensure they stay within the git root for security.
+**Important:** File paths are resolved within the `.github` folder. Paths are validated to ensure they stay within the git repository root for security.
 
 ## Security
 
-**Path Validation**: All file paths are validated to ensure they stay within the git repository root:
+**Path Validation**: All file paths are validated to ensure they stay within the `.github` folder:
 - Paths are normalized to resolve `.` and `..` components
-- After normalization, the resolved path must be within `GITHUB_WORKSPACE`
-- Attempts to escape the git root (e.g., `../../../etc/passwd`) are rejected with a security error
-- Example: `./a/b/../../c/file.txt` is allowed if it resolves to `c/file.txt` within the git root
+- After normalization, the resolved path must be within `.github` folder
+- Attempts to escape the folder (e.g., `../../../etc/passwd`) are rejected with a security error
+- Example: `.github/a/b/../../c/file.txt` is allowed if it resolves to `.github/c/file.txt`
 
 ## Syntax
 
-### File Inlining
+### File Import
 
-**Full File**: `@./path/to/file.ext` or `@../path/to/file.ext`
-- Includes the entire content of the file
-- Path MUST start with `./` (current directory) or `../` (parent directory)
-- Path is resolved relative to `GITHUB_WORKSPACE`
-- Example: `@./docs/README.md`
+**Full File**: `{{#runtime-import filepath}}`
+- Includes the entire content of the file from `.github` folder
+- Path can be specified with or without `.github/` prefix
+- Example: `{{#runtime-import docs/README.md}}` or `{{#runtime-import .github/docs/README.md}}`
 
-**Line Range**: `@./path/to/file.ext:start-end`
+**Line Range**: `{{#runtime-import filepath:start-end}}`
 - Includes specific lines from the file (1-indexed, inclusive)
 - Start and end are line numbers
-- Example: `@./src/main.go:10-20` includes lines 10 through 20
+- Example: `{{#runtime-import src/main.go:10-20}}` includes lines 10 through 20
 
-**Important Notes:**
-- `@path` (without `./` or `../`) will NOT be processed - it stays as plain text
-- Only relative paths starting with `./` or `../` are supported
-- The resolved path must stay within the git repository root
+### URL Import
 
-### URL Inlining
-
-**HTTP/HTTPS URLs**: `@https://example.com/file.txt`
+**HTTP/HTTPS URLs**: `{{#runtime-import https://example.com/file.txt}}`
 - Fetches content from the URL
 - Content is cached for 1 hour to reduce network requests
 - Cache is stored in `/tmp/gh-aw/url-cache/`
-- Example: `@https://raw.githubusercontent.com/owner/repo/main/README.md`
+- Example: `{{#runtime-import https://raw.githubusercontent.com/owner/repo/main/README.md}}`
 
 ## Features
 
 ### Content Sanitization
 
-All inlined content is automatically sanitized:
+All imported content is automatically sanitized:
 - **Front matter removal**: YAML front matter (between `---` delimiters) is stripped
 - **XML comment removal**: HTML/XML comments (`<!-- ... -->`) are removed
 - **GitHub Actions macro detection**: Content containing `${{ ... }}` expressions is rejected with an error
-
-### Email Address Handling
-
-The parser is smart about email addresses:
-- `user@example.com` is NOT treated as a file reference
-- Only `@./path`, `@../path`, and `@https://` patterns are processed
 
 ## Examples
 
@@ -76,7 +64,7 @@ Please review the following code changes.
 
 ## Coding Guidelines
 
-@./docs/coding-guidelines.md
+{{#runtime-import docs/coding-guidelines.md}}
 
 ## Changes Summary
 
@@ -96,7 +84,28 @@ engine: copilot
 
 The original buggy code was:
 
-@./src/auth.go:45-52
+{{#runtime-import src/auth.go:45-52}}
+
+Verify that the fix addresses the issue.
+```
+
+### Example 3: External Checklist
+
+```markdown
+---
+description: Security review
+on: pull_request
+engine: copilot
+---
+
+# Security Review
+
+Follow this security checklist:
+
+{{#runtime-import https://raw.githubusercontent.com/org/security/main/checklist.md}}
+
+Review the changes for security vulnerabilities.
+```
 
 Verify the fix addresses the issue.
 ```

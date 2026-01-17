@@ -3,7 +3,7 @@ title: "Meet the Workflows: Interactive & ChatOps"
 description: "A curated tour of interactive workflows that respond to commands"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T10:00:00
 sidebar:
@@ -51,4 +51,4 @@ Continue reading: [Testing & Validation Workflows →](/gh-aw/blog/2026-01-13-me
 
 ---
 
-*This is part 10 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 13 of a 19-part series exploring the workflows in Peli's Agent Factory.*

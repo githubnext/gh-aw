@@ -5,11 +5,11 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-ProjectOps keeps [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) up to date using AI.
+ProjectOps automates [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) management using AI-powered workflows.
 
-When a new issue or pull request arrives, the agent reads it and decides where it belongs, what status to start in, and which fields to set (priority, effort, etc.).
+When a new issue or pull request arrives, the agent analyzes it and determines where it belongs, what status to set, which fields to update (priority, effort, etc.), and whether to create or update project structures.
 
-Then the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output applies those choices in a separate, scoped job—the agent job never sees the Projects token so everything remains secure.
+Safe outputs handle all project operations in separate, scoped jobs with minimal permissions—the agent job never sees the Projects token, ensuring secure automation.
 
 ## Prerequisites
 
@@ -44,17 +44,9 @@ gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_TOKEN"
 
 See the [GitHub Projects v2 token reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) for complete details.
 
-## When to Use ProjectOps
+## Example: Smart Issue Triage
 
-ProjectOps complements [GitHub's built-in Projects automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:
-
-- **Content-based routing** - Analyze issue content to determine which project board and what priority (native automation only supports label/status triggers)
-- **Multi-issue coordination** - Add a set of related issues/PRs to an existing initiative project and apply consistent tracking labels
-- **Dynamic field assignment** - Set priority, effort, and custom fields based on AI analysis of issue content
-
-## How It Works
-
-While GitHub's native project automation can move items based on status changes and labels, ProjectOps adds **AI-powered content analysis** to determine routing and field values. The AI agent reads the issue description, understands its type and priority, and makes intelligent decisions about project assignment and field values.
+This example demonstrates intelligent issue routing to project boards with AI-powered content analysis:
 
 ```aw wrap
 ---
@@ -71,6 +63,7 @@ tools:
 safe-outputs:
   update-project:
     max: 1
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
   add-comment:
     max: 1
 ---
@@ -90,184 +83,72 @@ After adding to project board, comment on the issue confirming where it was adde
 
 This workflow creates an intelligent triage system that automatically organizes new issues onto appropriate project boards with relevant status and priority fields.
 
-## Safe Output Architecture
+## Available Safe Outputs
 
-ProjectOps workflows use the `update-project` safe output to ensure secure project management with minimal permissions. The main job runs with `contents: read` while project operations happen in a separate job with `projects: write` permissions:
+ProjectOps workflows leverage these safe outputs for project management operations:
 
-```yaml wrap
-safe-outputs:
-  update-project:
-    max: 10
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-```
+### Core Operations
 
-The `update-project` tool provides intelligent project management:
+- **[`create-project`](/gh-aw/reference/safe-outputs/#project-creation-create-project)** - Create new GitHub Projects V2 boards with custom configuration
+- **[`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project)** - Add issues/PRs to projects, update fields (status, priority, custom fields), and manage project views
+- **[`copy-project`](/gh-aw/reference/safe-outputs/#project-board-copy-copy-project)** - Duplicate project boards with all fields, views, and structure intact
+- **[`create-project-status-update`](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update)** - Post status updates to project boards with progress summaries and health indicators
 
-- **Update-only**: Does not create Projects (create the Project in the GitHub UI first)
-- **Auto-adds items**: Checks if issue/PR is already on the board before adding (prevents duplicates)
-- **Updates fields**: Sets status, priority, and other custom fields
-- **Applies a tracking label**: When adding a new item, it can apply a consistent tracking label to the underlying issue/PR
-- **Returns outputs**: Exposes the Project item ID (`item-id`) for downstream steps
+Each safe output operates in a separate job with minimal, scoped permissions. See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete configuration options and examples.
 
-## Organization-Owned Project Configuration
+## Key Capabilities
 
-For workflows that interact with organization-owned projects and need to query GitHub information, use the following configuration:
+**Project Creation and Management**
+- Create new Projects V2 boards programmatically
+- Copy existing projects to duplicate templates or migrate structures
+- Add issues and pull requests to projects with duplicate prevention
+- Update project status with automated progress summaries
 
-```yaml wrap
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read
-tools:
-  github:
-    toolsets: [default, projects]
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-safe-outputs:
-  update-project:
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
----
+**Field Management**
+- Set status, priority, effort, and sprint fields
+- Update custom date fields (start date, end date) for timeline tracking
+- Support for TEXT, DATE, NUMBER, ITERATION, and SINGLE_SELECT field types
+- Automatic field option creation for single-select fields
 
-# Smart Issue Triage for Organization Project
+**View Configuration**
+- Automatically create project views (table, board, roadmap)
+- Configure view filters and visible fields
+- Support for swimlane grouping by custom fields
 
-Analyze the issue and add it to the organization project board...
-```
+**Campaign Integration**
+- Automatic tracking label application
+- Project status updates with health indicators
+- Cross-repository project coordination
+- Worker/workflow field population for multi-agent campaigns
 
-This configuration ensures:
-1. The GitHub Model Context Protocol (MCP) toolset can query repository and project information
-2. The `update-project` safe output can modify the organization project
-3. Both operations use the same token with appropriate permissions
+See the [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for detailed configuration patterns and best practices.
 
-## Accessing Issue Context
+## When to Use ProjectOps
 
-ProjectOps workflows can access sanitized issue content through the `needs.activation.outputs.text` variable, which combines the issue title and description while removing security risks:
+ProjectOps complements [GitHub's built-in Projects automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:
 
-```yaml wrap
-# In your workflow instructions:
-Analyze this issue to determine priority: "${{ needs.activation.outputs.text }}"
-```
-
-**Security Note**: Always treat user content as potentially untrusted and design workflows to be resilient against prompt injection attempts.
-
-
-## Project Management Features
-
-The `update-project` safe output provides intelligent automation:
-
-- **Update-only** - Expects the Project to already exist (creates no Projects)
-- **Duplicate prevention** - Checks if issue already on board before adding
-- **Custom field support** - Set status, priority, effort, sprint, team, or any custom fields
-- **Tracking** - Can apply a consistent tracking label when adding new items
-- **Cross-repo support** - Works with organization-level projects spanning multiple repositories
-- **Automatic view creation** - Configure project views directly in workflow frontmatter
-
-## Creating Project Views
-
-Project views can be created automatically by declaring them in the `views` array. Views are created when the workflow runs, after processing update_project items from the agent.
-
-### View Configuration
-
-Views are configured in workflow frontmatter using the `views` property:
-
-```yaml wrap
-safe-outputs:
-  update-project:
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-    views:
-      - name: "Sprint Board"
-        layout: board
-        filter: "is:issue is:open"
-      - name: "Task Tracker"  
-        layout: table
-        filter: "is:issue,is:pull_request"
-      - name: "Timeline"
-        layout: roadmap
-```
-
-**View properties:**
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `name` | string | Yes | View name (e.g., "Sprint Board", "Task Tracker") |
-| `layout` | string | Yes | View layout: `table`, `board`, or `roadmap` |
-| `filter` | string | No | Filter query (e.g., `is:issue is:open`, `label:bug`) |
-
-**Layout types:**
-- **`table`** — List view with customizable columns for detailed tracking
-- **`board`** — Kanban-style cards grouped by status or custom field
-- **`roadmap`** — Timeline visualization with date-based swimlanes
-
-**Filter syntax examples:**
-- `is:issue is:open` — Open issues only
-- `is:pull_request` — Pull requests only  
-- `is:issue,is:pull_request` — Both issues and PRs
-- `label:bug` — Items with bug label
-- `assignee:@me` — Items assigned to viewer
-
-### View Creation Examples
-
-**Bug Triage Board:**
-```yaml wrap
-safe-outputs:
-  update-project:
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-    views:
-      - name: "Triage Board"
-        layout: board
-        filter: "is:issue label:bug"
-      - name: "Bug List"
-        layout: table
-        filter: "is:issue label:bug is:open"
-```
-
-**Feature Planning:**
-```yaml wrap
-safe-outputs:
-  update-project:
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-    views:
-      - name: "Feature Roadmap"
-        layout: roadmap
-        filter: "is:issue label:enhancement"
-      - name: "Feature Backlog"
-        layout: table
-        filter: "is:issue label:enhancement"
-```
-
-**Sprint Management:**
-```yaml wrap
-safe-outputs:
-  update-project:
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-    views:
-      - name: "Current Sprint"
-        layout: board
-        filter: "is:issue,is:pull_request is:open"
-      - name: "Sprint Timeline"
-        layout: roadmap
-      - name: "All Items"
-        layout: table
-```
-
-Views are created automatically during workflow execution. The workflow must include at least one `update_project` operation to provide the target project URL.
-
-## Cross-Repository Considerations
-
-Project boards can span multiple repositories, but the `update-project` tool operates on the current repository's context. To manage cross-repository projects:
-
-1. Use organization-level projects accessible from all repositories
-2. Ensure the workflow's GitHub token has `projects: write` permission
-3. Consider using a PAT for broader access across repositories
+- **Content-based routing** - Analyze issue content to determine which project board and what priority (native automation only supports label/status triggers)
+- **Multi-issue coordination** - Add related issues/PRs to projects and apply consistent tracking labels
+- **Dynamic field assignment** - Set priority, effort, and custom fields based on AI analysis
+- **Automated project creation** - Create new project boards programmatically based on campaign needs
+- **Status tracking** - Generate automated progress summaries with health indicators
+- **Template replication** - Copy existing project structures for new initiatives
 
 ## Best Practices
 
-**Use descriptive project names** that clearly indicate purpose and scope. Prefer "Performance Optimization Q1 2025" over "Project 1".
+**Create projects programmatically** when launching campaigns to ensure consistent structure and field configuration. Use `create-project` with optional first issue to initialize tracking.
 
-**Leverage a tracking label** for grouping related work across issues and PRs.
+**Use descriptive project names** that clearly indicate purpose and scope. Prefer "Performance Optimization Q1 2026" over "Project 1".
+
+**Leverage tracking labels** (`campaign:<id>`) for grouping related work across issues and PRs, enabling orchestrator discovery.
 
 **Set meaningful field values** like status, priority, and effort to enable effective filtering and sorting on boards.
+
+**Create custom views automatically** using the `views` configuration in frontmatter for consistent board setup across campaigns.
+
+**Post regular status updates** using `create-project-status-update` to keep stakeholders informed of campaign progress and health.
+
+**Duplicate successful templates** with `copy-project` to accelerate new campaign setup and maintain consistency.
 
 **Combine with issue creation** for initiative workflows that generate multiple tracked tasks automatically.
 
@@ -277,17 +158,20 @@ Project boards can span multiple repositories, but the `update-project` tool ope
 
 ## Common Challenges
 
-**Permission Errors**: Project operations require `projects: write` permission. For organization-level projects, a PAT may be needed.
+**Permission Errors**: Project operations require `projects: write` permission via a PAT. Default `GITHUB_TOKEN` lacks Projects v2 access.
 
-**Field Name Mismatches**: Custom field names are case-sensitive. Use exact field names as defined in the project settings.
+**Field Name Mismatches**: Custom field names are case-sensitive. Use exact field names as defined in project settings. Field names are automatically normalized (e.g., `story_points` matches `Story Points`).
 
-**Cross-Repo Limitations**: The tool operates in the context of the triggering repository. Use organization-level projects for multi-repo tracking.
+**Token Scope**: Default `GITHUB_TOKEN` cannot access Projects. Store a PAT with Projects permissions in `GH_AW_PROJECT_GITHUB_TOKEN` secret.
 
-**Token Scope**: Default `GITHUB_TOKEN` may have limited project access. Use a PAT stored in secrets for broader permissions.
+**Project URL Format**: Use full project URLs (e.g., `https://github.com/orgs/myorg/projects/42`), not project numbers alone.
+
+**Field Type Detection**: Ensure field types match expected formats (dates as `YYYY-MM-DD`, numbers as integers, single-select as exact option values).
 
 ## Additional Resources
 
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
-- [Update Project API](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) - Detailed API reference
-- [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration and API details
+- [Project Management Guide](/gh-aw/guides/campaigns/project-management/) - Campaign project setup and tracking strategies
+- [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration options
 - [IssueOps Guide](/gh-aw/examples/issue-pr-events/issueops/) - Related issue automation patterns
+- [Token Reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) - GitHub Projects token setup

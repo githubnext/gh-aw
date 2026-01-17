@@ -111,7 +111,7 @@ func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 
 // RenderWorkflowExecution renders the workflow execution instructions with the given data.
 func RenderWorkflowExecution(data CampaignPromptData) string {
-	tmplStr, err := loadTemplate("campaign-workflow-execution.md")
+	tmplStr, err := loadTemplate("execute-campaign-workflow.md")
 	if err != nil {
 		templateLog.Printf("Failed to load workflow execution template: %v", err)
 		return ""
@@ -127,7 +127,7 @@ func RenderWorkflowExecution(data CampaignPromptData) string {
 
 // RenderOrchestratorInstructions renders the orchestrator instructions with the given data.
 func RenderOrchestratorInstructions(data CampaignPromptData) string {
-	tmplStr, err := loadTemplate("campaign-orchestrator-instructions.md")
+	tmplStr, err := loadTemplate("orchestrate-campaign.md")
 	if err != nil {
 		templateLog.Printf("Failed to load orchestrator instructions template: %v", err)
 		// Fallback to a simple version if template loading fails
@@ -145,7 +145,7 @@ func RenderOrchestratorInstructions(data CampaignPromptData) string {
 
 // RenderProjectUpdateInstructions renders the project update instructions with the given data
 func RenderProjectUpdateInstructions(data CampaignPromptData) string {
-	tmplStr, err := loadTemplate("campaign-project-update-instructions.md")
+	tmplStr, err := loadTemplate("update-campaign-project.md")
 	if err != nil {
 		templateLog.Printf("Failed to load project update instructions template: %v", err)
 		return ""
@@ -161,7 +161,7 @@ func RenderProjectUpdateInstructions(data CampaignPromptData) string {
 
 // RenderClosingInstructions renders the closing instructions
 func RenderClosingInstructions() string {
-	tmplStr, err := loadTemplate("campaign-closing-instructions.md")
+	tmplStr, err := loadTemplate("close-campaign.md")
 	if err != nil {
 		templateLog.Printf("Failed to load closing instructions template: %v", err)
 		return "Use these details to coordinate workers and track progress."

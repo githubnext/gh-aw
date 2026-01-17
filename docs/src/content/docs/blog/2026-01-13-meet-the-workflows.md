@@ -3,7 +3,7 @@ title: "Meet the Workflows: Issue Triage"
 description: "A curated tour of triage and summarization workflows in the factory"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T01:00:00
 sidebar:
@@ -12,8 +12,8 @@ prev:
   link: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
   label: Welcome to Peli's Agent Factory
 next:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/
-  label: "Code Quality & Refactoring Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
+  label: "Continuous Simplicity"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -28,11 +28,11 @@ Think of this as your guided tour through our agent factory. We're showcasing th
 
 To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage.
 
-Issue triage now represents the "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter examples in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
+Issue triage represents a "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter examples in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
 
-The purpose of automated issue triage is straightforward: when a new issue is opened, the agent analyzes its content, does research in the codebase and other issues, responds with a comment, and applies appropriate labels based on predefined categories. This helps maintainers quickly understand the nature of incoming issues without manual review.
+When a new issue is opened, the triage agent analyzes its content, does research in the codebase and other issues, responds with a comment, and applies appropriate labels based on predefined categories. This helps maintainers quickly understand the nature of incoming issues without manual review.
 
-Our **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)** focuses on labels: it automatically labels and categorizes new issues the moment they're opened. Let's take a look at the full workflow:
+Let's take a look at the full **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)**:
 
 ```markdown
 ---
@@ -57,26 +57,32 @@ safe-outputs:
 
 # Issue Triage Agent
 
-List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. 
+List open issues in ${{ github.repository }} that have no labels. For each 
+unlabeled issue, analyze the title and body, then add one of the allowed
+labels: `bug`, `feature`, `enhancement`, `documentation`, `question`,
+`help-wanted`, or `good-first-issue`. 
 
 Skip issues that:
 - Already have any of these labels
 - Have been assigned to any user (especially non-bot users)
 
-After adding the label to an issue, mention the issue author in a comment explaining why the label was added.
+Do research on the issue in the context of the codebase and, after after
+adding the label to an issue, mention the issue author in a comment, explain
+why the label was added and give a brief summary of how the issue may be
+addressed.
 ```
 
 Note how concise this is - it's like reading a to-do list for the agent. The workflow runs whenever a new issue is opened or reopened. It checks for unlabeled issues, analyzes their content, and applies appropriate labels based on content analysis. It even leaves a friendly comment explaining the label choice.
 
 In the frontmatter, we define permissions, tools, and safe outputs. This ensures the agent only has access to what it needs and can't perform any unsafe actions. The natural language instructions in the body guide the agent's behavior in a clear, human-readable way.
 
-What surprised us most about this workflow? Most of all, **customization** is key. Triage differs in every repository. Tailoring workflows to our specific context made them more effective. Generic agents are okay, but customized ones are often a better fit.
+We've deliberately kept this workflow ultra-simple. In practice, in your own repo, **customization** is key. Triage differs in every repository. Tailoring workflows to your specific context will make them more effective. Generic agents are okay, but customized ones are often a better fit.
 
 ## Next Up: Code Quality & Refactoring Workflows
 
-Now that we've explored how triage workflows help us stay on top of incoming activity, let's turn to the agents that continuously improve code quality.
+Now that we've explored how triage workflows help us stay on top of incoming activity, let's turn to something far more radical and powerful: agents that continuously improve code.
 
-Continue reading: [Code Quality & Refactoring Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/)
+Continue reading: [Continuous Simplicity →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
 
 ## Learn More
 
@@ -85,4 +91,4 @@ Continue reading: [Code Quality & Refactoring Workflows →](/gh-aw/blog/2026-01
 
 ---
 
-*This is part 1 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 1 of a 19-part series exploring the workflows in Peli's Agent Factory.*

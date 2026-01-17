@@ -1,16 +1,16 @@
 ---
-title: "Meet the Workflows: Documentation & Content"
+title: "Meet the Workflows: Continuous Documentation"
 description: "A curated tour of workflows that maintain high-quality documentation"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T03:00:00
 sidebar:
-  label: "Documentation & Content"
+  label: "Continuous Documentation"
 prev:
-  link: /gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/
-  label: "Code Quality & Refactoring Workflows"
+  link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-improvement/
+  label: "Continuous Improvement Workflows"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/
   label: "Issue & PR Management Workflows"
@@ -20,11 +20,11 @@ next:
 
 Step right up, step right up, and enter the *documentation chamber* of [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)! Pure imagination meets technical accuracy in this most delightful corner of our establishment!
 
-In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-code-quality/), we explored code quality and refactoring workflows - agents that continuously push our codebase toward better design, finding patterns and improvements that humans often miss. These workflows never take a day off, quietly working to make our code cleaner and more maintainable.
+In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/), we explored autonomous cleanup agents - workflows that continuously improve code quality by simplifying complexity, refactoring structure, polishing style, and maintaining overall repository health. These agents never take a day off, quietly working to make our codebase better.
 
 Now let's address one of software development's eternal challenges: keeping documentation accurate and up-to-date. Code evolves rapidly; docs... not so much. Terminology drifts, API examples become outdated, slide decks grow stale, and blog posts reference deprecated features. The question isn't "can AI agents write good documentation?" but rather "can they maintain it as code changes?" Documentation and content workflows challenge conventional wisdom about AI-generated technical content. Spoiler: the answer involves human review, but it's way better than the alternative (no docs at all).
 
-## Documentation & Content Workflows
+## Continuous Documentation Workflows
 
 These agents maintain high-quality documentation and content:
 
@@ -63,4 +63,4 @@ Continue reading: [Issue & PR Management Workflows →](/gh-aw/blog/2026-01-13-m
 
 ---
 
-*This is part 3 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 6 of a 19-part series exploring the workflows in Peli's Agent Factory.*

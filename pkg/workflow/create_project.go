@@ -7,9 +7,10 @@ var createProjectLog = logger.New("workflow:create_project")
 // CreateProjectsConfig holds configuration for creating GitHub Projects V2
 type CreateProjectsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	GitHubToken          string `yaml:"github-token,omitempty"`
-	TargetOwner          string `yaml:"target-owner,omitempty"` // Default target owner (org/user) for the new project
-	TitlePrefix          string `yaml:"title-prefix,omitempty"` // Default prefix for auto-generated project titles
+	GitHubToken          string        `yaml:"github-token,omitempty"`
+	TargetOwner          string        `yaml:"target-owner,omitempty"` // Default target owner (org/user) for the new project
+	TitlePrefix          string        `yaml:"title-prefix,omitempty"` // Default prefix for auto-generated project titles
+	Views                []ProjectView `yaml:"views,omitempty"`        // Project views to create automatically after project creation
 }
 
 // parseCreateProjectsConfig handles create-project configuration
@@ -46,10 +47,68 @@ func (c *Compiler) parseCreateProjectsConfig(outputMap map[string]any) *CreatePr
 					createProjectLog.Printf("Title prefix configured: %s", titlePrefixStr)
 				}
 			}
+
+			// Parse views if specified
+			if viewsData, exists := configMap["views"]; exists {
+				if viewsList, ok := viewsData.([]any); ok {
+					for i, viewItem := range viewsList {
+						if viewMap, ok := viewItem.(map[string]any); ok {
+							view := ProjectView{}
+
+							// Parse name (required)
+							if name, exists := viewMap["name"]; exists {
+								if nameStr, ok := name.(string); ok {
+									view.Name = nameStr
+								}
+							}
+
+							// Parse layout (required)
+							if layout, exists := viewMap["layout"]; exists {
+								if layoutStr, ok := layout.(string); ok {
+									view.Layout = layoutStr
+								}
+							}
+
+							// Parse filter (optional)
+							if filter, exists := viewMap["filter"]; exists {
+								if filterStr, ok := filter.(string); ok {
+									view.Filter = filterStr
+								}
+							}
+
+							// Parse visible-fields (optional)
+							if visibleFields, exists := viewMap["visible-fields"]; exists {
+								if fieldsList, ok := visibleFields.([]any); ok {
+									for _, field := range fieldsList {
+										if fieldInt, ok := field.(int); ok {
+											view.VisibleFields = append(view.VisibleFields, fieldInt)
+										}
+									}
+								}
+							}
+
+							// Parse description (optional)
+							if description, exists := viewMap["description"]; exists {
+								if descStr, ok := description.(string); ok {
+									view.Description = descStr
+								}
+							}
+
+							// Only add view if it has required fields
+							if view.Name != "" && view.Layout != "" {
+								createProjectsConfig.Views = append(createProjectsConfig.Views, view)
+								createProjectLog.Printf("Parsed view %d: %s (%s)", i+1, view.Name, view.Layout)
+							} else {
+								createProjectLog.Printf("Skipping invalid view %d: missing required fields", i+1)
+							}
+						}
+					}
+				}
+			}
 		}
 
-		createProjectLog.Printf("Parsed create-project config: max=%d, hasCustomToken=%v, hasTargetOwner=%v, hasTitlePrefix=%v",
-			createProjectsConfig.Max, createProjectsConfig.GitHubToken != "", createProjectsConfig.TargetOwner != "", createProjectsConfig.TitlePrefix != "")
+		createProjectLog.Printf("Parsed create-project config: max=%d, hasCustomToken=%v, hasTargetOwner=%v, hasTitlePrefix=%v, viewCount=%d",
+			createProjectsConfig.Max, createProjectsConfig.GitHubToken != "", createProjectsConfig.TargetOwner != "", createProjectsConfig.TitlePrefix != "", len(createProjectsConfig.Views))
 		return createProjectsConfig
 	}
 	createProjectLog.Print("No create-project configuration found")

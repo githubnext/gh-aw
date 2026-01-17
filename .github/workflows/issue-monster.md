@@ -239,6 +239,7 @@ safe-outputs:
     max: 3
   add-comment:
     max: 3
+    target: "*"
   messages:
     footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*"
     run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."
@@ -382,17 +383,13 @@ The Copilot agent will:
 
 ### 6. Add Comment to Each Assigned Issue
 
-Add a comment to each issue being assigned:
+For each issue you assign, use the `add_comment` tool from the `safeoutputs` MCP server to add a comment:
 
-```markdown
-🍪 **Issue Monster has assigned this to Copilot!**
-
-I've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.
-
-The Copilot agent will analyze the issue and create a pull request with the fix.
-
-Om nom nom! 🍪
 ```
+safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster has assigned this to Copilot!**\n\nI've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.\n\nThe Copilot agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
+```
+
+**Important**: You must specify the `item_number` parameter with the issue number you're commenting on. This workflow runs on a schedule without a triggering issue, so the target must be explicitly specified.
 
 ## Important Guidelines
 

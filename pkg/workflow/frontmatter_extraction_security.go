@@ -350,6 +350,13 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
+	// Extract entrypoint (optional container entrypoint override)
+	if entrypointVal, hasEntrypoint := mcpObj["entrypoint"]; hasEntrypoint {
+		if entrypointStr, ok := entrypointVal.(string); ok {
+			mcpConfig.Entrypoint = entrypointStr
+		}
+	}
+
 	// Extract port
 	if portVal, hasPort := mcpObj["port"]; hasPort {
 		switch v := portVal.(type) {
@@ -409,6 +416,17 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 			for key, value := range envObj {
 				if valueStr, ok := value.(string); ok {
 					mcpConfig.Env[key] = valueStr
+				}
+			}
+		}
+	}
+
+	// Extract mounts (volume mounts for container)
+	if mountsVal, hasMounts := mcpObj["mounts"]; hasMounts {
+		if mountsSlice, ok := mountsVal.([]any); ok {
+			for _, mount := range mountsSlice {
+				if mountStr, ok := mount.(string); ok {
+					mcpConfig.Mounts = append(mcpConfig.Mounts, mountStr)
 				}
 			}
 		}

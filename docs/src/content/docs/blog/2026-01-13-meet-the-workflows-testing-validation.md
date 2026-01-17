@@ -3,7 +3,7 @@ title: "Meet the Workflows: Testing & Validation"
 description: "A curated tour of testing workflows that keep everything running smoothly"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T11:00:00
 sidebar:
@@ -65,4 +65,4 @@ Continue reading: [Tool & Infrastructure Workflows →](/gh-aw/blog/2026-01-13-m
 
 ---
 
-*This is part 11 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 14 of a 19-part series exploring the workflows in Peli's Agent Factory.*

@@ -204,7 +204,7 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	}
 
 	// Verify it follows system-agnostic rules
-	if !strings.Contains(data.MarkdownContent, "Core Principles (Non-Negotiable)") {
+	if !strings.Contains(data.MarkdownContent, "Core Principles") {
 		t.Errorf("expected markdown to contain core principles section, got: %q", data.MarkdownContent)
 	}
 

@@ -116,24 +116,27 @@ func TestAppendPromptStepWithHeredoc(t *testing.T) {
 }
 
 func TestPromptStepRefactoringConsistency(t *testing.T) {
-	// Test that the refactored functions produce the same output as the original implementation
-	// by comparing with a known-good expected structure
+	// Test that the unified prompt step includes temp folder instructions
+	// (Previously tested individual prompt steps, now tests unified approach)
 
-	t.Run("temp_folder generates expected structure", func(t *testing.T) {
+	t.Run("unified_prompt_step includes temp_folder", func(t *testing.T) {
 		var yaml strings.Builder
 		compiler := &Compiler{}
-		compiler.generateTempFolderPromptStep(&yaml)
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{}),
+		}
+		compiler.generateUnifiedPromptStep(&yaml, data)
 
 		result := yaml.String()
 
 		// Verify key elements are present
-		if !strings.Contains(result, "Append temporary folder instructions to prompt") {
-			t.Error("Expected step name for temp folder not found")
+		if !strings.Contains(result, "Append context instructions to prompt") {
+			t.Error("Expected unified step name not found")
 		}
 		if !strings.Contains(result, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
 			t.Error("Expected GH_AW_PROMPT env variable not found")
 		}
-		// After refactoring, we use cat command to read the file
+		// Verify temp folder instructions are included
 		if !strings.Contains(result, `cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"`) {
 			t.Error("Expected cat command for temp folder prompt file not found")
 		}

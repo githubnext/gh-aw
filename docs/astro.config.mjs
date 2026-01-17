@@ -8,6 +8,19 @@ import starlightBlog from 'starlight-blog';
 import mermaid from 'astro-mermaid';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * Creates blog authors config with GitHub profile pictures
+ * @param {Record<string, {name: string, url: string, picture?: string}>} authors
+ */
+function createAuthors(authors) {
+	return Object.fromEntries(
+		Object.entries(authors).map(([key, author]) => [
+			key,
+			{ ...author, picture: author.picture ?? `https://github.com/${key}.png?size=200` }
+		])
+	);
+}
+
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
 // Shiki did not register it and builds produced a warning: language "aw" not found.
 // For now we alias `aw` -> `markdown` which removes the warning and still gives
@@ -73,8 +86,8 @@ export default defineConfig({
 			plugins: [
 				starlightBlog({
 					recentPostCount: 12,
-					authors: {
-						'gh-next': {
+					authors: createAuthors({
+						'githubnext': {
 							name: 'GitHub Next',
 							url: 'https://githubnext.com/',
 						},
@@ -82,15 +95,28 @@ export default defineConfig({
 							name: 'Don Syme',
 							url: 'https://dsyme.net/',
 						},
-						'peli': {
+						'pelikhan': {
 							name: 'Peli de Halleux',
 							url: 'https://www.microsoft.com/research/people/jhalleux/',
 						},
 						'mnkiefer': {
 							name: 'Mara Kiefer',
 							url: 'https://github.com/mnkiefer',
-						}
-					},
+						},
+						'claude': {
+							name: 'Claude',
+							url: 'https://claude.ai',
+						},
+						'codex': {
+							name: 'Codex',
+							url: 'https://openai.com/index/openai-codex/',
+						},
+						'copilot': {
+							name: 'Copilot',
+							url: 'https://github.com/features/copilot',
+							picture: 'https://avatars.githubusercontent.com/in/1143301?s=64&amp;v=4',
+						},
+					}),
 				}),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
@@ -161,6 +187,7 @@ export default defineConfig({
 						{ label: 'Triage & Analysis', link: '/examples/issue-pr-events/triage-analysis/' },
 						{ label: 'Coding & Development', link: '/examples/issue-pr-events/coding-development/' },
 						{ label: 'Quality & Testing', link: '/examples/issue-pr-events/quality-testing/' },
+						{ label: "Peli's Agent Factory", link: '/blog/2026-01-12-welcome-to-pelis-agent-factory/' },
 					],
 				},
 				{
@@ -204,10 +231,6 @@ export default defineConfig({
 				{
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
-				},
-				{
-					label: 'Agent Factory',
-					link: '/agent-factory/',
 				},
 			],
 		}),

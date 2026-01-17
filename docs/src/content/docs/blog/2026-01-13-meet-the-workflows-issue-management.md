@@ -3,14 +3,14 @@ title: "Meet the Workflows: Issue & PR Management"
 description: "A curated tour of workflows that enhance GitHub collaboration"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T04:00:00
 sidebar:
   label: "Issue & PR Management"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-documentation/
-  label: "Documentation & Content Workflows"
+  label: "Meeth the Workflows: Continuous Documentation"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/
   label: "Fault Investigation Workflows"
@@ -57,4 +57,4 @@ Continue reading: [Fault Investigation Workflows →](/gh-aw/blog/2026-01-13-mee
 
 ---
 
-*This is part 4 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 7 of a 19-part series exploring the workflows in Peli's Agent Factory.*

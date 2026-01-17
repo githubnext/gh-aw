@@ -1676,7 +1676,7 @@ safe-outputs:
         filter: "is:issue is:open"  # optional filter query
       - name: "Task Tracker"
         layout: table
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
       - name: "Campaign Timeline"
         layout: roadmap
 

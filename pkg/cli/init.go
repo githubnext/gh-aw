@@ -134,6 +134,31 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign dispatcher agent"))
 		}
 
+		// Write campaign instruction files
+		initLog.Print("Writing campaign instruction files")
+		campaignEnsureFuncs := []struct {
+			fn   func(bool, bool) error
+			name string
+		}{
+			{ensureCampaignCreationInstructions, "campaign creation instructions"},
+			{ensureCampaignOrchestratorInstructions, "campaign orchestrator instructions"},
+			{ensureCampaignProjectUpdateInstructions, "campaign project update instructions"},
+			{ensureCampaignWorkflowExecution, "campaign workflow execution"},
+			{ensureCampaignClosingInstructions, "campaign closing instructions"},
+			{ensureCampaignProjectUpdateContractChecklist, "campaign project update contract checklist"},
+			{ensureCampaignGeneratorInstructions, "campaign generator instructions"},
+		}
+
+		for _, item := range campaignEnsureFuncs {
+			if err := item.fn(verbose, false); err != nil {
+				initLog.Printf("Failed to write %s: %v", item.name, err)
+				return fmt.Errorf("failed to write %s: %w", item.name, err)
+			}
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign instruction files"))
+		}
+
 		// Add campaign-generator workflow from gh-aw repository
 		initLog.Print("Adding campaign-generator workflow")
 		if err := addCampaignGeneratorWorkflow(verbose); err != nil {
@@ -219,6 +244,14 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Shell completion installation encountered an issue: %v", err)))
 		}
 		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// Generate/update maintenance workflow if any workflows use expires field
+	initLog.Print("Checking for workflows with expires field to generate maintenance workflow")
+	if err := ensureMaintenanceWorkflow(verbose); err != nil {
+		initLog.Printf("Failed to generate maintenance workflow: %v", err)
+		// Don't fail init if maintenance workflow generation has issues
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate maintenance workflow: %v", err)))
 	}
 
 	initLog.Print("Repository initialization completed successfully")
@@ -413,4 +446,65 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 	}
 
 	return b.String()
+}
+
+// ensureMaintenanceWorkflow checks existing workflows for expires field and generates/updates
+// the maintenance workflow file if any workflows use it
+func ensureMaintenanceWorkflow(verbose bool) error {
+	initLog.Print("Checking for workflows with expires field")
+
+	// Find git root
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	// Determine the workflows directory
+	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		// No workflows directory yet, skip maintenance workflow generation
+		initLog.Print("No workflows directory found, skipping maintenance workflow generation")
+		return nil
+	}
+
+	// Find all workflow markdown files
+	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	if err != nil {
+		return fmt.Errorf("failed to find workflow files: %w", err)
+	}
+
+	// Create a compiler to parse workflows
+	compiler := workflow.NewCompiler(false, "", GetVersion())
+
+	// Parse all workflows to collect WorkflowData
+	var workflowDataList []*workflow.WorkflowData
+	for _, file := range files {
+		// Skip campaign specs and generated files
+		if strings.HasSuffix(file, ".campaign.md") || strings.HasSuffix(file, ".campaign.g.md") {
+			continue
+		}
+
+		initLog.Printf("Parsing workflow: %s", file)
+		workflowData, err := compiler.ParseWorkflowFile(file)
+		if err != nil {
+			// Ignore parse errors - workflows might be incomplete during init
+			initLog.Printf("Skipping workflow %s due to parse error: %v", file, err)
+			continue
+		}
+
+		workflowDataList = append(workflowDataList, workflowData)
+	}
+
+	// Always call GenerateMaintenanceWorkflow even with empty list
+	// This allows it to delete existing maintenance workflow if no workflows have expires
+	initLog.Printf("Generating maintenance workflow for %d workflows", len(workflowDataList))
+	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, GetVersion(), compiler.GetActionMode(), verbose); err != nil {
+		return fmt.Errorf("failed to generate maintenance workflow: %w", err)
+	}
+
+	if verbose && len(workflowDataList) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Generated/updated maintenance workflow"))
+	}
+
+	return nil
 }

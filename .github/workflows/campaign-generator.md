@@ -24,19 +24,20 @@ safe-outputs:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
     title-prefix: "Campaign"
-  update-project:
-    max: 10
-    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    target-owner: "${{ github.repository_owner }}"
     views:
       - name: "Campaign Roadmap"
         layout: "roadmap"
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
       - name: "Task Tracker"
         layout: "table"
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
       - name: "Progress Board"
         layout: "board"
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
+  update-project:
+    max: 10
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*"
     run-started: "🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
@@ -46,7 +47,7 @@ timeout-minutes: 10
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
-{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}
+{{#runtime-import? .github/aw/campaign-creation-instructions.md}}
 
 # Campaign Generator
 
@@ -69,15 +70,14 @@ MCP tool calls write structured data that downstream jobs process. Without prope
 ## Your Task
 
 **Your Responsibilities:**
-1. Create GitHub Project board
+1. Create GitHub Project board with automatic view creation
 2. Create custom project fields (Worker/Workflow, Priority, Status, dates, Effort)
-3. Create recommended project views (Roadmap, Task Tracker, Progress Board)
-4. Parse campaign requirements from issue
-5. Discover matching workflows using the workflow catalog (local + agentics collection)
-6. Generate complete `.campaign.md` specification file
-7. Write the campaign file to the repository
-8. Update the issue with campaign details
-9. Assign to Copilot Coding Agent for compilation
+3. Parse campaign requirements from issue
+4. Discover matching workflows using the workflow catalog (local + agentics collection)
+5. Generate complete `.campaign.md` specification file
+6. Write the campaign file to the repository
+7. Update the issue with campaign details
+8. Assign to Copilot Coding Agent for compilation
 
 **Copilot Coding Agent Responsibilities:**
 1. Compile campaign using `gh aw compile` (requires CLI binary)
@@ -115,7 +115,7 @@ Extract requirements from the issue body #${{ github.event.issue.number }}:
 
 ### Step 2: Create GitHub Project Board
 
-Use the `create-project` safe output to create a new empty project:
+Use the `create-project` safe output to create a new project with automatic view creation:
 
 ```javascript
 create_project({
@@ -125,13 +125,15 @@ create_project({
 })
 ```
 
-**Save the project URL** from the response - you'll need it for Steps 2.5 and 4.
+**Save the project URL** from the response - you'll need it for Step 2.5 and Step 4.
 
-### Step 2.5: Create Project Fields and Views
+**Important:** If the project is created under an organization (org-owned), ensure it's linked to this repository. The `item_url` parameter passed to `create_project` should automatically link the project to the repository when the initial issue is added as a project item.
 
-After creating the project, set up custom fields using the `update-project` safe output.
+**Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created immediately after the project is created, as configured in the workflow's frontmatter. You don't need to create them manually.
 
-**Note:** The three default views (Campaign Roadmap, Task Tracker, Progress Board) are automatically created from the workflow's frontmatter configuration when the agent makes any `update_project` call. You don't need to create them manually.
+### Step 2.5: Create Project Fields
+
+After creating the project (with views already configured), set up custom fields using the `update-project` safe output.
 
 #### 2.5.1: Create Custom Fields
 
@@ -300,6 +302,8 @@ Use the `update-issue` safe output to update issue #${{ github.event.issue.numbe
 
 **Update the body** with campaign information and instructions for the Copilot Coding Agent:
 ```markdown
+📊 **Project Board:** [View Project](<project-url>)
+
 > **Original Request**
 >
 > <Quote the user's original campaign goal>
@@ -310,7 +314,6 @@ Use the `update-issue` safe output to update issue #${{ github.event.issue.numbe
 
 **Campaign ID:** `<campaign-id>`  
 **Campaign Name:** <Campaign Name>  
-**Project Board:** [View Project](<project-url>)  
 **Risk Level:** <Low/Medium/High>  
 **State:** Planned
 
@@ -350,21 +353,6 @@ Use `add-comment` to inform the user:
 
 ```markdown
 ✅ **Campaign Specification Created!**
-
-I've generated the campaign specification and configured the project board, then assigned the Copilot Coding Agent to compile it.
-
-📊 **Project Board:** [View Project](<project-url>)
-  - ✅ Custom fields: Worker/Workflow, Priority, Status, Start Date, End Date, Effort
-  - ✅ Campaign Roadmap view (timeline)
-  - ✅ Task Tracker view (table)
-  - ✅ Progress Board view (kanban)
-
-📁 **File Created:**
-- `.github/workflows/<campaign-id>.campaign.md`
-
-📝 **Next Steps:**
-1. Copilot Coding Agent will compile the campaign using `gh aw compile`
-2. The agent will create a pull request with compiled files
 ```
 
 ### Step 7: Assign to Copilot Coding Agent
