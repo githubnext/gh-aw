@@ -93,7 +93,10 @@ async function main() {
     /** @type {Record<string, string>} */
     const variables = {};
     for (const [key, value] of Object.entries(process.env)) {
-      if (key.startsWith("GH_AW_EXPR_")) {
+      // Include all GH_AW_ prefixed variables (not just GH_AW_EXPR_)
+      // This includes both simple expressions (GH_AW_GITHUB_EVENT_ISSUE_NUMBER)
+      // and complex expressions (GH_AW_EXPR_12345678)
+      if (key.startsWith("GH_AW_") && key !== "GH_AW_PROMPT") {
         variables[key] = value || "";
       }
     }
