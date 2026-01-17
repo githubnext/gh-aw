@@ -24,7 +24,7 @@ In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-sim
 
 ## Continuous Improvement Workflows
 
-These agents analyze higher-level concerns and long-term health:
+Today's agents analyze higher-level concerns and long-term health:
 
 - **[Go Fan](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer that analyzes direct dependencies  
 - **[Typist](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/typist.md?plain=1)** - Analyzes Go type usage patterns to improve type safety  

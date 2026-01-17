@@ -19,46 +19,52 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Build, test, and release gh-aw extension, then generate and prepend release highlights
+# Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries
 
-name: "Release"
+name: "Security Review Agent 🔒"
 "on":
-  push:
-    tags:
-    - v*.*.*
-  workflow_dispatch:
-    inputs:
-      draft:
-        default: true
-        description: Create as draft release
-        required: false
-        type: boolean
-      release_type:
-        description: Release type (patch, minor, or major)
-        options:
-        - patch
-        - minor
-        - major
-        required: true
-        type: choice
+  issue_comment:
+    types:
+    - created
+    - edited
+  pull_request_review_comment:
+    types:
+    - created
+    - edited
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
+  discussions: read
+  issues: read
+  pull-requests: read
+  security-events: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Release"
+run-name: "Security Review Agent 🔒"
 
 jobs:
   activation:
     needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    if: >
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/security-review')) &&
+      (github.event.issue.pull_request != null)) || (github.event_name == 'pull_request_review_comment') &&
+      (contains(github.event.comment.body, '/security-review')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     outputs:
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_repo: ${{ steps.react.outputs.comment-repo }}
+      comment_url: ${{ steps.react.outputs.comment-url }}
+      reaction_id: ${{ steps.react.outputs.reaction-id }}
+      slash_command: ${{ needs.pre_activation.outputs.matched_command }}
+      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -73,27 +79,48 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "release.lock.yml"
+          GH_AW_WORKFLOW_FILE: "security-review.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Compute current body text
+        id: compute-text
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
+            await main();
+      - name: Add eyes reaction to the triggering item
+        id: react
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_REACTION: "eyes"
+          GH_AW_COMMAND: security-review
+          GH_AW_WORKFLOW_NAME: "Security Review Agent 🔒"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/add_reaction_and_edit_comment.cjs');
+            await main();
 
   agent:
-    needs:
-      - activation
-      - config
-      - docker-image
-      - generate-sbom
-      - release
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
+      discussions: read
       issues: read
       pull-requests: read
+      security-events: read
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -125,13 +152,17 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ID: ${{ needs.release.outputs.release_id }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-        name: Setup environment and fetch release data
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\""
-
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
+      - name: Restore cache-memory file share data
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -157,7 +188,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
@@ -167,7 +198,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -176,8 +207,8 @@ jobs:
           copilot --version
       - name: Install awf binary
         run: |
-          echo "Installing awf via installer script (requested version: v0.10.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.10.0 bash
+          echo "Installing awf via installer script (requested version: v0.9.1)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.9.1 bash
           which awf
           awf --version
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -191,48 +222,95 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.60 node:lts-alpine
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if gh-aw extension is already installed
+          if gh extension list | grep -q "githubnext/gh-aw"; then
+            echo "gh-aw extension already installed, upgrading..."
+            gh extension upgrade gh-aw || true
+          else
+            echo "Installing gh-aw extension..."
+            gh extension install githubnext/gh-aw
+          fi
+          gh aw --version
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_release":{"max":1}}
+          {"add_comment":{"max":1},"create_pull_request_review_comment":{"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Update a GitHub release description by replacing, appending to, or prepending to the existing content. Use this to add release notes, changelogs, or additional information to an existing release. CONSTRAINTS: Maximum 1 release(s) can be updated.",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 1 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Release body content in Markdown. For 'replace', this becomes the entire release body. For 'append'/'prepend', this is added with a separator.",
+                    "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation.",
                     "type": "string"
                   },
-                  "operation": {
-                    "description": "How to update the release body: 'replace' (completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator).",
-                    "enum": [
-                      "replace",
-                      "append",
-                      "prepend"
-                    ],
-                    "type": "string"
-                  },
-                  "tag": {
-                    "description": "Release tag name (e.g., 'v1.0.0'). REQUIRED - must be provided explicitly as the tag cannot always be inferred from event context.",
-                    "type": "string"
+                  "item_number": {
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion).",
+                    "type": "number"
                   }
                 },
                 "required": [
-                  "tag",
-                  "operation",
                   "body"
                 ],
                 "type": "object"
               },
-              "name": "update_release"
+              "name": "add_comment"
+            },
+            {
+              "description": "Create a review comment on a specific line of code in a pull request. Use this for inline code review feedback, suggestions, or questions about specific code changes. For general PR comments not tied to specific lines, use add_comment instead. CONSTRAINTS: Maximum 10 review comment(s) can be created. Comments will be on the RIGHT side of the diff.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Review comment content in Markdown. Provide specific, actionable feedback about the code at this location.",
+                    "type": "string"
+                  },
+                  "line": {
+                    "description": "Line number for the comment. For single-line comments, this is the target line. For multi-line comments, this is the ending line.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "path": {
+                    "description": "File path relative to the repository root (e.g., 'src/auth/login.js'). Must be a file that was changed in the PR.",
+                    "type": "string"
+                  },
+                  "side": {
+                    "description": "Side of the diff to comment on: RIGHT for the new version (additions), LEFT for the old version (deletions). Defaults to RIGHT.",
+                    "enum": [
+                      "LEFT",
+                      "RIGHT"
+                    ],
+                    "type": "string"
+                  },
+                  "start_line": {
+                    "description": "Starting line number for multi-line comments. When set, the comment spans from start_line to line. Omit for single-line comments.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "line",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_pull_request_review_comment"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -307,6 +385,50 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
+            "add_comment": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "item_number": {
+                  "issueOrPRNumber": true
+                }
+              }
+            },
+            "create_pull_request_review_comment": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "line": {
+                  "required": true,
+                  "positiveInteger": true
+                },
+                "path": {
+                  "required": true,
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "LEFT",
+                    "RIGHT"
+                  ]
+                },
+                "start_line": {
+                  "optionalPositiveInteger": true
+                }
+              },
+              "customValidation": "startLineLessOrEqualLine"
+            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -339,31 +461,6 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "update_release": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "operation": {
-                  "required": true,
-                  "type": "string",
-                  "enum": [
-                    "replace",
-                    "append",
-                    "prepend"
-                  ]
-                },
-                "tag": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                }
-              }
             }
           }
           EOF
@@ -373,6 +470,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
@@ -387,12 +485,20 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.62'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.60'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "type": "stdio",
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "env": {
+                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                }
+              },
               "github": {
                 "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.28.1",
@@ -400,7 +506,7 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                  "GITHUB_TOOLSETS": "all"
                 }
               },
               "safeoutputs": {
@@ -444,8 +550,8 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.384",
-              workflow_name: "Release",
+              agent_version: "0.0.382",
+              workflow_name: "Security Review Agent 🔒",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -459,10 +565,10 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","node","githubnext.github.io"],
+              allowed_domains: [],
               firewall_enabled: true,
-              awf_version: "v0.10.0",
-              awmg_version: "v0.0.62",
+              awf_version: "v0.9.1",
+              awmg_version: "v0.0.60",
               steps: {
                 firewall: "squid"
               },
@@ -487,145 +593,225 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID: ${{ needs.release.outputs.release_id }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Release Highlights Generator
+          # Security Review Agent 🔒
           
-          Generate an engaging release highlights summary for **__GH_AW_GITHUB_REPOSITORY__** release `${RELEASE_TAG}`.
+          You are a security-focused AI agent specialized in reviewing pull requests for changes that could weaken the security posture or extend the security boundaries of the Agentic Workflow Firewall (AWF).
           
-          **Release ID**: __GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID__
+          ## Your Mission
           
-          ## Data Available
+          Carefully review pull request changes to identify any modifications that could:
+          1. **Weaken security posture** - Changes that reduce security controls or bypass protections
+          2. **Extend security boundaries** - Changes that expand what the AWF allows or permits
+          3. **Introduce security vulnerabilities** - New code that creates attack vectors
           
-          All data is pre-fetched in `/tmp/gh-aw/release-data/`:
-          - `current_release.json` - Release metadata (tag, name, dates, existing body)
-          - `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}` (empty array if first release)
-          - `CHANGELOG.md` - Full changelog for context (if exists)
-          - `docs_files.txt` - Available documentation files for linking
+          ## Context
           
-          ## Output Requirements
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Pull Request**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          - **Comment**: "__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__"
           
-          Create a **"🌟 Release Highlights"** section that:
-          - Is concise and scannable (users grasp key changes in 30 seconds)
-          - Uses professional, enthusiastic tone (not overly casual)
-          - Categorizes changes logically (features, fixes, docs, breaking changes)
-          - Links to relevant documentation where helpful
-          - Focuses on user impact (why changes matter, not just what changed)
+          ## Security Review Areas
           
-          ## Workflow
+          ### 1. AWF (Agent Workflow Firewall) Changes
           
-          ### 1. Load Data
+          The AWF controls network access, sandboxing, and command execution. Look for:
           
-          ```bash
-          # View release metadata
-          cat /tmp/gh-aw/release-data/current_release.json | jq
+          **Network Configuration (`network:` field)**
+          - Adding new domains to `allowed:` lists
+          - Removing domains from `blocked:` lists
+          - Wildcards (`*`) in domain patterns (especially dangerous)
+          - Ecosystem identifiers being added (e.g., `node`, `python`)
+          - Changes to `firewall:` settings
+          - `network: defaults` being expanded or modified
           
-          # List PRs (empty if first release)
-          cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
+          **Sandbox Configuration (`sandbox:` field)**
+          - Changes to `sandbox.agent` settings (awf, srt, false)
+          - New mounts being added to AWF configuration
+          - Modification of sandbox runtime settings
+          - Disabling agent sandboxing (`agent: false`)
           
-          # Check CHANGELOG context
-          head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG"
+          **Permission Escalation (`permissions:` field)**
+          - Changes from `read` to `write` permissions
+          - Addition of sensitive permissions (`contents: write`, `security-events: write`)
+          - Removal of permission restrictions
           
-          # View available docs
-          cat /tmp/gh-aw/release-data/docs_files.txt
+          ### 2. Tool and MCP Server Changes
+          
+          **Tool Configuration (`tools:` field)**
+          - New tools being added
+          - Changes to tool restrictions (e.g., bash patterns)
+          - GitHub toolsets being expanded
+          - `allowed:` lists being modified for tools
+          
+          **MCP Servers (`mcp-servers:` field)**
+          - New MCP servers being added
+          - Changes to `allowed:` function lists
+          - Server arguments or commands being modified
+          - Environment variables exposing secrets
+          
+          ### 3. Safe Outputs and Inputs
+          
+          **Safe Outputs (`safe-outputs:` field)**
+          - `max:` limits being increased significantly
+          - New safe output types being added
+          - Target repositories being expanded (`target-repo:`)
+          - Label or permission restrictions being removed
+          
+          **Safe Inputs (`safe-inputs:` field)**
+          - New scripts being added with secret access
+          - Environment variables exposing sensitive data
+          - External command execution in scripts
+          
+          ### 4. Workflow Trigger Security
+          
+          **Trigger Configuration (`on:` field)**
+          - `forks: ["*"]` allowing all forks
+          - `roles:` being expanded to less privileged users
+          - `bots:` allowing new automated triggers
+          - Removal of event type restrictions
+          
+          **Strict Mode (`strict:` field)**
+          - `strict: false` being set (disabling security validation)
+          - Removal of strict mode entirely
+          
+          ### 5. Code and Configuration Changes
+          
+          **Go Code (pkg/workflow/, pkg/parser/)**
+          - Changes to validation logic
+          - Modifications to domain filtering
+          - Changes to permission checking
+          - Bypass patterns in security checks
+          
+          **Schema Changes (pkg/parser/schemas/)**
+          - New fields that could bypass validation
+          - Pattern relaxation in JSON schemas
+          - Type changes that could allow unexpected values
+          
+          **JavaScript Files (actions/setup/js/)**
+          - Command injection vulnerabilities
+          - Insecure secret handling
+          - Unsafe string interpolation
+          
+          ## Review Process
+          
+          ### Step 1: Fetch Pull Request Details
+          
+          Use the GitHub tools to get the PR information:
+          - Get the PR with number `__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__`
+          - Get the list of files changed in the PR
+          - Review the diff for each changed file
+          
+          ### Step 2: Categorize Changed Files
+          
+          Group files by security relevance:
+          - **High Risk**: Workflow `.md` files, firewall code, validation code, schemas
+          - **Medium Risk**: Tool configurations, MCP server code, safe output handlers
+          - **Low Risk**: Documentation, tests (but watch for security test changes)
+          
+          ### Step 3: Analyze Security Impact
+          
+          For each change, assess:
+          1. **What boundary is being modified?** (network, filesystem, permissions)
+          2. **Is the change expanding or restricting access?**
+          3. **What is the potential attack vector if exploited?**
+          4. **Are there compensating controls?**
+          
+          ### Step 4: Create Review Comments
+          
+          For each security concern found:
+          
+          1. Use `create-pull-request-review-comment` for line-specific issues
+          2. Categorize the severity:
+             - 🔴 **CRITICAL**: Direct security bypass or vulnerability
+             - 🟠 **HIGH**: Significant boundary extension or weakening
+             - 🟡 **MEDIUM**: Potential security concern requiring justification
+             - 🔵 **LOW**: Minor security consideration
+          
+          3. Include in each comment:
+             - Clear description of the security concern
+             - The specific boundary being affected
+             - Potential attack vector or risk
+             - Recommended mitigation or alternative
+          
+          ### Step 5: Summary Comment
+          
+          Create a summary comment with:
+          - Total number of security concerns by severity
+          - Overview of boundaries affected
+          - Recommendations for the PR author
+          - Whether the changes require additional security review
+          
+          ## Example Review Comments
+          
+          **Network Boundary Extension:**
+          ```
+          🟠 **HIGH**: This change adds `*.example.com` to the allowed domains list.
+          
+          **Boundary affected**: Network egress
+          **Risk**: Wildcard domains allow access to any subdomain, which could include malicious subdomains controlled by attackers.
+          
+          **Recommendation**: Use specific subdomain patterns (e.g., `api.example.com`) instead of wildcards.
           ```
           
-          ### 2. Categorize & Prioritize
+          **Permission Escalation:**
+          ```
+          🔴 **CRITICAL**: This change adds `contents: write` permission to the workflow.
           
-          Group PRs by category (omit categories with no items):
-          - **✨ New Features** - User-facing capabilities
-          - **🐛 Bug Fixes** - Issue resolutions
-          - **⚡ Performance** - Speed/efficiency improvements
-          - **📚 Documentation** - Guide/reference updates
-          - **⚠️ Breaking Changes** - Requires user action (ALWAYS list first if present)
-          - **🔧 Internal** - Refactoring, dependencies (usually omit from highlights)
+          **Boundary affected**: Repository write access
+          **Risk**: Agents with write access can modify repository contents, potentially injecting malicious code.
           
-          ### 3. Write Highlights
-          
-          Structure:
-          ```markdown
-          ## 🌟 Release Highlights
-          
-          [1-2 sentence summary of the release theme/focus]
-          
-          ### ⚠️ Breaking Changes
-          [If any - list FIRST with migration guidance]
-          
-          ### ✨ What's New
-          [Top 3-5 features with user benefit, link docs when relevant]
-          
-          ### 🐛 Bug Fixes & Improvements
-          [Notable fixes - focus on user impact]
-          
-          ### 📚 Documentation
-          [Only if significant doc additions/improvements]
-          
-          ---
-          For complete details, see [CHANGELOG](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
+          **Recommendation**: Use `safe-outputs.create-pull-request` instead of direct write permissions.
           ```
           
-          **Writing Guidelines:**
-          - Lead with benefits: "GitHub MCP now supports remote mode" not "Added remote mode"
-          - Be specific: "Reduced compilation time by 40%" not "Faster compilation"
-          - Skip internal changes unless they have user impact
-          - Use docs links: `[Learn more](https://githubnext.github.io/gh-aw/path/)`
-          - Keep breaking changes prominent with action items
+          **Sandbox Bypass:**
+          ```
+          🔴 **CRITICAL**: This change sets `sandbox.agent: false`, disabling the AWF.
           
-          ### 4. Handle Special Cases
+          **Boundary affected**: Agent sandboxing
+          **Risk**: Without sandboxing, the agent has unrestricted network and filesystem access.
           
-          **First Release** (no `${PREV_RELEASE_TAG}`):
-          ```markdown
-          ## 🎉 First Release
-          
-          Welcome to the inaugural release! This version includes [core capabilities].
-          
-          ### Key Features
-          [List primary features with brief descriptions]
+          **Recommendation**: Keep sandboxing enabled. If specific functionality is needed, configure allowed domains explicitly.
           ```
           
-          **Maintenance Release** (no user-facing changes):
-          ```markdown
-          ## 🔧 Maintenance Release
+          ## Output Guidelines
           
-          Dependency updates and internal improvements to keep things running smoothly.
-          ```
+          - **Be thorough**: Check all security-relevant changes
+          - **Be specific**: Reference exact file paths and line numbers
+          - **Be actionable**: Provide clear recommendations
+          - **Be proportionate**: Match severity to actual risk
+          - **Be constructive**: Help the author understand and fix issues
           
-          ## Output Format
+          ## Memory Usage
           
-          **CRITICAL**: You MUST call the `update_release` tool to update the release with the generated highlights:
+          Use cache memory at `/tmp/gh-aw/cache-memory/` to:
+          - Track patterns across reviews (`/tmp/gh-aw/cache-memory/security-patterns.json`)
+          - Remember previous reviews of this PR (`/tmp/gh-aw/cache-memory/pr-__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__.json`)
+          - Build context about the repository's security posture
           
-          ```javascript
-          update_release({
-            tag: "${RELEASE_TAG}",
-            operation: "prepend",
-            body: "## 🌟 Release Highlights\n\n[Your complete markdown highlights here]"
-          })
-          ```
+          ## Important Notes
           
-          **Required Parameters:**
-          - `tag` - Release tag from `${RELEASE_TAG}` environment variable (e.g., "v0.30.2")
-          - `operation` - Must be `"prepend"` to add before existing notes
-          - `body` - Complete markdown content (include all formatting, emojis, links)
+          - Focus on security-relevant changes, not general code quality
+          - Changes to security tests should be scrutinized (may be removing important checks)
+          - When in doubt about severity, err on the side of caution
+          - Always explain the "why" behind security concerns
+          - Acknowledge when security improvements are made (not just concerns)
           
-          **WARNING**: If you don't call the `update_release` tool, the release notes will NOT be updated!
-          
-          **Documentation Base URLs:**
-          - User docs: `https://githubnext.github.io/gh-aw/`
-          - Reference: `https://githubnext.github.io/gh-aw/reference/`
-          - Setup: `https://githubnext.github.io/gh-aw/setup/`
-          
-          Verify paths exist in `docs_files.txt` before linking.
+          Begin your security review. 🔒
           
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID: ${{ needs.release.outputs.release_id }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
@@ -634,11 +820,61 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID: process.env.GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID
+                GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT
               }
             });
-      - name: Append context instructions to prompt
+      - name: Append temporary folder instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+      - name: Append cache-memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append safe outputs instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <safe-outputs>
+          <description>GitHub API Access Instructions</description>
+          <important>
+          The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
+          </important>
+          <instructions>
+          To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
+          
+          **Available tools**: add_comment, create_pull_request_review_comment, missing_tool, noop
+          
+          **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
+          </instructions>
+          </safe-outputs>
+          PROMPT_EOF
+      - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -650,21 +886,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          <safe-outputs>
-          <description>GitHub API Access Instructions</description>
-          <important>
-          The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
-          </important>
-          <instructions>
-          To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
-          
-          **Available tools**: missing_tool, noop, update_release
-          
-          **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
-          </instructions>
-          </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -694,12 +916,50 @@ jobs:
           </github-context>
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+              }
+            });
+      - name: Append PR context instructions to prompt
+        if: |
+          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat "/opt/gh-aw/prompts/pr_context_prompt.md" >> "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID: ${{ needs.release.outputs.release_id }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -713,11 +973,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 20
+        timeout-minutes: 15
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,githubnext.github.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.9.1 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -754,9 +1014,8 @@ jobs:
         env:
           MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
-          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
-          bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -784,9 +1043,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,githubnext.github.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
+          GH_AW_COMMAND: security-review
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -838,6 +1098,12 @@ jobs:
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
           awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -858,6 +1124,7 @@ jobs:
       - agent
       - detection
       - safe_outputs
+      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -908,7 +1175,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_NAME: "Security Review Agent 🔒"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -921,7 +1188,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_NAME: "Security Review Agent 🔒"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -934,9 +1201,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_NAME: "Security Review Agent 🔒"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -952,9 +1220,10 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_NAME: "Security Review Agent 🔒"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -962,68 +1231,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
-
-  config:
-    needs: activation
-    runs-on: ubuntu-latest
-    outputs:
-      draft_mode: ${{ steps.compute_config.outputs.draft_mode }}
-      release_tag: ${{ steps.compute_config.outputs.release_tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Compute release configuration
-        id: compute_config
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # For workflow_dispatch, compute next version based on release type
-            RELEASE_TYPE="${{ inputs.release_type }}"
-            DRAFT_MODE="${{ inputs.draft }}"
-
-            echo "Computing next version for release type: $RELEASE_TYPE"
-
-            # Get the latest release tag
-            LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"')
-            echo "Latest release tag: $LATEST_TAG"
-
-            # Parse version components (strip 'v' prefix)
-            VERSION="${LATEST_TAG#v}"
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-
-            # Increment based on release type
-            case "$RELEASE_TYPE" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
-            esac
-
-            RELEASE_TAG="v${MAJOR}.${MINOR}.${PATCH}"
-            echo "Computed release tag: $RELEASE_TAG"
-          else
-            # For tag push events, use the tag from GITHUB_REF
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-            DRAFT_MODE="false"
-            echo "Using tag from push event: $RELEASE_TAG"
-          fi
-
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "draft_mode=$DRAFT_MODE" >> "$GITHUB_OUTPUT"
-          echo "✓ Release tag: $RELEASE_TAG"
-          echo "✓ Draft mode: $DRAFT_MODE"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   detection:
     needs: agent
@@ -1064,8 +1271,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Release"
-          WORKFLOW_DESCRIPTION: "Build, test, and release gh-aw extension, then generate and prepend release highlights"
+          WORKFLOW_NAME: "Security Review Agent 🔒"
+          WORKFLOW_DESCRIPTION: "Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1120,7 +1327,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate COPILOT_GITHUB_TOKEN secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
@@ -1130,7 +1337,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.382 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1183,133 +1390,17 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  docker-image:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750ceccfa2109d028e60fbdcf2e87b3ce84a2 # 8d2750ceccfa2109d028e60fbdcf2e87b3ce84a2
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@5e57cd11039ae84fdace9dfebfd0ed0a3282deb0 # 5e57cd11039ae84fdace9dfebfd0ed0a3282deb0
-        with:
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: ghcr.io
-          username: ${{ github.actor }}
-      - name: Download release artifacts
-        run: |
-          echo "Downloading release binaries..."
-          mkdir -p dist
-          gh release download "$RELEASE_TAG" --pattern "linux-*" --dir dist
-          ls -lh dist/
-          echo "✓ Release binaries downloaded"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@c299e40ca79d9ee606ef6f4365af95e9a7ca7f9f # c299e40ca79d9ee606ef6f4365af95e9a7ca7f9f
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,format=long
-            type=raw,value=latest,enable={{is_default_branch}}
-      - name: Build and push Docker image (amd64)
-        id: build
-        uses: docker/build-push-action@8c6338f942d2d9576ac98c87becb29da981ca7e8 # 8c6338f942d2d9576ac98c87becb29da981ca7e8
-        with:
-          build-args: |
-            BINARY=dist/linux-amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          context: .
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-      - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # fbfd9c6c0a5723f5b15376258af3142b3d6a83bb
-        with:
-          artifact-name: docker-sbom.spdx.json
-          format: spdx-json
-          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
-          output-file: docker-sbom.spdx.json
-      - name: Attest Docker image
-        uses: actions/attest-build-provenance@e8998f985e7ebc42bf28d5f01b12f7a9a44b30bb # e8998f985e7ebc42bf28d5f01b12f7a9a44b30bb
-        with:
-          push-to-registry: true
-          subject-digest: ${{ steps.build.outputs.digest }}
-          subject-name: ghcr.io/${{ github.repository }}
-
-  generate-sbom:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - name: Setup Go
-        uses: actions/setup-go@4469467cea6daeb81c49688e3f738b3ea61cc4e1 # 4469467cea6daeb81c49688e3f738b3ea61cc4e1
-        with:
-          cache: false
-          go-version-file: go.mod
-      - name: Download Go modules
-        run: go mod download
-      - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # fbfd9c6c0a5723f5b15376258af3142b3d6a83bb
-        with:
-          artifact-name: sbom.spdx.json
-          format: spdx-json
-          output-file: sbom.spdx.json
-      - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # fbfd9c6c0a5723f5b15376258af3142b3d6a83bb
-        with:
-          artifact-name: sbom.cdx.json
-          format: cyclonedx-json
-          output-file: sbom.cdx.json
-      - name: Audit SBOM files for secrets
-        run: |
-          echo "Auditing SBOM files for potential secrets..."
-          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
-            echo "Error: Potential secrets found in SBOM files"
-            exit 1
-          fi
-          echo "✓ No secrets detected in SBOM files"
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a0745ede1831f8ca951aaab692e8d836c2 # b7c566a0745ede1831f8ca951aaab692e8d836c2
-        with:
-          name: sbom-artifacts
-          path: |
-            sbom.spdx.json
-            sbom.cdx.json
-          retention-days: 7
-      - name: Attach SBOM to release
-        run: |
-          echo "Attaching SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
-          echo "✓ SBOM files attached to release"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-
   pre_activation:
+    if: >
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/security-review')) &&
+      (github.event.issue.pull_request != null)) || (github.event_name == 'pull_request_review_comment') &&
+      (contains(github.event.comment.body, '/security-review'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
+      matched_command: ${{ steps.check_command_position.outputs.matched_command }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1321,11 +1412,11 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
-      - name: Check team membership for workflow
+      - name: Check team membership for command workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -1333,77 +1424,17 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
-
-  release:
-    needs:
-      - activation
-      - config
-    runs-on: ubuntu-latest
-    permissions:
-      attestations: write
-      contents: write
-      id-token: write
-      packages: write
-
-    outputs:
-      release_id: ${{ steps.get_release.outputs.release_id }}
-      release_tag: ${{ steps.get_release.outputs.release_tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - name: Check command position
+        id: check_command_position
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_COMMANDS: "[\"security-review\"]"
         with:
-          fetch-depth: 0
-          persist-credentials: true
-      - name: Create or update tag for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          echo "Creating tag: $RELEASE_TAG"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$RELEASE_TAG"
-          git push origin "$RELEASE_TAG"
-          echo "✓ Tag created: $RELEASE_TAG"
-        env:
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
-        with:
-          build_script_override: scripts/build-release.sh
-          go_version_file: go.mod
-      - name: Set release to draft mode
-        if: needs.config.outputs.draft_mode == 'true'
-        run: |
-          echo "Setting release to draft mode: $RELEASE_TAG"
-          # Edit the release to set it as draft
-          gh release edit "$RELEASE_TAG" --draft
-          echo "✓ Release set to draft mode"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      - name: Upload checksums file
-        run: |
-          if [ -f "dist/checksums.txt" ]; then
-            echo "Uploading checksums file to release: $RELEASE_TAG"
-            gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
-            echo "✓ Checksums file uploaded to release"
-          else
-            echo "Warning: checksums.txt not found in dist/"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      - name: Get release ID
-        id: get_release
-        run: |
-          echo "Getting release ID for tag: $RELEASE_TAG"
-          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "✓ Release ID: $RELEASE_ID"
-          echo "✓ Release Tag: $RELEASE_TAG"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_command_position.cjs');
+            await main();
 
   safe_outputs:
     needs:
@@ -1412,12 +1443,16 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "release"
-      GH_AW_WORKFLOW_NAME: "Release"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
+      GH_AW_WORKFLOW_ID: "security-review"
+      GH_AW_WORKFLOW_NAME: "Security Review Agent 🔒"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1448,7 +1483,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"missing_data\":{},\"missing_tool\":{},\"update_release\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request_review_comment\":{\"max\":10,\"side\":\"RIGHT\"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1456,4 +1491,35 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
+
+  update_cache_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Download cache-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache-memory to cache (default)
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
 

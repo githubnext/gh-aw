@@ -267,7 +267,7 @@ All action scripts are copied from `actions/setup/js/*.cjs` and `actions/setup/s
 | `DefaultClaudeCodeVersion` | `Version` | `"2.0.76"` | Claude Code CLI version |
 | `DefaultCodexVersion` | `Version` | `"0.78.0"` | OpenAI Codex CLI version |
 | `DefaultGitHubMCPServerVersion` | `Version` | `"v0.27.0"` | GitHub MCP server Docker image |
-| `DefaultFirewallVersion` | `Version` | `"v0.8.2"` | gh-aw-firewall (AWF) binary |
+| `DefaultFirewallVersion` | `Version` | `"v0.10.0"` | gh-aw-firewall (AWF) binary |
 | `DefaultPlaywrightMCPVersion` | `Version` | `"0.0.54"` | @playwright/mcp package |
 | `DefaultPlaywrightBrowserVersion` | `Version` | `"v1.57.0"` | Playwright browser Docker image |
 | `DefaultMCPSDKVersion` | `Version` | `"1.24.0"` | @modelcontextprotocol/sdk package |

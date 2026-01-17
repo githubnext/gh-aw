@@ -102,7 +102,7 @@ Want to start with automated agentic workflows on GitHub? See our [Quick Start](
 
 ## Learn More
 
-- **[Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)** - The 16-part tour of the workflows
+- **[Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)** - The 19-part tour of the workflows
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows
 - **[Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/)** - How to write and compile workflows
 
