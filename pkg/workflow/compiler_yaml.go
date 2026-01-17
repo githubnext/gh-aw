@@ -200,83 +200,17 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	}
 
 	// Split content into manageable chunks
-	chunks := splitContentIntoChunks(cleanedMarkdownContent)
-	compilerYamlLog.Printf("Split prompt into %d chunks", len(chunks))
+	userPromptChunks := splitContentIntoChunks(cleanedMarkdownContent)
+	compilerYamlLog.Printf("Split user prompt into %d chunks", len(userPromptChunks))
 
-	// Create the initial prompt file step
-	yaml.WriteString("      - name: Create prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	if data.SafeOutputs != nil {
-		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
-	}
-	// Add environment variables for extracted expressions
-	// These are used by sed to safely substitute placeholders in the heredoc
-	for _, mapping := range expressionMappings {
-		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
-	}
+	// Collect built-in prompt sections (these should be prepended to user prompt)
+	builtinSections := c.collectPromptSections(data)
+	compilerYamlLog.Printf("Collected %d built-in prompt sections", len(builtinSections))
 
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          bash /opt/gh-aw/actions/create_prompt_first.sh\n")
-
-	if len(chunks) > 0 {
-		// Write template with placeholders directly to target file
-		yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
-		// Pre-allocate buffer to avoid repeated allocations
-		lines := strings.Split(chunks[0], "\n")
-		for _, line := range lines {
-			yaml.WriteString("          ")
-			yaml.WriteString(line)
-			yaml.WriteByte('\n')
-		}
-		yaml.WriteString("          PROMPT_EOF\n")
-	} else {
-		yaml.WriteString("          touch \"$GH_AW_PROMPT\"\n")
-	}
-
-	// Generate JavaScript-based placeholder substitution step (replaces multiple sed calls)
-	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
-
-	// Create additional steps for remaining chunks
-	for i, chunk := range chunks[1:] {
-		stepNum := i + 2
-		fmt.Fprintf(yaml, "      - name: Append prompt (part %d)\n", stepNum)
-		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-		// Add environment variables for extracted expressions
-		for _, mapping := range expressionMappings {
-			fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
-		}
-		yaml.WriteString("        run: |\n")
-		// Write template with placeholders directly to target file (append mode)
-		yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
-		// Avoid string concatenation in loop - write components separately
-		lines := strings.Split(chunk, "\n")
-		for _, line := range lines {
-			yaml.WriteString("          ")
-			yaml.WriteString(line)
-			yaml.WriteByte('\n')
-		}
-		yaml.WriteString("          PROMPT_EOF\n")
-	}
-
-	// Generate JavaScript-based placeholder substitution step after all chunks are written
-	// (This is done once for all chunks to avoid multiple sed calls)
-	if len(chunks) > 1 {
-		generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
-	}
-
-	// Add all context instructions in a single unified step
-	// This consolidates what used to be separate steps for:
-	// - Temporary folder instructions
-	// - Playwright instructions
-	// - Trial mode note
-	// - Cache memory instructions
-	// - Repo memory instructions
-	// - Safe outputs instructions
-	// - GitHub context
-	// - PR context instructions
-	c.generateUnifiedPromptStep(yaml, data)
+	// Generate a single unified prompt creation step that includes:
+	// 1. Built-in context instructions (prepended)
+	// 2. User prompt content (appended after built-in)
+	c.generateUnifiedPromptCreationStep(yaml, builtinSections, userPromptChunks, expressionMappings, data)
 
 	// Add combined interpolation and template rendering step
 	c.generateInterpolationAndTemplateStep(yaml, expressionMappings, data)

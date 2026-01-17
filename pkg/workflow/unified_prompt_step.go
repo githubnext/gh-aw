@@ -338,3 +338,175 @@ To create or modify GitHub resources (issues, discussions, pull requests, etc.),
 
 	return sections
 }
+
+// generateUnifiedPromptCreationStep generates a single workflow step (or multiple if needed) that creates
+// the complete prompt file with built-in context instructions prepended to the user prompt content.
+//
+// This consolidates the prompt creation process:
+// 1. Built-in context instructions (temp folder, playwright, safe outputs, etc.) - PREPENDED
+// 2. User prompt content from markdown - APPENDED
+//
+// The function handles chunking for large content and ensures proper environment variable handling.
+func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, builtinSections []PromptSection, userPromptChunks []string, expressionMappings []*ExpressionMapping, data *WorkflowData) {
+	unifiedPromptLog.Print("Generating unified prompt creation step")
+	unifiedPromptLog.Printf("Built-in sections: %d, User prompt chunks: %d", len(builtinSections), len(userPromptChunks))
+
+	// Collect all environment variables from built-in sections and user prompt expressions
+	allEnvVars := make(map[string]string)
+	
+	// Add environment variables from built-in sections
+	for _, section := range builtinSections {
+		for key, value := range section.EnvVars {
+			allEnvVars[key] = value
+		}
+	}
+	
+	// Add environment variables from user prompt expressions
+	for _, mapping := range expressionMappings {
+		allEnvVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
+	}
+
+	// Generate the step with all environment variables
+	yaml.WriteString("      - name: Create prompt with built-in context\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	
+	if data.SafeOutputs != nil {
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+	}
+	
+	// Add all environment variables in sorted order for consistency
+	var envKeys []string
+	for key := range allEnvVars {
+		envKeys = append(envKeys, key)
+	}
+	sort.Strings(envKeys)
+	for _, key := range envKeys {
+		fmt.Fprintf(yaml, "          %s: %s\n", key, allEnvVars[key])
+	}
+
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          bash /opt/gh-aw/actions/create_prompt_first.sh\n")
+
+	// Track if we're inside a heredoc and whether we're writing the first content
+	inHeredoc := false
+	isFirstContent := true
+
+	// 1. Write built-in sections first (prepended)
+	for i, section := range builtinSections {
+		unifiedPromptLog.Printf("Writing built-in section %d/%d: hasCondition=%v, isFile=%v",
+			i+1, len(builtinSections), section.ShellCondition != "", section.IsFile)
+
+		if section.ShellCondition != "" {
+			// Close heredoc if open, add conditional
+			if inHeredoc {
+				yaml.WriteString("          PROMPT_EOF\n")
+				inHeredoc = false
+			}
+			fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
+
+			if section.IsFile {
+				// File reference inside conditional
+				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
+				if isFirstContent {
+					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
+					isFirstContent = false
+				} else {
+					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+				}
+			} else {
+				// Inline content inside conditional - open heredoc, write content, close
+				if isFirstContent {
+					yaml.WriteString("            cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+					isFirstContent = false
+				} else {
+					yaml.WriteString("            cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+				}
+				normalizedContent := normalizeLeadingWhitespace(section.Content)
+				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
+				contentLines := strings.Split(cleanedContent, "\n")
+				for _, line := range contentLines {
+					yaml.WriteString("            " + line + "\n")
+				}
+				yaml.WriteString("            PROMPT_EOF\n")
+			}
+
+			yaml.WriteString("          fi\n")
+		} else {
+			// Unconditional section
+			if section.IsFile {
+				// Close heredoc if open
+				if inHeredoc {
+					yaml.WriteString("          PROMPT_EOF\n")
+					inHeredoc = false
+				}
+				// Cat the file
+				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
+				if isFirstContent {
+					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
+					isFirstContent = false
+				} else {
+					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+				}
+			} else {
+				// Inline content - open heredoc if not already open
+				if !inHeredoc {
+					if isFirstContent {
+						yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+						isFirstContent = false
+					} else {
+						yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+					}
+					inHeredoc = true
+				}
+				// Write content directly to open heredoc
+				normalizedContent := normalizeLeadingWhitespace(section.Content)
+				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
+				contentLines := strings.Split(cleanedContent, "\n")
+				for _, line := range contentLines {
+					yaml.WriteString("          " + line + "\n")
+				}
+			}
+		}
+	}
+
+	// 2. Write user prompt chunks (appended after built-in sections)
+	for chunkIdx, chunk := range userPromptChunks {
+		unifiedPromptLog.Printf("Writing user prompt chunk %d/%d", chunkIdx+1, len(userPromptChunks))
+		
+		// Close heredoc if open before starting new chunk
+		if inHeredoc {
+			yaml.WriteString("          PROMPT_EOF\n")
+			inHeredoc = false
+		}
+
+		// Each user prompt chunk is written as a separate heredoc append
+		if isFirstContent {
+			yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+			isFirstContent = false
+		} else {
+			yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+		}
+		
+		lines := strings.Split(chunk, "\n")
+		for _, line := range lines {
+			yaml.WriteString("          ")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+		yaml.WriteString("          PROMPT_EOF\n")
+	}
+
+	// Close heredoc if still open
+	if inHeredoc {
+		yaml.WriteString("          PROMPT_EOF\n")
+	}
+
+	// Generate JavaScript-based placeholder substitution step (replaces multiple sed calls)
+	// This handles both built-in section expressions and user prompt expressions
+	if len(allEnvVars) > 0 {
+		generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
+	}
+
+	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
+}
