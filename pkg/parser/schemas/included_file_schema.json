@@ -667,6 +667,26 @@
           ],
           "examples": [true, null]
         },
+        "grep": {
+          "description": "DEPRECATED: grep is always available as part of default bash tools. This field is no longer needed and will be ignored.",
+          "deprecated": true,
+          "x-deprecation-message": "grep is always available as part of default bash tools (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date, yq). Remove this field and use bash tool instead.",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Deprecated grep tool configuration"
+            },
+            {
+              "type": "boolean",
+              "description": "Deprecated grep tool configuration"
+            },
+            {
+              "type": "object",
+              "description": "Deprecated grep tool configuration object",
+              "additionalProperties": true
+            }
+          ]
+        },
         "edit": {
           "description": "File editing tool for reading, creating, and modifying files in the repository",
           "oneOf": [
