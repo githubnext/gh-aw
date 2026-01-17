@@ -22,7 +22,7 @@ Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-a
 
 In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/), we've explored how autonomous cleanup agents work continuously in the background, simplifying code and improving structure. Today's post is dedicated to one agent, and the larger admirable concept it represents: continuously making things *beautiful*.
 
-## Continuous Style Workflow
+## A Continuous Style Workflow
 
 Today's post is dedicated to one agent, and the larger concept it represents: the **[Terminal Stylist](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/terminal-stylist.md?plain=1)** workflow. This agent's purpose is to **make things look better**, by reviewing and enhancing the style of command-line interface (CLI) output.
 
