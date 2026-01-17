@@ -8,6 +8,8 @@ const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTempora
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
+const fs = require("fs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -116,9 +118,11 @@ async function getSubIssueCount(owner, repo, issueNumber) {
  * @param {string[]} params.labels - Labels to apply to parent issue
  * @param {string} params.workflowName - Workflow name
  * @param {string} params.runUrl - Run URL
+ * @param {string} params.workflowSource - Source path of the workflow
+ * @param {string} params.workflowSourceURL - URL to the workflow source
  * @returns {Promise<number|null>} - Parent issue number or null if creation failed
  */
-async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, runUrl }) {
+async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, runUrl, workflowSource, workflowSourceURL }) {
   const markerComment = `<!-- gh-aw-group: ${groupId} -->`;
 
   // Search for existing parent issue with the group marker
@@ -131,7 +135,7 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
   // No suitable parent issue found, create a new one
   core.info(`Creating new parent issue for group: ${groupId}`);
   try {
-    const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl);
+    const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl, workflowSource, workflowSourceURL);
     const { data: parentIssue } = await github.rest.issues.create({
       owner,
       repo,
@@ -154,25 +158,29 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
  * @param {string} titlePrefix - Title prefix to use
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
+ * @param {string} workflowSource - Source path of the workflow
+ * @param {string} workflowSourceURL - URL to the workflow source
  * @returns {object} - Template with title and body
  */
-function createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl) {
+function createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl, workflowSource, workflowSourceURL) {
   const title = `${titlePrefix}${groupId} - Issue Group`;
-  const body = `# ${groupId}
 
-This is a parent issue for grouping related issues created by the workflow.
+  // Load issue template
+  const issueTemplatePath = "/opt/gh-aw/prompts/issue_group_parent.md";
+  const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
-<!-- gh-aw-group: ${groupId} -->
+  // Create template context
+  const templateContext = {
+    group_id: groupId,
+    workflow_name: workflowName,
+    workflow_source_url: workflowSourceURL || "#",
+    run_url: runUrl,
+    workflow_source: workflowSource,
+  };
 
-## Workflow Information
+  // Render the issue template
+  const body = renderTemplate(issueTemplate, templateContext);
 
-- **Workflow**: ${workflowName}
-- **Run**: ${runUrl}
-
-## Sub-Issues
-
-Sub-issues will be automatically linked to this parent issue.
-`;
   return { title, body };
 }
 
@@ -460,6 +468,8 @@ async function main(config = {}) {
             labels,
             workflowName,
             runUrl,
+            workflowSource,
+            workflowSourceURL,
           });
 
           if (groupParentNumber) {

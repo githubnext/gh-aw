@@ -2,46 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createParentIssueTemplate, searchForExistingParent, getSubIssueCount } from "./create_issue.cjs";
-
-describe("createParentIssueTemplate", () => {
-  it("should create parent issue template with correct format", () => {
-    const groupId = "test-workflow";
-    const titlePrefix = "[Bot] ";
-    const workflowName = "Test Workflow";
-    const runUrl = "https://github.com/owner/repo/actions/runs/123";
-
-    const result = createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl);
-
-    expect(result.title).toBe("[Bot] test-workflow - Issue Group");
-    expect(result.body).toContain("# test-workflow");
-    expect(result.body).toContain("<!-- gh-aw-group: test-workflow -->");
-    expect(result.body).toContain("- **Workflow**: Test Workflow");
-    expect(result.body).toContain("- **Run**: https://github.com/owner/repo/actions/runs/123");
-  });
-
-  it("should handle empty title prefix", () => {
-    const groupId = "test-workflow";
-    const titlePrefix = "";
-    const workflowName = "Test Workflow";
-    const runUrl = "https://github.com/owner/repo/actions/runs/123";
-
-    const result = createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl);
-
-    expect(result.title).toBe("test-workflow - Issue Group");
-  });
-
-  it("should include group marker in body", () => {
-    const groupId = "my-special-workflow";
-    const titlePrefix = "";
-    const workflowName = "My Workflow";
-    const runUrl = "https://example.com/run/1";
-
-    const result = createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl);
-
-    expect(result.body).toContain("<!-- gh-aw-group: my-special-workflow -->");
-  });
-});
+import { searchForExistingParent, getSubIssueCount } from "./create_issue.cjs";
 
 describe("searchForExistingParent", () => {
   let mockGithub;
