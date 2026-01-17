@@ -678,9 +678,11 @@ jobs:
           For each agentic workflow, download logs from the past week. Use the `--start-date` flag to filter to the last 7 days:
           
           ```bash
-          # Download logs for all workflows from the last week
+          # Download logs for all workflows from the last week (adjust -c for high-activity repos)
           gh aw logs --start-date -7d -o /tmp/gh-aw/observability-logs -c 100
           ```
+          
+          **Note**: For repositories with high activity, you can increase the `-c` limit (e.g., `-c 500`) or run multiple passes with pagination.
           
           If there are many workflows, you can also target specific workflows:
           
