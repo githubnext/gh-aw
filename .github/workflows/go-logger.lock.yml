@@ -798,29 +798,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if @@GH_AW_GITHUB_ACTOR@@ }}
+          - **actor**: @@GH_AW_GITHUB_ACTOR@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if @@GH_AW_GITHUB_REPOSITORY@@ }}
+          - **repository**: @@GH_AW_GITHUB_REPOSITORY@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if @@GH_AW_GITHUB_WORKSPACE@@ }}
+          - **workspace**: @@GH_AW_GITHUB_WORKSPACE@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}
+          - **issue-number**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@ }}
+          - **discussion-number**: #@@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}
+          - **pull-request-number**: #@@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if @@GH_AW_GITHUB_EVENT_COMMENT_ID@@ }}
+          - **comment-id**: @@GH_AW_GITHUB_EVENT_COMMENT_ID@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if @@GH_AW_GITHUB_RUN_ID@@ }}
+          - **workflow-run-id**: @@GH_AW_GITHUB_RUN_ID@@
           {{/if}}
           </github-context>
           

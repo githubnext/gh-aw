@@ -506,22 +506,22 @@ jobs:
           
           ## Context
           
-          - Repository: ${GH_AW_GITHUB_REPOSITORY}
-          - Workflow Run: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID} ([URL](${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL}))
-          - Status: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION} / ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_STATUS}
-          - Head SHA: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          - Repository: @@GH_AW_GITHUB_REPOSITORY@@
+          - Workflow Run: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID@@ ([URL](@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL@@))
+          - Status: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION@@ / @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_STATUS@@
+          - Head SHA: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA@@
           
           ## Task
           
-          1. **Find PR**: Use GitHub tools to find PR for SHA `${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}`:
-             - Get workflow run details via `get_workflow_run` with ID `${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}`
-             - Search PRs: `repo:${GH_AW_GITHUB_REPOSITORY} is:pr sha:${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}`
+          1. **Find PR**: Use GitHub tools to find PR for SHA `@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA@@`:
+             - Get workflow run details via `get_workflow_run` with ID `@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID@@`
+             - Search PRs: `repo:@@GH_AW_GITHUB_REPOSITORY@@ is:pr sha:@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA@@`
              - If no PR found, **abandon task** (no comments/issues)
           
           2. **Deep Research & Analysis**: Once PR confirmed, perform comprehensive investigation:
              
              ### 2.1 Get Audit Data
-             - Use the `audit` tool from the agentic-workflows MCP server with run_id `${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}`
+             - Use the `audit` tool from the agentic-workflows MCP server with run_id `@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID@@`
              - Review the complete audit report including:
                - Failure analysis with root cause
                - Error messages and stack traces
@@ -570,9 +570,9 @@ jobs:
                The Dev workflow failed due to [specific root cause].
                
                ## Analysis
-               - Failed workflow: Run #${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER} (${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL})
+               - Failed workflow: Run #@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER@@ (@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL@@)
                - PR: #[PR_NUMBER] ([PR_URL])
-               - Commit: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+               - Commit: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA@@
                
                ## Root Cause
                [Detailed explanation of what went wrong, including:
@@ -603,9 +603,9 @@ jobs:
           **Success:**
           ```markdown
           # ✅ Dev Hawk Report - Success
-          **Workflow**: [#${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER}](${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL})
-          - Status: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}
-          - Commit: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          **Workflow**: [#@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER@@](@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL@@)
+          - Status: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION@@
+          - Commit: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA@@
           
           Dev workflow completed successfully! 🎉
           ```
@@ -613,9 +613,9 @@ jobs:
           **Failure (with root cause identified):**
           ```markdown
           # ⚠️ Dev Hawk Report - Failure Analysis
-          **Workflow**: [#${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER}](${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL})
-          - Status: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}
-          - Commit: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          **Workflow**: [#@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER@@](@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL@@)
+          - Status: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION@@
+          - Commit: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA@@
           
           ## Root Cause Analysis
           [Detailed explanation of what went wrong, correlating audit errors with PR changes]
@@ -645,9 +645,9 @@ jobs:
           **Failure (without clear root cause):**
           ```markdown
           # ⚠️ Dev Hawk Report - Failure
-          **Workflow**: [#${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER}](${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL})
-          - Status: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}
-          - Commit: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          **Workflow**: [#@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER@@](@@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL@@)
+          - Status: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION@@
+          - Commit: @@GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA@@
           
           ## Analysis Summary
           [Summary of failure from audit]
@@ -760,29 +760,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if @@GH_AW_GITHUB_ACTOR@@ }}
+          - **actor**: @@GH_AW_GITHUB_ACTOR@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if @@GH_AW_GITHUB_REPOSITORY@@ }}
+          - **repository**: @@GH_AW_GITHUB_REPOSITORY@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if @@GH_AW_GITHUB_WORKSPACE@@ }}
+          - **workspace**: @@GH_AW_GITHUB_WORKSPACE@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}
+          - **issue-number**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@ }}
+          - **discussion-number**: #@@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}
+          - **pull-request-number**: #@@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if @@GH_AW_GITHUB_EVENT_COMMENT_ID@@ }}
+          - **comment-id**: @@GH_AW_GITHUB_EVENT_COMMENT_ID@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if @@GH_AW_GITHUB_RUN_ID@@ }}
+          - **workflow-run-id**: @@GH_AW_GITHUB_RUN_ID@@
           {{/if}}
           </github-context>
           

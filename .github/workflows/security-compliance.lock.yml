@@ -504,10 +504,10 @@ jobs:
           
           **Pain Point**: Enterprise faces audit deadline with hundreds of unresolved security vulnerabilities across multiple repositories. Need coordinated remediation with executive visibility, cost tracking, and compliance documentation.
           
-          **Campaign ID**: `security-compliance-${GH_AW_GITHUB_RUN_ID}`
+          **Campaign ID**: `security-compliance-@@GH_AW_GITHUB_RUN_ID@@`
           
           **Business Context**:
-          - Audit deadline: ${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE}
+          - Audit deadline: @@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@
           - Compliance requirement: SOC2, GDPR, or internal security policy
           - Executive sponsor: CISO
           - Budget: Approved by security and finance teams
@@ -535,16 +535,16 @@ jobs:
           
           **Discover vulnerabilities**:
           - Query GitHub Security Advisories across all org repos
-          - Filter by severity: ${GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD}+
+          - Filter by severity: @@GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD@@+
           - Identify affected repositories and dependencies
           - Calculate total count, breakdown by severity and repo
           
-          **Store baseline** in `memory/campaigns/security-compliance-${GH_AW_GITHUB_RUN_ID}/baseline.json`:
+          **Store baseline** in `memory/campaigns/security-compliance-@@GH_AW_GITHUB_RUN_ID@@/baseline.json`:
           ```json
           {
-            "campaign_id": "security-compliance-${GH_AW_GITHUB_RUN_ID}",
+            "campaign_id": "security-compliance-@@GH_AW_GITHUB_RUN_ID@@",
             "started": "[current date]",
-            "audit_deadline": "${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE}",
+            "audit_deadline": "@@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@",
             "vulnerabilities_total": [count],
             "breakdown": {
               "critical": [count],
@@ -560,18 +560,18 @@ jobs:
           
           ### 2. Create Epic Tracking Issue
           
-          **Title**: "🚨 Security Compliance Campaign - Audit ${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE}"
+          **Title**: "🚨 Security Compliance Campaign - Audit @@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@"
           
-          **Labels**: `campaign-tracker`, `security`, `compliance`, `campaign:security-compliance-${GH_AW_GITHUB_RUN_ID}`
+          **Labels**: `campaign-tracker`, `security`, `compliance`, `campaign:security-compliance-@@GH_AW_GITHUB_RUN_ID@@`
           
           **Body**:
           ```markdown
           # Security Compliance Campaign
           
-          **Campaign ID**: `security-compliance-${GH_AW_GITHUB_RUN_ID}`
+          **Campaign ID**: `security-compliance-@@GH_AW_GITHUB_RUN_ID@@`
           **Owner**: Security Team
           **Executive Sponsor**: CISO
-          **Audit Deadline**: ${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE}
+          **Audit Deadline**: @@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@
           
           ## 🎯 Mission
           Fix all critical/high vulnerabilities before audit to maintain compliance certification and customer trust.
@@ -596,10 +596,10 @@ jobs:
           **Query all campaign work**:
           ```bash
           # All vulnerability tasks
-          gh issue list --label "campaign:security-compliance-${GH_AW_GITHUB_RUN_ID}"
+          gh issue list --label "campaign:security-compliance-@@GH_AW_GITHUB_RUN_ID@@"
           
           # All fix PRs
-          gh pr list --label "campaign:security-compliance-${GH_AW_GITHUB_RUN_ID}"
+          gh pr list --label "campaign:security-compliance-@@GH_AW_GITHUB_RUN_ID@@"
           
           # Campaign memory
           gh repo view --json defaultBranchRef | \
@@ -626,13 +626,13 @@ jobs:
           
           ### 3. Generate Vulnerability Task Issues
           
-          For each vulnerability (up to ${GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES}):
+          For each vulnerability (up to @@GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES@@):
           
           **Title**: "🔒 [CVE-XXXX] Fix [vulnerability name] in [repo]/[package]"
           
           **Labels**: 
           - `security`
-          - `campaign:security-compliance-${GH_AW_GITHUB_RUN_ID}`
+          - `campaign:security-compliance-@@GH_AW_GITHUB_RUN_ID@@`
           - `severity:[critical|high|medium]`
           - `repo:[repo-name]`
           - `type:vulnerability`
@@ -648,7 +648,7 @@ jobs:
           **Package**: [package-name]@[version]
           
           ## 🎯 Campaign Context
-          Part of Security Compliance Campaign for ${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE} audit.
+          Part of Security Compliance Campaign for @@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@ audit.
           **Epic**: #[epic-issue-number]
           
           ## 🔍 Description
@@ -680,20 +680,20 @@ jobs:
           - Fix PR: [will be linked by worker]
           
           ---
-          **Campaign**: security-compliance-${GH_AW_GITHUB_RUN_ID}
-          **Audit Deadline**: ${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE}
+          **Campaign**: security-compliance-@@GH_AW_GITHUB_RUN_ID@@
+          **Audit Deadline**: @@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@
           ```
           
           ### 4. Store Campaign Metadata
           
-          Create `memory/campaigns/security-compliance-${GH_AW_GITHUB_RUN_ID}/metadata.json`:
+          Create `memory/campaigns/security-compliance-@@GH_AW_GITHUB_RUN_ID@@/metadata.json`:
           ```json
           {
-            "campaign_id": "security-compliance-${GH_AW_GITHUB_RUN_ID}",
+            "campaign_id": "security-compliance-@@GH_AW_GITHUB_RUN_ID@@",
             "type": "security-compliance",
             "owner": "security-team",
             "executive_sponsor": "ciso@company.com",
-            "audit_deadline": "${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE}",
+            "audit_deadline": "@@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@",
             "budget_approved": true,
             "epic_issue": [epic-issue-number],
             "created_at": "[timestamp]",
@@ -733,13 +733,13 @@ jobs:
           ## Output
           
           Campaign launched successfully:
-          - **Campaign ID**: `security-compliance-${GH_AW_GITHUB_RUN_ID}`
+          - **Campaign ID**: `security-compliance-@@GH_AW_GITHUB_RUN_ID@@`
           - **Epic Issue**: #[number]
           - **Vulnerability Tasks**: [count] created
-          - **Baseline Stored**: `memory/campaigns/security-compliance-${GH_AW_GITHUB_RUN_ID}/baseline.json`
+          - **Baseline Stored**: `memory/campaigns/security-compliance-@@GH_AW_GITHUB_RUN_ID@@/baseline.json`
           - **Workers**: Ready to process tasks
           - **Monitor**: Will run daily at 9 AM
-          - **Audit Deadline**: ${GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE} ([X] days remaining)
+          - **Audit Deadline**: @@GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE@@ ([X] days remaining)
           
           **For CISO Dashboard**:
           ```bash
@@ -747,10 +747,10 @@ jobs:
           gh issue view [epic-issue-number]
           
           # Real-time progress
-          gh issue list --label "campaign:security-compliance-${GH_AW_GITHUB_RUN_ID}" --json number,title,state,labels
+          gh issue list --label "campaign:security-compliance-@@GH_AW_GITHUB_RUN_ID@@" --json number,title,state,labels
           
           # Daily metrics
-          cat memory/campaigns/security-compliance-${GH_AW_GITHUB_RUN_ID}/metrics/$(date +%Y-%m-%d).json
+          cat memory/campaigns/security-compliance-@@GH_AW_GITHUB_RUN_ID@@/metrics/$(date +%Y-%m-%d).json
           ```
           
           PROMPT_EOF
@@ -830,29 +830,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if @@GH_AW_GITHUB_ACTOR@@ }}
+          - **actor**: @@GH_AW_GITHUB_ACTOR@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if @@GH_AW_GITHUB_REPOSITORY@@ }}
+          - **repository**: @@GH_AW_GITHUB_REPOSITORY@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if @@GH_AW_GITHUB_WORKSPACE@@ }}
+          - **workspace**: @@GH_AW_GITHUB_WORKSPACE@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}
+          - **issue-number**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@ }}
+          - **discussion-number**: #@@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}
+          - **pull-request-number**: #@@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if @@GH_AW_GITHUB_EVENT_COMMENT_ID@@ }}
+          - **comment-id**: @@GH_AW_GITHUB_EVENT_COMMENT_ID@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if @@GH_AW_GITHUB_RUN_ID@@ }}
+          - **workflow-run-id**: @@GH_AW_GITHUB_RUN_ID@@
           {{/if}}
           </github-context>
           

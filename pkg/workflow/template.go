@@ -55,14 +55,21 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 			return match // Environment variable reference, return as-is
 		}
 
-		// Check if expression is a placeholder reference (starts with __)
-		// These are substituted with sed and don't need ${{ }} wrapping
-		if strings.HasPrefix(expr, "__") {
+		// Check if expression is a placeholder reference (starts with @@)
+		// These are substituted by interpolate_prompt.cjs and don't need ${{ }} wrapping
+		if strings.HasPrefix(expr, "@@") {
 			templateLog.Print("Placeholder reference detected, skipping wrap")
 			return match // Placeholder reference, return as-is
 		}
 
-		// Always wrap expressions that don't start with ${{ or ${ or __
+		// Check if expression is a legacy placeholder reference (starts with __)
+		// These are substituted with sed and don't need ${{ }} wrapping
+		if strings.HasPrefix(expr, "__") {
+			templateLog.Print("Legacy placeholder reference detected, skipping wrap")
+			return match // Placeholder reference, return as-is
+		}
+
+		// Always wrap expressions that don't start with ${{ or ${ or @@ or __
 		templateLog.Printf("Wrapping expression: %s", expr)
 		return "{{#if ${{ " + expr + " }} }}"
 	})

@@ -476,7 +476,7 @@ jobs:
           
           ### Test Procedure
           
-          1. **List Open Issues**: Use the GitHub MCP server to list 3 open issues in the repository ${GH_AW_GITHUB_REPOSITORY}
+          1. **List Open Issues**: Use the GitHub MCP server to list 3 open issues in the repository @@GH_AW_GITHUB_REPOSITORY@@
              - Use the `list_issues` tool or equivalent
              - Filter for `state: OPEN`
              - Limit to 3 results
@@ -516,9 +516,9 @@ jobs:
               [Describe what happened - authentication error, timeout, tool unavailable, etc.]
               
               ### Test Configuration
-              - Repository: ${GH_AW_GITHUB_REPOSITORY}
-              - Workflow: ${GH_AW_GITHUB_WORKFLOW}
-              - Run: ${GH_AW_GITHUB_RUN_ID}
+              - Repository: @@GH_AW_GITHUB_REPOSITORY@@
+              - Workflow: @@GH_AW_GITHUB_WORKFLOW@@
+              - Run: @@GH_AW_GITHUB_RUN_ID@@
               - Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
               
               ### Next Steps
@@ -603,29 +603,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if @@GH_AW_GITHUB_ACTOR@@ }}
+          - **actor**: @@GH_AW_GITHUB_ACTOR@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if @@GH_AW_GITHUB_REPOSITORY@@ }}
+          - **repository**: @@GH_AW_GITHUB_REPOSITORY@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if @@GH_AW_GITHUB_WORKSPACE@@ }}
+          - **workspace**: @@GH_AW_GITHUB_WORKSPACE@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}
+          - **issue-number**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@ }}
+          - **discussion-number**: #@@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}
+          - **pull-request-number**: #@@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if @@GH_AW_GITHUB_EVENT_COMMENT_ID@@ }}
+          - **comment-id**: @@GH_AW_GITHUB_EVENT_COMMENT_ID@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if @@GH_AW_GITHUB_RUN_ID@@ }}
+          - **workflow-run-id**: @@GH_AW_GITHUB_RUN_ID@@
           {{/if}}
           </github-context>
           

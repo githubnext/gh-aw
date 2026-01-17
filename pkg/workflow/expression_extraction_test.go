@@ -210,7 +210,7 @@ func TestExpressionExtractor_ReplaceExpressionsWithEnvVars(t *testing.T) {
 				// Check that at least one env var reference is present
 				hasEnvVarRef := false
 				for _, mapping := range mappings {
-					if strings.Contains(result, "${"+mapping.EnvVar+"}") {
+					if strings.Contains(result, "@@"+mapping.EnvVar+"@@") {
 						hasEnvVarRef = true
 						break
 					}
@@ -227,7 +227,7 @@ func TestExpressionExtractor_ReplaceExpressionsWithEnvVars(t *testing.T) {
 					t.Errorf("Expected 1 mapping for duplicate expressions, got %d", len(mappings))
 				}
 				// Count occurrences of the env var in the result
-				envVarRef := "${" + mappings[0].EnvVar + "}"
+				envVarRef := "@@" + mappings[0].EnvVar + "@@"
 				count := strings.Count(result, envVarRef)
 				if count != 2 {
 					t.Errorf("Expected env var to appear 2 times, got %d: %s", count, result)
@@ -270,7 +270,7 @@ Link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.
 
 	// Verify all env vars are referenced
 	for _, mapping := range mappings {
-		envVarRef := "${" + mapping.EnvVar + "}"
+		envVarRef := "@@" + mapping.EnvVar + "@@"
 		if !strings.Contains(result, envVarRef) {
 			t.Errorf("Result missing env var placeholder reference %s: %s", envVarRef, result)
 		}

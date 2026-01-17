@@ -581,9 +581,9 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
-          - **Pull Request**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
-          - **Comment**: "${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}"
+          - **Repository**: @@GH_AW_GITHUB_REPOSITORY@@
+          - **Pull Request**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
+          - **Comment**: "@@GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT@@"
           
           ## Your Mission
           
@@ -592,14 +592,14 @@ jobs:
           ### Step 1: Access Memory
           
           Use the cache memory at `/tmp/gh-aw/cache-memory/` to:
-          - Check if you've reviewed this PR before (`/tmp/gh-aw/cache-memory/pr-${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}.json`)
+          - Check if you've reviewed this PR before (`/tmp/gh-aw/cache-memory/pr-@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@.json`)
           - Read your previous comments to avoid repeating yourself
           - Note any patterns you've seen across reviews
           
           ### Step 2: Fetch Pull Request Details
           
           Use the GitHub tools to get the pull request details:
-          - Get the PR with number `${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}` in repository `${GH_AW_GITHUB_REPOSITORY}`
+          - Get the PR with number `@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@` in repository `@@GH_AW_GITHUB_REPOSITORY@@`
           - Get the list of files changed in the PR
           - Review the diff for each changed file
           
@@ -642,7 +642,7 @@ jobs:
           ### Step 5: Update Memory
           
           Save your review to cache memory:
-          - Write a summary to `/tmp/gh-aw/cache-memory/pr-${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}.json` including:
+          - Write a summary to `/tmp/gh-aw/cache-memory/pr-@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@.json` including:
             - Date and time of review
             - Number of issues found
             - Key patterns or themes
@@ -763,29 +763,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if @@GH_AW_GITHUB_ACTOR@@ }}
+          - **actor**: @@GH_AW_GITHUB_ACTOR@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if @@GH_AW_GITHUB_REPOSITORY@@ }}
+          - **repository**: @@GH_AW_GITHUB_REPOSITORY@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if @@GH_AW_GITHUB_WORKSPACE@@ }}
+          - **workspace**: @@GH_AW_GITHUB_WORKSPACE@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}
+          - **issue-number**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@ }}
+          - **discussion-number**: #@@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}
+          - **pull-request-number**: #@@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if @@GH_AW_GITHUB_EVENT_COMMENT_ID@@ }}
+          - **comment-id**: @@GH_AW_GITHUB_EVENT_COMMENT_ID@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if @@GH_AW_GITHUB_RUN_ID@@ }}
+          - **workflow-run-id**: @@GH_AW_GITHUB_RUN_ID@@
           {{/if}}
           </github-context>
           

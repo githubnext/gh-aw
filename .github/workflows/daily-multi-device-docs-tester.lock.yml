@@ -535,14 +535,14 @@ jobs:
           
           ## Context
           
-          - Repository: ${GH_AW_GITHUB_REPOSITORY}
-          - Triggered by: @${GH_AW_GITHUB_ACTOR}
-          - Devices to test: ${GH_AW_INPUTS_DEVICES}
-          - Working directory: ${GH_AW_GITHUB_WORKSPACE}
+          - Repository: @@GH_AW_GITHUB_REPOSITORY@@
+          - Triggered by: @@@GH_AW_GITHUB_ACTOR@@
+          - Devices to test: @@GH_AW_INPUTS_DEVICES@@
+          - Working directory: @@GH_AW_GITHUB_WORKSPACE@@
           
           **IMPORTANT SETUP NOTES:**
           1. You're already in the repository root
-          2. The docs folder is at: `${GH_AW_GITHUB_WORKSPACE}/docs`
+          2. The docs folder is at: `@@GH_AW_GITHUB_WORKSPACE@@/docs`
           3. Use absolute paths or change directory explicitly
           4. Keep token usage low by being efficient with your code and minimizing iterations
           
@@ -555,7 +555,7 @@ jobs:
           Navigate to the docs folder and build the site:
           
           ```bash
-          cd ${GH_AW_GITHUB_WORKSPACE}/docs
+          cd @@GH_AW_GITHUB_WORKSPACE@@/docs
           npm install
           npm run build
           ```
@@ -578,7 +578,7 @@ jobs:
           
           ## Step 2: Device Configuration
           
-          Test these device types based on input `${GH_AW_INPUTS_DEVICES}`:
+          Test these device types based on input `@@GH_AW_INPUTS_DEVICES@@`:
           
           **Mobile:** iPhone 12 (390x844), iPhone 12 Pro Max (428x926), Pixel 5 (393x851), Galaxy S21 (360x800)
           **Tablet:** iPad (768x1024), iPad Pro 11 (834x1194), iPad Pro 12.9 (1024x1366)
@@ -676,29 +676,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if @@GH_AW_GITHUB_ACTOR@@ }}
+          - **actor**: @@GH_AW_GITHUB_ACTOR@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if @@GH_AW_GITHUB_REPOSITORY@@ }}
+          - **repository**: @@GH_AW_GITHUB_REPOSITORY@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if @@GH_AW_GITHUB_WORKSPACE@@ }}
+          - **workspace**: @@GH_AW_GITHUB_WORKSPACE@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}
+          - **issue-number**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@ }}
+          - **discussion-number**: #@@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}
+          - **pull-request-number**: #@@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if @@GH_AW_GITHUB_EVENT_COMMENT_ID@@ }}
+          - **comment-id**: @@GH_AW_GITHUB_EVENT_COMMENT_ID@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if @@GH_AW_GITHUB_RUN_ID@@ }}
+          - **workflow-run-id**: @@GH_AW_GITHUB_RUN_ID@@
           {{/if}}
           </github-context>
           

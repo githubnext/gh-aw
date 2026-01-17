@@ -18,23 +18,23 @@ const interpolateVariables = eval(`(${interpolateVariablesMatch[0]})`),
 describe("interpolate_prompt", () => {
   (describe("interpolateVariables", () => {
     (it("should interpolate single variable", () => {
-      const result = interpolateVariables("Repository: ${GH_AW_EXPR_TEST123}", { GH_AW_EXPR_TEST123: "github/test-repo" });
+      const result = interpolateVariables("Repository: @@GH_AW_EXPR_TEST123@@", { GH_AW_EXPR_TEST123: "github/test-repo" });
       expect(result).toBe("Repository: github/test-repo");
     }),
       it("should interpolate multiple variables", () => {
-        const result = interpolateVariables("Repo: ${GH_AW_EXPR_REPO}, Actor: ${GH_AW_EXPR_ACTOR}, Issue: ${GH_AW_EXPR_ISSUE}", { GH_AW_EXPR_REPO: "github/test-repo", GH_AW_EXPR_ACTOR: "testuser", GH_AW_EXPR_ISSUE: "123" });
+        const result = interpolateVariables("Repo: @@GH_AW_EXPR_REPO@@, Actor: @@GH_AW_EXPR_ACTOR@@, Issue: @@GH_AW_EXPR_ISSUE@@", { GH_AW_EXPR_REPO: "github/test-repo", GH_AW_EXPR_ACTOR: "testuser", GH_AW_EXPR_ISSUE: "123" });
         expect(result).toBe("Repo: github/test-repo, Actor: testuser, Issue: 123");
       }),
       it("should handle multiline content", () => {
-        const result = interpolateVariables("# Test Workflow\n\nRepository: ${GH_AW_EXPR_REPO}\nActor: ${GH_AW_EXPR_ACTOR}\n\nSome other content here.", { GH_AW_EXPR_REPO: "github/test-repo", GH_AW_EXPR_ACTOR: "testuser" });
+        const result = interpolateVariables("# Test Workflow\n\nRepository: @@GH_AW_EXPR_REPO@@\nActor: @@GH_AW_EXPR_ACTOR@@\n\nSome other content here.", { GH_AW_EXPR_REPO: "github/test-repo", GH_AW_EXPR_ACTOR: "testuser" });
         (expect(result).toContain("Repository: github/test-repo"), expect(result).toContain("Actor: testuser"));
       }),
       it("should handle empty variable values", () => {
-        const result = interpolateVariables("Value: ${GH_AW_EXPR_EMPTY}", { GH_AW_EXPR_EMPTY: "" });
+        const result = interpolateVariables("Value: @@GH_AW_EXPR_EMPTY@@", { GH_AW_EXPR_EMPTY: "" });
         expect(result).toBe("Value: ");
       }),
       it("should replace all occurrences of the same variable", () => {
-        const result = interpolateVariables("Repo: ${GH_AW_EXPR_REPO}, Same repo: ${GH_AW_EXPR_REPO}", { GH_AW_EXPR_REPO: "github/test-repo" });
+        const result = interpolateVariables("Repo: @@GH_AW_EXPR_REPO@@, Same repo: @@GH_AW_EXPR_REPO@@", { GH_AW_EXPR_REPO: "github/test-repo" });
         expect(result).toBe("Repo: github/test-repo, Same repo: github/test-repo");
       }),
       it("should not modify content without variables", () => {
@@ -42,7 +42,7 @@ describe("interpolate_prompt", () => {
         expect(result).toBe("No variables here");
       }),
       it("should handle content with literal dollar signs", () => {
-        const result = interpolateVariables("Price: $100, Repo: ${GH_AW_EXPR_REPO}", { GH_AW_EXPR_REPO: "github/test-repo" });
+        const result = interpolateVariables("Price: $100, Repo: @@GH_AW_EXPR_REPO@@", { GH_AW_EXPR_REPO: "github/test-repo" });
         expect(result).toBe("Price: $100, Repo: github/test-repo");
       }));
   }),
@@ -92,11 +92,11 @@ describe("interpolate_prompt", () => {
     }),
     describe("combined interpolation and template rendering", () => {
       (it("should interpolate variables and then render templates", () => {
-        let result = interpolateVariables("Repo: ${GH_AW_EXPR_REPO}\n{{#if true}}\nShow this\n{{/if}}", { GH_AW_EXPR_REPO: "github/test-repo" });
+        let result = interpolateVariables("Repo: @@GH_AW_EXPR_REPO@@\n{{#if true}}\nShow this\n{{/if}}", { GH_AW_EXPR_REPO: "github/test-repo" });
         (expect(result).toBe("Repo: github/test-repo\n{{#if true}}\nShow this\n{{/if}}"), (result = renderMarkdownTemplate(result)), expect(result).toBe("Repo: github/test-repo\nShow this\n"));
       }),
         it("should handle template conditionals that depend on interpolated values", () => {
-          let result = interpolateVariables("${GH_AW_EXPR_CONDITION}\n{{#if ${GH_AW_EXPR_CONDITION}}}\nShow this\n{{/if}}", { GH_AW_EXPR_CONDITION: "true" });
+          let result = interpolateVariables("@@GH_AW_EXPR_CONDITION@@\n{{#if @@GH_AW_EXPR_CONDITION@@}}\nShow this\n{{/if}}", { GH_AW_EXPR_CONDITION: "true" });
           (expect(result).toBe("true\n{{#if true}}\nShow this\n{{/if}}"), (result = renderMarkdownTemplate(result)), expect(result).toBe("true\nShow this\n"));
         }));
     }),

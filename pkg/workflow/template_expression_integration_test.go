@@ -94,11 +94,11 @@ ${{ needs.activation.outputs.text }}
 	}
 
 	// Verify GitHub expressions are properly replaced with placeholders in template conditionals
-	// After the fix, expressions should be replaced with ${GH_AW_*} placeholders
+	// After the fix, expressions should be replaced with @@GH_AW_*@@ placeholders
 	expectedPlaceholderExpressions := []string{
-		"{{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}",
-		"{{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}",
-		"{{#if ${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT} }}",
+		"{{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}",
+		"{{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}",
+		"{{#if @@GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT@@ }}",
 	}
 
 	for _, expectedExpr := range expectedPlaceholderExpressions {
@@ -192,11 +192,11 @@ This expression needs wrapping.
 	// 3. Both expressions result in placeholder-based conditionals
 
 	// Verify that placeholder conditionals exist (not the original expressions)
-	if !strings.Contains(compiledStr, "{{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}") {
+	if !strings.Contains(compiledStr, "{{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}") {
 		t.Error("Expected placeholder conditional for github.event.issue.number")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${GH_AW_GITHUB_ACTOR} }}") {
+	if !strings.Contains(compiledStr, "{{#if @@GH_AW_GITHUB_ACTOR@@ }}") {
 		t.Error("Expected placeholder conditional for github.actor")
 	}
 
@@ -270,11 +270,11 @@ Steps expression - will be wrapped.
 	compiledStr := string(compiledYAML)
 
 	// Verify all expressions are replaced with placeholders (correct behavior)
-	if !strings.Contains(compiledStr, "{{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}") {
+	if !strings.Contains(compiledStr, "{{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}") {
 		t.Error("GitHub expression should be replaced with placeholder")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if ${GH_AW_STEPS_MY_STEP_OUTPUTS_VALUE} }}") {
+	if !strings.Contains(compiledStr, "{{#if @@GH_AW_STEPS_MY_STEP_OUTPUTS_VALUE@@ }}") {
 		t.Error("Steps expression should be replaced with placeholder")
 	}
 

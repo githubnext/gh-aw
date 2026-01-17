@@ -470,7 +470,7 @@ jobs:
           When triggered, you must:
           0. **List previous autofixes**: Check the cache-memory to see if this alert has already been fixed recently
           1. **Select Security Alert**: 
-             - If a security URL was provided (`${GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL}`), extract the alert number from the URL and use it directly
+             - If a security URL was provided (`@@GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL@@`), extract the alert number from the URL and use it directly
              - Otherwise, list all open code scanning alerts and pick the first one
           2. **Analyze the Issue**: Understand the security vulnerability and its context
           3. **Generate a Fix**: Create a code autofix that addresses the security issue
@@ -478,23 +478,23 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
-          - **Triggered by**: @${GH_AW_GITHUB_ACTOR}
-          - **Security URL**: ${GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL}
+          - **Repository**: @@GH_AW_GITHUB_REPOSITORY@@
+          - **Triggered by**: @@@GH_AW_GITHUB_ACTOR@@
+          - **Security URL**: @@GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL@@
           
           ## Workflow Steps
           
           ### 1. Determine Alert Selection Method
           
           Check if a security URL was provided:
-          - **If security URL is provided** (`${GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL}`):
+          - **If security URL is provided** (`@@GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL@@`):
             - Extract the alert number from the URL (e.g., from `https://github.com/owner/repo/security/code-scanning/123`, extract `123`)
             - Skip to step 2 to get the alert details directly
           - **If no security URL is provided**:
             - Use the GitHub API to list all open code scanning alerts
             - Call `list_code_scanning_alerts` with the following parameters:
-              - `owner`: ${GH_AW_GITHUB_REPOSITORY_OWNER}
-              - `repo`: The repository name (extract from `${GH_AW_GITHUB_REPOSITORY}`)
+              - `owner`: @@GH_AW_GITHUB_REPOSITORY_OWNER@@
+              - `repo`: The repository name (extract from `@@GH_AW_GITHUB_REPOSITORY@@`)
               - `state`: "open"
               - `sort`: "created" (or use default sorting)
             - Sort results by severity (critical/high first) if not already sorted
@@ -505,8 +505,8 @@ jobs:
           
           Get detailed information about the selected alert using `get_code_scanning_alert`:
           - Call with parameters:
-            - `owner`: ${GH_AW_GITHUB_REPOSITORY_OWNER}
-            - `repo`: The repository name (extract from `${GH_AW_GITHUB_REPOSITORY}`)
+            - `owner`: @@GH_AW_GITHUB_REPOSITORY_OWNER@@
+            - `repo`: The repository name (extract from `@@GH_AW_GITHUB_REPOSITORY@@`)
             - `alertNumber`: The alert number from step 1
           - Extract key information:
             - Alert number
@@ -519,8 +519,8 @@ jobs:
           
           Understand the security issue:
           - Read the affected file using `get_file_contents`:
-            - `owner`: ${GH_AW_GITHUB_REPOSITORY_OWNER}
-            - `repo`: The repository name (extract from `${GH_AW_GITHUB_REPOSITORY}`)
+            - `owner`: @@GH_AW_GITHUB_REPOSITORY_OWNER@@
+            - `repo`: The repository name (extract from `@@GH_AW_GITHUB_REPOSITORY@@`)
             - `path`: The file path from the alert
             - `ref`: Use the default branch or the ref where the alert was found
           - Review the code context around the vulnerability
@@ -671,29 +671,29 @@ jobs:
           </safe-outputs>
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if @@GH_AW_GITHUB_ACTOR@@ }}
+          - **actor**: @@GH_AW_GITHUB_ACTOR@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if @@GH_AW_GITHUB_REPOSITORY@@ }}
+          - **repository**: @@GH_AW_GITHUB_REPOSITORY@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if @@GH_AW_GITHUB_WORKSPACE@@ }}
+          - **workspace**: @@GH_AW_GITHUB_WORKSPACE@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@ }}
+          - **issue-number**: #@@GH_AW_GITHUB_EVENT_ISSUE_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@ }}
+          - **discussion-number**: #@@GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if @@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@ }}
+          - **pull-request-number**: #@@GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if @@GH_AW_GITHUB_EVENT_COMMENT_ID@@ }}
+          - **comment-id**: @@GH_AW_GITHUB_EVENT_COMMENT_ID@@
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if @@GH_AW_GITHUB_RUN_ID@@ }}
+          - **workflow-run-id**: @@GH_AW_GITHUB_RUN_ID@@
           {{/if}}
           </github-context>
           
