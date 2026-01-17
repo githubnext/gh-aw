@@ -168,6 +168,11 @@ func extractLabelsFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "labels", "[]")
 }
 
+// extractCacheFromContent extracts cache section from frontmatter as JSON string
+func extractCacheFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "cache", "{}")
+}
+
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
 func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)

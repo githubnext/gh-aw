@@ -29,6 +29,7 @@ type ImportsResult struct {
 	MergedBots          []string // Merged bots list from all imports (union of bot names)
 	MergedPostSteps     string   // Merged post-steps configuration from all imports (appended in order)
 	MergedLabels        []string // Merged labels from all imports (union of label names)
+	MergedCaches        []string // Merged cache configurations from all imports (appended in order)
 	ImportedFiles       []string // List of imported file paths (for manifest)
 	AgentFile           string   // Path to custom agent file (if imported)
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
@@ -175,6 +176,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	botsSet := make(map[string]bool)   // Set for deduplicating bots
 	var labels []string                // Track unique labels
 	labelsSet := make(map[string]bool) // Set for deduplicating labels
+	var caches []string                // Track cache configurations (appended in order)
 	var agentFile string               // Track custom agent file
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
@@ -477,6 +479,12 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				}
 			}
 		}
+
+		// Extract cache from imported file (append to list of caches)
+		cacheContent, err := extractCacheFromContent(string(content))
+		if err == nil && cacheContent != "" && cacheContent != "{}" {
+			caches = append(caches, cacheContent)
+		}
 	}
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
@@ -501,6 +509,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedBots:          bots,
 		MergedPostSteps:     postStepsBuilder.String(),
 		MergedLabels:        labels,
+		MergedCaches:        caches,
 		ImportedFiles:       topologicalOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,

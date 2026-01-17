@@ -15,7 +15,6 @@ import (
 func TestForbiddenFieldsImportRejection(t *testing.T) {
 	forbiddenFields := map[string]string{
 		"on":              `on: issues`,
-		"cache":           `cache: npm`,
 		"command":         `command: /help`,
 		"concurrency":     `concurrency: production`,
 		"container":       `container: node:lts`,
@@ -110,6 +109,9 @@ func TestAllowedFieldsImportSuccess(t *testing.T) {
 		"bots":       `bots: ["copilot", "dependabot"]`,
 		"post-steps": `post-steps: [{run: echo cleanup}]`,
 		"labels":     `labels: ["automation", "testing"]`,
+		"cache": `cache:
+  key: "cache-key"
+  path: "node_modules"`,
 	}
 
 	for field, yaml := range allowedFields {
