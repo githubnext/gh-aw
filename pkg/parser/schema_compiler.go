@@ -21,9 +21,6 @@ var schemaCompilerLog = logger.New("parser:schema_compiler")
 //go:embed schemas/main_workflow_schema.json
 var mainWorkflowSchema string
 
-//go:embed schemas/included_file_schema.json
-var includedFileSchema string
-
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
 
@@ -31,15 +28,12 @@ var mcpConfigSchema string
 // Cached compiled schemas to avoid recompiling on every validation
 var (
 	mainWorkflowSchemaOnce sync.Once
-	includedFileSchemaOnce sync.Once
 	mcpConfigSchemaOnce    sync.Once
 
 	compiledMainWorkflowSchema *jsonschema.Schema
-	compiledIncludedFileSchema *jsonschema.Schema
 	compiledMcpConfigSchema    *jsonschema.Schema
 
 	mainWorkflowSchemaError error
-	includedFileSchemaError error
 	mcpConfigSchemaError    error
 )
 
@@ -49,14 +43,6 @@ func getCompiledMainWorkflowSchema() (*jsonschema.Schema, error) {
 		compiledMainWorkflowSchema, mainWorkflowSchemaError = compileSchema(mainWorkflowSchema, "http://contoso.com/main-workflow-schema.json")
 	})
 	return compiledMainWorkflowSchema, mainWorkflowSchemaError
-}
-
-// getCompiledIncludedFileSchema returns the compiled included file schema, compiling it once and caching
-func getCompiledIncludedFileSchema() (*jsonschema.Schema, error) {
-	includedFileSchemaOnce.Do(func() {
-		compiledIncludedFileSchema, includedFileSchemaError = compileSchema(includedFileSchema, "http://contoso.com/included-file-schema.json")
-	})
-	return compiledIncludedFileSchema, includedFileSchemaError
 }
 
 // getCompiledMcpConfigSchema returns the compiled MCP config schema, compiling it once and caching
@@ -158,8 +144,6 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 	switch schemaJSON {
 	case mainWorkflowSchema:
 		schema, err = getCompiledMainWorkflowSchema()
-	case includedFileSchema:
-		schema, err = getCompiledIncludedFileSchema()
 	case mcpConfigSchema:
 		schema, err = getCompiledMcpConfigSchema()
 	default:

@@ -144,8 +144,8 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		} else {
 			// For non-workflow files, fall back to relaxed validation with warnings
 			if len(result.Frontmatter) > 0 {
-				// Valid fields for non-workflow frontmatter (fields that should not trigger warnings)
-				// This list should match the properties defined in included_file_schema.json
+				// Valid fields for non-workflow frontmatter (fields that are allowed in shared workflows)
+				// This list matches the allowed fields in shared workflows (main_workflow_schema minus forbidden fields)
 				validFields := map[string]bool{
 					"tools":          true,
 					"engine":         true,
