@@ -137,7 +137,7 @@ jobs:
           echo "✓ Tag created: $RELEASE_TAG"
           
       - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@6f13f31f798a93a6b08d3be0727120e9af35851f # v2.1.0
+        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
