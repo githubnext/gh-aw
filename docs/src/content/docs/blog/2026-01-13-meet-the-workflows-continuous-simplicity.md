@@ -10,7 +10,7 @@ sidebar:
   label: "Continuous Simplicity"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows/
-  label: "Triage & Summarization Workflows"
+  label: "Meet a Simple Triage Workflow"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/
   label: "Continuous Refactoring Workflows"

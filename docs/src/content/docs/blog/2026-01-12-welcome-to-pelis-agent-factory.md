@@ -62,7 +62,7 @@ The factory becomes both an experiment and a reference collection - a living lib
 
 In our first series, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. Each article is bite-sized. If you'd like to skip ahead, here's the full list of articles in the series:
 
-1. [Triage & Summarization Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/)
+1. [Meet a Simple Triage Workflow](/gh-aw/blog/2026-01-13-meet-the-workflows/)
 2. [Continuous Simplicity Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
 3. [Continuous Refactoring Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/)
 4. [Continuous Style Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/)
