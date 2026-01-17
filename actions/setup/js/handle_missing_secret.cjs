@@ -10,14 +10,14 @@ const fs = require("fs");
 /**
  * Handle missing secret configuration by creating or updating an issue
  * This script is called when secret validation fails in the agent job
- * 
+ *
  * The script checks for /tmp/gh-aw/missing_secret_info.json file which contains:
  * {
  *   "missing_secrets": ["SECRET_NAME1", "SECRET_NAME2"],
  *   "engine_name": "Claude Code",
  *   "docs_url": "https://docs.anthropic.com"
  * }
- * 
+ *
  * Expected environment variables:
  * - GH_AW_WORKFLOW_NAME: Name of the workflow
  * - GH_AW_WORKFLOW_SOURCE: Source path of the workflow
@@ -28,7 +28,7 @@ async function main() {
   try {
     // Check if missing secret info file exists
     const missingSecretInfoPath = "/tmp/gh-aw/missing_secret_info.json";
-    
+
     if (!fs.existsSync(missingSecretInfoPath)) {
       core.info("No missing secret info file found, skipping issue creation");
       return;
