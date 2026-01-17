@@ -245,6 +245,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
