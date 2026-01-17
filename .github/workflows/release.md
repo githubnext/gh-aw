@@ -197,14 +197,14 @@ jobs:
         run: go mod download
 
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
+        uses: anchore/sbom-action@v0
         with:
           artifact-name: sbom.spdx.json
           output-file: sbom.spdx.json
           format: spdx-json
 
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
+        uses: anchore/sbom-action@v0
         with:
           artifact-name: sbom.cdx.json
           output-file: sbom.cdx.json
@@ -220,7 +220,7 @@ jobs:
           echo "✓ No secrets detected in SBOM files"
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-artifacts
           path: |
@@ -246,13 +246,13 @@ jobs:
       attestations: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@v5
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -271,7 +271,7 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@c299e40ca79d9ee606ef6f4365af95e9a7ca7f9f # v5.10.0
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -283,7 +283,7 @@ jobs:
 
       - name: Build and push Docker image (amd64)
         id: build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
@@ -296,7 +296,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
+        uses: anchore/sbom-action@v0
         with:
           image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
           artifact-name: docker-sbom.spdx.json
@@ -304,7 +304,7 @@ jobs:
           format: spdx-json
 
       - name: Attest Docker image
-        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
