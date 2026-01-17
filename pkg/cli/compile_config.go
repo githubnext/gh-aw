@@ -9,28 +9,29 @@ var compileConfigLog = logger.New("cli:compile_config")
 
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
-	MarkdownFiles        []string // Files to compile (empty for all files)
-	Verbose              bool     // Enable verbose output
-	EngineOverride       string   // Override AI engine setting
-	Validate             bool     // Enable schema validation
-	Watch                bool     // Enable watch mode
-	WorkflowDir          string   // Custom workflow directory
-	SkipInstructions     bool     // Deprecated: Instructions are no longer written during compilation
-	NoEmit               bool     // Validate without generating lock files
-	Purge                bool     // Remove orphaned lock files
-	TrialMode            bool     // Enable trial mode (suppress safe outputs)
-	TrialLogicalRepoSlug string   // Target repository for trial mode
-	Strict               bool     // Enable strict mode validation
-	Dependabot           bool     // Generate Dependabot manifests for npm dependencies
-	ForceOverwrite       bool     // Force overwrite of existing files (dependabot.yml)
-	Zizmor               bool     // Run zizmor security scanner on generated .lock.yml files
-	Poutine              bool     // Run poutine security scanner on generated .lock.yml files
-	Actionlint           bool     // Run actionlint linter on generated .lock.yml files
-	JSONOutput           bool     // Output validation results as JSON
-	RefreshStopTime      bool     // Force regeneration of stop-after times instead of preserving existing ones
-	ActionMode           string   // Action script inlining mode: inline, dev, or release
-	ActionTag            string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
-	Stats                bool     // Display statistics table sorted by file size
+	MarkdownFiles          []string // Files to compile (empty for all files)
+	Verbose                bool     // Enable verbose output
+	EngineOverride         string   // Override AI engine setting
+	Validate               bool     // Enable schema validation
+	Watch                  bool     // Enable watch mode
+	WorkflowDir            string   // Custom workflow directory
+	SkipInstructions       bool     // Deprecated: Instructions are no longer written during compilation
+	NoEmit                 bool     // Validate without generating lock files
+	Purge                  bool     // Remove orphaned lock files
+	TrialMode              bool     // Enable trial mode (suppress safe outputs)
+	TrialLogicalRepoSlug   string   // Target repository for trial mode
+	Strict                 bool     // Enable strict mode validation
+	Dependabot             bool     // Generate Dependabot manifests for npm dependencies
+	ForceOverwrite         bool     // Force overwrite of existing files (dependabot.yml)
+	RefreshStopTime        bool     // Force regeneration of stop-after times instead of preserving existing ones
+	ForceRefreshActionPins bool     // Force refresh of action pins by clearing cache and resolving from GitHub API
+	Zizmor                 bool     // Run zizmor security scanner on generated .lock.yml files
+	Poutine                bool     // Run poutine security scanner on generated .lock.yml files
+	Actionlint             bool     // Run actionlint linter on generated .lock.yml files
+	JSONOutput             bool     // Output validation results as JSON
+	ActionMode             string   // Action script inlining mode: inline, dev, or release
+	ActionTag              string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
+	Stats                  bool     // Display statistics table sorted by file size
 }
 
 // WorkflowFailure represents a failed workflow with its error count
