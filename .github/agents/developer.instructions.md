@@ -9,6 +9,7 @@ This document consolidates development guidelines, architectural patterns, and i
 
 ## Table of Contents
 
+- [Proven Workflow Patterns](#proven-workflow-patterns)
 - [Code Organization Patterns](#code-organization-patterns)
 - [Validation Architecture](#validation-architecture)
 - [Development Standards](#development-standards)
@@ -22,6 +23,90 @@ This document consolidates development guidelines, architectural patterns, and i
 - [Hierarchical Agent Management](#hierarchical-agent-management)
 - [Release Management](#release-management)
 - [Quick Reference](#quick-reference)
+
+---
+
+## Proven Workflow Patterns
+
+When designing agentic workflows, leverage proven high-impact patterns from research scenarios that consistently scored 5.0/5.0. These battle-tested patterns improve workflow quality, team experience, and operational reliability.
+
+### Pattern Selection Guide
+
+Choose patterns based on workflow characteristics:
+
+| Workflow Type | Recommended Patterns | Key Benefits |
+|--------------|---------------------|--------------|
+| **Monitoring/Detection** (frequent runs) | noop + duplicate prevention | Prevents issue spam, maintains signal-to-noise |
+| **Performance Tracking** | repo-memory for baselines | Detect regressions, track trends over time |
+| **Automated PRs** | Rate limiting | Team-friendly, prioritizes by severity |
+| **Complex Analysis** | Multi-phase pipelines | Clear structure, debuggable, reusable |
+| **Recurring Issues** | Duplicate prevention | 30-day cache, hash-based deduplication |
+
+### Pattern Catalog
+
+For detailed implementation guides, code examples, decision trees, and anti-patterns, see:
+
+**📚 [Proven Patterns Catalog](./patterns/proven-patterns.md)**
+
+This comprehensive guide covers:
+
+1. **Repo-Memory for Baselines** - Track metrics over time, detect regressions
+2. **Noop for Healthy States** - Prevent issue spam from healthy monitoring
+3. **Rate Limiting for Automated PRs** - Team-friendly automation with prioritization
+4. **Multi-Phase Analysis Pipelines** - Structure complex statistical workflows
+5. **Smart Duplicate Prevention** - 30-day cache window for recurring issues
+
+Each pattern includes:
+- When to use / when NOT to use
+- Copy-paste-ready code examples (under 20 lines)
+- Real-world examples from high-scoring workflows
+- Benefits and anti-patterns to avoid
+
+### Quick Pattern Examples
+
+**Example 1: Monitoring with Noop**
+```yaml
+safe-outputs:
+  create-issue:
+    max: 3
+  # noop enabled automatically
+```
+Only create issues when problems found, use noop message for healthy states.
+
+**Example 2: Performance Tracking**
+```yaml
+tools:
+  repo-memory:
+    id: performance-baselines
+  cache-memory: true
+```
+Compare current measurements against historical baselines in repo-memory.
+
+**Example 3: Rate-Limited PRs**
+```yaml
+safe-outputs:
+  create-pull-request:
+    max: 3  # Daily limit
+tools:
+  cache-memory: true  # Track count
+```
+Limit automated PRs to 3/day, prioritize by CVSS/severity.
+
+### Pattern Decision Tree
+
+```mermaid
+graph TD
+    A[New Workflow] --> B{Type?}
+    B -->|Monitoring| C[noop + duplicate prevention]
+    B -->|Analysis| D{Complex?}
+    B -->|Automation| E[Rate limiting]
+    D -->|Yes| F[Multi-phase pipeline]
+    D -->|No| G{Historical?}
+    G -->|Yes| H[repo-memory baselines]
+    G -->|No| I[Standard workflow]
+```
+
+**Implementation Note**: The patterns catalog provides complete implementation details with working code examples. Consult it when implementing workflows with these characteristics.
 
 ---
 
@@ -673,7 +758,11 @@ For manual feature testing in pull requests:
 
 ## Additional Documentation
 
-For detailed specifications, see individual files in `specs/`:
+For detailed specifications, see individual files in `specs/` and agent documentation:
+
+### Workflow Design Patterns
+- [Proven Workflow Patterns](.github/agents/patterns/proven-patterns.md) - High-impact patterns from research
+- [Workflow Refactoring Patterns](../../specs/workflow-refactoring-patterns.md)
 
 ### Architecture & Organization
 - [Code Organization Patterns](../../specs/code-organization.md)
@@ -726,4 +815,4 @@ For detailed specifications, see individual files in `specs/`:
 
 ---
 
-**Last Updated**: 2026-01-04
+**Last Updated**: 2026-01-17
