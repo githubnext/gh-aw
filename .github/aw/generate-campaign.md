@@ -32,6 +32,8 @@ name: <Campaign Name>
 description: <One sentence>
 project-url: <GitHub Project URL>
 workflows: [<workflow-1>, <workflow-2>]
+allowed-repos: [owner/repo1, owner/repo2]  # Required: repositories campaign can operate on
+allowed-orgs: [org-name]  # Optional: organizations campaign can operate on
 owners: [@<username>]
 risk-level: <low|medium|high>
 state: planned
@@ -55,6 +57,11 @@ allowed-safe-outputs: [create-issue, add-comment]
 ## Key Guidelines
 
 **Campaign ID:** Convert names to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025"). Check for conflicts in `.github/workflows/`.
+
+**Allowed Repos/Orgs (Required):**
+- `allowed-repos`: **Required** - List of repositories (format: `owner/repo`) that campaign can discover and operate on
+- `allowed-orgs`: Optional - GitHub organizations campaign can operate on
+- Defines campaign scope as a reviewable contract for security and governance
 
 **Workflow Discovery:**
 - Scan existing: `.github/workflows/*.md` (agentic), `*.yml` (regular)
