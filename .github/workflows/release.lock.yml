@@ -1219,7 +1219,7 @@ jobs:
           RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@c299e40ca79d9ee606ef6f4365af95e9a7ca7f9f # c299e40ca79d9ee606ef6f4365af95e9a7ca7f9f
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -1242,7 +1242,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
       - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # fbfd9c6c0a5723f5b15376258af3142b3d6a83bb
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
         with:
           artifact-name: docker-sbom.spdx.json
           format: spdx-json
@@ -1272,13 +1272,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # fbfd9c6c0a5723f5b15376258af3142b3d6a83bb
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # fbfd9c6c0a5723f5b15376258af3142b3d6a83bb
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json

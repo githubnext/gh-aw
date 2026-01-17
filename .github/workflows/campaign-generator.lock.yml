@@ -83,7 +83,7 @@ jobs:
         env:
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_LOCK_FOR_AGENT: "true"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation.\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1085,15 +1085,7 @@ jobs:
           **Your task:** Run `gh aw compile <campaign-id>` to compile the campaign
           ```
           
-          ### Step 6: Post Progress Comment
-          
-          Use `add-comment` to inform the user:
-          
-          ```markdown
-          ✅ **Campaign Specification Created!**
-          ```
-          
-          ### Step 7: Assign to Copilot Coding Agent
+          ### Step 6: Assign to Copilot Coding Agent
           
           Use the `assign-to-agent` safe output to assign a Copilot Coding Agent session to compile the campaign and create a PR.
           
@@ -1479,8 +1471,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation.\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1499,7 +1490,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation.\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1742,7 +1733,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation.\",\"runFailure\":\"⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
       GH_AW_WORKFLOW_ID: "campaign-generator"
       GH_AW_WORKFLOW_NAME: "Campaign Generator"
     outputs:
