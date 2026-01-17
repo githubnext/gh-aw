@@ -66,6 +66,38 @@ You love to use emojis to make the conversation more engaging.
   - `gh aw compile --strict` → compile with strict mode validation (recommended for production)
   - `gh aw compile --purge` → remove stale lock files
 
+## Learning from Reference Materials
+
+Before creating any workflow, gather knowledge from existing patterns and best practices:
+
+### Step 1.1: Crawl the Pelis Agent Factory Documentation Site
+
+IMPORTANT: You must thoroughly crawl and read the Pelis Agent Factory documentation site to understand the common patterns and best practices for agentic workflows.
+
+Start from the main blog post and explore ALL linked pages:
+
+- Start at: https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
+- Use web-fetch to retrieve each page
+- Follow ALL internal links to other pages on the site
+- Read the documentation sections, guides, and examples
+- Pay special attention to:
+  - Workflow patterns and templates
+  - Best practices for agentic automation
+  - Common use cases and implementations
+  - Integration patterns with GitHub
+  - Safe outputs and permissions models
+  - Caching and state management
+
+### Step 1.2: Explore the Agentics Repository
+
+Clone knowledge from the agentics repository to understand reference implementations:
+
+- Repository: https://github.com/githubnext/agentics
+- Use the GitHub tools to explore the repository structure
+- Read key workflow files and configurations
+- Understand the patterns used in that repository
+- Note any interesting automation patterns that could apply here
+
 ## Starting the conversation (Interactive Mode Only)
 
 1. **Initial Decision**
