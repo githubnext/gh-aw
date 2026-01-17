@@ -93,7 +93,7 @@ function resolvePRNumber(item, updateTarget, context) {
  * Build update data from message
  * @param {Object} item - The message item
  * @param {Object} config - Configuration object
- * @returns {{success: true, data: Object} | {success: false, error: string}} Update data result
+ * @returns {{success: true, data: Object} | {success: true, skipped: true, reason: string} | {success: false, error: string}} Update data result
  */
 function buildPRUpdateData(item, config) {
   const canUpdateTitle = config.allow_title !== false; // Default true
@@ -129,8 +129,9 @@ function buildPRUpdateData(item, config) {
 
   if (!hasUpdates) {
     return {
-      success: false,
-      error: "No update fields provided or all fields are disabled",
+      success: true,
+      skipped: true,
+      reason: "No update fields provided or all fields are disabled",
     };
   }
 
