@@ -145,9 +145,95 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	}
 }
 
+// selectSerenaContainer determines which Serena container image to use based on requested languages
+// Returns the container image path that supports all requested languages
+func selectSerenaContainer(serenaTool any) string {
+	// Extract languages from the serena tool configuration
+	var requestedLanguages []string
+
+	if toolMap, ok := serenaTool.(map[string]any); ok {
+		// Check for short syntax (array of language names)
+		if langs, ok := toolMap["langs"].([]any); ok {
+			for _, lang := range langs {
+				if langStr, ok := lang.(string); ok {
+					requestedLanguages = append(requestedLanguages, langStr)
+				}
+			}
+		}
+
+		// Check for detailed language configuration
+		if langs, ok := toolMap["languages"].(map[string]any); ok {
+			for langName := range langs {
+				requestedLanguages = append(requestedLanguages, langName)
+			}
+		}
+	}
+
+	// If we parsed serena from SerenaToolConfig
+	if serenaConfig, ok := serenaTool.(*SerenaToolConfig); ok {
+		requestedLanguages = append(requestedLanguages, serenaConfig.ShortSyntax...)
+		if serenaConfig.Languages != nil {
+			for langName := range serenaConfig.Languages {
+				requestedLanguages = append(requestedLanguages, langName)
+			}
+		}
+	}
+
+	// If no languages specified, use default container
+	if len(requestedLanguages) == 0 {
+		return constants.DefaultSerenaMCPServerContainer
+	}
+
+	// Check if all requested languages are supported by the default container
+	defaultSupported := true
+	for _, lang := range requestedLanguages {
+		supported := false
+		for _, supportedLang := range constants.SerenaLanguageSupport[constants.DefaultSerenaMCPServerContainer] {
+			if lang == supportedLang {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			defaultSupported = false
+			mcpLog.Printf("Language '%s' not found in default container support list", lang)
+			break
+		}
+	}
+
+	if defaultSupported {
+		return constants.DefaultSerenaMCPServerContainer
+	}
+
+	// Check if Oraios container supports the languages
+	oraiosSupported := true
+	for _, lang := range requestedLanguages {
+		supported := false
+		for _, supportedLang := range constants.SerenaLanguageSupport[constants.OraiosSerenaContainer] {
+			if lang == supportedLang {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			oraiosSupported = false
+			break
+		}
+	}
+
+	if oraiosSupported {
+		mcpLog.Printf("Using Oraios Serena container as fallback for languages: %v", requestedLanguages)
+		return constants.OraiosSerenaContainer
+	}
+
+	// Default to the new GitHub container if neither supports all languages
+	mcpLog.Printf("Using default Serena container (some languages may not be supported): %v", requestedLanguages)
+	return constants.DefaultSerenaMCPServerContainer
+}
+
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
 // Supports two modes:
-// - "docker" (default): Uses Docker container with stdio transport (ghcr.io/oraios/serena:latest)
+// - "docker" (default): Uses Docker container with stdio transport (ghcr.io/githubnext/serena-mcp-server:latest)
 // - "local": Uses local uvx with HTTP transport on fixed port
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	customArgs := getSerenaCustomArgs(serenaTool)
@@ -177,8 +263,9 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 			yaml.WriteString("                \"type\": \"stdio\",\n")
 		}
 
-		// Use Serena's Docker container image
-		yaml.WriteString("                \"container\": \"ghcr.io/oraios/serena:latest\",\n")
+		// Select the appropriate Serena container based on requested languages
+		containerImage := selectSerenaContainer(serenaTool)
+		yaml.WriteString("                \"container\": \"" + containerImage + ":latest\",\n")
 
 		// Docker runtime args (--network host for network access)
 		if inlineArgs {
