@@ -20,6 +20,7 @@ This document consolidates development guidelines, architectural patterns, and i
 - [Testing Framework](#testing-framework)
 - [Repo-Memory System](#repo-memory-system)
 - [Hierarchical Agent Management](#hierarchical-agent-management)
+- [GitHub Actions Cost Estimation](#github-actions-cost-estimation)
 - [Release Management](#release-management)
 - [Quick Reference](#quick-reference)
 
@@ -592,6 +593,200 @@ graph TD
 
 ---
 
+## GitHub Actions Cost Estimation
+
+The cost estimation system helps users understand resource consumption before deploying scheduled automation, enabling informed decisions about workflow frequency and tool usage.
+
+### When to Include Cost Estimation
+
+Cost estimation tables should be included for:
+
+- **Scheduled workflows** that run on cron schedules (`on: schedule`)
+- **High-frequency workflows** (hourly, daily, multiple times per day)
+- **Workflows using expensive tools** (Playwright, extensive file operations)
+- **Documentation examples** demonstrating scheduled automation
+- **Any workflow** where monthly minutes usage may approach or exceed the free tier
+
+Cost estimation is optional for:
+
+- Event-driven workflows (triggered by issues, PRs, pushes)
+- Manual workflows (`workflow_dispatch` only)
+- One-time or rarely-executed automation
+
+### Cost Estimation Architecture
+
+```mermaid
+graph TD
+    A[Workflow Definition] --> B[Base Execution Time]
+    A --> C[Tool Multipliers]
+    A --> D[Schedule Frequency]
+    
+    B --> E[Simple: 2min]
+    B --> F[Medium: 3-5min]
+    B --> G[Complex: 5-10min]
+    
+    C --> H[Playwright: +5min]
+    C --> I[repo-memory: +1min]
+    C --> J[Network APIs: +2min]
+    
+    D --> K[Hourly: 720/month]
+    D --> L[Daily: 30/month]
+    D --> M[Weekly: 4/month]
+    
+    B --> N[Monthly Cost Calculation]
+    C --> N
+    D --> N
+    
+    N --> O{Free Tier Check}
+    O -->|< 1,500 min| P[✅ Acceptable]
+    O -->|1,500-2,000 min| Q[⚠️ Monitor]
+    O -->|> 2,000 min| R[❌ Optimization Required]
+```
+
+### Cost Estimation Formula
+
+```
+Monthly Minutes = (Base Time + Tool Overhead) × Schedule Frequency
+Free Tier Impact = (Monthly Minutes / 2,000) × 100%
+```
+
+**Base Execution Time**:
+- Simple workflows (basic API calls): ~2 minutes
+- Medium workflows (data processing): ~3-5 minutes
+- Complex workflows (extensive analysis): ~5-10 minutes
+
+**Tool Multipliers**:
+| Tool/Feature | Additional Minutes | Reason |
+|--------------|-------------------|--------|
+| Playwright | +5 minutes | Browser automation containerization |
+| repo-memory | +1 minute | Git branch operations |
+| Network API calls | +2 minutes | External HTTP requests |
+| cache-memory | +0.5 minutes | Artifact operations |
+| Multiple MCP servers (3+) | +1-2 minutes | Tool initialization overhead |
+| File processing (large repos) | +2-3 minutes | Checkout and scanning |
+
+**Schedule Frequencies**:
+| Schedule | Runs/Month | Example Cron |
+|----------|------------|--------------|
+| Hourly | 720 | `"0 * * * *"` |
+| Every 6 hours | 120 | `"0 */6 * * *"` |
+| Daily | 30 | `"0 2 * * *"` |
+| Weekdays only | 22 | `"0 2 * * 1-5"` |
+| Weekly | 4 | `"0 2 * * 1"` |
+
+### Cost Table Template
+
+Include this table in workflow documentation:
+
+```markdown
+## Estimated Cost
+
+- **Base execution time**: ~X minutes per run
+- **Tool overhead**: +Y minutes (list tools)
+- **Total per run**: ~(X+Y) minutes
+- **Schedule**: [Frequency] (N runs/month)
+- **Monthly total**: ~Z minutes (~H hours)
+- **Free tier impact**: P% of free tier
+
+### Free Tier Comparison
+
+- **Public repositories**: 2,000 minutes/month (free tier)
+- **This workflow**: Z minutes/month
+- **Status**: ✅ Within free tier / ⚠️ Exceeds free tier
+```
+
+### Example: Hourly Monitoring
+
+```markdown
+## Estimated Cost
+
+- **Base execution time**: ~3 minutes per run
+- **Tool overhead**: +2 minutes (network API calls)
+- **Total per run**: ~5 minutes
+- **Schedule**: Hourly (720 runs/month)
+- **Monthly total**: ~3,600 minutes (~60 hours)
+- **Free tier impact**: 180% (exceeds free tier by 1,600 minutes)
+
+### Optimization Suggestions
+
+⚠️ **This workflow exceeds the free tier.** Consider:
+
+1. **Reduce frequency**: Hourly → Every 6 hours (saves 2,400 min/month)
+2. **Use path filters**: Skip runs when files unchanged
+3. **Add pre-activation checks**: Exit early when no work needed
+```
+
+### Optimization Strategies
+
+When monthly usage exceeds 1,500 minutes (75% of free tier):
+
+**1. Reduce Frequency**:
+- Hourly → Every 6 hours (saves 80% of runs)
+- Daily → Weekdays only (saves 25% of runs)
+- Consider business hours only
+
+**2. Add Conditional Execution**:
+```yaml
+pre-activation:
+  - name: Check if work needed
+    run: |
+      if [ no_changes_detected ]; then
+        echo "Skipping workflow"
+        exit 1
+      fi
+```
+
+**3. Use Path Filters**:
+```yaml
+on:
+  schedule:
+    - cron: "0 * * * *"
+  push:
+    paths:
+      - 'src/**'
+      - 'config/**'
+```
+
+**4. Optimize Tool Usage**:
+- Parallel jobs instead of sequential
+- Cache dependencies
+- Set `timeout-minutes` to prevent runaway jobs
+- Batch network calls
+
+**5. Alternative Triggers**:
+- Replace schedule with webhook events
+- Use `repository_dispatch` for external triggers
+- Implement manual review gates
+
+### Cost Tracking
+
+Monitor actual usage:
+
+```bash
+gh aw logs --workflow [name] --stats
+```
+
+Provides:
+- Average execution time
+- Token usage
+- Actual cost per run
+- Monthly projection
+
+### Agent Guidelines
+
+When creating scheduled workflows:
+
+1. **Always calculate cost** using the formula above
+2. **Include cost table** in workflow documentation
+3. **Add optimization suggestions** when monthly usage exceeds 1,500 minutes
+4. **Consider weekday-only schedules** for business workflows
+5. **Recommend monitoring** for workflows approaching free tier limits
+6. **Test with lower frequency** initially before increasing
+
+**Implementation**: See examples/cost-estimation-table.md for detailed templates and examples
+
+---
+
 ## Release Management
 
 ### Changesets
@@ -708,6 +903,7 @@ For detailed specifications, see individual files in `specs/`:
 - [Styles Guide](../../specs/styles-guide.md)
 - [Changesets](../../specs/changesets.md)
 - [Labels](../../specs/labels.md)
+- [GitHub Actions Cost Estimation](examples/cost-estimation-table.md)
 
 ### Advanced Topics
 - [Hierarchical Agents](../../specs/agents/hierarchical-agents.md)
@@ -726,4 +922,4 @@ For detailed specifications, see individual files in `specs/`:
 
 ---
 
-**Last Updated**: 2026-01-04
+**Last Updated**: 2026-01-16
