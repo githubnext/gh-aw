@@ -22,7 +22,6 @@ var sharedWorkflowForbiddenFields = map[string]bool{
 	"github-token":    true,
 	"if":              true,
 	"imports":         true,
-	"jobs":            true,
 	"labels":          true,
 	"name":            true,
 	"post-steps":      true,
