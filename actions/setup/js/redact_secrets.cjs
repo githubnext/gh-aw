@@ -90,7 +90,7 @@ function processFile(filePath, secretValues) {
     }
     return redactionCount;
   } catch (error) {
-    core.warning(`Failed to process file ${filePath}: ${getErrorMessage(error)}`);
+    core.warning(`Failed to process file ${filePath}: ${getErrorMessageWithoutPath(error)}`);
     return 0;
   }
 }
@@ -149,6 +149,6 @@ async function main() {
   }
 }
 
-const { getErrorMessage } = require("./error_helpers.cjs");
+const { getErrorMessage, getErrorMessageWithoutPath } = require("./error_helpers.cjs");
 
 module.exports = { main };
