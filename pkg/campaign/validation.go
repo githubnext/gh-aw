@@ -66,6 +66,40 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		problems = append(problems, "workflows should list at least one workflow implementing this campaign")
 	}
 
+	// Validate allowed-repos (required and non-empty)
+	if len(spec.AllowedRepos) == 0 {
+		problems = append(problems, "allowed-repos is required and must contain at least one repository (campaigns MUST be scoped)")
+	} else {
+		// Validate each repository format
+		for _, repo := range spec.AllowedRepos {
+			trimmed := strings.TrimSpace(repo)
+			if trimmed == "" {
+				problems = append(problems, "allowed-repos must not contain empty entries")
+				continue
+			}
+			// Validate owner/repo format
+			parts := strings.Split(trimmed, "/")
+			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' must be in 'owner/repo' format", trimmed))
+			}
+		}
+	}
+
+	// Validate allowed-orgs if provided (optional)
+	if len(spec.AllowedOrgs) > 0 {
+		for _, org := range spec.AllowedOrgs {
+			trimmed := strings.TrimSpace(org)
+			if trimmed == "" {
+				problems = append(problems, "allowed-orgs must not contain empty entries")
+				continue
+			}
+			// Validate organization name format (no slashes, valid GitHub org name)
+			if strings.Contains(trimmed, "/") {
+				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' must be an organization name (not owner/repo format)", trimmed))
+			}
+		}
+	}
+
 	if strings.TrimSpace(spec.ProjectURL) == "" {
 		problems = append(problems, "project-url is required (GitHub Project URL used as the campaign dashboard)")
 	} else {
@@ -267,6 +301,8 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectGitHubToken string                                 `json:"project-github-token,omitempty"`
 		Version            string                                 `json:"version,omitempty"`
 		Workflows          []string                               `json:"workflows,omitempty"`
+		AllowedRepos       []string                               `json:"allowed-repos,omitempty"`
+		AllowedOrgs        []string                               `json:"allowed-orgs,omitempty"`
 		MemoryPaths        []string                               `json:"memory-paths,omitempty"`
 		MetricsGlob        string                                 `json:"metrics-glob,omitempty"`
 		CursorGlob         string                                 `json:"cursor-glob,omitempty"`
@@ -309,6 +345,8 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
+		AllowedRepos:       spec.AllowedRepos,
+		AllowedOrgs:        spec.AllowedOrgs,
 		MemoryPaths:        spec.MemoryPaths,
 		MetricsGlob:        spec.MetricsGlob,
 		CursorGlob:         spec.CursorGlob,
