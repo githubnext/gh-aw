@@ -1,9 +1,6 @@
 # GitHub Agentic Workflows
 
-Write agentic workflows in natural language markdown, and run them in GitHub Actions. From [GitHub Next](https://githubnext.com/) and [Microsoft Research](https://www.microsoft.com/en-us/research/group/research-software-engineering-rise/).
-
-> [!WARNING]
-> This extension is a research demonstrator. It is in early development and may change significantly. Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
+Write agentic workflows in natural language markdown, and run them in GitHub Actions.
 
 <!--
 > [!NOTE]
@@ -64,6 +61,9 @@ The AI agent reads your repository context, analyzes issues, generates visualiza
 
 Security is foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allow-listing, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. See the [Security Guide](https://githubnext.github.io/gh-aw/guides/security/) for comprehensive details on threat modeling, implementation guidelines, and best practices.
 
+> [!WARNING]
+> Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
+
 ## Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).
@@ -85,9 +85,9 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
 and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord).
 
-## Agent Factory
+## Peli's Agent Factory
 
-See the [Agent Factory Status](https://githubnext.github.io/gh-aw/agent-factory-status/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
+See the [Peli's Agent Factory](https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/) for a guided tour through many uses of agentic workflows.
 
 ## Related Projects
 
@@ -95,3 +95,4 @@ GitHub Agentic Workflows is supported by companion projects that provide additio
 
 - **[Agent Workflow Firewall (AWF)](https://github.com/githubnext/gh-aw-firewall)** - Network egress control for AI agents, providing domain-based access controls and activity logging for secure workflow execution
 - **[MCP Gateway](https://github.com/githubnext/gh-aw-mcpg)** - Routes Model Context Protocol (MCP) server calls through a unified HTTP gateway for centralized access management
+- **[The Agentics](https://github.com/githubnext/agentics)** - A collection of reusable agentic workflow components, tools, and templates to accelerate workflow development

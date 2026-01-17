@@ -10,10 +10,10 @@ sidebar:
   label: "Continuous Improvement"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/
-  label: "Continuous Style Workflows"
+  label: "Meet the Workflows: Continuous Style"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-documentation/
-  label: "Documentation & Content Workflows"
+  label: "Meet the Workflows: Continuous Documentation"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -84,11 +84,11 @@ Combined with our earlier workflows covering simplicity, refactoring, and style,
 
 This is the future of code quality: not periodic cleanup sprints, but continuous autonomous improvement across every dimension simultaneously.
 
-## Next Up: Documentation & Content
+## Next Up: Continuous Documentation
 
 Beyond code quality, we need to keep documentation accurate and up-to-date as code evolves. How do we maintain docs that stay current?
 
-Continue reading: [Documentation & Content Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
+Continue reading: [Continuous Documentation Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
 
 ## Learn More
 
