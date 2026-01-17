@@ -13,7 +13,9 @@ const substitutePlaceholders = async ({ file, substitutions }) => {
   }
   for (const [key, value] of Object.entries(substitutions)) {
     const placeholder = `__${key}__`;
-    content = content.split(placeholder).join(value);
+    // Convert undefined/null to empty string to avoid leaving "undefined" or "null" in the output
+    const safeValue = value === undefined || value === null ? "" : value;
+    content = content.split(placeholder).join(safeValue);
   }
   try {
     fs.writeFileSync(file, content, "utf8");
