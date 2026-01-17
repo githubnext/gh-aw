@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,8 @@ import (
 
 // TestForbiddenFieldsImportRejection tests that forbidden fields in shared workflows are rejected during compilation
 func TestForbiddenFieldsImportRejection(t *testing.T) {
-	forbiddenFields := map[string]string{
+	// Use the SharedWorkflowForbiddenFields constant and create YAML examples for each
+	forbiddenFieldYAML := map[string]string{
 		"on":              `on: issues`,
 		"command":         `command: /help`,
 		"concurrency":     `concurrency: production`,
@@ -35,7 +37,12 @@ func TestForbiddenFieldsImportRejection(t *testing.T) {
 		"tracker-id":      `tracker-id: "12345"`,
 	}
 
-	for field, yaml := range forbiddenFields {
+	for _, field := range constants.SharedWorkflowForbiddenFields {
+		yaml, ok := forbiddenFieldYAML[field]
+		if !ok {
+			t.Fatalf("Missing YAML example for forbidden field: %s. Please add to forbiddenFieldYAML map.", field)
+		}
+
 		t.Run("reject_import_"+field, func(t *testing.T) {
 			tempDir := testutil.TempDir(t, "test-forbidden-"+field+"-*")
 			workflowsDir := filepath.Join(tempDir, ".github", "workflows")

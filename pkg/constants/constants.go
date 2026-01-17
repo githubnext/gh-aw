@@ -658,6 +658,43 @@ var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "imp
 // NOTE: This is now empty as description and applyTo are properly validated by the schema
 var IgnoredFrontmatterFields = []string{}
 
+// SharedWorkflowForbiddenFields lists fields that cannot be used in shared/included workflows.
+// These fields are only allowed in main workflows (workflows with an 'on' trigger field).
+//
+// This list is maintained in constants.go to enable easy mining by agents and automated tools.
+// The compiler enforces these restrictions at compile time with clear error messages.
+//
+// Forbidden fields fall into these categories:
+//   - Workflow triggers: on (defines it as a main workflow)
+//   - Workflow execution: command, run-name, runs-on, concurrency, if, timeout-minutes, timeout_minutes
+//   - Workflow metadata: name, tracker-id, source, strict
+//   - Workflow features: container, env, environment, sandbox, features
+//   - Access control: roles, github-token
+//
+// All other fields defined in main_workflow_schema.json can be used in shared workflows
+// and will be properly imported and merged when the shared workflow is imported.
+var SharedWorkflowForbiddenFields = []string{
+	"on",              // Trigger field - only for main workflows
+	"command",         // Command for workflow execution
+	"concurrency",     // Concurrency control
+	"container",       // Container configuration
+	"env",             // Environment variables
+	"environment",     // Deployment environment
+	"features",        // Feature flags
+	"github-token",    // GitHub token configuration
+	"if",              // Conditional execution
+	"name",            // Workflow name
+	"roles",           // Role requirements
+	"run-name",        // Run display name
+	"runs-on",         // Runner specification
+	"sandbox",         // Sandbox configuration
+	"source",          // Source repository
+	"strict",          // Strict mode
+	"timeout-minutes", // Timeout in minutes
+	"timeout_minutes", // Timeout in minutes (underscore variant)
+	"tracker-id",      // Tracker ID
+}
+
 func GetWorkflowDir() string {
 	return filepath.Join(".github", "workflows")
 }

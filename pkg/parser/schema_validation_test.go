@@ -1,37 +1,34 @@
 package parser
 
 import (
-"strings"
-"testing"
+	"strings"
+	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestForbiddenFieldsInSharedWorkflows verifies each forbidden field is properly rejected
 func TestForbiddenFieldsInSharedWorkflows(t *testing.T) {
-forbiddenFields := []string{
-"on", "command", "concurrency", "container",
-"env", "environment", "features", "github-token", "if",
-"name", "roles", "run-name", "runs-on",
-"sandbox", "source", "strict", "timeout-minutes", "timeout_minutes",
-"tracker-id",
-}
+	// Use the SharedWorkflowForbiddenFields constant from constants package
+	forbiddenFields := constants.SharedWorkflowForbiddenFields
 
-for _, field := range forbiddenFields {
-t.Run("reject_"+field, func(t *testing.T) {
-frontmatter := map[string]any{
-field:  "test-value",
-"tools": map[string]any{"bash": true},
-}
+	for _, field := range forbiddenFields {
+		t.Run("reject_"+field, func(t *testing.T) {
+			frontmatter := map[string]any{
+				field:    "test-value",
+				"tools":  map[string]any{"bash": true},
+			}
 
-err := ValidateIncludedFileFrontmatterWithSchema(frontmatter)
-if err == nil {
-t.Errorf("Expected error for forbidden field '%s', got nil", field)
-}
+			err := ValidateIncludedFileFrontmatterWithSchema(frontmatter)
+			if err == nil {
+				t.Errorf("Expected error for forbidden field '%s', got nil", field)
+			}
 
-if err != nil && !strings.Contains(err.Error(), "cannot be used in shared workflows") {
-t.Errorf("Error message should mention shared workflows, got: %v", err)
-}
-})
-}
+			if err != nil && !strings.Contains(err.Error(), "cannot be used in shared workflows") {
+				t.Errorf("Error message should mention shared workflows, got: %v", err)
+			}
+		})
+	}
 }
 
 // TestAllowedFieldsInSharedWorkflows verifies allowed fields work correctly

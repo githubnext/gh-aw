@@ -3,32 +3,22 @@ package parser
 import (
 	"fmt"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var schemaValidationLog = logger.New("parser:schema_validation")
 
-// Fields that cannot be used in shared/included workflows (only allowed in main workflows with 'on' field)
-var sharedWorkflowForbiddenFields = map[string]bool{
-	"on":              true, // Trigger field - only for main workflows
-	"command":         true,
-	"concurrency":     true,
-	"container":       true,
-	"env":             true,
-	"environment":     true,
-	"features":        true,
-	"github-token":    true,
-	"if":              true,
-	"name":            true,
-	"roles":           true,
-	"run-name":        true,
-	"runs-on":         true,
-	"sandbox":         true,
-	"source":          true,
-	"strict":          true,
-	"timeout-minutes": true,
-	"timeout_minutes": true,
-	"tracker-id":      true,
+// sharedWorkflowForbiddenFields is a map for O(1) lookup of forbidden fields in shared workflows
+var sharedWorkflowForbiddenFields = buildForbiddenFieldsMap()
+
+// buildForbiddenFieldsMap converts the SharedWorkflowForbiddenFields slice to a map for efficient lookup
+func buildForbiddenFieldsMap() map[string]bool {
+	forbiddenMap := make(map[string]bool)
+	for _, field := range constants.SharedWorkflowForbiddenFields {
+		forbiddenMap[field] = true
+	}
+	return forbiddenMap
 }
 
 // validateSharedWorkflowFields checks that a shared workflow doesn't contain forbidden fields
