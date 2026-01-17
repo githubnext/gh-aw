@@ -37,10 +37,9 @@ Peli's factory is a collection of [**automated agentic workflows**](https://gith
 - [Monitor security compliance](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
 - [Optimize workflow efficiency](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)
 - [Execute multi-day projects](/gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/)
-- [Validate infrastructure](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/)
-- [Even write poetry to boost team morale](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
+- Even [write poetry to boost team morale](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
 
-Some workflows are "read-only analysts". Others proactively propose changes through pull requests. Some are meta-agents that monitor and improve the health of all the other workflows.
+Some workflows are "read-only analysts". Others proactively propose changes through pull requests. Some are meta-agents that monitor and improve the health of other workflows.
 
 We know we're taking things to an extreme here. Most repositories won't need dozens of agentic workflows. No one can read all these outputs (except, of course, another workflow). But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust and use.
 
