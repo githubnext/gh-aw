@@ -104,15 +104,26 @@ function createUpdateHandlerFactory(handlerConfig) {
         };
       }
 
+      // Check if buildUpdateData returned a skipped result (for update_pull_request)
+      if (updateDataResult.skipped) {
+        core.info(`No update fields provided for ${itemTypeName} #${itemNumber} - treating as no-op (skipping update)`);
+        return {
+          success: true,
+          skipped: true,
+          reason: updateDataResult.reason,
+        };
+      }
+
       const updateData = updateDataResult.data;
 
       // Validate that we have something to update
       const updateFields = Object.keys(updateData).filter(k => !k.startsWith("_"));
       if (updateFields.length === 0) {
-        core.warning("No update fields provided");
+        core.info(`No update fields provided for ${itemTypeName} #${itemNumber} - treating as no-op (skipping update)`);
         return {
-          success: false,
-          error: "No update fields provided",
+          success: true,
+          skipped: true,
+          reason: "No update fields provided",
         };
       }
 

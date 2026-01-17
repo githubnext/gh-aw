@@ -179,7 +179,7 @@ describe("update_handler_factory.cjs", () => {
       expect(mockExecuteUpdate).not.toHaveBeenCalled();
     });
 
-    it("should handle empty update data", async () => {
+    it("should handle empty update data as no-op", async () => {
       const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
       const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: {} });
       const mockExecuteUpdate = vi.fn();
@@ -198,9 +198,11 @@ describe("update_handler_factory.cjs", () => {
       const handler = await handlerFactory({});
       const result = await handler({ title: "Test" });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("No update fields provided");
-      expect(mockCore.warning).toHaveBeenCalledWith("No update fields provided");
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe("No update fields provided");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No update fields provided"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("treating as no-op"));
       // Should not proceed to execute
       expect(mockExecuteUpdate).not.toHaveBeenCalled();
     });

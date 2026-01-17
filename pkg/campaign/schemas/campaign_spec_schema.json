@@ -109,6 +109,25 @@
       },
       "minItems": 1
     },
+    "allowed-repos": {
+      "type": "array",
+      "description": "List of repositories (in owner/repo format) that this campaign is allowed to discover and operate on. This is a required field that defines the campaign scope as a reviewable contract.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "allowed-orgs": {
+      "type": "array",
+      "description": "Optional list of GitHub organizations that this campaign is allowed to discover and operate on",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_.-]+$",
+        "minLength": 1
+      }
+    },
     "memory-paths": {
       "type": "array",
       "description": "Paths where this campaign writes its repo-memory",
@@ -249,6 +268,6 @@
       "additionalProperties": false
     }
   },
-  "required": ["id", "name", "project-url"],
+  "required": ["id", "name", "project-url", "allowed-repos"],
   "additionalProperties": false
 }

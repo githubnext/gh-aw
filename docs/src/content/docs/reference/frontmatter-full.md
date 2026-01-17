@@ -2263,11 +2263,25 @@ safe-outputs:
   assign-to-agent:
     # Default agent name to assign (default: 'copilot')
     # (optional)
-    name: "My Workflow"
+    name: "copilot"
+
+    # Optional list of allowed agent names. If specified, only these agents can be
+    # assigned. When configured, existing agent assignees not in the list are
+    # removed while regular user assignees are preserved.
+    # (optional)
+    allowed: []
+      # Array of strings (e.g., ["copilot"])
 
     # Optional maximum number of agent assignments (default: 1)
     # (optional)
     max: 1
+
+    # Target issue/PR to assign agents to. Use 'triggering' (default) for the
+    # triggering issue/PR, '*' to require explicit issue_number/pull_number, or a
+    # specific issue/PR number. With 'triggering', auto-resolves from
+    # github.event.issue.number or github.event.pull_request.number.
+    # (optional)
+    target: null
 
     # Target repository in format 'owner/repo' for cross-repository agent assignment.
     # Takes precedence over trial target repo settings.

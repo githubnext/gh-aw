@@ -141,6 +141,7 @@ jobs:
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
+          release_tag: ${{ needs.config.outputs.release_tag }}
 
       - name: Set release to draft mode
         if: needs.config.outputs.draft_mode == 'true'
@@ -197,14 +198,14 @@ jobs:
         run: go mod download
 
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
+        uses: anchore/sbom-action@v0
         with:
           artifact-name: sbom.spdx.json
           output-file: sbom.spdx.json
           format: spdx-json
 
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
+        uses: anchore/sbom-action@v0
         with:
           artifact-name: sbom.cdx.json
           output-file: sbom.cdx.json
@@ -220,7 +221,7 @@ jobs:
           echo "✓ No secrets detected in SBOM files"
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-artifacts
           path: |
@@ -244,15 +245,16 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      actions: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@v5
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -262,16 +264,58 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+          RELEASE_ID: ${{ needs.release.outputs.release_id }}
         run: |
-          echo "Downloading release binaries..."
+          echo "Downloading release binaries for release ID: $RELEASE_ID, tag: $RELEASE_TAG"
           mkdir -p dist
-          gh release download "$RELEASE_TAG" --pattern "linux-*" --dir dist
+          
+          # Get the release by ID (works for both draft and published releases)
+          # Draft releases lose their tag association, so we must query by ID
+          echo "Fetching release information..."
+          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            --jq '{id, tag_name, name, draft, created_at, asset_count: (.assets | length)}' \
+            > /tmp/release_info.json
+          
+          echo "Release info:"
+          cat /tmp/release_info.json
+          
+          # Get all linux-* assets from this specific release
+          echo ""
+          echo "Fetching linux-* assets..."
+          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            --jq ".assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url, size: .size}" \
+            > /tmp/assets.json
+          
+          if [ ! -s /tmp/assets.json ]; then
+            echo "Error: No linux-* assets found in release $RELEASE_TAG (ID: $RELEASE_ID)"
+            echo ""
+            echo "Available assets:"
+            gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+              --jq '.assets[] | .name'
+            exit 1
+          fi
+          
+          echo "Found $(jq -s length /tmp/assets.json) linux assets:"
+          cat /tmp/assets.json
+          
+          # Download each asset using authenticated API call
+          echo ""
+          while IFS= read -r asset; do
+            ASSET_NAME=$(echo "$asset" | jq -r '.name')
+            ASSET_URL=$(echo "$asset" | jq -r '.url')
+            ASSET_SIZE=$(echo "$asset" | jq -r '.size')
+            echo "Downloading $ASSET_NAME ($(numfmt --to=iec-i --suffix=B $ASSET_SIZE))..."
+            gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
+          done < <(jq -c '.' /tmp/assets.json)
+          
+          echo ""
+          echo "Downloaded binaries:"
           ls -lh dist/
-          echo "✓ Release binaries downloaded"
+          echo "✓ Release binaries downloaded successfully"
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@c299e40ca79d9ee606ef6f4365af95e9a7ca7f9f # v5.10.0
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -283,7 +327,7 @@ jobs:
 
       - name: Build and push Docker image (amd64)
         id: build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
@@ -296,7 +340,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@fbfd9c6c0a5723f5b15376258af3142b3d6a83bb # v0.20.10
+        uses: anchore/sbom-action@v0
         with:
           image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
           artifact-name: docker-sbom.spdx.json
@@ -304,7 +348,7 @@ jobs:
           format: spdx-json
 
       - name: Attest Docker image
-        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}

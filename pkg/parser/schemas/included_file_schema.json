@@ -667,6 +667,26 @@
           ],
           "examples": [true, null]
         },
+        "grep": {
+          "description": "DEPRECATED: grep is always available as part of default bash tools. This field is no longer needed and will be ignored.",
+          "deprecated": true,
+          "x-deprecation-message": "grep is always available as part of default bash tools (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date, yq). Remove this field and use bash tool instead.",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Deprecated grep tool configuration"
+            },
+            {
+              "type": "boolean",
+              "description": "Deprecated grep tool configuration"
+            },
+            {
+              "type": "object",
+              "description": "Deprecated grep tool configuration object",
+              "additionalProperties": true
+            }
+          ]
+        },
         "edit": {
           "description": "File editing tool for reading, creating, and modifying files in the repository",
           "oneOf": [
@@ -1452,6 +1472,10 @@
             "user-agent": {
               "type": "string",
               "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
+            },
+            "command": {
+              "type": "string",
+              "description": "Custom executable path for the AI engine CLI. When specified, the workflow will skip the standard installation steps and use this command instead. The command should be the full path to the executable or a command available in PATH."
             },
             "env": {
               "type": "object",
