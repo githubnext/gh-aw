@@ -283,7 +283,7 @@ async function main() {
           workflow_name: workflowName,
           workflow_source: workflowSource,
           workflow_source_url: workflowSourceURL,
-          secret_verification_failed: secretVerificationResult === "failed",
+          secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
         };
@@ -329,7 +329,7 @@ async function main() {
           workflow_source_url: workflowSourceURL || "#",
           branch: currentBranch,
           pull_request_info: pullRequest ? `  \n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
-          secret_verification_failed: secretVerificationResult === "failed",
+          secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
         };
