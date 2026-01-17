@@ -62,11 +62,12 @@ func TestErrorMessageQuality(t *testing.T) {
 				return c.validateEngine("invalid-engine")
 			},
 			shouldContain: []string{
-				"invalid engine",
-				"Valid engines",
+				"Invalid engine",
+				"supported engines",
 				"copilot",
 				"claude",
 				"Example:",
+				"Learn more:",
 			},
 			shouldNotBeVague: true,
 		},
@@ -260,15 +261,16 @@ func TestMultipleEngineErrorMessage(t *testing.T) {
 	require.Error(t, err)
 
 	// Should explain what's wrong
-	assert.Contains(t, err.Error(), "invalid engine")
+	assert.Contains(t, err.Error(), "Invalid engine")
 
 	// Should list valid options
 	assert.Contains(t, err.Error(), "copilot")
 	assert.Contains(t, err.Error(), "claude")
 	assert.Contains(t, err.Error(), "codex")
 
-	// Should include example
+	// Should include example and learn more
 	assert.Contains(t, err.Error(), "Example:")
+	assert.Contains(t, err.Error(), "Learn more:")
 }
 
 // TestMCPValidationErrorQuality tests MCP validation error messages

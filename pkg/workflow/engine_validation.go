@@ -65,7 +65,7 @@ func (c *Compiler) validateEngine(engineID string) error {
 
 	engineValidationLog.Printf("Engine ID %s not found: %v", engineID, err)
 	// Provide helpful error with valid options
-	return fmt.Errorf("invalid engine: %s. Valid engines are: copilot, claude, codex, custom. Example: engine: copilot", engineID)
+	return fmt.Errorf("❌ Invalid engine: %s\n\n💡 What went wrong: The engine '%s' is not recognized.\n\n✅ How to fix: Choose one of these supported engines:\n  - copilot (GitHub Copilot - recommended)\n  - claude (Anthropic Claude)\n  - codex (OpenAI Codex)\n  - custom (Custom engine configuration)\n\nExample:\n---\nengine: copilot\n---\n\n📚 Learn more: https://githubnext.github.io/gh-aw/reference/frontmatter/#engine", engineID, engineID)
 }
 
 // validateSingleEngineSpecification validates that only one engine field exists across all files
@@ -90,7 +90,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	}
 
 	if len(allEngines) > 1 {
-		return "", fmt.Errorf("multiple engine fields found (%d engine specifications detected). Only one engine field is allowed across the main workflow and all included files. Remove duplicate engine specifications to keep only one. Example: engine: copilot", len(allEngines))
+		return "", fmt.Errorf("❌ Multiple engine specifications found\n\n💡 What went wrong: Found %d engine specifications. Only one engine can be specified across the main workflow and all included files.\n\n✅ How to fix: Remove duplicate engine specifications to keep only one.\n\nExample (in main workflow or one include file):\n---\nengine: copilot\n---\n\n📚 Learn more: https://githubnext.github.io/gh-aw/reference/frontmatter/#engine", len(allEngines))
 	}
 
 	// Exactly one engine found - parse and return it
@@ -101,7 +101,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	// Must be from included file
 	var firstEngine any
 	if err := json.Unmarshal([]byte(includedEnginesJSON[0]), &firstEngine); err != nil {
-		return "", fmt.Errorf("failed to parse included engine configuration: %w. Expected string or object format. Example (string): engine: copilot or (object): engine:\\n  id: copilot\\n  model: gpt-4", err)
+		return "", fmt.Errorf("❌ Failed to parse engine configuration\n\n💡 What went wrong: %v\n\n✅ How to fix: Use either string format or object format for engine configuration.\n\nExample (string format):\n---\nengine: copilot\n---\n\nExample (object format):\n---\nengine:\n  id: copilot\n  model: gpt-4\n---\n\n📚 Learn more: https://githubnext.github.io/gh-aw/reference/frontmatter/#engine", err)
 	}
 
 	// Handle string format
@@ -116,5 +116,5 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		}
 	}
 
-	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string or object with 'id' field. Example (string): engine: copilot or (object): engine:\\n  id: copilot\\n  model: gpt-4")
+	return "", fmt.Errorf("❌ Invalid engine configuration\n\n💡 What went wrong: Engine configuration is missing or has an invalid 'id' field.\n\n✅ How to fix: Use either string format or object format with an 'id' field.\n\nExample (string format):\n---\nengine: copilot\n---\n\nExample (object format):\n---\nengine:\n  id: copilot\n  model: gpt-4\n---\n\n📚 Learn more: https://githubnext.github.io/gh-aw/reference/frontmatter/#engine")
 }

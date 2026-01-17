@@ -12,6 +12,7 @@ type ValidationError struct {
 	Value      string
 	Reason     string
 	Suggestion string
+	LearnMore  string // Optional documentation link
 	Timestamp  time.Time
 }
 
@@ -19,8 +20,7 @@ type ValidationError struct {
 func (e *ValidationError) Error() string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
-		e.Timestamp.Format(time.RFC3339), e.Field)
+	fmt.Fprintf(&b, "❌ Validation failed for '%s'", e.Field)
 
 	if e.Value != "" {
 		// Truncate long values
@@ -28,13 +28,17 @@ func (e *ValidationError) Error() string {
 		if len(truncatedValue) > 100 {
 			truncatedValue = truncatedValue[:97] + "..."
 		}
-		fmt.Fprintf(&b, "\n\nValue: %s", truncatedValue)
+		fmt.Fprintf(&b, "\n\n📝 Value provided: %s", truncatedValue)
 	}
 
-	fmt.Fprintf(&b, "\nReason: %s", e.Reason)
+	fmt.Fprintf(&b, "\n\n💡 What went wrong: %s", e.Reason)
 
 	if e.Suggestion != "" {
-		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
+		fmt.Fprintf(&b, "\n\n✅ How to fix: %s", e.Suggestion)
+	}
+
+	if e.LearnMore != "" {
+		fmt.Fprintf(&b, "\n\n📚 Learn more: %s", e.LearnMore)
 	}
 
 	return b.String()
@@ -51,6 +55,18 @@ func NewValidationError(field, value, reason, suggestion string) *ValidationErro
 	}
 }
 
+// NewValidationErrorWithLearnMore creates a new validation error with documentation link
+func NewValidationErrorWithLearnMore(field, value, reason, suggestion, learnMore string) *ValidationError {
+	return &ValidationError{
+		Field:      field,
+		Value:      value,
+		Reason:     reason,
+		Suggestion: suggestion,
+		LearnMore:  learnMore,
+		Timestamp:  time.Now(),
+	}
+}
+
 // OperationError represents an error that occurred during an operation
 type OperationError struct {
 	Operation  string
@@ -58,6 +74,7 @@ type OperationError struct {
 	EntityID   string
 	Cause      error
 	Suggestion string
+	LearnMore  string // Optional documentation link
 	Timestamp  time.Time
 }
 
@@ -65,22 +82,25 @@ type OperationError struct {
 func (e *OperationError) Error() string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "[%s] Failed to %s %s",
-		e.Timestamp.Format(time.RFC3339), e.Operation, e.EntityType)
+	fmt.Fprintf(&b, "❌ Failed to %s %s", e.Operation, e.EntityType)
 
 	if e.EntityID != "" {
 		fmt.Fprintf(&b, " #%s", e.EntityID)
 	}
 
 	if e.Cause != nil {
-		fmt.Fprintf(&b, "\n\nUnderlying error: %v", e.Cause)
+		fmt.Fprintf(&b, "\n\n⚠️  Underlying error: %v", e.Cause)
 	}
 
 	if e.Suggestion != "" {
-		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
+		fmt.Fprintf(&b, "\n\n✅ How to fix: %s", e.Suggestion)
 	} else {
 		// Provide default suggestion
-		fmt.Fprintf(&b, "\nSuggestion: Check that the %s exists and you have the necessary permissions.", e.EntityType)
+		fmt.Fprintf(&b, "\n\n✅ How to fix: Check that the %s exists and you have the necessary permissions.", e.EntityType)
+	}
+
+	if e.LearnMore != "" {
+		fmt.Fprintf(&b, "\n\n📚 Learn more: %s", e.LearnMore)
 	}
 
 	return b.String()
@@ -103,12 +123,26 @@ func NewOperationError(operation, entityType, entityID string, cause error, sugg
 	}
 }
 
+// NewOperationErrorWithLearnMore creates a new operation error with documentation link
+func NewOperationErrorWithLearnMore(operation, entityType, entityID string, cause error, suggestion, learnMore string) *OperationError {
+	return &OperationError{
+		Operation:  operation,
+		EntityType: entityType,
+		EntityID:   entityID,
+		Cause:      cause,
+		Suggestion: suggestion,
+		LearnMore:  learnMore,
+		Timestamp:  time.Now(),
+	}
+}
+
 // ConfigurationError represents an error in safe-outputs configuration
 type ConfigurationError struct {
 	ConfigKey  string
 	Value      string
 	Reason     string
 	Suggestion string
+	LearnMore  string // Optional documentation link
 	Timestamp  time.Time
 }
 
@@ -116,8 +150,7 @@ type ConfigurationError struct {
 func (e *ConfigurationError) Error() string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "[%s] Configuration error in '%s'",
-		e.Timestamp.Format(time.RFC3339), e.ConfigKey)
+	fmt.Fprintf(&b, "⚙️  Configuration error in '%s'", e.ConfigKey)
 
 	if e.Value != "" {
 		// Truncate long values
@@ -125,16 +158,20 @@ func (e *ConfigurationError) Error() string {
 		if len(truncatedValue) > 100 {
 			truncatedValue = truncatedValue[:97] + "..."
 		}
-		fmt.Fprintf(&b, "\n\nValue: %s", truncatedValue)
+		fmt.Fprintf(&b, "\n\n📝 Value provided: %s", truncatedValue)
 	}
 
-	fmt.Fprintf(&b, "\nReason: %s", e.Reason)
+	fmt.Fprintf(&b, "\n\n💡 What went wrong: %s", e.Reason)
 
 	if e.Suggestion != "" {
-		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
+		fmt.Fprintf(&b, "\n\n✅ How to fix: %s", e.Suggestion)
 	} else {
 		// Provide default suggestion
-		fmt.Fprintf(&b, "\nSuggestion: Check the safe-outputs configuration in your workflow frontmatter and ensure '%s' is correctly specified.", e.ConfigKey)
+		fmt.Fprintf(&b, "\n\n✅ How to fix: Check the safe-outputs configuration in your workflow frontmatter and ensure '%s' is correctly specified.", e.ConfigKey)
+	}
+
+	if e.LearnMore != "" {
+		fmt.Fprintf(&b, "\n\n📚 Learn more: %s", e.LearnMore)
 	}
 
 	return b.String()
@@ -147,6 +184,18 @@ func NewConfigurationError(configKey, value, reason, suggestion string) *Configu
 		Value:      value,
 		Reason:     reason,
 		Suggestion: suggestion,
+		Timestamp:  time.Now(),
+	}
+}
+
+// NewConfigurationErrorWithLearnMore creates a new configuration error with documentation link
+func NewConfigurationErrorWithLearnMore(configKey, value, reason, suggestion, learnMore string) *ConfigurationError {
+	return &ConfigurationError{
+		ConfigKey:  configKey,
+		Value:      value,
+		Reason:     reason,
+		Suggestion: suggestion,
+		LearnMore:  learnMore,
 		Timestamp:  time.Now(),
 	}
 }

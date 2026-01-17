@@ -230,7 +230,7 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 		errorMsg := err.Error()
 
 		// Error should explain what's wrong
-		if !strings.Contains(errorMsg, "multiple engine fields found") {
+		if !strings.Contains(errorMsg, "Multiple engine specifications found") {
 			t.Errorf("Error should explain multiple engines found, got: %s", errorMsg)
 		}
 
@@ -240,8 +240,13 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 		}
 
 		// Error should include example
-		if !strings.Contains(errorMsg, "Example:") && !strings.Contains(errorMsg, "engine: copilot") {
+		if !strings.Contains(errorMsg, "Example") && !strings.Contains(errorMsg, "engine: copilot") {
 			t.Errorf("Error should include an example, got: %s", errorMsg)
+		}
+
+		// Error should include learn more link
+		if !strings.Contains(errorMsg, "Learn more:") {
+			t.Errorf("Error should include learn more link, got: %s", errorMsg)
 		}
 	})
 
@@ -255,7 +260,7 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 		errorMsg := err.Error()
 
 		// Error should mention parse failure
-		if !strings.Contains(errorMsg, "failed to parse") {
+		if !strings.Contains(errorMsg, "Failed to parse") {
 			t.Errorf("Error should mention parse failure, got: %s", errorMsg)
 		}
 
@@ -266,6 +271,11 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 
 		if !strings.Contains(errorMsg, "id: copilot") {
 			t.Errorf("Error should include object format example, got: %s", errorMsg)
+		}
+
+		// Error should include learn more link
+		if !strings.Contains(errorMsg, "Learn more:") {
+			t.Errorf("Error should include learn more link, got: %s", errorMsg)
 		}
 	})
 
@@ -279,13 +289,18 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 		errorMsg := err.Error()
 
 		// Error should explain the problem
-		if !strings.Contains(errorMsg, "invalid engine configuration") {
+		if !strings.Contains(errorMsg, "Invalid engine configuration") {
 			t.Errorf("Error should explain invalid configuration, got: %s", errorMsg)
 		}
 
 		// Error should mention missing 'id' field
 		if !strings.Contains(errorMsg, "id") {
 			t.Errorf("Error should mention 'id' field, got: %s", errorMsg)
+		}
+
+		// Error should include learn more link
+		if !strings.Contains(errorMsg, "Learn more:") {
+			t.Errorf("Error should include learn more link, got: %s", errorMsg)
 		}
 
 		// Error should show both string and object format examples
