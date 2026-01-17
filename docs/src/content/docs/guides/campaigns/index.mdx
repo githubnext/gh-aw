@@ -1,42 +1,98 @@
 ---
-title: Agentic campaigns
+title: Agentic Campaigns
 description: Coordinate AI agents across multiple workflow runs with structured, goal-driven initiatives tracked in GitHub Projects.
 ---
 
 import FeatureCard from '../../../../components/FeatureCard.astro';
 import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
-## Overview
+Agentic campaigns coordinate [agentic workflows](/gh-aw/introduction/overview/) to achieve specific goals with automated tracking and progress measurement. They provide structure for multi-workflow initiatives—from security remediation to framework migrations—with measurable KPIs and built-in governance.
 
-Agentic campaigns coordinate [agentic workflows](/gh-aw/introduction/overview/) toward a single goal with automated tracking on GitHub Projects.
+## What is a campaign?
+
+A campaign is a **goal-driven initiative** that uses AI agents to coordinate work across your repositories. Think of it as a project manager that:
+
+- **Defines clear objectives** with measurable success criteria
+- **Coordinates multiple workflows** that work toward the same goal
+- **Tracks progress automatically** on GitHub Project boards
+- **Enforces governance policies** to keep automation safe and predictable
+
+Unlike single workflows that perform one task, campaigns orchestrate multiple workflows over time to drive complex initiatives to completion.
 
 ## Why use campaigns?
 
+Campaigns solve coordination challenges that single workflows can't handle alone:
+
 <FeatureGrid columns={2}>
   <FeatureCard icon="goal" title="Strategic Goals" href="/gh-aw/guides/campaigns/specs/#core-fields-what-they-do">
-    Define objectives with measurable KPIs that track progress automatically
+    Define objectives with measurable KPIs that track progress automatically across all workflows
   </FeatureCard>
   <FeatureCard icon="project" title="Unified Tracking" href="/gh-aw/guides/campaigns/project-management/">
-    GitHub Project board shows all work items and real-time status
+    GitHub Project board shows all work items and real-time status in one place
   </FeatureCard>
   <FeatureCard icon="shield" title="Built-in Governance" href="/gh-aw/guides/campaigns/specs/#governance-pacing--safety">
-    Rate limits and safety controls keep automation predictable and safe
+    Rate limits and safety controls keep automation predictable and prevent overwhelming your team
   </FeatureCard>
   <FeatureCard icon="workflow" title="Reuse Workflows" href="/gh-aw/guides/campaigns/specs/#workflows">
-    Coordinate existing agentic workflows without modification
+    Coordinate existing agentic workflows without modification—they remain campaign-agnostic
   </FeatureCard>
 </FeatureGrid>
 
-## Quick Start
+## How campaigns work
 
-1. **Create** an issue describing your campaign goal
-2. **Apply** the `create-agentic-campaign` label to the issue
-3. **Wait** 2-3 minutes for automated campaign generation and compilation
-4. **Review** the pull request with your complete campaign setup
-5. **Merge** and run the orchestrator workflow from the Actions tab
+A campaign consists of three key components:
+
+1. **Campaign Spec** (`.campaign.md` file)
+   - Defines objectives, KPIs, and success criteria
+   - Lists workflows to coordinate
+   - Configures governance policies and limits
+
+2. **Orchestrator Workflow** (auto-generated `.campaign.lock.yml`)
+   - Discovers work items created by workflows
+   - Updates GitHub Project board automatically
+   - Reports progress and metrics
+   - Optionally executes workflows on your behalf
+
+3. **GitHub Project Board**
+   - Visual dashboard showing campaign progress
+   - Custom fields for tracking workflow ownership, priority, and status
+   - Roadmap views for timeline visualization
+
+**Worker workflows** continue running as normal—creating issues, opening PRs, and doing their specific tasks. The orchestrator simply discovers their outputs and tracks everything in one place.
+
+## When to use campaigns
+
+Use campaigns when you need to coordinate multiple workflows or track progress toward a specific goal:
+
+**✅ Good use cases:**
+- **Migration projects**: "Upgrade all services to Node.js 20" with scanner and upgrader workflows
+- **Security initiatives**: "Resolve all high-severity vulnerabilities" with detection and remediation workflows
+- **Quality improvements**: "Increase test coverage to 90%" with analyzer and test generator workflows
+- **Large refactorings**: "Modernize authentication" with audit, migration, and validation workflows
+
+**❌ Not suitable for:**
+- Single-workflow automation (just use regular agentic workflows)
+- One-time tasks without ongoing coordination needs
+- Simple scheduled tasks without progress tracking
+- Workflows that don't create trackable work items
+
+> [!TIP]
+> Start with a simple campaign tracking 2-3 existing workflows. You can add complexity later as you learn the patterns.
+
+## Quick start
+
+Create your first campaign in minutes using the automated creation flow:
+
+1. **Create an issue** describing your campaign goal
+2. **Apply the `create-agentic-campaign` label** to trigger automated setup
+3. **Wait 2-3 minutes** for campaign generation and compilation
+4. **Review the pull request** with your complete campaign
+5. **Merge and run** the orchestrator workflow from the Actions tab
+
+The automated flow handles project board creation, workflow discovery, spec generation, and compilation—everything you need to start coordinating workflows.
 
 > [!IMPORTANT]
-> Use the automated campaign creation flow—it's the only supported way to create campaigns. It handles project board creation, workflow discovery, spec generation, and compilation automatically.
+> Use the automated campaign creation flow—it's the only supported way to create campaigns. Manual creation is complex and error-prone.
 
 ## Campaign modes
 
@@ -136,10 +192,20 @@ With `execute-workflows: true`, the orchestrator will:
   </FeatureCard>
 </FeatureGrid>
 
-## Next steps
+## Learn more
 
-- **[Quick start](/gh-aw/guides/campaigns/getting-started/)** - Create your first campaign in 5 steps
-- **[Campaign flow](/gh-aw/guides/campaigns/flow/)** - Understand the complete campaign lifecycle from start to finish
-- **[Campaign specs](/gh-aw/guides/campaigns/specs/)** - Learn the specification format and configuration options
-- **[Project management](/gh-aw/guides/campaigns/project-management/)** - Set up GitHub Project boards for campaign dashboards
-- **[CLI commands](/gh-aw/guides/campaigns/cli-commands/)** - Reference for campaign compilation and management
+### Essential guides
+
+Start with these guides to understand and use campaigns effectively:
+
+- **[Getting Started](/gh-aw/guides/campaigns/getting-started/)** – Create your first campaign in 5 minutes using the automated flow
+- **[Campaign Flow](/gh-aw/guides/campaigns/flow/)** – Understand the complete campaign lifecycle from startup to completion
+- **[Campaign Specs](/gh-aw/guides/campaigns/specs/)** – Learn the specification format and all configuration options
+
+### Additional resources
+
+Dive deeper into specific topics:
+
+- **[Project Management](/gh-aw/guides/campaigns/project-management/)** – Set up GitHub Project boards with custom fields and views
+- **[Technical Overview](/gh-aw/guides/campaigns/technical-overview/)** – Understand the architecture and how campaigns work under the hood
+- **[CLI Commands](/gh-aw/guides/campaigns/cli-commands/)** – Reference for campaign validation and management commands

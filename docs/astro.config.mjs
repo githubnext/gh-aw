@@ -194,9 +194,11 @@ export default defineConfig({
 					label: 'Campaigns',
 					items: [
 						{ label: 'Overview', link: '/guides/campaigns/' },
-						{ label: 'Campaign Specs', link: '/guides/campaigns/specs/' },
 						{ label: 'Getting Started', link: '/guides/campaigns/getting-started/' },
+						{ label: 'Campaign Flow', link: '/guides/campaigns/flow/' },
+						{ label: 'Campaign Specs', link: '/guides/campaigns/specs/' },
 						{ label: 'Project Management', link: '/guides/campaigns/project-management/' },
+						{ label: 'Technical Overview', link: '/guides/campaigns/technical-overview/' },
 						{ label: 'CLI Commands', link: '/guides/campaigns/cli-commands/' },
 						{ label: 'vs GitHub Security Campaigns', link: '/guides/campaigns/comparison-github-campaigns/' },
 					],
