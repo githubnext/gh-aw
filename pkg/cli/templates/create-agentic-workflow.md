@@ -83,11 +83,6 @@ This file contains all blog entries from Peli's Agent Factory in a format optimi
 - Safe outputs and permissions models
 - Caching and state management
 
-**Alternative: Browse the blog directly:**
-- Start at: https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
-- Use web-fetch to retrieve each page
-- Follow ALL internal links to other pages on the site
-
 ### Step 1.2: Explore the Agentics Repository
 
 Clone knowledge from the agentics repository to understand reference implementations:
