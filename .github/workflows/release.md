@@ -135,54 +135,19 @@ jobs:
           git push origin "$RELEASE_TAG"
           echo "✓ Tag created: $RELEASE_TAG"
           
-      - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
-        with:
-          go_version_file: go.mod
-          build_script_override: scripts/build-release.sh
-          release_tag: ${{ needs.config.outputs.release_tag }}
-
-      - name: Set release to draft mode
-        if: needs.config.outputs.draft_mode == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          echo "Setting release to draft mode: $RELEASE_TAG"
-          # Edit the release to set it as draft
-          gh release edit "$RELEASE_TAG" --draft
-          echo "✓ Release set to draft mode"
-
-      - name: Upload checksums file
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          if [ -f "dist/checksums.txt" ]; then
-            echo "Uploading checksums file to release: $RELEASE_TAG"
-            gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
-            echo "✓ Checksums file uploaded to release"
-          else
-            echo "Warning: checksums.txt not found in dist/"
-          fi
-
-      - name: Get release ID
-        id: get_release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          echo "Getting release ID for tag: $RELEASE_TAG"
-          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          echo "✓ Release ID: $RELEASE_ID"
-          echo "✓ Release Tag: $RELEASE_TAG"
-
       - name: Setup Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version-file: go.mod
           cache: false  # Disabled for release security - prevent cache poisoning attacks
+
+      - name: Build binaries
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          echo "Building binaries for release: $RELEASE_TAG"
+          bash scripts/build-release.sh "$RELEASE_TAG"
+          echo "✓ Binaries built successfully"
 
       - name: Download Go modules
         run: go mod download
@@ -218,15 +183,6 @@ jobs:
             sbom.spdx.json
             sbom.cdx.json
           retention-days: 7  # Minimize exposure window
-
-      - name: Attach SBOM to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          echo "Attaching SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
-          echo "✓ SBOM files attached to release"
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -278,6 +234,38 @@ jobs:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
+      - name: Create GitHub release
+        id: get_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+          DRAFT_MODE: ${{ needs.config.outputs.draft_mode }}
+        run: |
+          echo "Creating GitHub release: $RELEASE_TAG"
+          
+          # Create release with all binaries
+          RELEASE_ARGS=()
+          if [ "$DRAFT_MODE" = "true" ]; then
+            RELEASE_ARGS+=(--draft)
+            echo "Creating draft release"
+          fi
+          
+          # Create the release and upload all artifacts
+          gh release create "$RELEASE_TAG" \
+            dist/* \
+            sbom.spdx.json \
+            sbom.cdx.json \
+            --title "$RELEASE_TAG" \
+            --generate-notes \
+            "${RELEASE_ARGS[@]}"
+          
+          # Get release ID
+          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "✓ Release created: $RELEASE_TAG"
+          echo "✓ Release ID: $RELEASE_ID"
+          echo "✓ Draft mode: $DRAFT_MODE"
 
 steps:
   - name: Setup environment and fetch release data
