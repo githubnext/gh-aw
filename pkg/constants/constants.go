@@ -288,7 +288,7 @@ const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
 const DefaultSandboxRuntimeVersion Version = "0.0.28"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.55"
+const DefaultPlaywrightMCPVersion Version = "0.0.56"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.57.0"
