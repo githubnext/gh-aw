@@ -208,4 +208,3 @@ func TestRenderGitHubMCPRemoteConfigHeaderOrder(t *testing.T) {
 		t.Errorf("Expected X-MCP-Readonly to come before X-MCP-Toolsets, but got:\n%s", output)
 	}
 }
-
