@@ -273,7 +273,10 @@ const (
 const DefaultCodexVersion Version = "0.87.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.28.1"
+// Note: v0.28.1 has a schema validation bug with get_commit tool that causes failures
+// with Copilot CLI. Using v0.27.0 until the issue is resolved upstream.
+// See: https://github.com/githubnext/gh-aw/issues/10451
+const DefaultGitHubMCPServerVersion Version = "v0.27.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.10.0"
