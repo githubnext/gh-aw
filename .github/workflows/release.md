@@ -116,7 +116,6 @@ jobs:
       attestations: write
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
-      release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -176,7 +175,6 @@ jobs:
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
           echo "✓ Release Tag: $RELEASE_TAG"
 
@@ -285,7 +283,7 @@ steps:
   - name: Setup environment and fetch release data
     env:
       RELEASE_ID: ${{ needs.release.outputs.release_id }}
-      RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
