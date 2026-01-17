@@ -1209,33 +1209,55 @@ jobs:
           username: ${{ github.actor }}
       - name: Download release artifacts
         run: |
-          echo "Downloading release binaries..."
+          echo "Downloading release binaries for release ID: $RELEASE_ID, tag: $RELEASE_TAG"
           mkdir -p dist
 
-          # Get the release assets using GitHub API
-          # Use /releases endpoint which works for both draft and published releases
-          # The /releases/tags/{tag} endpoint returns 404 for draft releases
-          gh api "/repos/${{ github.repository }}/releases" \
-            --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url}" \
+          # Get the release by ID (works for both draft and published releases)
+          # Draft releases lose their tag association, so we must query by ID
+          echo "Fetching release information..."
+          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            --jq '{id, tag_name, name, draft, created_at, asset_count: (.assets | length)}' \
+            > /tmp/release_info.json
+
+          echo "Release info:"
+          cat /tmp/release_info.json
+
+          # Get all linux-* assets from this specific release
+          echo ""
+          echo "Fetching linux-* assets..."
+          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            --jq ".assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url, size: .size}" \
             > /tmp/assets.json
 
           if [ ! -s /tmp/assets.json ]; then
-            echo "Error: No linux-* assets found in release $RELEASE_TAG"
+            echo "Error: No linux-* assets found in release $RELEASE_TAG (ID: $RELEASE_ID)"
+            echo ""
+            echo "Available assets:"
+            gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+              --jq '.assets[] | .name'
             exit 1
           fi
 
+          echo "Found $(jq -s length /tmp/assets.json) linux assets:"
+          cat /tmp/assets.json
+
           # Download each asset using authenticated API call
+          echo ""
           while IFS= read -r asset; do
             ASSET_NAME=$(echo "$asset" | jq -r '.name')
             ASSET_URL=$(echo "$asset" | jq -r '.url')
-            echo "Downloading $ASSET_NAME..."
+            ASSET_SIZE=$(echo "$asset" | jq -r '.size')
+            echo "Downloading $ASSET_NAME ($(numfmt --to=iec-i --suffix=B $ASSET_SIZE))..."
             gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
           done < <(jq -c '.' /tmp/assets.json)
 
+          echo ""
+          echo "Downloaded binaries:"
           ls -lh dist/
-          echo "✓ Release binaries downloaded"
+          echo "✓ Release binaries downloaded successfully"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.release.outputs.release_id }}
           RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
       - name: Extract metadata for Docker
         id: meta
