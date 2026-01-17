@@ -294,7 +294,8 @@ steps:
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
       
       # Get the current release information
-      gh release view "$RELEASE_TAG" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json
+      # Use release ID to fetch release data (works for draft releases)
+      gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
       echo "✓ Fetched current release information"
       
       # Get the previous release to determine the range
