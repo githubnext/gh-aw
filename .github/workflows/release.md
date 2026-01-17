@@ -179,6 +179,57 @@ jobs:
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
           echo "✓ Release Tag: $RELEASE_TAG"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image (amd64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BINARY=dist/linux-amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate SBOM for Docker image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository }}:${{ needs.config.outputs.release_tag }}
+          artifact-name: docker-sbom.spdx.json
+          output-file: docker-sbom.spdx.json
+          format: spdx-json
+
+      - name: Attest Docker image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
   generate-sbom:
     needs: ["release"]
     runs-on: ubuntu-latest
@@ -237,122 +288,7 @@ jobs:
           echo "Attaching SBOM files to release: $RELEASE_TAG"
           gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
           echo "✓ SBOM files attached to release"
-  docker-image:
-    needs: ["release"]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-      actions: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download release artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-          RELEASE_ID: ${{ needs.release.outputs.release_id }}
-        run: |
-          echo "Downloading release binaries for release ID: $RELEASE_ID, tag: $RELEASE_TAG"
-          mkdir -p dist
-          
-          # Get the release by ID (works for both draft and published releases)
-          # Draft releases lose their tag association, so we must query by ID
-          echo "Fetching release information..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq '{id, tag_name, name, draft, created_at, asset_count: (.assets | length)}' \
-            > /tmp/release_info.json
-          
-          echo "Release info:"
-          cat /tmp/release_info.json
-          
-          # Get all linux-* assets from this specific release
-          echo ""
-          echo "Fetching linux-* assets..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq ".assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url, size: .size}" \
-            > /tmp/assets.json
-          
-          if [ ! -s /tmp/assets.json ]; then
-            echo "Error: No linux-* assets found in release $RELEASE_TAG (ID: $RELEASE_ID)"
-            echo ""
-            echo "Available assets:"
-            gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-              --jq '.assets[] | .name'
-            exit 1
-          fi
-          
-          echo "Found $(jq -s length /tmp/assets.json) linux assets:"
-          cat /tmp/assets.json
-          
-          # Download each asset using authenticated API call
-          echo ""
-          while IFS= read -r asset; do
-            ASSET_NAME=$(echo "$asset" | jq -r '.name')
-            ASSET_URL=$(echo "$asset" | jq -r '.url')
-            ASSET_SIZE=$(echo "$asset" | jq -r '.size')
-            echo "Downloading $ASSET_NAME ($(numfmt --to=iec-i --suffix=B $ASSET_SIZE))..."
-            gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
-          done < <(jq -c '.' /tmp/assets.json)
-          
-          echo ""
-          echo "Downloaded binaries:"
-          ls -lh dist/
-          echo "✓ Release binaries downloaded successfully"
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,format=long
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image (amd64)
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            BINARY=dist/linux-amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@v0
-        with:
-          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
-          artifact-name: docker-sbom.spdx.json
-          output-file: docker-sbom.spdx.json
-          format: spdx-json
-
-      - name: Attest Docker image
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
 steps:
   - name: Setup environment and fetch release data
     env:

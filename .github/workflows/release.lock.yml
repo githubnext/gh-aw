@@ -85,7 +85,6 @@ jobs:
     needs:
       - activation
       - config
-      - docker-image
       - generate-sbom
       - release
     runs-on: ubuntu-latest
@@ -1206,117 +1205,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  docker-image:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      attestations: write
-      contents: read
-      id-token: write
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: ghcr.io
-          username: ${{ github.actor }}
-      - name: Download release artifacts
-        run: |
-          echo "Downloading release binaries for release ID: $RELEASE_ID, tag: $RELEASE_TAG"
-          mkdir -p dist
-
-          # Get the release by ID (works for both draft and published releases)
-          # Draft releases lose their tag association, so we must query by ID
-          echo "Fetching release information..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq '{id, tag_name, name, draft, created_at, asset_count: (.assets | length)}' \
-            > /tmp/release_info.json
-
-          echo "Release info:"
-          cat /tmp/release_info.json
-
-          # Get all linux-* assets from this specific release
-          echo ""
-          echo "Fetching linux-* assets..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq ".assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url, size: .size}" \
-            > /tmp/assets.json
-
-          if [ ! -s /tmp/assets.json ]; then
-            echo "Error: No linux-* assets found in release $RELEASE_TAG (ID: $RELEASE_ID)"
-            echo ""
-            echo "Available assets:"
-            gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-              --jq '.assets[] | .name'
-            exit 1
-          fi
-
-          echo "Found $(jq -s length /tmp/assets.json) linux assets:"
-          cat /tmp/assets.json
-
-          # Download each asset using authenticated API call
-          echo ""
-          while IFS= read -r asset; do
-            ASSET_NAME=$(echo "$asset" | jq -r '.name')
-            ASSET_URL=$(echo "$asset" | jq -r '.url')
-            ASSET_SIZE=$(echo "$asset" | jq -r '.size')
-            echo "Downloading $ASSET_NAME ($(numfmt --to=iec-i --suffix=B $ASSET_SIZE))..."
-            gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
-          done < <(jq -c '.' /tmp/assets.json)
-
-          echo ""
-          echo "Downloaded binaries:"
-          ls -lh dist/
-          echo "✓ Release binaries downloaded successfully"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ID: ${{ needs.release.outputs.release_id }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,format=long
-            type=raw,value=latest,enable={{is_default_branch}}
-      - name: Build and push Docker image (amd64)
-        id: build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
-        with:
-          build-args: |
-            BINARY=dist/linux-amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          context: .
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-      - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: docker-sbom.spdx.json
-          format: spdx-json
-          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
-          output-file: docker-sbom.spdx.json
-      - name: Attest Docker image
-        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
-        with:
-          push-to-registry: true
-          subject-digest: ${{ steps.build.outputs.digest }}
-          subject-name: ghcr.io/${{ github.repository }}
-
   generate-sbom:
     needs: release
     runs-on: ubuntu-latest
@@ -1471,6 +1359,51 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push Docker image (amd64)
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          build-args: |
+            BINARY=dist/linux-amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: .
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+      - name: Generate SBOM for Docker image
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: docker-sbom.spdx.json
+          format: spdx-json
+          image: ghcr.io/${{ github.repository }}:${{ needs.config.outputs.release_tag }}
+          output-file: docker-sbom.spdx.json
+      - name: Attest Docker image
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          push-to-registry: true
+          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-name: ghcr.io/${{ github.repository }}
 
   safe_outputs:
     needs:
