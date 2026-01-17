@@ -24,8 +24,6 @@ func TestForbiddenFieldsImportRejection(t *testing.T) {
 		"features":        `features: {test: true}`,
 		"github-token":    `github-token: ${{ secrets.TOKEN }}`,
 		"if":              `if: success()`,
-		// Note: "imports" is skipped because it triggers import file resolution before field validation
-		"labels":          `labels: ["bug"]`,
 		"name":            `name: Test Workflow`,
 		"roles":           `roles: ["admin"]`,
 		"run-name":        `run-name: Test Run`,
@@ -111,6 +109,7 @@ func TestAllowedFieldsImportSuccess(t *testing.T) {
     type: string`,
 		"bots":       `bots: ["copilot", "dependabot"]`,
 		"post-steps": `post-steps: [{run: echo cleanup}]`,
+		"labels":     `labels: ["automation", "testing"]`,
 	}
 
 	for field, yaml := range allowedFields {
@@ -157,59 +156,63 @@ This workflow imports a shared workflow with allowed field.
 	}
 }
 
-// TestImportsFieldForbiddenInSharedWorkflows tests that the "imports" field is forbidden in shared workflows
-// This is tested separately because import resolution happens before field validation
-func TestImportsFieldForbiddenInSharedWorkflows(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-forbidden-imports-*")
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
-	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+// TestImportsFieldAllowedInSharedWorkflows tests that the "imports" field is allowed in shared workflows
+// and that nested imports work correctly
+func TestImportsFieldAllowedInSharedWorkflows(t *testing.T) {
+tempDir := testutil.TempDir(t, "test-allowed-imports-*")
+workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+require.NoError(t, os.MkdirAll(workflowsDir, 0755))
 
-	// Create a valid shared workflow that the forbidden shared workflow will try to import
-	otherSharedContent := `---
+// Create a base shared workflow (level 2)
+baseSharedContent := `---
 tools:
   bash: true
+labels: ["base"]
 ---
 
-# Other Shared Workflow
-`
-	otherSharedPath := filepath.Join(workflowsDir, "other.md")
-	require.NoError(t, os.WriteFile(otherSharedPath, []byte(otherSharedContent), 0644))
+# Base Shared Workflow
 
-	// Create shared workflow with "imports" field (forbidden)
-	sharedContent := `---
+This is the base shared workflow.
+`
+baseSharedPath := filepath.Join(workflowsDir, "base.md")
+require.NoError(t, os.WriteFile(baseSharedPath, []byte(baseSharedContent), 0644))
+
+// Create intermediate shared workflow with "imports" field (level 1)
+intermediateSharedContent := `---
 imports:
-  - ./other.md
+  - ./base.md
 tools:
-  bash: true
+  curl: true
+labels: ["intermediate"]
 ---
 
-# Shared Workflow
+# Intermediate Shared Workflow
 
-This workflow has a forbidden imports field.
+This shared workflow imports another shared workflow (nested imports).
 `
-	sharedPath := filepath.Join(workflowsDir, "shared.md")
-	require.NoError(t, os.WriteFile(sharedPath, []byte(sharedContent), 0644))
+intermediateSharedPath := filepath.Join(workflowsDir, "intermediate.md")
+require.NoError(t, os.WriteFile(intermediateSharedPath, []byte(intermediateSharedContent), 0644))
 
-	// Create main workflow that imports the shared workflow
-	mainContent := `---
+// Create main workflow that imports the intermediate shared workflow
+mainContent := `---
 on: issues
 imports:
-  - ./shared.md
+  - ./intermediate.md
 ---
 
 # Main Workflow
 
-This workflow imports a shared workflow with forbidden imports field.
+This workflow imports a shared workflow that itself has imports (nested).
 `
-	mainPath := filepath.Join(workflowsDir, "main.md")
-	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
+mainPath := filepath.Join(workflowsDir, "main.md")
+require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
 
-	// Try to compile - should fail because shared workflow has forbidden "imports" field
-	compiler := NewCompiler(false, tempDir, "test")
-	err := compiler.CompileWorkflow(mainPath)
+// Compile - should succeed because shared workflows can have imports (nested imports are supported)
+compiler := NewCompiler(false, tempDir, "test")
+err := compiler.CompileWorkflow(mainPath)
 
-	// Should get error about forbidden field
-	require.Error(t, err, "Expected error for forbidden field 'imports'")
-	assert.Contains(t, err.Error(), "cannot be used in shared workflows",
-		"Error should mention forbidden field, got: %v", err)
+// Should NOT get error about forbidden field
+if err != nil && strings.Contains(err.Error(), "cannot be used in shared workflows") {
+t.Errorf("Field 'imports' should be allowed in shared workflows, got error: %v", err)
+}
 }

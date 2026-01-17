@@ -28,6 +28,7 @@ type ImportsResult struct {
 	MergedSecretMasking string   // Merged secret-masking steps from all imports
 	MergedBots          []string // Merged bots list from all imports (union of bot names)
 	MergedPostSteps     string   // Merged post-steps configuration from all imports (appended in order)
+	MergedLabels        []string // Merged labels from all imports (union of label names)
 	ImportedFiles       []string // List of imported file paths (for manifest)
 	AgentFile           string   // Path to custom agent file (if imported)
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
@@ -172,6 +173,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var safeInputs []string
 	var bots []string                  // Track unique bot names
 	botsSet := make(map[string]bool)   // Set for deduplicating bots
+	var labels []string                // Track unique labels
+	labelsSet := make(map[string]bool) // Set for deduplicating labels
 	var agentFile string               // Track custom agent file
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
@@ -459,6 +462,21 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if err == nil && postStepsContent != "" {
 			postStepsBuilder.WriteString(postStepsContent + "\n")
 		}
+
+		// Extract labels from imported file (merge into set to avoid duplicates)
+		labelsContent, err := extractLabelsFromContent(string(content))
+		if err == nil && labelsContent != "" && labelsContent != "[]" {
+			// Parse labels JSON array
+			var importedLabels []string
+			if jsonErr := json.Unmarshal([]byte(labelsContent), &importedLabels); jsonErr == nil {
+				for _, label := range importedLabels {
+					if !labelsSet[label] {
+						labelsSet[label] = true
+						labels = append(labels, label)
+					}
+				}
+			}
+		}
 	}
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
@@ -482,6 +500,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedSecretMasking: secretMaskingBuilder.String(),
 		MergedBots:          bots,
 		MergedPostSteps:     postStepsBuilder.String(),
+		MergedLabels:        labels,
 		ImportedFiles:       topologicalOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,

@@ -9,8 +9,8 @@ import (
 func TestForbiddenFieldsInSharedWorkflows(t *testing.T) {
 forbiddenFields := []string{
 "on", "cache", "command", "concurrency", "container",
-"env", "environment", "features", "github-token", "if", "imports",
-"labels", "name", "roles", "run-name", "runs-on",
+"env", "environment", "features", "github-token", "if",
+"name", "roles", "run-name", "runs-on",
 "sandbox", "source", "strict", "timeout-minutes", "timeout_minutes",
 "tracker-id",
 }
@@ -54,6 +54,8 @@ allowedFields := map[string]any{
 "inputs":         map[string]any{},
 "bots":           []string{"copilot"},
 "post-steps":     []any{map[string]any{"run": "echo cleanup"}},
+"labels":         []string{"automation", "testing"},
+"imports":        []string{"./shared.md"},
 }
 
 for field, value := range allowedFields {
