@@ -178,7 +178,10 @@ describe("assign_agent_helpers.cjs", () => {
           issue: {
             id: "ISSUE_123",
             assignees: {
-              nodes: [{ id: "USER_1" }, { id: "USER_2" }],
+              nodes: [
+                { id: "USER_1", login: "user1" },
+                { id: "USER_2", login: "user2" },
+              ],
             },
           },
         },
@@ -188,7 +191,10 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result).toEqual({
         issueId: "ISSUE_123",
-        currentAssignees: ["USER_1", "USER_2"],
+        currentAssignees: [
+          { id: "USER_1", login: "user1" },
+          { id: "USER_2", login: "user2" },
+        ],
       });
     });
 
@@ -242,7 +248,7 @@ describe("assign_agent_helpers.cjs", () => {
         },
       });
 
-      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1"], "copilot");
+      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null);
 
       expect(result).toBe(true);
       expect(mockGithub.graphql).toHaveBeenCalledWith(
@@ -261,7 +267,16 @@ describe("assign_agent_helpers.cjs", () => {
         },
       });
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1", "USER_2"], "copilot");
+      await assignAgentToIssue(
+        "ISSUE_123",
+        "AGENT_456",
+        [
+          { id: "USER_1", login: "user1" },
+          { id: "USER_2", login: "user2" },
+        ],
+        "copilot",
+        null
+      );
 
       expect(mockGithub.graphql).toHaveBeenCalledWith(
         expect.stringContaining("replaceActorsForAssignable"),

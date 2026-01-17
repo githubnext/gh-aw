@@ -65,11 +65,11 @@ async function main() {
       }
 
       // Check if agent is already assigned
-      if (issueDetails.currentAssignees.includes(agentId)) {
+      if (issueDetails.currentAssignees.some(a => a.id === agentId)) {
         core.info(`${agentName} is already assigned to issue #${issueNum}`);
       } else {
-        // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
-        const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+        // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token (no allowed list filtering)
+        const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null);
 
         if (!success) {
           throw new Error(`Failed to assign ${agentName} via GraphQL`);
