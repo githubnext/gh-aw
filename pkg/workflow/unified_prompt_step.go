@@ -385,8 +385,17 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 	// Convert map back to slice for the substitution step
 	allExpressionMappings := make([]*ExpressionMapping, 0, len(expressionMappingsMap))
-	for _, mapping := range expressionMappingsMap {
-		allExpressionMappings = append(allExpressionMappings, mapping)
+
+	// Sort the keys to ensure stable output
+	sortedKeys := make([]string, 0, len(expressionMappingsMap))
+	for key := range expressionMappingsMap {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Strings(sortedKeys)
+
+	// Add mappings in sorted order
+	for _, key := range sortedKeys {
+		allExpressionMappings = append(allExpressionMappings, expressionMappingsMap[key])
 	}
 
 	// Generate the step with all environment variables
