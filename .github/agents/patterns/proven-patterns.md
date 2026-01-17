@@ -56,12 +56,20 @@ Stores baseline metrics in persistent git-backed storage, compares new measureme
 ### Code Example
 
 ```yaml
-# Workflow frontmatter
+# Workflow frontmatter (single repo-memory)
 tools:
   repo-memory:
-    id: performance-baselines
+    branch-name: memory/performance-baselines
     create-orphan: true
   cache-memory: true
+
+# Multiple repo-memory (using array format with id)
+tools:
+  repo-memory:
+    - id: performance
+      branch-name: memory/performance
+    - id: baselines
+      branch-name: memory/baselines
 
 # In workflow instructions:
 # 1. Load baseline from repo-memory
@@ -71,8 +79,8 @@ tools:
 ```
 
 ```bash
-# Example agent implementation
-BASELINE_FILE="/tmp/gh-aw/repo-memory/performance-baselines/api-response-times.json"
+# Example agent implementation (single repo-memory at /tmp/gh-aw/repo-memory/default/)
+BASELINE_FILE="/tmp/gh-aw/repo-memory/default/api-response-times.json"
 
 # Load baseline (or create if first run)
 if [ -f "$BASELINE_FILE" ]; then
