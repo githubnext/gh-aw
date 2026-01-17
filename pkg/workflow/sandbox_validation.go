@@ -101,7 +101,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 
 		// Check for mutual exclusivity with AWF
 		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil && workflowData.NetworkPermissions.Firewall.Enabled {
-			return fmt.Errorf("⚠️  Both sandbox-runtime and AWF firewall are enabled.\n\nWhy this matters: These two security features can't be used together - choose one approach.\n\nOptions:\n  1. Use sandbox-runtime:\n     sandbox: sandbox-runtime\n\n  2. Use AWF firewall:\n     network:\n       firewall:\n         enabled: true\n\nBoth provide network security, but use different approaches.")
+			return fmt.Errorf("⚠️  Both sandbox-runtime and AWF firewall are enabled.\n\nWhy this matters: These two security features can't be used together - choose one approach.\n\nOptions:\n  1. Use sandbox-runtime:\n     sandbox: sandbox-runtime\n\n  2. Use AWF firewall:\n     network:\n       firewall:\n         enabled: true\n\nBoth provide network security, but use different approaches")
 		}
 	}
 

@@ -252,7 +252,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 				Features:     map[string]any{},
 			},
 			expectError: true,
-			errorMsg:    "sandbox-runtime feature is experimental",
+			errorMsg:    "Sandbox-runtime is experimental",
 		},
 		{
 			name: "SRT with feature flag succeeds",
@@ -262,6 +262,9 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 				EngineConfig: &EngineConfig{ID: "copilot"},
 				Features:     map[string]any{"sandbox-runtime": true},
+				Tools: map[string]any{
+					"github": map[string]any{"mode": "remote"},
+				},
 			},
 			expectError: false,
 		},
@@ -275,7 +278,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 				Features:     map[string]any{"sandbox-runtime": true},
 			},
 			expectError: true,
-			errorMsg:    "sandbox-runtime is only supported with Copilot engine",
+			errorMsg:    "requires the Copilot engine",
 		},
 		{
 			name: "SRT with AWF firewall fails",
@@ -290,7 +293,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "sandbox-runtime and AWF firewall cannot be used together",
+			errorMsg:    "Both sandbox-runtime and AWF firewall are enabled",
 		},
 	}
 

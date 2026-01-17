@@ -260,12 +260,12 @@ func TestValidateLogLevelErrorMessageQuality(t *testing.T) {
 
 	// Check that error message contains key information
 	requiredStrings := []string{
-		"verbose",  // The invalid value
-		"isn't",    // Empathetic phrasing
-		"debug",    // Valid option 1
-		"info",     // Valid option 2
-		"warn",     // Valid option 3
-		"error",    // Valid option 4
+		"verbose", // The invalid value
+		"isn't",   // Empathetic phrasing
+		"debug",   // Valid option 1
+		"info",    // Valid option 2
+		"warn",    // Valid option 3
+		"error",   // Valid option 4
 	}
 
 	for _, required := range requiredStrings {

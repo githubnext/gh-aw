@@ -90,7 +90,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	}
 
 	if len(allEngines) > 1 {
-		return "", fmt.Errorf("⚠️  Multiple engine specifications detected (%d found).\n\nWhy this matters: Workflows can only use one AI engine at a time to ensure consistent behavior.\n\nPlease remove duplicate engine fields across your main workflow and included files, keeping only one.\n\nExample:\n  engine: copilot\n\nTip: Check both your main .md file and any included files for engine: settings.", len(allEngines))
+		return "", fmt.Errorf("⚠️  Multiple engine specifications detected (%d found).\n\nWhy this matters: Workflows can only use one AI engine at a time to ensure consistent behavior.\n\nPlease remove duplicate engine fields across your main workflow and included files, keeping only one.\n\nExample:\n  engine: copilot\n\nTip: Check both your main .md file and any included files for engine: settings", len(allEngines))
 	}
 
 	// Exactly one engine found - parse and return it
@@ -116,5 +116,5 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		}
 	}
 
-	return "", fmt.Errorf("💡 The engine configuration in your included file needs an 'id' field.\n\nYou can use either format:\n\nString format (simple):\n  engine: copilot\n\nObject format (with options):\n  engine:\n    id: copilot\n    model: gpt-4\n\nThe 'id' field tells us which AI engine to use.")
+	return "", fmt.Errorf("💡 The engine configuration in your included file needs an 'id' field.\n\nYou can use either format:\n\nString format (simple):\n  engine: copilot\n\nObject format (with options):\n  engine:\n    id: copilot\n    model: gpt-4\n\nThe 'id' field tells us which AI engine to use")
 }

@@ -171,7 +171,7 @@ permissions:
 # Test Workflow
 `,
 			expectError:  true,
-			errorMessage: "sandbox-runtime feature is experimental and requires the 'sandbox-runtime' feature flag",
+			errorMessage: "Sandbox-runtime is experimental and needs a feature flag",
 		},
 		{
 			name: "sandbox-runtime with feature flag succeeds",
@@ -208,7 +208,7 @@ permissions:
 # Test Workflow
 `,
 			expectError:  true,
-			errorMessage: "sandbox-runtime feature is experimental and requires the 'sandbox-runtime' feature flag",
+			errorMessage: "Sandbox-runtime is experimental and needs a feature flag",
 		},
 		{
 			name: "sandbox default does not require feature flag",

@@ -63,7 +63,7 @@ Test workflow content.`,
 			strictMode:    true,
 			expectError:   true,
 			expectWarning: false,
-			errorContains: "workflow_run trigger should include branch restrictions",
+			errorContains: "workflow_run trigger is missing branch restrictions",
 		},
 		{
 			name: "workflow_run with branches - should pass",

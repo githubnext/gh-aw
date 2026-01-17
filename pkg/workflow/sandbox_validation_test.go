@@ -368,7 +368,7 @@ func TestSandboxMCPGatewayValidation(t *testing.T) {
 				Tools: map[string]any{}, // No tools configured
 			},
 			expectErr:   true,
-			errContains: "agent sandbox is enabled but MCP gateway is not enabled",
+			errContains: "Agent sandbox is enabled, but the MCP gateway isn't configured",
 		},
 		{
 			name: "sandbox enabled with MCP servers - should pass",
@@ -488,7 +488,7 @@ func TestSandboxMCPGatewayValidation(t *testing.T) {
 				Tools: map[string]any{}, // No tools configured
 			},
 			expectErr:   true,
-			errContains: "agent sandbox is enabled but MCP gateway is not enabled",
+			errContains: "Agent sandbox is enabled, but the MCP gateway isn't configured",
 		},
 	}
 
