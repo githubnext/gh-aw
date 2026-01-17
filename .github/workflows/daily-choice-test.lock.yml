@@ -422,33 +422,10 @@ jobs:
           script: |
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
-      - name: Create prompt
+      - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-        run: |
-          bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Daily Choice Type Test
-          
-          This workflow tests the choice type functionality in safe-output jobs with Claude.
-          
-          ## Task
-          
-          Use the `test_environment` tool to configure a test deployment. Choose:
-          1. An environment: staging or production
-          2. A test type: smoke, integration, or e2e
-          
-          Make your selection based on the day of the week:
-          - Monday/Wednesday/Friday: Use "staging" environment with "smoke" tests
-          - Tuesday/Thursday: Use "production" environment with "integration" tests
-          
-          Provide a brief explanation of why you chose this configuration.
-          
-          PROMPT_EOF
-      - name: Append context instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -458,7 +435,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -500,6 +478,24 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
+          
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Daily Choice Type Test
+          
+          This workflow tests the choice type functionality in safe-output jobs with Claude.
+          
+          ## Task
+          
+          Use the `test_environment` tool to configure a test deployment. Choose:
+          1. An environment: staging or production
+          2. A test type: smoke, integration, or e2e
+          
+          Make your selection based on the day of the week:
+          - Monday/Wednesday/Friday: Use "staging" environment with "smoke" tests
+          - Tuesday/Thursday: Use "production" environment with "integration" tests
+          
+          Provide a brief explanation of why you chose this configuration.
           
           PROMPT_EOF
       - name: Interpolate variables and render templates

@@ -245,26 +245,7 @@ jobs:
           script: |
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
-      - name: Create prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Example: Properly Provisioned Permissions
-          
-          This workflow demonstrates properly configured permissions for GitHub toolsets.
-          
-          The workflow uses three GitHub toolsets with appropriate write permissions:
-          - The `repos` toolset requires `contents: write` for repository operations
-          - The `issues` toolset requires `issues: write` for issue management
-          - The `pull_requests` toolset requires `pull-requests: write` for PR operations
-          
-          All required permissions are properly declared in the frontmatter, so this workflow
-          compiles without warnings and can execute successfully when dispatched.
-          
-          PROMPT_EOF
-      - name: Append context instructions to prompt
+      - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -276,7 +257,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -305,6 +287,20 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
+          
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Example: Properly Provisioned Permissions
+          
+          This workflow demonstrates properly configured permissions for GitHub toolsets.
+          
+          The workflow uses three GitHub toolsets with appropriate write permissions:
+          - The `repos` toolset requires `contents: write` for repository operations
+          - The `issues` toolset requires `issues: write` for issue management
+          - The `pull_requests` toolset requires `pull-requests: write` for PR operations
+          
+          All required permissions are properly declared in the frontmatter, so this workflow
+          compiles without warnings and can execute successfully when dispatched.
           
           PROMPT_EOF
       - name: Interpolate variables and render templates

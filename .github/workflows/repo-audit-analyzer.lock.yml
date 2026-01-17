@@ -474,31 +474,10 @@ jobs:
           script: |
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
-      - name: Create prompt
+      - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-        run: |
-          bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          ## Report Structure
-          
-          1. **Overview**: 1-2 paragraphs summarizing key findings
-          2. **Details**: Use `<details><summary><b>Full Report</b></summary>` for expanded content
-          
-          ## Workflow Run References
-          
-          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
-          - Include up to 3 most relevant run URLs at end under `**References:**`
-          - Do NOT add footer attribution (system adds automatically)
-          
-          
-          {{#runtime-import agentics/repo-audit-analyzer.md}}
-          
-          PROMPT_EOF
-      - name: Append context instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -508,7 +487,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ---
@@ -571,6 +551,22 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
+          
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ## Report Structure
+          
+          1. **Overview**: 1-2 paragraphs summarizing key findings
+          2. **Details**: Use `<details><summary><b>Full Report</b></summary>` for expanded content
+          
+          ## Workflow Run References
+          
+          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
+          - Include up to 3 most relevant run URLs at end under `**References:**`
+          - Do NOT add footer attribution (system adds automatically)
+          
+          
+          {{#runtime-import agentics/repo-audit-analyzer.md}}
           
           PROMPT_EOF
       - name: Interpolate variables and render templates

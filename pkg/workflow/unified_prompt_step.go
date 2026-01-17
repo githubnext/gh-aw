@@ -48,7 +48,7 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 	}
 
 	// Generate the step
-	yaml.WriteString("      - name: Append context instructions to prompt\n")
+	yaml.WriteString("      - name: Create prompt with built-in context\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 

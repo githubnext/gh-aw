@@ -247,26 +247,7 @@ jobs:
           script: |
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
-      - name: Create prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Example: Custom Error Patterns
-          
-          This workflow demonstrates how to define custom error patterns on any agentic engine. 
-          Custom error patterns help detect project-specific error formats in agent logs.
-          
-          ## Features
-          
-          - Works with any engine (Copilot, Claude, Codex, Custom)
-          - Can be imported from shared workflows
-          - Merged with engine's built-in error patterns
-          - Useful for project-specific error filtering
-          
-          PROMPT_EOF
-      - name: Append context instructions to prompt
+      - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -278,7 +259,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -307,6 +289,20 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
+          
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Example: Custom Error Patterns
+          
+          This workflow demonstrates how to define custom error patterns on any agentic engine. 
+          Custom error patterns help detect project-specific error formats in agent logs.
+          
+          ## Features
+          
+          - Works with any engine (Copilot, Claude, Codex, Custom)
+          - Can be imported from shared workflows
+          - Merged with engine's built-in error patterns
+          - Useful for project-specific error filtering
           
           PROMPT_EOF
       - name: Interpolate variables and render templates

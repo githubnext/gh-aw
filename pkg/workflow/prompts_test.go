@@ -587,9 +587,11 @@ This is a test workflow with push trigger only.
 
 	lockStr := string(lockContent)
 
-	// Test: Verify PR context prompt step is NOT created for push triggers
-	if strings.Contains(lockStr, "- name: Create prompt with built-in context") {
-		t.Error("Did not expect 'Create prompt with built-in context' step for push trigger")
+	// Test: Verify PR context prompt content is NOT included for push triggers
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the PR-specific content should not be there
+	if strings.Contains(lockStr, "pr_context_prompt.md") {
+		t.Error("Did not expect 'pr_context_prompt.md' reference for push trigger")
 	}
 
 	t.Logf("Successfully verified PR context instructions are NOT included for push trigger")
@@ -638,9 +640,11 @@ This is a test workflow without contents read permission.
 
 	lockStr := string(lockContent)
 
-	// Test: Verify PR context prompt step is NOT created without contents permission
-	if strings.Contains(lockStr, "- name: Create prompt with built-in context") {
-		t.Error("Did not expect 'Create prompt with built-in context' step without contents read permission")
+	// Test: Verify PR context prompt content is NOT created without contents permission
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the PR-specific content should not be there
+	if strings.Contains(lockStr, "pr_context_prompt.md") {
+		t.Error("Did not expect 'pr_context_prompt.md' reference without contents read permission")
 	}
 
 	t.Logf("Successfully verified PR context instructions are NOT included without contents permission")

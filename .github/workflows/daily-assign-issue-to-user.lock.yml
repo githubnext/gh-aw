@@ -484,38 +484,10 @@ jobs:
           script: |
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
-      - name: Create prompt
+      - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-        run: |
-          bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          {{#runtime-import? .github/shared-instructions.md}}
-          
-          # Auto-Assign Issue
-          
-          Find ONE open issue that:
-          - Has no assignees
-          - Does not have label `ai-generated`
-          - Does not have a `campaign:*` label (these are managed by campaign orchestrators)
-          - Does not have labels: `no-bot`, `no-campaign`
-          - Was not opened by `github-actions` or any bot
-          
-          Pick the oldest unassigned issue.
-          
-          Then list the 5 most recent contributors from merged PRs. Pick one who seems relevant based on the issue type.
-          
-          If you find a match:
-          1. Use `assign-to-user` to assign the issue
-          2. Use `add-comment` with a short explanation (1-2 sentences)
-          
-          If no unassigned issue exists, exit successfully without taking action.
-          
-          PROMPT_EOF
-      - name: Append context instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -525,7 +497,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -567,6 +540,29 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
+          
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import? .github/shared-instructions.md}}
+          
+          # Auto-Assign Issue
+          
+          Find ONE open issue that:
+          - Has no assignees
+          - Does not have label `ai-generated`
+          - Does not have a `campaign:*` label (these are managed by campaign orchestrators)
+          - Does not have labels: `no-bot`, `no-campaign`
+          - Was not opened by `github-actions` or any bot
+          
+          Pick the oldest unassigned issue.
+          
+          Then list the 5 most recent contributors from merged PRs. Pick one who seems relevant based on the issue type.
+          
+          If you find a match:
+          1. Use `assign-to-user` to assign the issue
+          2. Use `add-comment` with a short explanation (1-2 sentences)
+          
+          If no unassigned issue exists, exit successfully without taking action.
           
           PROMPT_EOF
       - name: Interpolate variables and render templates

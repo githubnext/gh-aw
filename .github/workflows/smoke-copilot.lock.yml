@@ -623,59 +623,10 @@ jobs:
           script: |
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
-      - name: Create prompt
+      - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Smoke Test: Copilot Engine Validation
-          
-          **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
-          
-          ## Test Requirements
-          
-          1. **GitHub MCP Testing**: Review the last 2 merged pull requests in __GH_AW_GITHUB_REPOSITORY__
-          2. **Serena Go Testing**: Use the `serena-go` tool to run a basic go command like "go version" to verify the tool is available
-          3. **Playwright Testing**: Use playwright to navigate to <https://github.com> and verify the page title contains "GitHub"
-          4. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-          5. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-          
-          ## Output
-          
-          Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-          - PR titles only (no descriptions)
-          - ✅ or ❌ for each test result
-          - Overall status: PASS or FAIL
-          - Mention the pull request author and any assignees
-          
-          If all tests pass, add the label `smoke-copilot` to the pull request.
-          
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
-      - name: Append context instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -685,7 +636,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/playwright_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
@@ -750,6 +702,48 @@ jobs:
           </github-context>
           
           PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Smoke Test: Copilot Engine Validation
+          
+          **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
+          
+          ## Test Requirements
+          
+          1. **GitHub MCP Testing**: Review the last 2 merged pull requests in __GH_AW_GITHUB_REPOSITORY__
+          2. **Serena Go Testing**: Use the `serena-go` tool to run a basic go command like "go version" to verify the tool is available
+          3. **Playwright Testing**: Use playwright to navigate to <https://github.com> and verify the page title contains "GitHub"
+          4. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
+          5. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+          
+          ## Output
+          
+          Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+          - PR titles only (no descriptions)
+          - ✅ or ❌ for each test result
+          - Overall status: PASS or FAIL
+          - Mention the pull request author and any assignees
+          
+          If all tests pass, add the label `smoke-copilot` to the pull request.
+          
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
+              }
+            });
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:

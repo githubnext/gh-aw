@@ -130,7 +130,7 @@ func TestPromptStepRefactoringConsistency(t *testing.T) {
 		result := yaml.String()
 
 		// Verify key elements are present
-		if !strings.Contains(result, "Append context instructions to prompt") {
+		if !strings.Contains(result, "Create prompt with built-in context") {
 			t.Error("Expected unified step name not found")
 		}
 		if !strings.Contains(result, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
