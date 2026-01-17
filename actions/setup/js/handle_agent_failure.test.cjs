@@ -21,6 +21,7 @@ describe("handle_agent_failure.cjs", () => {
       setFailed: vi.fn(),
       setOutput: vi.fn(),
       error: vi.fn(),
+      debug: vi.fn(),
     };
     global.core = mockCore;
 

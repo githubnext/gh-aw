@@ -7,6 +7,7 @@ const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, 
 const { renderTemplate } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const fs = require("fs");
+const path = require("path");
 
 /**
  * Attempt to find a pull request for the current branch
@@ -166,6 +167,115 @@ gh aw audit <run-id>
 }
 
 /**
+ * Detect missing secrets or authentication failures from agent logs
+ * @returns {Promise<{hasMissingSecrets: boolean, secretErrors: string[]}>}
+ */
+async function detectMissingSecrets() {
+  try {
+    // Try to read agent artifacts that might contain log information
+    const artifactPaths = [
+      "/tmp/gh-aw/mcp-logs/",
+      "/tmp/gh-aw/safe-inputs/logs/",
+      "/tmp/gh-aw/sandbox/firewall/logs/",
+    ];
+
+    const secretErrors = [];
+    let hasMissingSecrets = false;
+
+    for (const artifactPath of artifactPaths) {
+      try {
+        if (!fs.existsSync(artifactPath)) {
+          continue;
+        }
+
+        // Check if it's a directory
+        const stats = fs.statSync(artifactPath);
+        if (!stats.isDirectory()) {
+          continue;
+        }
+
+        // Read all files in the directory
+        const files = fs.readdirSync(artifactPath);
+        for (const file of files) {
+          const filePath = path.join(artifactPath, file);
+          const fileStats = fs.statSync(filePath);
+          
+          if (!fileStats.isFile()) {
+            continue;
+          }
+
+          const content = fs.readFileSync(filePath, "utf8");
+          
+          // Check for MCP server failures with authentication/secret issues
+          // Look for JSON log entries or plain text patterns
+          if (content.includes('"status":"failed"') || content.includes('"status": "failed"')) {
+            // Try to parse as JSON to extract server names
+            try {
+              // Try parsing as JSON array or NDJSON
+              const lines = content.split("\n");
+              for (const line of lines) {
+                if (!line.trim() || !line.includes('"status"')) {
+                  continue;
+                }
+                
+                try {
+                  const entry = JSON.parse(line);
+                  if (entry.mcp_servers) {
+                    for (const server of entry.mcp_servers) {
+                      if (server.status === "failed") {
+                        hasMissingSecrets = true;
+                        const errorMsg = `MCP server '${server.name}' failed to start (likely missing credentials or authentication failure)`;
+                        if (!secretErrors.includes(errorMsg)) {
+                          secretErrors.push(errorMsg);
+                        }
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Not valid JSON line, continue
+                }
+              }
+            } catch (e) {
+              // Not JSON format, check for text patterns
+            }
+          }
+
+          // Check for common authentication error patterns
+          const authPatterns = [
+            /secret.*not.*found/i,
+            /authentication.*fail/i,
+            /missing.*credential/i,
+            /invalid.*token/i,
+            /unauthorized.*401/i,
+            /forbidden.*403/i,
+            /missing.*api.*key/i,
+          ];
+
+          for (const pattern of authPatterns) {
+            if (pattern.test(content)) {
+              hasMissingSecrets = true;
+              // Don't add duplicate generic messages if we already have specific MCP failures
+              if (secretErrors.length === 0) {
+                secretErrors.push("Authentication or credential errors detected in logs");
+              }
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        // Ignore errors reading individual directories/files
+        core.debug(`Failed to read ${artifactPath}: ${getErrorMessage(error)}`);
+      }
+    }
+
+    return { hasMissingSecrets, secretErrors };
+  } catch (error) {
+    core.warning(`Failed to detect missing secrets: ${getErrorMessage(error)}`);
+    return { hasMissingSecrets: false, secretErrors: [] };
+  }
+}
+
+/**
  * Link an issue as a sub-issue to a parent issue
  * @param {string} parentNodeId - GraphQL node ID of the parent issue
  * @param {string} subIssueNodeId - GraphQL node ID of the sub-issue
@@ -234,6 +344,16 @@ async function main() {
     // Try to find a pull request for the current branch
     const pullRequest = await findPullRequestForCurrentBranch();
 
+    // Detect missing secrets or authentication failures
+    const { hasMissingSecrets, secretErrors } = await detectMissingSecrets();
+    
+    if (hasMissingSecrets && secretErrors.length > 0) {
+      core.warning(`Detected ${secretErrors.length} secret/authentication error(s):`);
+      for (const error of secretErrors) {
+        core.warning(`  - ${error}`);
+      }
+    }
+
     // Ensure parent issue exists first
     let parentIssue;
     try {
@@ -284,7 +404,20 @@ async function main() {
         };
 
         // Render the comment template
-        const commentBody = renderTemplate(commentTemplate, templateContext);
+        let commentBody = renderTemplate(commentTemplate, templateContext);
+
+        // Add missing secret information if detected
+        if (hasMissingSecrets && secretErrors.length > 0) {
+          commentBody += "\n\n### ⚠️ Missing Secrets Detected\n\n";
+          commentBody += "The following authentication or credential issues were detected:\n\n";
+          for (const error of secretErrors) {
+            commentBody += `- ${error}\n`;
+          }
+          commentBody += "\n**Resolution:**\n";
+          commentBody += "1. Check your workflow configuration for required secrets\n";
+          commentBody += "2. Verify secrets are configured in repository settings\n";
+          commentBody += "3. Use `gh aw mcp inspect <workflow-name> --check-secrets` to validate\n";
+        }
 
         // Generate footer for the comment using templated message
         const ctx = {
@@ -327,7 +460,21 @@ async function main() {
         };
 
         // Render the issue template
-        const issueBodyContent = renderTemplate(issueTemplate, templateContext);
+        let issueBodyContent = renderTemplate(issueTemplate, templateContext);
+
+        // Add missing secret information if detected
+        if (hasMissingSecrets && secretErrors.length > 0) {
+          issueBodyContent += "\n\n### ⚠️ Missing Secrets Detected\n\n";
+          issueBodyContent += "The following authentication or credential issues were detected:\n\n";
+          for (const error of secretErrors) {
+            issueBodyContent += `- ${error}\n`;
+          }
+          issueBodyContent += "\n**Resolution Steps:**\n";
+          issueBodyContent += "1. Check workflow configuration for required secrets\n";
+          issueBodyContent += "2. Verify secrets are configured in repository settings: **Settings** → **Secrets and variables** → **Actions**\n";
+          issueBodyContent += "3. Use `gh aw mcp inspect <workflow-name> --check-secrets` to validate secret configuration\n";
+          issueBodyContent += "4. See [Workflow Health Monitoring Runbook](https://github.com/githubnext/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md) for troubleshooting guidance\n";
+        }
 
         // Generate footer for the issue using templated message
         const ctx = {

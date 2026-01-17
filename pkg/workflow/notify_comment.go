@@ -77,6 +77,16 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add artifact download steps once (shared by noop and conclusion steps)
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
 
+	// Add agent-artifacts download for handle_agent_failure to detect missing secrets
+	// This artifact contains MCP logs and other diagnostic information
+	agentArtifactsDownload := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "agent-artifacts",
+		DownloadPath: "/tmp/gh-aw/",
+		SetupEnvStep: false, // No environment variable needed
+		StepName:     "Download agent artifacts for diagnostics",
+	})
+	steps = append(steps, agentArtifactsDownload...)
+
 	// Add noop processing step if noop is configured
 	if data.SafeOutputs.NoOp != nil {
 		// Build custom environment variables specific to noop
