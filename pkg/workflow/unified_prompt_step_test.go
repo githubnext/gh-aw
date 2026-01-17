@@ -43,7 +43,7 @@ func TestGenerateUnifiedPromptStep_AllSections(t *testing.T) {
 	output := yaml.String()
 
 	// Verify single step is created with correct name
-	assert.Contains(t, output, "- name: Append context instructions to prompt")
+	assert.Contains(t, output, "- name: Create prompt with built-in context")
 
 	// Verify all sections are included
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should include temp folder instructions")
@@ -96,7 +96,7 @@ func TestGenerateUnifiedPromptStep_MinimalSections(t *testing.T) {
 	output := yaml.String()
 
 	// Verify single step is created
-	assert.Contains(t, output, "- name: Append context instructions to prompt")
+	assert.Contains(t, output, "- name: Create prompt with built-in context")
 
 	// Verify only temp folder is included
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should include temp folder instructions")
@@ -262,7 +262,7 @@ func TestGenerateUnifiedPromptStep_NoSections(t *testing.T) {
 	output := yaml.String()
 
 	// Should still generate step with at least temp folder
-	assert.Contains(t, output, "- name: Append context instructions to prompt")
+	assert.Contains(t, output, "- name: Create prompt with built-in context")
 	assert.Contains(t, output, "temp_folder_prompt.md")
 }
 

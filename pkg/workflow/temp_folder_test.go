@@ -49,12 +49,14 @@ This is a test workflow to verify temp folder instructions are included.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify temporary folder step is created (now part of unified step)
-	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
 	// Test 2: Verify the cat command for temp folder prompt file is included
-	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/temp_folder_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	// Note: First prompt file uses > (create), subsequent ones use >> (append)
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/temp_folder_prompt.md\" > \"$GH_AW_PROMPT\"") &&
+		!strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/temp_folder_prompt.md\" >> \"$GH_AW_PROMPT\"") {
 		t.Error("Expected cat command for temp folder prompt file in generated workflow")
 	}
 
