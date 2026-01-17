@@ -20,7 +20,7 @@ next:
 
 Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/)!
 
-In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/), we've explored how autonomous cleanup agents work continuously in the background, simplifying code and improving structure. Now let's meet an agent with a particularly refined focus: making terminal output beautiful.
+In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/), we've explored how autonomous cleanup agents work continuously in the background, simplifying code and improving structure. Today's post is dedicated to one agent, and the larger admirable concept it represents: continuously making things *beautiful*.
 
 ## Continuous Style Workflow
 
