@@ -139,7 +139,7 @@ export default defineConfig({
 					],
 					customSets: [
 						{
-							label: "Peli's Agent Factory Blog Series",
+							label: "create-agentic-workflows",
 							paths: ['blog/**/meet-the-workflows*'],
 							description: "A comprehensive blog series documenting workflow patterns, best practices, and real-world examples of agentic workflows created at Peli's Agent Factory"
 						}

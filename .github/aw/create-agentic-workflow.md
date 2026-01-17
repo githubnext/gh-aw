@@ -73,7 +73,7 @@ Before creating any workflow, gather knowledge from existing patterns and best p
 IMPORTANT: You must thoroughly read the Pelis Agent Factory documentation to understand the common patterns and best practices for agentic workflows.
 
 **Use the llms.txt file for efficient access to all blog content:**
-- Fetch: https://githubnext.github.io/gh-aw/llms-pelis-agent-factory-blog-series.txt
+- Fetch: https://githubnext.github.io/gh-aw/llms-create-agentic-workflows.txt
 
 This file contains all blog entries from Peli's Agent Factory in a format optimized for AI consumption. It includes:
 - Workflow patterns and templates
