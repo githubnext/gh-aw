@@ -1211,7 +1211,25 @@ jobs:
         run: |
           echo "Downloading release binaries..."
           mkdir -p dist
-          gh release download "$RELEASE_TAG" --pattern "linux-*" --dir dist
+
+          # Get the release assets using GitHub API (works for both draft and published releases)
+          gh api "/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
+            --jq '.assets[] | select(.name | startswith("linux-")) | {name: .name, url: .url}' \
+            > /tmp/assets.json
+
+          if [ ! -s /tmp/assets.json ]; then
+            echo "Error: No linux-* assets found in release $RELEASE_TAG"
+            exit 1
+          fi
+
+          # Download each asset using authenticated API call
+          while IFS= read -r asset; do
+            ASSET_NAME=$(echo "$asset" | jq -r '.name')
+            ASSET_URL=$(echo "$asset" | jq -r '.url')
+            echo "Downloading $ASSET_NAME..."
+            gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
+          done < <(jq -c '.' /tmp/assets.json)
+
           ls -lh dist/
           echo "✓ Release binaries downloaded"
         env:
