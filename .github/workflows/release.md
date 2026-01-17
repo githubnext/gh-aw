@@ -122,7 +122,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
           
       - name: Create or update tag for workflow_dispatch
         if: github.event_name == 'workflow_dispatch'
