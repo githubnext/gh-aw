@@ -16,6 +16,9 @@ set -e
 # Exit codes:
 #   0 - At least one secret is configured
 #   1 - All secrets are empty or not set
+#
+# Side effects:
+#   On failure, creates /tmp/gh-aw/missing_secret_info.json with details about missing secrets
 
 # Parse arguments
 if [ "$#" -lt 3 ]; then
@@ -64,6 +67,17 @@ if [ "$all_empty" = true ]; then
   # Join secret names with " or "
   secret_or_list=$(IFS=" or "; echo "${SECRET_NAMES[*]}")
   requirement_msg="The $ENGINE_NAME engine requires either $secret_or_list secret to be configured."
+  
+  # Save missing secret information for issue creation
+  # Create JSON with secret details
+  mkdir -p /tmp/gh-aw
+  cat > /tmp/gh-aw/missing_secret_info.json <<EOF
+{
+  "missing_secrets": [$(IFS=,; echo "${SECRET_NAMES[*]/#/\"}" | sed 's/,/","/g')"],
+  "engine_name": "$ENGINE_NAME",
+  "docs_url": "$DOCS_URL"
+}
+EOF
   
   # Print to GitHub step summary
   {

@@ -143,6 +143,25 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, missingToolSteps...)
 	}
 
+	// Add missing secret handling step - creates/updates an issue when secret validation fails
+	// This step checks for /tmp/gh-aw/missing_secret_info.json file which is created by validate_multi_secret.sh
+	// when secret validation fails in the agent job
+	var missingSecretEnvVars []string
+	missingSecretEnvVars = append(missingSecretEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+	missingSecretEnvVars = append(missingSecretEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+
+	// Build the missing secret handling step
+	missingSecretSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+		StepName:      "Handle Missing Secret",
+		StepID:        "handle_missing_secret",
+		MainJobName:   mainJobName,
+		CustomEnvVars: missingSecretEnvVars,
+		Script:        "const { main } = require('/opt/gh-aw/actions/handle_missing_secret.cjs'); await main();",
+		ScriptFile:    "handle_missing_secret.cjs",
+		Token:         "", // Will use default GITHUB_TOKEN
+	})
+	steps = append(steps, missingSecretSteps...)
+
 	// Add agent failure handling step - creates/updates an issue when agent job fails
 	// This step always runs and checks if the agent job failed
 	// Build environment variables for the agent failure handler
