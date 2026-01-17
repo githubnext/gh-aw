@@ -74,11 +74,11 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// Check if remote mode is enabled (type: remote)
 	if githubType == "remote" {
 		// Determine authorization value based on engine requirements
-		// Copilot uses MCP passthrough syntax: "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"
-		// Other engines use shell variable: "Bearer $GITHUB_MCP_SERVER_TOKEN"
+		// Both Copilot and other engines use MCP passthrough syntax with GITHUB_MCP_SERVER_TOKEN
+		// which is available in the Docker container's environment
 		authValue := "Bearer $GITHUB_MCP_SERVER_TOKEN"
 		if r.options.IncludeCopilotFields {
-			authValue = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+			authValue = "Bearer \\${GITHUB_MCP_SERVER_TOKEN}"
 		}
 
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
@@ -89,7 +89,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			AuthorizationValue: authValue,
 			IncludeToolsField:  r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
-			IncludeEnvSection:  r.options.IncludeCopilotFields,
+			IncludeEnvSection:  false, // No longer needed since we use GITHUB_MCP_SERVER_TOKEN directly
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)

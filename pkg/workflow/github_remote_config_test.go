@@ -63,25 +63,23 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "default",
-				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
+				AuthorizationValue: "Bearer \\${GITHUB_MCP_SERVER_TOKEN}",
 				IncludeToolsField:  true,
 				AllowedTools:       []string{"list_issues", "create_issue"},
-				IncludeEnvSection:  true,
+				IncludeEnvSection:  false,
 			},
 			expectedOutput: []string{
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer \${GITHUB_MCP_SERVER_TOKEN}"`,
 				`"X-MCP-Toolsets": "default"`,
-				`"tools": [`,
-				`"list_issues"`,
-				`"create_issue"`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
+				`"env"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
+				`"tools"`, // Tools field is added by converter script, not in gateway config
 			},
 		},
 		{
@@ -89,23 +87,23 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "all",
-				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
+				AuthorizationValue: "Bearer \\${GITHUB_MCP_SERVER_TOKEN}",
 				IncludeToolsField:  true,
 				AllowedTools:       nil, // Empty array should result in wildcard
-				IncludeEnvSection:  true,
+				IncludeEnvSection:  false,
 			},
 			expectedOutput: []string{
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer \${GITHUB_MCP_SERVER_TOKEN}"`,
 				`"X-MCP-Toolsets": "all"`,
-				`"tools": ["*"]`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
+				`"env"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
+				`"tools"`, // Tools field is added by converter script, not in gateway config
 			},
 		},
 		{
@@ -113,25 +111,24 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           true,
 				Toolsets:           "repos",
-				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
+				AuthorizationValue: "Bearer \\${GITHUB_MCP_SERVER_TOKEN}",
 				IncludeToolsField:  true,
 				AllowedTools:       []string{"list_repositories", "get_repository"},
-				IncludeEnvSection:  true,
+				IncludeEnvSection:  false,
 			},
 			expectedOutput: []string{
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer \${GITHUB_MCP_SERVER_TOKEN}"`,
 				`"X-MCP-Readonly": "true"`,
 				`"X-MCP-Toolsets": "repos"`,
-				`"tools": [`,
-				`"list_repositories"`,
-				`"get_repository"`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
-			notExpected: []string{},
+			notExpected: []string{
+				`"env"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
+				`"tools"`, // Tools field is added by converter script, not in gateway config
+			},
 		},
 		{
 			name: "No toolsets configured",
@@ -212,29 +209,3 @@ func TestRenderGitHubMCPRemoteConfigHeaderOrder(t *testing.T) {
 	}
 }
 
-func TestRenderGitHubMCPRemoteConfigToolsCommas(t *testing.T) {
-	// Test that tools array is properly formatted with commas
-	var yaml strings.Builder
-	RenderGitHubMCPRemoteConfig(&yaml, GitHubMCPRemoteOptions{
-		ReadOnly:           false,
-		Toolsets:           "default",
-		AuthorizationValue: "Bearer token",
-		IncludeToolsField:  true,
-		AllowedTools:       []string{"tool1", "tool2", "tool3"},
-		IncludeEnvSection:  true,
-	})
-	output := yaml.String()
-
-	// First and second tools should have commas
-	if !strings.Contains(output, `"tool1",`) {
-		t.Errorf("Expected first tool to have comma, got:\n%s", output)
-	}
-	if !strings.Contains(output, `"tool2",`) {
-		t.Errorf("Expected second tool to have comma, got:\n%s", output)
-	}
-
-	// Last tool should NOT have a comma
-	if !strings.Contains(output, `"tool3"`) || strings.Contains(output, `"tool3",`) {
-		t.Errorf("Expected last tool to NOT have comma, got:\n%s", output)
-	}
-}
