@@ -180,6 +180,56 @@ jobs:
           echo "✓ Release ID: $RELEASE_ID"
           echo "✓ Release Tag: $RELEASE_TAG"
 
+      - name: Setup Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: go.mod
+          cache: false  # Disabled for release security - prevent cache poisoning attacks
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Generate SBOM (SPDX format)
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: sbom.spdx.json
+          output-file: sbom.spdx.json
+          format: spdx-json
+
+      - name: Generate SBOM (CycloneDX format)
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: sbom.cdx.json
+          output-file: sbom.cdx.json
+          format: cyclonedx-json
+
+      - name: Audit SBOM files for secrets
+        run: |
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
+          fi
+          echo "✓ No secrets detected in SBOM files"
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom.spdx.json
+            sbom.cdx.json
+          retention-days: 7  # Minimize exposure window
+
+      - name: Attach SBOM to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          echo "Attaching SBOM files to release: $RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
+          echo "✓ SBOM files attached to release"
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -230,64 +280,6 @@ jobs:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
-  generate-sbom:
-    needs: ["release"]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version-file: go.mod
-          cache: false  # Disabled for release security - prevent cache poisoning attacks
-
-      - name: Download Go modules
-        run: go mod download
-
-      - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@v0
-        with:
-          artifact-name: sbom.spdx.json
-          output-file: sbom.spdx.json
-          format: spdx-json
-
-      - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@v0
-        with:
-          artifact-name: sbom.cdx.json
-          output-file: sbom.cdx.json
-          format: cyclonedx-json
-
-      - name: Audit SBOM files for secrets
-        run: |
-          echo "Auditing SBOM files for potential secrets..."
-          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
-            echo "Error: Potential secrets found in SBOM files"
-            exit 1
-          fi
-          echo "✓ No secrets detected in SBOM files"
-
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: sbom-artifacts
-          path: |
-            sbom.spdx.json
-            sbom.cdx.json
-          retention-days: 7  # Minimize exposure window
-
-      - name: Attach SBOM to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-        run: |
-          echo "Attaching SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
-          echo "✓ SBOM files attached to release"
 
 steps:
   - name: Setup environment and fetch release data

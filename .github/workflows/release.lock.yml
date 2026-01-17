@@ -85,7 +85,6 @@ jobs:
     needs:
       - activation
       - config
-      - generate-sbom
       - release
     runs-on: ubuntu-latest
     permissions:
@@ -1205,59 +1204,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  generate-sbom:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          cache: false
-          go-version-file: go.mod
-      - name: Download Go modules
-        run: go mod download
-      - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: sbom.spdx.json
-          format: spdx-json
-          output-file: sbom.spdx.json
-      - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: sbom.cdx.json
-          format: cyclonedx-json
-          output-file: sbom.cdx.json
-      - name: Audit SBOM files for secrets
-        run: |
-          echo "Auditing SBOM files for potential secrets..."
-          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
-            echo "Error: Potential secrets found in SBOM files"
-            exit 1
-          fi
-          echo "✓ No secrets detected in SBOM files"
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: sbom-artifacts
-          path: |
-            sbom.spdx.json
-            sbom.cdx.json
-          retention-days: 7
-      - name: Attach SBOM to release
-        run: |
-          echo "Attaching SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
-          echo "✓ SBOM files attached to release"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-
   pre_activation:
     runs-on: ubuntu-slim
     permissions:
@@ -1356,6 +1302,49 @@ jobs:
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
           echo "✓ Release Tag: $RELEASE_TAG"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      - name: Setup Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          cache: false
+          go-version-file: go.mod
+      - name: Download Go modules
+        run: go mod download
+      - name: Generate SBOM (SPDX format)
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: sbom.spdx.json
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Generate SBOM (CycloneDX format)
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: sbom.cdx.json
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - name: Audit SBOM files for secrets
+        run: |
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
+          fi
+          echo "✓ No secrets detected in SBOM files"
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom.spdx.json
+            sbom.cdx.json
+          retention-days: 7
+      - name: Attach SBOM to release
+        run: |
+          echo "Attaching SBOM files to release: $RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
+          echo "✓ SBOM files attached to release"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
