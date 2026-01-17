@@ -208,6 +208,55 @@ async function linkSubIssue(parentNodeId, subIssueNodeId, parentNumber, subIssue
 }
 
 /**
+ * Check if the agent failure is due to a transient error that should not create an issue
+ * @returns {Promise<{isTransient: boolean, reason: string}>}
+ */
+async function checkForTransientError() {
+  const agentLogPath = "/tmp/gh-aw/agent-stdio.log";
+
+  try {
+    if (!fs.existsSync(agentLogPath)) {
+      core.info("Agent log file not found, treating as non-transient error");
+      return { isTransient: false, reason: "" };
+    }
+
+    const logContent = fs.readFileSync(agentLogPath, "utf8");
+
+    // Known transient error patterns
+    const transientPatterns = [
+      {
+        pattern: /Error: missing finish_reason for choice 0/i,
+        reason: "Copilot API returned incomplete response (missing finish_reason). This is an intermittent API error that typically resolves on retry.",
+      },
+      {
+        pattern: /Error: API request failed with status 429/i,
+        reason: "Copilot API rate limit exceeded. This is a temporary condition that will resolve automatically.",
+      },
+      {
+        pattern: /Error: API request failed with status 50[0-9]/i,
+        reason: "Copilot API server error (5xx). This is a temporary service issue that typically resolves quickly.",
+      },
+      {
+        pattern: /Error: ETIMEDOUT|ECONNRESET|ECONNREFUSED/i,
+        reason: "Network connectivity issue. This is typically a temporary network problem.",
+      },
+    ];
+
+    for (const { pattern, reason } of transientPatterns) {
+      if (pattern.test(logContent)) {
+        core.info(`Detected transient error: ${reason}`);
+        return { isTransient: true, reason };
+      }
+    }
+
+    return { isTransient: false, reason: "" };
+  } catch (error) {
+    core.warning(`Error reading agent logs: ${getErrorMessage(error)}`);
+    return { isTransient: false, reason: "" };
+  }
+}
+
+/**
  * Handle agent job failure by creating or updating a failure tracking issue
  * This script is called from the conclusion job when the agent job has failed
  */
@@ -228,6 +277,15 @@ async function main() {
     // Only proceed if the agent job actually failed
     if (agentConclusion !== "failure") {
       core.info(`Agent job did not fail (conclusion: ${agentConclusion}), skipping failure handling`);
+      return;
+    }
+
+    // Check if this is a transient error that should not create an issue
+    const { isTransient, reason } = await checkForTransientError();
+    if (isTransient) {
+      core.info(`Skipping issue creation for transient error: ${reason}`);
+      core.info(`The workflow will automatically retry on the next scheduled run.`);
+      core.warning(`⚠️ Transient Error Detected: ${reason}`);
       return;
     }
 

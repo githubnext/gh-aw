@@ -9,10 +9,22 @@ describe("handle_agent_failure.cjs", () => {
   let mockGithub;
   let mockContext;
   let originalEnv;
+  const fs = require("fs");
 
   beforeEach(async () => {
     // Save original environment
     originalEnv = { ...process.env };
+
+    // Ensure agent log directory exists
+    const logDir = "/tmp/gh-aw";
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    // Create an empty log file by default (so tests don't hit the transient error check)
+    // Individual tests can override this with specific content
+    const logPath = "/tmp/gh-aw/agent-stdio.log";
+    fs.writeFileSync(logPath, "");
 
     // Mock core
     mockCore = {
@@ -61,6 +73,12 @@ describe("handle_agent_failure.cjs", () => {
   });
 
   afterEach(() => {
+    // Clean up test log file
+    const logPath = "/tmp/gh-aw/agent-stdio.log";
+    if (fs.existsSync(logPath)) {
+      fs.unlinkSync(logPath);
+    }
+
     // Restore environment
     process.env = originalEnv;
 
@@ -709,6 +727,121 @@ describe("handle_agent_failure.cjs", () => {
       expect(failureIssueCreateCall.body).toContain("**Branch:**");
       // The actual branch will be determined by getCurrentBranch() which may get it from git or env
       // Just verify the branch field exists
+    });
+  });
+
+  describe("transient error detection", () => {
+    it("should skip issue creation for missing finish_reason error", async () => {
+      const logPath = "/tmp/gh-aw/agent-stdio.log";
+      fs.writeFileSync(logPath, "Some log output\nError: missing finish_reason for choice 0\nMore log output");
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping issue creation for transient error"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Copilot API returned incomplete response"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("⚠️ Transient Error Detected"));
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should skip issue creation for rate limit errors", async () => {
+      const logPath = "/tmp/gh-aw/agent-stdio.log";
+      fs.writeFileSync(logPath, "Error: API request failed with status 429\nRate limit exceeded");
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping issue creation for transient error"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("rate limit exceeded"));
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    });
+
+    it("should skip issue creation for server errors (5xx)", async () => {
+      const logPath = "/tmp/gh-aw/agent-stdio.log";
+      fs.writeFileSync(logPath, "Error: API request failed with status 503\nService unavailable");
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping issue creation for transient error"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("server error"));
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    });
+
+    it("should skip issue creation for network errors", async () => {
+      const logPath = "/tmp/gh-aw/agent-stdio.log";
+      fs.writeFileSync(logPath, "Error: ETIMEDOUT\nConnection timed out");
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping issue creation for transient error"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Network connectivity issue"));
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    });
+
+    it("should create issue for non-transient errors", async () => {
+      const logPath = "/tmp/gh-aw/agent-stdio.log";
+      fs.writeFileSync(logPath, "Error: Some other error that is not transient");
+
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        });
+
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
+        })
+        .mockResolvedValueOnce({
+          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
+        });
+
+      mockGithub.graphql = vi.fn().mockResolvedValue({});
+
+      await main();
+
+      // Should not skip - should create issue
+      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Skipping issue creation for transient error"));
+      expect(mockGithub.rest.issues.create).toHaveBeenCalled();
+    });
+
+    it("should create issue when agent log file does not exist", async () => {
+      // Delete the log file that was created in beforeEach
+      const logPath = "/tmp/gh-aw/agent-stdio.log";
+      if (fs.existsSync(logPath)) {
+        fs.unlinkSync(logPath);
+      }
+
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          data: { total_count: 0, items: [] },
+        });
+
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
+        })
+        .mockResolvedValueOnce({
+          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
+        });
+
+      mockGithub.graphql = vi.fn().mockResolvedValue({});
+
+      await main();
+
+      // Should treat as non-transient and create issue
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent log file not found"));
+      expect(mockGithub.rest.issues.create).toHaveBeenCalled();
     });
   });
 });
