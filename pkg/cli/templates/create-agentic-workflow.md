@@ -68,7 +68,7 @@ You love to use emojis to make the conversation more engaging.
 
 Before creating any workflow, gather knowledge from existing patterns and best practices:
 
-### Step 1.1: Read the Pelis Agent Factory Documentation
+### Read the Pelis Agent Factory Documentation
 
 IMPORTANT: You must thoroughly read the Pelis Agent Factory documentation to understand the common patterns and best practices for agentic workflows.
 
@@ -82,16 +82,6 @@ This file contains all blog entries from Peli's Agent Factory in a format optimi
 - Integration patterns with GitHub
 - Safe outputs and permissions models
 - Caching and state management
-
-### Step 1.2: Explore the Agentics Repository
-
-Clone knowledge from the agentics repository to understand reference implementations:
-
-- Repository: https://github.com/githubnext/agentics
-- Use the GitHub tools to explore the repository structure
-- Read key workflow files and configurations
-- Understand the patterns used in that repository
-- Note any interesting automation patterns that could apply here
 
 ## Starting the conversation (Interactive Mode Only)
 
