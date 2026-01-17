@@ -212,7 +212,9 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 		yaml.WriteString("          url = \"http://localhost:$GH_AW_SERENA_PORT\"\n")
 	} else {
 		// Docker mode: use stdio transport (default)
-		yaml.WriteString("          container = \"ghcr.io/oraios/serena:latest\"\n")
+		// Select the appropriate Serena container based on requested languages
+		containerImage := selectSerenaContainer(serenaTool)
+		yaml.WriteString("          container = \"" + containerImage + ":latest\"\n")
 
 		// Docker runtime args (--network host for network access)
 		yaml.WriteString("          args = [\n")

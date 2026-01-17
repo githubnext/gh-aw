@@ -7,13 +7,13 @@ authors:
   - mnkiefer
 date: 2026-01-13T02:15:00
 sidebar:
-  label: "Continuous Refactoring"
+  label: "Meet the Workflows: Continuous Refactoring"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
-  label: "Continuous Simplicity Workflows"
+  label: "Meet the Workflows: Continuous Simplicity"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/
-  label: "Continuous Style Workflows"
+  label: "Meet the Workflows: Continuous Style"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -22,7 +22,7 @@ Welcome back to [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-a
 
 In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/), we met automated agents that detect complexity and propose simpler solutions. These work tirelessly in the background, cleaning things up. Now let's explore similar agents that take a deeper structural view, extending the automation to *structural refactoring*.
 
-## Continuous Refactoring Workflows
+## Continuous Refactoring
 
 Our next two agents continuously analyze code structure, suggesting systematic improvements:
 
@@ -70,7 +70,7 @@ These workflows demonstrate how AI agents can continuously maintain institutiona
 
 Beyond structure and organization, there's another dimension of code quality: presentation and style. How do we maintain beautiful, consistent console output and formatting?
 
-Continue reading: [Continuous Style Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/)
+Continue reading: [Meet the Workflows: Continuous Style →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/)
 
 ## Learn More
 

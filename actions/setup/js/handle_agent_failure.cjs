@@ -219,9 +219,11 @@ async function main() {
     const runUrl = process.env.GH_AW_RUN_URL || "";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+    const secretVerificationResult = process.env.GH_AW_SECRET_VERIFICATION_RESULT || "";
 
     core.info(`Agent conclusion: ${agentConclusion}`);
     core.info(`Workflow name: ${workflowName}`);
+    core.info(`Secret verification result: ${secretVerificationResult}`);
 
     // Only proceed if the agent job actually failed
     if (agentConclusion !== "failure") {
@@ -281,6 +283,9 @@ async function main() {
           workflow_name: workflowName,
           workflow_source: workflowSource,
           workflow_source_url: workflowSourceURL,
+          secret_verification_failed: String(secretVerificationResult === "failed"),
+          secret_verification_context:
+            secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
         };
 
         // Render the comment template
@@ -324,6 +329,9 @@ async function main() {
           workflow_source_url: workflowSourceURL || "#",
           branch: currentBranch,
           pull_request_info: pullRequest ? `  \n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
+          secret_verification_failed: String(secretVerificationResult === "failed"),
+          secret_verification_context:
+            secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
         };
 
         // Render the issue template

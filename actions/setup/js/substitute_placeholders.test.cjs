@@ -48,5 +48,20 @@ describe("substitutePlaceholders", () => {
     }),
     it("should throw error if file does not exist", async () => {
       await expect(substitutePlaceholders({ file: "/nonexistent/file.txt", substitutions: { NAME: "test" } })).rejects.toThrow("Failed to read file");
+    }),
+    it("should handle undefined values as empty strings", async () => {
+      (fs.writeFileSync(testFile, "Value: __VAL__", "utf8"), await substitutePlaceholders({ file: testFile, substitutions: { VAL: undefined } }));
+      const content = fs.readFileSync(testFile, "utf8");
+      expect(content).toBe("Value: ");
+    }),
+    it("should handle null values as empty strings", async () => {
+      (fs.writeFileSync(testFile, "Value: __VAL__", "utf8"), await substitutePlaceholders({ file: testFile, substitutions: { VAL: null } }));
+      const content = fs.readFileSync(testFile, "utf8");
+      expect(content).toBe("Value: ");
+    }),
+    it("should handle mixed undefined and defined values", async () => {
+      (fs.writeFileSync(testFile, "Repo: __REPO__\nComment: __COMMENT__\nIssue: __ISSUE__", "utf8"), await substitutePlaceholders({ file: testFile, substitutions: { REPO: "test/repo", COMMENT: undefined, ISSUE: null } }));
+      const content = fs.readFileSync(testFile, "utf8");
+      expect(content).toBe("Repo: test/repo\nComment: \nIssue: ");
     }));
 });

@@ -700,7 +700,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Build job outputs
 	// Always include model output for reuse in other jobs
 	outputs := map[string]string{
-		"model": "${{ steps.generate_aw_info.outputs.model }}",
+		"model":                      "${{ steps.generate_aw_info.outputs.model }}",
+		"secret_verification_result": "${{ steps.validate-secret.outputs.verification_result }}",
 	}
 
 	// Add safe-output specific outputs if the workflow uses the safe-outputs feature

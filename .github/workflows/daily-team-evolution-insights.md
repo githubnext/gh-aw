@@ -25,7 +25,7 @@ safe-outputs:
     category: "general"
     max: 1
     close-older-discussions: true
-timeout-minutes: 20
+timeout-minutes: 45
 ---
 
 # Daily Team Evolution Insights

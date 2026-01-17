@@ -754,3 +754,53 @@ This agent removes feature flags from the codebase.`
 		t.Errorf("processIncludedFileWithVisited(extractTools=true) = %q, want {}", toolsResult)
 	}
 }
+
+// TestProcessIncludedFileWithEngineCommand verifies that included files
+// with engine.command property are processed without validation errors
+func TestProcessIncludedFileWithEngineCommand(t *testing.T) {
+	tempDir := t.TempDir()
+	docsDir := filepath.Join(tempDir, "docs")
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		t.Fatalf("Failed to create docs directory: %v", err)
+	}
+
+	// Create a test file with engine.command property
+	testFile := filepath.Join(docsDir, "engine-config.md")
+	testContent := `---
+engine:
+  id: copilot
+  command: /custom/path/to/copilot
+  version: "1.0.0"
+tools:
+  github:
+    allowed: [issue_read]
+---
+
+# Engine Configuration
+
+This is a shared engine configuration with custom command.`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Process the included file - should not generate validation errors
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	if err != nil {
+		t.Fatalf("processIncludedFileWithVisited() error = %v, want nil", err)
+	}
+
+	if !strings.Contains(result, "# Engine Configuration") {
+		t.Errorf("Expected markdown content not found in result")
+	}
+
+	// Also test that tools extraction works correctly
+	toolsResult, err := processIncludedFileWithVisited(testFile, "", true, make(map[string]bool))
+	if err != nil {
+		t.Fatalf("processIncludedFileWithVisited(extractTools=true) error = %v, want nil", err)
+	}
+
+	if !strings.Contains(toolsResult, `"github"`) {
+		t.Errorf("processIncludedFileWithVisited(extractTools=true) should contain github tools, got: %q", toolsResult)
+	}
+}

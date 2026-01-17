@@ -1,5 +1,5 @@
 ---
-title: "Meet the Workflows: Documentation & Content"
+title: "Meet the Workflows: Continuous Documentation"
 description: "A curated tour of workflows that maintain high-quality documentation"
 authors:
   - dsyme
@@ -7,7 +7,7 @@ authors:
   - mnkiefer
 date: 2026-01-13T03:00:00
 sidebar:
-  label: "Documentation & Content"
+  label: "Continuous Documentation"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-improvement/
   label: "Continuous Improvement Workflows"
@@ -24,7 +24,7 @@ In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-sim
 
 Now let's address one of software development's eternal challenges: keeping documentation accurate and up-to-date. Code evolves rapidly; docs... not so much. Terminology drifts, API examples become outdated, slide decks grow stale, and blog posts reference deprecated features. The question isn't "can AI agents write good documentation?" but rather "can they maintain it as code changes?" Documentation and content workflows challenge conventional wisdom about AI-generated technical content. Spoiler: the answer involves human review, but it's way better than the alternative (no docs at all).
 
-## Documentation & Content Workflows
+## Continuous Documentation Workflows
 
 These agents maintain high-quality documentation and content:
 

@@ -45,9 +45,6 @@ var debugWorkflowPromptTemplate string
 //go:embed templates/upgrade-agentic-workflows.md
 var upgradeAgenticWorkflowsPromptTemplate string
 
-//go:embed templates/create-campaign.md
-var campaignCreationInstructionsTemplate string
-
 //go:embed templates/orchestrate-campaign.md
 var campaignOrchestratorInstructionsTemplate string
 

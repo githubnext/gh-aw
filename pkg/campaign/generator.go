@@ -91,10 +91,10 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 			},
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
-			Footer:     "> 🎯 *Campaign coordination by [{workflow_name}]({run_url})*",
-			RunStarted: "🚀 Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...",
-			RunSuccess: "✅ Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready! 📊",
-			RunFailure: "⚠️ Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...",
+			Footer:     "> *Campaign coordination by [{workflow_name}]({run_url})*",
+			RunStarted: "Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...",
+			RunSuccess: "Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!",
+			RunFailure: "Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...",
 		},
 	}
 }
@@ -104,7 +104,6 @@ func buildGeneratorPrompt() string {
 	var prompt strings.Builder
 
 	prompt.WriteString("{{#runtime-import? .github/shared-instructions.md}}\n")
-	prompt.WriteString("{{#runtime-import? .github/aw/create-campaign.md}}\n")
 	prompt.WriteString("{{#runtime-import? .github/aw/generate-campaign.md}}\n")
 
 	return prompt.String()

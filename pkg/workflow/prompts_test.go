@@ -31,7 +31,7 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 	compiler.generateUnifiedPromptStep(&yaml, data)
 
 	output := yaml.String()
-	if !strings.Contains(output, "Append context instructions to prompt") {
+	if !strings.Contains(output, "Create prompt with built-in context") {
 		t.Error("Expected unified prompt step to be generated when safe outputs enabled")
 	}
 	if !strings.Contains(output, "safe output tool") {
@@ -115,9 +115,9 @@ This is a test workflow with cache-memory enabled.
 
 	lockStr := string(lockContent)
 
-	// Test 1: Verify cache memory prompt step is created
-	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
+	// Test 1: Verify unified prompt creation step is present
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
 	// Test 2: Verify the instruction text contains cache folder information
@@ -179,13 +179,15 @@ This is a test workflow without cache-memory.
 
 	lockStr := string(lockContent)
 
-	// Test: Verify cache memory prompt step is NOT created
-	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Did not expect 'Append context instructions to prompt' step in workflow without cache-memory")
-	}
-
+	// Test: Verify cache memory instructions are NOT included
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the cache-specific content should not be there
 	if strings.Contains(lockStr, "Cache Folder Available") {
 		t.Error("Did not expect 'Cache Folder Available' header in workflow without cache-memory")
+	}
+
+	if strings.Contains(lockStr, "/tmp/gh-aw/cache-memory/") {
+		t.Error("Did not expect '/tmp/gh-aw/cache-memory/' reference in workflow without cache-memory")
 	}
 
 	t.Logf("Successfully verified cache memory instructions are NOT included when cache-memory is disabled")
@@ -237,8 +239,8 @@ This is a test workflow with multiple cache-memory entries.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify cache memory prompt step is created
-	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
 	// Test 2: Verify plural form is used for multiple caches
@@ -304,8 +306,8 @@ This is a test workflow with playwright enabled.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify playwright prompt step is created
-	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
 	// Test 2: Verify the cat command for playwright prompt file is included
@@ -357,13 +359,15 @@ This is a test workflow without playwright.
 
 	lockStr := string(lockContent)
 
-	// Test: Verify playwright prompt step is NOT created
-	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Did not expect 'Append context instructions to prompt' step in workflow without playwright")
-	}
-
+	// Test: Verify playwright instructions are NOT included
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the playwright-specific content should not be there
 	if strings.Contains(lockStr, "Playwright Output Directory") {
 		t.Error("Did not expect 'Playwright Output Directory' header in workflow without playwright")
+	}
+
+	if strings.Contains(lockStr, "playwright_prompt.md") {
+		t.Error("Did not expect 'playwright_prompt.md' reference in workflow without playwright")
 	}
 
 	t.Logf("Successfully verified playwright output directory instructions are NOT included when playwright is disabled")
@@ -411,8 +415,9 @@ This is a test workflow to verify playwright instructions come after temp folder
 	lockStr := string(lockContent)
 
 	// Find positions of temp folder and playwright instructions
-	tempFolderPos := strings.Index(lockStr, "Append context instructions to prompt")
-	playwrightPos := strings.Index(lockStr, "Append context instructions to prompt")
+	// Both are now in the same unified step, so we check their content order
+	tempFolderPos := strings.Index(lockStr, "temp_folder_prompt.md")
+	playwrightPos := strings.Index(lockStr, "playwright_prompt.md")
 
 	// Test: Verify playwright instructions come after temp folder instructions
 	if tempFolderPos == -1 {
@@ -478,8 +483,8 @@ This is a test workflow with issue_comment trigger.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify PR context prompt step is created
-	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Expected 'Append context instructions to prompt' step in generated workflow")
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
 	// Test 2: Verify the cat command for PR context prompt file is included
@@ -534,8 +539,8 @@ This is a test workflow with command trigger.
 	lockStr := string(lockContent)
 
 	// Test: Verify PR context prompt step is created for command triggers
-	if !strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Expected 'Append context instructions to prompt' step in workflow with command trigger")
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in workflow with command trigger")
 	}
 
 	t.Logf("Successfully verified PR context instructions are included for command trigger")
@@ -582,9 +587,11 @@ This is a test workflow with push trigger only.
 
 	lockStr := string(lockContent)
 
-	// Test: Verify PR context prompt step is NOT created for push triggers
-	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Did not expect 'Append context instructions to prompt' step for push trigger")
+	// Test: Verify PR context prompt content is NOT included for push triggers
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the PR-specific content should not be there
+	if strings.Contains(lockStr, "pr_context_prompt.md") {
+		t.Error("Did not expect 'pr_context_prompt.md' reference for push trigger")
 	}
 
 	t.Logf("Successfully verified PR context instructions are NOT included for push trigger")
@@ -633,9 +640,11 @@ This is a test workflow without contents read permission.
 
 	lockStr := string(lockContent)
 
-	// Test: Verify PR context prompt step is NOT created without contents permission
-	if strings.Contains(lockStr, "- name: Append context instructions to prompt") {
-		t.Error("Did not expect 'Append context instructions to prompt' step without contents read permission")
+	// Test: Verify PR context prompt content is NOT created without contents permission
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the PR-specific content should not be there
+	if strings.Contains(lockStr, "pr_context_prompt.md") {
+		t.Error("Did not expect 'pr_context_prompt.md' reference without contents read permission")
 	}
 
 	t.Logf("Successfully verified PR context instructions are NOT included without contents permission")

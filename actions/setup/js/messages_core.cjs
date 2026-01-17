@@ -63,7 +63,7 @@ function getMessages() {
  * Replace placeholders in a template string with values from context.
  * Supports {key} syntax for placeholder replacement.
  * @param {string} template - Template string with {key} placeholders
- * @param {Record<string, string|number|undefined>} context - Key-value pairs for replacement
+ * @param {Record<string, string|number|boolean|undefined>} context - Key-value pairs for replacement
  * @returns {string} Template with placeholders replaced
  */
 function renderTemplate(template, context) {

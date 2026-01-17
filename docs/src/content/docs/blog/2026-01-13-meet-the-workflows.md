@@ -13,7 +13,7 @@ prev:
   label: Welcome to Peli's Agent Factory
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
-  label: "Continuous Simplicity Workflows"
+  label: "Continuous Simplicity"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -28,11 +28,11 @@ Think of this as your guided tour through our agent factory. We're showcasing th
 
 To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage.
 
-Issue triage now represents the "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter examples in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
+Issue triage represents a "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter examples in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
 
 When a new issue is opened, the triage agent analyzes its content, does research in the codebase and other issues, responds with a comment, and applies appropriate labels based on predefined categories. This helps maintainers quickly understand the nature of incoming issues without manual review.
 
-Our **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)** focuses on labels: it automatically labels and categorizes new issues the moment they're opened. Let's take a look at the full workflow:
+Let's take a look at the full **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)**:
 
 ```markdown
 ---
@@ -80,9 +80,9 @@ We've deliberately kept this workflow ultra-simple. In practice, in your own rep
 
 ## Next Up: Code Quality & Refactoring Workflows
 
-Now that we've explored how triage workflows help us stay on top of incoming activity, let's turn to the agents that continuously improve code quality.
+Now that we've explored how triage workflows help us stay on top of incoming activity, let's turn to something far more radical and powerful: agents that continuously improve code.
 
-Continue reading: [Continuous Simplicity Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
+Continue reading: [Continuous Simplicity →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
 
 ## Learn More
 

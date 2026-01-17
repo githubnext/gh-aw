@@ -4,6 +4,8 @@
 **Branch:** {branch}  
 **Run URL:** {run_url}{pull_request_info}
 
+{secret_verification_context}
+
 ### Action Required
 
 Debug this workflow failure using the `agentic-workflows` agent:

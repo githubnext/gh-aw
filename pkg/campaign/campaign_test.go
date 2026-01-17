@@ -121,10 +121,11 @@ func TestRunCampaignStatus_JSON(t *testing.T) {
 // (like version) is applied.
 func TestValidateCampaignSpec_Basic(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:         "go-file-size-reduction",
-		Name:       "Go File Size Reduction",
-		ProjectURL: "https://github.com/orgs/githubnext/projects/1",
-		Workflows:  []string{"daily-file-diet"},
+		ID:           "go-file-size-reduction",
+		Name:         "Go File Size Reduction",
+		ProjectURL:   "https://github.com/orgs/githubnext/projects/1",
+		AllowedRepos: []string{"org/repo1"},
+		Workflows:    []string{"daily-file-diet"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -141,11 +142,12 @@ func TestValidateCampaignSpec_Basic(t *testing.T) {
 // values are reported by validation.
 func TestValidateCampaignSpec_InvalidState(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:         "rollout-q1-2025",
-		Name:       "Rollout",
-		ProjectURL: "https://github.com/orgs/githubnext/projects/1",
-		Workflows:  []string{"daily-file-diet"},
-		State:      "launching", // invalid
+		ID:           "rollout-q1-2025",
+		Name:         "Rollout",
+		ProjectURL:   "https://github.com/orgs/githubnext/projects/1",
+		AllowedRepos: []string{"org/repo1"},
+		Workflows:    []string{"daily-file-diet"},
+		State:        "launching", // invalid
 	}
 
 	problems := ValidateSpec(spec)
@@ -184,8 +186,9 @@ func TestComputeCompiledState_LockFilePath(t *testing.T) {
 	}
 
 	spec := CampaignSpec{
-		ID:        "test-campaign",
-		Workflows: []string{workflowID},
+		ID:           "test-campaign",
+		AllowedRepos: []string{"org/repo1"},
+		Workflows:    []string{workflowID},
 	}
 
 	// This should find the lock file and return "Yes"

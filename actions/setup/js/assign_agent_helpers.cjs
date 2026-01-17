@@ -131,7 +131,7 @@ async function findAgent(owner, repo, agentName) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
- * @returns {Promise<{issueId: string, currentAssignees: string[]}|null>}
+ * @returns {Promise<{issueId: string, currentAssignees: Array<{id: string, login: string}>}|null>}
  */
 async function getIssueDetails(owner, repo, issueNumber) {
   const query = `
@@ -142,6 +142,7 @@ async function getIssueDetails(owner, repo, issueNumber) {
           assignees(first: 100) {
             nodes {
               id
+              login
             }
           }
         }
@@ -158,7 +159,10 @@ async function getIssueDetails(owner, repo, issueNumber) {
       return null;
     }
 
-    const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
+    const currentAssignees = issue.assignees.nodes.map(assignee => ({
+      id: assignee.id,
+      login: assignee.login,
+    }));
 
     return {
       issueId: issue.id,
@@ -177,7 +181,7 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} pullNumber - Pull request number
- * @returns {Promise<{pullRequestId: string, currentAssignees: string[]}|null>}
+ * @returns {Promise<{pullRequestId: string, currentAssignees: Array<{id: string, login: string}>}|null>}
  */
 async function getPullRequestDetails(owner, repo, pullNumber) {
   const query = `
@@ -188,6 +192,7 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
           assignees(first: 100) {
             nodes {
               id
+              login
             }
           }
         }
@@ -204,7 +209,10 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
       return null;
     }
 
-    const currentAssignees = pullRequest.assignees.nodes.map(assignee => assignee.id);
+    const currentAssignees = pullRequest.assignees.nodes.map(assignee => ({
+      id: assignee.id,
+      login: assignee.login,
+    }));
 
     return {
       pullRequestId: pullRequest.id,
@@ -222,13 +230,33 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
  * Assign agent to issue or pull request using GraphQL replaceActorsForAssignable mutation
  * @param {string} assignableId - GitHub issue or pull request ID
  * @param {string} agentId - Agent ID
- * @param {string[]} currentAssignees - List of current assignee IDs
+ * @param {Array<{id: string, login: string}>} currentAssignees - List of current assignees with id and login
  * @param {string} agentName - Agent name for error messages
+ * @param {string[]|null} allowedAgents - Optional list of allowed agent names. If provided, filters out non-allowed agents from current assignees.
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName) {
-  // Build actor IDs array - include agent and preserve other assignees
-  const actorIds = [agentId, ...currentAssignees.filter(id => id !== agentId)];
+async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null) {
+  // Filter current assignees based on allowed list (if configured)
+  let filteredAssignees = currentAssignees;
+  if (allowedAgents && allowedAgents.length > 0) {
+    filteredAssignees = currentAssignees.filter(assignee => {
+      // Check if this assignee is a known agent
+      const agentName = getAgentName(assignee.login);
+      if (agentName) {
+        // It's an agent - only keep if in allowed list
+        const isAllowed = allowedAgents.includes(agentName);
+        if (!isAllowed) {
+          core.info(`Filtering out agent "${assignee.login}" (not in allowed list)`);
+        }
+        return isAllowed;
+      }
+      // Not an agent - keep it (regular user assignee)
+      return true;
+    });
+  }
+
+  // Build actor IDs array - include new agent and preserve filtered assignees
+  const actorIds = [agentId, ...filteredAssignees.map(a => a.id).filter(id => id !== agentId)];
 
   const mutation = `
     mutation($assignableId: ID!, $actorIds: [ID!]!) {
@@ -466,14 +494,14 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     core.info(`Issue ID: ${issueDetails.issueId}`);
 
     // Check if agent is already assigned
-    if (issueDetails.currentAssignees.includes(agentId)) {
+    if (issueDetails.currentAssignees.some(a => a.id === agentId)) {
       core.info(`${agentName} is already assigned to issue #${issueNumber}`);
       return { success: true };
     }
 
-    // Assign agent using GraphQL mutation
+    // Assign agent using GraphQL mutation (no allowed list filtering in this helper)
     core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null);
 
     if (!success) {
       return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
