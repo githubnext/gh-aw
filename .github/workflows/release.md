@@ -59,53 +59,62 @@ jobs:
       
       - name: Compute release configuration
         id: compute_config
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # For workflow_dispatch, compute next version based on release type
-            RELEASE_TYPE="${{ inputs.release_type }}"
-            DRAFT_MODE="${{ inputs.draft }}"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isWorkflowDispatch = context.eventName === 'workflow_dispatch';
             
-            echo "Computing next version for release type: $RELEASE_TYPE"
+            let releaseTag, draftMode;
             
-            # Get the latest release tag
-            LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"')
-            echo "Latest release tag: $LATEST_TAG"
+            if (isWorkflowDispatch) {
+              const releaseType = context.payload.inputs.release_type;
+              draftMode = context.payload.inputs.draft;
+              
+              console.log(`Computing next version for release type: ${releaseType}`);
+              
+              // Get the latest release tag
+              const { data: releases } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 1
+              });
+              
+              const latestTag = releases[0]?.tag_name || 'v0.0.0';
+              console.log(`Latest release tag: ${latestTag}`);
+              
+              // Parse version components (strip 'v' prefix)
+              const version = latestTag.replace(/^v/, '');
+              let [major, minor, patch] = version.split('.').map(Number);
+              
+              // Increment based on release type
+              switch (releaseType) {
+                case 'major':
+                  major += 1;
+                  minor = 0;
+                  patch = 0;
+                  break;
+                case 'minor':
+                  minor += 1;
+                  patch = 0;
+                  break;
+                case 'patch':
+                  patch += 1;
+                  break;
+              }
+              
+              releaseTag = `v${major}.${minor}.${patch}`;
+              console.log(`Computed release tag: ${releaseTag}`);
+            } else {
+              // For tag push events, use the tag from GITHUB_REF
+              releaseTag = context.ref.replace('refs/tags/', '');
+              draftMode = 'false';
+              console.log(`Using tag from push event: ${releaseTag}`);
+            }
             
-            # Parse version components (strip 'v' prefix)
-            VERSION="${LATEST_TAG#v}"
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-            
-            # Increment based on release type
-            case "$RELEASE_TYPE" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
-            esac
-            
-            RELEASE_TAG="v${MAJOR}.${MINOR}.${PATCH}"
-            echo "Computed release tag: $RELEASE_TAG"
-          else
-            # For tag push events, use the tag from GITHUB_REF
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-            DRAFT_MODE="false"
-            echo "Using tag from push event: $RELEASE_TAG"
-          fi
-          
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "draft_mode=$DRAFT_MODE" >> "$GITHUB_OUTPUT"
-          echo "✓ Release tag: $RELEASE_TAG"
-          echo "✓ Draft mode: $DRAFT_MODE"
+            core.setOutput('release_tag', releaseTag);
+            core.setOutput('draft_mode', draftMode);
+            console.log(`✓ Release tag: ${releaseTag}`);
+            console.log(`✓ Draft mode: ${draftMode}`);
   release:
     needs: ["activation", "config"]
     runs-on: ubuntu-latest
@@ -116,7 +125,6 @@ jobs:
       attestations: write
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
-      release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -136,63 +144,100 @@ jobs:
           git push origin "$RELEASE_TAG"
           echo "✓ Tag created: $RELEASE_TAG"
           
-      - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
-        with:
-          go_version_file: go.mod
-          build_script_override: scripts/build-release.sh
-          release_tag: ${{ needs.config.outputs.release_tag }}
-
-      - name: Set release to draft mode
-        if: needs.config.outputs.draft_mode == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          echo "Setting release to draft mode: $RELEASE_TAG"
-          # Edit the release to set it as draft
-          gh release edit "$RELEASE_TAG" --draft
-          echo "✓ Release set to draft mode"
-
-      - name: Upload checksums file
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          if [ -f "dist/checksums.txt" ]; then
-            echo "Uploading checksums file to release: $RELEASE_TAG"
-            gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
-            echo "✓ Checksums file uploaded to release"
-          else
-            echo "Warning: checksums.txt not found in dist/"
-          fi
-
-      - name: Get release ID
-        id: get_release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          echo "Getting release ID for tag: $RELEASE_TAG"
-          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "✓ Release ID: $RELEASE_ID"
-          echo "✓ Release Tag: $RELEASE_TAG"
-  generate-sbom:
-    needs: ["release"]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-
       - name: Setup Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version-file: go.mod
           cache: false  # Disabled for release security - prevent cache poisoning attacks
+
+      - name: Build binaries
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          echo "Building binaries for release: $RELEASE_TAG"
+          bash scripts/build-release.sh "$RELEASE_TAG"
+          echo "✓ Binaries built successfully"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image (amd64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BINARY=dist/linux-amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate SBOM for Docker image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository }}:${{ needs.config.outputs.release_tag }}
+          artifact-name: docker-sbom.spdx.json
+          output-file: docker-sbom.spdx.json
+          format: spdx-json
+
+      - name: Attest Docker image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Create GitHub release
+        id: get_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+          DRAFT_MODE: ${{ needs.config.outputs.draft_mode }}
+        run: |
+          echo "Creating GitHub release: $RELEASE_TAG"
+          
+          # Create release with binaries (SBOM files will be added later)
+          RELEASE_ARGS=()
+          if [ "$DRAFT_MODE" = "true" ]; then
+            RELEASE_ARGS+=(--draft)
+            echo "Creating draft release"
+          fi
+          
+          # Create the release and upload binaries
+          gh release create "$RELEASE_TAG" \
+            dist/* \
+            --title "$RELEASE_TAG" \
+            --generate-notes \
+            "${RELEASE_ARGS[@]}"
+          
+          # Get release ID
+          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "✓ Release created: $RELEASE_TAG"
+          echo "✓ Release ID: $RELEASE_ID"
+          echo "✓ Draft mode: $DRAFT_MODE"
 
       - name: Download Go modules
         run: go mod download
@@ -229,135 +274,22 @@ jobs:
             sbom.cdx.json
           retention-days: 7  # Minimize exposure window
 
-      - name: Attach SBOM to release
+      - name: Upload SBOM files to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |
-          echo "Attaching SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
-          echo "✓ SBOM files attached to release"
-  docker-image:
-    needs: ["release"]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-      actions: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+          echo "Uploading SBOM files to release: $RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" \
+            sbom.spdx.json \
+            sbom.cdx.json
+          echo "✓ SBOM files uploaded to release"
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download release artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-          RELEASE_ID: ${{ needs.release.outputs.release_id }}
-        run: |
-          echo "Downloading release binaries for release ID: $RELEASE_ID, tag: $RELEASE_TAG"
-          mkdir -p dist
-          
-          # Get the release by ID (works for both draft and published releases)
-          # Draft releases lose their tag association, so we must query by ID
-          echo "Fetching release information..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq '{id, tag_name, name, draft, created_at, asset_count: (.assets | length)}' \
-            > /tmp/release_info.json
-          
-          echo "Release info:"
-          cat /tmp/release_info.json
-          
-          # Get all linux-* assets from this specific release
-          echo ""
-          echo "Fetching linux-* assets..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq ".assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url, size: .size}" \
-            > /tmp/assets.json
-          
-          if [ ! -s /tmp/assets.json ]; then
-            echo "Error: No linux-* assets found in release $RELEASE_TAG (ID: $RELEASE_ID)"
-            echo ""
-            echo "Available assets:"
-            gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-              --jq '.assets[] | .name'
-            exit 1
-          fi
-          
-          echo "Found $(jq -s length /tmp/assets.json) linux assets:"
-          cat /tmp/assets.json
-          
-          # Download each asset using authenticated API call
-          echo ""
-          while IFS= read -r asset; do
-            ASSET_NAME=$(echo "$asset" | jq -r '.name')
-            ASSET_URL=$(echo "$asset" | jq -r '.url')
-            ASSET_SIZE=$(echo "$asset" | jq -r '.size')
-            echo "Downloading $ASSET_NAME ($(numfmt --to=iec-i --suffix=B $ASSET_SIZE))..."
-            gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
-          done < <(jq -c '.' /tmp/assets.json)
-          
-          echo ""
-          echo "Downloaded binaries:"
-          ls -lh dist/
-          echo "✓ Release binaries downloaded successfully"
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,format=long
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image (amd64)
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            BINARY=dist/linux-amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@v0
-        with:
-          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
-          artifact-name: docker-sbom.spdx.json
-          output-file: docker-sbom.spdx.json
-          format: spdx-json
-
-      - name: Attest Docker image
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
 steps:
   - name: Setup environment and fetch release data
     env:
       RELEASE_ID: ${{ needs.release.outputs.release_id }}
-      RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
@@ -371,7 +303,8 @@ steps:
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
       
       # Get the current release information
-      gh release view "$RELEASE_TAG" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json
+      # Use release ID to fetch release data (works for draft releases)
+      gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
       echo "✓ Fetched current release information"
       
       # Get the previous release to determine the range

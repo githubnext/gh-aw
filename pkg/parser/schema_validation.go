@@ -3,10 +3,43 @@ package parser
 import (
 	"fmt"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var schemaValidationLog = logger.New("parser:schema_validation")
+
+// sharedWorkflowForbiddenFields is a map for O(1) lookup of forbidden fields in shared workflows
+var sharedWorkflowForbiddenFields = buildForbiddenFieldsMap()
+
+// buildForbiddenFieldsMap converts the SharedWorkflowForbiddenFields slice to a map for efficient lookup
+func buildForbiddenFieldsMap() map[string]bool {
+	forbiddenMap := make(map[string]bool)
+	for _, field := range constants.SharedWorkflowForbiddenFields {
+		forbiddenMap[field] = true
+	}
+	return forbiddenMap
+}
+
+// validateSharedWorkflowFields checks that a shared workflow doesn't contain forbidden fields
+func validateSharedWorkflowFields(frontmatter map[string]any) error {
+	var forbiddenFound []string
+
+	for key := range frontmatter {
+		if sharedWorkflowForbiddenFields[key] {
+			forbiddenFound = append(forbiddenFound, key)
+		}
+	}
+
+	if len(forbiddenFound) > 0 {
+		if len(forbiddenFound) == 1 {
+			return fmt.Errorf("field '%s' cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound[0])
+		}
+		return fmt.Errorf("fields %v cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound)
+	}
+
+	return nil
+}
 
 // ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
 func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
@@ -57,13 +90,28 @@ func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
-	// First run the standard schema validation
-	if err := validateWithSchema(filtered, includedFileSchema, "included file"); err != nil {
+	// First check for forbidden fields in shared workflows
+	if err := validateSharedWorkflowFields(filtered); err != nil {
+		schemaValidationLog.Printf("Shared workflow field validation failed: %v", err)
+		return err
+	}
+
+	// To validate shared workflows against the main schema, we temporarily add an 'on' field
+	// This allows us to use the full schema validation while still enforcing the forbidden field check above
+	tempFrontmatter := make(map[string]any)
+	for k, v := range filtered {
+		tempFrontmatter[k] = v
+	}
+	// Add a temporary 'on' field to satisfy the schema's required field
+	tempFrontmatter["on"] = "push"
+
+	// Validate with the main schema (which will catch unknown fields)
+	if err := validateWithSchema(tempFrontmatter, mainWorkflowSchema, "included file"); err != nil {
 		schemaValidationLog.Printf("Schema validation failed for included file: %v", err)
 		return err
 	}
 
-	// Then run custom validation for engine-specific rules
+	// Run custom validation for engine-specific rules
 	return validateEngineSpecificRules(filtered)
 }
 
@@ -72,12 +120,25 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
-	// First run the standard schema validation with location
-	if err := validateWithSchemaAndLocation(filtered, includedFileSchema, "included file", filePath); err != nil {
+	// First check for forbidden fields in shared workflows
+	if err := validateSharedWorkflowFields(filtered); err != nil {
 		return err
 	}
 
-	// Then run custom validation for engine-specific rules
+	// To validate shared workflows against the main schema, we temporarily add an 'on' field
+	tempFrontmatter := make(map[string]any)
+	for k, v := range filtered {
+		tempFrontmatter[k] = v
+	}
+	// Add a temporary 'on' field to satisfy the schema's required field
+	tempFrontmatter["on"] = "push"
+
+	// Validate with the main schema (which will catch unknown fields)
+	if err := validateWithSchemaAndLocation(tempFrontmatter, mainWorkflowSchema, "included file", filePath); err != nil {
+		return err
+	}
+
+	// Run custom validation for engine-specific rules
 	return validateEngineSpecificRules(filtered)
 }
 

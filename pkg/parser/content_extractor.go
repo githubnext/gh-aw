@@ -136,6 +136,43 @@ func extractSecretMaskingFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "secret-masking", "{}")
 }
 
+// extractBotsFromContent extracts bots section from frontmatter as JSON string
+func extractBotsFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "bots", "[]")
+}
+
+// extractPostStepsFromContent extracts post-steps section from frontmatter as YAML string
+func extractPostStepsFromContent(content string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", nil // Return empty string on error
+	}
+
+	// Extract post-steps section
+	postSteps, exists := result.Frontmatter["post-steps"]
+	if !exists {
+		return "", nil
+	}
+
+	// Convert to YAML string (similar to how steps are handled)
+	postStepsYAML, err := yaml.Marshal(postSteps)
+	if err != nil {
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(postStepsYAML)), nil
+}
+
+// extractLabelsFromContent extracts labels section from frontmatter as JSON string
+func extractLabelsFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "labels", "[]")
+}
+
+// extractCacheFromContent extracts cache section from frontmatter as JSON string
+func extractCacheFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "cache", "{}")
+}
+
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
 func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
