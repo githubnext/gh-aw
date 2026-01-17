@@ -237,6 +237,8 @@ jobs:
 safe-outputs:
   assign-to-agent:
     max: 3
+    target: "*"           # Requires explicit issue_number in agent output
+    allowed: [copilot]    # Only allow copilot agent
   add-comment:
     max: 3
     target: "*"

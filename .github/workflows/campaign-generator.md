@@ -20,6 +20,8 @@ safe-outputs:
     max: 10
   update-issue:
   assign-to-agent:
+    target: "triggering"  # Auto-resolves from github.event.issue.number
+    allowed: [copilot]    # Only allow copilot agent
   create-project:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
