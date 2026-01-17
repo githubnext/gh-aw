@@ -63,11 +63,11 @@ The factory becomes both an experiment and a reference collection - a living lib
 In our first series, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. Each article is bite-sized. If you'd like to skip ahead, here's the full list of articles in the series:
 
 1. [Meet a Simple Triage Workflow](/gh-aw/blog/2026-01-13-meet-the-workflows/)
-2. [Continuous Simplicity Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
-3. [Continuous Refactoring Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/)
+2. [Continuous Simplicity](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
+3. [Continuous Refactoring](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/)
 4. [Continuous Style Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/)
 5. [Continuous Improvement Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-improvement/)
-6. [Documentation & Content Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
+6. [Continuous Documentation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
 7. [Issue & PR Management Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/)
 8. [Fault Investigation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)
 9. [Metrics & Analytics Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)

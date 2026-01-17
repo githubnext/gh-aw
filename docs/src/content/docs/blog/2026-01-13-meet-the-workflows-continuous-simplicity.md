@@ -13,7 +13,7 @@ prev:
   label: "Meet a Simple Triage Workflow"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/
-  label: "Continuous Refactoring Workflows"
+  label: "Meet the Workflows: Continuous Refactoring"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -24,7 +24,7 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows/), we explored 
 
 Now let's meet the agents that work quietly in the background to keep code simple and clean. These workflows embody a powerful principle: **code quality is not a destination, it's a continuous practice**. While developers race ahead implementing features and fixing bugs, autonomous cleanup agents trail behind, constantly sweeping, polishing, and simplifying. Let's meet the agents that hunt for complexity.
 
-## Continuous Simplicity Workflows
+## Continuous Simplicity
 
 The next two agents represent different aspects of  code simplicity: detecting *overcomplicated code* and *duplicated logic*:
 
@@ -58,7 +58,7 @@ The workflows never take a day off, never get tired, and never let technical deb
 
 Simplification is just the beginning. Beyond removing complexity, we can use agents to continuously improve code in many more ways. Our next posts explore this topic.
 
-Continue reading: [Continuous Refactoring Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/)
+Continue reading: [Continuous Refactoring →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/)
 
 ## Learn More
 

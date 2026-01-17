@@ -13,7 +13,7 @@ prev:
   label: Welcome to Peli's Agent Factory
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
-  label: "Continuous Simplicity Workflows"
+  label: "Continuous Simplicity"
 ---
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
@@ -82,7 +82,7 @@ We've deliberately kept this workflow ultra-simple. In practice, in your own rep
 
 Now that we've explored how triage workflows help us stay on top of incoming activity, let's turn to something far more radical and powerful: agents that continuously improve code.
 
-Continue reading: [Continuous Simplicity Workflows →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
+Continue reading: [Continuous Simplicity →](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
 
 ## Learn More
 
