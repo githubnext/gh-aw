@@ -33,7 +33,6 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			// Add group flag if enabled
 			if data.SafeOutputs.CreateIssues.Group {
 				config["group"] = true
-				safeOutputsConfigLog.Printf("Adding group flag to create_issue config: Group=%v", data.SafeOutputs.CreateIssues.Group)
 			}
 			safeOutputsConfig["create_issue"] = config
 		}
@@ -385,11 +384,6 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if len(dispatchWorkflowConfig) > 0 {
 			safeOutputsConfig["dispatch_workflow"] = dispatchWorkflowConfig
 		}
-	}
-
-	// Debug log the config before marshaling
-	if safeOutputsConfigLog.Enabled() {
-		safeOutputsConfigLog.Printf("Final safeOutputsConfig before marshaling: %+v", safeOutputsConfig)
 	}
 
 	configJSON, _ := json.Marshal(safeOutputsConfig)

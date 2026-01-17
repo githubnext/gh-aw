@@ -69,10 +69,6 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		config.Max = 1
 	}
 
-	// Log the parsed configuration
-	createIssueLog.Printf("Parsed create-issue config: Max=%d, Group=%v, TitlePrefix=%s, Labels=%d",
-		config.Max, config.Group, config.TitlePrefix, len(config.Labels))
-
 	// Validate target-repo (wildcard "*" is not allowed)
 	if validateTargetRepoSlug(config.TargetRepoSlug, createIssueLog) {
 		return nil // Invalid configuration, return nil to cause validation error

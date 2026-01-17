@@ -16,6 +16,96 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_issue";
 
+/** @type {number} Maximum number of sub-issues allowed per parent issue */
+const MAX_SUB_ISSUES_PER_PARENT = 64;
+
+/** @type {number} Maximum number of parent issues to check when searching */
+const MAX_PARENT_ISSUES_TO_CHECK = 10;
+
+/**
+ * Searches for an existing parent issue that can accept more sub-issues
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} markerComment - The HTML comment marker to search for
+ * @returns {Promise<number|null>} - Parent issue number or null if none found
+ */
+async function searchForExistingParent(owner, repo, markerComment) {
+  try {
+    const searchQuery = `repo:${owner}/${repo} is:issue "${markerComment}" in:body`;
+    const searchResults = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: MAX_PARENT_ISSUES_TO_CHECK,
+      sort: "created",
+      order: "desc",
+    });
+
+    if (searchResults.data.total_count === 0) {
+      return null;
+    }
+
+    // Check each found issue to see if it can accept more sub-issues
+    for (const issue of searchResults.data.items) {
+      core.info(`Found potential parent issue #${issue.number}: ${issue.title}`);
+
+      if (issue.state !== "open") {
+        core.info(`Parent issue #${issue.number} is ${issue.state}, skipping`);
+        continue;
+      }
+
+      const subIssueCount = await getSubIssueCount(owner, repo, issue.number);
+      if (subIssueCount === null) {
+        continue; // Skip if we couldn't get the count
+      }
+
+      if (subIssueCount < MAX_SUB_ISSUES_PER_PARENT) {
+        core.info(`Using existing parent issue #${issue.number} (has ${subIssueCount}/${MAX_SUB_ISSUES_PER_PARENT} sub-issues)`);
+        return issue.number;
+      }
+
+      core.info(`Parent issue #${issue.number} is full (${subIssueCount}/${MAX_SUB_ISSUES_PER_PARENT} sub-issues), skipping`);
+    }
+
+    return null;
+  } catch (error) {
+    core.warning(`Could not search for existing parent issues: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Gets the sub-issue count for a parent issue using GraphQL
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @returns {Promise<number|null>} - Sub-issue count or null if query failed
+ */
+async function getSubIssueCount(owner, repo, issueNumber) {
+  try {
+    const subIssueQuery = `
+      query($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            subIssues(first: 65) {
+              totalCount
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await github.graphql(subIssueQuery, {
+      owner,
+      repo,
+      issueNumber,
+    });
+
+    return result?.repository?.issue?.subIssues?.totalCount || 0;
+  } catch (error) {
+    core.warning(`Could not check sub-issue count for #${issueNumber}: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
 /**
  * Finds an existing parent issue for a group, or creates a new one if needed
  * @param {object} params - Parameters for finding/creating parent issue
@@ -33,67 +123,9 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
 
   // Search for existing parent issue with the group marker
   core.info(`Searching for existing parent issue for group: ${groupId}`);
-  try {
-    const searchQuery = `repo:${owner}/${repo} is:issue "${markerComment}" in:body`;
-    const searchResults = await github.rest.search.issuesAndPullRequests({
-      q: searchQuery,
-      per_page: 10,
-      sort: "created",
-      order: "desc",
-    });
-
-    if (searchResults.data.total_count > 0) {
-      // Found existing parent issues, check if any have room for more sub-issues
-      for (const issue of searchResults.data.items) {
-        core.info(`Found potential parent issue #${issue.number}: ${issue.title}`);
-
-        // Check if this issue is still open
-        if (issue.state !== "open") {
-          core.info(`Parent issue #${issue.number} is ${issue.state}, skipping`);
-          continue;
-        }
-
-        // Query sub-issue count using GraphQL
-        try {
-          const subIssueQuery = `
-            query($owner: String!, $repo: String!, $issueNumber: Int!) {
-              repository(owner: $owner, name: $repo) {
-                issue(number: $issueNumber) {
-                  subIssues(first: 65) {
-                    totalCount
-                    nodes {
-                      number
-                    }
-                  }
-                }
-              }
-            }
-          `;
-
-          const subIssueResult = await github.graphql(subIssueQuery, {
-            owner,
-            repo,
-            issueNumber: issue.number,
-          });
-
-          const subIssueCount = subIssueResult?.repository?.issue?.subIssues?.totalCount || 0;
-          core.info(`Parent issue #${issue.number} has ${subIssueCount} sub-issues`);
-
-          if (subIssueCount < 64) {
-            core.info(`Using existing parent issue #${issue.number} (has ${subIssueCount}/64 sub-issues)`);
-            return issue.number;
-          } else {
-            core.info(`Parent issue #${issue.number} is full (${subIssueCount}/64 sub-issues), skipping`);
-          }
-        } catch (error) {
-          core.warning(`Could not check sub-issue count for #${issue.number}: ${getErrorMessage(error)}`);
-          // If we can't check sub-issue count, skip this issue
-          continue;
-        }
-      }
-    }
-  } catch (error) {
-    core.warning(`Could not search for existing parent issues: ${getErrorMessage(error)}`);
+  const existingParent = await searchForExistingParent(owner, repo, markerComment);
+  if (existingParent) {
+    return existingParent;
   }
 
   // No suitable parent issue found, create a new one
@@ -551,4 +583,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main };
+module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount };
