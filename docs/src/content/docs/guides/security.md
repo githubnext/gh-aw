@@ -71,6 +71,10 @@ flowchart TB
 
 This defense-in-depth architecture ensures that even if one layer is compromised, multiple additional security controls remain in place to protect sensitive resources.
 
+> [!NOTE]
+> No Docker-in-Docker
+> The agent container does not have access to the Docker socket (`/var/run/docker.sock`). This is a critical security feature that prevents container escape attacks and ensures complete isolation between the agent and the host's container runtime. MCP servers are accessed via HTTP through the gateway or use `mode: remote` rather than being spawned via Docker socket.
+
 ## Before You Begin
 
 Review workflow contents before installation, treating prompt templates and rule files as code. Assess compiled `.lock.yml` files to understand actual permissions and operations.

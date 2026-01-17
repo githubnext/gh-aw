@@ -186,7 +186,7 @@ tools:
 Available toolsets: **repos** (files, code, commits, releases), **issues** (list/search/read), **pull_requests** (list/search/read), **actions** (workflow runs/artifacts), and **context** (repository metadata).
 
 > [!CAUTION]
-> GitHub tools with `mode: local` (Docker-based) can only access the repository where the workflow is running. Always use `mode: remote` for SideRepoOps.
+> GitHub tools with `mode: local` can only access the repository where the workflow is running. Always use `mode: remote` for SideRepoOps.
 
 ## Private Repository Access
 

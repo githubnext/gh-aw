@@ -189,12 +189,16 @@ network:
 
 When the MCP gateway is enabled, the firewall and gateway work together to keep MCP traffic contained while still allowing the agent to reach the GitHub MCP server.
 
+<Aside type="note" title="Security Enhancement">
+The agent container no longer has Docker socket access. This security improvement prevents container escape attacks and ensures complete isolation between the agent and the host's container runtime. MCP servers are accessed via HTTP through the gateway rather than spawned via Docker socket.
+</Aside>
+
 ```mermaid
 flowchart LR
     subgraph Host["Host machine"]
-        GATEWAY["gh-aw-mcpg\nDocker container\nHost port 80 maps to container port 8000"]
-        GH_MCP["GitHub MCP Server\nspawned via Docker socket"]
-        GATEWAY -->|"spawns"| GH_MCP
+        GATEWAY["gh-aw-mcpg\nMCP Gateway\nHost port 80 maps to container port 8000"]
+        GH_MCP["GitHub MCP Server\n(Remote or pre-started)"]
+        GATEWAY -->|"routes to"| GH_MCP
     end
 
     subgraph AWFNet["AWF network namespace"]
@@ -211,8 +215,12 @@ flowchart LR
 
 1. AWF starts an isolated network with a Squid proxy that enforces the workflow `network.allowed` list.
 2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). That hostname must be allowed by the firewall.
-3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It then uses the Docker socket to spawn the GitHub MCP server container.
-4. All MCP traffic stays inside the host boundary: the firewall restricts egress, and the gateway routes requests to the sandboxed GitHub MCP server.
+3. The `gh-aw-mcpg` gateway publishes host port 80 mapped to container port 8000. It routes requests to the MCP server (either remote or pre-started as a separate process).
+4. All MCP traffic stays inside the host boundary: the firewall restricts egress, and the gateway routes requests to the GitHub MCP server.
+
+<Aside type="caution" title="No Docker-in-Docker">
+The agent container does not have access to the Docker socket (`/var/run/docker.sock`). This is a security feature that prevents the agent from spawning arbitrary containers. Use `mode: remote` for GitHub MCP or pre-configure containerized MCP servers outside the agent sandbox.
+</Aside>
 
 ## MCP Server Sandboxing
 

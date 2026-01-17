@@ -97,15 +97,23 @@ Key toolsets: **context** (user/team info), **repos** (repository operations, co
 
 ### Modes and Restrictions
 
-**Remote Mode**: Use hosted MCP server for faster startup (no Docker). Requires `GH_AW_GITHUB_TOKEN`:
+**Remote Mode (Recommended)**: Use hosted MCP server for faster startup and improved security. Requires `GH_AW_GITHUB_TOKEN`:
 
 ```yaml wrap
 tools:
   github:
-    mode: remote  # Default: "local" (Docker)
+    mode: remote  # Recommended: faster startup, no Docker needed
 ```
 
 Setup: `gh aw secrets set GH_AW_GITHUB_TOKEN --value "<your-pat>"`
+
+**Local Mode**: Runs the GitHub MCP server as a local process. Note that the agent container does not have Docker socket access, so MCP servers cannot spawn additional containers.
+
+```yaml wrap
+tools:
+  github:
+    mode: local
+```
 
 **Read-Only**: Default behavior; restricts to read operations unless write operations configured.
 

@@ -123,9 +123,9 @@ tools:
     mode: remote
     toolsets: [default]
 ```
-Remote mode connects to the hosted GitHub MCP server with faster startup and no Docker requirement.
+Remote mode connects to the hosted GitHub MCP server with faster startup and improved security. This is the recommended approach.
 
-**Local Mode (Docker-based):**
+**Local Mode:**
 ```yaml wrap
 tools:
   github:
@@ -133,7 +133,11 @@ tools:
     toolsets: [default]
     version: "sha-09deac4"
 ```
-Local mode runs the MCP server in a Docker container, useful for pinning specific versions or offline environments.
+Local mode runs the MCP server as a local process, useful for pinning specific versions or offline environments.
+
+> [!NOTE]
+> No Docker Socket Access
+> The agent container does not have access to the Docker socket. This is a security feature that prevents container escape attacks. Local mode runs the MCP server as a process, not via Docker-in-Docker.
 
 ### Authentication
 
