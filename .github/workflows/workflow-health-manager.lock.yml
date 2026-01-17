@@ -1040,7 +1040,7 @@ jobs:
           
           **Constraints:**
           - **Allowed Files**: Only files matching patterns: **
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
+          - **Max File Size**: 102400 bytes (0.10 MB) per file
           - **Max File Count**: 100 files per commit
           
           Examples of what you can store:
@@ -1612,7 +1612,7 @@ jobs:
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/meta-orchestrators
-          MAX_FILE_SIZE: 10240
+          MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
           FILE_GLOB_FILTER: "**"
         with:
