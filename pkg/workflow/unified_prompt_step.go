@@ -353,14 +353,14 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 	// Collect all environment variables from built-in sections and user prompt expressions
 	allEnvVars := make(map[string]string)
-	
+
 	// Add environment variables from built-in sections
 	for _, section := range builtinSections {
 		for key, value := range section.EnvVars {
 			allEnvVars[key] = value
 		}
 	}
-	
+
 	// Add environment variables from user prompt expressions
 	for _, mapping := range expressionMappings {
 		allEnvVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
@@ -370,11 +370,11 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	yaml.WriteString("      - name: Create prompt with built-in context\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	
+
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
-	
+
 	// Add all environment variables in sorted order for consistency
 	var envKeys []string
 	for key := range allEnvVars {
@@ -473,7 +473,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// 2. Write user prompt chunks (appended after built-in sections)
 	for chunkIdx, chunk := range userPromptChunks {
 		unifiedPromptLog.Printf("Writing user prompt chunk %d/%d", chunkIdx+1, len(userPromptChunks))
-		
+
 		// Close heredoc if open before starting new chunk
 		if inHeredoc {
 			yaml.WriteString("          PROMPT_EOF\n")
@@ -487,7 +487,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		} else {
 			yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 		}
-		
+
 		lines := strings.Split(chunk, "\n")
 		for _, line := range lines {
 			yaml.WriteString("          ")
