@@ -354,16 +354,39 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// Collect all environment variables from built-in sections and user prompt expressions
 	allEnvVars := make(map[string]string)
 
-	// Add environment variables from built-in sections
+	// Also collect all expression mappings for the substitution step (using a map to avoid duplicates)
+	expressionMappingsMap := make(map[string]*ExpressionMapping)
+
+	// Add environment variables and expression mappings from built-in sections
 	for _, section := range builtinSections {
 		for key, value := range section.EnvVars {
 			allEnvVars[key] = value
+
+			// Extract the GitHub expression from the value (e.g., "${{ github.repository }}" -> "github.repository")
+			// This is needed for the substitution step
+			if strings.HasPrefix(value, "${{ ") && strings.HasSuffix(value, " }}") {
+				content := strings.TrimSpace(value[4 : len(value)-3])
+				// Only add if not already present (user prompt expressions take precedence)
+				if _, exists := expressionMappingsMap[key]; !exists {
+					expressionMappingsMap[key] = &ExpressionMapping{
+						EnvVar:  key,
+						Content: content,
+					}
+				}
+			}
 		}
 	}
 
-	// Add environment variables from user prompt expressions
+	// Add environment variables from user prompt expressions (these override built-in ones)
 	for _, mapping := range expressionMappings {
 		allEnvVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
+		expressionMappingsMap[mapping.EnvVar] = mapping
+	}
+
+	// Convert map back to slice for the substitution step
+	allExpressionMappings := make([]*ExpressionMapping, 0, len(expressionMappingsMap))
+	for _, mapping := range expressionMappingsMap {
+		allExpressionMappings = append(allExpressionMappings, mapping)
 	}
 
 	// Generate the step with all environment variables
@@ -528,8 +551,8 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 	// Generate JavaScript-based placeholder substitution step (replaces multiple sed calls)
 	// This handles both built-in section expressions and user prompt expressions
-	if len(allEnvVars) > 0 {
-		generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
+	if len(allExpressionMappings) > 0 {
+		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ")
 	}
 
 	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
