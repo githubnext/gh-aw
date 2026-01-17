@@ -19,18 +19,16 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Collects and reports on firewall log events to monitor network security and access patterns
+# Daily observability report analyzing logging and telemetry coverage for AWF firewall and MCP Gateway across workflow runs
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
-#     - shared/trending-charts-simple.md
 
-name: "Daily Firewall Logs Collector and Reporter"
+name: "Daily Observability Report for AWF Firewall and MCP Gateway"
 "on":
   schedule:
-  - cron: "26 12 * * *"
+  - cron: "19 16 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
@@ -39,10 +37,12 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Firewall Logs Collector and Reporter"
+run-name: "Daily Observability Report for AWF Firewall and MCP Gateway"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -63,7 +63,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "daily-firewall-report.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-observability-report.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -77,15 +77,16 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: read
       issues: read
       pull-requests: read
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GH_AW_ASSETS_MAX_SIZE_KB: 10240
+      GH_AW_ASSETS_ALLOWED_EXTS: ""
+      GH_AW_ASSETS_BRANCH: ""
+      GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
@@ -113,65 +114,6 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Setup Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Install binary as 'gh-aw'
-        run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, skipping installation...\"\nelse\n  # Check if a different extension provides the 'aw' command\n  # gh extension list format: NAME  COMMAND  VERSION\n  EXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\n  if [ -n \"$EXISTING_EXTENSION\" ]; then\n    echo \"Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION\"\n    echo \"Removing conflicting extension...\"\n    gh extension remove \"$EXISTING_EXTENSION\" || true\n  fi\n  \n  # Install the extension\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\n\n# Verify installation\ngh aw --version\n"
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Robust health check with TCP connection test\necho \"Waiting for MCP server to start (PID: $MCP_PID)...\"\nfor i in {1..15}; do\n  # Check if process is still running\n  if ! kill -0 $MCP_PID 2>/dev/null; then\n    echo \"Error: MCP server process died unexpectedly\"\n    exit 1\n  fi\n  \n  # Try to connect to the server port\n  if timeout 1 bash -c \"echo > /dev/tcp/localhost/8765\" 2>/dev/null; then\n    echo \"MCP server is accepting connections on port 8765\"\n    echo \"MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  \n  echo \"Waiting for server to accept connections... (attempt $i/15)\"\n  sleep 1\ndone\n\necho \"Error: MCP server failed to accept connections after 15 seconds\"\nexit 1\n"
-      - name: Setup Python environment
-        run: |
-          mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-          pip install --user --quiet numpy pandas matplotlib seaborn scipy
-      - if: always()
-        name: Upload charts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          if-no-files-found: warn
-          name: trending-charts
-          path: /tmp/gh-aw/python/charts/*.png
-          retention-days: 30
-      - if: always()
-        name: Upload source and data
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          if-no-files-found: warn
-          name: trending-source-and-data
-          path: |
-            /tmp/gh-aw/python/*.py
-            /tmp/gh-aw/python/data/*
-          retention-days: 30
-
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache-memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            trending-data-${{ github.workflow }}-
-            trending-data-
-            trending-
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/firewall-reports
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: true
-        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -196,25 +138,19 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
-      - name: Validate COPILOT_GITHUB_TOKEN secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         id: validate-secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install Codex
+        run: npm install -g --silent @openai/codex@0.87.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.10.0)"
@@ -233,18 +169,31 @@ jobs:
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
         run: bash /opt/gh-aw/actions/download_docker_images.sh alpine:latest ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 node:lts-alpine
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if gh-aw extension is already installed
+          if gh extension list | grep -q "githubnext/gh-aw"; then
+            echo "gh-aw extension already installed, upgrading..."
+            gh extension upgrade gh-aw || true
+          else
+            echo "Installing gh-aw extension..."
+            gh extension install githubnext/gh-aw
+          fi
+          gh aw --version
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"upload_asset":{"max":0}}
+          {"close_discussion":{"max":10},"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"audits\".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[observability] \". Discussions will be created in category \"General\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -270,21 +219,38 @@ jobs:
               "name": "create_discussion"
             },
             {
-              "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
+              "description": "Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. CONSTRAINTS: Maximum 10 discussion(s) can be closed.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "path": {
-                    "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
+                  "body": {
+                    "description": "Closing comment explaining why the discussion is being closed and summarizing any resolution or conclusion.",
+                    "type": "string"
+                  },
+                  "discussion_number": {
+                    "description": "Discussion number to close. This is the numeric ID from the GitHub URL (e.g., 678 in github.com/owner/repo/discussions/678). If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "reason": {
+                    "description": "Resolution reason: RESOLVED (issue addressed), DUPLICATE (discussed elsewhere), OUTDATED (no longer relevant), or ANSWERED (question answered).",
+                    "enum": [
+                      "RESOLVED",
+                      "DUPLICATE",
+                      "OUTDATED",
+                      "ANSWERED"
+                    ],
                     "type": "string"
                   }
                 },
                 "required": [
-                  "path"
+                  "body"
                 ],
                 "type": "object"
               },
-              "name": "upload_asset"
+              "name": "close_discussion"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -359,6 +325,29 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
+            "close_discussion": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "discussion_number": {
+                  "optionalPositiveInteger": true
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "RESOLVED",
+                    "DUPLICATE",
+                    "OUTDATED",
+                    "ANSWERED"
+                  ]
+                }
+              }
+            },
             "create_discussion": {
               "defaultMax": 1,
               "fields": {
@@ -417,24 +406,12 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "upload_asset": {
-              "defaultMax": 10,
-              "fields": {
-                "path": {
-                  "required": true,
-                  "type": "string"
-                }
-              }
             }
           }
           EOF
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
-          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
-          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
-          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -452,59 +429,80 @@ jobs:
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
-          export GH_AW_ENGINE="copilot"
+          export GH_AW_ENGINE="codex"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.62'
           
-          mkdir -p /home/runner/.copilot
+          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
+          
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_TOKEN", "HOME", "OPENAI_API_KEY", "PATH"]
+          
+          [mcp_servers.agentic_workflows]
+          container = "alpine:latest"
+          entrypoint = "/opt/gh-aw/gh-aw"
+          entrypointArgs = ["mcp-server"]
+          mounts = ["/opt/gh-aw:/opt/gh-aw:ro"]
+          env_vars = ["GITHUB_TOKEN"]
+          
+          [mcp_servers.github]
+          user_agent = "daily-observability-report-for-awf-firewall-and-mcp-gateway"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 60
+          container = "ghcr.io/github/github-mcp-server:v0.28.1"
+          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests,discussions,actions" }
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
+          
+          [mcp_servers.safeoutputs]
+          container = "node:lts-alpine"
+          entrypoint = "node"
+          entrypointArgs = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]
+          mounts = ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"]
+          env_vars = ["GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]
+          EOF
+          
+          # Generate JSON config for MCP gateway
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "agentic_workflows": {
-                "type": "stdio",
                 "container": "alpine:latest",
                 "entrypoint": "/opt/gh-aw/gh-aw",
                 "entrypointArgs": ["mcp-server"],
                 "mounts": ["/opt/gh-aw:/opt/gh-aw:ro"],
                 "env": {
-                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                  "GITHUB_TOKEN": "$GITHUB_TOKEN"
                 }
               },
-              "gh-aw": {
-                "type": "http",
-                "url": "http://host.docker.internal:8765",
-                "tools": [
-                  "*"
-                ]
-              },
               "github": {
-                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.28.1",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions,actions"
                 }
               },
               "safeoutputs": {
-                "type": "stdio",
                 "container": "node:lts-alpine",
                 "entrypoint": "node",
                 "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
                 "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw"],
                 "env": {
-                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
-                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
-                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
-                  "GITHUB_SHA": "\${GITHUB_SHA}",
-                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
-                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
+                  "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
+                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
+                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
+                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
+                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
+                  "GITHUB_SHA": "$GITHUB_SHA",
+                  "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
+                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
                 }
               }
             },
@@ -523,13 +521,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
+              engine_id: "codex",
+              engine_name: "Codex",
+              model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.0.384",
-              workflow_name: "Daily Firewall Logs Collector and Reporter",
-              experimental: false,
+              agent_version: "0.87.0",
+              workflow_name: "Daily Observability Report for AWF Firewall and MCP Gateway",
+              experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -585,50 +583,6 @@ jobs:
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          
-          
-          ---
-          
-          ## Repo Memory Available
-          
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Firewall analysis history and aggregated data
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/firewall-reports` branch of the current repository
-          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
-          - **Merge Strategy**: In case of conflicts, your changes (current version) win
-          - **Persistence**: Files persist across workflow runs via git branch storage
-          
-          **Constraints:**
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -637,7 +591,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop, upload_asset
+          **Available tools**: close_discussion, create_discussion, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -675,8 +629,6 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          
           ## Report Structure
           
           1. **Overview**: 1-2 paragraphs summarizing key findings
@@ -688,355 +640,314 @@ jobs:
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
           
-          # Python Environment Ready
-          
-          Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
-          Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`, `/tmp/gh-aw/cache-memory/`
-          
-          ## Store Historical Data (JSON Lines)
-          
-          ```python
-          import json
-          from datetime import datetime
-          
-          # Append data point
-          with open('/tmp/gh-aw/cache-memory/trending/<metric>/history.jsonl', 'a') as f:
-              f.write(json.dumps({"timestamp": datetime.now().isoformat(), "value": 42}) + '\n')
-          ```
-          
-          ## Generate Charts
-          
-          ```python
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          df = pd.read_json('history.jsonl', lines=True)
-          df['date'] = pd.to_datetime(df['timestamp']).dt.date
-          
-          sns.set_style("whitegrid")
-          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-          df.groupby('date')['value'].mean().plot(ax=ax, marker='o')
-          ax.set_title('Trend', fontsize=16, fontweight='bold')
-          plt.xticks(rotation=45)
-          plt.tight_layout()
-          plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
-          ```
-          
-          ## Best Practices
-          
-          - Use JSON Lines (`.jsonl`) for append-only storage
-          - Include ISO 8601 timestamps in all data points
-          - Implement 90-day retention: `df[df['timestamp'] >= cutoff_date]`
-          - Charts: 300 DPI, 12x7 inches, clear labels, seaborn style
-          
           {{#runtime-import? .github/shared-instructions.md}}
           
-          # Daily Firewall Logs Collector and Reporter
+          # Daily Observability Report for AWF Firewall and MCP Gateway
           
-          Collect and analyze firewall logs from all agentic workflows that use the firewall feature.
+          You are an expert site reliability engineer analyzing observability coverage for GitHub Agentic Workflows. Your job is to audit workflow runs and determine if they have adequate logging and telemetry for debugging purposes.
           
-          ## 📊 Trend Charts Requirement
+          ## Mission
           
-          **IMPORTANT**: Generate exactly 2 trend charts that showcase firewall activity patterns over time.
+          Generate a comprehensive daily report analyzing workflow runs from the past week to check for proper observability coverage in:
+          1. **AWF Firewall (gh-aw-firewall)** - Network egress control with Squid proxy
+          2. **MCP Gateway** - Model Context Protocol server execution runtime
           
-          ### Chart Generation Process
+          The goal is to ensure all workflow runs have the necessary logs and telemetry to enable effective debugging when issues occur.
           
-          **Phase 1: Data Collection**
+          ## Current Context
           
-          Collect data for the past 30 days (or available data) from cache memory and firewall audit logs:
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          - **Date**: Generated daily
+          - **Analysis Window**: Last 7 days of workflow runs
           
-          1. **Firewall Request Data**:
-             - Count of allowed requests per day
-             - Count of blocked requests per day
-             - Total requests per day
+          ## Phase 1: Fetch Workflow Runs
           
-          2. **Top Blocked Domains Data**:
-             - Frequency of top 10 blocked domains over the period
-             - Trends in blocking patterns by domain category
+          Use the `agentic-workflows` MCP tool to download and analyze logs from recent workflow runs.
           
-          **Phase 2: Data Preparation**
+          ### Step 1.1: List Available Workflows
           
-          1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-             - `firewall_requests.csv` - Daily allowed/blocked request counts
-             - `blocked_domains.csv` - Top blocked domains with frequencies
+          First, get a list of all agentic workflows in the repository:
           
-          2. Each CSV should have a date column and metric columns with appropriate headers
+          ```bash
+          gh aw status --json
+          ```
           
-          **Phase 3: Chart Generation**
+          ### Step 1.2: Download Logs from Recent Runs
           
-          Generate exactly **2 high-quality trend charts**:
+          For each agentic workflow, download logs from the past week. Use the `--start-date` flag to filter to the last 7 days:
           
-          **Chart 1: Firewall Request Trends**
-          - Stacked area chart or multi-line chart showing:
-            - Allowed requests (area/line, green)
-            - Blocked requests (area/line, red)
-            - Total requests trend line
-          - X-axis: Date (last 30 days)
-          - Y-axis: Request count
-          - Save as: `/tmp/gh-aw/python/charts/firewall_requests_trends.png`
+          ```bash
+          # Download logs for all workflows from the last week (adjust -c for high-activity repos)
+          gh aw logs --start-date -7d -o /tmp/gh-aw/observability-logs -c 100
+          ```
           
-          **Chart 2: Top Blocked Domains Frequency**
-          - Horizontal bar chart showing:
-            - Top 10-15 most frequently blocked domains
-            - Total block count for each domain
-            - Color-coded by domain category if applicable
-          - X-axis: Block count
-          - Y-axis: Domain names
-          - Save as: `/tmp/gh-aw/python/charts/blocked_domains_frequency.png`
+          **Note**: For repositories with high activity, you can increase the `-c` limit (e.g., `-c 500`) or run multiple passes with pagination.
           
-          **Chart Quality Requirements**:
-          - DPI: 300 minimum
-          - Figure size: 12x7 inches for better readability
-          - Use seaborn styling with a professional color palette
-          - Include grid lines for easier reading
-          - Clear, large labels and legend
-          - Title with context (e.g., "Firewall Activity - Last 30 Days")
-          - Annotations for significant spikes or patterns
+          If there are many workflows, you can also target specific workflows:
           
-          **Phase 4: Upload Charts**
+          ```bash
+          gh aw logs <workflow-name> --start-date -7d -o /tmp/gh-aw/observability-logs/<workflow-name>
+          ```
           
-          1. Upload both charts using the `upload asset` tool
-          2. Collect the returned URLs for embedding in the discussion
+          ### Step 1.3: Collect Run Information
           
-          **Phase 5: Embed Charts in Discussion**
+          For each downloaded run, note:
+          - Workflow name
+          - Run ID
+          - Conclusion (success, failure, cancelled)
+          - Whether firewall was enabled
+          - Whether MCP gateway was used
           
-          Include the charts in your firewall report with this structure:
+          ## Phase 2: Analyze AWF Firewall Logs
+          
+          The AWF Firewall uses Squid proxy for egress control. The key log file is `access.log`.
+          
+          ### Critical Requirement: Squid Proxy Logs
+          
+          **🔴 CRITICAL**: The `access.log` file from the Squid proxy is essential for debugging network issues. If this file is missing from a firewall-enabled run, report it as **CRITICAL**.
+          
+          For each firewall-enabled workflow run, check:
+          
+          1. **access.log existence**: Look for `access.log/` directory in the run logs
+             - Path pattern: `/tmp/gh-aw/observability-logs/run-<id>/access.log/`
+             - Contains files like `access-*.log`
+          
+          2. **access.log content quality**:
+             - Are there log entries present?
+             - Do entries follow squid format: `timestamp duration client status size method url user hierarchy type`
+             - Are both allowed and blocked requests logged?
+          
+          3. **Firewall configuration**:
+             - Check `aw_info.json` for firewall settings:
+               - `sandbox.agent` should be `awf` or contain firewall config
+               - `network.firewall` settings if present
+          
+          ### Firewall Analysis Criteria
+          
+          | Status | Condition |
+          |--------|-----------|
+          | ✅ **Healthy** | access.log present with entries, both allowed/blocked visible |
+          | ⚠️ **Warning** | access.log present but empty or minimal entries |
+          | 🔴 **Critical** | access.log missing from firewall-enabled run |
+          | ℹ️ **N/A** | Firewall not enabled for this workflow |
+          
+          ## Phase 3: Analyze MCP Gateway Logs
+          
+          The MCP Gateway logs tool execution in `gateway.jsonl` format.
+          
+          ### Key Log File: gateway.jsonl
+          
+          For each run that uses MCP servers, check:
+          
+          1. **gateway.jsonl existence**: Look for the file in run logs
+             - Path pattern: `/tmp/gh-aw/observability-logs/run-<id>/gateway.jsonl`
+          
+          2. **gateway.jsonl content quality**:
+             - Are log entries valid JSONL format?
+             - Do entries contain required fields:
+               - `timestamp`: When the event occurred
+               - `level`: Log level (debug, info, warn, error)
+               - `type`: Event type
+               - `event`: Event name (request, tool_call, rpc_call)
+               - `server_name`: MCP server identifier
+               - `tool_name` or `method`: Tool being called
+               - `duration`: Execution time in milliseconds
+               - `status`: Request status (success, error)
+          
+          3. **Metrics coverage**:
+             - Tool call counts per server
+             - Error rates
+             - Response times (min, max, avg)
+          
+          ### MCP Gateway Analysis Criteria
+          
+          | Status | Condition |
+          |--------|-----------|
+          | ✅ **Healthy** | gateway.jsonl present with proper JSONL entries and metrics |
+          | ⚠️ **Warning** | gateway.jsonl present but missing key fields or has parse errors |
+          | 🔴 **Critical** | gateway.jsonl missing from MCP-enabled run |
+          | ℹ️ **N/A** | No MCP servers configured for this workflow |
+          
+          ## Phase 4: Analyze Additional Telemetry
+          
+          Check for other observability artifacts:
+          
+          ### 4.1 Agent Logs
+          
+          - **agent-stdio.log**: Agent stdout/stderr
+          - **agent_output/**: Agent execution logs directory
+          
+          ### 4.2 Workflow Metadata
+          
+          - **aw_info.json**: Configuration metadata including:
+            - Engine type and version
+            - Tool configurations
+            - Network settings
+            - Sandbox settings
+          
+          ### 4.3 Safe Output Logs
+          
+          - **safe_output.jsonl**: Agent's structured outputs
+          
+          ## Phase 5: Generate Summary Metrics
+          
+          Calculate aggregated metrics across all analyzed runs:
+          
+          ### Coverage Metrics
+          
+          ```python
+          # Calculate coverage percentages
+          firewall_enabled_runs = count_runs_with_firewall()
+          firewall_logs_present = count_runs_with_access_log()
+          firewall_coverage = (firewall_logs_present / firewall_enabled_runs) * 100 if firewall_enabled_runs > 0 else "N/A"
+          
+          mcp_enabled_runs = count_runs_with_mcp()
+          gateway_logs_present = count_runs_with_gateway_jsonl()
+          gateway_coverage = (gateway_logs_present / mcp_enabled_runs) * 100 if mcp_enabled_runs > 0 else "N/A"
+          ```
+          
+          ### Health Summary
+          
+          Create a summary table of all runs analyzed with their observability status.
+          
+          ## Phase 6: Close Previous Reports
+          
+          Before creating the new discussion, find and close previous observability reports:
+          
+          1. Search for discussions with title prefix "[observability]"
+          2. Close each found discussion with reason "OUTDATED"
+          3. Add a closing comment: "This report has been superseded by a newer observability report."
+          
+          ## Phase 7: Create Discussion Report
+          
+          Create a new discussion with the comprehensive observability report.
+          
+          ### Discussion Format
+          
+          **Title**: `[observability] Observability Coverage Report - YYYY-MM-DD`
+          
+          **Body Structure**:
           
           ```markdown
-          ## 📈 Firewall Activity Trends
+          [2-3 paragraph executive summary with key findings, critical issues if any, and overall health assessment]
           
-          ### Request Patterns
-          ![Firewall Request Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
+          <details>
+          <summary><b>📊 Full Observability Report</b></summary>
           
-          [Brief 2-3 sentence analysis of firewall activity trends, noting increases in blocked traffic or changes in patterns]
+          ## 📈 Coverage Summary
           
-          ### Top Blocked Domains
-          ![Blocked Domains Frequency](URL_FROM_UPLOAD_ASSET_CHART_2)
+          | Component | Runs Analyzed | Logs Present | Coverage | Status |
+          |-----------|--------------|--------------|----------|--------|
+          | AWF Firewall (access.log) | X | Y | Z% | ✅/⚠️/🔴 |
+          | MCP Gateway (gateway.jsonl) | X | Y | Z% | ✅/⚠️/🔴 |
           
-          [Brief 2-3 sentence analysis of frequently blocked domains, identifying potential security concerns or overly restrictive rules]
-          ```
+          ## 🔴 Critical Issues
           
-          ### Python Implementation Notes
+          [List any runs missing critical logs - these need immediate attention]
           
-          - Use pandas for data manipulation and date handling
-          - Use matplotlib.pyplot and seaborn for visualization
-          - Set appropriate date formatters for x-axis labels
-          - Use `plt.xticks(rotation=45)` for readable date labels
-          - Apply `plt.tight_layout()` before saving
-          - Handle cases where data might be sparse or missing
+          ### Missing Firewall Logs (access.log)
           
-          ### Error Handling
+          | Workflow | Run ID | Date | Link |
+          |----------|--------|------|------|
+          | workflow-name | 12345 | 2024-01-15 | [§12345](url) |
           
-          If insufficient data is available (less than 7 days):
-          - Generate the charts with available data
-          - Add a note in the analysis mentioning the limited data range
-          - Consider using a bar chart instead of line chart for very sparse data
+          ### Missing Gateway Logs (gateway.jsonl)
+          
+          | Workflow | Run ID | Date | Link |
+          |----------|--------|------|------|
+          | workflow-name | 12345 | 2024-01-15 | [§12345](url) |
+          
+          ## ⚠️ Warnings
+          
+          [List runs with incomplete or low-quality logs]
+          
+          ## ✅ Healthy Runs
+          
+          [Summary of runs with complete observability coverage]
+          
+          ## 📋 Detailed Run Analysis
+          
+          ### Firewall-Enabled Runs
+          
+          | Workflow | Run ID | access.log | Entries | Allowed | Blocked | Status |
+          |----------|--------|------------|---------|---------|---------|--------|
+          | ... | ... | ✅/❌ | N | N | N | ✅/⚠️/🔴 |
+          
+          ### MCP-Enabled Runs
+          
+          | Workflow | Run ID | gateway.jsonl | Entries | Servers | Tool Calls | Errors | Status |
+          |----------|--------|---------------|---------|---------|------------|--------|--------|
+          | ... | ... | ✅/❌ | N | N | N | N | ✅/⚠️/🔴 |
+          
+          ## 🔍 Telemetry Quality Analysis
+          
+          ### Firewall Log Quality
+          
+          - Total access.log entries analyzed: N
+          - Domains accessed: N unique
+          - Blocked requests: N (X%)
+          - Most accessed domains: domain1, domain2, domain3
+          
+          ### Gateway Log Quality
+          
+          - Total gateway.jsonl entries analyzed: N
+          - MCP servers used: server1, server2
+          - Total tool calls: N
+          - Error rate: X%
+          - Average response time: Xms
+          
+          ## 📝 Recommendations
+          
+          1. [Specific recommendation for improving observability coverage]
+          2. [Recommendation for workflows with missing logs]
+          3. [Recommendation for improving log quality]
+          
+          ## 📊 Trends
+          
+          [If historical data is available, show trends in observability coverage over time]
+          
+          </details>
           
           ---
-          
-          ## Objective
-          
-          Generate a comprehensive daily report of all rejected domains across all agentic workflows that use the firewall feature. This helps identify:
-          - Which domains are being blocked
-          - Patterns in blocked traffic
-          - Potential issues with network permissions
-          - Security insights from blocked requests
-          
-          ## Instructions
-          
-          ### MCP Servers are Pre-loaded
-          
-          **IMPORTANT**: The MCP servers configured in this workflow (including `gh-aw` with tools like `logs` and `audit`) are automatically loaded and available at agent startup. You do NOT need to:
-          - Use the inspector tool to discover MCP servers
-          - Run any external tools to check available MCP servers
-          - Verify or list MCP servers before using them
-          
-          Simply call the MCP tools directly as described in the steps below. If you want to know what tools are available, you can list them using your built-in tool listing capability.
-          
-          ### Step 0: Check Repo Memory for Recent Analysis
-          
-          **EFFICIENCY FIRST**: Before starting the full analysis:
-          
-          1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for the most recent report
-          2. If a report exists from the last 24 hours:
-             - Read the cached run IDs that were analyzed
-             - Determine if any new workflow runs have occurred since then
-             - If no new runs, skip to Step 5 (Generate Report) using the same cached run IDs, but **always re-fetch fresh data from the audit tool** for accurate counts
-          3. Store the following in repo memory for the next run:
-             - Last analysis timestamp
-             - List of run IDs analyzed
-          
-          **IMPORTANT**: Never cache or reuse aggregated statistics (blocked counts, allowed counts, domain lists). Always compute these fresh from the audit tool to ensure accurate reporting. Only cache run IDs to avoid re-discovering the same workflow runs.
-          
-          ### Step 1: Collect Recent Firewall-Enabled Workflow Runs
-          
-          Use the `logs` tool from the agentic-workflows MCP server to efficiently collect workflow runs that have firewall enabled:
-          
-          **Using the logs tool:**
-          Call the `logs` tool with the following parameters:
-          - `firewall`: true (boolean - to filter only runs with firewall enabled)
-          - `start_date`: "-7d" (to get runs from the past 7 days)
-          - `count`: 100 (to get up to 100 matching runs)
-          
-          The tool will:
-          1. Filter runs based on the `steps.firewall` field in `aw_info.json` (e.g., "squid" when enabled)
-          2. Return only runs where firewall was enabled
-          3. Limit to runs from the past 7 days
-          4. Return up to 100 matching runs
-          
-          **Tool call example:**
-          ```json
-          {
-            "firewall": true,
-            "start_date": "-7d",
-            "count": 100
-          }
+          *Report generated automatically by the Daily Observability Report workflow*
+          *Analysis window: Last 7 days | Runs analyzed: N*
           ```
           
-          ### Step 2: Analyze Firewall Logs from Collected Runs
+          ## Important Guidelines
           
-          For each run collected in Step 1:
-          1. Use the `audit` tool from the agentic-workflows MCP server to get detailed firewall information
-          2. Store the run ID, workflow name, and timestamp for tracking
+          ### Data Quality
           
-          **Using the audit tool:**
-          Call the `audit` tool with the run_id parameter for each run from Step 1.
+          - Handle missing files gracefully - report their absence, don't fail
+          - Validate JSON/JSONL formats before processing
+          - Count both present and missing logs accurately
           
-          **Tool call example:**
-          ```json
-          {
-            "run_id": 12345678
-          }
-          ```
+          ### Severity Classification
           
-          The audit tool returns structured firewall analysis data including:
-          - Total requests, allowed requests, blocked requests
-          - Lists of allowed and blocked domains
-          - Request statistics per domain
+          - **CRITICAL**: Missing logs that would prevent debugging (access.log for firewall runs, gateway.jsonl for MCP runs)
+          - **WARNING**: Logs present but with quality issues (empty, missing fields, parse errors)
+          - **HEALTHY**: Complete observability coverage with quality logs
           
-          **Example of extracting firewall data from audit result:**
-          ```javascript
-          // From the audit tool result, access:
-          result.firewall_analysis.blocked_domains  // Array of blocked domain names
-          result.firewall_analysis.allowed_domains  // Array of allowed domain names
-          result.firewall_analysis.total_requests   // Total number of network requests
-          result.firewall_analysis.blocked_requests  // Number of blocked requests
-          ```
+          ### Report Quality
           
-          **Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data.
+          - Be specific with numbers and percentages
+          - Link to actual workflow runs for context
+          - Provide actionable recommendations
+          - Highlight critical issues prominently at the top
           
-          ### Step 3: Parse and Analyze Firewall Logs
+          ## Success Criteria
           
-          Use the JSON output from the `audit` tool to extract firewall information. The `firewall_analysis` field in the audit JSON contains:
-          - `total_requests` - Total number of network requests
-          - `allowed_requests` - Count of allowed requests
-          - `blocked_requests` - Count of blocked requests
-          - `allowed_domains` - Array of unique allowed domains
-          - `blocked_domains` - Array of unique blocked domains
-          - `requests_by_domain` - Object mapping domains to request statistics (allowed/blocked counts)
+          A successful run will:
+          - ✅ Download and analyze logs from the past 7 days of workflow runs
+          - ✅ Check all firewall-enabled runs for access.log presence
+          - ✅ Check all MCP-enabled runs for gateway.jsonl presence
+          - ✅ Calculate coverage percentages and identify gaps
+          - ✅ Flag any runs missing critical logs as CRITICAL
+          - ✅ Close previous observability discussions
+          - ✅ Create a new discussion with comprehensive report
+          - ✅ Include actionable recommendations
           
-          **Example jq filter for aggregating blocked domains:**
-          ```bash
-          # Get only blocked domains across multiple runs
-          gh aw audit <run-id> --json | jq -r '.firewall_analysis.blocked_domains[]? // empty'
-          
-          # Get blocked domain statistics with counts
-          gh aw audit <run-id> --json | jq -r '
-            .firewall_analysis.requests_by_domain // {} | 
-            to_entries[] | 
-            select(.value.blocked > 0) | 
-            "\(.key): \(.value.blocked) blocked, \(.value.allowed) allowed"
-          '
-          ```
-          
-          For each workflow run with firewall data:
-          1. Extract the firewall analysis from the audit JSON output
-          2. Track the following metrics per workflow:
-             - Total requests (from `total_requests`)
-             - Allowed requests count (from `allowed_requests`)
-             - Blocked requests count (from `blocked_requests`)
-             - List of unique blocked domains (from `blocked_domains`)
-             - Domain-level statistics (from `requests_by_domain`)
-          
-          ### Step 4: Aggregate Results
-          
-          Combine data from all workflows:
-          1. Create a master list of all blocked domains across all workflows
-          2. Track how many times each domain was blocked
-          3. Track which workflows blocked which domains
-          4. Calculate overall statistics:
-             - Total workflows analyzed
-             - Total runs analyzed
-             - Total blocked domains (unique)
-             - Total blocked requests
-          
-          ### Step 5: Generate Report
-          
-          Create a comprehensive markdown report with the following sections:
-          
-          #### 1. Executive Summary
-          - Date of report (today's date)
-          - Total workflows analyzed
-          - Total runs analyzed  
-          - Total network requests monitored
-            - ✅ **Allowed**: Count of successful requests
-            - 🚫 **Blocked**: Count of blocked requests
-          - **Block rate**: Percentage of blocked requests (blocked / total * 100)
-          - Total unique blocked domains
-          
-          > **Terminology Note**: 
-          > - **Allowed requests** = Requests that successfully reached their destination
-          > - **Blocked requests** = Requests that were prevented by the firewall
-          > - A 0% block rate with listed blocked domains indicates domains that would 
-          >   be blocked if accessed, but weren't actually accessed during this period
-          
-          #### 2. Top Blocked Domains
-          A table showing the most frequently blocked domains:
-          - Domain name
-          - Number of times blocked
-          - Workflows that blocked it
-          - Example URLs (if available)
-          
-          Sort by frequency (most blocked first), show top 20.
-          
-          #### 3. Blocked Domains by Workflow
-          For each workflow that had blocked domains:
-          - Workflow name
-          - Number of unique blocked domains
-          - List of blocked domains
-          - Total blocked requests for this workflow
-          
-          #### 4. Complete Blocked Domains List
-          An alphabetically sorted list of all unique blocked domains with:
-          - Domain name
-          - Total occurrences across all workflows
-          - First seen date (from run timestamps)
-          
-          #### 5. Recommendations
-          Based on the analysis, provide:
-          - Domains that appear to be legitimate services that should be allowlisted
-          - Potential security concerns (e.g., suspicious domains)
-          - Suggestions for network permission improvements
-          - Workflows that might need their network permissions updated
-          
-          ### Step 6: Create Discussion
-          
-          Create a new GitHub discussion with:
-          - **Title**: "Daily Firewall Report - [Today's Date]"
-          - **Category**: audits
-          - **Body**: The complete markdown report generated in Step 5
-          
-          ## Notes
-          
-          - If no firewall logs are found, create a simple report stating that no firewall-enabled workflows ran in the past 7 days
-          - Include timestamps and run URLs for traceability
-          - Use tables and formatting for better readability
-          - Add emojis to make the report more engaging (🔥 for firewall, 🚫 for blocked, ✅ for allowed)
-          
-          ## Expected Output
-          
-          A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
+          Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -1073,6 +984,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1087,47 +1000,24 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 45
+      - name: Run Codex
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,localhost,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.openai.com,host.docker.internal,openai.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
+            -- NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && codex ${GH_AW_MODEL_AGENT_CODEX:+-c model="$GH_AW_MODEL_AGENT_CODEX" }exec --full-auto --skip-git-repo-check --sandbox danger-full-access "$INSTRUCTION" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
-          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GH_AW_MODEL_AGENT_CODEX: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
-      - name: Copy Copilot session state files to logs
-        if: always()
-        continue-on-error: true
-        run: |
-          # Copy Copilot session state files to logs folder for artifact collection
-          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
-          SESSION_STATE_DIR="$HOME/.copilot/session-state"
-          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
-          
-          if [ -d "$SESSION_STATE_DIR" ]; then
-            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
-            mkdir -p "$LOGS_DIR"
-            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
-            echo "Session state files copied successfully"
-          else
-            echo "No session-state directory found at $SESSION_STATE_DIR"
-          fi
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Stop MCP gateway
         if: always()
         continue-on-error: true
@@ -1147,11 +1037,12 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -1164,7 +1055,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
+          GH_AW_ALLOWED_DOMAINS: "api.openai.com,host.docker.internal,openai.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1185,19 +1076,19 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/mcp-config/logs/
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_codex_log.cjs');
             await main();
       - name: Parse MCP gateway logs for step summary
         if: always()
@@ -1218,30 +1109,6 @@ jobs:
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
           awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
-      # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-          retention-days: 1
-          if-no-files-found: ignore
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      # Upload safe-outputs assets for upload_assets job
-      - name: Upload safe-outputs assets
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-          retention-days: 1
-          if-no-files-found: ignore
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1261,10 +1128,7 @@ jobs:
       - activation
       - agent
       - detection
-      - push_repo_memory
       - safe_outputs
-      - update_cache_memory
-      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1315,8 +1179,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Observability Report for AWF Firewall and MCP Gateway"
+          GH_AW_TRACKER_ID: "daily-observability-report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1329,8 +1193,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Observability Report for AWF Firewall and MCP Gateway"
+          GH_AW_TRACKER_ID: "daily-observability-report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1343,8 +1207,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Observability Report for AWF Firewall and MCP Gateway"
+          GH_AW_TRACKER_ID: "daily-observability-report"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
@@ -1363,8 +1227,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Observability Report for AWF Firewall and MCP Gateway"
+          GH_AW_TRACKER_ID: "daily-observability-report"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1381,7 +1245,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -1416,8 +1280,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          WORKFLOW_DESCRIPTION: "Collects and reports on firewall log events to monitor network security and access patterns"
+          WORKFLOW_NAME: "Daily Observability Report for AWF Firewall and MCP Gateway"
+          WORKFLOW_DESCRIPTION: "Daily observability report analyzing logging and telemetry coverage for AWF firewall and MCP Gateway across workflow runs"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1471,54 +1335,34 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate COPILOT_GITHUB_TOKEN secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         id: validate-secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
-        timeout-minutes: 20
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install Codex
+        run: npm install -g --silent @openai/codex@0.87.0
+      - name: Run Codex
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          codex ${GH_AW_MODEL_DETECTION_CODEX:+-c model="$GH_AW_MODEL_DETECTION_CODEX" }exec --full-auto --skip-git-repo-check --sandbox danger-full-access "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GH_AW_MODEL_DETECTION_CODEX: ${{ vars.GH_AW_MODEL_DETECTION_CODEX || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1536,14 +1380,12 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  push_repo_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
+  pre_activation:
+    runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1555,45 +1397,17 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
-        if: always()
+      - name: Check team membership for workflow
+        id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/firewall-reports
-          MAX_FILE_SIZE: 10240
-          MAX_FILE_COUNT: 100
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
 
   safe_outputs:
@@ -1607,10 +1421,10 @@ jobs:
       discussions: write
     timeout-minutes: 15
     env:
-      GH_AW_ENGINE_ID: "copilot"
-      GH_AW_TRACKER_ID: "daily-firewall-report"
-      GH_AW_WORKFLOW_ID: "daily-firewall-report"
-      GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
+      GH_AW_ENGINE_ID: "codex"
+      GH_AW_TRACKER_ID: "daily-observability-report"
+      GH_AW_WORKFLOW_ID: "daily-observability-report"
+      GH_AW_WORKFLOW_NAME: "Daily Observability Report for AWF Firewall and MCP Gateway"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1641,123 +1455,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":10},\"create_discussion\":{\"category\":\"General\",\"close_older_discussions\":true,\"expires\":168,\"max\":1,\"title_prefix\":\"[observability] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
-            await main();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-
-  upload_assets:
-    needs:
-      - agent
-      - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
-      published_count: ${{ steps.upload_assets.outputs.published_count }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download assets
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-      - name: List downloaded asset files
-        continue-on-error: true
-        run: |
-          echo "Downloaded asset files:"
-          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Upload Assets to Orphaned Branch
-        id: upload_assets
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
-          GH_AW_ENGINE_ID: "copilot"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/upload_assets.cjs');
             await main();
 

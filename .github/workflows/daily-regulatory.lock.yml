@@ -19,18 +19,17 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Collects and reports on firewall log events to monitor network security and access patterns
+# Daily regulatory workflow that monitors and cross-checks other daily report agents' outputs for data consistency and anomalies
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/gh-aw.md
+#     - shared/github-queries-safe-input.md
 #     - shared/reporting.md
-#     - shared/trending-charts-simple.md
 
-name: "Daily Firewall Logs Collector and Reporter"
+name: "Daily Regulatory Report Generator"
 "on":
   schedule:
-  - cron: "26 12 * * *"
+  - cron: "51 18 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
@@ -39,7 +38,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Firewall Logs Collector and Reporter"
+run-name: "Daily Regulatory Report Generator"
 
 jobs:
   activation:
@@ -63,7 +62,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "daily-firewall-report.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-regulatory.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -77,15 +76,16 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: read
       issues: read
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GH_AW_ASSETS_MAX_SIZE_KB: 10240
+      GH_AW_ASSETS_ALLOWED_EXTS: ""
+      GH_AW_ASSETS_BRANCH: ""
+      GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
@@ -113,65 +113,6 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Setup Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Install binary as 'gh-aw'
-        run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, skipping installation...\"\nelse\n  # Check if a different extension provides the 'aw' command\n  # gh extension list format: NAME  COMMAND  VERSION\n  EXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\n  if [ -n \"$EXISTING_EXTENSION\" ]; then\n    echo \"Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION\"\n    echo \"Removing conflicting extension...\"\n    gh extension remove \"$EXISTING_EXTENSION\" || true\n  fi\n  \n  # Install the extension\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\n\n# Verify installation\ngh aw --version\n"
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Robust health check with TCP connection test\necho \"Waiting for MCP server to start (PID: $MCP_PID)...\"\nfor i in {1..15}; do\n  # Check if process is still running\n  if ! kill -0 $MCP_PID 2>/dev/null; then\n    echo \"Error: MCP server process died unexpectedly\"\n    exit 1\n  fi\n  \n  # Try to connect to the server port\n  if timeout 1 bash -c \"echo > /dev/tcp/localhost/8765\" 2>/dev/null; then\n    echo \"MCP server is accepting connections on port 8765\"\n    echo \"MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  \n  echo \"Waiting for server to accept connections... (attempt $i/15)\"\n  sleep 1\ndone\n\necho \"Error: MCP server failed to accept connections after 15 seconds\"\nexit 1\n"
-      - name: Setup Python environment
-        run: |
-          mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-          pip install --user --quiet numpy pandas matplotlib seaborn scipy
-      - if: always()
-        name: Upload charts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          if-no-files-found: warn
-          name: trending-charts
-          path: /tmp/gh-aw/python/charts/*.png
-          retention-days: 30
-      - if: always()
-        name: Upload source and data
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          if-no-files-found: warn
-          name: trending-source-and-data
-          path: |
-            /tmp/gh-aw/python/*.py
-            /tmp/gh-aw/python/data/*
-          retention-days: 30
-
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache-memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            trending-data-${{ github.workflow }}-
-            trending-data-
-            trending-
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/firewall-reports
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: true
-        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -226,25 +167,25 @@ jobs:
         env:
           TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         if: env.TOKEN_CHECK != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@v8
         with:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh alpine:latest ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"upload_asset":{"max":0}}
+          {"close_discussion":{"max":10},"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"audits\".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[daily regulatory] \". Discussions will be created in category \"General\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -270,21 +211,38 @@ jobs:
               "name": "create_discussion"
             },
             {
-              "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
+              "description": "Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. CONSTRAINTS: Maximum 10 discussion(s) can be closed.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "path": {
-                    "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
+                  "body": {
+                    "description": "Closing comment explaining why the discussion is being closed and summarizing any resolution or conclusion.",
+                    "type": "string"
+                  },
+                  "discussion_number": {
+                    "description": "Discussion number to close. This is the numeric ID from the GitHub URL (e.g., 678 in github.com/owner/repo/discussions/678). If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "reason": {
+                    "description": "Resolution reason: RESOLVED (issue addressed), DUPLICATE (discussed elsewhere), OUTDATED (no longer relevant), or ANSWERED (question answered).",
+                    "enum": [
+                      "RESOLVED",
+                      "DUPLICATE",
+                      "OUTDATED",
+                      "ANSWERED"
+                    ],
                     "type": "string"
                   }
                 },
                 "required": [
-                  "path"
+                  "body"
                 ],
                 "type": "object"
               },
-              "name": "upload_asset"
+              "name": "close_discussion"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -359,6 +317,29 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
+            "close_discussion": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "discussion_number": {
+                  "optionalPositiveInteger": true
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "RESOLVED",
+                    "DUPLICATE",
+                    "OUTDATED",
+                    "ANSWERED"
+                  ]
+                }
+              }
+            },
             "create_discussion": {
               "defaultMax": 1,
               "fields": {
@@ -417,28 +398,413 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "upload_asset": {
-              "defaultMax": 10,
-              "fields": {
-                "path": {
-                  "required": true,
-                  "type": "string"
-                }
-              }
             }
           }
           EOF
+      - name: Setup Safe Inputs Config
+        run: |
+          mkdir -p /opt/gh-aw/safe-inputs/logs
+          cat > /opt/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
+          {
+            "serverName": "safeinputs",
+            "version": "1.0.0",
+            "logDir": "/opt/gh-aw/safe-inputs/logs",
+            "tools": [
+              {
+                "name": "github-discussion-query",
+                "description": "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
+                "inputSchema": {
+                  "properties": {
+                    "jq": {
+                      "description": "jq filter expression to apply to output. If not provided, returns schema info instead of full data.",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "description": "Maximum number of discussions to fetch (default: 30)",
+                      "type": "number"
+                    },
+                    "repo": {
+                      "description": "Repository in owner/repo format (defaults to current repository)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "handler": "github-discussion-query.sh",
+                "env": {
+                  "GH_TOKEN": "GH_TOKEN"
+                },
+                "timeout": 60
+              },
+              {
+                "name": "github-issue-query",
+                "description": "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
+                "inputSchema": {
+                  "properties": {
+                    "jq": {
+                      "description": "jq filter expression to apply to output. If not provided, returns schema info instead of full data.",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "description": "Maximum number of issues to fetch (default: 30)",
+                      "type": "number"
+                    },
+                    "repo": {
+                      "description": "Repository in owner/repo format (defaults to current repository)",
+                      "type": "string"
+                    },
+                    "state": {
+                      "description": "Issue state: open, closed, all (default: open)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "handler": "github-issue-query.sh",
+                "env": {
+                  "GH_TOKEN": "GH_TOKEN"
+                },
+                "timeout": 60
+              },
+              {
+                "name": "github-pr-query",
+                "description": "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
+                "inputSchema": {
+                  "properties": {
+                    "jq": {
+                      "description": "jq filter expression to apply to output. If not provided, returns schema info instead of full data.",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "description": "Maximum number of PRs to fetch (default: 30)",
+                      "type": "number"
+                    },
+                    "repo": {
+                      "description": "Repository in owner/repo format (defaults to current repository)",
+                      "type": "string"
+                    },
+                    "state": {
+                      "description": "PR state: open, closed, merged, all (default: open)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "handler": "github-pr-query.sh",
+                "env": {
+                  "GH_TOKEN": "GH_TOKEN"
+                },
+                "timeout": 60
+              }
+            ]
+          }
+          EOF_TOOLS_JSON
+          cat > /opt/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+            const path = require("path");
+            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+            const configPath = path.join(__dirname, "tools.json");
+            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
+            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+            startHttpServer(configPath, {
+              port: port,
+              stateless: false,
+              logDir: "/opt/gh-aw/safe-inputs/logs"
+            }).catch(error => {
+              console.error("Failed to start safe-inputs HTTP server:", error);
+              process.exit(1);
+            });
+          EOFSI
+          chmod +x /opt/gh-aw/safe-inputs/mcp-server.cjs
+          
+      - name: Setup Safe Inputs Tool Files
+        run: |
+          cat > /opt/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-discussion-query
+          # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,author,createdAt,updatedAt,body,category,labels,comments,answer,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of discussion objects",
+              "item_fields": {
+                "number": "integer - Discussion number",
+                "title": "string - Discussion title",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "body": "string - Discussion body content",
+                "category": "object - Category info with name field",
+                "labels": "array - Array of label objects with name field",
+                "comments": "object - Comments info with totalCount field",
+                "answer": "object|null - Accepted answer if exists",
+                "url": "string - Discussion URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get discussion numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get discussions by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get discussions in category", "query": ".[] | select(.category.name == \"Ideas\")"},
+              {"description": "Get answered discussions", "query": ".[] | select(.answer != null)"},
+              {"description": "Get unanswered discussions", "query": ".[] | select(.answer == null) | {number, title, category: .category.name}"},
+              {"description": "Count by category", "query": "group_by(.category.name) | map({category: .[0].category.name, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          EOFSH_github-discussion-query
+          chmod +x /opt/gh-aw/safe-inputs/github-discussion-query.sh
+          cat > /opt/gh-aw/safe-inputs/github-issue-query.sh << 'EOFSH_github-issue-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-issue-query
+          # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          STATE="${INPUT_STATE:-open}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,closedAt,body,labels,assignees,comments,milestone,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of issue objects",
+              "item_fields": {
+                "number": "integer - Issue number",
+                "title": "string - Issue title",
+                "state": "string - Issue state (OPEN, CLOSED)",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "closedAt": "string|null - ISO timestamp of close",
+                "body": "string - Issue body content",
+                "labels": "array - Array of label objects with name field",
+                "assignees": "array - Array of assignee objects with login field",
+                "comments": "object - Comments info with totalCount field",
+                "milestone": "object|null - Milestone info with title field",
+                "url": "string - Issue URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get issue numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get open issues only", "query": ".[] | select(.state == \"OPEN\")"},
+              {"description": "Get issues by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get issues with label", "query": ".[] | select(.labels | map(.name) | index(\"bug\"))"},
+              {"description": "Get issues with many comments", "query": ".[] | select(.comments.totalCount > 5) | {number, title, comments: .comments.totalCount}"},
+              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          
+          EOFSH_github-issue-query
+          chmod +x /opt/gh-aw/safe-inputs/github-issue-query.sh
+          cat > /opt/gh-aw/safe-inputs/github-pr-query.sh << 'EOFSH_github-pr-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-pr-query
+          # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          STATE="${INPUT_STATE:-open}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of pull request objects",
+              "item_fields": {
+                "number": "integer - PR number",
+                "title": "string - PR title",
+                "state": "string - PR state (OPEN, CLOSED, MERGED)",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "mergedAt": "string|null - ISO timestamp of merge",
+                "closedAt": "string|null - ISO timestamp of close",
+                "headRefName": "string - Source branch name",
+                "baseRefName": "string - Target branch name",
+                "isDraft": "boolean - Whether PR is a draft",
+                "reviewDecision": "string|null - Review decision (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)",
+                "additions": "integer - Lines added",
+                "deletions": "integer - Lines deleted",
+                "changedFiles": "integer - Number of files changed",
+                "labels": "array - Array of label objects with name field",
+                "assignees": "array - Array of assignee objects with login field",
+                "reviewRequests": "array - Array of review request objects",
+                "url": "string - PR URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get PR numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get open PRs only", "query": ".[] | select(.state == \"OPEN\")"},
+              {"description": "Get merged PRs", "query": ".[] | select(.mergedAt != null)"},
+              {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
+              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          
+          EOFSH_github-pr-query
+          chmod +x /opt/gh-aw/safe-inputs/github-pr-query.sh
+          
+      - name: Generate Safe Inputs MCP Server Config
+        id: safe-inputs-config
+        run: |
+          # Generate a secure random API key (360 bits of entropy, 40+ chars)
+          API_KEY=""
+          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          PORT=3000
+          
+          # Register API key as secret to mask it from logs
+          echo "::add-mask::${API_KEY}"
+          
+          # Set outputs for next steps
+          {
+            echo "safe_inputs_api_key=${API_KEY}"
+            echo "safe_inputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "Safe Inputs MCP server will run on port ${PORT}"
+          
+      - name: Start Safe Inputs MCP HTTP Server
+        id: safe-inputs-start
+        env:
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Environment variables are set above to prevent template injection
+          export GH_AW_SAFE_INPUTS_PORT
+          export GH_AW_SAFE_INPUTS_API_KEY
+          
+          bash /opt/gh-aw/actions/start_safe_inputs_server.sh
+          
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
-          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
-          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
-          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
@@ -453,29 +819,12 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.62'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.62'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
-              "agentic_workflows": {
-                "type": "stdio",
-                "container": "alpine:latest",
-                "entrypoint": "/opt/gh-aw/gh-aw",
-                "entrypointArgs": ["mcp-server"],
-                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro"],
-                "env": {
-                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
-                }
-              },
-              "gh-aw": {
-                "type": "http",
-                "url": "http://host.docker.internal:8765",
-                "tools": [
-                  "*"
-                ]
-              },
               "github": {
                 "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.28.1",
@@ -483,7 +832,14 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions"
+                }
+              },
+              "safeinputs": {
+                "type": "http",
+                "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
+                "headers": {
+                  "Authorization": "\${GH_AW_SAFE_INPUTS_API_KEY}"
                 }
               },
               "safeoutputs": {
@@ -528,7 +884,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.384",
-              workflow_name: "Daily Firewall Logs Collector and Reporter",
+              workflow_name: "Daily Regulatory Report Generator",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -585,50 +941,6 @@ jobs:
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          
-          
-          ---
-          
-          ## Repo Memory Available
-          
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Firewall analysis history and aggregated data
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/firewall-reports` branch of the current repository
-          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
-          - **Merge Strategy**: In case of conflicts, your changes (current version) win
-          - **Persistence**: Files persist across workflow runs via git branch storage
-          
-          **Constraints:**
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -637,7 +949,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop, upload_asset
+          **Available tools**: close_discussion, create_discussion, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -688,355 +1000,329 @@ jobs:
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
           
-          # Python Environment Ready
-          
-          Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
-          Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`, `/tmp/gh-aw/cache-memory/`
-          
-          ## Store Historical Data (JSON Lines)
-          
-          ```python
-          import json
-          from datetime import datetime
-          
-          # Append data point
-          with open('/tmp/gh-aw/cache-memory/trending/<metric>/history.jsonl', 'a') as f:
-              f.write(json.dumps({"timestamp": datetime.now().isoformat(), "value": 42}) + '\n')
-          ```
-          
-          ## Generate Charts
-          
-          ```python
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          df = pd.read_json('history.jsonl', lines=True)
-          df['date'] = pd.to_datetime(df['timestamp']).dt.date
-          
-          sns.set_style("whitegrid")
-          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-          df.groupby('date')['value'].mean().plot(ax=ax, marker='o')
-          ax.set_title('Trend', fontsize=16, fontweight='bold')
-          plt.xticks(rotation=45)
-          plt.tight_layout()
-          plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
-          ```
-          
-          ## Best Practices
-          
-          - Use JSON Lines (`.jsonl`) for append-only storage
-          - Include ISO 8601 timestamps in all data points
-          - Implement 90-day retention: `df[df['timestamp'] >= cutoff_date]`
-          - Charts: 300 DPI, 12x7 inches, clear labels, seaborn style
-          
           {{#runtime-import? .github/shared-instructions.md}}
           
-          # Daily Firewall Logs Collector and Reporter
+          # Daily Regulatory Report Generator
           
-          Collect and analyze firewall logs from all agentic workflows that use the firewall feature.
+          You are a regulatory analyst that monitors and cross-checks the outputs of other daily report agents. Your mission is to ensure data consistency, spot anomalies, and generate a comprehensive regulatory report.
           
-          ## 📊 Trend Charts Requirement
+          ## Mission
           
-          **IMPORTANT**: Generate exactly 2 trend charts that showcase firewall activity patterns over time.
+          Review all daily report discussions from the last 24 hours and:
+          1. Extract key metrics and statistics from each daily report
+          2. Cross-check numbers across different reports for consistency
+          3. Identify potential issues, anomalies, or concerning trends
+          4. Generate a regulatory report summarizing findings and flagging issues
           
-          ### Chart Generation Process
+          ## Current Context
           
-          **Phase 1: Data Collection**
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          - **Date**: Generated daily
           
-          Collect data for the past 30 days (or available data) from cache memory and firewall audit logs:
+          ## Phase 1: Collect Daily Report Discussions
           
-          1. **Firewall Request Data**:
-             - Count of allowed requests per day
-             - Count of blocked requests per day
-             - Total requests per day
+          ### Step 1.1: Query Recent Discussions
           
-          2. **Top Blocked Domains Data**:
-             - Frequency of top 10 blocked domains over the period
-             - Trends in blocking patterns by domain category
+          Use the `github-discussion-query` safe-input tool to find all daily report discussions created in the last 24-48 hours. Call the tool with appropriate parameters:
           
-          **Phase 2: Data Preparation**
+          ```
+          github-discussion-query with limit: 100, jq: "."
+          ```
           
-          1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-             - `firewall_requests.csv` - Daily allowed/blocked request counts
-             - `blocked_domains.csv` - Top blocked domains with frequencies
+          This will return all discussions which you can then filter locally.
           
-          2. Each CSV should have a date column and metric columns with appropriate headers
+          ### Step 1.2: Filter Daily Report Discussions
           
-          **Phase 3: Chart Generation**
+          From the discussions, identify those that are daily report outputs. Look for common patterns:
           
-          Generate exactly **2 high-quality trend charts**:
+          - Title prefixes: `[daily `, `📰`, `Daily `, `[team-status]`, etc.
+          - Discussion body contains metrics, statistics, or report data
+          - Created by automated workflows (author contains "bot" or specific workflow patterns)
           
-          **Chart 1: Firewall Request Trends**
-          - Stacked area chart or multi-line chart showing:
-            - Allowed requests (area/line, green)
-            - Blocked requests (area/line, red)
-            - Total requests trend line
-          - X-axis: Date (last 30 days)
-          - Y-axis: Request count
-          - Save as: `/tmp/gh-aw/python/charts/firewall_requests_trends.png`
+          After saving the discussion query output to a file, use jq to filter:
+          ```bash
+          # Save discussion output to a file first
+          # The github-discussion-query tool will provide JSON output that you should save
           
-          **Chart 2: Top Blocked Domains Frequency**
-          - Horizontal bar chart showing:
-            - Top 10-15 most frequently blocked domains
-            - Total block count for each domain
-            - Color-coded by domain category if applicable
-          - X-axis: Block count
-          - Y-axis: Domain names
-          - Save as: `/tmp/gh-aw/python/charts/blocked_domains_frequency.png`
+          # Then filter discussions with daily-related titles
+          jq '[.[] | select(.title | test("daily|Daily|\\[daily|team-status|Chronicle|Report"; "i"))]' discussions_output.json
+          ```
           
-          **Chart Quality Requirements**:
-          - DPI: 300 minimum
-          - Figure size: 12x7 inches for better readability
-          - Use seaborn styling with a professional color palette
-          - Include grid lines for easier reading
-          - Clear, large labels and legend
-          - Title with context (e.g., "Firewall Activity - Last 30 Days")
-          - Annotations for significant spikes or patterns
+          ### Step 1.3: Identify Report Types
           
-          **Phase 4: Upload Charts**
+          Categorize the daily reports found:
+          - **Issues Report** (`[daily issues]`): Issue counts, clusters, triage metrics
+          - **Performance Summary** (`[daily performance]`): PRs, issues, discussions metrics
+          - **Repository Chronicle** (`📰`): Activity narratives and statistics
+          - **Team Status** (`[team-status]`): Team productivity metrics
+          - **Firewall Report** (`Daily Firewall`): Network security metrics
+          - **Token Consumption** (`Daily Copilot Token`): Token usage and costs
+          - **Safe Output Health**: Safe output job statistics
+          - **Other daily reports**: Any other automated daily reports
           
-          1. Upload both charts using the `upload asset` tool
-          2. Collect the returned URLs for embedding in the discussion
+          ## Phase 2: Extract and Parse Metrics
           
-          **Phase 5: Embed Charts in Discussion**
+          For each identified daily report, extract key metrics:
           
-          Include the charts in your firewall report with this structure:
+          ### 2.1 Common Metrics to Extract
+          
+          **Issues-related metrics:**
+          - Total issues analyzed
+          - Open issues count
+          - Closed issues count
+          - Issues opened in last 7/14/30 days
+          - Stale issues count
+          - Issues without labels
+          - Issues without assignees
+          
+          **PR-related metrics:**
+          - Total PRs
+          - Merged PRs
+          - Open PRs
+          - Average merge time
+          
+          **Activity metrics:**
+          - Total commits
+          - Active contributors
+          - Discussion count
+          
+          **Token/Cost metrics (if available):**
+          - Total tokens consumed
+          - Total cost
+          - Per-workflow statistics
+          
+          **Error/Health metrics (if available):**
+          - Job success rates
+          - Error counts
+          - Blocked domains count
+          
+          ### 2.2 Parsing Strategy
+          
+          1. Read each discussion body
+          2. Use regex or structured parsing to extract numeric values
+          3. Store extracted metrics in a structured format for analysis
+          
+          Example parsing approach (for each discussion in your data):
+          ```bash
+          # For each discussion body extracted from the query results, parse metrics
+          
+          # Extract numeric patterns from discussion body content
+          grep -oE '[0-9,]+\s+(issues|PRs|tokens|runs)' /tmp/report.md
+          grep -oE '\$[0-9]+\.[0-9]+' /tmp/report.md  # Cost values
+          grep -oE '[0-9]+%' /tmp/report.md  # Percentages
+          ```
+          
+          ## Phase 3: Cross-Check Data Consistency
+          
+          ### 3.1 Internal Consistency Checks
+          
+          For each report, verify:
+          - **Math checks**: Do percentages add up to 100%?
+          - **Count checks**: Do open + closed = total?
+          - **Trend checks**: Are trends consistent with raw numbers?
+          
+          ### 3.2 Cross-Report Consistency Checks
+          
+          Compare metrics across different reports:
+          - **Issue counts**: Do different reports agree on issue counts?
+          - **PR counts**: Are PR statistics consistent across reports?
+          - **Activity levels**: Do activity metrics align across reports?
+          - **Time periods**: Are reports analyzing the same time windows?
+          
+          ### 3.3 Anomaly Detection
+          
+          Flag potential issues:
+          - **Large discrepancies**: Numbers differ by more than 10% across reports
+          - **Unexpected zeros**: Zero counts where there should be activity
+          - **Unusual spikes**: Sudden large increases that seem unreasonable
+          - **Missing data**: Reports that should have data but are empty
+          - **Stale data**: Reports using outdated data
+          
+          ## Phase 4: Generate Regulatory Report
+          
+          Create a comprehensive discussion report with findings.
+          
+          ### Discussion Format
+          
+          **Title**: `[daily regulatory] Regulatory Report - YYYY-MM-DD`
+          
+          **Body**:
           
           ```markdown
-          ## 📈 Firewall Activity Trends
+          Brief 2-3 paragraph executive summary highlighting:
+          - Number of daily reports reviewed
+          - Overall data quality assessment
+          - Key findings and any critical issues
           
-          ### Request Patterns
-          ![Firewall Request Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
+          <details>
+          <summary><b>📋 Full Regulatory Report</b></summary>
           
-          [Brief 2-3 sentence analysis of firewall activity trends, noting increases in blocked traffic or changes in patterns]
+          ## 📊 Reports Reviewed
           
-          ### Top Blocked Domains
-          ![Blocked Domains Frequency](URL_FROM_UPLOAD_ASSET_CHART_2)
+          | Report | Title | Created | Status |
+          |--------|-------|---------|--------|
+          | [Report 1] | [Title] | [Timestamp] | ✅ Valid / ⚠️ Issues / ❌ Failed |
+          | [Report 2] | [Title] | [Timestamp] | ✅ Valid / ⚠️ Issues / ❌ Failed |
+          | ... | ... | ... | ... |
           
-          [Brief 2-3 sentence analysis of frequently blocked domains, identifying potential security concerns or overly restrictive rules]
-          ```
+          ## 🔍 Data Consistency Analysis
           
-          ### Python Implementation Notes
+          ### Cross-Report Metrics Comparison
           
-          - Use pandas for data manipulation and date handling
-          - Use matplotlib.pyplot and seaborn for visualization
-          - Set appropriate date formatters for x-axis labels
-          - Use `plt.xticks(rotation=45)` for readable date labels
-          - Apply `plt.tight_layout()` before saving
-          - Handle cases where data might be sparse or missing
+          | Metric | Issues Report | Performance Report | Chronicle | Status |
+          |--------|---------------|-------------------|-----------|--------|
+          | Open Issues | [N] | [N] | [N] | ✅/⚠️/❌ |
+          | Closed Issues | [N] | [N] | [N] | ✅/⚠️/❌ |
+          | Total PRs | [N] | [N] | [N] | ✅/⚠️/❌ |
+          | Merged PRs | [N] | [N] | [N] | ✅/⚠️/❌ |
           
-          ### Error Handling
+          ### Consistency Score
           
-          If insufficient data is available (less than 7 days):
-          - Generate the charts with available data
-          - Add a note in the analysis mentioning the limited data range
-          - Consider using a bar chart instead of line chart for very sparse data
+          - **Overall Consistency**: [SCORE]% (X of Y metrics match across reports)
+          - **Critical Discrepancies**: [COUNT]
+          - **Minor Discrepancies**: [COUNT]
+          
+          ## ⚠️ Issues and Anomalies
+          
+          ### Critical Issues
+          
+          1. **[Issue Title]**
+             - **Affected Reports**: [List of reports]
+             - **Description**: [What was found]
+             - **Expected**: [What was expected]
+             - **Actual**: [What was found]
+             - **Severity**: Critical / High / Medium / Low
+             - **Recommended Action**: [Suggestion]
+          
+          ### Warnings
+          
+          1. **[Warning Title]**
+             - **Details**: [Description]
+             - **Impact**: [Potential impact]
+          
+          ### Data Quality Notes
+          
+          - [Note about missing data]
+          - [Note about incomplete reports]
+          - [Note about data freshness]
+          
+          ## 📈 Trend Analysis
+          
+          ### Week-over-Week Comparison
+          
+          | Metric | This Week | Last Week | Change |
+          |--------|-----------|-----------|--------|
+          | [Metric 1] | [Value] | [Value] | [+/-X%] |
+          | [Metric 2] | [Value] | [Value] | [+/-X%] |
+          
+          ### Notable Trends
+          
+          - [Observation about trends]
+          - [Pattern identified across reports]
+          - [Concerning or positive trend]
+          
+          ## 📝 Per-Report Analysis
+          
+          ### [Report 1 Name]
+          
+          **Source**: [Discussion URL or number]
+          **Time Period**: [What period the report covers]
+          **Quality**: ✅ Valid / ⚠️ Issues / ❌ Failed
+          
+          **Extracted Metrics**:
+          | Metric | Value | Validation |
+          |--------|-------|------------|
+          | [Metric] | [Value] | ✅/⚠️/❌ |
+          
+          **Notes**: [Any observations about this report]
+          
+          ### [Report 2 Name]
+          
+          [Same structure as above]
+          
+          ## 💡 Recommendations
+          
+          ### Process Improvements
+          
+          1. **[Recommendation]**: [Description and rationale]
+          2. **[Recommendation]**: [Description and rationale]
+          
+          ### Data Quality Actions
+          
+          1. **[Action Item]**: [What needs to be done]
+          2. **[Action Item]**: [What needs to be done]
+          
+          ### Workflow Suggestions
+          
+          1. **[Suggestion]**: [For improving consistency across reports]
+          
+          ## 📊 Regulatory Metrics
+          
+          | Metric | Value |
+          |--------|-------|
+          | Reports Reviewed | [N] |
+          | Reports Passed | [N] |
+          | Reports with Issues | [N] |
+          | Reports Failed | [N] |
+          | Overall Health Score | [X]% |
+          
+          </details>
           
           ---
-          
-          ## Objective
-          
-          Generate a comprehensive daily report of all rejected domains across all agentic workflows that use the firewall feature. This helps identify:
-          - Which domains are being blocked
-          - Patterns in blocked traffic
-          - Potential issues with network permissions
-          - Security insights from blocked requests
-          
-          ## Instructions
-          
-          ### MCP Servers are Pre-loaded
-          
-          **IMPORTANT**: The MCP servers configured in this workflow (including `gh-aw` with tools like `logs` and `audit`) are automatically loaded and available at agent startup. You do NOT need to:
-          - Use the inspector tool to discover MCP servers
-          - Run any external tools to check available MCP servers
-          - Verify or list MCP servers before using them
-          
-          Simply call the MCP tools directly as described in the steps below. If you want to know what tools are available, you can list them using your built-in tool listing capability.
-          
-          ### Step 0: Check Repo Memory for Recent Analysis
-          
-          **EFFICIENCY FIRST**: Before starting the full analysis:
-          
-          1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for the most recent report
-          2. If a report exists from the last 24 hours:
-             - Read the cached run IDs that were analyzed
-             - Determine if any new workflow runs have occurred since then
-             - If no new runs, skip to Step 5 (Generate Report) using the same cached run IDs, but **always re-fetch fresh data from the audit tool** for accurate counts
-          3. Store the following in repo memory for the next run:
-             - Last analysis timestamp
-             - List of run IDs analyzed
-          
-          **IMPORTANT**: Never cache or reuse aggregated statistics (blocked counts, allowed counts, domain lists). Always compute these fresh from the audit tool to ensure accurate reporting. Only cache run IDs to avoid re-discovering the same workflow runs.
-          
-          ### Step 1: Collect Recent Firewall-Enabled Workflow Runs
-          
-          Use the `logs` tool from the agentic-workflows MCP server to efficiently collect workflow runs that have firewall enabled:
-          
-          **Using the logs tool:**
-          Call the `logs` tool with the following parameters:
-          - `firewall`: true (boolean - to filter only runs with firewall enabled)
-          - `start_date`: "-7d" (to get runs from the past 7 days)
-          - `count`: 100 (to get up to 100 matching runs)
-          
-          The tool will:
-          1. Filter runs based on the `steps.firewall` field in `aw_info.json` (e.g., "squid" when enabled)
-          2. Return only runs where firewall was enabled
-          3. Limit to runs from the past 7 days
-          4. Return up to 100 matching runs
-          
-          **Tool call example:**
-          ```json
-          {
-            "firewall": true,
-            "start_date": "-7d",
-            "count": 100
-          }
+          *Report generated automatically by the Daily Regulatory workflow*
+          *Data sources: Daily report discussions from __GH_AW_GITHUB_REPOSITORY__*
           ```
           
-          ### Step 2: Analyze Firewall Logs from Collected Runs
+          ## Phase 5: Close Previous Reports
           
-          For each run collected in Step 1:
-          1. Use the `audit` tool from the agentic-workflows MCP server to get detailed firewall information
-          2. Store the run ID, workflow name, and timestamp for tracking
+          Before creating the new discussion, find and close previous daily regulatory discussions:
           
-          **Using the audit tool:**
-          Call the `audit` tool with the run_id parameter for each run from Step 1.
+          1. Search for discussions with title prefix "[daily regulatory]"
+          2. Close each found discussion with reason "OUTDATED"
+          3. Add a closing comment: "This report has been superseded by a newer daily regulatory report."
           
-          **Tool call example:**
-          ```json
-          {
-            "run_id": 12345678
-          }
-          ```
+          Use the `close_discussion` safe output for each discussion found.
           
-          The audit tool returns structured firewall analysis data including:
-          - Total requests, allowed requests, blocked requests
-          - Lists of allowed and blocked domains
-          - Request statistics per domain
+          ## Important Guidelines
           
-          **Example of extracting firewall data from audit result:**
-          ```javascript
-          // From the audit tool result, access:
-          result.firewall_analysis.blocked_domains  // Array of blocked domain names
-          result.firewall_analysis.allowed_domains  // Array of allowed domain names
-          result.firewall_analysis.total_requests   // Total number of network requests
-          result.firewall_analysis.blocked_requests  // Number of blocked requests
-          ```
+          ### Data Collection
+          - Focus on discussions from the last 24-48 hours
+          - Identify daily reports by their title patterns
+          - Handle cases where reports are missing or empty
           
-          **Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data.
+          ### Cross-Checking
+          - Be systematic in comparing metrics
+          - Use tolerance thresholds for numeric comparisons (e.g., 5-10% variance is acceptable)
+          - Document methodology for consistency checks
           
-          ### Step 3: Parse and Analyze Firewall Logs
+          ### Anomaly Detection
+          - Flag significant discrepancies (>10% difference)
+          - Note missing or incomplete data
+          - Identify patterns that seem unusual
           
-          Use the JSON output from the `audit` tool to extract firewall information. The `firewall_analysis` field in the audit JSON contains:
-          - `total_requests` - Total number of network requests
-          - `allowed_requests` - Count of allowed requests
-          - `blocked_requests` - Count of blocked requests
-          - `allowed_domains` - Array of unique allowed domains
-          - `blocked_domains` - Array of unique blocked domains
-          - `requests_by_domain` - Object mapping domains to request statistics (allowed/blocked counts)
+          ### Report Quality
+          - Be specific with findings and examples
+          - Provide actionable recommendations
+          - Use clear visual indicators (✅/⚠️/❌) for quick scanning
+          - Keep executive summary brief but informative
           
-          **Example jq filter for aggregating blocked domains:**
-          ```bash
-          # Get only blocked domains across multiple runs
-          gh aw audit <run-id> --json | jq -r '.firewall_analysis.blocked_domains[]? // empty'
+          ### Error Handling
+          - If no daily reports are found, create a report noting the absence
+          - Handle malformed or unparseable reports gracefully
+          - Note any limitations in the analysis
           
-          # Get blocked domain statistics with counts
-          gh aw audit <run-id> --json | jq -r '
-            .firewall_analysis.requests_by_domain // {} | 
-            to_entries[] | 
-            select(.value.blocked > 0) | 
-            "\(.key): \(.value.blocked) blocked, \(.value.allowed) allowed"
-          '
-          ```
+          ## Success Criteria
           
-          For each workflow run with firewall data:
-          1. Extract the firewall analysis from the audit JSON output
-          2. Track the following metrics per workflow:
-             - Total requests (from `total_requests`)
-             - Allowed requests count (from `allowed_requests`)
-             - Blocked requests count (from `blocked_requests`)
-             - List of unique blocked domains (from `blocked_domains`)
-             - Domain-level statistics (from `requests_by_domain`)
+          A successful regulatory run will:
+          - ✅ Find and analyze all available daily report discussions
+          - ✅ Extract and compare key metrics across reports
+          - ✅ Identify any discrepancies or anomalies
+          - ✅ Close previous regulatory discussions
+          - ✅ Create a new discussion with comprehensive findings
+          - ✅ Provide actionable recommendations for data quality improvement
           
-          ### Step 4: Aggregate Results
-          
-          Combine data from all workflows:
-          1. Create a master list of all blocked domains across all workflows
-          2. Track how many times each domain was blocked
-          3. Track which workflows blocked which domains
-          4. Calculate overall statistics:
-             - Total workflows analyzed
-             - Total runs analyzed
-             - Total blocked domains (unique)
-             - Total blocked requests
-          
-          ### Step 5: Generate Report
-          
-          Create a comprehensive markdown report with the following sections:
-          
-          #### 1. Executive Summary
-          - Date of report (today's date)
-          - Total workflows analyzed
-          - Total runs analyzed  
-          - Total network requests monitored
-            - ✅ **Allowed**: Count of successful requests
-            - 🚫 **Blocked**: Count of blocked requests
-          - **Block rate**: Percentage of blocked requests (blocked / total * 100)
-          - Total unique blocked domains
-          
-          > **Terminology Note**: 
-          > - **Allowed requests** = Requests that successfully reached their destination
-          > - **Blocked requests** = Requests that were prevented by the firewall
-          > - A 0% block rate with listed blocked domains indicates domains that would 
-          >   be blocked if accessed, but weren't actually accessed during this period
-          
-          #### 2. Top Blocked Domains
-          A table showing the most frequently blocked domains:
-          - Domain name
-          - Number of times blocked
-          - Workflows that blocked it
-          - Example URLs (if available)
-          
-          Sort by frequency (most blocked first), show top 20.
-          
-          #### 3. Blocked Domains by Workflow
-          For each workflow that had blocked domains:
-          - Workflow name
-          - Number of unique blocked domains
-          - List of blocked domains
-          - Total blocked requests for this workflow
-          
-          #### 4. Complete Blocked Domains List
-          An alphabetically sorted list of all unique blocked domains with:
-          - Domain name
-          - Total occurrences across all workflows
-          - First seen date (from run timestamps)
-          
-          #### 5. Recommendations
-          Based on the analysis, provide:
-          - Domains that appear to be legitimate services that should be allowlisted
-          - Potential security concerns (e.g., suspicious domains)
-          - Suggestions for network permission improvements
-          - Workflows that might need their network permissions updated
-          
-          ### Step 6: Create Discussion
-          
-          Create a new GitHub discussion with:
-          - **Title**: "Daily Firewall Report - [Today's Date]"
-          - **Category**: audits
-          - **Body**: The complete markdown report generated in Step 5
-          
-          ## Notes
-          
-          - If no firewall logs are found, create a simple report stating that no firewall-enabled workflows ran in the past 7 days
-          - Include timestamps and run URLs for traceability
-          - Use tables and formatting for better readability
-          - Add emojis to make the report more engaging (🔥 for firewall, 🚫 for blocked, ✅ for allowed)
-          
-          ## Expected Output
-          
-          A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
+          Begin your regulatory analysis now. Find the daily reports, extract metrics, cross-check for consistency, and create the regulatory report.
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -1073,6 +1359,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1090,18 +1378,15 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 45
+        timeout-minutes: 30
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,localhost,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1199,6 +1484,15 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
             await main();
+      - name: Parse safe-inputs logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');
+            await main();
       - name: Parse MCP gateway logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1218,30 +1512,6 @@ jobs:
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
           awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
-      # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-          retention-days: 1
-          if-no-files-found: ignore
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      # Upload safe-outputs assets for upload_assets job
-      - name: Upload safe-outputs assets
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-          retention-days: 1
-          if-no-files-found: ignore
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1252,6 +1522,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/aw_info.json
             /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/safe-inputs/logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
           if-no-files-found: ignore
@@ -1261,10 +1532,7 @@ jobs:
       - activation
       - agent
       - detection
-      - push_repo_memory
       - safe_outputs
-      - update_cache_memory
-      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1315,8 +1583,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Regulatory Report Generator"
+          GH_AW_TRACKER_ID: "daily-regulatory"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1329,8 +1597,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Regulatory Report Generator"
+          GH_AW_TRACKER_ID: "daily-regulatory"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1343,8 +1611,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Regulatory Report Generator"
+          GH_AW_TRACKER_ID: "daily-regulatory"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
@@ -1363,8 +1631,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_WORKFLOW_NAME: "Daily Regulatory Report Generator"
+          GH_AW_TRACKER_ID: "daily-regulatory"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1416,8 +1684,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          WORKFLOW_DESCRIPTION: "Collects and reports on firewall log events to monitor network security and access patterns"
+          WORKFLOW_NAME: "Daily Regulatory Report Generator"
+          WORKFLOW_DESCRIPTION: "Daily regulatory workflow that monitors and cross-checks other daily report agents' outputs for data consistency and anomalies"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1536,66 +1804,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  push_repo_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
-        if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/firewall-reports
-          MAX_FILE_SIZE: 10240
-          MAX_FILE_COUNT: 100
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
-            await main();
-
   safe_outputs:
     needs:
       - agent
@@ -1608,9 +1816,9 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_TRACKER_ID: "daily-firewall-report"
-      GH_AW_WORKFLOW_ID: "daily-firewall-report"
-      GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
+      GH_AW_TRACKER_ID: "daily-regulatory"
+      GH_AW_WORKFLOW_ID: "daily-regulatory"
+      GH_AW_WORKFLOW_NAME: "Daily Regulatory Report Generator"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1641,123 +1849,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":10},\"create_discussion\":{\"category\":\"General\",\"close_older_discussions\":true,\"expires\":72,\"max\":1,\"title_prefix\":\"[daily regulatory] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
-            await main();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-
-  upload_assets:
-    needs:
-      - agent
-      - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
-      published_count: ${{ steps.upload_assets.outputs.published_count }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download assets
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-      - name: List downloaded asset files
-        continue-on-error: true
-        run: |
-          echo "Downloaded asset files:"
-          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Upload Assets to Orphaned Branch
-        id: upload_assets
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
-          GH_AW_TRACKER_ID: "daily-firewall-report"
-          GH_AW_ENGINE_ID: "copilot"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/upload_assets.cjs');
             await main();
 
