@@ -19,12 +19,43 @@ safe-outputs:
 
 The agent requests issue creation; a separate job with `issues: write` creates it.
 
+## Quick Reference
+
+Common safe outputs for quick access:
+
+| What do you want to do? | Safe Output | Max |
+|-------------------------|-------------|-----|
+| Create a GitHub issue | [`create-issue`](#issue-creation-create-issue) | 1 |
+| Create a pull request with code changes | [`create-pull-request`](#pull-request-creation-create-pull-request) | 1 |
+| Add a comment to an issue or PR | [`add-comment`](#comment-creation-add-comment) | 1 |
+| Add labels to issues or PRs | [`add-labels`](#add-labels-add-labels) | 3 |
+| Update an existing issue | [`update-issue`](#issue-updates-update-issue) | 1 |
+| Update an existing pull request | [`update-pull-request`](#pull-request-updates-update-pull-request) | 1 |
+| Close an issue with a comment | [`close-issue`](#close-issue-close-issue) | 1 |
+
+## Decision Guide
+
+Choose the right safe output based on your workflow's goal:
+
+| If you want to... | Use this safe output | Notes |
+|-------------------|---------------------|-------|
+| **Report findings or results** | `create-issue` | Best for audit results, bug reports, analysis summaries |
+| **Propose code changes** | `create-pull-request` | Automatically creates branch, commits, and PR |
+| **Respond to feedback** | `add-comment` | Works on issues, PRs, and discussions |
+| **Categorize or organize** | `add-labels` | Helps with triage and filtering |
+| **Request human review** | `add-reviewer` or `assign-to-agent` | Assigns reviewers or Copilot agent |
+| **Track work items** | `link-sub-issue` or `update-project` | Creates task hierarchy or updates project boards |
+| **Report security issues** | `create-code-scanning-alert` | Creates SARIF advisories in Code Scanning |
+| **Update documentation** | `update-release` or `create-pull-request` | Release notes or doc file changes |
+| **Clean up old content** | `close-issue` or `close-pull-request` | Auto-closes with optional comment |
+
 ## Available Safe Output Types
 
 > [!NOTE]
 > Most safe output types support cross-repository operations. Exceptions are noted below.
 
-### Issues & Discussions
+<details open>
+<summary><h3 style="display: inline;">🎯 Issues & Discussions</h3></summary>
 
 - [**Create Issue**](#issue-creation-create-issue) (`create-issue`) — Create GitHub issues (max: 1)
 - [**Update Issue**](#issue-updates-update-issue) (`update-issue`) — Update issue status, title, or body (max: 1)
@@ -34,7 +65,10 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Update Discussion**](#discussion-updates-update-discussion) (`update-discussion`) — Update discussion title, body, or labels (max: 1)
 - [**Close Discussion**](#close-discussion-close-discussion) (`close-discussion`) — Close discussions with comment and resolution (max: 1)
 
-### Pull Requests
+</details>
+
+<details open>
+<summary><h3 style="display: inline;">🔀 Pull Requests</h3></summary>
 
 - [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) — Create pull requests with code changes (max: 1)
 - [**Update PR**](#pull-request-updates-update-pull-request) (`update-pull-request`) — Update PR title or body (max: 1)
@@ -42,7 +76,10 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) — Create review comments on code lines (max: 10)
 - [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) — Push changes to PR branch (max: 1, same-repo only)
 
-### Labels, Assignments & Reviews
+</details>
+
+<details open>
+<summary><h3 style="display: inline;">🏷️ Labels, Assignments & Reviews</h3></summary>
 
 - [**Add Comment**](#comment-creation-add-comment) (`add-comment`) — Post comments on issues, PRs, or discussions (max: 1)
 - [**Hide Comment**](#hide-comment-hide-comment) (`hide-comment`) — Hide comments on issues, PRs, or discussions (max: 5)
@@ -52,7 +89,10 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) — Assign Copilot agents to issues or PRs (max: 1)
 - [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) — Assign users to issues (max: 1)
 
-### Projects, Releases & Assets
+</details>
+
+<details>
+<summary><h3 style="display: inline;">📦 Projects, Releases & Assets</h3></summary>
 
 - [**Create Project**](#project-creation-create-project) (`create-project`) — Create new GitHub Projects boards (max: 1, cross-repo)
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) — Manage GitHub Projects boards (max: 10, same-repo only)
@@ -61,23 +101,36 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Update Release**](#release-updates-update-release) (`update-release`) — Update GitHub release descriptions (max: 1)
 - [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) — Upload files to orphaned git branch (max: 10, same-repo only)
 
-### Security & Agent Tasks
+</details>
+
+<details>
+<summary><h3 style="display: inline;">🔒 Security & Agent Tasks</h3></summary>
 
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) — Generate SARIF security advisories (max: unlimited, same-repo only)
 - [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) — Create Copilot agent sessions (max: 1)
 
-### System Types (Auto-Enabled)
+</details>
+
+<details>
+<summary><h3 style="display: inline;">⚙️ System Types (Auto-Enabled)</h3></summary>
 
 - [**No-Op**](#no-op-logging-noop) (`noop`) — Log completion message for transparency (max: 1, same-repo only)
 - [**Missing Tool**](#missing-tool-reporting-missing-tool) (`missing-tool`) — Report missing tools (max: unlimited, same-repo only)
 - [**Missing Data**](#missing-data-reporting-missing-data) (`missing-data`) — Report missing data required to achieve goals (max: unlimited, same-repo only)
 
+</details>
+
+<details>
+<summary><h3 style="display: inline;">🛠️ Custom Safe Output Jobs</h3></summary>
+
 > [!TIP]
 > Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/). See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation and AI reasoning.
 
-### Custom Safe Output Jobs (`jobs:`)
-
 Create custom post-processing jobs registered as Model Context Protocol (MCP) tools. Support standard GitHub Actions properties and auto-access agent output via `$GH_AW_AGENT_OUTPUT`. See [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
+
+</details>
+
+---
 
 ### Issue Creation (`create-issue:`)
 
@@ -779,7 +832,10 @@ safe-outputs:
     target-repo: "owner/repo"  # cross-repository
 ```
 
-## Cross-Repository Operations
+<details>
+<summary><h2 style="display: inline;">⚙️ Configuration & Advanced Options</h2></summary>
+
+### Cross-Repository Operations
 
 Many safe outputs support `target-repo`. Requires PAT (`github-token` or `GH_AW_GITHUB_TOKEN`)—default `GITHUB_TOKEN` is current-repo only. Use specific names (no wildcards).
 
@@ -790,11 +846,11 @@ safe-outputs:
     target-repo: "org/tracking-repo"
 ```
 
-## Automatically Added Tools
+### Automatically Added Tools
 
 When `create-pull-request` or `push-to-pull-request-branch` are configured, file editing tools (Edit, MultiEdit, Write, NotebookEdit) and git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
-## Security and Sanitization
+### Security and Sanitization
 
 Auto-sanitization: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.
 
@@ -825,9 +881,9 @@ safe-outputs:
 
 With `[]`, references like `#123` become `` `#123` `` and `other/repo#456` becomes `` `other/repo#456` ``, preventing timeline clutter while preserving the information.
 
-## Global Configuration Options
+### Global Configuration Options
 
-### Custom GitHub Token (`github-token:`)
+#### Custom GitHub Token (`github-token:`)
 
 Token precedence: `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN` (default). Override globally or per safe output:
 
@@ -839,7 +895,7 @@ safe-outputs:
     github-token: ${{ secrets.PR_PAT }}    # per-output
 ```
 
-### GitHub App Token (`app:`)
+#### GitHub App Token (`app:`)
 
 Use GitHub App tokens for enhanced security: on-demand minting, auto-revocation, fine-grained permissions, better attribution. Supports config import from shared workflows.
 
@@ -853,7 +909,7 @@ safe-outputs:
   create-issue:
 ```
 
-### Maximum Patch Size (`max-patch-size:`)
+#### Maximum Patch Size (`max-patch-size:`)
 
 Limits git patch size for PR operations (1-10,240 KB, default: 1024 KB):
 
@@ -863,23 +919,23 @@ safe-outputs:
   create-pull-request:
 ```
 
-## Assigning to Copilot
+### Assigning to Copilot
 
 Use `assignees: copilot` or `reviewers: copilot` for bot assignment. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` PAT—default `GITHUB_TOKEN` lacks permissions.
 
-## Custom Runner Image
+### Custom Runner Image
 
 Specify custom runner for safe output jobs (default: `ubuntu-slim`): `runs-on: ubuntu-22.04`
 
-## Threat Detection
+### Threat Detection
 
 Auto-enabled. Analyzes output for prompt injection, secret leaks, malicious patches. See [Threat Detection Guide](/gh-aw/guides/threat-detection/).
 
-## Agentic Campaign Workflows
+### Agentic Campaign Workflows
 
 Combine `create-issue` + `update-project` for coordinated initiatives. Returns campaign ID, applies `campaign:<id>` labels, syncs boards. See [Campaign Workflows](/gh-aw/guides/campaigns/).
 
-## Custom Messages (`messages:`)
+### Custom Messages (`messages:`)
 
 Customize notifications using template variables and Markdown. Import from shared workflows (local overrides imported).
 
@@ -896,6 +952,8 @@ safe-outputs:
 **Templates**: `footer`, `footer-install`, `staged-title`, `staged-description`, `run-started`, `run-success`, `run-failure`
 
 **Variables**: `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
+
+</details>
 
 ## Related Documentation
 
