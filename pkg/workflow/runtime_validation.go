@@ -79,10 +79,10 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 
 			var errorMsg string
 			if key != "" {
-				errorMsg = fmt.Sprintf("expression value for %q (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead.",
-					key, actualSize, maxSizeFormatted, lineNum+1)
+				errorMsg = fmt.Sprintf("📝 The expression value for %q is too large (%s).\n\nWhy this matters: GitHub Actions has a 21KB limit for expression values including environment variables. This prevents workflows from failing at runtime.\n\nCurrent size: %s\nMaximum allowed: %s\nFound at line: %d\n\nTo fix, consider:\n  • Breaking the content into smaller chunks\n  • Using GitHub Actions artifacts for large data\n  • Storing data in files instead of environment variables",
+					key, actualSize, actualSize, maxSizeFormatted, lineNum+1)
 			} else {
-				errorMsg = fmt.Sprintf("line %d (%s) exceeds maximum allowed expression size (%s). GitHub Actions has a 21KB limit for expression values.",
+				errorMsg = fmt.Sprintf("📝 Line %d is too large (%s).\n\nGitHub Actions has a 21KB limit for expression values.\n\nMaximum allowed: %s\n\nConsider breaking this into smaller pieces or using artifacts.",
 					lineNum+1, actualSize, maxSizeFormatted)
 			}
 
@@ -261,7 +261,7 @@ func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
 	seen := make(map[string]bool)
 	for _, cache := range caches {
 		if seen[cache.ID] {
-			return fmt.Errorf("duplicate cache-memory ID '%s' found. Each cache must have a unique ID", cache.ID)
+			return fmt.Errorf("💡 Duplicate cache-memory ID '%s' found.\n\nWhy this matters: Each cache needs a unique ID so we can track it separately.\n\nTo fix: Give each cache a unique ID.\n\nExample:\n  tools:\n    cache-memory:\n      - id: user-preferences\n      - id: session-data", cache.ID)
 		}
 		seen[cache.ID] = true
 	}
@@ -275,7 +275,7 @@ func validateSecretReferences(secrets []string) error {
 
 	for _, secret := range secrets {
 		if !secretNamePattern.MatchString(secret) {
-			return fmt.Errorf("invalid secret name: %s. Secret names must start with an uppercase letter and contain only uppercase letters, numbers, and underscores. Example: MY_SECRET_KEY", secret)
+			return fmt.Errorf("🔒 The secret name '%s' doesn't follow the required format.\n\nWhy? GitHub secret names must be valid environment variable names for security and compatibility.\n\nRules:\n  • Start with an uppercase letter\n  • Contain only uppercase letters, numbers, and underscores\n\nExample: MY_SECRET_KEY\n\nLearn more: https://docs.github.com/en/actions/security-guides/encrypted-secrets", secret)
 		}
 	}
 

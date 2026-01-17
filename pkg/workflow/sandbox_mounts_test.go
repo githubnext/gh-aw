@@ -41,37 +41,37 @@ func TestValidateMountsSyntax(t *testing.T) {
 			name:    "invalid mount - too few parts",
 			mounts:  []string{"/host/path:/container/path"},
 			wantErr: true,
-			errMsg:  "invalid mount syntax",
+			errMsg:  "mount syntax",
 		},
 		{
 			name:    "invalid mount - too many parts",
 			mounts:  []string{"/host/path:/container/path:ro:extra"},
 			wantErr: true,
-			errMsg:  "invalid mount syntax",
+			errMsg:  "mount syntax",
 		},
 		{
 			name:    "invalid mount - empty source",
 			mounts:  []string{":/container/path:ro"},
 			wantErr: true,
-			errMsg:  "source path is empty",
+			errMsg:  "missing the source path",
 		},
 		{
 			name:    "invalid mount - empty destination",
 			mounts:  []string{"/host/path::ro"},
 			wantErr: true,
-			errMsg:  "destination path is empty",
+			errMsg:  "missing the destination path",
 		},
 		{
 			name:    "invalid mount - invalid mode",
 			mounts:  []string{"/host/path:/container/path:xyz"},
 			wantErr: true,
-			errMsg:  "mode must be 'ro' (read-only) or 'rw' (read-write)",
+			errMsg:  "Mode must be either",
 		},
 		{
 			name:    "invalid mount - uppercase mode",
 			mounts:  []string{"/host/path:/container/path:RO"},
 			wantErr: true,
-			errMsg:  "mode must be 'ro' (read-only) or 'rw' (read-write)",
+			errMsg:  "Mode must be either",
 		},
 		{
 			name: "mixed valid and invalid mounts",
@@ -80,7 +80,7 @@ func TestValidateMountsSyntax(t *testing.T) {
 				"/invalid:mount",
 			},
 			wantErr: true,
-			errMsg:  "invalid mount syntax at index 1",
+			errMsg:  "mount syntax at index 1",
 		},
 	}
 
@@ -186,7 +186,7 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "invalid mount syntax",
+			errMsg:  "mount syntax",
 		},
 		{
 			name: "invalid mode in mount",
@@ -210,7 +210,7 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "mode must be 'ro' (read-only) or 'rw' (read-write)",
+			errMsg:  "Mode must be either",
 		},
 	}
 

@@ -94,37 +94,37 @@ func TestValidateActionTag(t *testing.T) {
 			name:        "invalid - short SHA (7 chars)",
 			value:       "5c3428a",
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "must be a full 40-character commit SHA",
 		},
 		{
 			name:        "invalid - short SHA (8 chars)",
 			value:       "abc123de",
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "must be a full 40-character commit SHA",
 		},
 		{
 			name:        "invalid - version tag instead of SHA",
 			value:       "v1.0.0",
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "must be a full 40-character commit SHA",
 		},
 		{
 			name:        "invalid - not a string",
 			value:       12345,
 			expectError: true,
-			errorMsg:    "action-tag must be a string",
+			errorMsg:    "needs to be a string",
 		},
 		{
 			name:        "invalid - boolean",
 			value:       true,
 			expectError: true,
-			errorMsg:    "action-tag must be a string",
+			errorMsg:    "needs to be a string",
 		},
 		{
 			name:        "invalid - uppercase SHA",
 			value:       "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "must be a full 40-character commit SHA",
 		},
 	}
 
@@ -180,7 +180,7 @@ func TestValidateFeatures(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "must be a full 40-character commit SHA",
 		},
 		{
 			name: "invalid action-tag - version tag",
@@ -190,7 +190,7 @@ func TestValidateFeatures(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "action-tag must be a full 40-character commit SHA",
+			errorMsg:    "must be a full 40-character commit SHA",
 		},
 		{
 			name: "empty action-tag is allowed",

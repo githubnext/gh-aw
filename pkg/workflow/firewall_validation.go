@@ -26,5 +26,5 @@ func ValidateLogLevel(level string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid log-level '%s', must be one of: %v", level, valid)
+	return fmt.Errorf("💡 The log-level '%s' isn't recognized.\n\nValid log levels:\n  • debug - Most detailed, useful for troubleshooting\n  • info - Standard logging (default)\n  • warn - Warnings only\n  • error - Errors only\n\nExample:\n  network:\n    firewall:\n      log-level: info", level)
 }

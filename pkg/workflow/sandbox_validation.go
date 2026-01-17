@@ -28,7 +28,7 @@ func validateMountsSyntax(mounts []string) error {
 
 		// Must have exactly 3 parts: source, destination, mode
 		if len(parts) != 3 {
-			return fmt.Errorf("invalid mount syntax at index %d: '%s'. Expected format: 'source:destination:mode' (e.g., '/host/path:/container/path:ro')", i, mount)
+			return fmt.Errorf("💡 The mount syntax at index %d needs adjustment: '%s'\n\nExpected format: 'source:destination:mode'\n\nWhere:\n  • source: Path on host machine\n  • destination: Path in container\n  • mode: Either 'ro' (read-only) or 'rw' (read-write)\n\nExample:\n  /host/path:/container/path:ro", i, mount)
 		}
 
 		source := parts[0]
@@ -37,15 +37,15 @@ func validateMountsSyntax(mounts []string) error {
 
 		// Validate that source and destination are not empty
 		if source == "" {
-			return fmt.Errorf("invalid mount at index %d: source path is empty in '%s'", i, mount)
+			return fmt.Errorf("💡 Mount at index %d is missing the source path in '%s'.\n\nThe source path tells us what directory to mount from the host.\n\nFormat: 'source:destination:mode'\nExample: /host/data:/container/data:ro", i, mount)
 		}
 		if dest == "" {
-			return fmt.Errorf("invalid mount at index %d: destination path is empty in '%s'", i, mount)
+			return fmt.Errorf("💡 Mount at index %d is missing the destination path in '%s'.\n\nThe destination path tells us where to mount it in the container.\n\nFormat: 'source:destination:mode'\nExample: /host/data:/container/data:ro", i, mount)
 		}
 
 		// Validate mode is either "ro" or "rw"
 		if mode != "ro" && mode != "rw" {
-			return fmt.Errorf("invalid mount at index %d: mode must be 'ro' (read-only) or 'rw' (read-write), got '%s' in '%s'", i, mode, mount)
+			return fmt.Errorf("💡 Mount at index %d has an invalid mode '%s' in '%s'.\n\nMode must be either:\n  • 'ro' - read-only (recommended for security)\n  • 'rw' - read-write (use with caution)\n\nExample: /host/data:/container/data:ro", i, mode, mount)
 		}
 
 		sandboxValidationLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, source, dest, mode)
@@ -88,7 +88,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	if isSRTEnabled(workflowData) {
 		// Check if the sandbox-runtime feature flag is enabled
 		if !isFeatureEnabled(constants.SandboxRuntimeFeatureFlag, workflowData) {
-			return fmt.Errorf("sandbox-runtime feature is experimental and requires the 'sandbox-runtime' feature flag to be enabled. Set 'features: { sandbox-runtime: true }' in frontmatter or set GH_AW_FEATURES=sandbox-runtime")
+			return fmt.Errorf("🏗️  Sandbox-runtime is experimental and needs a feature flag.\n\nWhy? This feature is still in active development.\n\nTo enable:\n  features:\n    sandbox-runtime: true\n\nOr set environment variable:\n  GH_AW_FEATURES=sandbox-runtime")
 		}
 
 		if workflowData.EngineConfig == nil || workflowData.EngineConfig.ID != "copilot" {
@@ -96,19 +96,19 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			if workflowData.EngineConfig != nil {
 				engineID = workflowData.EngineConfig.ID
 			}
-			return fmt.Errorf("sandbox-runtime is only supported with Copilot engine (current engine: %s)", engineID)
+			return fmt.Errorf("⚠️  Sandbox-runtime requires the Copilot engine (currently using: %s).\n\nWhy? This feature is specifically designed for GitHub Copilot.\n\nTo fix:\n  engine: copilot\n  sandbox: sandbox-runtime", engineID)
 		}
 
 		// Check for mutual exclusivity with AWF
 		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil && workflowData.NetworkPermissions.Firewall.Enabled {
-			return fmt.Errorf("sandbox-runtime and AWF firewall cannot be used together; please use either 'sandbox: sandbox-runtime' or 'network.firewall' but not both")
+			return fmt.Errorf("⚠️  Both sandbox-runtime and AWF firewall are enabled.\n\nWhy this matters: These two security features can't be used together - choose one approach.\n\nOptions:\n  1. Use sandbox-runtime:\n     sandbox: sandbox-runtime\n\n  2. Use AWF firewall:\n     network:\n       firewall:\n         enabled: true\n\nBoth provide network security, but use different approaches.")
 		}
 	}
 
 	// Validate config structure if provided
 	if sandboxConfig.Config != nil {
 		if sandboxConfig.Type != SandboxTypeRuntime {
-			return fmt.Errorf("custom sandbox config can only be provided when type is 'sandbox-runtime'")
+			return fmt.Errorf("💡 Custom sandbox configuration detected.\n\nCustom sandbox configs are only supported when type is 'sandbox-runtime'.\n\nExample:\n  sandbox:\n    type: sandbox-runtime\n    config:\n      # your custom config here")
 		}
 	}
 
@@ -124,7 +124,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			sandboxConfig.Type != ""
 
 		if hasExplicitSandboxConfig && !HasMCPServers(workflowData) {
-			return fmt.Errorf("agent sandbox is enabled but MCP gateway is not enabled. The agent sandbox requires MCP servers to be configured. Add tools that use MCP (e.g., 'github', 'playwright') or disable the sandbox with 'sandbox: false'")
+			return fmt.Errorf("🏗️  Agent sandbox is enabled, but the MCP gateway isn't configured.\n\nWhy this matters: The agent sandbox requires MCP servers to work properly.\n\nTo fix, either:\n  1. Add MCP tools (recommended):\n     tools:\n       github:\n         mode: remote\n\n  2. Disable the sandbox:\n     sandbox: false\n\nLearn more: https://githubnext.github.io/gh-aw/guides/mcp-servers/")
 		}
 		if hasExplicitSandboxConfig {
 			sandboxValidationLog.Print("Sandbox enabled with MCP gateway - validation passed")

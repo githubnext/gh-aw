@@ -65,7 +65,7 @@ func validateActionTag(value any) error {
 	// Convert to string
 	strVal, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("action-tag must be a string, got %T", value)
+		return fmt.Errorf("💡 The action-tag feature needs to be a string (got %T).\n\nExample:\n  features:\n    action-tag: \"abc123...\" # full 40-char SHA", value)
 	}
 
 	// Allow empty string (falls back to version)
@@ -75,7 +75,7 @@ func validateActionTag(value any) error {
 
 	// Validate it's a full SHA (40 hex characters)
 	if !isValidFullSHA(strVal) {
-		return fmt.Errorf("action-tag must be a full 40-character commit SHA, got %q (length: %d). Short SHAs are not allowed. Use 'git rev-parse <ref>' to get the full SHA", strVal, len(strVal))
+		return fmt.Errorf("🔒 The action-tag must be a full 40-character commit SHA (got %q with length %d).\n\nWhy? Short SHAs can be ambiguous and pose security risks.\n\nTo get the full SHA:\n  git rev-parse <ref>\n\nExample:\n  features:\n    action-tag: \"1234567890abcdef1234567890abcdef12345678\"\n\nLearn more: https://githubnext.github.io/gh-aw/reference/features/#action-tag", strVal, len(strVal))
 	}
 
 	return nil

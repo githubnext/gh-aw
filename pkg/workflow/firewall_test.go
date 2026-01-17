@@ -42,43 +42,43 @@ func TestValidateLogLevel(t *testing.T) {
 			name:      "invalid log-level: verbose",
 			logLevel:  "verbose",
 			expectErr: true,
-			errMsg:    "invalid log-level 'verbose'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name:      "invalid log-level: trace",
 			logLevel:  "trace",
 			expectErr: true,
-			errMsg:    "invalid log-level 'trace'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name:      "invalid log-level: warning",
 			logLevel:  "warning",
 			expectErr: true,
-			errMsg:    "invalid log-level 'warning'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name:      "invalid log-level: fatal",
 			logLevel:  "fatal",
 			expectErr: true,
-			errMsg:    "invalid log-level 'fatal'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name:      "invalid log-level: DEBUG (uppercase)",
 			logLevel:  "DEBUG",
 			expectErr: true,
-			errMsg:    "invalid log-level 'DEBUG'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name:      "invalid log-level: Info (mixed case)",
 			logLevel:  "Info",
 			expectErr: true,
-			errMsg:    "invalid log-level 'Info'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name:      "invalid log-level: random string",
 			logLevel:  "random",
 			expectErr: true,
-			errMsg:    "invalid log-level 'random'",
+			errMsg:    "isn't recognized",
 		},
 	}
 
@@ -198,7 +198,7 @@ func TestValidateFirewallConfig(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			errMsg:    "invalid log-level 'verbose'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name: "invalid log-level: trace",
@@ -211,7 +211,7 @@ func TestValidateFirewallConfig(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			errMsg:    "invalid log-level 'trace'",
+			errMsg:    "isn't recognized",
 		},
 		{
 			name: "invalid log-level: DEBUG (uppercase)",
@@ -224,7 +224,7 @@ func TestValidateFirewallConfig(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			errMsg:    "invalid log-level 'DEBUG'",
+			errMsg:    "isn't recognized",
 		},
 	}
 
@@ -260,12 +260,12 @@ func TestValidateLogLevelErrorMessageQuality(t *testing.T) {
 
 	// Check that error message contains key information
 	requiredStrings := []string{
-		"verbose",           // The invalid value
-		"invalid log-level", // Clear error type
-		"debug",             // Valid option 1
-		"info",              // Valid option 2
-		"warn",              // Valid option 3
-		"error",             // Valid option 4
+		"verbose",  // The invalid value
+		"isn't",    // Empathetic phrasing
+		"debug",    // Valid option 1
+		"info",     // Valid option 2
+		"warn",     // Valid option 3
+		"error",    // Valid option 4
 	}
 
 	for _, required := range requiredStrings {
@@ -274,8 +274,8 @@ func TestValidateLogLevelErrorMessageQuality(t *testing.T) {
 		}
 	}
 
-	// Check that error message is concise and helpful
-	if len(errMsg) > 200 {
+	// Check that error message is concise and helpful (but empathetic messages are longer)
+	if len(errMsg) > 400 {
 		t.Errorf("Error message is too long (%d chars): %q", len(errMsg), errMsg)
 	}
 }

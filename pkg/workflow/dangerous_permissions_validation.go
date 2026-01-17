@@ -73,21 +73,33 @@ func findWritePermissions(permissions *Permissions) []PermissionScope {
 	return writePerms
 }
 
-// formatDangerousPermissionsError formats an error message for write permissions violations
+// formatDangerousPermissionsError formats an empathetic error message for write permissions violations
 func formatDangerousPermissionsError(writePermissions []PermissionScope) error {
 	var lines []string
-	lines = append(lines, "Write permissions are not allowed.")
+	lines = append(lines, "🔒 Write permissions detected in your workflow.")
+	lines = append(lines, "")
+	lines = append(lines, "Why this matters: For security, workflows use read-only permissions by default.")
+	lines = append(lines, "Write permissions can modify repository contents and settings, which requires")
+	lines = append(lines, "explicit opt-in through a feature flag.")
 	lines = append(lines, "")
 	lines = append(lines, "Found write permissions:")
 	for _, scope := range writePermissions {
-		lines = append(lines, fmt.Sprintf("  - %s: write", scope))
+		lines = append(lines, fmt.Sprintf("  • %s: write", scope))
 	}
 	lines = append(lines, "")
-	lines = append(lines, "To fix this issue, change write permissions to read:")
-	lines = append(lines, "permissions:")
+	lines = append(lines, "You have two options:")
+	lines = append(lines, "")
+	lines = append(lines, "1. Change to read-only (recommended):")
+	lines = append(lines, "   permissions:")
 	for _, scope := range writePermissions {
-		lines = append(lines, fmt.Sprintf("  %s: read", scope))
+		lines = append(lines, fmt.Sprintf("     %s: read", scope))
 	}
+	lines = append(lines, "")
+	lines = append(lines, "2. Enable write permissions feature flag:")
+	lines = append(lines, "   features:")
+	lines = append(lines, "     dangerous-permissions-write: true")
+	lines = append(lines, "")
+	lines = append(lines, "Learn more: https://githubnext.github.io/gh-aw/reference/permissions/")
 
 	return fmt.Errorf("%s", strings.Join(lines, "\n"))
 }

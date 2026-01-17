@@ -42,13 +42,13 @@ func TestValidateEngine(t *testing.T) {
 			name:        "invalid engine ID",
 			engineID:    "invalid-engine",
 			expectError: true,
-			errorMsg:    "invalid engine",
+			errorMsg:    "don't recognize the engine",
 		},
 		{
 			name:        "unknown engine ID",
 			engineID:    "gpt-7",
 			expectError: true,
-			errorMsg:    "invalid engine",
+			errorMsg:    "don't recognize the engine",
 		},
 	}
 

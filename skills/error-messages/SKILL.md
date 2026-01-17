@@ -11,55 +11,90 @@ This guide establishes the standard format for validation error messages in the 
 ## Error Message Template
 
 ```
-[what's wrong]. [what's expected]. [example of correct usage]
+[empathetic opening with emoji] [what's wrong and why it matters]. 
+
+[context: why this rule exists]
+
+[what's expected with specific examples]
+
+[learning resource link if applicable]
 ```
 
-Each error message should answer three questions:
-1. **What's wrong?** - Clearly state the validation error
-2. **What's expected?** - Explain the valid format or values
-3. **How to fix it?** - Provide a concrete example of correct usage
+Each error message should answer these questions:
+1. **Acknowledge the situation** - Use an emoji and empathetic opening (🤔, 💡, ⚠️, 🔒)
+2. **What's wrong?** - Clearly state the validation error
+3. **Why does this matter?** - Explain the reason (security, best practices, compatibility)
+4. **What's expected?** - Explain the valid format or values
+5. **How to fix it?** - Provide concrete examples of correct usage
+6. **Where to learn more?** - Link to relevant documentation when helpful
 
 ## Good Examples
 
-These examples follow the template and provide actionable guidance:
+These examples follow the empathetic template and provide educational guidance:
 
-### Time Delta Validation (from time_delta.go)
+### Engine Validation (Empathetic)
 ```go
-return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m", deltaStr)
+return fmt.Errorf("🤔 Hmm, we don't recognize the engine '%s'.\n\nValid options are:\n  • copilot (GitHub Copilot)\n  • claude (Anthropic Claude)\n  • codex (OpenAI Codex)\n  • custom (your own engine)\n\nExample:\n  engine: copilot\n\nNeed help choosing? See: https://githubnext.github.io/gh-aw/reference/engines/", engineID)
 ```
 ✅ **Why it's good:**
-- Clearly identifies the invalid input
-- Lists multiple valid format examples
-- Shows combined formats (+1d12h30m)
+- Empathetic opening with emoji
+- Lists all options with descriptions
+- Provides learning resource link
+- Conversational, non-blaming tone
 
-### Type Validation with Example
+### Security Validation (Empathetic)
 ```go
-return "", fmt.Errorf("manual-approval value must be a string, got %T. Example: manual-approval: \"production\"", val)
+return fmt.Errorf("🔒 Write permissions detected.\n\nFor security, workflows use read-only permissions by default. Write permissions require the 'dangerous-permissions-write' feature flag.\n\nWhy? Write permissions can modify repository contents and settings, which needs explicit opt-in.\n\nFound write permissions:\n%s\n\nTo fix, either:\n  1. Change to read permissions:\n     permissions:\n       contents: read\n\n  2. Or enable the feature flag:\n     features:\n       dangerous-permissions-write: true\n\nLearn more: https://githubnext.github.io/gh-aw/reference/permissions/", details)
 ```
 ✅ **Why it's good:**
-- Shows actual type received (%T)
-- Provides concrete YAML example
-- Uses proper YAML syntax with quotes
+- Lock emoji for security context
+- Explains *why* the rule exists
+- Provides two fix options
+- Links to documentation
+- Educational and empowering
 
-### Enum Validation with Options
+### MCP Configuration (Empathetic)
 ```go
-return fmt.Errorf("invalid engine: %s. Valid engines are: copilot, claude, codex, custom. Example: engine: copilot", engineID)
+return fmt.Errorf("💡 The MCP server '%s' needs a way to start.\n\nMCP servers using 'stdio' type need either a 'command' or 'container', but not both.\n\nWhy? The command tells us how to launch your MCP server.\n\nExample with command:\n  tools:\n    %s:\n      command: \"node server.js\"\n      args: [\"--port\", \"3000\"]\n\nOr with container:\n  tools:\n    %s:\n      container: \"my-registry/my-tool\"\n      version: \"latest\"\n\nLearn more: https://githubnext.github.io/gh-aw/guides/mcp-servers/", toolName, toolName, toolName)
 ```
 ✅ **Why it's good:**
-- Lists all valid options
-- Provides simplest example
-- Uses consistent formatting
+- Light bulb emoji for helpful suggestion
+- Explains the requirement clearly
+- Shows both valid options
+- Includes why the rule exists
+- Links to detailed guide
 
-### MCP Configuration
-```go
-return fmt.Errorf("tool '%s' mcp configuration must specify either 'command' or 'container'. Example:\ntools:\n  %s:\n    command: \"npx @my/tool\"", toolName, toolName)
-```
-✅ **Why it's good:**
-- Explains mutual exclusivity
-- Shows realistic tool name
-- Formats multi-line YAML example
+## Emoji Guidelines
 
-## Bad Examples
+Choose emojis that match the context and tone:
+
+- **🤔** - Confusion or something not recognized (invalid values, unknown options)
+- **💡** - Helpful suggestion or tip (configuration needs, how to fix)
+- **⚠️** - Warning or caution (potential issues, best practices)
+- **🔒** - Security-related (permissions, access control, sensitive data)
+- **📝** - Documentation or format issues (syntax, structure)
+- **🏗️** - Build or configuration setup (missing dependencies, setup requirements)
+- **🔍** - Not found or missing (files, resources, references)
+
+Use emojis sparingly - one per error message is enough.
+
+## Conversational Tone Guidelines
+
+Write error messages as if you're a helpful colleague:
+
+**DO:**
+- Use "we" and "you" to be inclusive
+- Acknowledge the situation empathetically
+- Explain the "why" behind rules
+- Offer choices when applicable
+- End with a learning opportunity
+
+**DON'T:**
+- Blame the user ("you did this wrong")
+- Use overly technical jargon without explanation
+- Be condescending or patronizing
+- Use multiple emojis in one message
+- Make jokes that minimize the issue
 
 These examples lack clarity or actionable guidance:
 

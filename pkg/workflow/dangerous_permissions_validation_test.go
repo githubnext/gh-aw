@@ -198,13 +198,13 @@ func TestFormatDangerousPermissionsError(t *testing.T) {
 				PermissionContents,
 			},
 			expectedContains: []string{
-				"Write permissions are not allowed",
+				"Write permissions detected",
 				"contents: write",
 				"contents: read",
+				"dangerous-permissions-write: true",
 			},
 			expectedNotContain: []string{
-				"dangerous-permissions-write: true",
-				"Option 2",
+				// Empty - we now include the feature flag option
 			},
 		},
 		{
@@ -214,15 +214,15 @@ func TestFormatDangerousPermissionsError(t *testing.T) {
 				PermissionIssues,
 			},
 			expectedContains: []string{
-				"Write permissions are not allowed",
+				"Write permissions detected",
 				"contents: write",
 				"issues: write",
 				"contents: read",
 				"issues: read",
+				"dangerous-permissions-write: true",
 			},
 			expectedNotContain: []string{
-				"dangerous-permissions-write: true",
-				"Option 2",
+				// Empty - we now include the feature flag option
 			},
 		},
 	}

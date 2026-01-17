@@ -90,7 +90,7 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 					Column: 1,
 				},
 				Type:    "error",
-				Message: fmt.Sprintf("agent file '%s' does not exist. Ensure the file exists in the repository and is properly imported.", agentPath),
+				Message: fmt.Sprintf("🔍 Can't find the agent file '%s'.\n\nPlease check:\n  • The file path is correct\n  • The file exists in your repository\n  • The path is relative to repository root\n\nExample:\n  agent:\n    file: \".github/agents/developer.md\"", agentPath),
 			})
 			return errors.New(formattedErr)
 		}
@@ -126,7 +126,7 @@ func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine Cod
 	for toolName, toolConfig := range tools {
 		if config, ok := toolConfig.(map[string]any); ok {
 			if hasMcp, mcpType := hasMCPConfig(config); hasMcp && mcpType == "http" {
-				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s'. Only stdio transport is supported. Use a different engine (e.g., copilot) or change the tool to use stdio transport. Example:\ntools:\n  %s:\n    type: stdio\n    command: \"node server.js\"", toolName, engine.GetID(), toolName)
+				return fmt.Errorf("⚠️  The '%s' tool uses HTTP transport, which isn't supported by the '%s' engine.\n\nWhy? The %s engine only supports stdio (local process) communication.\n\nYour options:\n  1. Switch to an engine that supports HTTP (recommended):\n     engine: copilot\n\n  2. Change the tool to use stdio transport:\n     tools:\n       %s:\n         type: stdio\n         command: \"node server.js\"\n\nLearn more: https://githubnext.github.io/gh-aw/reference/engines/", toolName, engine.GetID(), engine.GetID(), toolName)
 			}
 		}
 	}
@@ -149,7 +149,7 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 
 	// max-turns is specified, check if the engine supports it
 	if !engine.SupportsMaxTurns() {
-		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature. Use engine: copilot or remove max-turns from your configuration. Example:\nengine:\n  id: copilot\n  max-turns: 5", engine.GetID())
+		return fmt.Errorf("⚠️  The max-turns feature isn't supported by the '%s' engine.\n\nWhy? This feature requires specific engine capabilities for conversation management.\n\nYour options:\n  1. Switch to Copilot (recommended):\n     engine:\n       id: copilot\n       max-turns: 5\n\n  2. Remove max-turns from your configuration\n\nLearn more: https://githubnext.github.io/gh-aw/reference/engines/#max-turns", engine.GetID())
 	}
 
 	// Engine supports max-turns - additional validation could be added here if needed
@@ -170,7 +170,7 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 
 	// web-search is specified, check if the engine supports it
 	if !engine.SupportsWebSearch() {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://githubnext.github.io/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("💡 The '%s' engine doesn't support the web-search tool yet.\n\nThe workflow will compile, but web-search won't be available at runtime.\n\nSee alternatives: https://githubnext.github.io/gh-aw/guides/web-search/", engine.GetID())))
 		c.IncrementWarningCount()
 	}
 }
@@ -230,17 +230,21 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	}
 
 	// workflow_run without branches - this is a warning or error depending on mode
-	message := "workflow_run trigger should include branch restrictions for security and performance.\n\n" +
-		"Without branch restrictions, the workflow will run for workflow runs on ALL branches,\n" +
-		"which can cause unexpected behavior and security issues.\n\n" +
-		"Suggested fix: Add branch restrictions to your workflow_run trigger:\n" +
+	message := "⚠️  Your workflow_run trigger is missing branch restrictions.\n\n" +
+		"Why this matters: Without branch restrictions, the workflow will run for ALL branches,\n" +
+		"which can cause:\n" +
+		"  • Unexpected behavior on feature branches\n" +
+		"  • Wasted CI resources\n" +
+		"  • Potential security issues\n\n" +
+		"Recommended fix - Add branch restrictions:\n" +
 		"on:\n" +
 		"  workflow_run:\n" +
 		"    workflows: [\"your-workflow\"]\n" +
 		"    types: [completed]\n" +
 		"    branches:\n" +
 		"      - main\n" +
-		"      - develop"
+		"      - develop\n\n" +
+		"Learn more: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run"
 
 	if c.strictMode {
 		// In strict mode, this is an error
